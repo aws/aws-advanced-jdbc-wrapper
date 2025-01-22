@@ -87,7 +87,7 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 public class HikariTests {
 
   private static final Logger LOGGER = Logger.getLogger(HikariTests.class.getName());
-  protected static final AuroraTestUtility testUtil = AuroraTestUtility.getUtility();
+  protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
 
   @TestTemplate
   public void testOpenConnectionWithUrl() throws SQLException {
@@ -192,7 +192,7 @@ public class HikariTests {
             // (since we rely on small socket timeout and small failover timeout). However,
             // if it takes more time, we'd like to exit by timeout rather than waiting indefinitely.
             executeWithTimeout(
-                () -> testUtil.queryInstanceId(conn),
+                () -> auroraUtil.queryInstanceId(conn),
                 TimeUnit.MINUTES.toMillis(1)
             )
         );
@@ -234,18 +234,18 @@ public class HikariTests {
       // Get a valid connection, then make it fail over to a different instance
       try (Connection conn = dataSource.getConnection()) {
         assertTrue(conn.isValid(5));
-        String currentConnectionId = testUtil.queryInstanceId(conn);
+        String currentConnectionId = auroraUtil.queryInstanceId(conn);
         assertTrue(currentConnectionId.equalsIgnoreCase(writerIdentifier));
         LOGGER.fine("Connected to instance: " + currentConnectionId);
 
         ProxyHelper.enableConnectivity(readerIdentifier);
         ProxyHelper.disableConnectivity(writerIdentifier);
 
-        assertThrows(FailoverSuccessSQLException.class, () -> testUtil.queryInstanceId(conn));
+        assertThrows(FailoverSuccessSQLException.class, () -> auroraUtil.queryInstanceId(conn));
 
         // Check the connection is valid after connecting to a different instance
         assertTrue(conn.isValid(5));
-        currentConnectionId = testUtil.queryInstanceId(conn);
+        currentConnectionId = auroraUtil.queryInstanceId(conn);
         LOGGER.fine("Connected to instance: " + currentConnectionId);
         assertTrue(currentConnectionId.equalsIgnoreCase(readerIdentifier));
 
@@ -280,7 +280,7 @@ public class HikariTests {
 
       // Open connection and then return it to the pool
       Connection conn = ds.getConnection();
-      assertEquals(readerId, testUtil.queryInstanceId(conn));
+      assertEquals(readerId, auroraUtil.queryInstanceId(conn));
       conn.close();
 
       ProxyHelper.disableConnectivity(reader.getInstanceId());
@@ -292,7 +292,7 @@ public class HikariTests {
       // Driver will fail over internally and return a connection to another node.
       conn = ds.getConnection();
       // Assert that we connected to a different node.
-      assertNotEquals(readerId, testUtil.queryInstanceId(conn));
+      assertNotEquals(readerId, auroraUtil.queryInstanceId(conn));
     } finally {
       ConnectionProviderManager.releaseResources();
     }
@@ -340,7 +340,7 @@ public class HikariTests {
       // Driver will fail over internally and return a connection to another node.
       try (Connection conn = ds.getConnection()) {
         // Assert that we connected to a different node.
-        assertNotEquals(writerId, testUtil.queryInstanceId(conn));
+        assertNotEquals(writerId, auroraUtil.queryInstanceId(conn));
       }
     } finally {
       ConnectionProviderManager.releaseResources();
@@ -371,7 +371,7 @@ public class HikariTests {
 
       // Open connection and then return it to the pool
       Connection conn = ds.getConnection();
-      assertEquals(writerId, testUtil.queryInstanceId(conn));
+      assertEquals(writerId, auroraUtil.queryInstanceId(conn));
       conn.close();
 
       ProxyHelper.disableAllConnectivity();

@@ -226,10 +226,10 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
     final TestEnvironmentInfo testInfo = TestEnvironment.getCurrent().getInfo();
     final TestEnvironmentRequest testRequest = testInfo.getRequest();
 
-    final AuroraTestUtility testUtil = AuroraTestUtility.getUtility(testInfo);
-    testUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
+    final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility(testInfo);
+    auroraUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
 
-    testUtil.makeSureInstancesUp(TimeUnit.MINUTES.toSeconds(3));
+    auroraUtil.makeSureInstancesUp(TimeUnit.MINUTES.toSeconds(3));
 
     if (makeSureFirstInstanceWriter) {
 
@@ -240,13 +240,13 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
       long startTimeNano = System.nanoTime();
       while ((instanceIDs.size() != testRequest.getNumOfInstances()
           || instanceIDs.isEmpty()
-          || !testUtil.isDBInstanceWriter(instanceIDs.get(0)))
+          || !auroraUtil.isDBInstanceWriter(instanceIDs.get(0)))
           && TimeUnit.NANOSECONDS.toMinutes(System.nanoTime() - startTimeNano) < 10) {
 
         Thread.sleep(5000);
 
         try {
-          instanceIDs = testUtil.getAuroraInstanceIds();
+          instanceIDs = auroraUtil.getAuroraInstanceIds();
         } catch (SQLException ex) {
           if (POSTGRES_AUTH_ERROR_CODE.equals(ex.getSQLState())) {
             // This authentication error for PG is caused by test environment configuration.
@@ -257,7 +257,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
       }
       assertTrue(instanceIDs.size() > 0);
       assertTrue(
-          testUtil.isDBInstanceWriter(
+          auroraUtil.isDBInstanceWriter(
               testInfo.getAuroraClusterName(),
               instanceIDs.get(0)));
       String currentWriter = instanceIDs.get(0);
@@ -269,7 +269,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
       testInfo.getProxyDatabaseInfo().moveInstanceFirst(currentWriter);
 
       // Wait for cluster endpoint to resolve to the writer
-      final boolean dnsOk = testUtil.waitDnsEqual(
+      final boolean dnsOk = auroraUtil.waitDnsEqual(
           dbInfo.getClusterEndpoint(),
           dbInfo.getInstances().get(0).getHost(),
           TimeUnit.MINUTES.toSeconds(5),
@@ -280,7 +280,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
 
       if (instanceIDs.size() > 1) {
         // Wait for cluster RO endpoint to resolve NOT to the writer
-        final boolean dnsROOk = testUtil.waitDnsNotEqual(
+        final boolean dnsROOk = auroraUtil.waitDnsNotEqual(
             dbInfo.getClusterReadOnlyEndpoint(),
             dbInfo.getInstances().get(0).getHost(),
             TimeUnit.MINUTES.toSeconds(5),
@@ -295,47 +295,47 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
   public static void rebootCluster() throws InterruptedException {
 
     final TestEnvironmentInfo testInfo = TestEnvironment.getCurrent().getInfo();
-    final AuroraTestUtility testUtil = AuroraTestUtility.getUtility(testInfo);
+    final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility(testInfo);
 
     List<String> instanceIDs = testInfo.getDatabaseInfo().getInstances().stream()
         .map(TestInstanceInfo::getInstanceId)
         .collect(Collectors.toList());
 
-    testUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
+    auroraUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
 
     // Instances should have one of the following statuses to allow reboot a cluster.
     for (String instanceId : instanceIDs) {
-      testUtil.waitUntilInstanceHasRightState(instanceId,
+      auroraUtil.waitUntilInstanceHasRightState(instanceId,
           "available", "storage-optimization",
           "incompatible-credentials", "incompatible-parameters", "unavailable");
     }
-    testUtil.rebootCluster(testInfo.getAuroraClusterName());
-    testUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName(), "rebooting");
-    testUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
-    testUtil.makeSureInstancesUp(TimeUnit.MINUTES.toSeconds(10));
+    auroraUtil.rebootCluster(testInfo.getAuroraClusterName());
+    auroraUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName(), "rebooting");
+    auroraUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
+    auroraUtil.makeSureInstancesUp(TimeUnit.MINUTES.toSeconds(10));
   }
 
   public static void rebootAllClusterInstances() throws InterruptedException {
 
     final TestEnvironmentInfo testInfo = TestEnvironment.getCurrent().getInfo();
-    final AuroraTestUtility testUtil = AuroraTestUtility.getUtility(testInfo);
+    final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility(testInfo);
 
     List<String> instanceIDs = testInfo.getDatabaseInfo().getInstances().stream()
         .map(TestInstanceInfo::getInstanceId)
         .collect(Collectors.toList());
 
-    testUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
+    auroraUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
 
     for (String instanceId : instanceIDs) {
-      testUtil.rebootInstance(instanceId);
+      auroraUtil.rebootInstance(instanceId);
     }
 
-    testUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
+    auroraUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
 
     for (String instanceId : instanceIDs) {
-      testUtil.waitUntilInstanceHasRightState(instanceId);
+      auroraUtil.waitUntilInstanceHasRightState(instanceId);
     }
 
-    testUtil.makeSureInstancesUp(TimeUnit.MINUTES.toSeconds(10));
+    auroraUtil.makeSureInstancesUp(TimeUnit.MINUTES.toSeconds(10));
   }
 }

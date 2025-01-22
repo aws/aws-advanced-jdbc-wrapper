@@ -99,7 +99,7 @@ public class AdvancedPerformanceTest {
 
   private static final ConcurrentLinkedQueue<PerfStat> perfDataList = new ConcurrentLinkedQueue<>();
 
-  protected static final AuroraTestUtility testUtil = AuroraTestUtility.getUtility();
+  protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
 
   private static void doWritePerfDataToFile(
       String fileName, ConcurrentLinkedQueue<PerfStat> dataList) throws IOException {
@@ -645,13 +645,13 @@ public class AdvancedPerformanceTest {
 
   private void failoverCluster() throws InterruptedException {
     String clusterId = TestEnvironment.getCurrent().getInfo().getAuroraClusterName();
-    String randomNode = testUtil.getRandomDBClusterReaderInstanceId(clusterId);
-    testUtil.failoverClusterToTarget(clusterId, randomNode);
+    String randomNode = auroraUtil.getRandomDBClusterReaderInstanceId(clusterId);
+    auroraUtil.failoverClusterToTarget(clusterId, randomNode);
   }
 
   private void ensureClusterHealthy() throws InterruptedException {
 
-    testUtil.waitUntilClusterHasRightState(
+    auroraUtil.waitUntilClusterHasRightState(
         TestEnvironment.getCurrent().getInfo().getAuroraClusterName());
 
     // Always get the latest topology info with writer as first
@@ -662,19 +662,19 @@ public class AdvancedPerformanceTest {
     long startTimeNano = System.nanoTime();
     while ((latestTopology.size()
                 != TestEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances()
-            || !testUtil.isDBInstanceWriter(latestTopology.get(0)))
+            || !auroraUtil.isDBInstanceWriter(latestTopology.get(0)))
         && TimeUnit.NANOSECONDS.toMinutes(System.nanoTime() - startTimeNano) < 5) {
 
       Thread.sleep(5000);
 
       try {
-        latestTopology = testUtil.getAuroraInstanceIds();
+        latestTopology = auroraUtil.getAuroraInstanceIds();
       } catch (SQLException ex) {
         latestTopology = new ArrayList<>();
       }
     }
     assertTrue(
-        testUtil.isDBInstanceWriter(
+        auroraUtil.isDBInstanceWriter(
             TestEnvironment.getCurrent().getInfo().getAuroraClusterName(), latestTopology.get(0)));
     String currentWriter = latestTopology.get(0);
 
@@ -683,7 +683,7 @@ public class AdvancedPerformanceTest {
     TestEnvironment.getCurrent().getInfo().getDatabaseInfo().moveInstanceFirst(currentWriter);
     TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().moveInstanceFirst(currentWriter);
 
-    testUtil.makeSureInstancesUp(TimeUnit.MINUTES.toSeconds(5));
+    auroraUtil.makeSureInstancesUp(TimeUnit.MINUTES.toSeconds(5));
 
     TestAuroraHostListProvider.clearCache();
     TestPluginServiceImpl.clearHostAvailabilityCache();

@@ -79,7 +79,7 @@ public class AuroraFailoverTest {
 
   private static final Logger LOGGER = Logger.getLogger(AuroraFailoverTest.class.getName());
 
-  protected static final AuroraTestUtility testUtil = AuroraTestUtility.getUtility();
+  protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
   protected static final int IS_VALID_TIMEOUT = 5;
 
   protected String currentWriter;
@@ -116,14 +116,14 @@ public class AuroraFailoverTest {
             props)) {
 
       // Crash Instance1 and nominate a new writer
-      testUtil.failoverClusterAndWaitUntilWriterChanged();
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
       // Failure occurs on Connection invocation
-      testUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
+      auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
       // Assert that we are connected to the new writer after failover happens.
-      final String currentConnectionId = testUtil.queryInstanceId(conn);
-      assertTrue(testUtil.isDBInstanceWriter(currentConnectionId));
+      final String currentConnectionId = auroraUtil.queryInstanceId(conn);
+      assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
       assertNotEquals(currentConnectionId, initialWriterId);
     }
   }
@@ -155,14 +155,14 @@ public class AuroraFailoverTest {
       final Statement stmt = conn.createStatement();
 
       // Crash Instance1 and nominate a new writer
-      testUtil.failoverClusterAndWaitUntilWriterChanged();
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
       // Failure occurs on Statement invocation
-      testUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
+      auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
       // Assert that the driver is connected to the new writer after failover happens.
-      final String currentConnectionId = testUtil.queryInstanceId(conn);
-      assertTrue(testUtil.isDBInstanceWriter(currentConnectionId));
+      final String currentConnectionId = auroraUtil.queryInstanceId(conn);
+      assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
 
       assertNotEquals(initialWriterId, currentConnectionId);
     }
@@ -191,13 +191,13 @@ public class AuroraFailoverTest {
       // Crash the reader instance
       ProxyHelper.disableConnectivity(instanceId);
 
-      testUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
+      auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
       // Assert that we are currently connected to the writer instance.
       final String writerId = this.currentWriter;
-      String currentConnectionId = testUtil.queryInstanceId(conn);
+      String currentConnectionId = auroraUtil.queryInstanceId(conn);
       assertEquals(writerId, currentConnectionId);
-      assertTrue(testUtil.isDBInstanceWriter(currentConnectionId));
+      assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
     }
   }
 
@@ -232,7 +232,7 @@ public class AuroraFailoverTest {
       final Statement testStmt2 = conn.createStatement();
       testStmt2.executeUpdate("INSERT INTO test3_2 VALUES (1, 'test field string 1')");
 
-      testUtil.failoverClusterAndWaitUntilWriterChanged();
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
       // If there is an active transaction, roll it back and return an error with SQLState 08007.
       final SQLException exception =
@@ -244,10 +244,10 @@ public class AuroraFailoverTest {
           SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), exception.getSQLState());
 
       // Attempt to query the instance id.
-      final String currentConnectionId = testUtil.queryInstanceId(conn);
+      final String currentConnectionId = auroraUtil.queryInstanceId(conn);
       // Assert that we are connected to the new writer after failover happens.
-      assertTrue(testUtil.isDBInstanceWriter(currentConnectionId));
-      final String nextClusterWriterId = testUtil.getDBClusterWriterInstanceId();
+      assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
+      final String nextClusterWriterId = auroraUtil.getDBClusterWriterInstanceId();
       assertEquals(currentConnectionId, nextClusterWriterId);
       assertNotEquals(initialWriterId, nextClusterWriterId);
 
@@ -292,7 +292,7 @@ public class AuroraFailoverTest {
       final Statement testStmt2 = conn.createStatement();
       testStmt2.executeUpdate("INSERT INTO test3_3 VALUES (1, 'test field string 1')");
 
-      testUtil.failoverClusterAndWaitUntilWriterChanged();
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
       // If there is an active transaction, roll it back and return an error with SQLState 08007.
       final SQLException exception =
@@ -304,10 +304,10 @@ public class AuroraFailoverTest {
           SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), exception.getSQLState());
 
       // Attempt to query the instance id.
-      final String currentConnectionId = testUtil.queryInstanceId(conn);
+      final String currentConnectionId = auroraUtil.queryInstanceId(conn);
       // Assert that we are connected to the new writer after failover happens.
-      assertTrue(testUtil.isDBInstanceWriter(currentConnectionId));
-      final String nextClusterWriterId = testUtil.getDBClusterWriterInstanceId();
+      assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
+      final String nextClusterWriterId = auroraUtil.getDBClusterWriterInstanceId();
       assertEquals(currentConnectionId, nextClusterWriterId);
       assertNotEquals(initialWriterId, nextClusterWriterId);
 
@@ -355,7 +355,7 @@ public class AuroraFailoverTest {
             TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
         props)) {
 
-      final String instanceId = testUtil.queryInstanceId(
+      final String instanceId = auroraUtil.queryInstanceId(
           TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
           TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
           conn);
@@ -367,12 +367,12 @@ public class AuroraFailoverTest {
       }
 
       // Crash current writer and nominate a new writer
-      testUtil.failoverClusterAndWaitUntilWriterChanged();
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
       // Assert failover has occurred.
       assertThrows(
           FailoverSQLException.class,
-          () -> testUtil.queryInstanceId(
+          () -> auroraUtil.queryInstanceId(
               TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
               TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
               conn));
@@ -388,7 +388,7 @@ public class AuroraFailoverTest {
             TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
         props)) {
 
-      final String instanceId = testUtil.queryInstanceId(
+      final String instanceId = auroraUtil.queryInstanceId(
           TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
           TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
           conn);
@@ -424,13 +424,13 @@ public class AuroraFailoverTest {
             initialWriterInstanceInfo.getHost())) {
 
       // Trigger failover
-      testUtil.failoverClusterToATargetAndWaitUntilWriterChanged(
+      auroraUtil.failoverClusterToATargetAndWaitUntilWriterChanged(
           initialWriterInstanceInfo.getInstanceId(), nominatedWriterId);
 
-      testUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
+      auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
       // Execute Query again to get the current connection id;
-      final String currentConnectionId = testUtil.queryInstanceId(conn);
+      final String currentConnectionId = auroraUtil.queryInstanceId(conn);
       LOGGER.fine("currentConnectionId: " + currentConnectionId);
 
       // Assert that we are connected to the new writer after failover happens.
@@ -444,7 +444,7 @@ public class AuroraFailoverTest {
           continue;
         }
         try {
-          instanceIDs = testUtil.getAuroraInstanceIds(
+          instanceIDs = auroraUtil.getAuroraInstanceIds(
               TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
               TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
               ConnectionStringHelper.getUrl(
@@ -509,9 +509,9 @@ public class AuroraFailoverTest {
       testStmt1.executeQuery("select 1; select 2; select 3;");
 
       // Crash Instance1 and nominate a new writer
-      testUtil.failoverClusterAndWaitUntilWriterChanged();
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
-      testUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
+      auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
       // Assert that the connection property is maintained.
       final Statement testStmt2 = conn.createStatement();
@@ -553,7 +553,7 @@ public class AuroraFailoverTest {
       final Statement testStmt2 = conn.createStatement();
       testStmt2.executeUpdate("INSERT INTO test3_3 VALUES (1, 'test field string 1')");
 
-      testUtil.failoverClusterAndWaitUntilWriterChanged();
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
       // If there is an active transaction, roll it back and return an error with SQLState 08007.
       final SQLException exception =
@@ -565,10 +565,10 @@ public class AuroraFailoverTest {
           SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), exception.getSQLState());
 
       // Attempt to query the instance id.
-      final String currentConnectionId = testUtil.queryInstanceId(conn);
+      final String currentConnectionId = auroraUtil.queryInstanceId(conn);
       // Assert that we are connected to the new writer after failover happens.
-      assertTrue(testUtil.isDBInstanceWriter(currentConnectionId));
-      final String nextClusterWriterId = testUtil.getDBClusterWriterInstanceId();
+      assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
+      final String nextClusterWriterId = auroraUtil.getDBClusterWriterInstanceId();
       assertEquals(currentConnectionId, nextClusterWriterId);
       assertNotEquals(initialWriterId, nextClusterWriterId);
 
@@ -629,11 +629,11 @@ public class AuroraFailoverTest {
         TimeUnit.MILLISECONDS.sleep(500);
 
         // Failure occurs on Connection invocation
-        testUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
+        auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
         // Assert that we are connected to the new writer after failover happens.
-        final String currentConnectionId = testUtil.queryInstanceId(conn);
-        assertTrue(testUtil.isDBInstanceWriter(currentConnectionId));
+        final String currentConnectionId = auroraUtil.queryInstanceId(conn);
+        assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
         assertEquals(currentConnectionId, initialWriterId);
       } finally {
         executor.shutdownNow();
@@ -660,10 +660,10 @@ public class AuroraFailoverTest {
                  props)) {
 
       // Crash Instance1 and nominate a new writer
-      testUtil.failoverClusterAndWaitUntilWriterChanged();
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
       // Failure occurs on Connection invocation
-      testUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
+      auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
     }
   }
 
@@ -686,13 +686,13 @@ public class AuroraFailoverTest {
                  props)) {
 
       // Crash Instance1 and nominate a new writer
-      testUtil.failoverClusterAndWaitUntilWriterChanged();
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
       // Failure occurs on Connection invocation
-      testUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
+      auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
-      String currentConnectionId = testUtil.queryInstanceId(conn);
-      assertFalse(testUtil.isDBInstanceWriter(currentConnectionId));
+      String currentConnectionId = auroraUtil.queryInstanceId(conn);
+      assertFalse(auroraUtil.isDBInstanceWriter(currentConnectionId));
     }
   }
 
@@ -738,7 +738,7 @@ public class AuroraFailoverTest {
         TimeUnit.MILLISECONDS.sleep(500);
 
         // Failure occurs on Connection invocation
-        testUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
+        auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
       } finally {
         executor.shutdownNow();
       }

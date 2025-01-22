@@ -81,7 +81,7 @@ public class CustomEndpointTest {
   protected static final String endpointId = "test-endpoint-1-" + UUID.randomUUID();
   protected static DBClusterEndpoint endpointInfo;
 
-  protected static final AuroraTestUtility testUtil = AuroraTestUtility.getUtility();
+  protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
   protected static final boolean reuseExistingEndpoint = false;
 
   protected String currentWriter;
@@ -239,19 +239,19 @@ public class CustomEndpointTest {
         ConnectionStringHelper.getWrapperUrl(endpointInfo.endpoint(), port, dbInfo.getDefaultDbName()),
         props)) {
       List<String> endpointMembers = endpointInfo.staticMembers();
-      String instanceId = testUtil.queryInstanceId(conn);
+      String instanceId = auroraUtil.queryInstanceId(conn);
       assertTrue(endpointMembers.contains(instanceId));
 
       // Use failover API to break connection.
       if (instanceId.equals(this.currentWriter)) {
-        testUtil.failoverClusterAndWaitUntilWriterChanged();
+        auroraUtil.failoverClusterAndWaitUntilWriterChanged();
       } else {
-        testUtil.failoverClusterToATargetAndWaitUntilWriterChanged(this.currentWriter, instanceId);
+        auroraUtil.failoverClusterToATargetAndWaitUntilWriterChanged(this.currentWriter, instanceId);
       }
 
-      assertThrows(FailoverSuccessSQLException.class, () -> testUtil.queryInstanceId(conn));
+      assertThrows(FailoverSuccessSQLException.class, () -> auroraUtil.queryInstanceId(conn));
 
-      String newInstanceId = testUtil.queryInstanceId(conn);
+      String newInstanceId = auroraUtil.queryInstanceId(conn);
       assertTrue(endpointMembers.contains(newInstanceId));
     }
   }
@@ -272,7 +272,7 @@ public class CustomEndpointTest {
                   props);
          final RdsClient client = RdsClient.builder().region(Region.of(envInfo.getRegion())).build()) {
       List<String> endpointMembers = endpointInfo.staticMembers();
-      String instanceId1 = testUtil.queryInstanceId(conn);
+      String instanceId1 = auroraUtil.queryInstanceId(conn);
       assertTrue(endpointMembers.contains(instanceId1));
 
       // Attempt to switch to an instance of the opposite role. This should fail since the custom endpoint consists only
@@ -283,7 +283,7 @@ public class CustomEndpointTest {
         // throw an exception. In this scenario we log a warning and purposefully stick with the writer.
         LOGGER.fine("Initial connection is to the writer. Attempting to switch to reader...");
         conn.setReadOnly(newReadOnlyValue);
-        String newInstanceId = testUtil.queryInstanceId(conn);
+        String newInstanceId = auroraUtil.queryInstanceId(conn);
         assertEquals(instanceId1, newInstanceId);
       } else {
         // We are connected to the reader. Attempting to switch to the writer will throw an exception.
@@ -307,7 +307,7 @@ public class CustomEndpointTest {
 
         // We should now be able to switch to newMember.
         assertDoesNotThrow(() -> conn.setReadOnly(newReadOnlyValue));
-        String instanceId2 = testUtil.queryInstanceId(conn);
+        String instanceId2 = auroraUtil.queryInstanceId(conn);
         assertEquals(instanceId2, newMember);
 
         // Switch back to original instance.
@@ -324,7 +324,7 @@ public class CustomEndpointTest {
         // We are connected to the writer. Attempting to switch to the reader will not work but will intentionally not
         // throw an exception. In this scenario we log a warning and purposefully stick with the writer.
         conn.setReadOnly(newReadOnlyValue);
-        String newInstanceId = testUtil.queryInstanceId(conn);
+        String newInstanceId = auroraUtil.queryInstanceId(conn);
         assertEquals(instanceId1, newInstanceId);
       } else {
         // We are connected to the reader. Attempting to switch to the writer will throw an exception.

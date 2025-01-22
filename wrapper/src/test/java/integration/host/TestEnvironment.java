@@ -105,7 +105,7 @@ public class TestEnvironment implements AutoCloseable {
 
   private final Network network = Network.newNetwork();
 
-  private AuroraTestUtility testUtil;
+  private AuroraTestUtility auroraUtil;
 
   private TestEnvironment(TestEnvironmentRequest request) {
     this.info.setRequest(request);
@@ -364,7 +364,7 @@ public class TestEnvironment implements AutoCloseable {
     env.rdsEndpoint = config.rdsEndpoint; // "XYZ.us-west-2.rds.amazonaws.com"
     env.info.setRdsEndpoint(env.rdsEndpoint);
 
-    env.testUtil =
+    env.auroraUtil =
         new AuroraTestUtility(
             env.info.getRegion(),
             env.rdsEndpoint,
@@ -376,7 +376,7 @@ public class TestEnvironment implements AutoCloseable {
         throw new RuntimeException("Environment variable RDS_CLUSTER_DOMAIN is required.");
       }
 
-      if (!env.testUtil.doesClusterExist(env.auroraClusterName)) {
+      if (!env.auroraUtil.doesClusterExist(env.auroraClusterName)) {
         throw new RuntimeException(
             "It's requested to reuse existing DB cluster but it doesn't exist: "
                 + env.auroraClusterName
@@ -386,9 +386,9 @@ public class TestEnvironment implements AutoCloseable {
       LOGGER.finer(
           "Reuse existing cluster " + env.auroraClusterName + ".cluster-" + env.auroraClusterDomain);
 
-      DBCluster clusterInfo = env.testUtil.getClusterInfo(env.auroraClusterName);
+      DBCluster clusterInfo = env.auroraUtil.getClusterInfo(env.auroraClusterName);
 
-      DatabaseEngine existingClusterDatabaseEngine = env.testUtil.getClusterEngine(clusterInfo);
+      DatabaseEngine existingClusterDatabaseEngine = env.auroraUtil.getClusterEngine(clusterInfo);
       if (existingClusterDatabaseEngine != env.info.getRequest().getDatabaseEngine()) {
         throw new RuntimeException(
             "Existing cluster is "
@@ -406,7 +406,7 @@ public class TestEnvironment implements AutoCloseable {
         boolean clusterExists = false;
         while (remainingTries-- > 0) {
           env.auroraClusterName = getRandomName(env.info.getRequest());
-          if (env.testUtil.doesClusterExist(env.auroraClusterName)) {
+          if (env.auroraUtil.doesClusterExist(env.auroraClusterName)) {
             clusterExists = true;
             LOGGER.finest("Cluster " + env.auroraClusterName + " already exists. Pick up another name.");
           } else {
@@ -426,12 +426,12 @@ public class TestEnvironment implements AutoCloseable {
         if (StringUtils.isNullOrEmpty(engineVersion)) {
           throw new RuntimeException("Failed to get engine version.");
         }
-        String instanceClass = env.testUtil.getDbInstanceClass(env.info.getRequest());
+        String instanceClass = env.auroraUtil.getDbInstanceClass(env.info.getRequest());
 
         LOGGER.finer(
             "Using " + engine + " " + engineVersion);
 
-        env.testUtil.createCluster(
+        env.auroraUtil.createCluster(
             env.info.getDatabaseInfo().getUsername(),
             env.info.getDatabaseInfo().getPassword(),
             env.info.getDatabaseInfo().getDefaultDbName(),
@@ -443,7 +443,7 @@ public class TestEnvironment implements AutoCloseable {
             engineVersion,
             numOfInstances);
 
-        List<DBInstance> dbInstances = env.testUtil.getDBInstances(env.auroraClusterName);
+        List<DBInstance> dbInstances = env.auroraUtil.getDBInstances(env.auroraClusterName);
         if (dbInstances.isEmpty()) {
           throw new RuntimeException("Failed to get instance information for cluster " + env.auroraClusterName);
         }
@@ -460,7 +460,7 @@ public class TestEnvironment implements AutoCloseable {
 
         // remove cluster and instances
         LOGGER.finer("Deleting cluster " + env.auroraClusterName);
-        env.testUtil.deleteCluster(env.auroraClusterName, env.info.getRequest().getDatabaseEngineDeployment());
+        env.auroraUtil.deleteCluster(env.auroraClusterName, env.info.getRequest().getDatabaseEngineDeployment());
         LOGGER.finer("Deleted cluster " + env.auroraClusterName);
 
         throw new RuntimeException(e);
@@ -480,7 +480,7 @@ public class TestEnvironment implements AutoCloseable {
             env.auroraClusterName + ".cluster-ro-" + env.auroraClusterDomain, port);
     env.info.getDatabaseInfo().setInstanceEndpointSuffix(env.auroraClusterDomain, port);
 
-    List<TestInstanceInfo> instances = env.testUtil.generateTestInstancesInfo(env.auroraClusterName);
+    List<TestInstanceInfo> instances = env.auroraUtil.generateTestInstancesInfo(env.auroraClusterName);
     env.info.getDatabaseInfo().getInstances().clear();
     env.info.getDatabaseInfo().getInstances().addAll(instances);
 
@@ -502,12 +502,12 @@ public class TestEnvironment implements AutoCloseable {
 
   private static void authorizeIP(TestEnvironment env) {
     try {
-      env.runnerIP = env.testUtil.getPublicIPAddress();
+      env.runnerIP = env.auroraUtil.getPublicIPAddress();
       LOGGER.finest("Test runner IP: " + env.runnerIP);
     } catch (UnknownHostException e) {
       throw new RuntimeException(e);
     }
-    env.testUtil.ec2AuthorizeIP(env.runnerIP);
+    env.auroraUtil.ec2AuthorizeIP(env.runnerIP);
   }
 
   private static String getRandomName(TestEnvironmentRequest request) {
@@ -603,13 +603,13 @@ public class TestEnvironment implements AutoCloseable {
       String systemPropertyVersion) {
 
     if (StringUtils.isNullOrEmpty(systemPropertyVersion)) {
-      return env.testUtil.getDefaultVersion(engineName);
+      return env.auroraUtil.getDefaultVersion(engineName);
     }
     switch (systemPropertyVersion.toLowerCase()) {
       case "default":
-        return env.testUtil.getDefaultVersion(engineName);
+        return env.auroraUtil.getDefaultVersion(engineName);
       case "latest":
-        return env.testUtil.getLatestVersion(engineName);
+        return env.auroraUtil.getLatestVersion(engineName);
       default:
         return systemPropertyVersion;
     }
@@ -910,7 +910,7 @@ public class TestEnvironment implements AutoCloseable {
               env.info.getDatabaseInfo().getDefaultDbName());
 
       try {
-        env.testUtil.addAuroraAwsIamUser(
+        env.auroraUtil.addAuroraAwsIamUser(
             env.info.getRequest().getDatabaseEngine(),
             url,
             env.info.getDatabaseInfo().getUsername(),
@@ -1044,13 +1044,13 @@ public class TestEnvironment implements AutoCloseable {
       if (ipAddressUsageRefCount.decrementAndGet() == 0) {
         // Another test environments are still in use of test task runner IP address.
         // The last execute tst environment will do the cleanup.
-        testUtil.ec2DeauthorizesIP(runnerIP);
+        auroraUtil.ec2DeauthorizesIP(runnerIP);
       }
     }
 
     if (!this.reuseAuroraDbCluster) {
       LOGGER.finest("Deleting cluster " + this.auroraClusterName + ".cluster-" + this.auroraClusterDomain);
-      testUtil.deleteCluster(this.auroraClusterName, this.info.getRequest().getDatabaseEngineDeployment());
+      auroraUtil.deleteCluster(this.auroraClusterName, this.info.getRequest().getDatabaseEngineDeployment());
       LOGGER.finest("Deleted cluster " + this.auroraClusterName + ".cluster-" + this.auroraClusterDomain);
     }
   }
