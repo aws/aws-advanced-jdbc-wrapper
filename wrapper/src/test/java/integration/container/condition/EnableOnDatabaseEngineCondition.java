@@ -19,7 +19,7 @@ package integration.container.condition;
 import static org.junit.platform.commons.util.AnnotationUtils.findAnnotation;
 
 import integration.DatabaseEngine;
-import integration.container.ContainerEnvironment;
+import integration.container.TestEnvironment;
 import java.util.Arrays;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.extension.ConditionEvaluationResult;
@@ -37,7 +37,7 @@ public class EnableOnDatabaseEngineCondition implements ExecutionCondition {
   public ConditionEvaluationResult evaluateExecutionCondition(ExtensionContext context) {
 
     final DatabaseEngine databaseEngine =
-        ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
+        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
 
     boolean enabled =
         findAnnotation(context.getElement(), EnableOnDatabaseEngine.class)

@@ -58,9 +58,9 @@ import software.amazon.awssdk.services.rds.model.DBCluster;
 import software.amazon.awssdk.services.rds.model.DBInstance;
 import software.amazon.jdbc.util.StringUtils;
 
-public class HostEnvironment implements AutoCloseable {
+public class TestEnvironment implements AutoCloseable {
 
-  private static final Logger LOGGER = Logger.getLogger(HostEnvironment.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(TestEnvironment.class.getName());
   private static final int NUM_OR_ENV_PRE_CREATE = 1; // create this number of environments in advance
 
   private static final ExecutorService envPreCreateExecutor = Executors.newCachedThreadPool();
@@ -107,11 +107,11 @@ public class HostEnvironment implements AutoCloseable {
 
   private TestUtility testUtil;
 
-  private HostEnvironment(TestEnvironmentRequest request) {
+  private TestEnvironment(TestEnvironmentRequest request) {
     this.info.setRequest(request);
   }
 
-  public static HostEnvironment build(TestEnvironmentRequest request) throws IOException, URISyntaxException {
+  public static TestEnvironment build(TestEnvironmentRequest request) throws IOException, URISyntaxException {
 
     DatabaseEngineDeployment deployment = request.getDatabaseEngineDeployment();
     if (deployment == DatabaseEngineDeployment.AURORA
@@ -126,11 +126,11 @@ public class HostEnvironment implements AutoCloseable {
     LOGGER.finest("Building test env: " + request.getEnvPreCreateIndex());
     preCreateEnvironment(request.getEnvPreCreateIndex());
 
-    HostEnvironment env;
+    TestEnvironment env;
 
     switch (deployment) {
       case DOCKER:
-        env = new HostEnvironment(request);
+        env = new TestEnvironment(request);
         initDatabaseParams(env);
         createDatabaseContainers(env);
 
@@ -175,7 +175,7 @@ public class HostEnvironment implements AutoCloseable {
     return env;
   }
 
-  private static HostEnvironment createAuroraOrMultiAzEnvironment(TestEnvironmentRequest request) {
+  private static TestEnvironment createAuroraOrMultiAzEnvironment(TestEnvironmentRequest request) {
 
     EnvPreCreateInfo preCreateInfo =
         TestEnvironmentProvider.preCreateInfos.get(request.getEnvPreCreateIndex());
@@ -206,18 +206,18 @@ public class HostEnvironment implements AutoCloseable {
       if (result instanceof Exception) {
         throw new RuntimeException((Exception) result);
       }
-      if (result instanceof HostEnvironment) {
-        HostEnvironment resultHostEnvironment = (HostEnvironment) result;
+      if (result instanceof TestEnvironment) {
+        TestEnvironment resultTestEnvironment = (TestEnvironment) result;
         LOGGER.finer(() -> String.format("Use pre-created DB cluster: %s.cluster-%s",
-            resultHostEnvironment.auroraClusterName, resultHostEnvironment.auroraClusterDomain));
+            resultTestEnvironment.auroraClusterName, resultTestEnvironment.auroraClusterDomain));
 
-        return resultHostEnvironment;
+        return resultTestEnvironment;
       }
       throw new RuntimeException(
           "Test environment create error. Unrecognized result type: " + result.getClass().getName());
 
     } else {
-      HostEnvironment env = new HostEnvironment(request);
+      TestEnvironment env = new TestEnvironment(request);
       initDatabaseParams(env);
       createDbCluster(env);
 
@@ -233,7 +233,7 @@ public class HostEnvironment implements AutoCloseable {
 
   }
 
-  private static void createDatabaseContainers(HostEnvironment env) {
+  private static void createDatabaseContainers(TestEnvironment env) {
     ContainerHelper containerHelper = new ContainerHelper();
 
     switch (env.info.getRequest().getDatabaseInstances()) {
@@ -325,7 +325,7 @@ public class HostEnvironment implements AutoCloseable {
     }
   }
 
-  private static void createDbCluster(HostEnvironment env) {
+  private static void createDbCluster(TestEnvironment env) {
 
     switch (env.info.getRequest().getDatabaseInstances()) {
       case SINGLE_INSTANCE:
@@ -351,7 +351,7 @@ public class HostEnvironment implements AutoCloseable {
     }
   }
 
-  private static void createDbCluster(HostEnvironment env, int numOfInstances) {
+  private static void createDbCluster(TestEnvironment env, int numOfInstances) {
 
     env.info.setRegion(
         !StringUtils.isNullOrEmpty(config.rdsDbRegion)
@@ -500,7 +500,7 @@ public class HostEnvironment implements AutoCloseable {
     }
   }
 
-  private static void authorizeIP(HostEnvironment env) {
+  private static void authorizeIP(TestEnvironment env) {
     try {
       env.runnerIP = env.testUtil.getPublicIPAddress();
       LOGGER.finest("Test runner IP: " + env.runnerIP);
@@ -555,7 +555,7 @@ public class HostEnvironment implements AutoCloseable {
     }
   }
 
-  private static String getDbEngineVersion(HostEnvironment env) {
+  private static String getDbEngineVersion(TestEnvironment env) {
     switch (env.info.getRequest().getDatabaseEngineDeployment()) {
       case AURORA:
         return getAuroraDbEngineVersion(env);
@@ -567,7 +567,7 @@ public class HostEnvironment implements AutoCloseable {
     }
   }
 
-  private static String getAuroraDbEngineVersion(HostEnvironment env) {
+  private static String getAuroraDbEngineVersion(TestEnvironment env) {
     String engineName;
     String systemPropertyVersion;
     TestEnvironmentRequest request = env.info.getRequest();
@@ -598,7 +598,7 @@ public class HostEnvironment implements AutoCloseable {
   }
 
   private static String findAuroraDbEngineVersion(
-      HostEnvironment env,
+      TestEnvironment env,
       String engineName,
       String systemPropertyVersion) {
 
@@ -627,7 +627,7 @@ public class HostEnvironment implements AutoCloseable {
     }
   }
 
-  private static void initDatabaseParams(HostEnvironment env) {
+  private static void initDatabaseParams(TestEnvironment env) {
     final String dbName =
         !StringUtils.isNullOrEmpty(config.dbName)
             ? config.dbName
@@ -647,7 +647,7 @@ public class HostEnvironment implements AutoCloseable {
     env.info.getDatabaseInfo().setDefaultDbName(dbName);
   }
 
-  private static void initAwsCredentials(HostEnvironment env) {
+  private static void initAwsCredentials(TestEnvironment env) {
     env.awsAccessKeyId = config.awsAccessKeyId;
     env.awsSecretAccessKey = config.awsSecretAccessKey;
     env.awsSessionToken = config.awsSessionToken;
@@ -671,7 +671,7 @@ public class HostEnvironment implements AutoCloseable {
     }
   }
 
-  private static void createProxyContainers(HostEnvironment env) throws IOException {
+  private static void createProxyContainers(TestEnvironment env) throws IOException {
     ContainerHelper containerHelper = new ContainerHelper();
 
     int port = getPort(env.info.getRequest());
@@ -750,7 +750,7 @@ public class HostEnvironment implements AutoCloseable {
     }
   }
 
-  private static void createTestContainer(HostEnvironment env) {
+  private static void createTestContainer(TestEnvironment env) {
     final ContainerHelper containerHelper = new ContainerHelper();
 
     if (env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY)) {
@@ -800,7 +800,7 @@ public class HostEnvironment implements AutoCloseable {
     env.testContainer.start();
   }
 
-  private static void createTelemetryXRayContainer(HostEnvironment env) {
+  private static void createTelemetryXRayContainer(TestEnvironment env) {
     String xrayAwsRegion =
         !StringUtils.isNullOrEmpty(System.getenv("XRAY_AWS_REGION"))
             ? System.getenv("XRAY_AWS_REGION")
@@ -831,7 +831,7 @@ public class HostEnvironment implements AutoCloseable {
     env.telemetryXRayContainer.start();
   }
 
-  private static void createTelemetryOtlpContainer(HostEnvironment env) {
+  private static void createTelemetryOtlpContainer(TestEnvironment env) {
 
     LOGGER.finest("Creating OTLP telemetry container");
     final ContainerHelper containerHelper = new ContainerHelper();
@@ -879,7 +879,7 @@ public class HostEnvironment implements AutoCloseable {
     }
   }
 
-  private static void configureIamAccess(HostEnvironment env) {
+  private static void configureIamAccess(TestEnvironment env) {
 
     if (env.info.getRequest().getDatabaseEngineDeployment() != DatabaseEngineDeployment.AURORA) {
       throw new UnsupportedOperationException(
@@ -924,7 +924,7 @@ public class HostEnvironment implements AutoCloseable {
     }
   }
 
-  private static String getEnvironmentInfoAsString(HostEnvironment env) {
+  private static String getEnvironmentInfoAsString(TestEnvironment env) {
     try {
       final ObjectMapper mapper = new ObjectMapper();
       return mapper.writeValueAsString(env.info);
@@ -1075,7 +1075,7 @@ public class HostEnvironment implements AutoCloseable {
         LOGGER.finest(() -> String.format("Pre-create environment for [%d] - %s",
             finalIndex, preCreateInfo.request.getDisplayName()));
 
-        final HostEnvironment env = new HostEnvironment(preCreateInfo.request);
+        final TestEnvironment env = new TestEnvironment(preCreateInfo.request);
 
         preCreateInfo.envPreCreateFuture = envPreCreateExecutor.submit(() -> {
           final long startTime = System.nanoTime();

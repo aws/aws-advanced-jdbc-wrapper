@@ -28,7 +28,7 @@ import static software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin.FAIL
 import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriverProvider;
-import integration.container.ContainerEnvironment;
+import integration.container.TestEnvironment;
 import integration.container.aurora.TestAuroraHostListProvider;
 import integration.container.aurora.TestPluginServiceImpl;
 import integration.container.condition.EnableOnTestFeature;
@@ -188,9 +188,9 @@ public class AdvancedPerformanceTest {
           String.format(
               "./build/reports/tests/AdvancedPerformanceResults_"
               + "Db_%s_Driver_%s_Instances_%d.xlsx",
-              ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-              ContainerEnvironment.getCurrent().getCurrentDriver(),
-              ContainerEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances()),
+              TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+              TestEnvironment.getCurrent().getCurrentDriver(),
+              TestEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances()),
           perfDataList);
       perfDataList.clear();
     }
@@ -238,7 +238,7 @@ public class AdvancedPerformanceTest {
   private void ensureDnsHealthy() throws UnknownHostException, InterruptedException {
     LOGGER.finest(
         "Writer is "
-            + ContainerEnvironment.getCurrent()
+            + TestEnvironment.getCurrent()
                 .getInfo()
                 .getDatabaseInfo()
                 .getInstances()
@@ -246,7 +246,7 @@ public class AdvancedPerformanceTest {
                 .getInstanceId());
     final String writerIpAddress =
         InetAddress.getByName(
-                ContainerEnvironment.getCurrent()
+                TestEnvironment.getCurrent()
                     .getInfo()
                     .getDatabaseInfo()
                     .getInstances()
@@ -256,10 +256,10 @@ public class AdvancedPerformanceTest {
     LOGGER.finest("Writer resolves to " + writerIpAddress);
     LOGGER.finest(
         "Cluster Endpoint is "
-            + ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint());
+            + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint());
     String clusterIpAddress =
         InetAddress.getByName(
-                ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint())
+                TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint())
             .getHostAddress();
     LOGGER.finest("Cluster Endpoint resolves to " + clusterIpAddress);
 
@@ -269,7 +269,7 @@ public class AdvancedPerformanceTest {
       Thread.sleep(1000);
       clusterIpAddress =
           InetAddress.getByName(
-                  ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint())
+                  TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint())
               .getHostAddress();
       LOGGER.finest("Cluster Endpoint resolves to " + clusterIpAddress);
     }
@@ -328,15 +328,15 @@ public class AdvancedPerformanceTest {
             final Connection conn =
                 openConnectionWithRetry(
                     ConnectionStringHelper.getUrlWithPlugins(
-                        ContainerEnvironment.getCurrent()
+                        TestEnvironment.getCurrent()
                             .getInfo()
                             .getDatabaseInfo()
                             .getClusterEndpoint(),
-                        ContainerEnvironment.getCurrent()
+                        TestEnvironment.getCurrent()
                             .getInfo()
                             .getDatabaseInfo()
                             .getClusterEndpointPort(),
-                        ContainerEnvironment.getCurrent()
+                        TestEnvironment.getCurrent()
                             .getInfo()
                             .getDatabaseInfo()
                             .getDefaultDbName(),
@@ -369,7 +369,7 @@ public class AdvancedPerformanceTest {
             PerfStat data = new PerfStat();
             data.paramFailoverDelayMillis = sleepDelayMillis;
             data.paramDriverName =
-                "DirectDriver - " + ContainerEnvironment.getCurrent().getCurrentDriver();
+                "DirectDriver - " + TestEnvironment.getCurrent().getCurrentDriver();
             data.failureDetectionTimeMillis = TimeUnit.NANOSECONDS.toMillis(failureTimeNano);
             LOGGER.finest("DirectDriver Collected data: " + data);
             perfDataList.add(data);
@@ -410,15 +410,15 @@ public class AdvancedPerformanceTest {
             final Connection conn =
                 openConnectionWithRetry(
                     ConnectionStringHelper.getWrapperUrl(
-                        ContainerEnvironment.getCurrent()
+                        TestEnvironment.getCurrent()
                             .getInfo()
                             .getDatabaseInfo()
                             .getClusterEndpoint(),
-                        ContainerEnvironment.getCurrent()
+                        TestEnvironment.getCurrent()
                             .getInfo()
                             .getDatabaseInfo()
                             .getClusterEndpointPort(),
-                        ContainerEnvironment.getCurrent()
+                        TestEnvironment.getCurrent()
                             .getInfo()
                             .getDatabaseInfo()
                             .getDefaultDbName()),
@@ -452,7 +452,7 @@ public class AdvancedPerformanceTest {
             data.paramFailoverDelayMillis = sleepDelayMillis;
             data.paramDriverName =
                 String.format(
-                    "AWS Wrapper (%s, EFM)", ContainerEnvironment.getCurrent().getCurrentDriver());
+                    "AWS Wrapper (%s, EFM)", TestEnvironment.getCurrent().getCurrentDriver());
             data.failureDetectionTimeMillis = TimeUnit.NANOSECONDS.toMillis(failureTimeNano);
             LOGGER.finest("WrapperEfm Collected data: " + data);
             perfDataList.add(data);
@@ -494,15 +494,15 @@ public class AdvancedPerformanceTest {
             final Connection conn =
                 openConnectionWithRetry(
                     ConnectionStringHelper.getWrapperUrl(
-                        ContainerEnvironment.getCurrent()
+                        TestEnvironment.getCurrent()
                             .getInfo()
                             .getDatabaseInfo()
                             .getClusterEndpoint(),
-                        ContainerEnvironment.getCurrent()
+                        TestEnvironment.getCurrent()
                             .getInfo()
                             .getDatabaseInfo()
                             .getClusterEndpointPort(),
-                        ContainerEnvironment.getCurrent()
+                        TestEnvironment.getCurrent()
                             .getInfo()
                             .getDatabaseInfo()
                             .getDefaultDbName()),
@@ -538,7 +538,7 @@ public class AdvancedPerformanceTest {
             data.paramDriverName =
                 String.format(
                     "AWS Wrapper (%s, EFM, Failover)",
-                    ContainerEnvironment.getCurrent().getCurrentDriver());
+                    TestEnvironment.getCurrent().getCurrentDriver());
             data.reconnectTimeMillis = TimeUnit.NANOSECONDS.toMillis(failureTimeNano);
             LOGGER.finest("WrapperEfmFailover Collected data: " + data);
             perfDataList.add(data);
@@ -565,7 +565,7 @@ public class AdvancedPerformanceTest {
           try {
             currentClusterIpAddress =
                 InetAddress.getByName(
-                        ContainerEnvironment.getCurrent()
+                        TestEnvironment.getCurrent()
                             .getInfo()
                             .getDatabaseInfo()
                             .getClusterEndpoint())
@@ -579,7 +579,7 @@ public class AdvancedPerformanceTest {
 
             String clusterIpAddress =
                 InetAddress.getByName(
-                        ContainerEnvironment.getCurrent()
+                        TestEnvironment.getCurrent()
                             .getInfo()
                             .getDatabaseInfo()
                             .getClusterEndpoint())
@@ -591,7 +591,7 @@ public class AdvancedPerformanceTest {
               Thread.sleep(1000);
               clusterIpAddress =
                   InetAddress.getByName(
-                          ContainerEnvironment.getCurrent()
+                          TestEnvironment.getCurrent()
                               .getInfo()
                               .getDatabaseInfo()
                               .getClusterEndpoint())
@@ -644,7 +644,7 @@ public class AdvancedPerformanceTest {
   }
 
   private void failoverCluster() throws InterruptedException {
-    String clusterId = ContainerEnvironment.getCurrent().getInfo().getAuroraClusterName();
+    String clusterId = TestEnvironment.getCurrent().getInfo().getAuroraClusterName();
     String randomNode = testUtil.getRandomDBClusterReaderInstanceId(clusterId);
     testUtil.failoverClusterToTarget(clusterId, randomNode);
   }
@@ -652,7 +652,7 @@ public class AdvancedPerformanceTest {
   private void ensureClusterHealthy() throws InterruptedException {
 
     testUtil.waitUntilClusterHasRightState(
-        ContainerEnvironment.getCurrent().getInfo().getAuroraClusterName());
+        TestEnvironment.getCurrent().getInfo().getAuroraClusterName());
 
     // Always get the latest topology info with writer as first
     List<String> latestTopology = new ArrayList<>();
@@ -661,7 +661,7 @@ public class AdvancedPerformanceTest {
     // Wait up to 5min
     long startTimeNano = System.nanoTime();
     while ((latestTopology.size()
-                != ContainerEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances()
+                != TestEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances()
             || !testUtil.isDBInstanceWriter(latestTopology.get(0)))
         && TimeUnit.NANOSECONDS.toMinutes(System.nanoTime() - startTimeNano) < 5) {
 
@@ -675,13 +675,13 @@ public class AdvancedPerformanceTest {
     }
     assertTrue(
         testUtil.isDBInstanceWriter(
-            ContainerEnvironment.getCurrent().getInfo().getAuroraClusterName(), latestTopology.get(0)));
+            TestEnvironment.getCurrent().getInfo().getAuroraClusterName(), latestTopology.get(0)));
     String currentWriter = latestTopology.get(0);
 
     // Adjust database info to reflect a current writer and to move corresponding instance to
     // position 0.
-    ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().moveInstanceFirst(currentWriter);
-    ContainerEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().moveInstanceFirst(currentWriter);
+    TestEnvironment.getCurrent().getInfo().getDatabaseInfo().moveInstanceFirst(currentWriter);
+    TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().moveInstanceFirst(currentWriter);
 
     testUtil.makeSureInstancesUp(TimeUnit.MINUTES.toSeconds(5));
 

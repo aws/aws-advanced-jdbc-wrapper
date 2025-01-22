@@ -24,7 +24,7 @@ import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriver;
 import integration.container.TestDriverProvider;
-import integration.container.ContainerEnvironment;
+import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestDriver;
 import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnTestFeature;
@@ -88,9 +88,9 @@ public class AwsIamIntegrationTest {
     final Properties props =
         initAwsIamProps(
             "WRONG_"
-                + ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername()
+                + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername()
                 + "_USER",
-            ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
 
     Assertions.assertThrows(
         SQLException.class,
@@ -102,7 +102,7 @@ public class AwsIamIntegrationTest {
   @DisableOnTestDriver(TestDriver.MARIADB)
   public void test_AwsIam_NoDatabaseUsername() {
     final Properties props =
-        initAwsIamProps("", ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+        initAwsIamProps("", TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
 
     Assertions.assertThrows(
         SQLException.class,
@@ -114,11 +114,11 @@ public class AwsIamIntegrationTest {
   @DisableOnTestDriver(TestDriver.MARIADB)
   public void test_AwsIam_UsingIPAddress() throws UnknownHostException, SQLException {
     final Properties props =
-        initAwsIamProps(ContainerEnvironment.getCurrent().getInfo().getIamUsername(), "<anything>");
+        initAwsIamProps(TestEnvironment.getCurrent().getInfo().getIamUsername(), "<anything>");
 
     final String hostIp =
         hostToIP(
-            ContainerEnvironment.getCurrent()
+            TestEnvironment.getCurrent()
                 .getInfo()
                 .getDatabaseInfo()
                 .getInstances()
@@ -126,7 +126,7 @@ public class AwsIamIntegrationTest {
                 .getHost());
     props.setProperty(
         "iamHost",
-        ContainerEnvironment.getCurrent()
+        TestEnvironment.getCurrent()
             .getInfo()
             .getDatabaseInfo()
             .getInstances()
@@ -137,13 +137,13 @@ public class AwsIamIntegrationTest {
         DriverManager.getConnection(
             ConnectionStringHelper.getWrapperUrl(
                 hostIp,
-                ContainerEnvironment.getCurrent()
+                TestEnvironment.getCurrent()
                     .getInfo()
                     .getDatabaseInfo()
                     .getInstances()
                     .get(0)
                     .getPort(),
-                ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+                TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
             props);
     Assertions.assertDoesNotThrow(conn::close);
   }
@@ -153,7 +153,7 @@ public class AwsIamIntegrationTest {
   @DisableOnTestDriver(TestDriver.MARIADB)
   public void test_AwsIam_ValidConnectionProperties() throws SQLException {
     final Properties props =
-        initAwsIamProps(ContainerEnvironment.getCurrent().getInfo().getIamUsername(), "<anything>");
+        initAwsIamProps(TestEnvironment.getCurrent().getInfo().getIamUsername(), "<anything>");
 
     final Connection conn =
         DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
@@ -167,7 +167,7 @@ public class AwsIamIntegrationTest {
   @DisableOnTestDriver(TestDriver.MARIADB)
   public void test_AwsIam_ValidConnectionPropertiesNoPassword() throws SQLException {
     final Properties props =
-        initAwsIamProps(ContainerEnvironment.getCurrent().getInfo().getIamUsername(), "");
+        initAwsIamProps(TestEnvironment.getCurrent().getInfo().getIamUsername(), "");
     final Connection conn =
         DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
     conn.close();
@@ -182,14 +182,14 @@ public class AwsIamIntegrationTest {
   void test_AwsIam_NoAwsProtocolConnection() throws SQLException {
     final String dbConn = ConnectionStringHelper.getWrapperUrl();
     final Properties validProp =
-        initAwsIamProps(ContainerEnvironment.getCurrent().getInfo().getIamUsername(), "<anything>");
+        initAwsIamProps(TestEnvironment.getCurrent().getInfo().getIamUsername(), "<anything>");
 
     final Connection conn = DriverManager.getConnection(dbConn, validProp);
     conn.close();
 
     final Properties invalidProp =
         initAwsIamProps(
-            "WRONG_" + ContainerEnvironment.getCurrent().getInfo().getIamUsername() + "_USER",
+            "WRONG_" + TestEnvironment.getCurrent().getInfo().getIamUsername() + "_USER",
             "<anything>");
 
     Assertions.assertThrows(
@@ -204,7 +204,7 @@ public class AwsIamIntegrationTest {
   void test_AwsIam_UserInConnStr() throws SQLException {
     final String dbConn = ConnectionStringHelper.getWrapperUrl();
     final Properties awsIamProp =
-        initAwsIamProps(ContainerEnvironment.getCurrent().getInfo().getIamUsername(), "<anything>");
+        initAwsIamProps(TestEnvironment.getCurrent().getInfo().getIamUsername(), "<anything>");
     awsIamProp.remove(PropertyDefinition.USER.name);
 
     final Connection validConn =
@@ -213,7 +213,7 @@ public class AwsIamIntegrationTest {
                 + (dbConn.contains("?") ? "&" : "?")
                 + PropertyDefinition.USER.name
                 + "="
-                + ContainerEnvironment.getCurrent().getInfo().getIamUsername(),
+                + TestEnvironment.getCurrent().getInfo().getIamUsername(),
             awsIamProp);
     Assertions.assertNotNull(validConn);
     Assertions.assertThrows(
@@ -225,7 +225,7 @@ public class AwsIamIntegrationTest {
                     + PropertyDefinition.USER.name
                     + "="
                     + "WRONG_"
-                    + ContainerEnvironment.getCurrent().getInfo().getIamUsername(),
+                    + TestEnvironment.getCurrent().getInfo().getIamUsername(),
                 awsIamProp));
   }
 
@@ -238,12 +238,12 @@ public class AwsIamIntegrationTest {
   void test_AwsIam_UserAndPasswordPropertiesArePreserved() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setJdbcProtocol(DriverHelper.getDriverProtocol());
-    ds.setServerName(ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint());
-    ds.setDatabase(ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+    ds.setServerName(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint());
+    ds.setDatabase(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
 
     final Properties props =
-        initAwsIamProps(ContainerEnvironment.getCurrent().getInfo().getIamUsername(), "<anything>");
+        initAwsIamProps(TestEnvironment.getCurrent().getInfo().getIamUsername(), "<anything>");
     ds.setTargetDataSourceProperties(props);
 
     try (final Connection conn = ds.getConnection()) {
@@ -303,7 +303,7 @@ public class AwsIamIntegrationTest {
     props.setProperty(PropertyDefinition.PLUGINS.name, "iam");
     props.setProperty(
         IamAuthConnectionPlugin.IAM_REGION.name,
-        ContainerEnvironment.getCurrent().getInfo().getRegion());
+        TestEnvironment.getCurrent().getInfo().getRegion());
     props.setProperty(PropertyDefinition.USER.name, user);
     props.setProperty(PropertyDefinition.PASSWORD.name, password);
     props.setProperty(PropertyDefinition.TCP_KEEP_ALIVE.name, "false");

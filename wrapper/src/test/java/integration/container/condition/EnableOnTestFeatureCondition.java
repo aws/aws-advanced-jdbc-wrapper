@@ -19,7 +19,7 @@ package integration.container.condition;
 import static org.junit.platform.commons.util.AnnotationUtils.findAnnotation;
 
 import integration.TestEnvironmentFeatures;
-import integration.container.ContainerEnvironment;
+import integration.container.TestEnvironment;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -38,7 +38,7 @@ class EnableOnTestFeatureCondition implements ExecutionCondition {
   public ConditionEvaluationResult evaluateExecutionCondition(ExtensionContext context) {
 
     final Set<TestEnvironmentFeatures> features =
-        ContainerEnvironment.getCurrent().getInfo().getRequest().getFeatures();
+        TestEnvironment.getCurrent().getInfo().getRequest().getFeatures();
 
     boolean enabled =
         findAnnotation(context.getElement(), EnableOnTestFeature.class)
