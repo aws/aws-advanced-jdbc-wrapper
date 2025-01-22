@@ -392,8 +392,7 @@ public class AuroraTestUtility {
    * @return the instance info for the new instance
    * @throws InterruptedException if the new instance is not available within 5 minutes
    */
-  public TestInstanceInfo createInstance(String instanceClass, String instanceId)
-      throws InterruptedException {
+  public TestInstanceInfo createInstance(String instanceClass, String instanceId) throws InterruptedException {
     final Tag testRunnerTag = Tag.builder().key("env").value("test-runner").build();
     final TestEnvironmentInfo info = TestEnvironment.getCurrent().getInfo();
 
@@ -457,8 +456,7 @@ public class AuroraTestUtility {
    * @param instanceToDelete the info for the instance to delete
    * @throws InterruptedException if the instance has not been deleted within 5 minutes
    */
-  public void deleteInstance(TestInstanceInfo instanceToDelete)
-      throws InterruptedException {
+  public void deleteInstance(TestInstanceInfo instanceToDelete) throws InterruptedException {
     rdsClient.deleteDBInstance(
         DeleteDbInstanceRequest.builder()
             .dbInstanceIdentifier(instanceToDelete.getInstanceId())
@@ -701,7 +699,7 @@ public class AuroraTestUtility {
     }
   }
 
-  public List<TestInstanceInfo> generateTestInstancesInfo(final String clusterId) {
+  public List<TestInstanceInfo> getTestInstancesInfo(final String clusterId) {
     List<DBInstance> dbInstances = getDBInstances(clusterId);
     List<TestInstanceInfo> instancesInfo = new ArrayList<>();
     for (DBInstance dbInstance : dbInstances) {
@@ -781,8 +779,7 @@ public class AuroraTestUtility {
     return dbClusterList.get(0);
   }
 
-  public void waitUntilInstanceHasRightState(String instanceId, String... allowedStatuses)
-      throws InterruptedException {
+  public void waitUntilInstanceHasRightState(String instanceId, String... allowedStatuses) throws InterruptedException {
 
     String status = getDBInstance(instanceId).dbInstanceStatus();
     LOGGER.finest("Instance " + instanceId + " status: " + status
@@ -1067,8 +1064,8 @@ public class AuroraTestUtility {
         getRandomDBClusterReaderInstanceId(clusterId));
   }
 
-  public void failoverClusterToATargetAndWaitUntilWriterChanged(
-      String initialWriterId, String targetWriterId) throws InterruptedException {
+  public void failoverClusterToATargetAndWaitUntilWriterChanged(String initialWriterId, String targetWriterId)
+      throws InterruptedException {
     failoverClusterToATargetAndWaitUntilWriterChanged(
         TestEnvironment.getCurrent().getInfo().getAuroraClusterName(),
         initialWriterId,
@@ -1140,8 +1137,7 @@ public class AuroraTestUtility {
     LOGGER.finest(String.format("finished failover from %s to target: %s", initialWriterId, targetWriterId));
   }
 
-  public void failoverClusterToTarget(String clusterId, @Nullable String targetInstanceId)
-      throws InterruptedException {
+  public void failoverClusterToTarget(String clusterId, @Nullable String targetInstanceId) throws InterruptedException {
     waitUntilClusterHasRightState(clusterId);
 
     int remainingAttempts = 10;

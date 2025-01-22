@@ -480,7 +480,7 @@ public class TestEnvironment implements AutoCloseable {
             env.auroraClusterName + ".cluster-ro-" + env.auroraClusterDomain, port);
     env.info.getDatabaseInfo().setInstanceEndpointSuffix(env.auroraClusterDomain, port);
 
-    List<TestInstanceInfo> instances = env.auroraUtil.generateTestInstancesInfo(env.auroraClusterName);
+    List<TestInstanceInfo> instances = env.auroraUtil.getTestInstancesInfo(env.auroraClusterName);
     env.info.getDatabaseInfo().getInstances().clear();
     env.info.getDatabaseInfo().getInstances().addAll(instances);
 
