@@ -19,6 +19,7 @@ package integration.container;
 import integration.DatabaseEngine;
 import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
+import integration.TestEnvironmentInfo;
 import integration.TestInstanceInfo;
 import java.util.Properties;
 import java.util.Set;
@@ -204,15 +205,11 @@ public class ConnectionStringHelper {
 
   public static Properties getDefaultProperties() {
     final Properties props = new Properties();
-    props.setProperty(
-        PropertyDefinition.USER.name,
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
-    props.setProperty(
-        PropertyDefinition.PASSWORD.name,
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+    TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
+    props.setProperty(PropertyDefinition.USER.name, envInfo.getDatabaseInfo().getUsername());
+    props.setProperty(PropertyDefinition.PASSWORD.name, envInfo.getDatabaseInfo().getPassword());
 
-    final Set<TestEnvironmentFeatures> features =
-        TestEnvironment.getCurrent().getInfo().getRequest().getFeatures();
+    final Set<TestEnvironmentFeatures> features = envInfo.getRequest().getFeatures();
     props.setProperty(PropertyDefinition.ENABLE_TELEMETRY.name, "true");
     props.setProperty(PropertyDefinition.TELEMETRY_SUBMIT_TOPLEVEL.name, "true");
     props.setProperty(
@@ -223,6 +220,13 @@ public class ConnectionStringHelper {
         features.contains(TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED) ? "otlp" : "none");
 
     props.setProperty(PropertyDefinition.TCP_KEEP_ALIVE.name, "false");
+
+    if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB) {
+      // This property is sometimes required when using the mariadb driver against multi-az mysql version 8.4, or you
+      // will get the error "RSA public key is not available client side" when connecting. The mariadb driver may not
+      // fully support mysql 8.4's SSL mechanisms, which is why this property is only required for newer mysql versions.
+      props.setProperty("allowPublicKeyRetrieval", "true");
+    }
 
     return props;
   }

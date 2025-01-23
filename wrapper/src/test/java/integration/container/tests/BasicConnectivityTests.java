@@ -289,6 +289,11 @@ public class BasicConnectivityTests {
     props.setProperty(PropertyDefinition.USER.name, username);
     props.setProperty(PropertyDefinition.PASSWORD.name, password);
 
+    if (testDriver == TestDriver.MARIADB) {
+      // If this property is true the driver will still be able to connect, causing the test to fail.
+      props.setProperty("allowPublicKeyRetrieval", "false");
+    }
+
     LOGGER.finest("Connecting to " + url);
 
     assertThrows(
