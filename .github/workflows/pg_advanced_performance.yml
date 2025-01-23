@@ -23,32 +23,22 @@ jobs:
           distribution: 'corretto'
           java-version: 8
       - name: 'Configure AWS credentials'
+        id: creds
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: run_adv_perf_test_pgsql
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
-      - name: 'Set up temp AWS credentials'
-        run: |
-          creds=($(aws sts get-session-token \
-            --duration-seconds 21600 \
-            --query 'Credentials.[AccessKeyId, SecretAccessKey, SessionToken]' \
-            --output text \
-          | xargs));
-          echo "::add-mask::${creds[0]}"
-          echo "::add-mask::${creds[1]}"
-          echo "::add-mask::${creds[2]}"
-          echo "TEMP_AWS_ACCESS_KEY_ID=${creds[0]}" >> $GITHUB_ENV
-          echo "TEMP_AWS_SECRET_ACCESS_KEY=${creds[1]}" >> $GITHUB_ENV
-          echo "TEMP_AWS_SESSION_TOKEN=${creds[2]}" >> $GITHUB_ENV
+          output-credentials: true
       - name: 'Run performance tests (OpenJDK)'
         run: |
           ./gradlew --no-parallel --no-daemon test-aurora-pg-advanced-performance
         env:
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
           RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-          AWS_ACCESS_KEY_ID: ${{ env.TEMP_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ env.TEMP_AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ env.TEMP_AWS_SESSION_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
+          AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}
+          AWS_SESSION_TOKEN: ${{ steps.creds.outputs.aws-session-token }}
           MYSQL_VERSION: "default"
           PG_VERSION: "default"
       - name: 'Archive Performance Results'
