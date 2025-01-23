@@ -215,7 +215,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
     Driver.releaseResources();
     Driver.resetCustomTargetDriverDialect();
     Driver.resetCustomConnectionProvider();
-    Driver.resetCustomConnectionProvider();
+    Driver.resetConnectionInitFunc();
   }
 
   private static void checkClusterHealth(final boolean makeSureFirstInstanceWriter)

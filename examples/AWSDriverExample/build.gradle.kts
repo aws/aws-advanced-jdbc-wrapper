@@ -29,7 +29,3 @@ dependencies {
     implementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
     implementation("org.jsoup:jsoup:1.18.1")
 }
-
-tasks.withType<JavaExec> {
-    systemProperty("java.util.logging.config.file", "${project.layout.buildDirectory.get()}/resources/main/logging-example.properties")
-}
