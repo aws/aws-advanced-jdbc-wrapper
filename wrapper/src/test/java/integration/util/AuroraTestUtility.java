@@ -25,6 +25,7 @@ import integration.DatabaseEngineDeployment;
 import integration.DriverHelper;
 import integration.TestDatabaseInfo;
 import integration.TestEnvironmentInfo;
+import integration.TestEnvironmentRequest;
 import integration.TestInstanceInfo;
 import integration.container.ConnectionStringHelper;
 import integration.container.ProxyHelper;
@@ -65,6 +66,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.testcontainers.shaded.org.apache.commons.lang3.NotImplementedException;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
@@ -76,6 +78,8 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsResponse;
 import software.amazon.awssdk.services.ec2.model.Ec2Exception;
+import software.amazon.awssdk.services.ec2.model.IpPermission;
+import software.amazon.awssdk.services.ec2.model.IpRange;
 import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.awssdk.services.rds.RdsClientBuilder;
 import software.amazon.awssdk.services.rds.model.CreateDbClusterRequest;
@@ -102,48 +106,28 @@ import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 
 /**
- * Creates and destroys AWS RDS Clusters and Instances. To use this functionality the following environment variables
+ * Provides useful functions for RDS integration testing. To use this functionality the following environment variables
  * must be defined: - AWS_ACCESS_KEY_ID - AWS_SECRET_ACCESS_KEY
  */
 public class AuroraTestUtility {
 
   private static final Logger LOGGER = Logger.getLogger(AuroraTestUtility.class.getName());
-
-  // Default values
-  private String dbUsername = "my_test_username";
-  private String dbPassword = "my_test_password";
-  private String dbName = "test";
-  private String dbIdentifier = "test-identifier";
-  private DatabaseEngineDeployment dbEngineDeployment;
-  private String dbEngine = "aurora-postgresql";
-  private String dbEngineVersion = "13.9";
-  private String dbInstanceClass = "db.r5.large";
-  private final String storageType = "io1";
-  private final int allocatedStorage = 100;
-  private final int iops = 1000;
-  private final Region dbRegion;
-  private final String dbSecGroup = "default";
-  private int numOfInstances = 5;
-  private ArrayList<TestInstanceInfo> instances = new ArrayList<>();
-
-  private RdsClient rdsClient;
-  private Ec2Client ec2Client;
+  private static final String DUPLICATE_IP_ERROR_CODE = "InvalidPermission.Duplicate";
+  private static final String DEFAULT_SECURITY_GROUP = "default";
+  private static final String DEFAULT_STORAGE_TYPE = "io1";
+  private static final int DEFAULT_IOPS = 1000;
+  private static final int MULTI_AZ_SIZE = 3;
   private static final Random rand = new Random();
 
-  private String rdsEndpoint;
+  private final RdsClient rdsClient;
+  private final Ec2Client ec2Client;
 
-  private AwsCredentialsProvider credentialsProvider;
-
-  private static final String DUPLICATE_IP_ERROR_CODE = "InvalidPermission.Duplicate";
-
-  public AuroraTestUtility(String region, String endpoint) throws URISyntaxException {
+  public AuroraTestUtility(String region, String endpoint) {
     this(getRegionInternal(region), endpoint, DefaultCredentialsProvider.create());
   }
 
   public AuroraTestUtility(
-      String region, String rdsEndpoint, String awsAccessKeyId, String awsSecretAccessKey, String awsSessionToken)
-      throws URISyntaxException {
-
+      String region, String rdsEndpoint, String awsAccessKeyId, String awsSecretAccessKey, String awsSessionToken) {
     this(
         getRegionInternal(region),
         rdsEndpoint,
@@ -154,25 +138,18 @@ public class AuroraTestUtility {
   }
 
   /**
-   * Initializes an AmazonRDS & AmazonEC2 client.
+   * Creates a TestUtility instance. As part of the creation, an RdsClient and Ec2Client are initialized.
    *
-   * @param region              define AWS Regions, refer to
+   * @param region              The AWS region for the cluster(s) the tests will be running against, refer to
    *                            <a
-   *                            href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html">Regions,
-   *                            Availability Zones, and Local Zones</a>
-   * @param credentialsProvider Specific AWS credential provider
+   *                            href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts
+   *                            .RegionsAndAvailabilityZones.html">
+   *                            Regions, Availability Zones, and Local Zones</a>
+   * @param credentialsProvider The AWS credential provider to use to initialize the RdsClient and Ec2Client.
    */
-  public AuroraTestUtility(Region region, String rdsEndpoint, AwsCredentialsProvider credentialsProvider)
-      throws URISyntaxException {
-    this.dbRegion = region;
-    this.rdsEndpoint = rdsEndpoint;
-    this.credentialsProvider = credentialsProvider;
-    initClient();
-  }
-
-  protected void initClient() {
+  public AuroraTestUtility(Region region, String rdsEndpoint, AwsCredentialsProvider credentialsProvider) {
     final RdsClientBuilder rdsClientBuilder = RdsClient.builder()
-        .region(dbRegion)
+        .region(region)
         .credentialsProvider(credentialsProvider);
 
     if (!StringUtils.isNullOrEmpty(rdsEndpoint)) {
@@ -185,9 +162,21 @@ public class AuroraTestUtility {
 
     rdsClient = rdsClientBuilder.build();
     ec2Client = Ec2Client.builder()
-        .region(dbRegion)
+        .region(region)
         .credentialsProvider(credentialsProvider)
         .build();
+  }
+
+  public static AuroraTestUtility getUtility() {
+    return getUtility(null);
+  }
+
+  public static AuroraTestUtility getUtility(@Nullable TestEnvironmentInfo info) {
+    if (info == null) {
+      info = TestEnvironment.getCurrent().getInfo();
+    }
+
+    return new AuroraTestUtility(info.getRegion(), info.getRdsEndpoint());
   }
 
   protected static Region getRegionInternal(String rdsRegion) {
@@ -201,73 +190,97 @@ public class AuroraTestUtility {
   }
 
   /**
-   * Creates RDS Cluster/Instances and waits until they are up, and proper IP whitelisting for databases.
+   * Creates an RDS cluster based on the passed in details. After the cluster is created, this method will wait
+   * until it is available, adds the current IP address to the default security group, and create a database with the
+   * given name within the cluster.
    *
-   * @param username      Master username for access to database
-   * @param password      Master password for access to database
-   * @param dbName        Database name
-   * @param identifier    Database cluster identifier
-   * @param engine        Database engine to use, refer to
-   *                      <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Welcome.html">...</a>
-   * @param instanceClass instance class, refer to
-   *                      <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.html">...</a>
+   * @param username      the master username for access to the database
+   * @param password      the master password for access to the database
+   * @param dbName        the database to create within the cluster
+   * @param identifier    the cluster identifier
+   * @param deployment    the engine deployment to use
+   * @param region        the region that the cluster should be created in
+   * @param engine        the engine to use, refer to
+   *                      <a href="https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/services/rds/model/CreateDbClusterRequest.Builder.html#engine(java.lang.String)">CreateDbClusterRequest.engine</a>
+   * @param instanceClass the instance class, refer to
+   *                      <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.Support.html">Supported instance classes</a>
    * @param version       the database engine's version
-   * @return An endpoint for one of the instances
+   * @param numInstances  the number of instances to create for the cluster
    * @throws InterruptedException when clusters have not started after 30 minutes
    */
-  public String createCluster(
+  public void createCluster(
       String username,
       String password,
       String dbName,
       String identifier,
       DatabaseEngineDeployment deployment,
+      String region,
       String engine,
       String instanceClass,
       String version,
-      int numOfInstances,
-      ArrayList<TestInstanceInfo> instances)
+      int numInstances)
       throws InterruptedException {
-    this.dbUsername = username;
-    this.dbPassword = password;
-    this.dbName = dbName;
-    this.dbIdentifier = identifier;
-    this.dbEngineDeployment = deployment;
-    this.dbEngine = engine;
-    this.dbInstanceClass = instanceClass;
-    this.dbEngineVersion = version;
-    this.numOfInstances = numOfInstances;
-    this.instances = instances;
 
-    switch (this.dbEngineDeployment) {
+    switch (deployment) {
       case AURORA:
-        return createAuroraCluster();
+        createAuroraCluster(
+            username, password, dbName, identifier, region, engine, instanceClass, version, numInstances);
+        break;
       case RDS_MULTI_AZ_CLUSTER:
-        return createMultiAzCluster();
+        if (numInstances != MULTI_AZ_SIZE) {
+          throw new RuntimeException(
+              "A multi-az cluster with " + numInstances + " instances was requested, but multi-az clusters must have "
+                  + MULTI_AZ_SIZE + " instances.");
+        }
+
+        createMultiAzCluster(
+            username, password, dbName, identifier, region, engine, instanceClass, version);
+        break;
       default:
-        throw new UnsupportedOperationException(this.dbEngineDeployment.toString());
+        throw new UnsupportedOperationException(deployment.toString());
     }
   }
 
   /**
-   * Creates RDS Cluster/Instances and waits until they are up, and proper IP whitelisting for databases.
+   * Creates an RDS Aurora cluster based on the passed in details. After the cluster is created, this method will wait
+   * until it is available, adds the current IP address to the default security group, and create a database with the
+   * given name within the cluster.
    *
-   * @return An endpoint for one of the instances
+   * @param username      the master username for access to the database
+   * @param password      the master password for access to the database
+   * @param dbName        the database to create within the cluster
+   * @param identifier    the cluster identifier
+   * @param region        the region that the cluster should be created in
+   * @param engine        the engine to use, refer to
+   *                      <a href="https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/services/rds/model/CreateDbClusterRequest.Builder.html#engine(java.lang.String)">CreateDbClusterRequest.engine</a>
+   * @param instanceClass the instance class, refer to
+   *                      <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.Support.html">Supported instance classes</a>
+   * @param version       the database engine's version
+   * @param numInstances  the number of instances to create for the cluster
    * @throws InterruptedException when clusters have not started after 30 minutes
    */
-  public String createAuroraCluster() throws InterruptedException {
-    // Create Cluster
+  public void createAuroraCluster(
+      String username,
+      String password,
+      String dbName,
+      String identifier,
+      String region,
+      String engine,
+      String instanceClass,
+      String version,
+      int numInstances)
+      throws InterruptedException {
     final Tag testRunnerTag = Tag.builder().key("env").value("test-runner").build();
-
     final CreateDbClusterRequest dbClusterRequest =
         CreateDbClusterRequest.builder()
-            .dbClusterIdentifier(dbIdentifier)
+            .dbClusterIdentifier(identifier)
             .databaseName(dbName)
-            .masterUsername(dbUsername)
-            .masterUserPassword(dbPassword)
-            .sourceRegion(dbRegion.id())
+            .masterUsername(username)
+            .masterUserPassword(password)
+            .sourceRegion(region)
             .enableIAMDatabaseAuthentication(true)
-            .engine(dbEngine)
-            .engineVersion(dbEngineVersion)
+            .engine(engine)
+            .engineVersion(version)
             .storageEncrypted(true)
             .tags(testRunnerTag)
             .build();
@@ -275,15 +288,15 @@ public class AuroraTestUtility {
     rdsClient.createDBCluster(dbClusterRequest);
 
     // Create Instances
-    for (int i = 1; i <= numOfInstances; i++) {
-      final String instanceName = dbIdentifier + "-" + i;
+    for (int i = 1; i <= numInstances; i++) {
+      final String instanceName = identifier + "-" + i;
       rdsClient.createDBInstance(
           CreateDbInstanceRequest.builder()
-              .dbClusterIdentifier(dbIdentifier)
+              .dbClusterIdentifier(identifier)
               .dbInstanceIdentifier(instanceName)
-              .dbInstanceClass(dbInstanceClass)
-              .engine(dbEngine)
-              .engineVersion(dbEngineVersion)
+              .dbInstanceClass(instanceClass)
+              .engine(engine)
+              .engineVersion(version)
               .publiclyAccessible(true)
               .tags(testRunnerTag)
               .build());
@@ -295,110 +308,91 @@ public class AuroraTestUtility {
         waiter.waitUntilDBInstanceAvailable(
             (requestBuilder) ->
                 requestBuilder.filters(
-                    Filter.builder().name("db-cluster-id").values(dbIdentifier).build()),
+                    Filter.builder().name("db-cluster-id").values(identifier).build()),
             (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(30)));
 
     if (waiterResponse.matched().exception().isPresent()) {
-      deleteCluster();
+      deleteCluster(identifier, DatabaseEngineDeployment.AURORA);
       throw new InterruptedException(
           "Unable to start AWS RDS Cluster & Instances after waiting for 30 minutes");
     }
-
-    final DescribeDbInstancesResponse dbInstancesResult =
-        rdsClient.describeDBInstances(
-            (builder) ->
-                builder.filters(
-                    Filter.builder().name("db-cluster-id").values(dbIdentifier).build()));
-    final String endpoint = dbInstancesResult.dbInstances().get(0).endpoint().address();
-    final String clusterDomainPrefix = endpoint.substring(endpoint.indexOf('.') + 1);
-
-    for (DBInstance instance : dbInstancesResult.dbInstances()) {
-      this.instances.add(
-          new TestInstanceInfo(
-              instance.dbInstanceIdentifier(),
-              instance.endpoint().address(),
-              instance.endpoint().port()));
-    }
-
-    return clusterDomainPrefix;
   }
 
   /**
-   * Creates RDS Cluster/Instances and waits until they are up, and proper IP whitelisting for databases.
+   * Creates an RDS multi-az cluster based on the passed in details. After the cluster is created, this method will wait
+   * until it is available, adds the current IP address to the default security group, and create a database with the
+   * given name within the cluster.
    *
-   * @return An endpoint for one of the instances
+   * @param username      the master username for access to the database
+   * @param password      the master password for access to the database
+   * @param dbName        the database to create within the cluster
+   * @param identifier    the cluster identifier
+   * @param region        the region that the cluster should be created in
+   * @param engine        the engine to use, refer to
+   *                      <a href="https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/services/rds/model/CreateDbClusterRequest.Builder.html#engine(java.lang.String)">CreateDbClusterRequest.engine</a>
+   * @param instanceClass the instance class, refer to
+   *                      <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.Support.html">Supported instance classes</a>
+   * @param version       the database engine's version
    * @throws InterruptedException when clusters have not started after 30 minutes
    */
-  public String createMultiAzCluster() throws InterruptedException {
-    // Create Cluster
+  public void createMultiAzCluster(String username,
+      String password,
+      String dbName,
+      String identifier,
+      String region,
+      String engine,
+      String instanceClass,
+      String version)
+      throws InterruptedException {
     final Tag testRunnerTag = Tag.builder().key("env").value("test-runner").build();
     CreateDbClusterRequest.Builder clusterBuilder =
         CreateDbClusterRequest.builder()
-            .dbClusterIdentifier(dbIdentifier)
+            .dbClusterIdentifier(identifier)
             .publiclyAccessible(true)
             .databaseName(dbName)
-            .masterUsername(dbUsername)
-            .masterUserPassword(dbPassword)
-            .sourceRegion(dbRegion.id())
-            .engine(dbEngine)
-            .engineVersion(dbEngineVersion)
+            .masterUsername(username)
+            .masterUserPassword(password)
+            .sourceRegion(region)
+            .engine(engine)
+            .engineVersion(version)
             .enablePerformanceInsights(false)
             .backupRetentionPeriod(1)
             .storageEncrypted(true)
             .tags(testRunnerTag);
 
     clusterBuilder =
-        clusterBuilder.allocatedStorage(allocatedStorage)
-            .dbClusterInstanceClass(dbInstanceClass)
-            .storageType(storageType)
-            .iops(iops);
+        clusterBuilder.allocatedStorage(100)
+            .dbClusterInstanceClass(instanceClass)
+            .storageType(DEFAULT_STORAGE_TYPE)
+            .iops(DEFAULT_IOPS);
 
     rdsClient.createDBCluster(clusterBuilder.build());
 
-    // For multi-AZ deployments, the cluster instances are created automatically.
-
-    // Wait for all instances to be up
+    // For multi-AZ deployments, the cluster instances are created automatically. Wait for all instances to be up.
     final RdsWaiter waiter = rdsClient.waiter();
     WaiterResponse<DescribeDbInstancesResponse> waiterResponse =
         waiter.waitUntilDBInstanceAvailable(
             (requestBuilder) ->
                 requestBuilder.filters(
-                    Filter.builder().name("db-cluster-id").values(dbIdentifier).build()),
+                    Filter.builder().name("db-cluster-id").values(identifier).build()),
             (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(30)));
 
     if (waiterResponse.matched().exception().isPresent()) {
-      deleteCluster();
+      deleteCluster(identifier, DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER);
       throw new InterruptedException(
           "Unable to start AWS RDS Cluster & Instances after waiting for 30 minutes");
     }
-
-    final DescribeDbInstancesResponse dbInstancesResult =
-        rdsClient.describeDBInstances(
-            (builder) ->
-                builder.filters(
-                    Filter.builder().name("db-cluster-id").values(dbIdentifier).build()));
-    final String endpoint = dbInstancesResult.dbInstances().get(0).endpoint().address();
-    final String clusterDomainPrefix = endpoint.substring(endpoint.indexOf('.') + 1);
-
-    for (DBInstance instance : dbInstancesResult.dbInstances()) {
-      this.instances.add(
-          new TestInstanceInfo(
-              instance.dbInstanceIdentifier(),
-              instance.endpoint().address(),
-              instance.endpoint().port()));
-    }
-
-    return clusterDomainPrefix;
   }
 
   /**
    * Creates an RDS instance under the current cluster and waits until it is up.
    *
+   * @param instanceClass the desired instance class of the new instance
    * @param instanceId the desired instance ID of the new instance
-   * @return the instance info of the new instance
+   * @return the instance info for the new instance
    * @throws InterruptedException if the new instance is not available within 5 minutes
    */
-  public TestInstanceInfo createInstance(String instanceId) throws InterruptedException {
+  public TestInstanceInfo createInstance(String instanceClass, String instanceId) throws InterruptedException {
     final Tag testRunnerTag = Tag.builder().key("env").value("test-runner").build();
     final TestEnvironmentInfo info = TestEnvironment.getCurrent().getInfo();
 
@@ -406,7 +400,7 @@ public class AuroraTestUtility {
         CreateDbInstanceRequest.builder()
             .dbClusterIdentifier(info.getAuroraClusterName())
             .dbInstanceIdentifier(instanceId)
-            .dbInstanceClass(dbInstanceClass)
+            .dbInstanceClass(instanceClass)
             .engine(info.getDatabaseEngine())
             .engineVersion(info.getDatabaseEngineVersion())
             .publiclyAccessible(true)
@@ -442,12 +436,18 @@ public class AuroraTestUtility {
     }
 
     DBInstance instance = dbInstancesResult.dbInstances().get(0);
-    TestInstanceInfo instanceInfo = new TestInstanceInfo(
+    return new TestInstanceInfo(
         instance.dbInstanceIdentifier(),
         instance.endpoint().address(),
         instance.endpoint().port());
-    this.instances.add(instanceInfo);
-    return instanceInfo;
+  }
+
+  public List<DBInstance> getDBInstances(String clusterId) {
+    final DescribeDbInstancesResponse dbInstancesResult =
+        rdsClient.describeDBInstances(
+            (builder) ->
+                builder.filters(Filter.builder().name("db-cluster-id").values(clusterId).build()));
+    return dbInstancesResult.dbInstances();
   }
 
   /**
@@ -462,8 +462,6 @@ public class AuroraTestUtility {
             .dbInstanceIdentifier(instanceToDelete.getInstanceId())
             .skipFinalSnapshot(true)
             .build());
-    this.instances.remove(instanceToDelete);
-
     final RdsWaiter waiter = rdsClient.waiter();
     WaiterResponse<DescribeDbInstancesResponse> waiterResponse = waiter.waitUntilDBInstanceDeleted(
         (requestBuilder) -> requestBuilder.filters(
@@ -479,15 +477,15 @@ public class AuroraTestUtility {
   }
 
   /**
-   * Gets public IP.
+   * Gets the public IP address for the current machine.
    *
-   * @return public IP of user
-   * @throws UnknownHostException when checkip host isn't available
+   * @return the public IP address for the current machine
+   * @throws UnknownHostException when checkip.amazonaws.com isn't available
    */
   public String getPublicIPAddress() throws UnknownHostException {
     String ip;
     try {
-      URL ipChecker = new URL("http://checkip.amazonaws.com");
+      URL ipChecker = new URL("https://checkip.amazonaws.com");
       BufferedReader reader = new BufferedReader(new InputStreamReader(ipChecker.openStream()));
       ip = reader.readLine();
     } catch (Exception e) {
@@ -497,7 +495,9 @@ public class AuroraTestUtility {
   }
 
   /**
-   * Authorizes IP to EC2 Security groups for RDS access.
+   * Adds the given IP address to the default security group for RDS access.
+   *
+   * @param ipAddress the IP address to add to the default security group
    */
   public void ec2AuthorizeIP(String ipAddress) {
     if (StringUtils.isNullOrEmpty(ipAddress)) {
@@ -509,18 +509,18 @@ public class AuroraTestUtility {
     }
 
     try {
+      IpRange ipRange = IpRange.builder()
+          .cidrIp(ipAddress + "/32")
+          .description("Test run at " + Instant.now())
+          .build();
+      IpPermission ipPermission = IpPermission.builder()
+          .ipRanges(ipRange)
+          .ipProtocol("-1") // All protocols
+          .fromPort(0) // For all ports
+          .toPort(65535)
+          .build();
       ec2Client.authorizeSecurityGroupIngress(
-          (builder) ->
-              builder
-                  .groupName(dbSecGroup)
-                  .ipPermissions((permissionBuilder) ->
-                      permissionBuilder.ipRanges((ipRangeBuilder) ->
-                          ipRangeBuilder
-                              .cidrIp(ipAddress + "/32")
-                              .description("Test run at " + Instant.now()))
-                          .ipProtocol("-1") // All protocols
-                          .fromPort(0) // For all ports
-                          .toPort(65535)));
+          (builder) -> builder.groupName(DEFAULT_SECURITY_GROUP).ipPermissions(ipPermission));
     } catch (Ec2Exception exception) {
       if (!DUPLICATE_IP_ERROR_CODE.equalsIgnoreCase(exception.awsErrorDetails().errorCode())) {
         throw exception;
@@ -533,7 +533,7 @@ public class AuroraTestUtility {
         ec2Client.describeSecurityGroups(
             (builder) ->
                 builder
-                    .groupNames(dbSecGroup)
+                    .groupNames(DEFAULT_SECURITY_GROUP)
                     .filters(
                         software.amazon.awssdk.services.ec2.model.Filter.builder()
                             .name("ip-permission.cidr")
@@ -544,7 +544,9 @@ public class AuroraTestUtility {
   }
 
   /**
-   * De-authorizes IP from EC2 Security groups.
+   * Removes the given IP address from the default security group.
+   *
+   * @param ipAddress the IP address to remove from the default security group.
    */
   public void ec2DeauthorizesIP(String ipAddress) {
     if (StringUtils.isNullOrEmpty(ipAddress)) {
@@ -554,7 +556,7 @@ public class AuroraTestUtility {
       ec2Client.revokeSecurityGroupIngress(
           (builder) ->
               builder
-                  .groupName(dbSecGroup)
+                  .groupName(DEFAULT_SECURITY_GROUP)
                   .cidrIp(ipAddress + "/32")
                   .ipProtocol("-1") // All protocols
                   .fromPort(0) // For all ports
@@ -565,47 +567,42 @@ public class AuroraTestUtility {
   }
 
   /**
-   * Destroys all instances and clusters. Removes IP from EC2 whitelist.
+   * Deletes the specified cluster and removes the current IP address from the default security group.
    *
-   * @param identifier database identifier to delete
+   * @param identifier the cluster identifier for the cluster to delete
+   * @param deployment the engine deployment for the cluster to delete
    */
-  public void deleteCluster(String identifier) {
-    dbIdentifier = identifier;
-    deleteCluster();
-  }
-
-  /**
-   * Destroys all instances and clusters. Removes IP from EC2 whitelist.
-   *
-   */
-  public void deleteCluster() {
-
-    switch (this.dbEngineDeployment) {
+  public void deleteCluster(String identifier, DatabaseEngineDeployment deployment) {
+    switch (deployment) {
       case AURORA:
-        this.deleteAuroraCluster();
+        this.deleteAuroraCluster(identifier);
         break;
       case RDS_MULTI_AZ_CLUSTER:
-        this.deleteMultiAzCluster();
+        this.deleteMultiAzCluster(identifier);
         break;
       default:
-        throw new UnsupportedOperationException(this.dbEngineDeployment.toString());
+        throw new UnsupportedOperationException(deployment.toString());
     }
   }
 
   /**
-   * Destroys all instances and clusters. Removes IP from EC2 whitelist.
+   * Deletes the specified Aurora cluster and removes the current IP address from the default security group.
+   *
+   * @param identifier the cluster identifier for the cluster to delete
    */
-  public void deleteAuroraCluster() {
+  public void deleteAuroraCluster(String identifier) {
+    List<DBClusterMember> members = getDBCluster(identifier).dbClusterMembers();
+
     // Tear down instances
-    for (int i = 1; i <= numOfInstances; i++) {
+    for (DBClusterMember member : members) {
       try {
         rdsClient.deleteDBInstance(
             DeleteDbInstanceRequest.builder()
-                .dbInstanceIdentifier(dbIdentifier + "-" + i)
+                .dbInstanceIdentifier(member.dbInstanceIdentifier())
                 .skipFinalSnapshot(true)
                 .build());
       } catch (Exception ex) {
-        LOGGER.finest("Error deleting instance " + dbIdentifier + "-" + i + ". " + ex.getMessage());
+        LOGGER.finest("Error deleting instance '" + member.dbInstanceIdentifier() + "': " + ex.getMessage());
         // Ignore this error and continue with other instances
       }
     }
@@ -615,7 +612,7 @@ public class AuroraTestUtility {
     while (--remainingAttempts > 0) {
       try {
         DeleteDbClusterResponse response = rdsClient.deleteDBCluster(
-            (builder -> builder.skipFinalSnapshot(true).dbClusterIdentifier(dbIdentifier)));
+            (builder -> builder.skipFinalSnapshot(true).dbClusterIdentifier(identifier)));
         if (response.sdkHttpResponse().isSuccessful()) {
           break;
         }
@@ -624,22 +621,24 @@ public class AuroraTestUtility {
       } catch (DbClusterNotFoundException ex) {
         // ignore
       } catch (Exception ex) {
-        LOGGER.warning("Error deleting db cluster " + dbIdentifier + ": " + ex);
+        LOGGER.warning("Error deleting db cluster " + identifier + ": " + ex);
       }
     }
   }
 
   /**
-   * Destroys all instances and clusters.
+   * Deletes the specified multi-az cluster and removes the current IP address from the default security group.
+   *
+   * @param identifier the cluster identifier for the cluster to delete
    */
-  public void deleteMultiAzCluster() {
+  public void deleteMultiAzCluster(String identifier) {
     // deleteDBinstance requests are not necessary to delete a multi-az cluster.
     // Tear down cluster
     int remainingAttempts = 5;
     while (--remainingAttempts > 0) {
       try {
         DeleteDbClusterResponse response = rdsClient.deleteDBCluster(
-            (builder -> builder.skipFinalSnapshot(true).dbClusterIdentifier(dbIdentifier)));
+            (builder -> builder.skipFinalSnapshot(true).dbClusterIdentifier(identifier)));
         if (response.sdkHttpResponse().isSuccessful()) {
           break;
         }
@@ -648,7 +647,7 @@ public class AuroraTestUtility {
       } catch (DbClusterNotFoundException ex) {
         // ignore
       } catch (Exception ex) {
-        LOGGER.warning("Error deleting db cluster " + dbIdentifier + ": " + ex);
+        LOGGER.warning("Error deleting db cluster " + identifier + ": " + ex);
       }
     }
   }
@@ -688,21 +687,30 @@ public class AuroraTestUtility {
     }
   }
 
-  public List<TestInstanceInfo> getClusterInstanceIds(final String clusterId) {
-    final DescribeDbInstancesResponse dbInstancesResult =
-        rdsClient.describeDBInstances(
-            (builder) ->
-                builder.filters(Filter.builder().name("db-cluster-id").values(clusterId).build()));
-
-    List<TestInstanceInfo> result = new ArrayList<>();
-    for (DBInstance instance : dbInstancesResult.dbInstances()) {
-      result.add(
-          new TestInstanceInfo(
-              instance.dbInstanceIdentifier(),
-              instance.endpoint().address(),
-              instance.endpoint().port()));
+  public String getDbInstanceClass(TestEnvironmentRequest request) {
+    switch (request.getDatabaseEngineDeployment()) {
+      case AURORA:
+        return "db.r5.large";
+      case RDS:
+      case RDS_MULTI_AZ_CLUSTER:
+        return "db.m5d.large";
+      default:
+        throw new NotImplementedException(request.getDatabaseEngine().toString());
     }
-    return result;
+  }
+
+  public List<TestInstanceInfo> getTestInstancesInfo(final String clusterId) {
+    List<DBInstance> dbInstances = getDBInstances(clusterId);
+    List<TestInstanceInfo> instancesInfo = new ArrayList<>();
+    for (DBInstance dbInstance : dbInstances) {
+      instancesInfo.add(
+          new TestInstanceInfo(
+              dbInstance.dbInstanceIdentifier(),
+              dbInstance.endpoint().address(),
+              dbInstance.endpoint().port()));
+    }
+
+    return instancesInfo;
   }
 
   public void waitUntilClusterHasRightState(String clusterId) throws InterruptedException {
@@ -738,9 +746,13 @@ public class AuroraTestUtility {
         if (remainingTries == 0) {
           throw sdkClientException;
         }
-        this.initClient();
       }
     }
+
+    if (dbClustersResult == null) {
+      fail("Unable to get DB cluster info for cluster with ID " + clusterId);
+    }
+
     final List<DBCluster> dbClusterList = dbClustersResult.dbClusters();
     return dbClusterList.get(0);
   }
@@ -756,15 +768,18 @@ public class AuroraTestUtility {
         if (remainingTries == 0) {
           throw sdkClientException;
         }
-        this.initClient();
       }
     }
+
+    if (dbInstanceResult == null) {
+      fail("Unable to get DB instance info for instance with ID " + instanceId);
+    }
+
     final List<DBInstance> dbClusterList = dbInstanceResult.dbInstances();
     return dbClusterList.get(0);
   }
 
-  public void waitUntilInstanceHasRightState(String instanceId, String... allowedStatuses)
-      throws InterruptedException {
+  public void waitUntilInstanceHasRightState(String instanceId, String... allowedStatuses) throws InterruptedException {
 
     String status = getDBInstance(instanceId).dbInstanceStatus();
     LOGGER.finest("Instance " + instanceId + " status: " + status
@@ -935,7 +950,7 @@ public class AuroraTestUtility {
               host,
               instanceInfo.getPort(),
               dbName);
-          try (final Connection conn = DriverManager.getConnection(url, props)) {
+          try (final Connection ignored = DriverManager.getConnection(url, props)) {
             LOGGER.finest("Host " + instanceInfo.getHost() + " is up.");
             if (instanceInfo.getHost().contains(".proxied")) {
               LOGGER.finest(
@@ -963,10 +978,14 @@ public class AuroraTestUtility {
     }
 
     try {
-      latch.await(timeoutSec, TimeUnit.SECONDS);
+      boolean timedOut = !latch.await(timeoutSec, TimeUnit.SECONDS);
+      if (timedOut) {
+        LOGGER.warning("Timed out while waiting for instances to come up.");
+      }
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
+
     stop.set(true);
     executorService.shutdownNow();
 
@@ -978,7 +997,7 @@ public class AuroraTestUtility {
   // Attempt to run a query after the instance is down.
   // This should initiate the driver failover, first query after a failover
   // should always throw with the expected error message.
-  public void assertFirstQueryThrows(Connection connection, Class expectedSQLExceptionClass) {
+  public void assertFirstQueryThrows(Connection connection, Class<? extends SQLException> expectedSQLExceptionClass) {
     assertThrows(
         expectedSQLExceptionClass,
         () -> {
@@ -1045,8 +1064,8 @@ public class AuroraTestUtility {
         getRandomDBClusterReaderInstanceId(clusterId));
   }
 
-  public void failoverClusterToATargetAndWaitUntilWriterChanged(
-      String initialWriterId, String targetWriterId) throws InterruptedException {
+  public void failoverClusterToATargetAndWaitUntilWriterChanged(String initialWriterId, String targetWriterId)
+      throws InterruptedException {
     failoverClusterToATargetAndWaitUntilWriterChanged(
         TestEnvironment.getCurrent().getInfo().getAuroraClusterName(),
         initialWriterId,
@@ -1118,24 +1137,7 @@ public class AuroraTestUtility {
     LOGGER.finest(String.format("finished failover from %s to target: %s", initialWriterId, targetWriterId));
   }
 
-  private boolean hasWriterChanged(String initialWriterId, long timeoutNanos)
-      throws InterruptedException {
-    final long waitUntil = System.nanoTime() + timeoutNanos;
-
-    String currentWriterId = getDBClusterWriterInstanceId();
-    while (initialWriterId.equals(currentWriterId)) {
-      if (waitUntil < System.nanoTime()) {
-        return false;
-      }
-      TimeUnit.MILLISECONDS.sleep(3000);
-      // Calling the RDS API to get writer Id.
-      currentWriterId = getDBClusterWriterInstanceId();
-    }
-    return true;
-  }
-
-  public void failoverClusterToTarget(String clusterId, @Nullable String targetInstanceId)
-      throws InterruptedException {
+  public void failoverClusterToTarget(String clusterId, @Nullable String targetInstanceId) throws InterruptedException {
     waitUntilClusterHasRightState(clusterId);
 
     int remainingAttempts = 10;
@@ -1249,9 +1251,10 @@ public class AuroraTestUtility {
       long startTimeNano = System.nanoTime();
       while (hostIpAddress == null
           && TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTimeNano) < timeoutSec) {
-        Thread.sleep(5000);
+        TimeUnit.SECONDS.sleep(5);
         hostIpAddress = this.hostToIP(hostToCheck, false);
       }
+
       if (hostIpAddress == null) {
         fail("Can't get IP address for " + hostToCheck);
       }
@@ -1267,7 +1270,7 @@ public class AuroraTestUtility {
     long startTimeNano = System.nanoTime();
     while (!expectedHostIpAddress.equals(hostIpAddress)
         && TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTimeNano) < timeoutSec) {
-      Thread.sleep(5000);
+      TimeUnit.SECONDS.sleep(5);
       hostIpAddress = this.hostToIP(hostToCheck, false);
       LOGGER.finest(String.format("%s resolves to %s", hostToCheck, hostIpAddress));
     }
@@ -1293,7 +1296,7 @@ public class AuroraTestUtility {
       long startTimeNano = System.nanoTime();
       while (hostIpAddress == null
           && TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTimeNano) < timeoutSec) {
-        Thread.sleep(5000);
+        TimeUnit.SECONDS.sleep(5);
         hostIpAddress = this.hostToIP(hostToCheck, false);
       }
       if (hostIpAddress == null) {
@@ -1312,7 +1315,7 @@ public class AuroraTestUtility {
     long startTimeNano = System.nanoTime();
     while (expectedHostIpAddress.equals(hostIpAddress)
         && TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTimeNano) < timeoutSec) {
-      Thread.sleep(5000);
+      TimeUnit.SECONDS.sleep(5);
       hostIpAddress = this.hostToIP(hostToCheck, false);
       LOGGER.finest(String.format("%s resolves to %s", hostToCheck, hostIpAddress));
     }
@@ -1474,8 +1477,7 @@ public class AuroraTestUtility {
   public String getLatestVersion(String engine) {
     return getEngineVersions(engine).stream()
         .filter(version -> !version.contains("limitless"))
-        .sorted(Comparator.reverseOrder())
-        .findFirst()
+        .max(Comparator.naturalOrder())
         .orElse(null);
   }
 
@@ -1489,29 +1491,11 @@ public class AuroraTestUtility {
     throw new RuntimeException("Failed to find default version");
   }
 
-  public static AuroraTestUtility getUtility() {
-    return getUtility(null);
-  }
-
-  public static AuroraTestUtility getUtility(TestEnvironmentInfo info) {
-    if (info == null) {
-      info = TestEnvironment.getCurrent().getInfo();
-    }
-
-    try {
-      return new AuroraTestUtility(info.getRegion(), info.getRdsEndpoint());
-    } catch (URISyntaxException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
   public static <T> T executeWithTimeout(final Callable<T> callable, long timeoutMs) throws Throwable {
     final ExecutorService executorService = Executors.newSingleThreadExecutor();
     Future<T> future = executorService.submit(callable);
     try {
       return future.get(timeoutMs, TimeUnit.MILLISECONDS);
-    } catch (InterruptedException interruptedException) {
-      throw interruptedException;
     } catch (ExecutionException executionException) {
       if (executionException.getCause() != null) {
         throw executionException.getCause();
@@ -1527,11 +1511,9 @@ public class AuroraTestUtility {
 
   public static void executeWithTimeout(final Runnable runnable, long timeoutMs) throws Throwable {
     final ExecutorService executorService = Executors.newSingleThreadExecutor();
-    Future future = executorService.submit(runnable);
+    Future<?> future = executorService.submit(runnable);
     try {
       future.get(timeoutMs, TimeUnit.MILLISECONDS);
-    } catch (InterruptedException interruptedException) {
-      throw interruptedException;
     } catch (ExecutionException executionException) {
       if (executionException.getCause() != null) {
         throw executionException.getCause();

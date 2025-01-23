@@ -569,8 +569,8 @@ public class ReadWriteSplittingTests {
 
       ProxyHelper.enableAllConnectivity();
 
-      // During failover above some of readers have been tried to connect to and failed since they were not
-      // available. We should expect that some of readers in topology are marked as UNAVAILABLE.
+      // During failover above some of the readers have been tried to connect to and failed since they were not
+      // available. We should expect that some of the readers in topology are marked as UNAVAILABLE.
       // The following code reset node availability and make them AVAILABLE.
       // That is important for further steps.
       TestPluginServiceImpl.clearHostAvailabilityCache();
@@ -861,7 +861,7 @@ public class ReadWriteSplittingTests {
 
       assertThrows(
           HikariPool.PoolInitializationException.class, () -> {
-            try (final Connection conn = DriverManager.getConnection(
+            try (final Connection ignored = DriverManager.getConnection(
                 ConnectionStringHelper.getWrapperUrl(), wrongUserRightPasswordProps)) {
               // Do nothing (close connection automatically)
             }
