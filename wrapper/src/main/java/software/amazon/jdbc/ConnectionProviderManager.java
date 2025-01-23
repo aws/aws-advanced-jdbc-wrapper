@@ -52,7 +52,7 @@ public class ConnectionProviderManager {
    * {@link ConnectionProvider#acceptsUrl} for more info.
    *
    * @param connProvider the {@link ConnectionProvider} to use to establish new connections
-   * @deprecated Use software.amazon.jdbc.Driver instead
+   * @deprecated Use {@link Driver#setCustomConnectionProvider(ConnectionProvider)} instead.
    */
   @Deprecated
   public static void setConnectionProvider(ConnectionProvider connProvider) {
@@ -168,7 +168,7 @@ public class ConnectionProviderManager {
    * ConnectionProvider will be used if the non-default ConnectionProvider has not been set or has
    * been cleared.
    *
-   * @deprecated Use software.amazon.jdbc.Driver instead
+   * @deprecated Use {@link Driver#resetCustomConnectionProvider()} instead
    */
   @Deprecated
   public static void resetProvider() {
@@ -189,7 +189,7 @@ public class ConnectionProviderManager {
    * Sets a custom connection initialization function. It'll be used
    * for every brand-new database connection.
    *
-   * @deprecated Use software.amazon.jdbc.Driver instead
+   * @deprecated Use {@link Driver#setConnectionInitFunc(ConnectionInitFunc)} instead
    */
   @Deprecated
   public static void setConnectionInitFunc(final @NonNull ConnectionInitFunc func) {
@@ -199,7 +199,7 @@ public class ConnectionProviderManager {
   /**
    * Resets a custom connection initialization function.
    *
-   * @deprecated Use software.amazon.jdbc.Driver instead
+   * @deprecated Use {@link Driver#resetConnectionInitFunc()} instead
    */
   @Deprecated
   public static void resetConnectionInitFunc() {

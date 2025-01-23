@@ -20,7 +20,7 @@ For information on how to subscribe to these pipelines, please see the documenta
 
 ## Connect Pipeline
 
-The connect pipeline performs any additional setup or post connection steps required to establish a JDBC connection. By default, the connect pipeline will establish connections using the `DriverConnectionProvider` class for Connections requested through the `DriverManager` and `DataSourceConnectionProvider` class for Connections requested through an `AwsWrapperDataSource`. If you would like to use a non-default `ConnectionProvider` to create connections, you can do so by calling `ConnectionProviderManager.setConnectionProvider(ConnectionProvider)`.
+The connect pipeline performs any additional setup or post connection steps required to establish a JDBC connection. By default, the connect pipeline will establish connections using the `DriverConnectionProvider` class for Connections requested through the `DriverManager` and `DataSourceConnectionProvider` class for Connections requested through an `AwsWrapperDataSource`. If you would like to use a non-default `ConnectionProvider` to create connections, you can do so by calling `Driver.setCustomConnectionProvider(ConnectionProvider)`.
 
 The most common usage of the connect pipeline is to fetch extra credentials from external locations.
 
@@ -28,7 +28,7 @@ An example would be the IAM connection plugin. The IAM connection plugin generat
 
 ## Force Connect Pipeline
 
-The force connect pipeline is similar to the connect pipeline except that it will use the default `DriverConnectionProvider` or `DataSourceConnectionProvider` classes to establish connections regardless of whether a non-default `ConnectionProvider` has been requested via `ConnectionProviderManager.setConnectionProvider(ConnectionProvider)`. For most plugins, the connect and force connect implementation will be equivalent.
+The force connect pipeline is similar to the connect pipeline except that it will use the default `DriverConnectionProvider` or `DataSourceConnectionProvider` classes to establish connections regardless of whether a non-default `ConnectionProvider` has been requested via `Driver.setCustomConnectionProvider(ConnectionProvider)`. For most plugins, the connect and force connect implementation will be equivalent.
 
 ## Execute Pipeline
 

@@ -48,6 +48,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.ConnectionProviderManager;
+import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.HikariPoolConfigurator;
 import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.PropertyDefinition;
@@ -116,7 +117,7 @@ public class AutoscalingTests {
             null,
             poolExpirationNanos,
             TimeUnit.MINUTES.toNanos(10));
-    ConnectionProviderManager.setConnectionProvider(provider);
+    Driver.setCustomConnectionProvider(provider);
 
     final List<Connection> connections = new ArrayList<>();
     try {
@@ -170,7 +171,7 @@ public class AutoscalingTests {
         connection.close();
       }
       ConnectionProviderManager.releaseResources();
-      ConnectionProviderManager.resetProvider();
+      Driver.resetCustomConnectionProvider();
     }
   }
 
@@ -188,7 +189,7 @@ public class AutoscalingTests {
     final List<TestInstanceInfo> instances = testInfo.getDatabaseInfo().getInstances();
     final HikariPooledConnectionProvider provider =
         new HikariPooledConnectionProvider(getHikariConfig(instances.size() * 5));
-    ConnectionProviderManager.setConnectionProvider(provider);
+    Driver.setCustomConnectionProvider(provider);
 
     final List<Connection> connections = new ArrayList<>();
     try {
@@ -224,7 +225,7 @@ public class AutoscalingTests {
         connection.close();
       }
       ConnectionProviderManager.releaseResources();
-      ConnectionProviderManager.resetProvider();
+      Driver.resetCustomConnectionProvider();
     }
   }
 }

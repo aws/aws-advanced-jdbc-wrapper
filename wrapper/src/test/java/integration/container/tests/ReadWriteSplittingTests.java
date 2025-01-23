@@ -68,6 +68,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.ConnectionProviderManager;
+import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.HikariPoolConfigurator;
 import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.PluginService;
@@ -594,7 +595,7 @@ public class ReadWriteSplittingTests {
 
     final HikariPooledConnectionProvider provider =
         new HikariPooledConnectionProvider(getHikariConfig(1));
-    ConnectionProviderManager.setConnectionProvider(provider);
+    Driver.setCustomConnectionProvider(provider);
 
     final Connection conn1;
     final Connection conn2;
@@ -616,7 +617,7 @@ public class ReadWriteSplittingTests {
       assertSame(unwrappedConn1, unwrappedConn2);
     } finally {
       ConnectionProviderManager.releaseResources();
-      ConnectionProviderManager.resetProvider();
+      Driver.resetCustomConnectionProvider();
     }
   }
 
@@ -643,7 +644,7 @@ public class ReadWriteSplittingTests {
     final HikariPooledConnectionProvider provider =
         new HikariPooledConnectionProvider(getHikariConfig(1));
     provider.releaseResources(); // make sure there's no pool's left after prior test
-    ConnectionProviderManager.setConnectionProvider(provider);
+    Driver.setCustomConnectionProvider(provider);
 
     final String initialWriterId;
     final String nextWriterId;
@@ -682,7 +683,7 @@ public class ReadWriteSplittingTests {
       }
     } finally {
       ConnectionProviderManager.releaseResources();
-      ConnectionProviderManager.resetProvider();
+      Driver.resetCustomConnectionProvider();
     }
   }
 
@@ -698,7 +699,7 @@ public class ReadWriteSplittingTests {
 
     final HikariPooledConnectionProvider provider =
         new HikariPooledConnectionProvider(getHikariConfig(1));
-    ConnectionProviderManager.setConnectionProvider(provider);
+    Driver.setCustomConnectionProvider(provider);
 
     final Connection initialWriterConn;
     final Connection newWriterConn;
@@ -719,7 +720,7 @@ public class ReadWriteSplittingTests {
       assertNotSame(initialWriterConn, newWriterConn);
     } finally {
       ConnectionProviderManager.releaseResources();
-      ConnectionProviderManager.resetProvider();
+      Driver.resetCustomConnectionProvider();
     }
   }
 
@@ -732,7 +733,7 @@ public class ReadWriteSplittingTests {
 
     final HikariPooledConnectionProvider provider =
         new HikariPooledConnectionProvider(getHikariConfig(1));
-    ConnectionProviderManager.setConnectionProvider(provider);
+    Driver.setCustomConnectionProvider(provider);
 
     final Connection initialWriterConn1;
     final Connection initialWriterConn2;
@@ -757,7 +758,7 @@ public class ReadWriteSplittingTests {
       }
     } finally {
       ConnectionProviderManager.releaseResources();
-      ConnectionProviderManager.resetProvider();
+      Driver.resetCustomConnectionProvider();
     }
   }
 
@@ -769,7 +770,7 @@ public class ReadWriteSplittingTests {
     final HikariPooledConnectionProvider provider =
         new HikariPooledConnectionProvider(getHikariConfig(1));
     provider.releaseResources(); // make sure there's no pool's left after prior test
-    ConnectionProviderManager.setConnectionProvider(provider);
+    Driver.setCustomConnectionProvider(provider);
 
     final String initialWriterId;
     final String nextWriterId;
@@ -809,7 +810,7 @@ public class ReadWriteSplittingTests {
       }
     } finally {
       ConnectionProviderManager.releaseResources();
-      ConnectionProviderManager.resetProvider();
+      Driver.resetCustomConnectionProvider();
     }
   }
 
@@ -832,7 +833,7 @@ public class ReadWriteSplittingTests {
 
     final HikariPooledConnectionProvider provider =
         new HikariPooledConnectionProvider(getHikariConfig(1));
-    ConnectionProviderManager.setConnectionProvider(provider);
+    Driver.setCustomConnectionProvider(provider);
 
     try {
       try (Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(),
@@ -864,7 +865,7 @@ public class ReadWriteSplittingTests {
           });
     } finally {
       ConnectionProviderManager.releaseResources();
-      ConnectionProviderManager.resetProvider();
+      Driver.resetCustomConnectionProvider();
 
       try (Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(),
           privilegedUserProps);
@@ -885,7 +886,7 @@ public class ReadWriteSplittingTests {
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances();
     final HikariPooledConnectionProvider provider =
         new HikariPooledConnectionProvider(getHikariConfig(instances.size()));
-    ConnectionProviderManager.setConnectionProvider(provider);
+    Driver.setCustomConnectionProvider(provider);
 
     final List<Connection> connections = new ArrayList<>();
     final List<String> connectedReaderIDs = new ArrayList<>();
@@ -906,7 +907,7 @@ public class ReadWriteSplittingTests {
         connection.close();
       }
       ConnectionProviderManager.releaseResources();
-      ConnectionProviderManager.resetProvider();
+      Driver.resetCustomConnectionProvider();
     }
   }
 
@@ -942,7 +943,7 @@ public class ReadWriteSplittingTests {
             // Create a new pool for each instance-arbitraryProp combination
             (hostSpec, connProps) -> hostSpec.getUrl() + connProps.getProperty("arbitraryProp")
         );
-    ConnectionProviderManager.setConnectionProvider(provider);
+    Driver.setCustomConnectionProvider(provider);
 
     final List<Connection> connections = new ArrayList<>();
     try {
@@ -973,7 +974,7 @@ public class ReadWriteSplittingTests {
       }
 
       ConnectionProviderManager.releaseResources();
-      ConnectionProviderManager.resetProvider();
+      Driver.resetCustomConnectionProvider();
     }
   }
 }

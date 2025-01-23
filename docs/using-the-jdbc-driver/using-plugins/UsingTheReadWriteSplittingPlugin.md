@@ -56,7 +56,7 @@ final HikariPooledConnectionProvider connProvider =
         ReadWriteSplittingPostgresExample::getHikariConfig,
         ReadWriteSplittingPostgresExample::getPoolKey
     );
-ConnectionProviderManager.setConnectionProvider(connProvider);
+Driver.setCustomConnectionProvider(connProvider);
 
 private static String getPoolKey(HostSpec hostSpec, Properties props) {
   // Include the URL, user, and somePropertyValue in the connection pool key so that a new
@@ -68,7 +68,7 @@ private static String getPoolKey(HostSpec hostSpec, Properties props) {
 }
 ```
 
-2. Call `ConnectionProviderManager.setConnectionProvider`, passing in the `HikariPooledConnectionProvider` you created in step 1.
+2. Call `Driver.setCustomConnectionProvider`, passing in the `HikariPooledConnectionProvider` you created in step 1.
 
 3. By default, the read/write plugin randomly selects a reader instance the first time that `setReadOnly(true)` is called. If you would like the plugin to select a reader based on a different selection strategy, please see the [Reader Selection](#reader-selection) section for more information.
 

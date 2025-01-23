@@ -17,7 +17,6 @@
 package integration.container.tests;
 
 import com.zaxxer.hikari.HikariConfig;
-import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriverProvider;
@@ -47,6 +46,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.ConnectionProviderManager;
+import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.ConnectTimeConnectionPlugin;
@@ -87,10 +87,10 @@ public class ReadWriteSplittingPerformanceTest {
 
     final HikariPooledConnectionProvider connProvider =
         new HikariPooledConnectionProvider((hostSpec, props) -> new HikariConfig());
-    ConnectionProviderManager.setConnectionProvider(connProvider);
+    Driver.setCustomConnectionProvider(connProvider);
     final Result resultsWithPools = getSetReadOnlyResults(propsWithPlugin);
     ConnectionProviderManager.releaseResources();
-    ConnectionProviderManager.resetProvider();
+    Driver.resetCustomConnectionProvider();
 
     final long switchToReaderMinOverhead =
         resultsWithPlugin.switchToReaderMin - resultsWithoutPlugin.switchToReaderMin;

@@ -52,9 +52,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContext;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
 import org.junit.platform.commons.util.AnnotationUtils;
-import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.Driver;
-import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectManager;
 
 public class TestDriverProvider implements TestTemplateInvocationContextProvider {
   private static final Logger LOGGER = Logger.getLogger(TestDriverProvider.class.getName());
@@ -215,9 +213,9 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
 
   private static void clearCaches() {
     Driver.releaseResources();
-    TargetDriverDialectManager.resetCustomDialect();
-    ConnectionProviderManager.resetProvider();
-    ConnectionProviderManager.resetConnectionInitFunc();
+    Driver.resetCustomTargetDriverDialect();
+    Driver.resetCustomConnectionProvider();
+    Driver.resetCustomConnectionProvider();
   }
 
   private static void checkClusterHealth(final boolean makeSureFirstInstanceWriter)

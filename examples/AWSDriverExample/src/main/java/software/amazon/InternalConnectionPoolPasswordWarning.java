@@ -31,7 +31,7 @@ public class InternalConnectionPoolPasswordWarning {
     final String correctPassword = "correct_password";
     final String wrongPassword = "wrong_password";
 
-    ConnectionProviderManager.setConnectionProvider(
+    Driver.setCustomConnectionProvider(
         new HikariPooledConnectionProvider((hostSpec, props) -> new HikariConfig()));
 
     // Create an internal connection pool with the correct password

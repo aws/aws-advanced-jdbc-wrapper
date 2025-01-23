@@ -101,7 +101,7 @@ public class ReadWriteSplittingSample {
       LOGGER.info("Enabling internal connection pools...");
       final HikariPooledConnectionProvider provider =
           new HikariPooledConnectionProvider(ReadWriteSplittingSample::getHikariConfig);
-      ConnectionProviderManager.setConnectionProvider(provider);
+      Driver.setCustomConnectionProvider(provider);
     }
 
     final ExecutorService executorService = Executors.newFixedThreadPool(NUM_THREADS);

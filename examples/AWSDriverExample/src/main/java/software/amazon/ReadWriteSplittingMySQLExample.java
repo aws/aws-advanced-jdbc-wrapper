@@ -58,7 +58,7 @@ public class ReadWriteSplittingMySQLExample {
     //         ReadWriteSplittingMySQLExample::getHikariConfig,
     //         ReadWriteSplittingMySQLExample::getPoolKey
     //     );
-    // ConnectionProviderManager.setConnectionProvider(connProvider);
+    // Driver.setCustomConnectionProvider(connProvider);
 
     /* Setup Step: Open connection and create tables - uncomment this section to create table and test values */
     // try (final Connection connection = DriverManager.getConnection(MYSQL_CONNECTION_STRING, props)) {
@@ -158,7 +158,7 @@ public class ReadWriteSplittingMySQLExample {
     return config;
   }
 
-  // This method is an optional parameter to `ConnectionProviderManager.setConnectionProvider`.
+  // This method is an optional parameter to `Driver.setCustomConnectionProvider`.
   // It can be omitted if you do not require it.
   private static String getPoolKey(HostSpec hostSpec, Properties props) {
     // Include the URL, user, and somePropertyValue in the connection pool key so that a new
