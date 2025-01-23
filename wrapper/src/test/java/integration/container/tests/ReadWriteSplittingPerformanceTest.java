@@ -17,7 +17,6 @@
 package integration.container.tests;
 
 import com.zaxxer.hikari.HikariConfig;
-import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriverProvider;

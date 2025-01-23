@@ -48,6 +48,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.ConnectionProviderManager;
+import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.HikariPoolConfigurator;
 import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.PropertyDefinition;
@@ -116,7 +117,7 @@ public class AutoscalingTests {
             null,
             poolExpirationNanos,
             TimeUnit.MINUTES.toNanos(10));
-    ConnectionProviderManager.setConnectionProvider(provider);
+    Driver.setCustomConnectionProvider(provider);
 
     final List<Connection> connections = new ArrayList<>();
     try {
@@ -127,8 +128,11 @@ public class AutoscalingTests {
       }
 
       final Connection newInstanceConn;
+      final String instanceClass =
+          auroraUtil.getDbInstanceClass(TestEnvironment.getCurrent().getInfo().getRequest());
       final TestInstanceInfo newInstance =
-          auroraUtil.createInstance("auto-scaling-instance");
+          auroraUtil.createInstance(instanceClass, "auto-scaling-instance");
+      instances.add(newInstance);
       try {
         newInstanceConn =
             DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
@@ -144,6 +148,7 @@ public class AutoscalingTests {
         newInstanceConn.setReadOnly(false);
       } finally {
         auroraUtil.deleteInstance(newInstance);
+        instances.remove(newInstance);
       }
 
       final long deletionCheckTimeout = System.nanoTime() + TimeUnit.MINUTES.toNanos(5);
@@ -200,8 +205,11 @@ public class AutoscalingTests {
       }
 
       final Connection newInstanceConn;
+      final String instanceClass =
+          auroraUtil.getDbInstanceClass(TestEnvironment.getCurrent().getInfo().getRequest());
       final TestInstanceInfo newInstance =
-          auroraUtil.createInstance("auto-scaling-instance");
+          auroraUtil.createInstance(instanceClass, "auto-scaling-instance");
+      instances.add(newInstance);
       try {
         newInstanceConn =
             DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(newInstance), props);
@@ -214,6 +222,7 @@ public class AutoscalingTests {
             .anyMatch((url) -> url.equals(newInstance.getUrl())));
       } finally {
         auroraUtil.deleteInstance(newInstance);
+        instances.remove(newInstance);
       }
 
       auroraUtil.assertFirstQueryThrows(newInstanceConn, FailoverSuccessSQLException.class);

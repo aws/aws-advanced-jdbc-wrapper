@@ -55,6 +55,7 @@ import org.testcontainers.containers.ToxiproxyContainer;
 import org.testcontainers.shaded.org.apache.commons.lang3.NotImplementedException;
 import org.testcontainers.utility.MountableFile;
 import software.amazon.awssdk.services.rds.model.DBCluster;
+import software.amazon.awssdk.services.rds.model.DBInstance;
 import software.amazon.jdbc.util.StringUtils;
 
 public class TestEnvironment implements AutoCloseable {
@@ -174,8 +175,7 @@ public class TestEnvironment implements AutoCloseable {
     return env;
   }
 
-  private static TestEnvironment createAuroraOrMultiAzEnvironment(TestEnvironmentRequest request)
-      throws URISyntaxException {
+  private static TestEnvironment createAuroraOrMultiAzEnvironment(TestEnvironmentRequest request) {
 
     EnvPreCreateInfo preCreateInfo =
         TestEnvironmentProvider.preCreateInfos.get(request.getEnvPreCreateIndex());
@@ -325,7 +325,7 @@ public class TestEnvironment implements AutoCloseable {
     }
   }
 
-  private static void createDbCluster(TestEnvironment env) throws URISyntaxException {
+  private static void createDbCluster(TestEnvironment env) {
 
     switch (env.info.getRequest().getDatabaseInstances()) {
       case SINGLE_INSTANCE:
@@ -351,7 +351,7 @@ public class TestEnvironment implements AutoCloseable {
     }
   }
 
-  private static void createDbCluster(TestEnvironment env, int numOfInstances) throws URISyntaxException {
+  private static void createDbCluster(TestEnvironment env, int numOfInstances) {
 
     env.info.setRegion(
         !StringUtils.isNullOrEmpty(config.rdsDbRegion)
@@ -371,9 +371,6 @@ public class TestEnvironment implements AutoCloseable {
             env.awsAccessKeyId,
             env.awsSecretAccessKey,
             env.awsSessionToken);
-
-    ArrayList<TestInstanceInfo> instances = new ArrayList<>();
-
     if (env.reuseAuroraDbCluster) {
       if (StringUtils.isNullOrEmpty(env.auroraClusterDomain)) {
         throw new RuntimeException("Environment variable RDS_CLUSTER_DOMAIN is required.");
@@ -403,8 +400,6 @@ public class TestEnvironment implements AutoCloseable {
 
       env.info.setDatabaseEngine(clusterInfo.engine());
       env.info.setDatabaseEngineVersion(clusterInfo.engineVersion());
-      instances.addAll(env.auroraUtil.getClusterInstanceIds(env.auroraClusterName));
-
     } else {
       if (StringUtils.isNullOrEmpty(env.auroraClusterName)) {
         int remainingTries = 5;
@@ -431,23 +426,30 @@ public class TestEnvironment implements AutoCloseable {
         if (StringUtils.isNullOrEmpty(engineVersion)) {
           throw new RuntimeException("Failed to get engine version.");
         }
-        String instanceClass = getDbInstanceClass(env.info.getRequest());
+        String instanceClass = env.auroraUtil.getDbInstanceClass(env.info.getRequest());
 
         LOGGER.finer(
             "Using " + engine + " " + engineVersion);
 
-        env.auroraClusterDomain =
-            env.auroraUtil.createCluster(
-                env.info.getDatabaseInfo().getUsername(),
-                env.info.getDatabaseInfo().getPassword(),
-                env.info.getDatabaseInfo().getDefaultDbName(),
-                env.auroraClusterName,
-                env.info.getRequest().getDatabaseEngineDeployment(),
-                engine,
-                instanceClass,
-                engineVersion,
-                numOfInstances,
-                instances);
+        env.auroraUtil.createCluster(
+            env.info.getDatabaseInfo().getUsername(),
+            env.info.getDatabaseInfo().getPassword(),
+            env.info.getDatabaseInfo().getDefaultDbName(),
+            env.auroraClusterName,
+            env.info.getRequest().getDatabaseEngineDeployment(),
+            env.info.getRegion(),
+            engine,
+            instanceClass,
+            engineVersion,
+            numOfInstances);
+
+        List<DBInstance> dbInstances = env.auroraUtil.getDBInstances(env.auroraClusterName);
+        if (dbInstances.isEmpty()) {
+          throw new RuntimeException("Failed to get instance information for cluster " + env.auroraClusterName);
+        }
+
+        final String instanceEndpoint = dbInstances.get(0).endpoint().address();
+        env.auroraClusterDomain = instanceEndpoint.substring(instanceEndpoint.indexOf(".") + 1);
         env.info.setDatabaseEngine(engine);
         env.info.setDatabaseEngineVersion(engineVersion);
         LOGGER.finer(
@@ -458,7 +460,7 @@ public class TestEnvironment implements AutoCloseable {
 
         // remove cluster and instances
         LOGGER.finer("Deleting cluster " + env.auroraClusterName);
-        env.auroraUtil.deleteCluster(env.auroraClusterName);
+        env.auroraUtil.deleteCluster(env.auroraClusterName, env.info.getRequest().getDatabaseEngineDeployment());
         LOGGER.finer("Deleted cluster " + env.auroraClusterName);
 
         throw new RuntimeException(e);
@@ -478,6 +480,7 @@ public class TestEnvironment implements AutoCloseable {
             env.auroraClusterName + ".cluster-ro-" + env.auroraClusterDomain, port);
     env.info.getDatabaseInfo().setInstanceEndpointSuffix(env.auroraClusterDomain, port);
 
+    List<TestInstanceInfo> instances = env.auroraUtil.getTestInstancesInfo(env.auroraClusterName);
     env.info.getDatabaseInfo().getInstances().clear();
     env.info.getDatabaseInfo().getInstances().addAll(instances);
 
@@ -583,18 +586,6 @@ public class TestEnvironment implements AutoCloseable {
         return env.auroraUtil.getLatestVersion(engineName);
       default:
         return systemPropertyVersion;
-    }
-  }
-
-  private static String getDbInstanceClass(TestEnvironmentRequest request) {
-    switch (request.getDatabaseEngineDeployment()) {
-      case AURORA:
-        return "db.r5.large";
-      case RDS:
-      case RDS_MULTI_AZ_CLUSTER:
-        return "db.m5d.large";
-      default:
-        throw new NotImplementedException(request.getDatabaseEngine().toString());
     }
   }
 
@@ -979,16 +970,14 @@ public class TestEnvironment implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    if (this.databaseContainers != null) {
-      for (GenericContainer<?> container : this.databaseContainers) {
-        try {
-          container.stop();
-        } catch (Exception ex) {
-          // ignore
-        }
+    for (GenericContainer<?> container : this.databaseContainers) {
+      try {
+        container.stop();
+      } catch (Exception ex) {
+        // ignore
       }
-      this.databaseContainers.clear();
     }
+    this.databaseContainers.clear();
 
     if (this.telemetryXRayContainer != null) {
       this.telemetryXRayContainer.stop();
@@ -1035,7 +1024,7 @@ public class TestEnvironment implements AutoCloseable {
 
     if (!this.reuseAuroraDbCluster) {
       LOGGER.finest("Deleting cluster " + this.auroraClusterName + ".cluster-" + this.auroraClusterDomain);
-      auroraUtil.deleteCluster(this.auroraClusterName);
+      auroraUtil.deleteCluster(this.auroraClusterName, this.info.getRequest().getDatabaseEngineDeployment());
       LOGGER.finest("Deleted cluster " + this.auroraClusterName + ".cluster-" + this.auroraClusterDomain);
     }
   }
