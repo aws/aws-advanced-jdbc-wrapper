@@ -80,7 +80,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
 
   /**
    * {@link HikariPooledConnectionProvider} constructor. This class can be passed to
-   * {@link ConnectionProviderManager#setConnectionProvider} to enable internal connection pools for
+   * {@link Driver#setCustomConnectionProvider(ConnectionProvider)} to enable internal connection pools for
    * each database instance in a cluster. By maintaining internal connection pools, the driver can
    * improve performance by reusing old {@link Connection} objects.
    *
@@ -99,7 +99,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
 
   /**
    * {@link HikariPooledConnectionProvider} constructor. This class can be passed to
-   * {@link ConnectionProviderManager#setConnectionProvider} to enable internal connection pools for
+   * {@link Driver#setCustomConnectionProvider(ConnectionProvider)} to enable internal connection pools for
    * each database instance in a cluster. By maintaining internal connection pools, the driver can
    * improve performance by reusing old {@link Connection} objects.
    *
@@ -125,7 +125,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
 
   /**
    * {@link HikariPooledConnectionProvider} constructor. This class can be passed to
-   * {@link ConnectionProviderManager#setConnectionProvider} to enable internal connection pools for
+   * {@link Driver#setCustomConnectionProvider(ConnectionProvider)} to enable internal connection pools for
    * each database instance in a cluster. By maintaining internal connection pools, the driver can
    * improve performance by reusing old {@link Connection} objects.
    *
@@ -163,7 +163,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
 
   /**
    * {@link HikariPooledConnectionProvider} constructor. This class can be passed to
-   * {@link ConnectionProviderManager#setConnectionProvider} to enable internal connection pools for
+   * {@link Driver#setCustomConnectionProvider(ConnectionProvider)} to enable internal connection pools for
    * each database instance in a cluster. By maintaining internal connection pools, the driver can
    * improve performance by reusing old {@link Connection} objects.
    *

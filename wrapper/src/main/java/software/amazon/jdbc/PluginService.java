@@ -184,7 +184,7 @@ public interface PluginService extends ExceptionHandler {
   /**
    * Establishes a connection to the given host using the given properties. If a non-default
    * {@link ConnectionProvider} has been set with
-   * {@link ConnectionProviderManager#setConnectionProvider} and
+   * {@link Driver#setCustomConnectionProvider(ConnectionProvider)} and
    * {@link ConnectionProvider#acceptsUrl(String, HostSpec, Properties)} returns true for the
    * desired protocol, host, and properties, the connection will be created by the non-default
    * ConnectionProvider. Otherwise, the connection will be created by the default
@@ -205,7 +205,7 @@ public interface PluginService extends ExceptionHandler {
    * Establishes a connection to the given host using the given properties. This call differs from
    * {@link ConnectionPlugin#connect} in that the default {@link ConnectionProvider} will be used to
    * establish the connection even if a non-default ConnectionProvider has been set via
-   * {@link ConnectionProviderManager#setConnectionProvider}. The default ConnectionProvider will be
+   * {@link Driver#setCustomConnectionProvider(ConnectionProvider)}. The default ConnectionProvider will be
    * {@link DriverConnectionProvider} for connections requested via the
    * {@link java.sql.DriverManager} and {@link DataSourceConnectionProvider} for connections
    * requested via an {@link software.amazon.jdbc.ds.AwsWrapperDataSource}.

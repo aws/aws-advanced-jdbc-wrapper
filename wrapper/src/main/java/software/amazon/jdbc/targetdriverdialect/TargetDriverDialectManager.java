@@ -83,7 +83,7 @@ public class TargetDriverDialectManager implements TargetDriverDialectProvider {
   /**
    * Resets a custom target driver dialect.
    *
-   * @deprecated Use software.amazon.jdbc.Driver instead
+   * @deprecated Use {@link software.amazon.jdbc.Driver#resetCustomTargetDriverDialect()} instead
    */
   @Deprecated
   public static void resetCustomDialect() {

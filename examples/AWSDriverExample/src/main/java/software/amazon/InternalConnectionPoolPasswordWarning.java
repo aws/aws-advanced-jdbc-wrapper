@@ -21,6 +21,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import software.amazon.jdbc.ConnectionProviderManager;
+import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.HikariPooledConnectionProvider;
 
 public class InternalConnectionPoolPasswordWarning {
@@ -31,7 +32,7 @@ public class InternalConnectionPoolPasswordWarning {
     final String correctPassword = "correct_password";
     final String wrongPassword = "wrong_password";
 
-    ConnectionProviderManager.setConnectionProvider(
+    Driver.setCustomConnectionProvider(
         new HikariPooledConnectionProvider((hostSpec, props) -> new HikariConfig()));
 
     // Create an internal connection pool with the correct password
