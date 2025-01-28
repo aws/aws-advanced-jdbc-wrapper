@@ -56,7 +56,7 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.2")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
-    testImplementation("org.apache.commons:commons-dbcp2:2.12.0")
+    testImplementation("org.apache.commons:commons-dbcp2:2.13.0")
     testImplementation("org.postgresql:postgresql:42.7.4")
     testImplementation("com.mysql:mysql-connector-j:9.1.0")
     testImplementation("org.mariadb.jdbc:mariadb-java-client:3.5.1")
