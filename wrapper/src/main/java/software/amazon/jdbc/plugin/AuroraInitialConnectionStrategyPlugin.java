@@ -19,7 +19,9 @@ package software.amazon.jdbc.plugin;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -67,9 +69,38 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
           "1000",
           "Time between each retry of opening a connection.");
 
+  public static final AwsWrapperProperty VERIFY_OPENED_CONNECTION_TYPE =
+      new AwsWrapperProperty(
+          "verifyOpenedConnectionType",
+          null,
+          "Force to verify an opened connection to be either a writer or a reader.");
+
+  private enum VerifyOpenedConnectionType {
+    WRITER,
+    READER;
+
+    private static final Map<String, VerifyOpenedConnectionType> nameToValue =
+        new HashMap<String, VerifyOpenedConnectionType>() {
+          {
+            put("writer", WRITER);
+            put("reader", READER);
+          }
+        };
+
+    public static VerifyOpenedConnectionType fromValue(String value) {
+      if (value == null) {
+        return null;
+      }
+      return nameToValue.get(value.toLowerCase());
+    }
+  }
+
   private final PluginService pluginService;
   private HostListProviderService hostListProviderService;
   private final RdsUtils rdsUtils = new RdsUtils();
+
+  private VerifyOpenedConnectionType verifyOpenedConnectionType = null;
+
 
   static {
     PropertyDefinition.registerPluginProperties(AuroraInitialConnectionStrategyPlugin.class);
@@ -77,6 +108,8 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
   public AuroraInitialConnectionStrategyPlugin(final PluginService pluginService, final Properties properties) {
     this.pluginService = pluginService;
+    this.verifyOpenedConnectionType =
+        VerifyOpenedConnectionType.fromValue(VERIFY_OPENED_CONNECTION_TYPE.getString(properties));
   }
 
   @Override
@@ -110,12 +143,8 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
     final RdsUrlType type = this.rdsUtils.identifyRdsType(hostSpec.getHost());
 
-    if (!type.isRdsCluster()) {
-      // It's not a cluster endpoint. Continue with a normal workflow.
-      return connectFunc.call();
-    }
-
-    if (type == RdsUrlType.RDS_WRITER_CLUSTER) {
+    if (type == RdsUrlType.RDS_WRITER_CLUSTER
+        || isInitialConnection && this.verifyOpenedConnectionType == VerifyOpenedConnectionType.WRITER) {
       Connection writerCandidateConn = this.getVerifiedWriterConnection(props, isInitialConnection, connectFunc);
       if (writerCandidateConn == null) {
         // Can't get writer connection. Continue with a normal workflow.
@@ -124,7 +153,8 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
       return writerCandidateConn;
     }
 
-    if (type == RdsUrlType.RDS_READER_CLUSTER) {
+    if (type == RdsUrlType.RDS_READER_CLUSTER
+        || isInitialConnection && this.verifyOpenedConnectionType == VerifyOpenedConnectionType.READER) {
       Connection readerCandidateConn = this.getVerifiedReaderConnection(props, isInitialConnection, connectFunc);
       if (readerCandidateConn == null) {
         // Can't get a reader connection. Continue with a normal workflow.
