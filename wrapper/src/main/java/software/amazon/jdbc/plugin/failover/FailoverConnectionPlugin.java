@@ -72,6 +72,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
           add("Connection.abort");
           add("Connection.close");
+
+          /* Hikari need to clear warnings on a connection before returning it back to a pool. And a current
+          connection might be closed since recent failover so failover plugin needs to handle it. */
+          add("Connection.clearWarnings");
+
           add("initHostProvider");
           add("connect");
           add("notifyConnectionChanged");
@@ -213,6 +218,19 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final JdbcCallable<T, E> jdbcMethodFunc,
       final Object[] jdbcMethodArgs)
       throws E {
+
+    try {
+      if (this.enableFailoverSetting
+          && !this.canDirectExecute(methodName)
+          && !this.closedExplicitly.get()
+          && this.pluginService.getCurrentConnection() != null
+          && this.pluginService.getCurrentConnection().isClosed()) {
+        this.pickNewConnection();
+      }
+    } catch (SQLException ex) {
+      throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, ex);
+    }
+
     if (!this.enableFailoverSetting || canDirectExecute(methodName)) {
       T result = jdbcMethodFunc.call();
       if (METHOD_ABORT.equals(methodName) || METHOD_CLOSE.equals(methodName)) {

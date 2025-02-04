@@ -150,7 +150,7 @@ public class AuroraConnectionTrackerPluginTest {
     ));
 
     assertEquals(expectedException, exception);
-    verify(mockTracker, never()).invalidateCurrentConnection(eq(originalHost), eq(mockConnection));
+    verify(mockTracker, never()).removeConnectionTracking(eq(originalHost), eq(mockConnection));
     verify(mockTracker, never()).invalidateAllConnections(originalHost);
   }
 
@@ -192,7 +192,7 @@ public class AuroraConnectionTrackerPluginTest {
         SQL_ARGS
     ));
     assertEquals(expectedException, exception);
-    verify(mockTracker, never()).invalidateCurrentConnection(eq(originalHost), eq(mockConnection));
+    verify(mockTracker, never()).removeConnectionTracking(eq(originalHost), eq(mockConnection));
     verify(mockTracker).invalidateAllConnections(originalHost);
   }
 
@@ -218,7 +218,7 @@ public class AuroraConnectionTrackerPluginTest {
         SQL_ARGS
     );
 
-    verify(mockTracker).invalidateCurrentConnection(eq(originalHost), eq(mockConnection));
+    verify(mockTracker).removeConnectionTracking(eq(originalHost), eq(mockConnection));
   }
 
   private static Stream<Arguments> trackNewConnectionsParameters() {

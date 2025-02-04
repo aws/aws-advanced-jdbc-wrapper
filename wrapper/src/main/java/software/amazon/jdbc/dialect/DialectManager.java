@@ -29,6 +29,7 @@ import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
@@ -81,7 +82,11 @@ public class DialectManager implements DialectProvider {
   private Dialect dialect = null;
   private String dialectCode;
 
-  private PluginService pluginService;
+  private final PluginService pluginService;
+
+  static {
+    PropertyDefinition.registerPluginProperties(DialectManager.class);
+  }
 
   public DialectManager(PluginService pluginService) {
     this.pluginService = pluginService;
