@@ -37,6 +37,10 @@ With the `failover` plugin, the downtime during certain DB cluster operations, s
 
 Visit [this page](./docs/using-the-jdbc-driver/SupportForRDSMultiAzDBCluster.md) for more details.
 
+### Using the AWS JDBC Driver with Amazon Aurora Global Databases
+
+This driver supports in-region `failover` and between-regions `planned failover` and `switchover` of [Amazon Aurora Global Databases](https://aws.amazon.com/ru/rds/aurora/global-database/). A [Global Writer Endpoint](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-global-database-connecting.html) is also recognized and can be handled to minimize potential stale DNS issue. Please check [failover plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md), [failover2 plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailover2Plugin.md) and [Aurora Initial Connection Strategy plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAuroraInitialConnectionStrategyPlugin.md) for more information.
+
 ### Using the AWS JDBC Driver with plain RDS databases
 The AWS JDBC Driver also works with RDS provided databases that are not Aurora.
 
@@ -128,10 +132,6 @@ The development team is aware of these limitations and is working to improve the
 
 [^1]: Aurora MySQL requires v3.07 or later.
 
-#### Amazon Aurora Global Databases
-
-This driver currently does not support `planned failover` or `switchover` of Amazon Aurora Global Databases. Failing over to a secondary cluster will result in errors and there may be additional unforeseen errors when working with global databases. Connecting to the primary cluster is fully supported. There is a limitation when connected to the secondary cluster; the [failover2 plugin](using-the-jdbc-driver/using-plugins/UsingTheFailover2Plugin) will not work on the secondary cluster, however the [failover plugin](using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin) will work. Full Support for Amazon Aurora Global Databases is in the backlog, but we cannot comment on a timeline right now.
-
 ## Examples
 
 | Description                                                                                                                                                                                                              |                                                                                                                                                                    Examples                                                                                                                                                                    |
@@ -153,7 +153,7 @@ This driver currently does not support `planned failover` or `switchover` of Ama
 | Using Spring and Wildfly with the AWS JDBC Driver                                                                                                                                                                        |                                                                                                                                             [PostgreSQL](examples/SpringWildflyExample/README.md)                                                                                                                                              |
 | Using Vert.x and c3p0 with the AWS JDBC Driver                                                                                                                                                                           |                                                                                                                                                 [PostgreSQL](examples/VertxExample/README.md)                                                                                                                                                  |
 | Using the AWS JDBC Driver with Telemetry and using the AWS Distro for OpenTelemetry Collector                                                                                                                            |                                                                                                                     [PostgreSQL](examples/AWSDriverExample/src/main/java/software/amazon/TelemetryMetricsOTLPExample.java)                                                                                                                     |
-| Using the AWS JDBC Driver with Telemetry and using the AWS X-Ray Daemon                                                                                                                                                  |                                                                                                                     [PostgreSQL](examples/AWSDriverExample/src/main/java/software/amazon/TelemetryMetricsXRayExample.java)                                                                                                                     |
+| Using the AWS JDBC Driver with Telemetry and using the AWS X-Ray Daemon                                                                                                                                                  |                                                                                                                     [PostgreSQL](examples/AWSDriverExample/src/main/java/software/amazon/TelemetryTracingXRayExample.java)                                                                                                                     |
 
 ## Getting Help and Opening Issues
 If you encounter a bug with the AWS JDBC Driver, we would like to hear about it.

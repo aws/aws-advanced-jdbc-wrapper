@@ -28,6 +28,7 @@ public class RdsMysqlDialect extends MysqlDialect {
 
   private static final List<String> dialectUpdateCandidates = Arrays.asList(
       DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER,
+      DialectCodes.GLOBAL_AURORA_MYSQL,
       DialectCodes.AURORA_MYSQL
   );
 

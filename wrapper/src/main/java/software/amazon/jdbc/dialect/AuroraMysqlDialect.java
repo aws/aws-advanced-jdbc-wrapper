@@ -20,7 +20,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
@@ -28,19 +28,19 @@ import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 
 public class AuroraMysqlDialect extends MysqlDialect {
 
-  private static final String TOPOLOGY_QUERY =
+  protected final String topologyQuery =
       "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
           + "CPU, REPLICA_LAG_IN_MILLISECONDS, LAST_UPDATE_TIMESTAMP "
           + "FROM information_schema.replica_host_status "
           // filter out nodes that haven't been updated in the last 5 minutes
           + "WHERE time_to_sec(timediff(now(), LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' ";
 
-  private static final String IS_WRITER_QUERY =
+  protected final String isWriterQuery =
       "SELECT SERVER_ID FROM information_schema.replica_host_status "
       + "WHERE SESSION_ID = 'MASTER_SESSION_ID' AND SERVER_ID = @@aurora_server_id";
 
-  private static final String NODE_ID_QUERY = "SELECT @@aurora_server_id";
-  private static final String IS_READER_QUERY = "SELECT @@innodb_read_only";
+  protected final String nodeIdQuery = "SELECT @@aurora_server_id";
+  protected final String isReaderQuery = "SELECT @@innodb_read_only";
 
   @Override
   public boolean isDialect(final Connection connection) {
@@ -76,7 +76,9 @@ public class AuroraMysqlDialect extends MysqlDialect {
 
   @Override
   public List</* dialect code */ String> getDialectUpdateCandidates() {
-    return Collections.singletonList(DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER);
+    return Arrays.asList(
+        DialectCodes.GLOBAL_AURORA_MYSQL,
+        DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER);
   }
 
   @Override
@@ -90,19 +92,19 @@ public class AuroraMysqlDialect extends MysqlDialect {
             properties,
             initialUrl,
             hostListProviderService,
-            TOPOLOGY_QUERY,
-            NODE_ID_QUERY,
-            IS_READER_QUERY,
-            IS_WRITER_QUERY,
+            this.topologyQuery,
+            this.nodeIdQuery,
+            this.isReaderQuery,
+            this.isWriterQuery,
             pluginService);
       }
       return new AuroraHostListProvider(
           properties,
           initialUrl,
           hostListProviderService,
-          TOPOLOGY_QUERY,
-          NODE_ID_QUERY,
-          IS_READER_QUERY);
+          this.topologyQuery,
+          this.nodeIdQuery,
+          this.isReaderQuery);
     };
   }
 }

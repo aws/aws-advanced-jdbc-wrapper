@@ -17,6 +17,9 @@
 package software.amazon.jdbc.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -34,6 +37,64 @@ import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 
 class ConnectionUrlParserTest {
+
+  @Test
+  void testParseHostPortPairWithRegionPrefix() {
+    Pair<String, HostSpec> pair = ConnectionUrlParser.parseHostPortPairWithRegionPrefix(
+        "?.XYZ.us-east-2.rds.amazonaws.com",
+        () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
+    assertEquals("us-east-2", pair.getValue1());
+    assertEquals("?.XYZ.us-east-2.rds.amazonaws.com", pair.getValue2().getHost());
+    assertFalse(pair.getValue2().isPortSpecified());
+
+    pair = ConnectionUrlParser.parseHostPortPairWithRegionPrefix(
+        "[test-region]?.XYZ.us-east-2.rds.amazonaws.com",
+        () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
+    assertEquals("test-region", pair.getValue1());
+    assertEquals("?.XYZ.us-east-2.rds.amazonaws.com", pair.getValue2().getHost());
+    assertFalse(pair.getValue2().isPortSpecified());
+
+    pair = ConnectionUrlParser.parseHostPortPairWithRegionPrefix(
+        "?.XYZ.us-east-2.rds.amazonaws.com:9999",
+        () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
+    assertEquals("us-east-2", pair.getValue1());
+    assertEquals("?.XYZ.us-east-2.rds.amazonaws.com", pair.getValue2().getHost());
+    assertTrue(pair.getValue2().isPortSpecified());
+    assertEquals(9999, pair.getValue2().getPort());
+
+    pair = ConnectionUrlParser.parseHostPortPairWithRegionPrefix(
+        "[test-region]?.XYZ.us-east-2.rds.amazonaws.com:9999",
+        () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
+    assertEquals("test-region", pair.getValue1());
+    assertEquals("?.XYZ.us-east-2.rds.amazonaws.com", pair.getValue2().getHost());
+    assertTrue(pair.getValue2().isPortSpecified());
+    assertEquals(9999, pair.getValue2().getPort());
+
+    pair = ConnectionUrlParser.parseHostPortPairWithRegionPrefix(
+        "[test-region]?.custom-domain.com",
+        () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
+    assertEquals("test-region", pair.getValue1());
+    assertEquals("?.custom-domain.com", pair.getValue2().getHost());
+    assertFalse(pair.getValue2().isPortSpecified());
+
+    pair = ConnectionUrlParser.parseHostPortPairWithRegionPrefix(
+        "[test-region]?.custom-domain.com:9999",
+        () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
+    assertEquals("test-region", pair.getValue1());
+    assertEquals("?.custom-domain.com", pair.getValue2().getHost());
+    assertTrue(pair.getValue2().isPortSpecified());
+    assertEquals(9999, pair.getValue2().getPort());
+
+    assertThrows(IllegalArgumentException.class, () ->
+        ConnectionUrlParser.parseHostPortPairWithRegionPrefix(
+          "?.custom-domain.com",
+          () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy())));
+
+    assertThrows(IllegalArgumentException.class, () ->
+        ConnectionUrlParser.parseHostPortPairWithRegionPrefix(
+            "?.custom-domain.com:9999",
+            () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy())));
+  }
 
   @ParameterizedTest
   @MethodSource("testGetHostsFromConnectionUrlArguments")

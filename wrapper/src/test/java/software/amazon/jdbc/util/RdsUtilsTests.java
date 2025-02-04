@@ -104,6 +104,9 @@ public class RdsUtilsTests {
   private static final String usIsoEastRegionLimitlessDbShardGroup =
       "database-test-name.shardgrp-XYZ.rds.us-iso-east-1.c2s.ic.gov";
 
+  private static final String globalDbWriterCluster =
+      "global-cluster-test-name.global-XYZ.global.rds.amazonaws.com";
+
   @BeforeEach
   public void setupTests() {
     RdsUtils.clearCache();
@@ -395,6 +398,12 @@ public class RdsUtilsTests {
     assertEquals(chinaExpectedHostPattern, target.getRdsRegion(oldChinaRegionProxy));
     assertEquals(chinaExpectedHostPattern, target.getRdsRegion(oldChinaRegionCustomDomain));
     assertEquals(chinaExpectedHostPattern, target.getRdsRegion(oldChinaRegionLimitlessDbShardGroup));
+  }
+
+  @Test
+  public void testIsGlobalDbWriterClusterDns() {
+    assertFalse(target.isGlobalDbWriterClusterDns(usEastRegionCluster));
+    assertTrue(target.isGlobalDbWriterClusterDns(globalDbWriterCluster));
   }
 
   @Test

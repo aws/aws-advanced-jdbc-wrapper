@@ -36,6 +36,7 @@ public class RdsPgDialect extends PgDialect {
 
   private static final List<String> dialectUpdateCandidates = Arrays.asList(
       DialectCodes.RDS_MULTI_AZ_PG_CLUSTER,
+      DialectCodes.GLOBAL_AURORA_PG,
       DialectCodes.AURORA_PG);
 
   private static final String extensionsSql = "SELECT (setting LIKE '%rds_tools%') AS rds_tools, "

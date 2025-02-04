@@ -85,10 +85,6 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
         CLUSTER_TOPOLOGY_HIGH_REFRESH_RATE_MS.getLong(this.properties));
   }
 
-  public static void clearCache() {
-    clearAll();
-  }
-
   public static void closeAllMonitors() {
     monitors.getEntries().values().forEach(monitor -> {
       try {
@@ -98,7 +94,7 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
       }
     });
     monitors.clear();
-    clearCache();
+    clearAll();
   }
 
   @Override
@@ -133,11 +129,22 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
 
   @Override
   protected void clusterIdChanged(final String oldClusterId) {
+    super.clusterIdChanged(oldClusterId);
+
+    if (this.clusterId.equals(oldClusterId)) {
+      // clusterId is the same
+      return;
+    }
+
     final ClusterTopologyMonitor existingMonitor = monitors.get(oldClusterId, MONITOR_EXPIRATION_NANO);
     if (existingMonitor != null) {
-      monitors.computeIfAbsent(this.clusterId, (key) -> existingMonitor, MONITOR_EXPIRATION_NANO);
-      assert monitors.get(this.clusterId, MONITOR_EXPIRATION_NANO) == existingMonitor;
-      existingMonitor.setClusterId(this.clusterId);
+      monitors.computeIfAbsent(
+          this.clusterId,
+          (key) -> {
+            existingMonitor.setClusterId(this.clusterId);
+            return existingMonitor;
+          },
+          MONITOR_EXPIRATION_NANO);
       monitors.remove(oldClusterId);
     }
 

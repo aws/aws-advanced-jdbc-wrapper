@@ -24,6 +24,7 @@ public enum RdsUrlType {
   RDS_PROXY(true, false),
   RDS_INSTANCE(true, false),
   RDS_AURORA_LIMITLESS_DB_SHARD_GROUP(true, false),
+  RDS_GLOBAL_WRITER_CLUSTER(true, true),
   OTHER(false, false);
 
   private final boolean isRds;

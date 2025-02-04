@@ -37,6 +37,7 @@ import software.amazon.jdbc.plugin.failover.FailoverRestriction;
 public class PgDialect implements Dialect {
 
   private static final List<String> dialectUpdateCandidates = Arrays.asList(
+      DialectCodes.GLOBAL_AURORA_PG,
       DialectCodes.AURORA_PG,
       DialectCodes.RDS_MULTI_AZ_PG_CLUSTER,
       DialectCodes.RDS_PG);

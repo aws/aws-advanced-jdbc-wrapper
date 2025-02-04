@@ -40,6 +40,11 @@ public class ConnectionUrlParser {
               // follows by any char except "/", "?" or "#"
               + "(?:[/?#].*)?"); // Anything starting with either "/", "?" or "#"
 
+  private static final Pattern URL_WITH_REGION_PATTERN =
+      Pattern.compile(
+          "^(\\[(?<region>.+)\\])?(?<domain>[a-zA-Z0-9\\?\\.\\-]+)(:(?<port>[0-9]+))?$",
+          Pattern.CASE_INSENSITIVE);
+
   static final Pattern EMPTY_STRING_IN_QUOTATIONS = Pattern.compile("\"(\\s*)\"");
   private static final RdsUtils rdsUtils = new RdsUtils();
 
@@ -85,6 +90,46 @@ public class ConnectionUrlParser {
       final Supplier<HostSpecBuilder> hostSpecBuilderSupplier) {
     final String[] hostPortPair = url.split(HOST_PORT_SEPARATOR, 2);
     return getHostSpec(hostPortPair, role, hostSpecBuilderSupplier.get());
+  }
+
+  /**
+   * Parse strings in the following formats:
+   * "url", for example: "instance-1.XYZ.us-east-2.rds.amazonaws.com"
+   * "url:port", for example: "instance-1.XYZ.us-east-2.rds.amazonaws.com:9999"
+   * "[region_name]url", for example: "us-east-2:instance-1.any-domain.com"
+   * "[region_name]url:port", for example: "us-east-2:instance-1.any-domain.com:9999"
+   */
+  public static Pair<String, HostSpec> parseHostPortPairWithRegionPrefix(
+      final String urlWithRegionPrefix,
+      final Supplier<HostSpecBuilder> hostSpecBuilderSupplier) {
+
+    final Matcher matcher = URL_WITH_REGION_PATTERN.matcher(urlWithRegionPrefix);
+    if (!matcher.find()) {
+      throw new IllegalArgumentException(String.format("Can't recognize AWS region in '%s'", urlWithRegionPrefix));
+    }
+    String awsRegion = matcher.group("region");
+    final String host = matcher.group("domain");
+    final String port = matcher.group("port");
+
+    if (StringUtils.isNullOrEmpty(host)) {
+      throw new IllegalArgumentException(String.format("Can't recognize host in '%s'", urlWithRegionPrefix));
+    }
+
+    if (StringUtils.isNullOrEmpty(awsRegion)) {
+      awsRegion = rdsUtils.getRdsRegion(host);
+      if (StringUtils.isNullOrEmpty(awsRegion)) {
+        throw new IllegalArgumentException(String.format("Can't recognize AWS region in '%s'", urlWithRegionPrefix));
+      }
+    }
+
+    final RdsUrlType urlType = rdsUtils.identifyRdsType(host);
+
+    // Assign HostRole of READER if using the reader cluster URL, otherwise assume a HostRole of WRITER
+    final HostRole hostRole = RdsUrlType.RDS_READER_CLUSTER.equals(urlType) ? HostRole.READER : HostRole.WRITER;
+    final String[] hostPortPair = StringUtils.isNullOrEmpty(port)
+        ? new String[] { host }
+        : new String[] { host, port };
+    return Pair.create(awsRegion, getHostSpec(hostPortPair, hostRole, hostSpecBuilderSupplier.get()));
   }
 
   private static HostSpec getHostSpec(final String[] hostPortPair, final HostRole hostRole,

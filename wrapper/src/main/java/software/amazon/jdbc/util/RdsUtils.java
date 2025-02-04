@@ -166,6 +166,14 @@ public class RdsUtils {
           ".*(?<prefix>-green-[0-9a-z]{6})\\..*",
           Pattern.CASE_INSENSITIVE);
 
+  // TODO: check GDB writer endpoint for China regions
+  private static final Pattern AURORA_GLOBAL_WRITER_DNS_PATTERN =
+      Pattern.compile(
+          "^(?<instance>.+)\\."
+              + "(?<dns>global-)?"
+              + "(?<domain>[a-zA-Z0-9]+\\.global\\.rds\\.amazonaws\\.com)$",
+          Pattern.CASE_INSENSITIVE);
+
   private static final Map<String, Matcher> cachedPatterns = new ConcurrentHashMap<>();
   private static final Map<String, String> cachedDnsPatterns = new ConcurrentHashMap<>();
 
@@ -313,6 +321,11 @@ public class RdsUtils {
     return null;
   }
 
+  public boolean isGlobalDbWriterClusterDns(final String host) {
+    final String dnsGroup = getDnsGroup(getPreparedHost(host));
+    return dnsGroup != null && dnsGroup.equalsIgnoreCase("global-");
+  }
+
   public boolean isIPv4(final String ip) {
     return !StringUtils.isNullOrEmpty(ip) && IP_V4.matcher(ip).matches();
   }
@@ -333,6 +346,8 @@ public class RdsUtils {
 
     if (isIPv4(host) || isIPv6(host)) {
       return RdsUrlType.IP_ADDRESS;
+    } else if (isGlobalDbWriterClusterDns(host)) {
+      return RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER;
     } else if (isWriterClusterDns(host)) {
       return RdsUrlType.RDS_WRITER_CLUSTER;
     } else if (isReaderClusterDns(host)) {
@@ -416,7 +431,8 @@ public class RdsUtils {
     }
     return cachedDnsPatterns.computeIfAbsent(host, (k) -> {
       final Matcher matcher = cacheMatcher(k,
-          AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN, AURORA_OLD_CHINA_DNS_PATTERN, AURORA_GOV_DNS_PATTERN);
+          AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN, AURORA_OLD_CHINA_DNS_PATTERN,
+          AURORA_GOV_DNS_PATTERN, AURORA_GLOBAL_WRITER_DNS_PATTERN);
       return getRegexGroup(matcher, DNS_GROUP);
     });
   }
