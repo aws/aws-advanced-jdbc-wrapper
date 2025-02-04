@@ -142,38 +142,41 @@ Please note that the sample code inside the AWS JDBC Driver project will use the
 Configure Spring to use the AWS Advanced JDBC Driver as the default datasource.
 
 1. In the `application.yml`, add a new datasource for Spring:
-    ```yaml
-    datasource:
-        url: jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/db
-        username: jane_doe
-        driver-class-name: software.amazon.jdbc.Driver
-        hikari:
-          data-source-properties:
-            wrapperPlugins: iam,failover,efm2
-            iamRegion: us-east-2
-            iamExpiration: 1320
-          exception-override-class-name: software.amazon.jdbc.util.HikariCPSQLException
-          max-lifetime: 1260000
-    ```
+
+```yaml
+spring:
+  datasource:
+    url: jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/db
+    username: jane_doe
+    driver-class-name: software.amazon.jdbc.Driver
+    hikari:
+      data-source-properties:
+        wrapperPlugins: iam,failover,efm2
+        iamRegion: us-east-2
+        iamExpiration: 1320
+      exception-override-class-name: software.amazon.jdbc.util.HikariCPSQLException
+      max-lifetime: 1260000
+```
    Since Spring 2+ uses Hikari to manage datasources, to configure the driver we would need to specify the `data-source-properties` under `hikari`.
    Whenever Hikari is used, we also need to ensure failover exceptions are handled correctly so connections will not be discarded from the pool after failover has occurred. This can be done by overriding the exception handling class. For more information on this, please see [the documentation on HikariCP](../../docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md#hikaricp).
    
    This example contains some very simple configurations for the IAM Authentication plugin, if you are interested in other configurations related to failover, please visit [the documentation for failover parameters](../../docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md#failover-parameters)
 2. Configure Hibernate dialect:
-   ```yaml
-   jpa:
+
+```yaml
+spring:
+  jpa:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-   ```
+```
 3. [Optional] You can enable driver logging by adding the following to `application.yml`:
-   ```yaml
-   logging:
-      level:
-      software:
-      amazon:
-      jdbc: TRACE
-   ```
+
+```yaml
+logging:
+  level:
+    software.amazon.jdbc: TRACE
+```
 
 Start the application by running `./gradlew :springhibernate:bootRun` in the terminal. You should see the application making a connection to the database and fetching data from the Example table.
 
