@@ -61,7 +61,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin impl
         }
       });
 
-  private static final AtomicLong hostListRefreshThresholdTimeNano = new AtomicLong(0);
+  private static final AtomicLong hostListRefreshEndTimeNano = new AtomicLong(0);
 
   private final PluginService pluginService;
   private final RdsUtils rdsHelper;
@@ -116,10 +116,10 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin impl
 
     try {
       if (!methodName.equals(METHOD_CLOSE) && !methodName.equals(METHOD_ABORT)) {
-        long localHostListRefreshThresholdTimeNano = hostListRefreshThresholdTimeNano.get();
+        long localHostListRefreshEndTimeNano = hostListRefreshEndTimeNano.get();
         boolean needRefreshHostLists = false;
-        if (localHostListRefreshThresholdTimeNano > 0) {
-          if (localHostListRefreshThresholdTimeNano < System.nanoTime()) {
+        if (localHostListRefreshEndTimeNano > 0) {
+          if (localHostListRefreshEndTimeNano > System.nanoTime()) {
             // The time specified in hostListRefreshThresholdTimeNano isn't yet reached.
             // Need to continue to refresh host list.
             needRefreshHostLists = true;
@@ -127,7 +127,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin impl
             // The time specified in hostListRefreshThresholdTimeNano is reached, and we can stop further refreshes
             // of host list. If hostListRefreshThresholdTimeNano has changed while this thread processes the code,
             // we can't override a new value in hostListRefreshThresholdTimeNano.
-            hostListRefreshThresholdTimeNano.compareAndSet(localHostListRefreshThresholdTimeNano, 0);
+            hostListRefreshEndTimeNano.compareAndSet(localHostListRefreshEndTimeNano, 0);
           }
         }
         if (this.needUpdateCurrentWriter || needRefreshHostLists) {
@@ -143,7 +143,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin impl
 
     } catch (final Exception e) {
       if (e instanceof FailoverSQLException) {
-        hostListRefreshThresholdTimeNano.set(System.nanoTime() + TOPOLOGY_CHANGES_EXPECTED_TIME_MS);
+        hostListRefreshEndTimeNano.set(System.nanoTime() + TOPOLOGY_CHANGES_EXPECTED_TIME_MS);
         // Calling this method may effectively close/abort a current connection
         this.checkWriterChanged(true);
       }
@@ -171,7 +171,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin impl
       tracker.logOpenedConnections();
       this.currentWriter = hostSpecAfterFailover;
       this.needUpdateCurrentWriter = false;
-      hostListRefreshThresholdTimeNano.set(0);
+      hostListRefreshEndTimeNano.set(0);
     }
   }
 
