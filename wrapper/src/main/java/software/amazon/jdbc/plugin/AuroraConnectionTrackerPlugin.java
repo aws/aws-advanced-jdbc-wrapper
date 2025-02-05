@@ -116,13 +116,18 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin impl
 
     try {
       if (!methodName.equals(METHOD_CLOSE) && !methodName.equals(METHOD_ABORT)) {
-        long localRefreshHostListTillTimeNano = hostListRefreshThresholdTimeNano.get();
+        long localHostListRefreshThresholdTimeNano = hostListRefreshThresholdTimeNano.get();
         boolean needRefreshHostLists = false;
-        if (localRefreshHostListTillTimeNano > 0) {
-          if (localRefreshHostListTillTimeNano < System.nanoTime()) {
+        if (localHostListRefreshThresholdTimeNano > 0) {
+          if (localHostListRefreshThresholdTimeNano < System.nanoTime()) {
+            // The time specified in hostListRefreshThresholdTimeNano isn't yet reached.
+            // Need to continue to refresh host list.
             needRefreshHostLists = true;
           } else {
-            hostListRefreshThresholdTimeNano.compareAndSet(localRefreshHostListTillTimeNano, 0);
+            // The time specified in hostListRefreshThresholdTimeNano is reached, and we can stop further refreshes
+            // of host list. If hostListRefreshThresholdTimeNano has changed while this thread processes the code,
+            // we can't override a new value in hostListRefreshThresholdTimeNano.
+            hostListRefreshThresholdTimeNano.compareAndSet(localHostListRefreshThresholdTimeNano, 0);
           }
         }
         if (this.needUpdateCurrentWriter || needRefreshHostLists) {
