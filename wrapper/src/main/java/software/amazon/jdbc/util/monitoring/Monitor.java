@@ -25,7 +25,7 @@ public interface Monitor {
 
   boolean isStopped();
 
-  MonitorState getStatus();
+  MonitorStatus getStatus();
 
   MonitorException getException();
 }

@@ -30,7 +30,7 @@ public class CacheServiceImpl implements CacheService {
   protected static final Set<String> defaultCaches =
       Stream.of("topology", "customEndpoint").collect(Collectors.toSet());
   private static CacheServiceImpl instance;
-  protected ConcurrentHashMap<String, SlidingExpirationCacheWithCleanupThread<Object, Object>> caches =
+  protected static ConcurrentHashMap<String, SlidingExpirationCacheWithCleanupThread<Object, Object>> caches =
       new ConcurrentHashMap<>();
 
   private CacheServiceImpl() {
