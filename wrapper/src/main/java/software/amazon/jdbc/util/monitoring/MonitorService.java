@@ -20,21 +20,23 @@ import java.util.Set;
 import java.util.function.Supplier;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
-import software.amazon.jdbc.util.notifications.NotificationListener;
 
 public interface MonitorService {
-  boolean registerMonitorTypeIfAbsent(
+  void registerMonitorTypeIfAbsent(
       String monitorType,
       Supplier<SlidingExpirationCacheWithCleanupThread<Object, Monitor>> cacheSupplier,
       MonitorInitializer initializer,
       Set<MonitorExceptionResponse> exceptionResponses);
 
   void runIfAbsent(
-      String monitorType, Object monitorKey, @Nullable NotificationListener listener, Object... initializerParams);
+      String monitorType,
+      Object monitorKey,
+      long timeToLiveNs,
+      Object... initializerParams);
 
   int numMonitors(String monitorType);
 
-  MonitorStatus getStatus(String monitorType, Object monitorKey);
+  @Nullable MonitorStatus getStatus(String monitorType, Object monitorKey, long timeToLiveNs);
 
   /**
    * Stops the given monitor and removes it from the cache of monitors.
@@ -43,7 +45,7 @@ public interface MonitorService {
    * @param monitorKey
    * @return
    */
-  Monitor stopAndRemoveMonitor(String monitorType, Object monitorKey);
+  void stopAndRemoveMonitor(String monitorType, Object monitorKey);
 
   /**
    * Stops all monitors of the given type, without deleting the cache for the monitor type.
