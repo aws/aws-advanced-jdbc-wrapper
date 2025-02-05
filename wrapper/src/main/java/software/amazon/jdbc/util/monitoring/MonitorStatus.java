@@ -16,9 +16,12 @@
 
 package software.amazon.jdbc.util.monitoring;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 public class MonitorStatus {
   private MonitorState state;
   private long lastUsedTimeNs;
+  private @Nullable Throwable exception;
 
   public MonitorStatus(MonitorState state, long lastUsedTimeNs) {
     this.state = state;
@@ -39,5 +42,13 @@ public class MonitorStatus {
 
   public void setLastUsedTimeNs(long lastUsedTimeNs) {
     this.lastUsedTimeNs = lastUsedTimeNs;
+  }
+
+  public @Nullable Throwable getException() {
+    return this.exception;
+  }
+
+  public void setException(@Nullable Throwable exception) {
+    this.exception = exception;
   }
 }
