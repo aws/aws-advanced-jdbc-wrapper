@@ -46,7 +46,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin impl
   private static final Logger LOGGER = Logger.getLogger(AuroraConnectionTrackerPlugin.class.getName());
 
   // Check topology changes 3 min after last failover
-  private static final long TOPOLOGY_CHANGES_EXPECTED_TIME_MS = TimeUnit.MINUTES.toNanos(3);
+  private static final long TOPOLOGY_CHANGES_EXPECTED_TIME_NANO = TimeUnit.MINUTES.toNanos(3);
 
   static final String METHOD_ABORT = "Connection.abort";
   static final String METHOD_CLOSE = "Connection.close";
@@ -143,7 +143,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin impl
 
     } catch (final Exception e) {
       if (e instanceof FailoverSQLException) {
-        hostListRefreshEndTimeNano.set(System.nanoTime() + TOPOLOGY_CHANGES_EXPECTED_TIME_MS);
+        hostListRefreshEndTimeNano.set(System.nanoTime() + TOPOLOGY_CHANGES_EXPECTED_TIME_NANO);
         // Calling this method may effectively close/abort a current connection
         this.checkWriterChanged(true);
       }

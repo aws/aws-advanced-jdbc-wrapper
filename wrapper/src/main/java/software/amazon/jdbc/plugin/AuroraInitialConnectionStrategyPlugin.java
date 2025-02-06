@@ -101,7 +101,6 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
   private VerifyOpenedConnectionType verifyOpenedConnectionType = null;
 
-
   static {
     PropertyDefinition.registerPluginProperties(AuroraInitialConnectionStrategyPlugin.class);
   }
