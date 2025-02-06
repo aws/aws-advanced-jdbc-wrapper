@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.util.notifications;
+package software.amazon.jdbc.util.monitoring;
 
-public interface NotificationListener {
-  void processNotification(Notification notification);
+public enum MonitorErrorResponse {
+  NO_ACTION,
+  RESTART
 }

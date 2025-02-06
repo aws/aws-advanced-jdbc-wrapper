@@ -14,9 +14,13 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.util.monitoring;
+package software.amazon.jdbc.util;
 
-public enum MonitorExceptionResponse {
-  NO_ACTION,
-  RESTART
+/**
+ * An optional function defining extra cleanup steps to take when a cache item is cleaned up.
+ *
+ * @param <V> the type of object being disposed
+ */
+public interface ItemDisposalFunc<V> {
+  void dispose(V item);
 }

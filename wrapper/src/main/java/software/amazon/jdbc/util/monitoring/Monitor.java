@@ -21,9 +21,5 @@ public interface Monitor {
 
   void stop();
 
-  void restart();
-
-  boolean isStopped();
-
   MonitorStatus getStatus();
 }

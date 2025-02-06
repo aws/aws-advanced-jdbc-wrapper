@@ -14,9 +14,14 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.util.monitoring;
+package software.amazon.jdbc.util.events;
 
-@FunctionalInterface
-public interface MonitorInitializer {
-  Monitor initialize(Object... params);
+public interface EventSubscriber {
+  /**
+   * Process an event. This method will only be called on this subscriber if it has subscribed to the event class via
+   * {@link EventPublisher#subscribe}.
+   *
+   * @param event the event to process.
+   */
+  void processEvent(Object event);
 }

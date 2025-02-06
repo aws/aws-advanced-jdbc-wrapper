@@ -18,7 +18,6 @@ package software.amazon.jdbc.util.monitoring;
 
 public enum MonitorState {
   RUNNING,
-  IDLE,
   STOPPED,
-  EXCEPTION
+  ERROR
 }
