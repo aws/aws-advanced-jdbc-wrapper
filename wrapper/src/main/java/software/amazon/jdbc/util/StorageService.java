@@ -75,6 +75,15 @@ public interface StorageService {
   <T> @Nullable T remove(String itemCategory, Object key);
 
   /**
+   * Indicates whether an item exists under the given item category and key.
+   *
+   * @param itemCategory a String representing the item category, eg "customEndpoint".
+   * @param key          the key for the item, eg "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
+   * @return true if the item exists under the given item category and key, otherwise returns false.
+   */
+  boolean exists(String itemCategory, Object key);
+
+  /**
    * Clears all items from the given category. For example, storageService.clear("customEndpoint") will remove all
    * custom endpoint information from the storage service.
    *
