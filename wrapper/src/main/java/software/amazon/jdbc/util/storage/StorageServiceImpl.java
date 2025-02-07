@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.util;
+package software.amazon.jdbc.util.storage;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,30 +25,41 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.util.ItemDisposalFunc;
+import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.ShouldDisposeFunc;
+import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 
-public class CacheServiceImpl implements CacheService {
-  private static final Logger LOGGER = Logger.getLogger(CacheServiceImpl.class.getName());
-  protected static final Set<String> defaultCaches =
-      Stream.of("topology", "customEndpoint").collect(Collectors.toSet());
-  private static CacheServiceImpl instance;
+public class StorageServiceImpl implements StorageService {
+  private static final Logger LOGGER = Logger.getLogger(StorageServiceImpl.class.getName());
+  public static final String TOPOLOGY = "topology";
+  public static final String CUSTOM_ENDPOINT = "customEndpoint";
+  public static final Set<String> defaultCaches =
+      Collections.unmodifiableSet(Stream.of(TOPOLOGY, CUSTOM_ENDPOINT).collect(Collectors.toSet()));
+  private static StorageServiceImpl instance;
   protected static ConcurrentHashMap<String, SlidingExpirationCacheWithCleanupThread<Object, Object>> caches =
       new ConcurrentHashMap<>();
 
-  private CacheServiceImpl() {
+  private StorageServiceImpl() {
 
   }
 
-  public static CacheService getInstance() {
+  public static StorageService getInstance() {
     if (instance == null) {
-      instance = new CacheServiceImpl();
+      instance = new StorageServiceImpl();
     }
 
     return instance;
   }
 
   @Override
-  public void addCacheIfAbsent(
-       String cacheName, Supplier<SlidingExpirationCacheWithCleanupThread<Object, Object>> cacheSupplier) {
+  public <T> void registerItemCategoryIfAbsent(
+      String itemCategory,
+      Class<T> itemClass,
+      long cleanupIntervalNs,
+      long expirationTimeNs,
+      @Nullable ShouldDisposeFunc<T> shouldDisposeFunc,
+      @Nullable ItemDisposalFunc<T> itemDisposalFunc) {
     caches.computeIfAbsent(cacheName, name -> cacheSupplier.get());
   }
 
