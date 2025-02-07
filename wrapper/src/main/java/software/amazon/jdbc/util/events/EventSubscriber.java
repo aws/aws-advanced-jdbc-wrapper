@@ -14,9 +14,14 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.util.monitoring;
+package software.amazon.jdbc.util.events;
 
-public enum MonitorExceptionResponse {
-  NO_ACTION,
-  RESTART
+public interface EventSubscriber {
+  /**
+   * Process an event. This method will only be called on this subscriber if it has subscribed to the event class via
+   * {@link EventPublisher#subscribe}.
+   *
+   * @param event the event to process.
+   */
+  void processEvent(Event event);
 }

@@ -14,8 +14,14 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.util.notifications;
+package software.amazon.jdbc.util;
 
-public interface NotificationListener {
-  void processNotification(Notification notification);
+/**
+ * An optional function defining the conditions under which an expired entry should be cleaned up
+ * at cleanup time.
+ *
+ * @param <V> the type of object being analyzed for disposal
+ */
+public interface ShouldDisposeFunc<V> {
+  boolean shouldDispose(V item);
 }

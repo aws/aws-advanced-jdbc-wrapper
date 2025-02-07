@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.util.monitoring;
+package software.amazon.jdbc.util.events;
 
-@FunctionalInterface
-public interface MonitorInitializer {
-  Monitor initialize(Object... params);
+// A marker interface for events that need to be communicated between different components.
+public interface Event {
 }

@@ -14,13 +14,22 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.util.notifications;
+package software.amazon.jdbc.util.events;
 
-public interface Notification {
+public class WriterChangedExampleEvent implements Event {
+  final String newWriterUrl;
+  final String oldWriterUrl;
 
-  String getPublisherId();
+  public WriterChangedExampleEvent(String newWriterUrl, String oldWriterUrl) {
+    this.newWriterUrl = newWriterUrl;
+    this.oldWriterUrl = oldWriterUrl;
+  }
 
-  Throwable getThrowable();
+  public String getNewWriterUrl() {
+    return newWriterUrl;
+  }
 
-  String getEventType();
+  public String getOldWriterUrl() {
+    return oldWriterUrl;
+  }
 }

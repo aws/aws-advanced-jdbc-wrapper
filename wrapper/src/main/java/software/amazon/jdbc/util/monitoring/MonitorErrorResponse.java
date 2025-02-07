@@ -14,14 +14,9 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.util.notifications;
+package software.amazon.jdbc.util.monitoring;
 
-import java.util.function.Predicate;
-
-public interface NotificationService {
-  void notifySubscribers(Notification notification);
-
-  void subscribe(NotificationListener listener, Predicate<Notification> isSubscribedFunc);
-
-  void unsubscribe(NotificationListener listener);
+public enum MonitorErrorResponse {
+  NO_ACTION,
+  RESTART
 }
