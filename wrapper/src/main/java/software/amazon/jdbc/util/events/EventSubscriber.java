@@ -23,5 +23,5 @@ public interface EventSubscriber {
    *
    * @param event the event to process.
    */
-  void processEvent(Object event);
+  void processEvent(Event event);
 }

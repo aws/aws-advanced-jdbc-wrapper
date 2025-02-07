@@ -16,20 +16,6 @@
 
 package software.amazon.jdbc.util.events;
 
-public class WriterChangedExampleEvent implements Event {
-  final String newWriterUrl;
-  final String oldWriterUrl;
-
-  public WriterChangedExampleEvent(String newWriterUrl, String oldWriterUrl) {
-    this.newWriterUrl = newWriterUrl;
-    this.oldWriterUrl = oldWriterUrl;
-  }
-
-  public String getNewWriterUrl() {
-    return newWriterUrl;
-  }
-
-  public String getOldWriterUrl() {
-    return oldWriterUrl;
-  }
+// A marker interface for events that need to be communicated between different components.
+public interface Event {
 }
