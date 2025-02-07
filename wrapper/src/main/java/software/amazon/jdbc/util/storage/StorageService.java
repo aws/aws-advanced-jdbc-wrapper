@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.util;
+package software.amazon.jdbc.util.storage;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointInfo;
+import software.amazon.jdbc.util.ItemDisposalFunc;
+import software.amazon.jdbc.util.ShouldDisposeFunc;
 
 public interface StorageService {
   /**
