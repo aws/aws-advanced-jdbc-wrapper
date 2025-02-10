@@ -23,7 +23,7 @@ dependencies {
     implementation("software.amazon.awssdk:sts:2.29.34")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.18.2")
     implementation(project(":aws-advanced-jdbc-wrapper"))
-    implementation("io.opentelemetry:opentelemetry-api:1.46.0")
+    implementation("io.opentelemetry:opentelemetry-api:1.47.0")
     implementation("io.opentelemetry:opentelemetry-sdk:1.46.0")
     implementation("io.opentelemetry:opentelemetry-exporter-otlp:1.46.0")
     implementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
