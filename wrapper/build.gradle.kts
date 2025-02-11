@@ -27,7 +27,7 @@ plugins {
 }
 
 dependencies {
-    implementation("org.checkerframework:checker-qual:3.48.1")
+    implementation("org.checkerframework:checker-qual:3.49.0")
     compileOnly("org.apache.httpcomponents:httpclient:4.5.14")
     compileOnly("software.amazon.awssdk:rds:2.29.34")
     compileOnly("software.amazon.awssdk:auth:2.30.12") // Required for IAM (light implementation)
