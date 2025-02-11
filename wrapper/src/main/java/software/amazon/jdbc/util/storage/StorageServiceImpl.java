@@ -16,158 +16,127 @@
 
 package software.amazon.jdbc.util.storage;
 
-import java.util.Collections;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Supplier;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.ItemDisposalFunc;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ShouldDisposeFunc;
-import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 
 public class StorageServiceImpl implements StorageService {
   private static final Logger LOGGER = Logger.getLogger(StorageServiceImpl.class.getName());
   public static final String TOPOLOGY = "topology";
   public static final String CUSTOM_ENDPOINT = "customEndpoint";
-  public static final Set<String> defaultCaches =
-      Collections.unmodifiableSet(Stream.of(TOPOLOGY, CUSTOM_ENDPOINT).collect(Collectors.toSet()));
-  private static StorageServiceImpl instance;
-  protected static ConcurrentHashMap<String, SlidingExpirationCacheWithCleanupThread<Object, Object>> caches =
-      new ConcurrentHashMap<>();
+  protected static Map<String, ExpirationCache<Object, Object>> caches = new ConcurrentHashMap<>();
 
-  private StorageServiceImpl() {
+  public StorageServiceImpl() {
 
-  }
-
-  public static StorageService getInstance() {
-    if (instance == null) {
-      instance = new StorageServiceImpl();
-    }
-
-    return instance;
   }
 
   @Override
-  public <T> void registerItemCategoryIfAbsent(
+  public void registerItemCategoryIfAbsent(
       String itemCategory,
-      Class<T> itemClass,
-      long cleanupIntervalNs,
-      long expirationTimeNs,
-      @Nullable ShouldDisposeFunc<T> shouldDisposeFunc,
-      @Nullable ItemDisposalFunc<T> itemDisposalFunc) {
-    caches.computeIfAbsent(cacheName, name -> cacheSupplier.get());
+      Class<Object> itemClass,
+      boolean isRenewableExpiration,
+      long timeToLiveNanos,
+      long cleanupIntervalNanos,
+      @Nullable ShouldDisposeFunc<Object> shouldDisposeFunc,
+      @Nullable ItemDisposalFunc<Object> itemDisposalFunc) {
+    caches.computeIfAbsent(
+        itemCategory,
+        category -> new ExpirationCache<>(
+            itemClass,
+            isRenewableExpiration,
+            timeToLiveNanos,
+            cleanupIntervalNanos,
+            shouldDisposeFunc,
+            itemDisposalFunc));
   }
 
   @Override
-  public void deleteCache(String cacheName) {
-    final SlidingExpirationCacheWithCleanupThread<Object, Object> cache = caches.remove(cacheName);
-    if (cache != null) {
-      cache.clear();
+  public void set(String itemCategory, Object key, Object value) {
+    ExpirationCache<Object, Object> cache = caches.get(itemCategory);
+    if (cache == null) {
+      // TODO: what should we do if the item category isn't registered?
+      return;
     }
+
+    cache.put(key, value);
   }
 
   @Override
-  public <T> @Nullable T get(String cacheName, Object key, Class<T> dataClass, long timeToLiveNs) {
-    final SlidingExpirationCacheWithCleanupThread<Object, Object> cache = caches.get(cacheName);
+  @SuppressWarnings("unchecked")
+  public <T> @Nullable T get(String itemCategory, Object key) {
+    final ExpirationCache<Object, Object> cache = caches.get(itemCategory);
     if (cache == null) {
       return null;
     }
 
-    final Object value = cache.get(key, timeToLiveNs);
-    if (dataClass.isInstance(value)) {
-      return dataClass.cast(value);
+    final Object value = cache.get(key);
+    if (value == null) {
+      return null;
+    }
+
+    Class<?> valueClass = cache.getValueClass();
+    if (valueClass.isInstance(value)) {
+      return (T) value;
     }
 
     LOGGER.fine(
-        Messages.get("CacheServiceImpl.classMismatch", new Object[]{dataClass, value.getClass(), cacheName, key}));
+        Messages.get(
+            "StorageServiceImpl.classMismatch",
+            new Object[]{key, itemCategory, valueClass, value.getClass()}));
     return null;
   }
 
   @Override
-  public <T> void set(String cacheName, Object key, T value, long timeToLiveNs) {
-    SlidingExpirationCacheWithCleanupThread<Object, Object> cache = caches.get(cacheName);
-    if (cache == null) {
-      addCacheIfAbsent(cacheName, SlidingExpirationCacheWithCleanupThread::new);
-      LOGGER.finest(Messages.get("CacheServiceImpl.autoCreatedCache", new Object[]{cacheName}));
-    }
-
-    cache = caches.get(cacheName);
-    if (cache != null) {
-      cache.put(key, value, timeToLiveNs);
-    }
-  }
-
-  @Override
-  public <T> boolean setIfCacheExists(String cacheName, Object key, T value, long timeToLiveNs) {
-    final SlidingExpirationCacheWithCleanupThread<Object, Object> cache = caches.get(cacheName);
+  public boolean exists(String itemCategory, Object key) {
+    final ExpirationCache<Object, ?> cache = caches.get(itemCategory);
     if (cache == null) {
       return false;
     }
 
-    cache.put(key, value, timeToLiveNs);
-    return true;
+    return cache.exists(key);
   }
 
   @Override
-  public void delete(String cacheName, Object key) {
-    final SlidingExpirationCacheWithCleanupThread<Object, Object> cache = caches.get(cacheName);
-    if (cache == null) {
-      return;
-    }
-
-    cache.remove(key);
-  }
-
-  // TODO: this is needed to suppress the warning about the casted return value, is it fine to suppress?
   @SuppressWarnings("unchecked")
-  @Override
-  public <T> @Nullable Map<Object, T> getEntries(String cacheName) {
-    final SlidingExpirationCacheWithCleanupThread<Object, Object> cache = caches.get(cacheName);
+  public <T> @Nullable T remove(String itemCategory, Object key) {
+    final ExpirationCache<Object, ?> cache = caches.get(itemCategory);
     if (cache == null) {
       return null;
     }
 
-    return (Map<Object, T>) cache.getEntries();
+    final Object value = cache.remove(key);
+    if (value == null) {
+      return null;
+    }
+
+    Class<?> valueClass = cache.getValueClass();
+    if (valueClass.isInstance(value)) {
+      return (T) value;
+    }
+
+    LOGGER.fine(
+        Messages.get(
+            "StorageServiceImpl.classMismatch",
+            new Object[]{key, itemCategory, valueClass, value.getClass()}));
+    return null;
   }
 
   @Override
-  public int size(String cacheName) {
-    final SlidingExpirationCacheWithCleanupThread<Object, Object> cache = caches.get(cacheName);
-    if (cache == null) {
-      return 0;
+  public void clear(String itemCategory) {
+    final ExpirationCache<Object, ?> cache = caches.get(itemCategory);
+    if (cache != null) {
+      cache.clear();;
     }
-
-    return cache.size();
-  }
-
-  @Override
-  public void deleteAll() {
-    for (SlidingExpirationCacheWithCleanupThread<Object, Object> cache : caches.values()) {
-      cache.clear();
-    }
-
-    caches.clear();
   }
 
   @Override
   public void clearAll() {
-    for (SlidingExpirationCacheWithCleanupThread<Object, Object> cache : caches.values()) {
+    for (ExpirationCache<Object, ?> cache : caches.values()) {
       cache.clear();
     }
-  }
-
-  @Override
-  public void clear(String cacheName) {
-    final SlidingExpirationCacheWithCleanupThread<Object, Object> cache = caches.get(cacheName);
-    if (cache == null) {
-      return;
-    }
-
-    cache.clear();
   }
 }
