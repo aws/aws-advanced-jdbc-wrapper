@@ -33,6 +33,8 @@ import integration.container.TestDriver;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestFeature;
+import integration.container.condition.EnableOnDatabaseEngineDeployment;
+import integration.container.condition.EnableOnNumOfInstances;
 import integration.container.condition.EnableOnTestFeature;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -222,6 +224,8 @@ public class BasicConnectivityTests {
   }
 
   @ParameterizedTest
+  @EnableOnNumOfInstances(min = 2)
+  @EnableOnDatabaseEngineDeployment({DatabaseEngineDeployment.AURORA, DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER})
   @MethodSource("testPluginParameters")
   public void testBasicConnectivityTestWithPlugins(String plugin, String url) throws SQLException {
     final Properties props = getDefaultProperties();
