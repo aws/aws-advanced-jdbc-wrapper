@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.util.storage;
 
+import java.util.Map;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.ItemDisposalFunc;
 import software.amazon.jdbc.util.ShouldDisposeFunc;
@@ -55,19 +56,19 @@ public interface StorageService {
    * @param itemCategory a String representing the item category, eg "customEndpoint".
    * @param key          the key for the item, eg "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
    * @param item         the item to store.
-   * @param <T>          the type of the item being stored.
+   * @param <V>          the type of the item being stored.
    */
-  <T> void set(String itemCategory, Object key, Object item);
+  <V> void set(String itemCategory, Object key, V item);
 
   /**
    * Gets an item stored under the given category.
    *
    * @param itemCategory a String representing the item category, eg "customEndpoint".
    * @param key          the key for the item, eg "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
-   * @param <T>          the type of the item being retrieved.
+   * @param <V>          the type of the item being retrieved.
    * @return the item stored at the given key under the given category.
    */
-  <T> @Nullable T get(String itemCategory, Object key);
+  <V> @Nullable V get(String itemCategory, Object key);
 
   /**
    * Indicates whether an item exists under the given item category and key.
@@ -83,10 +84,10 @@ public interface StorageService {
    *
    * @param itemCategory a String representing the item category, eg "customEndpoint".
    * @param key          the key for the item, eg "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
-   * @param <T>          the type of the item being removed.
+   * @param <V>          the type of the item being removed.
    * @return the item removed from the storage service.
    */
-  <T> @Nullable T remove(String itemCategory, Object key);
+  <V> @Nullable V remove(String itemCategory, Object key);
 
   /**
    * Clears all items from the given category. For example, storageService.clear("customEndpoint") will remove all
@@ -100,4 +101,10 @@ public interface StorageService {
    * Clears all information from all categories of the storage service.
    */
   void clearAll();
+
+  // TODO: this is only called by the suggestedClusterId logic in RdsHostListProvider, which will be removed. This
+  //  method should possibly be removed at that point as well.
+  <K, V> @Nullable Map<K, V> getEntries(String itemCategory);
+
+  int size(String itemCategory);
 }

@@ -26,8 +26,6 @@ import software.amazon.jdbc.util.ShouldDisposeFunc;
 
 public class StorageServiceImpl implements StorageService {
   private static final Logger LOGGER = Logger.getLogger(StorageServiceImpl.class.getName());
-  public static final String TOPOLOGY = "topology";
-  public static final String CUSTOM_ENDPOINT = "customEndpoint";
   protected static Map<String, ExpirationCache<Object, Object>> caches = new ConcurrentHashMap<>();
 
   public StorageServiceImpl() {
@@ -55,7 +53,7 @@ public class StorageServiceImpl implements StorageService {
   }
 
   @Override
-  public void set(String itemCategory, Object key, Object value) {
+  public <V> void set(String itemCategory, Object key, V value) {
     ExpirationCache<Object, Object> cache = caches.get(itemCategory);
     if (cache == null) {
       // TODO: what should we do if the item category isn't registered?
@@ -67,7 +65,7 @@ public class StorageServiceImpl implements StorageService {
 
   @Override
   @SuppressWarnings("unchecked")
-  public <T> @Nullable T get(String itemCategory, Object key) {
+  public <V> @Nullable V get(String itemCategory, Object key) {
     final ExpirationCache<Object, Object> cache = caches.get(itemCategory);
     if (cache == null) {
       return null;
@@ -80,7 +78,7 @@ public class StorageServiceImpl implements StorageService {
 
     Class<?> valueClass = cache.getValueClass();
     if (valueClass.isInstance(value)) {
-      return (T) value;
+      return (V) value;
     }
 
     LOGGER.fine(
@@ -102,7 +100,7 @@ public class StorageServiceImpl implements StorageService {
 
   @Override
   @SuppressWarnings("unchecked")
-  public <T> @Nullable T remove(String itemCategory, Object key) {
+  public <V> @Nullable V remove(String itemCategory, Object key) {
     final ExpirationCache<Object, ?> cache = caches.get(itemCategory);
     if (cache == null) {
       return null;
@@ -115,7 +113,7 @@ public class StorageServiceImpl implements StorageService {
 
     Class<?> valueClass = cache.getValueClass();
     if (valueClass.isInstance(value)) {
-      return (T) value;
+      return (V) value;
     }
 
     LOGGER.fine(
@@ -129,7 +127,7 @@ public class StorageServiceImpl implements StorageService {
   public void clear(String itemCategory) {
     final ExpirationCache<Object, ?> cache = caches.get(itemCategory);
     if (cache != null) {
-      cache.clear();;
+      cache.clear();
     }
   }
 
@@ -138,5 +136,26 @@ public class StorageServiceImpl implements StorageService {
     for (ExpirationCache<Object, ?> cache : caches.values()) {
       cache.clear();
     }
+  }
+
+  @Override
+  public <K, V> @Nullable Map<K, V> getEntries(String itemCategory) {
+    final ExpirationCache<Object, Object> cache = caches.get(itemCategory);
+    if (cache == null) {
+      return null;
+    }
+
+    // TODO: check if this can be safely casted
+    return (Map<K, V>) cache.getEntries();
+  }
+
+  @Override
+  public int size(String itemCategory) {
+    final ExpirationCache<Object, Object> cache = caches.get(itemCategory);
+    if (cache == null) {
+      return 0;
+    }
+
+    return cache.size();
   }
 }

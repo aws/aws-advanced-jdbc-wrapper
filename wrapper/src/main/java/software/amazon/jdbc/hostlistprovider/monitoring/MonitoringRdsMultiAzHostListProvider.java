@@ -48,9 +48,9 @@ public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListP
   protected ClusterTopologyMonitor initMonitor() {
     return monitors.computeIfAbsent(this.clusterId,
         (key) -> new MultiAzClusterTopologyMonitorImpl(
-            key, topologyCache, this.initialHostSpec, this.properties, this.pluginService,
+            key, storageService, this.initialHostSpec, this.properties, this.pluginService,
             this.hostListProviderService, this.clusterInstanceTemplate,
-            this.refreshRateNano, this.highRefreshRateNano, TOPOLOGY_CACHE_EXPIRATION_NANO,
+            this.refreshRateNano, this.highRefreshRateNano,
             this.topologyQuery,
             this.writerTopologyQuery,
             this.nodeIdQuery,

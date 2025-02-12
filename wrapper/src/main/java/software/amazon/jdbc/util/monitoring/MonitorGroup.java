@@ -17,19 +17,20 @@
 package software.amazon.jdbc.util.monitoring;
 
 import java.util.Set;
+import java.util.function.Supplier;
 import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 
 public class MonitorGroup {
   private final String groupName;
-  private final MonitorInitializer initializer;
-  private final Set<MonitorExceptionResponse> exceptionResponses;
+  private final Supplier<Monitor> supplier;
+  private final Set<MonitorErrorResponse> exceptionResponses;
   private final SlidingExpirationCacheWithCleanupThread<Object, Monitor> cache;
 
-  public MonitorGroup(String groupName, MonitorInitializer initializer,
-      Set<MonitorExceptionResponse> exceptionResponses,
+  public MonitorGroup(String groupName, Supplier<Monitor> supplier,
+      Set<MonitorErrorResponse> exceptionResponses,
       SlidingExpirationCacheWithCleanupThread<Object, Monitor> cache) {
     this.groupName = groupName;
-    this.initializer = initializer;
+    this.supplier = supplier;
     this.exceptionResponses = exceptionResponses;
     this.cache = cache;
   }
@@ -38,11 +39,11 @@ public class MonitorGroup {
     return groupName;
   }
 
-  public MonitorInitializer getInitializer() {
-    return initializer;
+  public Supplier<Monitor> getSupplier() {
+    return supplier;
   }
 
-  public Set<MonitorExceptionResponse> getExceptionResponses() {
+  public Set<MonitorErrorResponse> getExceptionResponses() {
     return exceptionResponses;
   }
 

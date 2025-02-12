@@ -65,10 +65,12 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider.FetchTopologyResult;
+import software.amazon.jdbc.util.storage.ItemCategory;
+import software.amazon.jdbc.util.storage.StorageService;
+import software.amazon.jdbc.util.storage.StorageServiceImpl;
 
 class RdsHostListProviderTest {
-
-  private final long defaultRefreshRateNano = TimeUnit.SECONDS.toNanos(5);
+  private final StorageService storageService = new StorageServiceImpl();
   private RdsHostListProvider rdsHostListProvider;
 
   @Mock private Connection mockConnection;
@@ -123,9 +125,8 @@ class RdsHostListProviderTest {
     rdsHostListProvider = Mockito.spy(
         getRdsHostListProvider(mockHostListProviderService, "protocol://url/"));
 
-    final Instant lastUpdated = Instant.now();
     final List<HostSpec> expected = hosts;
-    RdsHostListProvider.topologyCache.put(rdsHostListProvider.clusterId, expected, defaultRefreshRateNano);
+    storageService.set(ItemCategory.TOPOLOGY, rdsHostListProvider.clusterId, expected);
 
     final FetchTopologyResult result = rdsHostListProvider.getTopology(mockConnection, false);
     assertEquals(expected, result.hosts);
@@ -139,7 +140,7 @@ class RdsHostListProviderTest {
         getRdsHostListProvider(mockHostListProviderService, "jdbc:someprotocol://url"));
     rdsHostListProvider.isInitialized = true;
 
-    RdsHostListProvider.topologyCache.put(rdsHostListProvider.clusterId, hosts, defaultRefreshRateNano);
+    storageService.set(ItemCategory.TOPOLOGY, rdsHostListProvider.clusterId, hosts);
 
     final List<HostSpec> newHosts = Collections.singletonList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("newHost").build());
@@ -159,7 +160,7 @@ class RdsHostListProviderTest {
     rdsHostListProvider.isInitialized = true;
 
     final List<HostSpec> expected = hosts;
-    RdsHostListProvider.topologyCache.put(rdsHostListProvider.clusterId, expected, defaultRefreshRateNano);
+    storageService.set(ItemCategory.TOPOLOGY, rdsHostListProvider.clusterId, expected);
 
     doReturn(new ArrayList<>()).when(rdsHostListProvider).queryForTopology(mockConnection);
 
@@ -181,7 +182,7 @@ class RdsHostListProviderTest {
     verify(rdsHostListProvider, atMostOnce()).queryForTopology(mockConnection);
     assertNotNull(result.hosts);
     assertEquals(
-        Arrays.asList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("url").build()),
+        Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("url").build()),
         result.hosts);
   }
 
@@ -229,7 +230,7 @@ class RdsHostListProviderTest {
     rdsHostListProvider = getRdsHostListProvider(mockHostListProviderService, "jdbc:someprotocol://url");
 
     final List<HostSpec> expected = hosts;
-    RdsHostListProvider.topologyCache.put(rdsHostListProvider.clusterId, expected, defaultRefreshRateNano);
+    storageService.set(ItemCategory.TOPOLOGY, rdsHostListProvider.clusterId, expected);
 
     final List<HostSpec> result = rdsHostListProvider.getCachedTopology();
     assertEquals(expected, result);
@@ -243,8 +244,7 @@ class RdsHostListProviderTest {
     rdsHostListProvider.clear();
 
     rdsHostListProvider = getRdsHostListProvider(mockHostListProviderService, "jdbc:someprotocol://url");
-    final long refreshRateOneNanosecond = 1;
-    RdsHostListProvider.topologyCache.put(rdsHostListProvider.clusterId, hosts, refreshRateOneNanosecond);
+    storageService.set(ItemCategory.TOPOLOGY, rdsHostListProvider.clusterId, hosts);
     TimeUnit.NANOSECONDS.sleep(1);
 
     // Test getCachedTopology with expired cache.
@@ -270,7 +270,7 @@ class RdsHostListProviderTest {
     doReturn(topologyClusterA)
         .when(provider1).queryForTopology(any(Connection.class));
 
-    assertEquals(0, RdsHostListProvider.topologyCache.size());
+    assertEquals(0, storageService.size(ItemCategory.TOPOLOGY));
 
     final List<HostSpec> topologyProvider1 = provider1.refresh(mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider1);
@@ -293,7 +293,7 @@ class RdsHostListProviderTest {
     final List<HostSpec> topologyProvider2 = provider2.refresh(mock(Connection.class));
     assertEquals(topologyClusterB, topologyProvider2);
 
-    assertEquals(2, RdsHostListProvider.topologyCache.size());
+    assertEquals(2, storageService.size(ItemCategory.TOPOLOGY));
   }
 
   @Test
@@ -323,7 +323,7 @@ class RdsHostListProviderTest {
 
     doReturn(topologyClusterA).when(provider1).queryForTopology(any(Connection.class));
 
-    assertEquals(0, RdsHostListProvider.topologyCache.size());
+    assertEquals(0, storageService.size(ItemCategory.TOPOLOGY));
 
     final List<HostSpec> topologyProvider1 = provider1.refresh(mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider1);
@@ -340,7 +340,7 @@ class RdsHostListProviderTest {
     final List<HostSpec> topologyProvider2 = provider2.refresh(mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider2);
 
-    assertEquals(1, RdsHostListProvider.topologyCache.size());
+    assertEquals(1, storageService.size(ItemCategory.TOPOLOGY));
   }
 
   @Test
@@ -370,7 +370,7 @@ class RdsHostListProviderTest {
 
     doReturn(topologyClusterA).when(provider1).queryForTopology(any(Connection.class));
 
-    assertEquals(0, RdsHostListProvider.topologyCache.size());
+    assertEquals(0, storageService.size(ItemCategory.TOPOLOGY));
 
     final List<HostSpec> topologyProvider1 = provider1.refresh(mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider1);
@@ -387,7 +387,7 @@ class RdsHostListProviderTest {
     final List<HostSpec> topologyProvider2 = provider2.refresh(mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider2);
 
-    assertEquals(1, RdsHostListProvider.topologyCache.size());
+    assertEquals(1, storageService.size(ItemCategory.TOPOLOGY));
   }
 
   @Test
@@ -417,7 +417,7 @@ class RdsHostListProviderTest {
 
     doAnswer(a -> topologyClusterA).when(provider1).queryForTopology(any(Connection.class));
 
-    assertEquals(0, RdsHostListProvider.topologyCache.size());
+    assertEquals(0, storageService.size(ItemCategory.TOPOLOGY));
 
     List<HostSpec> topologyProvider1 = provider1.refresh(mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider1);
@@ -437,7 +437,7 @@ class RdsHostListProviderTest {
     assertNotEquals(provider1.clusterId, provider2.clusterId);
     assertFalse(provider1.isPrimaryClusterId);
     assertTrue(provider2.isPrimaryClusterId);
-    assertEquals(2, RdsHostListProvider.topologyCache.size());
+    assertEquals(2, storageService.size(ItemCategory.TOPOLOGY));
     assertEquals("cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com",
         RdsHostListProvider.suggestedPrimaryClusterIdCache.get(provider1.clusterId));
 
