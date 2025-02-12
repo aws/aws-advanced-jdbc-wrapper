@@ -164,12 +164,19 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           "telemetryFailoverAdditionalTopTrace", "false",
           "Post an additional top-level trace for failover process.");
 
+  public static final AwsWrapperProperty SKIP_FAILOVER_ON_INTERRUPTED_THREAD =
+      new AwsWrapperProperty(
+          "skipFailoverOnInterruptedThread", "false",
+          "Allows to not failover if the current thread is interrupted.");
+
   private final TelemetryCounter failoverWriterTriggeredCounter;
   private final TelemetryCounter failoverWriterSuccessCounter;
   private final TelemetryCounter failoverWriterFailedCounter;
   private final TelemetryCounter failoverReaderTriggeredCounter;
   private final TelemetryCounter failoverReaderSuccessCounter;
   private final TelemetryCounter failoverReaderFailedCounter;
+
+  private boolean skipFailoverOnInterruptedThread;
 
   static {
     PropertyDefinition.registerPluginProperties(FailoverConnectionPlugin.class);
@@ -369,6 +376,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     this.failoverReaderConnectTimeoutMsSetting = FAILOVER_READER_CONNECT_TIMEOUT_MS.getInteger(this.properties);
     this.telemetryFailoverAdditionalTopTraceSetting =
         TELEMETRY_FAILOVER_ADDITIONAL_TOP_TRACE.getBoolean(this.properties);
+    this.skipFailoverOnInterruptedThread = SKIP_FAILOVER_ON_INTERRUPTED_THREAD.getBoolean(this.properties);
   }
 
   protected void initFailoverMode() {
@@ -785,6 +793,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
     if (!isFailoverEnabled()) {
       LOGGER.fine(() -> Messages.get("Failover.failoverDisabled"));
+      return false;
+    }
+
+    if (this.skipFailoverOnInterruptedThread && Thread.currentThread().isInterrupted()) {
+      LOGGER.fine(() -> Messages.get("Failover.skipFailoverOnInterruptedThread"));
       return false;
     }
 

@@ -98,6 +98,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
               + "network exception. Note that this may result in a connection to a different instance in the cluster "
               + "than was specified by the URL.");
 
+  public static final AwsWrapperProperty SKIP_FAILOVER_ON_INTERRUPTED_THREAD =
+      new AwsWrapperProperty(
+          "skipFailoverOnInterruptedThread", "false",
+          "Allows to not failover if the current thread is interrupted.");
+
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {
@@ -137,6 +142,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   protected final TelemetryCounter failoverReaderTriggeredCounter;
   protected final TelemetryCounter failoverReaderSuccessCounter;
   protected final TelemetryCounter failoverReaderFailedCounter;
+  protected final boolean skipFailoverOnInterruptedThread;
+
 
   static {
     PropertyDefinition.registerPluginProperties(FailoverConnectionPlugin.class);
@@ -165,6 +172,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         TELEMETRY_FAILOVER_ADDITIONAL_TOP_TRACE.getBoolean(this.properties);
     this.failoverReaderHostSelectorStrategySetting =
         FAILOVER_READER_HOST_SELECTOR_STRATEGY.getString(this.properties);
+    this.skipFailoverOnInterruptedThread = SKIP_FAILOVER_ON_INTERRUPTED_THREAD.getBoolean(this.properties);
 
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
     this.failoverWriterTriggeredCounter = telemetryFactory.createCounter("writerFailover.triggered.count");
@@ -634,6 +642,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
     if (!isFailoverEnabled()) {
       LOGGER.fine(() -> Messages.get("Failover.failoverDisabled"));
+      return false;
+    }
+
+    if (this.skipFailoverOnInterruptedThread && Thread.currentThread().isInterrupted()) {
+      LOGGER.fine(() -> Messages.get("Failover.skipFailoverOnInterruptedThread"));
       return false;
     }
 
