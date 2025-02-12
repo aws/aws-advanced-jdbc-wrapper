@@ -167,7 +167,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   public static final AwsWrapperProperty SKIP_FAILOVER_ON_INTERRUPTED_THREAD =
       new AwsWrapperProperty(
           "skipFailoverOnInterruptedThread", "false",
-          "Allows to not failover if the current thread is interrupted.");
+          "Enable to skip failover if the current thread is interrupted.");
 
   private final TelemetryCounter failoverWriterTriggeredCounter;
   private final TelemetryCounter failoverWriterSuccessCounter;
