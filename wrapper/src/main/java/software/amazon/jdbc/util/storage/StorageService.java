@@ -41,14 +41,14 @@ public interface StorageService {
    *                               passed, the
    *                               item will be removed without performing any additional operations.
    */
-  void registerItemCategoryIfAbsent(
+  <V> void registerItemCategoryIfAbsent(
       String itemCategory,
-      Class<Object> itemClass,
+      Class<V> itemClass,
       boolean isRenewableExpiration,
       long cleanupIntervalNanos,
       long expirationTimeoutNanos,
-      @Nullable ShouldDisposeFunc<Object> shouldDisposeFunc,
-      @Nullable ItemDisposalFunc<Object> itemDisposalFunc);
+      @Nullable ShouldDisposeFunc<V> shouldDisposeFunc,
+      @Nullable ItemDisposalFunc<V> itemDisposalFunc);
 
   /**
    * Stores an item under the given category.
@@ -68,7 +68,7 @@ public interface StorageService {
    * @param <V>          the type of the item being retrieved.
    * @return the item stored at the given key under the given category.
    */
-  <V> @Nullable V get(String itemCategory, Object key);
+  <V> @Nullable V get(String itemCategory, Object key, Class<V> itemClass);
 
   /**
    * Indicates whether an item exists under the given item category and key.
@@ -84,10 +84,8 @@ public interface StorageService {
    *
    * @param itemCategory a String representing the item category, eg "customEndpoint".
    * @param key          the key for the item, eg "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
-   * @param <V>          the type of the item being removed.
-   * @return the item removed from the storage service.
    */
-  <V> @Nullable V remove(String itemCategory, Object key);
+  void remove(String itemCategory, Object key);
 
   /**
    * Clears all items from the given category. For example, storageService.clear("customEndpoint") will remove all

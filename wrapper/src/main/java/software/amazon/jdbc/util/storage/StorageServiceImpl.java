@@ -26,21 +26,21 @@ import software.amazon.jdbc.util.ShouldDisposeFunc;
 
 public class StorageServiceImpl implements StorageService {
   private static final Logger LOGGER = Logger.getLogger(StorageServiceImpl.class.getName());
-  protected static Map<String, ExpirationCache<Object, Object>> caches = new ConcurrentHashMap<>();
+  protected static Map<String, ExpirationCache<Object, ?>> caches = new ConcurrentHashMap<>();
 
   public StorageServiceImpl() {
 
   }
 
   @Override
-  public void registerItemCategoryIfAbsent(
+  public <V> void registerItemCategoryIfAbsent(
       String itemCategory,
-      Class<Object> itemClass,
+      Class<V> itemClass,
       boolean isRenewableExpiration,
       long timeToLiveNanos,
       long cleanupIntervalNanos,
-      @Nullable ShouldDisposeFunc<Object> shouldDisposeFunc,
-      @Nullable ItemDisposalFunc<Object> itemDisposalFunc) {
+      @Nullable ShouldDisposeFunc<V> shouldDisposeFunc,
+      @Nullable ItemDisposalFunc<V> itemDisposalFunc) {
     caches.computeIfAbsent(
         itemCategory,
         category -> new ExpirationCache<>(
@@ -54,19 +54,27 @@ public class StorageServiceImpl implements StorageService {
 
   @Override
   public <V> void set(String itemCategory, Object key, V value) {
-    ExpirationCache<Object, Object> cache = caches.get(itemCategory);
+    final ExpirationCache<Object, ?> cache = caches.get(itemCategory);
     if (cache == null) {
       // TODO: what should we do if the item category isn't registered?
       return;
     }
 
-    cache.put(key, value);
+    Class<?> expectedType = cache.getValueClass();
+    if (!expectedType.isInstance(value)) {
+      throw new IllegalArgumentException(
+          Messages.get(
+              "StorageServiceImpl.incorrectValueType",
+              new Object[]{itemCategory, expectedType, value.getClass(), value}));
+    }
+
+    ExpirationCache<Object, V> typedCache = (ExpirationCache<Object, V>) cache;
+    typedCache.put(key, value);
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public <V> @Nullable V get(String itemCategory, Object key) {
-    final ExpirationCache<Object, Object> cache = caches.get(itemCategory);
+  public <V> @Nullable V get(String itemCategory, Object key, Class<V> itemClass) {
+    final ExpirationCache<Object, ?> cache = caches.get(itemCategory);
     if (cache == null) {
       return null;
     }
@@ -76,15 +84,14 @@ public class StorageServiceImpl implements StorageService {
       return null;
     }
 
-    Class<?> valueClass = cache.getValueClass();
-    if (valueClass.isInstance(value)) {
-      return (V) value;
+    if (itemClass.isInstance(value)) {
+      return itemClass.cast(value);
     }
 
     LOGGER.fine(
         Messages.get(
-            "StorageServiceImpl.classMismatch",
-            new Object[]{key, itemCategory, valueClass, value.getClass()}));
+            "StorageServiceImpl.itemClassMismatch",
+            new Object[]{key, itemCategory, itemClass, value.getClass()}));
     return null;
   }
 
@@ -99,28 +106,13 @@ public class StorageServiceImpl implements StorageService {
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public <V> @Nullable V remove(String itemCategory, Object key) {
+  public void remove(String itemCategory, Object key) {
     final ExpirationCache<Object, ?> cache = caches.get(itemCategory);
     if (cache == null) {
-      return null;
+      return;
     }
 
-    final Object value = cache.remove(key);
-    if (value == null) {
-      return null;
-    }
-
-    Class<?> valueClass = cache.getValueClass();
-    if (valueClass.isInstance(value)) {
-      return (V) value;
-    }
-
-    LOGGER.fine(
-        Messages.get(
-            "StorageServiceImpl.classMismatch",
-            new Object[]{key, itemCategory, valueClass, value.getClass()}));
-    return null;
+    cache.remove(key);
   }
 
   @Override
@@ -140,18 +132,18 @@ public class StorageServiceImpl implements StorageService {
 
   @Override
   public <K, V> @Nullable Map<K, V> getEntries(String itemCategory) {
-    final ExpirationCache<Object, Object> cache = caches.get(itemCategory);
+    final ExpirationCache<?, ?> cache = caches.get(itemCategory);
     if (cache == null) {
       return null;
     }
 
-    // TODO: check if this can be safely casted
+    // TODO: fix this cast to be type safe, or remove this method after removing its callers
     return (Map<K, V>) cache.getEntries();
   }
 
   @Override
   public int size(String itemCategory) {
-    final ExpirationCache<Object, Object> cache = caches.get(itemCategory);
+    final ExpirationCache<?, ?> cache = caches.get(itemCategory);
     if (cache == null) {
       return 0;
     }
