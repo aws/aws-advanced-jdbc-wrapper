@@ -19,36 +19,25 @@ package software.amazon.jdbc.util.monitoring;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class MonitorStatus {
-  private MonitorState state;
-  private long lastUsedTimeNs;
-  private @Nullable Throwable exception;
+  private final MonitorState state;
+  private final long lastUsedTimeNs;
+  private final @Nullable Throwable exception;
 
-  public MonitorStatus(MonitorState state, long lastUsedTimeNs) {
+  public MonitorStatus(MonitorState state, long lastUsedTimeNs, @Nullable Throwable exception) {
     this.state = state;
     this.lastUsedTimeNs = lastUsedTimeNs;
+    this.exception = exception;
   }
 
   public MonitorState getState() {
     return state;
   }
 
-  public void setState(MonitorState state) {
-    this.state = state;
-  }
-
   public long getLastUsedTimeNs() {
     return lastUsedTimeNs;
   }
 
-  public void setLastUsedTimeNs(long lastUsedTimeNs) {
-    this.lastUsedTimeNs = lastUsedTimeNs;
-  }
-
   public @Nullable Throwable getException() {
     return this.exception;
-  }
-
-  public void setException(@Nullable Throwable exception) {
-    this.exception = exception;
   }
 }
