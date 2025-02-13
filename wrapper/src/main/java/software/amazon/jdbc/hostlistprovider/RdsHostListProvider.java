@@ -60,6 +60,7 @@ import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.storage.ItemCategory;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.StorageServiceImpl;
+import software.amazon.jdbc.util.storage.Topology;
 
 public class RdsHostListProvider implements DynamicHostListProvider {
 
@@ -245,14 +246,15 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       this.clusterIdChanged(oldClusterId);
     }
 
-    final List<HostSpec> cachedHosts = storageService.get(ItemCategory.TOPOLOGY, this.clusterId);
+    final Topology cachedTopology = storageService.get(ItemCategory.TOPOLOGY, this.clusterId, Topology.class);
+    final List<HostSpec> cachedHosts = cachedTopology == null ? null : cachedTopology.getHosts();
 
     // This clusterId is a primary one and is about to create a new entry in the cache.
     // When a primary entry is created it needs to be suggested for other (non-primary) entries.
     // Remember a flag to do suggestion after cache is updated.
-    final boolean needToSuggest = cachedHosts == null && this.isPrimaryClusterId;
+    final boolean needToSuggest = cachedTopology == null && this.isPrimaryClusterId;
 
-    if (cachedHosts == null || forceUpdate) {
+    if (cachedTopology == null || forceUpdate) {
 
       // need to re-fetch topology
 
@@ -266,7 +268,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       final List<HostSpec> hosts = queryForTopology(conn);
 
       if (!Utils.isNullOrEmpty(hosts)) {
-        storageService.set(ItemCategory.TOPOLOGY, this.clusterId, hosts);
+        storageService.set(ItemCategory.TOPOLOGY, this.clusterId, new Topology(hosts));
         if (needToSuggest) {
           this.suggestPrimaryCluster(hosts);
         }
@@ -287,14 +289,14 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   }
 
   protected ClusterSuggestedResult getSuggestedClusterId(final String url) {
-    Map<String, List<HostSpec>> entries = storageService.getEntries(ItemCategory.TOPOLOGY);
+    Map<String, Topology> entries = storageService.getEntries(ItemCategory.TOPOLOGY);
     if (entries == null) {
       return null;
     }
 
-    for (final Entry<String, List<HostSpec>> entry : entries.entrySet()) {
+    for (final Entry<String, Topology> entry : entries.entrySet()) {
       final String key = entry.getKey(); // clusterId
-      final List<HostSpec> hosts = entry.getValue();
+      final List<HostSpec> hosts = entry.getValue().getHosts();
       final boolean isPrimaryCluster = primaryClusterIdCache.get(key, false,
           suggestedClusterIdRefreshRateNano);
       if (key.equals(url)) {
@@ -324,14 +326,14 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       primaryClusterHostUrls.add(hostSpec.getUrl());
     }
 
-    Map<String, List<HostSpec>> entries = storageService.getEntries(ItemCategory.TOPOLOGY);
+    Map<String, Topology> entries = storageService.getEntries(ItemCategory.TOPOLOGY);
     if (entries == null) {
       return;
     }
 
-    for (final Entry<String, List<HostSpec>> entry : entries.entrySet()) {
+    for (final Entry<String, Topology> entry : entries.entrySet()) {
       final String clusterId = entry.getKey();
-      final List<HostSpec> clusterHosts = entry.getValue();
+      final List<HostSpec> clusterHosts = entry.getValue().getHosts();
       final boolean isPrimaryCluster = primaryClusterIdCache.get(clusterId, false,
           suggestedClusterIdRefreshRateNano);
       final String suggestedPrimaryClusterId = suggestedPrimaryClusterIdCache.get(clusterId);
@@ -507,7 +509,8 @@ public class RdsHostListProvider implements DynamicHostListProvider {
    *     cached topology is outdated, it returns null.
    */
   public @Nullable List<HostSpec> getCachedTopology() {
-    return storageService.get(ItemCategory.TOPOLOGY, this.clusterId);
+    Topology topology = storageService.get(ItemCategory.TOPOLOGY, this.clusterId, Topology.class);
+    return topology == null ? null : topology.getHosts();
   }
 
   /**
@@ -600,20 +603,20 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   public static void logCache() {
     LOGGER.finest(() -> {
       final StringBuilder sb = new StringBuilder();
-      Map<String, List<HostSpec>> entries = storageService.getEntries(ItemCategory.TOPOLOGY);
+      Map<String, Topology> entries = storageService.getEntries(ItemCategory.TOPOLOGY);
       if (entries == null) {
         return "<No topology entries found>";
       }
 
-      final Set<Entry<String, List<HostSpec>>> cacheEntries = entries.entrySet();
+      final Set<Entry<String, Topology>> cacheEntries = entries.entrySet();
 
       if (cacheEntries.isEmpty()) {
         sb.append("Cache is empty.");
         return sb.toString();
       }
 
-      for (final Entry<String, List<HostSpec>> entry : cacheEntries) {
-        final List<HostSpec> hosts = entry.getValue();
+      for (final Entry<String, Topology> entry : cacheEntries) {
+        final List<HostSpec> hosts = entry.getValue().getHosts();
         final Boolean isPrimaryCluster = primaryClusterIdCache.get(entry.getKey());
         final String suggestedPrimaryClusterId = suggestedPrimaryClusterIdCache.get(entry.getKey());
 
