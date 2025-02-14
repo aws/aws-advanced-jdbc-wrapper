@@ -115,6 +115,7 @@ class RdsHostListProviderTest {
         new Properties(),
         originalUrl,
         mockHostListProviderService,
+        storageService,
         "foo", "bar", "baz");
     provider.init();
     return provider;

@@ -59,7 +59,6 @@ import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.storage.ItemCategory;
 import software.amazon.jdbc.util.storage.StorageService;
-import software.amazon.jdbc.util.storage.StorageServiceImpl;
 import software.amazon.jdbc.util.storage.Topology;
 
 public class RdsHostListProvider implements DynamicHostListProvider {
@@ -94,10 +93,10 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   protected static final ConnectionUrlParser connectionUrlParser = new ConnectionUrlParser();
   protected static final int defaultTopologyQueryTimeoutMs = 5000;
   protected static final long suggestedClusterIdRefreshRateNano = TimeUnit.MINUTES.toNanos(10);
-  protected static final StorageService storageService = new StorageServiceImpl();
   protected static final CacheMap<String, String> suggestedPrimaryClusterIdCache = new CacheMap<>();
   protected static final CacheMap<String, Boolean> primaryClusterIdCache = new CacheMap<>();
 
+  protected final StorageService storageService;
   protected final HostListProviderService hostListProviderService;
   protected final String originalUrl;
   protected final String topologyQuery;
@@ -131,10 +130,12 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       final Properties properties,
       final String originalUrl,
       final HostListProviderService hostListProviderService,
+      final StorageService storageService,
       final String topologyQuery,
       final String nodeIdQuery,
       final String isReaderQuery) {
     this.hostListProviderService = hostListProviderService;
+    this.storageService = storageService;
     this.properties = properties;
     this.originalUrl = originalUrl;
     this.topologyQuery = topologyQuery;
@@ -517,7 +518,6 @@ public class RdsHostListProvider implements DynamicHostListProvider {
    * Clear topology cache for all clusters.
    */
   public static void clearAll() {
-    storageService.clear(ItemCategory.TOPOLOGY);
     primaryClusterIdCache.clear();
     suggestedPrimaryClusterIdCache.clear();
   }
@@ -598,48 +598,6 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       LOGGER.severe(message);
       throw new RuntimeException(message);
     }
-  }
-
-  public static void logCache() {
-    LOGGER.finest(() -> {
-      final StringBuilder sb = new StringBuilder();
-      Map<String, Topology> entries = storageService.getEntries(ItemCategory.TOPOLOGY);
-      if (entries == null) {
-        return "<No topology entries found>";
-      }
-
-      final Set<Entry<String, Topology>> cacheEntries = entries.entrySet();
-
-      if (cacheEntries.isEmpty()) {
-        sb.append("Cache is empty.");
-        return sb.toString();
-      }
-
-      for (final Entry<String, Topology> entry : cacheEntries) {
-        final List<HostSpec> hosts = entry.getValue().getHosts();
-        final Boolean isPrimaryCluster = primaryClusterIdCache.get(entry.getKey());
-        final String suggestedPrimaryClusterId = suggestedPrimaryClusterIdCache.get(entry.getKey());
-
-        if (sb.length() > 0) {
-          sb.append("\n");
-        }
-        sb.append("[").append(entry.getKey()).append("]:\n")
-            .append("\tisPrimaryCluster: ")
-            .append(isPrimaryCluster != null && isPrimaryCluster).append("\n")
-            .append("\tsuggestedPrimaryCluster: ")
-            .append(suggestedPrimaryClusterId).append("\n")
-            .append("\tHosts: ");
-
-        if (hosts == null) {
-          sb.append("<null>");
-        } else {
-          for (final HostSpec h : hosts) {
-            sb.append("\n\t").append(h);
-          }
-        }
-      }
-      return sb.toString();
-    });
   }
 
   static class FetchTopologyResult {

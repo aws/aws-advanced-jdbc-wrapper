@@ -54,6 +54,7 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class PluginServiceImpl implements PluginService, CanReleaseResources,
@@ -64,6 +65,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache = new CacheMap<>();
   protected final ConnectionPluginManager pluginManager;
+  protected final StorageService storageService;
   private final Properties props;
   private final String originalUrl;
   private final String driverProtocol;
@@ -91,7 +93,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
       @NonNull final String targetDriverProtocol,
-      @NonNull final TargetDriverDialect targetDriverDialect)
+      @NonNull final TargetDriverDialect targetDriverDialect,
+      @NonNull final StorageService storageService)
       throws SQLException {
 
     this(pluginManager,
@@ -101,6 +104,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
         targetDriverProtocol,
         null,
         targetDriverDialect,
+        storageService,
         null,
         null);
   }
@@ -111,6 +115,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       @NonNull final String originalUrl,
       @NonNull final String targetDriverProtocol,
       @NonNull final TargetDriverDialect targetDriverDialect,
+      @NonNull final StorageService storageService,
       @Nullable final ConfigurationProfile configurationProfile) throws SQLException {
     this(pluginManager,
         new ExceptionManager(),
@@ -119,6 +124,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
         targetDriverProtocol,
         null,
         targetDriverDialect,
+        storageService,
         configurationProfile,
         null);
   }
@@ -131,6 +137,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       @NonNull final String targetDriverProtocol,
       @Nullable final DialectProvider dialectProvider,
       @NonNull final TargetDriverDialect targetDriverDialect,
+      @NonNull final StorageService storageService,
       @Nullable final ConfigurationProfile configurationProfile,
       @Nullable final SessionStateService sessionStateService) throws SQLException {
     this.pluginManager = pluginManager;
@@ -141,6 +148,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     this.exceptionManager = exceptionManager;
     this.dialectProvider = dialectProvider != null ? dialectProvider : new DialectManager(this);
     this.targetDriverDialect = targetDriverDialect;
+    this.storageService = storageService;
     this.connectionProviderManager = new ConnectionProviderManager(
         this.pluginManager.getDefaultConnProvider(),
         this.pluginManager.getEffectiveConnProvider());
@@ -705,7 +713,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     }
 
     final HostListProviderSupplier supplier = this.dialect.getHostListProvider();
-    this.setHostListProvider(supplier.getProvider(props, this.originalUrl, this, this));
+    this.setHostListProvider(supplier.getProvider(
+        this.props, this.originalUrl, this, this, this.storageService));
   }
 
   @Override

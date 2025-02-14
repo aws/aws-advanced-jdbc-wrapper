@@ -55,6 +55,8 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.storage.StorageService;
+import software.amazon.jdbc.util.storage.StorageServiceImpl;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class ConnectionWrapper implements Connection, CanReleaseResources {
@@ -99,8 +101,15 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
             effectiveConnectionProvider,
             this,
             telemetryFactory);
+    final StorageService storageService = new StorageServiceImpl();
     final PluginServiceImpl pluginService = new PluginServiceImpl(
-        pluginManager, props, url, this.targetDriverProtocol, targetDriverDialect, this.configurationProfile);
+        pluginManager,
+        props,
+        url,
+        this.targetDriverProtocol,
+        targetDriverDialect,
+        storageService,
+        this.configurationProfile);
 
     init(props, pluginManager, telemetryFactory, pluginService, pluginService, pluginService);
 

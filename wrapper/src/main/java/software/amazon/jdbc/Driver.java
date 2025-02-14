@@ -82,6 +82,8 @@ public class Driver implements java.sql.Driver {
   private static final Logger LOGGER = Logger.getLogger("software.amazon.jdbc.Driver");
   private static @Nullable Driver registeredDriver;
 
+  private static final StorageService storageService = new StorageServiceImpl();
+
   private static final AtomicReference<ResetSessionStateOnCloseCallable> resetSessionStateOnCloseCallable =
       new AtomicReference<>(null);
   private static final AtomicReference<TransferSessionStateOnSwitchCallable> transferSessionStateOnSwitchCallable =
@@ -119,7 +121,6 @@ public class Driver implements java.sql.Driver {
     DriverManager.registerDriver(driver);
     registeredDriver = driver;
 
-    StorageService storageService = new StorageServiceImpl();
     storageService.registerItemCategoryIfAbsent(
         ItemCategory.TOPOLOGY,
         Topology.class,
@@ -403,6 +404,7 @@ public class Driver implements java.sql.Driver {
   }
 
   public static void clearCaches() {
+    storageService.clearAll();
     RdsUtils.clearCache();
     RdsHostListProvider.clearAll();
     PluginServiceImpl.clearCache();

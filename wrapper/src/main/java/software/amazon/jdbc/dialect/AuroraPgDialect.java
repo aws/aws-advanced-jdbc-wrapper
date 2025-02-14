@@ -127,7 +127,7 @@ public class AuroraPgDialect extends PgDialect implements AuroraLimitlessDialect
 
   @Override
   public HostListProviderSupplier getHostListProvider() {
-    return (properties, initialUrl, hostListProviderService, pluginService) -> {
+    return (properties, initialUrl, hostListProviderService, pluginService, storageService) -> {
 
       final FailoverConnectionPlugin failover2Plugin = pluginService.getPlugin(FailoverConnectionPlugin.class);
 
@@ -146,6 +146,7 @@ public class AuroraPgDialect extends PgDialect implements AuroraLimitlessDialect
           properties,
           initialUrl,
           hostListProviderService,
+          storageService,
           TOPOLOGY_QUERY,
           NODE_ID_QUERY,
           IS_READER_QUERY);
