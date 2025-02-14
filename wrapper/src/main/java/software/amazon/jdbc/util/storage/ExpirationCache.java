@@ -24,7 +24,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -47,7 +46,7 @@ public class ExpirationCache<K, V> {
   protected final boolean isRenewableExpiration;
   protected final long cleanupIntervalNanos;
   protected final long timeToLiveNanos;
-  protected final AtomicReference<ShouldDisposeFunc<V>> shouldDisposeFunc = new AtomicReference<>(null);
+  protected final ShouldDisposeFunc<V> shouldDisposeFunc;
   protected final ItemDisposalFunc<V> itemDisposalFunc;
 
   public ExpirationCache(
@@ -61,7 +60,7 @@ public class ExpirationCache<K, V> {
     this.isRenewableExpiration = isRenewableExpiration;
     this.cleanupIntervalNanos = cleanupIntervalNanos;
     this.timeToLiveNanos = timeToLiveNanos;
-    this.shouldDisposeFunc.set(shouldDisposeFunc);
+    this.shouldDisposeFunc = shouldDisposeFunc;
     this.itemDisposalFunc = itemDisposalFunc;
     this.initCleanupThread();
   }
@@ -122,8 +121,8 @@ public class ExpirationCache<K, V> {
   public @Nullable V put(
       final K key,
       final V value) {
-    final CacheItem
-        cacheItem = cache.put(key, new CacheItem(value, System.nanoTime() + this.timeToLiveNanos));
+    final CacheItem cacheItem =
+        cache.put(key, new CacheItem(value, System.nanoTime() + this.timeToLiveNanos));
     if (cacheItem == null) {
       return null;
     }
@@ -143,7 +142,7 @@ public class ExpirationCache<K, V> {
       return null;
     }
 
-    if (this.isRenewableExpiration)  {
+    if (this.isRenewableExpiration) {
       cacheItem.extendExpiration(this.timeToLiveNanos);
     } else if (cacheItem.shouldCleanup()) {
       return null;
@@ -249,7 +248,7 @@ public class ExpirationCache<K, V> {
     /**
      * CacheItem constructor.
      *
-     * @param item               the item value
+     * @param item                the item value
      * @param expirationTimeNanos the amount of time before a CacheItem should be marked as expired.
      */
     public CacheItem(final V item, final long expirationTimeNanos) {
@@ -267,9 +266,8 @@ public class ExpirationCache<K, V> {
      */
     boolean shouldCleanup() {
       final boolean isExpired = this.expirationTimeNanos != 0 && System.nanoTime() > this.expirationTimeNanos;
-      final ShouldDisposeFunc<V> tempShouldDisposeFunc = shouldDisposeFunc.get();
-      if (tempShouldDisposeFunc != null) {
-        return isExpired && tempShouldDisposeFunc.shouldDispose(this.item);
+      if (shouldDisposeFunc != null) {
+        return isExpired && shouldDisposeFunc.shouldDispose(this.item);
       }
       return isExpired;
     }
