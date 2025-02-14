@@ -137,7 +137,7 @@ public class StorageServiceImpl implements StorageService {
       return null;
     }
 
-    // TODO: fix this cast to be type safe, or remove this method after removing its callers
+    // TODO: fix this cast to be type safe, or remove this method after removing the suggestedClusterId logic
     return (Map<K, V>) cache.getEntries();
   }
 

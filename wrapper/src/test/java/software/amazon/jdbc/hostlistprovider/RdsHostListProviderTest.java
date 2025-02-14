@@ -227,21 +227,21 @@ class RdsHostListProviderTest {
   }
 
   @Test
-  void testGetCachedTopology_returnCachedTopology() throws SQLException {
+  void testGetCachedTopology_returnStoredTopology() throws SQLException {
     rdsHostListProvider = getRdsHostListProvider(mockHostListProviderService, "jdbc:someprotocol://url");
 
     final List<HostSpec> expected = hosts;
     storageService.set(ItemCategory.TOPOLOGY, rdsHostListProvider.clusterId, expected);
 
-    final List<HostSpec> result = rdsHostListProvider.getCachedTopology();
+    final List<HostSpec> result = rdsHostListProvider.getStoredTopology();
     assertEquals(expected, result);
   }
 
   @Test
-  void testGetCachedTopology_returnNull() throws InterruptedException, SQLException {
+  void testGetStoredTopology_returnNull() throws InterruptedException, SQLException {
     rdsHostListProvider = getRdsHostListProvider(mockHostListProviderService, "jdbc:someprotocol://url");
     // Test getCachedTopology with empty topology.
-    assertNull(rdsHostListProvider.getCachedTopology());
+    assertNull(rdsHostListProvider.getStoredTopology());
     rdsHostListProvider.clear();
 
     rdsHostListProvider = getRdsHostListProvider(mockHostListProviderService, "jdbc:someprotocol://url");
@@ -249,7 +249,7 @@ class RdsHostListProviderTest {
     TimeUnit.NANOSECONDS.sleep(1);
 
     // Test getCachedTopology with expired cache.
-    assertNull(rdsHostListProvider.getCachedTopology());
+    assertNull(rdsHostListProvider.getStoredTopology());
   }
 
   @Test
@@ -280,7 +280,7 @@ class RdsHostListProviderTest {
         getRdsHostListProvider(mockHostListProviderService,
             "jdbc:something://cluster-b.domain.com/"));
     provider2.init();
-    assertNull(provider2.getCachedTopology());
+    assertNull(provider2.getStoredTopology());
 
     final List<HostSpec> topologyClusterB = Arrays.asList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
@@ -660,14 +660,14 @@ class RdsHostListProviderTest {
         Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host").build());
     doReturn(mockTopology).when(provider1).queryForTopology(any(Connection.class));
     provider1.refresh();
-    assertEquals(mockTopology, provider1.getCachedTopology());
+    assertEquals(mockTopology, provider1.getStoredTopology());
     verify(provider1, times(1)).queryForTopology(mockConnection);
 
     RdsHostListProvider provider2 = Mockito.spy(getRdsHostListProvider(
         mockHostListProviderService,
         connectionString));
     assertEquals(expectedClusterId, provider2.getClusterId());
-    assertEquals(mockTopology, provider2.getCachedTopology());
+    assertEquals(mockTopology, provider2.getStoredTopology());
     verify(provider2, never()).queryForTopology(mockConnection);
   }
 }

@@ -247,15 +247,14 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       this.clusterIdChanged(oldClusterId);
     }
 
-    final Topology cachedTopology = storageService.get(ItemCategory.TOPOLOGY, this.clusterId, Topology.class);
-    final List<HostSpec> cachedHosts = cachedTopology == null ? null : cachedTopology.getHosts();
+    final List<HostSpec> storedHosts = getStoredTopology();
 
     // This clusterId is a primary one and is about to create a new entry in the cache.
     // When a primary entry is created it needs to be suggested for other (non-primary) entries.
     // Remember a flag to do suggestion after cache is updated.
-    final boolean needToSuggest = cachedTopology == null && this.isPrimaryClusterId;
+    final boolean needToSuggest = storedHosts == null && this.isPrimaryClusterId;
 
-    if (cachedTopology == null || forceUpdate) {
+    if (storedHosts == null || forceUpdate) {
 
       // need to re-fetch topology
 
@@ -277,11 +276,11 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       }
     }
 
-    if (cachedHosts == null) {
+    if (storedHosts == null) {
       return new FetchTopologyResult(false, this.initialHostList);
     } else {
       // use cached data
-      return new FetchTopologyResult(true, cachedHosts);
+      return new FetchTopologyResult(true, storedHosts);
     }
   }
 
@@ -509,7 +508,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
    * @return list of hosts that represents topology. If there's no topology in the cache or the
    *     cached topology is outdated, it returns null.
    */
-  public @Nullable List<HostSpec> getCachedTopology() {
+  public @Nullable List<HostSpec> getStoredTopology() {
     Topology topology = storageService.get(ItemCategory.TOPOLOGY, this.clusterId, Topology.class);
     return topology == null ? null : topology.getHosts();
   }

@@ -32,9 +32,7 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ShouldDisposeFunc;
 
 public class ExpirationCache<K, V> {
-  private static final Logger LOGGER =
-      Logger.getLogger(ExpirationCache.class.getName());
-
+  private static final Logger LOGGER = Logger.getLogger(ExpirationCache.class.getName());
   protected final ExecutorService cleanupThreadPool = Executors.newFixedThreadPool(1, runnableTarget -> {
     final Thread monitoringThread = new Thread(runnableTarget);
     monitoringThread.setDaemon(true);
@@ -90,34 +88,62 @@ public class ExpirationCache<K, V> {
   }
 
   /**
-   * In addition to performing the logic defined by {@link Map#computeIfAbsent}, cleans up expired
-   * entries if we have hit cleanup time. If an expired entry is requested and we have not hit
-   * cleanup time or {@link ShouldDisposeFunc} indicated the entry should not be closed, the entry
-   * will be marked as non-expired.
+   * If a value does not exist for the given key or the existing value is expired and non-renewable, stores the value
+   * returned by the given mapping function, unless the function returns null, in which case the key will be removed.
    *
-   * @param key                the key with which the specified value is to be associated
-   * @param mappingFunction    the function to compute a value
-   * @return the current (existing or computed) value associated with the specified key, or null if
-   *     the computed value is null.
+   * @param key             the key for the new or existing value
+   * @param mappingFunction the function to call to compute a new value
+   * @return the current (existing or computed) value associated with the specified key, or null if the computed value
+   *     is null
    */
   public @Nullable V computeIfAbsent(
       final K key,
       Function<? super K, ? extends V> mappingFunction) {
-    final CacheItem cacheItem = cache.computeIfAbsent(
+    // A list is used to store the cached item for later disposal since lambdas require references to outer variables
+    // to be final. This allows us to dispose of the item after it has been removed and the cache has been unlocked,
+    // which is important because the disposal function may be long-running.
+    final List<V> toDisposeList = new ArrayList<>(1);
+    final CacheItem cacheItem = cache.compute(
         key,
-        k -> new CacheItem(
-            mappingFunction.apply(k),
-            System.nanoTime() + this.timeToLiveNanos));
+        (k, v) -> {
+          if (v == null) {
+            // The key is absent; compute and store the new value.
+            return new CacheItem(
+                mappingFunction.apply(k),
+                System.nanoTime() + this.timeToLiveNanos);
+          }
+
+          if (v.shouldCleanup() && !this.isRenewableExpiration) {
+            // The existing value is expired and non-renewable. Mark it for disposal and store the new value.
+            toDisposeList.add(v.item);
+            return new CacheItem(
+                mappingFunction.apply(k),
+                System.nanoTime() + this.timeToLiveNanos);
+          }
+
+          // The existing value is non-expired or renewable. Keep the existing value.
+          return v;
+        });
 
     if (this.isRenewableExpiration) {
-      cacheItem.extendExpiration(this.timeToLiveNanos);
-    } else if (cacheItem.shouldCleanup()) {
-      return null;
+      cacheItem.extendExpiration();
+    }
+
+    if (this.itemDisposalFunc != null && !toDisposeList.isEmpty()) {
+      this.itemDisposalFunc.dispose(toDisposeList.get(0));
     }
 
     return cacheItem.item;
   }
 
+  /**
+   * Store the given value at the given key.
+   *
+   * @param key   the key at which the value should be stored
+   * @param value the value to be stored
+   * @return the previous value stored at the given key, or null if there was no previous value. If the previous value
+   *     is expired it will be disposed and returned.
+   */
   public @Nullable V put(
       final K key,
       final V value) {
@@ -127,15 +153,20 @@ public class ExpirationCache<K, V> {
       return null;
     }
 
-    // cacheItem is the previous value associated with the key. Since it has now been replaced with the new value,
-    // its expiration does not need to be extended.
-    if (cacheItem.shouldCleanup()) {
-      return null;
+    // cacheItem is the previous value associated with the key.
+    if (cacheItem.shouldCleanup() && this.itemDisposalFunc != null) {
+      this.itemDisposalFunc.dispose(cacheItem.item);
     }
 
     return cacheItem.item;
   }
 
+  /**
+   * Retrieves the value stored at the given key.
+   *
+   * @param key the key from which to retrieve the value
+   * @return the value stored at the given key, or null if there is no existing value
+   */
   public @Nullable V get(final K key) {
     final CacheItem cacheItem = cache.get(key);
     if (cacheItem == null) {
@@ -143,7 +174,7 @@ public class ExpirationCache<K, V> {
     }
 
     if (this.isRenewableExpiration) {
-      cacheItem.extendExpiration(this.timeToLiveNanos);
+      cacheItem.extendExpiration();
     } else if (cacheItem.shouldCleanup()) {
       return null;
     }
@@ -157,10 +188,9 @@ public class ExpirationCache<K, V> {
   }
 
   /**
-   * Cleanup expired entries if we have hit the cleanup time, then remove and dispose the value
-   * associated with the given key.
+   * Removes and disposes of the value stored at the given key.
    *
-   * @param key the key associated with the value to be removed/disposed
+   * @param key the key associated with the value to be removed and disposed
    * @return the value removed from the cache. If the value was expired, it will still be returned.
    */
   public @Nullable V remove(final K key) {
@@ -231,12 +261,17 @@ public class ExpirationCache<K, V> {
   /**
    * Get the current size of the cache, including expired entries.
    *
-   * @return the current size of the cache, including expired entries.
+   * @return the current size of the cache, including expired entries
    */
   public int size() {
     return this.cache.size();
   }
 
+  /**
+   * Get the class of the values stored in the cache.
+   *
+   * @return the class of the values stored in the cache
+   */
   public Class<V> getValueClass() {
     return this.valueClass;
   }
@@ -273,11 +308,9 @@ public class ExpirationCache<K, V> {
     }
 
     /**
-     * Renew a cache item's expiration time and return the value.
-     *
-     * @param timeToLiveNanos the new expiration duration for the item
+     * Renews a cache item's expiration time.
      */
-    public void extendExpiration(final long timeToLiveNanos) {
+    public void extendExpiration() {
       this.expirationTimeNanos = System.nanoTime() + timeToLiveNanos;
     }
 

@@ -186,8 +186,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
         && System.nanoTime() < this.ignoreNewTopologyRequestsEndTimeNano.get()) {
 
       // Previous failover has just completed. We can use results of it without triggering a new topology update.
-      Topology topology = storageService.get(ItemCategory.TOPOLOGY, this.clusterId, Topology.class);
-      List<HostSpec> currentHosts = topology == null ? null : topology.getHosts();
+      List<HostSpec> currentHosts = getStoredHosts();
       LOGGER.finest(
           Utils.logTopology(currentHosts, Messages.get("ClusterTopologyMonitorImpl.ignoringTopologyRequest")));
       if (currentHosts != null) {
@@ -219,7 +218,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
   }
 
   protected List<HostSpec> waitTillTopologyGetsUpdated(final long timeoutMs) throws TimeoutException {
-    List<HostSpec> currentHosts = getLatestHosts();
+    List<HostSpec> currentHosts = getStoredHosts();
     List<HostSpec> latestHosts;
 
     synchronized (this.requestToUpdateTopology) {
@@ -239,7 +238,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
     // Note that we are checking reference equality instead of value equality here. We will break out of the loop if
     // there is a new entry in the topology map, even if the value of the hosts in latestHosts is the same as
     // currentHosts.
-    while (currentHosts == (latestHosts = getLatestHosts())
+    while (currentHosts == (latestHosts = getStoredHosts())
         && System.nanoTime() < end) {
       try {
         synchronized (this.topologyUpdated) {
@@ -261,7 +260,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
     return latestHosts;
   }
 
-  private List<HostSpec> getLatestHosts() {
+  private List<HostSpec> getStoredHosts() {
     Topology topology = storageService.get(ItemCategory.TOPOLOGY, this.clusterId, Topology.class);
     return topology == null ? null : topology.getHosts();
   }
@@ -306,8 +305,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
             this.nodeThreadsWriterHostSpec.set(null);
             this.nodeThreadsLatestTopology.set(null);
 
-            Topology topology = storageService.get(ItemCategory.TOPOLOGY, this.clusterId, Topology.class);
-            List<HostSpec> hosts = topology == null ? null : topology.getHosts();
+            List<HostSpec> hosts = getStoredHosts();
             if (hosts == null) {
               // need any connection to get topology
               hosts = this.openAnyConnectionAndUpdateTopology();
@@ -403,9 +401,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
 
           // Do not log topology while in high refresh rate. It's noisy!
           if (this.highRefreshRateEndTimeNano == 0) {
-            Topology topology = storageService.get(ItemCategory.TOPOLOGY, this.clusterId, Topology.class);
-            List<HostSpec> currentHosts = topology == null ? null : topology.getHosts();
-            LOGGER.finest(Utils.logTopology(currentHosts));
+            LOGGER.finest(Utils.logTopology(getStoredHosts()));
           }
 
           this.delay(false);
@@ -840,12 +836,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
                 this.monitor.fetchTopologyAndUpdateCache(connection);
                 this.monitor.nodeThreadsWriterHostSpec.set(hostSpec);
                 this.monitor.nodeThreadsStop.set(true);
-
-                Topology topology = this.monitor.storageService.get(
-                    ItemCategory.TOPOLOGY, this.monitor.clusterId, Topology.class);
-                List<HostSpec> currentHosts = topology == null ? null : topology.getHosts();
-
-                LOGGER.fine(Utils.logTopology(currentHosts));
+                LOGGER.fine(Utils.logTopology(this.monitor.getStoredHosts()));
               }
 
               // Setting the connection to null here prevents the finally block
