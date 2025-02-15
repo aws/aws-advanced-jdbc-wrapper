@@ -18,6 +18,7 @@ package software.amazon.jdbc.exceptions;
 
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 
 public class ExceptionManager {
 
@@ -41,9 +42,10 @@ public class ExceptionManager {
     Driver.resetCustomExceptionHandler();
   }
 
-  public boolean isLoginException(final Dialect dialect, final Throwable throwable) {
+  public boolean isLoginException(
+      final Dialect dialect, final Throwable throwable, final TargetDriverDialect targetDriverDialect) {
     final ExceptionHandler handler = getHandler(dialect);
-    return handler.isLoginException(throwable);
+    return handler.isLoginException(throwable, targetDriverDialect);
   }
 
   public boolean isLoginException(final Dialect dialect, final String sqlState) {
@@ -51,9 +53,10 @@ public class ExceptionManager {
     return handler.isLoginException(sqlState);
   }
 
-  public boolean isNetworkException(final Dialect dialect, final Throwable throwable) {
+  public boolean isNetworkException(
+      final Dialect dialect, final Throwable throwable, final TargetDriverDialect targetDriverDialect) {
     final ExceptionHandler handler = getHandler(dialect);
-    return handler.isNetworkException(throwable);
+    return handler.isNetworkException(throwable, targetDriverDialect);
   }
 
   public boolean isNetworkException(final Dialect dialect, final String sqlState) {

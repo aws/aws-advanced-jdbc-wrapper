@@ -16,7 +16,6 @@
 
 package software.amazon.jdbc.exceptions;
 
-import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;

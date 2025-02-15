@@ -228,7 +228,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
       } catch (SQLException ex) {
         this.closeConnection(writerCandidateConn);
-        if (this.pluginService.isLoginException(ex)) {
+        if (this.pluginService.isLoginException(ex, this.pluginService.getTargetDriverDialect())) {
           throw WrapperUtils.wrapExceptionIfNeeded(SQLException.class, ex);
         } else {
           if (writerCandidate != null) {
@@ -322,7 +322,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
       } catch (SQLException ex) {
         this.closeConnection(readerCandidateConn);
-        if (this.pluginService.isLoginException(ex)) {
+        if (this.pluginService.isLoginException(ex, this.pluginService.getTargetDriverDialect())) {
           throw WrapperUtils.wrapExceptionIfNeeded(SQLException.class, ex);
         } else {
           if (readerCandidate != null) {
