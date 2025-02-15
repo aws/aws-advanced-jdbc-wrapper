@@ -62,6 +62,8 @@ import software.amazon.jdbc.benchmarks.testplugin.TestConnectionWrapper;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.storage.StorageService;
+import software.amazon.jdbc.util.storage.StorageServiceImpl;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -85,6 +87,7 @@ public class PluginBenchmarks {
       "jdbc:aws-wrapper:postgresql://instance-0.XYZ.us-east-2.rds.amazonaws.com";
   private static final String TEST_HOST = "instance-0";
   private static final int TEST_PORT = 5432;
+  private static final StorageService storageService = new StorageServiceImpl();
   private final HostSpec writerHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
       .host(TEST_HOST).port(TEST_PORT).build();
 
@@ -164,7 +167,8 @@ public class PluginBenchmarks {
         mockTelemetryFactory,
         mockPluginService,
         mockHostListProviderService,
-        mockPluginManagerService)) {
+        mockPluginManagerService,
+        storageService)) {
       wrapper.releaseResources();
       return wrapper;
     }
@@ -179,7 +183,8 @@ public class PluginBenchmarks {
         mockTelemetryFactory,
         mockPluginService,
         mockHostListProviderService,
-        mockPluginManagerService)) {
+        mockPluginManagerService,
+        storageService)) {
       wrapper.releaseResources();
       return wrapper;
     }
@@ -194,7 +199,8 @@ public class PluginBenchmarks {
         mockTelemetryFactory,
         mockPluginService,
         mockHostListProviderService,
-        mockPluginManagerService)) {
+        mockPluginManagerService,
+        storageService)) {
       wrapper.releaseResources();
       return wrapper;
     }
@@ -209,7 +215,8 @@ public class PluginBenchmarks {
         mockTelemetryFactory,
         mockPluginService,
         mockHostListProviderService,
-        mockPluginManagerService)) {
+        mockPluginManagerService,
+        storageService)) {
       wrapper.releaseResources();
       return wrapper;
     }
@@ -225,7 +232,8 @@ public class PluginBenchmarks {
         mockTelemetryFactory,
         mockPluginService,
         mockHostListProviderService,
-        mockPluginManagerService)) {
+        mockPluginManagerService,
+        storageService)) {
       wrapper.releaseResources();
       return wrapper;
     }
@@ -243,7 +251,8 @@ public class PluginBenchmarks {
         mockTelemetryFactory,
         mockPluginService,
         mockHostListProviderService,
-        mockPluginManagerService)) {
+        mockPluginManagerService,
+        storageService)) {
       wrapper.releaseResources();
       ConnectionProviderManager.releaseResources();
       Driver.resetCustomConnectionProvider();
@@ -264,7 +273,8 @@ public class PluginBenchmarks {
         mockTelemetryFactory,
         mockPluginService,
         mockHostListProviderService,
-        mockPluginManagerService)) {
+        mockPluginManagerService,
+        storageService)) {
       wrapper.releaseResources();
       ConnectionProviderManager.releaseResources();
       Driver.resetCustomConnectionProvider();
@@ -281,7 +291,8 @@ public class PluginBenchmarks {
         mockTelemetryFactory,
         mockPluginService,
         mockHostListProviderService,
-        mockPluginManagerService);
+        mockPluginManagerService,
+        storageService);
          Statement statement = wrapper.createStatement()) {
       return statement;
     }
@@ -297,7 +308,8 @@ public class PluginBenchmarks {
             mockTelemetryFactory,
             mockPluginService,
             mockHostListProviderService,
-            mockPluginManagerService);
+            mockPluginManagerService,
+            storageService);
         Statement statement = wrapper.createStatement();
         ResultSet resultSet = statement.executeQuery("some sql")) {
       return resultSet;
@@ -314,7 +326,8 @@ public class PluginBenchmarks {
             mockTelemetryFactory,
             mockPluginService,
             mockHostListProviderService,
-            mockPluginManagerService);
+            mockPluginManagerService,
+            storageService);
         Statement statement = wrapper.createStatement();
         ResultSet resultSet = statement.executeQuery("some sql")) {
       return resultSet;
@@ -331,7 +344,8 @@ public class PluginBenchmarks {
             mockTelemetryFactory,
             mockPluginService,
             mockHostListProviderService,
-            mockPluginManagerService);
+            mockPluginManagerService,
+            storageService);
         Statement statement = wrapper.createStatement();
         ResultSet resultSet = statement.executeQuery("some sql")) {
       return resultSet;

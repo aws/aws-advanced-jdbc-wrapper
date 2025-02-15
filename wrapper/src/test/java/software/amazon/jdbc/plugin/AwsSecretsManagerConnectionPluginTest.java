@@ -71,6 +71,8 @@ import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.storage.StorageService;
+import software.amazon.jdbc.util.storage.StorageServiceImpl;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -102,6 +104,7 @@ public class AwsSecretsManagerConnectionPluginTest {
   private static final GetSecretValueResponse INVALID_GET_SECRET_VALUE_RESPONSE =
       GetSecretValueResponse.builder().secretString(INVALID_SECRET_STRING).build();
   private static final Properties TEST_PROPS = new Properties();
+  private static final StorageService storageService = new StorageServiceImpl();
   private AwsSecretsManagerConnectionPlugin plugin;
 
   private AutoCloseable closeable;
@@ -249,6 +252,7 @@ public class AwsSecretsManagerConnectionPluginTest {
             protocol,
             mockDialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             mockSessionStateService),
         TEST_PROPS,
@@ -349,6 +353,7 @@ public class AwsSecretsManagerConnectionPluginTest {
             TEST_PG_PROTOCOL,
             mockDialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             mockSessionStateService),
         TEST_PROPS,
@@ -391,6 +396,7 @@ public class AwsSecretsManagerConnectionPluginTest {
             TEST_MYSQL_PROTOCOL,
             mockDialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             mockSessionStateService),
         TEST_PROPS,
@@ -432,6 +438,7 @@ public class AwsSecretsManagerConnectionPluginTest {
             TEST_PG_PROTOCOL,
             mockDialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             mockSessionStateService),
         TEST_PROPS,
@@ -471,7 +478,7 @@ public class AwsSecretsManagerConnectionPluginTest {
     SECRET_ID_PROPERTY.set(props, arn);
 
     this.plugin = spy(new AwsSecretsManagerConnectionPlugin(
-        new PluginServiceImpl(mockConnectionPluginManager, props, "url", TEST_PG_PROTOCOL, mockTargetDriverDialect),
+        new PluginServiceImpl(mockConnectionPluginManager, props, "url", TEST_PG_PROTOCOL, mockTargetDriverDialect, storageService),
         props,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest));
@@ -491,7 +498,7 @@ public class AwsSecretsManagerConnectionPluginTest {
     REGION_PROPERTY.set(props, expectedRegion.toString());
 
     this.plugin = spy(new AwsSecretsManagerConnectionPlugin(
-        new PluginServiceImpl(mockConnectionPluginManager, props, "url", TEST_PG_PROTOCOL, mockTargetDriverDialect),
+        new PluginServiceImpl(mockConnectionPluginManager, props, "url", TEST_PG_PROTOCOL, mockTargetDriverDialect, storageService),
         props,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest));

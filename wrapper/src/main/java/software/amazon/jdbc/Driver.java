@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.logging.ConsoleHandler;
@@ -64,6 +65,10 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.storage.ItemCategory;
+import software.amazon.jdbc.util.storage.StorageService;
+import software.amazon.jdbc.util.storage.StorageServiceImpl;
+import software.amazon.jdbc.util.storage.Topology;
 import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -76,6 +81,8 @@ public class Driver implements java.sql.Driver {
   private static final Logger PARENT_LOGGER = Logger.getLogger("software.amazon.jdbc");
   private static final Logger LOGGER = Logger.getLogger("software.amazon.jdbc.Driver");
   private static @Nullable Driver registeredDriver;
+
+  private static final StorageService storageService = new StorageServiceImpl();
 
   private static final AtomicReference<ResetSessionStateOnCloseCallable> resetSessionStateOnCloseCallable =
       new AtomicReference<>(null);
@@ -113,6 +120,15 @@ public class Driver implements java.sql.Driver {
     final Driver driver = new Driver();
     DriverManager.registerDriver(driver);
     registeredDriver = driver;
+
+    storageService.registerItemCategoryIfAbsent(
+        ItemCategory.TOPOLOGY,
+        Topology.class,
+        false,
+        TimeUnit.MINUTES.toNanos(10),
+        TimeUnit.MINUTES.toNanos(5),
+        null,
+        null);
   }
 
   public static void deregister() throws SQLException {
@@ -388,6 +404,7 @@ public class Driver implements java.sql.Driver {
   }
 
   public static void clearCaches() {
+    storageService.clearAll();
     RdsUtils.clearCache();
     RdsHostListProvider.clearAll();
     PluginServiceImpl.clearCache();

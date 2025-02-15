@@ -96,7 +96,7 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
 
   @Override
   public HostListProviderSupplier getHostListProvider() {
-    return (properties, initialUrl, hostListProviderService, pluginService) -> {
+    return (properties, initialUrl, hostListProviderService, pluginService, storageService) -> {
 
       final FailoverConnectionPlugin failover2Plugin = pluginService.getPlugin(FailoverConnectionPlugin.class);
 
@@ -105,6 +105,7 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
             properties,
             initialUrl,
             hostListProviderService,
+            storageService,
             TOPOLOGY_QUERY,
             NODE_ID_QUERY,
             IS_READER_QUERY,
@@ -117,6 +118,7 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
             properties,
             initialUrl,
             hostListProviderService,
+            storageService,
             TOPOLOGY_QUERY,
             NODE_ID_QUERY,
             IS_READER_QUERY,
