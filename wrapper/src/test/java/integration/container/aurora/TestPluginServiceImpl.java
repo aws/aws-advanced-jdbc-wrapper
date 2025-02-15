@@ -22,6 +22,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.storage.StorageService;
 
 public class TestPluginServiceImpl extends PluginServiceImpl {
 
@@ -30,10 +31,11 @@ public class TestPluginServiceImpl extends PluginServiceImpl {
       @NonNull Properties props,
       @NonNull String originalUrl,
       String targetDriverProtocol,
-      @NonNull final TargetDriverDialect targetDriverDialect)
+      @NonNull final TargetDriverDialect targetDriverDialect,
+      @NonNull final StorageService storageService)
       throws SQLException {
 
-    super(pluginManager, props, originalUrl, targetDriverProtocol, targetDriverDialect);
+    super(pluginManager, props, originalUrl, targetDriverProtocol, targetDriverDialect, storageService);
   }
 
   public static void clearHostAvailabilityCache() {

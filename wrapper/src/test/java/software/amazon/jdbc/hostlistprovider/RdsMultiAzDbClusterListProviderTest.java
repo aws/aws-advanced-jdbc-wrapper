@@ -111,6 +111,7 @@ class RdsMultiAzDbClusterListProviderTest {
         new Properties(),
         originalUrl,
         mockHostListProviderService,
+        storageService,
         "foo",
         "bar",
         "baz",

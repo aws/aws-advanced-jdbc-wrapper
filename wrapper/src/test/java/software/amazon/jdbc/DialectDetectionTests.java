@@ -51,6 +51,8 @@ import software.amazon.jdbc.dialect.RdsMysqlDialect;
 import software.amazon.jdbc.dialect.RdsPgDialect;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.storage.StorageService;
+import software.amazon.jdbc.util.storage.StorageServiceImpl;
 
 public class DialectDetectionTests {
   private static final String LOCALHOST = "localhost";
@@ -69,6 +71,7 @@ public class DialectDetectionTests {
   @Mock private TargetDriverDialect mockTargetDriverDialect;
   @Mock private ResultSetMetaData mockResultSetMetaData;
   private final DialectManager dialectManager = new DialectManager(null);
+  private final StorageService storageService = new StorageServiceImpl();
   private final Properties props = new Properties();
   private AutoCloseable closeable;
 
@@ -97,6 +100,7 @@ public class DialectDetectionTests {
             protocol,
             null,
             mockTargetDriverDialect,
+            storageService,
             null,
             null));
   }

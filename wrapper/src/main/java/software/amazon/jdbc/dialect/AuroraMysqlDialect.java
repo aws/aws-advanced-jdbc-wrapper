@@ -90,6 +90,7 @@ public class AuroraMysqlDialect extends MysqlDialect {
             properties,
             initialUrl,
             hostListProviderService,
+            storageService,
             TOPOLOGY_QUERY,
             NODE_ID_QUERY,
             IS_READER_QUERY,

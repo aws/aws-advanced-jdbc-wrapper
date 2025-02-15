@@ -33,6 +33,7 @@ import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.storage.ItemCategory;
+import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.Topology;
 
 public class MonitoringRdsHostListProvider extends RdsHostListProvider
@@ -73,12 +74,13 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
       final Properties properties,
       final String originalUrl,
       final HostListProviderService hostListProviderService,
+      final StorageService storageService,
       final String topologyQuery,
       final String nodeIdQuery,
       final String isReaderQuery,
       final String writerTopologyQuery,
       final PluginService pluginService) {
-    super(properties, originalUrl, hostListProviderService, topologyQuery, nodeIdQuery, isReaderQuery);
+    super(properties, originalUrl, hostListProviderService, storageService, topologyQuery, nodeIdQuery, isReaderQuery);
     this.pluginService = pluginService;
     this.writerTopologyQuery = writerTopologyQuery;
     this.highRefreshRateNano = TimeUnit.MILLISECONDS.toNanos(

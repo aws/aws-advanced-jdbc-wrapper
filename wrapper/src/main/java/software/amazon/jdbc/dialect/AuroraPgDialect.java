@@ -136,6 +136,7 @@ public class AuroraPgDialect extends PgDialect implements AuroraLimitlessDialect
             properties,
             initialUrl,
             hostListProviderService,
+            storageService,
             TOPOLOGY_QUERY,
             NODE_ID_QUERY,
             IS_READER_QUERY,

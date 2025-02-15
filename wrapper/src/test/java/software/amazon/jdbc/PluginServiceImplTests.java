@@ -66,12 +66,15 @@ import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.storage.StorageService;
+import software.amazon.jdbc.util.storage.StorageServiceImpl;
 
 public class PluginServiceImplTests {
 
   private static final Properties PROPERTIES = new Properties();
   private static final String URL = "url";
   private static final String DRIVER_PROTOCOL = "driverProtocol";
+  private static final StorageService storageService = new StorageServiceImpl();
   private AutoCloseable closeable;
 
   @Mock ConnectionPluginManager pluginManager;
@@ -118,6 +121,7 @@ public class PluginServiceImplTests {
             DRIVER_PROTOCOL,
             dialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             sessionStateService));
     target.currentConnection = oldConnection;
@@ -147,6 +151,7 @@ public class PluginServiceImplTests {
             DRIVER_PROTOCOL,
             dialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             sessionStateService));
     target.currentConnection = oldConnection;
@@ -176,6 +181,7 @@ public class PluginServiceImplTests {
             DRIVER_PROTOCOL,
             dialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             sessionStateService));
     target.currentConnection = oldConnection;
@@ -209,6 +215,7 @@ public class PluginServiceImplTests {
             DRIVER_PROTOCOL,
             dialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             sessionStateService));
     target.currentConnection = oldConnection;
@@ -239,6 +246,7 @@ public class PluginServiceImplTests {
             DRIVER_PROTOCOL,
             dialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             sessionStateService));
     target.currentConnection = oldConnection;
@@ -278,6 +286,7 @@ public class PluginServiceImplTests {
             DRIVER_PROTOCOL,
             dialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             sessionStateService));
     target.currentConnection = oldConnection;
@@ -317,6 +326,7 @@ public class PluginServiceImplTests {
             DRIVER_PROTOCOL,
             dialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             sessionStateService));
     target.currentConnection = oldConnection;
@@ -356,6 +366,7 @@ public class PluginServiceImplTests {
             DRIVER_PROTOCOL,
             dialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             sessionStateService));
     target.currentConnection = oldConnection;
@@ -387,6 +398,7 @@ public class PluginServiceImplTests {
             DRIVER_PROTOCOL,
             dialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             sessionStateService));
     target.allHosts = new ArrayList<>();
@@ -421,6 +433,7 @@ public class PluginServiceImplTests {
             DRIVER_PROTOCOL,
             dialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             sessionStateService));
     target.allHosts = Arrays.asList(
@@ -458,6 +471,7 @@ public class PluginServiceImplTests {
             DRIVER_PROTOCOL,
             dialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             sessionStateService));
     target.allHosts = Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
@@ -495,6 +509,7 @@ public class PluginServiceImplTests {
             DRIVER_PROTOCOL,
             dialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             sessionStateService));
     target.allHosts = Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
@@ -521,6 +536,7 @@ public class PluginServiceImplTests {
             DRIVER_PROTOCOL,
             dialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             sessionStateService));
     target.allHosts = Collections.singletonList(
@@ -550,6 +566,7 @@ public class PluginServiceImplTests {
             DRIVER_PROTOCOL,
             dialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             sessionStateService));
     target.allHosts = Collections.singletonList(
@@ -586,6 +603,7 @@ public class PluginServiceImplTests {
             DRIVER_PROTOCOL,
             dialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             sessionStateService));
     target.allHosts = Collections.singletonList(
@@ -633,6 +651,7 @@ public class PluginServiceImplTests {
             DRIVER_PROTOCOL,
             dialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             sessionStateService));
 
@@ -678,6 +697,7 @@ public class PluginServiceImplTests {
             DRIVER_PROTOCOL,
             dialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             sessionStateService));
 
@@ -756,6 +776,7 @@ public class PluginServiceImplTests {
             DRIVER_PROTOCOL,
             dialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             sessionStateService));
     when(target.getHostListProvider()).thenReturn(hostListProvider);
@@ -813,6 +834,7 @@ public class PluginServiceImplTests {
             DRIVER_PROTOCOL,
             dialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             sessionStateService));
     when(target.getHostListProvider()).thenReturn(hostListProvider);
@@ -838,6 +860,7 @@ public class PluginServiceImplTests {
             DRIVER_PROTOCOL,
             dialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             sessionStateService));
     when(target.getHostListProvider()).thenReturn(hostListProvider);
@@ -859,6 +882,7 @@ public class PluginServiceImplTests {
             DRIVER_PROTOCOL,
             dialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             sessionStateService));
     target.hostListProvider = hostListProvider;
@@ -887,6 +911,7 @@ public class PluginServiceImplTests {
             DRIVER_PROTOCOL,
             dialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             sessionStateService));
 
@@ -909,6 +934,7 @@ public class PluginServiceImplTests {
             DRIVER_PROTOCOL,
             dialectManager,
             mockTargetDriverDialect,
+            storageService,
             configurationProfile,
             sessionStateService));
     target.hostListProvider = hostListProvider;
