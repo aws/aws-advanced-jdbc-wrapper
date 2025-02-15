@@ -653,11 +653,16 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public boolean isNetworkException(final Throwable throwable) {
+  public boolean isNetworkException(Throwable throwable) {
+    return this.isNetworkException(throwable, this.targetDriverDialect);
+  }
+
+  @Override
+  public boolean isNetworkException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     if (this.exceptionHandler != null) {
-      return this.exceptionHandler.isNetworkException(throwable);
+      return this.exceptionHandler.isNetworkException(throwable, targetDriverDialect);
     }
-    return this.exceptionManager.isNetworkException(this.dialect, throwable);
+    return this.exceptionManager.isNetworkException(this.dialect, throwable, targetDriverDialect);
   }
 
   @Override
@@ -669,11 +674,16 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public boolean isLoginException(final Throwable throwable) {
+  public boolean isLoginException(Throwable throwable) {
+    return this.isLoginException(throwable, this.targetDriverDialect);
+  }
+
+  @Override
+  public boolean isLoginException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     if (this.exceptionHandler != null) {
-      return this.exceptionHandler.isLoginException(throwable);
+      return this.exceptionHandler.isLoginException(throwable, targetDriverDialect);
     }
-    return this.exceptionManager.isLoginException(this.dialect, throwable);
+    return this.exceptionManager.isLoginException(this.dialect, throwable, targetDriverDialect);
   }
 
   @Override

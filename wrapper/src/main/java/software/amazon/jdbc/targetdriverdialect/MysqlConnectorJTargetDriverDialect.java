@@ -126,4 +126,10 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
       }
     });
   }
+
+  @Override
+  public String getSQLState(Throwable throwable) {
+    final MysqlConnectorJDriverHelper helper = new MysqlConnectorJDriverHelper();
+    return helper.getSQLState(throwable);
+  }
 }

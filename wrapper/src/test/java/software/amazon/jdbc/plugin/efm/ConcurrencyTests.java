@@ -604,6 +604,11 @@ public class ConcurrencyTests {
     }
 
     @Override
+    public boolean isNetworkException(Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
+      return false;
+    }
+
+    @Override
     public boolean isNetworkException(String sqlState) {
       return false;
     }
@@ -615,6 +620,11 @@ public class ConcurrencyTests {
 
     @Override
     public boolean isLoginException(Throwable throwable) {
+      return false;
+    }
+
+    @Override
+    public boolean isLoginException(Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
       return false;
     }
 
