@@ -78,7 +78,7 @@ dependencies {
     testImplementation("org.testcontainers:toxiproxy:1.20.4")
     testImplementation("eu.rekawek.toxiproxy:toxiproxy-java:2.1.7")
     testImplementation("org.apache.poi:poi-ooxml:5.3.0")
-    testImplementation("org.slf4j:slf4j-simple:2.0.13")
+    testImplementation("org.slf4j:slf4j-simple:2.0.16")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.18.2")
     testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
     testImplementation("io.opentelemetry:opentelemetry-api:1.47.0")
