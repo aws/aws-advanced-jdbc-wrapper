@@ -19,6 +19,9 @@ package software.amazon.jdbc.exceptions;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.StringUtils;
 
 public class GenericExceptionHandler implements ExceptionHandler {
 
@@ -36,12 +39,22 @@ public class GenericExceptionHandler implements ExceptionHandler {
   );
 
   @Override
-  public boolean isNetworkException(final Throwable throwable) {
+  public boolean isNetworkException(Throwable throwable) {
+    return this.isNetworkException(throwable, null);
+  }
+
+  @Override
+  public boolean isNetworkException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     Throwable exception = throwable;
 
     while (exception != null) {
       if (exception instanceof SQLException) {
         return isNetworkException(((SQLException) exception).getSQLState());
+      } else if (targetDriverDialect != null) {
+        String sqlState = targetDriverDialect.getSQLState(throwable);
+        if (!StringUtils.isNullOrEmpty(sqlState)) {
+          return isNetworkException(sqlState);
+        }
       }
 
       exception = exception.getCause();
@@ -66,7 +79,12 @@ public class GenericExceptionHandler implements ExceptionHandler {
   }
 
   @Override
-  public boolean isLoginException(final Throwable throwable) {
+  public boolean isLoginException(Throwable throwable) {
+    return this.isLoginException(throwable, null);
+  }
+
+  @Override
+  public boolean isLoginException(final Throwable throwable, TargetDriverDialect targetDriverDialect) {
     Throwable exception = throwable;
 
     while (exception != null) {
@@ -77,6 +95,8 @@ public class GenericExceptionHandler implements ExceptionHandler {
       String sqlState = null;
       if (exception instanceof SQLException) {
         sqlState = ((SQLException) exception).getSQLState();
+      } else if (targetDriverDialect != null) {
+        sqlState = targetDriverDialect.getSQLState(throwable);
       }
 
       if (isLoginException(sqlState)) {

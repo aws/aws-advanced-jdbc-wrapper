@@ -202,7 +202,8 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       return connectFunc.call();
 
     } catch (final SQLException exception) {
-      if (this.pluginService.isLoginException(exception) && !secretWasFetched) {
+      if (this.pluginService.isLoginException(exception, this.pluginService.getTargetDriverDialect())
+          && !secretWasFetched) {
         // Login unsuccessful with cached credentials
         // Try to re-fetch credentials and try again
 
