@@ -18,6 +18,9 @@ package software.amazon.jdbc.exceptions;
 
 import java.sql.SQLException;
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.StringUtils;
 
 public abstract class AbstractPgExceptionHandler implements ExceptionHandler {
   public abstract List<String> getNetworkErrors();
@@ -25,12 +28,22 @@ public abstract class AbstractPgExceptionHandler implements ExceptionHandler {
   public abstract List<String> getAccessErrors();
 
   @Override
-  public boolean isNetworkException(final Throwable throwable) {
+  public boolean isNetworkException(Throwable throwable) {
+    return this.isNetworkException(throwable, null);
+  }
+
+  @Override
+  public boolean isNetworkException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     Throwable exception = throwable;
 
     while (exception != null) {
       if (exception instanceof SQLException) {
         return isNetworkException(((SQLException) exception).getSQLState());
+      } else if (targetDriverDialect != null) {
+        String sqlState = targetDriverDialect.getSQLState(throwable);
+        if (!StringUtils.isNullOrEmpty(sqlState)) {
+          return isNetworkException(sqlState);
+        }
       }
 
       exception = exception.getCause();
@@ -56,6 +69,11 @@ public abstract class AbstractPgExceptionHandler implements ExceptionHandler {
 
   @Override
   public boolean isLoginException(final Throwable throwable) {
+    return this.isLoginException(throwable, null);
+  }
+
+  @Override
+  public boolean isLoginException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     Throwable exception = throwable;
 
     while (exception != null) {
@@ -66,6 +84,8 @@ public abstract class AbstractPgExceptionHandler implements ExceptionHandler {
       String sqlState = null;
       if (exception instanceof SQLException) {
         sqlState = ((SQLException) exception).getSQLState();
+      } else if (targetDriverDialect != null) {
+        sqlState = targetDriverDialect.getSQLState(throwable);
       }
 
       if (isLoginException(sqlState)) {

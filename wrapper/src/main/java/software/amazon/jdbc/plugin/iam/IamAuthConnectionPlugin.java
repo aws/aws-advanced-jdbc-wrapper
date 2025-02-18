@@ -180,7 +180,8 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
               "IamAuthConnectionPlugin.connectException",
               new Object[] {exception}));
 
-      if (!this.pluginService.isLoginException(exception) || !isCachedToken) {
+      if (!this.pluginService.isLoginException(exception, this.pluginService.getTargetDriverDialect())
+          || !isCachedToken) {
         throw exception;
       }
 

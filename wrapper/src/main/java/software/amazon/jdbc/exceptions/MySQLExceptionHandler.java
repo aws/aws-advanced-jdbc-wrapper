@@ -16,8 +16,10 @@
 
 package software.amazon.jdbc.exceptions;
 
-import com.mysql.cj.exceptions.CJException;
 import java.sql.SQLException;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.StringUtils;
 
 public class MySQLExceptionHandler implements ExceptionHandler {
   public static final String SQLSTATE_ACCESS_ERROR = "28000";
@@ -26,7 +28,12 @@ public class MySQLExceptionHandler implements ExceptionHandler {
       "setNetworkTimeout cannot be called on a closed connection";
 
   @Override
-  public boolean isNetworkException(final Throwable throwable) {
+  public boolean isNetworkException(Throwable throwable) {
+    return this.isNetworkException(throwable, null);
+  }
+
+  @Override
+  public boolean isNetworkException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     Throwable exception = throwable;
 
     while (exception != null) {
@@ -44,8 +51,11 @@ public class MySQLExceptionHandler implements ExceptionHandler {
         if (isNetworkException(sqlException.getSQLState()) || isHikariMariaDbNetworkException(sqlException)) {
           return true;
         }
-      } else if (exception instanceof CJException) {
-        return isNetworkException(((CJException) exception).getSQLState());
+      } else if (targetDriverDialect != null) {
+        String sqlState = targetDriverDialect.getSQLState(throwable);
+        if (!StringUtils.isNullOrEmpty(sqlState)) {
+          return isNetworkException(sqlState);
+        }
       }
 
       exception = exception.getCause();
@@ -64,7 +74,12 @@ public class MySQLExceptionHandler implements ExceptionHandler {
   }
 
   @Override
-  public boolean isLoginException(final Throwable throwable) {
+  public boolean isLoginException(Throwable throwable) {
+    return this.isLoginException(throwable, null);
+  }
+
+  @Override
+  public boolean isLoginException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     Throwable exception = throwable;
 
     while (exception != null) {
@@ -75,8 +90,8 @@ public class MySQLExceptionHandler implements ExceptionHandler {
       String sqlState = null;
       if (exception instanceof SQLException) {
         sqlState = ((SQLException) exception).getSQLState();
-      } else if (exception instanceof CJException) {
-        sqlState = ((CJException) exception).getSQLState();
+      } else if (targetDriverDialect != null) {
+        sqlState = targetDriverDialect.getSQLState(throwable);
       }
 
       if (isLoginException(sqlState)) {
