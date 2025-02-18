@@ -53,23 +53,23 @@ public class StorageServiceImpl implements StorageService {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public <V> void set(String itemCategory, Object key, V value) {
     final ExpirationCache<Object, ?> cache = caches.get(itemCategory);
     if (cache == null) {
-      // TODO: what should we do if the item category isn't registered?
-      return;
+      throw new IllegalStateException(
+          Messages.get("StorageServiceImpl.itemCategoryNotRegistered", new Object[] { itemCategory }));
     }
 
-    Class<?> expectedType = cache.getValueClass();
-    if (!expectedType.isInstance(value)) {
+    try {
+      ExpirationCache<Object, V> typedCache = (ExpirationCache<Object, V>) cache;
+      typedCache.put(key, value);
+    } catch (ClassCastException e) {
       throw new IllegalArgumentException(
           Messages.get(
               "StorageServiceImpl.incorrectValueType",
-              new Object[]{itemCategory, expectedType, value.getClass(), value}));
+              new Object[]{itemCategory, cache.getValueClass(), value.getClass(), value}));
     }
-
-    ExpirationCache<Object, V> typedCache = (ExpirationCache<Object, V>) cache;
-    typedCache.put(key, value);
   }
 
   @Override
