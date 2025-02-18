@@ -247,7 +247,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       this.clusterIdChanged(oldClusterId);
     }
 
-    final List<HostSpec> storedHosts = getStoredTopology();
+    final List<HostSpec> storedHosts = this.getStoredTopology();
 
     // This clusterId is a primary one and is about to create a new entry in the cache.
     // When a primary entry is created it needs to be suggested for other (non-primary) entries.
