@@ -191,7 +191,8 @@ public class ExpirationCache<K, V> {
    * Removes and disposes of the value stored at the given key.
    *
    * @param key the key associated with the value to be removed and disposed
-   * @return the value removed from the cache. If the value was expired, it will still be returned.
+   * @return the value removed from the cache, or null if the key does not exist in the cache. If the value was expired,
+   *     it will still be returned.
    */
   public @Nullable V remove(final K key) {
     return removeAndDispose(key);
