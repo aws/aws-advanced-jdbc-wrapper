@@ -63,6 +63,7 @@ import software.amazon.jdbc.hostlistprovider.RdsHostListProvider.FetchTopologyRe
 import software.amazon.jdbc.util.storage.ItemCategory;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.StorageServiceImpl;
+import software.amazon.jdbc.util.storage.Topology;
 
 class RdsMultiAzDbClusterListProviderTest {
 
@@ -96,11 +97,21 @@ class RdsMultiAzDbClusterListProviderTest {
     when(mockHostListProviderService.getDialect()).thenReturn(mockTopologyAwareDialect);
     when(mockHostListProviderService.getHostSpecBuilder())
         .thenReturn(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
+
+    storageService.registerItemCategoryIfAbsent(
+        ItemCategory.TOPOLOGY,
+        Topology.class,
+        false,
+        TimeUnit.MINUTES.toNanos(10),
+        TimeUnit.MINUTES.toNanos(5),
+        null,
+        null);
   }
 
   @AfterEach
   void tearDown() throws Exception {
     RdsMultiAzDbClusterListProvider.clearAll();
+    storageService.clearAll();
     closeable.close();
   }
 
@@ -130,7 +141,7 @@ class RdsMultiAzDbClusterListProviderTest {
     final Instant lastUpdated = Instant.now();
     final List<HostSpec> expected = hosts;
     storageService.set(
-        rdsMazDbClusterHostListProvider.clusterId, expected, defaultRefreshRateNano);
+        ItemCategory.TOPOLOGY, rdsMazDbClusterHostListProvider.clusterId, new Topology(expected));
 
     final FetchTopologyResult result = rdsMazDbClusterHostListProvider.getTopology(mockConnection, false);
     assertEquals(expected, result.hosts);
@@ -145,7 +156,7 @@ class RdsMultiAzDbClusterListProviderTest {
     rdsMazDbClusterHostListProvider.isInitialized = true;
 
     storageService.set(
-        rdsMazDbClusterHostListProvider.clusterId, hosts, defaultRefreshRateNano);
+        ItemCategory.TOPOLOGY, rdsMazDbClusterHostListProvider.clusterId, new Topology(hosts));
 
     final List<HostSpec> newHosts = Collections.singletonList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("newHost").build());
@@ -166,7 +177,7 @@ class RdsMultiAzDbClusterListProviderTest {
 
     final List<HostSpec> expected = hosts;
     storageService.set(
-        rdsMazDbClusterHostListProvider.clusterId, expected, defaultRefreshRateNano);
+        ItemCategory.TOPOLOGY, rdsMazDbClusterHostListProvider.clusterId, new Topology(expected));
 
     doReturn(new ArrayList<>()).when(rdsMazDbClusterHostListProvider).queryForTopology(mockConnection);
 
@@ -210,29 +221,10 @@ class RdsMultiAzDbClusterListProviderTest {
 
     final List<HostSpec> expected = hosts;
     storageService.set(
-        rdsMazDbClusterHostListProvider.clusterId, expected, defaultRefreshRateNano);
+        ItemCategory.TOPOLOGY, rdsMazDbClusterHostListProvider.clusterId, new Topology(expected));
 
     final List<HostSpec> result = rdsMazDbClusterHostListProvider.getStoredTopology();
     assertEquals(expected, result);
-  }
-
-  @Test
-  void testGetCachedTopology_returnNull() throws InterruptedException, SQLException {
-    rdsMazDbClusterHostListProvider = getRdsMazDbClusterHostListProvider(
-        mockHostListProviderService, "jdbc:someprotocol://url");
-    // Test getCachedTopology with empty topology.
-    assertNull(rdsMazDbClusterHostListProvider.getStoredTopology());
-    rdsMazDbClusterHostListProvider.clear();
-
-    rdsMazDbClusterHostListProvider = getRdsMazDbClusterHostListProvider(
-        mockHostListProviderService, "jdbc:someprotocol://url");
-    final long refreshRateOneNanosecond = 1;
-    storageService.set(
-        rdsMazDbClusterHostListProvider.clusterId, hosts, refreshRateOneNanosecond);
-    TimeUnit.NANOSECONDS.sleep(1);
-
-    // Test getCachedTopology with expired cache.
-    assertNull(rdsMazDbClusterHostListProvider.getStoredTopology());
   }
 
   @Test

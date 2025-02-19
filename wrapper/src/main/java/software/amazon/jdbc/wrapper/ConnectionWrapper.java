@@ -56,7 +56,6 @@ import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.storage.StorageService;
-import software.amazon.jdbc.util.storage.StorageServiceImpl;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class ConnectionWrapper implements Connection, CanReleaseResources {
@@ -84,6 +83,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       @Nullable final ConnectionProvider effectiveConnectionProvider,
       @NonNull final TargetDriverDialect targetDriverDialect,
       @Nullable final ConfigurationProfile configurationProfile,
+      @NonNull final StorageService storageService,
       @NonNull final TelemetryFactory telemetryFactory)
       throws SQLException {
 
@@ -101,7 +101,6 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
             effectiveConnectionProvider,
             this,
             telemetryFactory);
-    final StorageService storageService = new StorageServiceImpl();
     final PluginServiceImpl pluginService = new PluginServiceImpl(
         pluginManager,
         props,

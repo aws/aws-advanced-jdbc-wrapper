@@ -61,6 +61,13 @@ public class StorageServiceImpl implements StorageService {
           Messages.get("StorageServiceImpl.itemCategoryNotRegistered", new Object[] { itemCategory }));
     }
 
+    if (!cache.getValueClass().isInstance(value)) {
+      throw new IllegalArgumentException(
+          Messages.get(
+              "StorageServiceImpl.incorrectValueType",
+              new Object[] {itemCategory, cache.getValueClass(), value.getClass(), value}));
+    }
+
     try {
       ExpirationCache<Object, V> typedCache = (ExpirationCache<Object, V>) cache;
       typedCache.put(key, value);

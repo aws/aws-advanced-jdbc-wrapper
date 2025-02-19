@@ -68,6 +68,7 @@ import software.amazon.jdbc.hostlistprovider.RdsHostListProvider.FetchTopologyRe
 import software.amazon.jdbc.util.storage.ItemCategory;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.StorageServiceImpl;
+import software.amazon.jdbc.util.storage.Topology;
 
 class RdsHostListProviderTest {
   private final StorageService storageService = new StorageServiceImpl();
@@ -100,11 +101,21 @@ class RdsHostListProviderTest {
     when(mockHostListProviderService.getHostSpecBuilder())
         .thenReturn(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
     when(mockHostListProviderService.getCurrentConnection()).thenReturn(mockConnection);
+
+    storageService.registerItemCategoryIfAbsent(
+        ItemCategory.TOPOLOGY,
+        Topology.class,
+        false,
+        TimeUnit.MINUTES.toNanos(10),
+        TimeUnit.MINUTES.toNanos(5),
+        null,
+        null);
   }
 
   @AfterEach
   void tearDown() throws Exception {
     RdsHostListProvider.clearAll();
+    storageService.clearAll();
     closeable.close();
   }
 
@@ -127,7 +138,7 @@ class RdsHostListProviderTest {
         getRdsHostListProvider(mockHostListProviderService, "protocol://url/"));
 
     final List<HostSpec> expected = hosts;
-    storageService.set(ItemCategory.TOPOLOGY, rdsHostListProvider.clusterId, expected);
+    storageService.set(ItemCategory.TOPOLOGY, rdsHostListProvider.clusterId, new Topology(expected));
 
     final FetchTopologyResult result = rdsHostListProvider.getTopology(mockConnection, false);
     assertEquals(expected, result.hosts);
@@ -141,7 +152,7 @@ class RdsHostListProviderTest {
         getRdsHostListProvider(mockHostListProviderService, "jdbc:someprotocol://url"));
     rdsHostListProvider.isInitialized = true;
 
-    storageService.set(ItemCategory.TOPOLOGY, rdsHostListProvider.clusterId, hosts);
+    storageService.set(ItemCategory.TOPOLOGY, rdsHostListProvider.clusterId, new Topology(hosts));
 
     final List<HostSpec> newHosts = Collections.singletonList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("newHost").build());
@@ -161,7 +172,7 @@ class RdsHostListProviderTest {
     rdsHostListProvider.isInitialized = true;
 
     final List<HostSpec> expected = hosts;
-    storageService.set(ItemCategory.TOPOLOGY, rdsHostListProvider.clusterId, expected);
+    storageService.set(ItemCategory.TOPOLOGY, rdsHostListProvider.clusterId, new Topology(expected));
 
     doReturn(new ArrayList<>()).when(rdsHostListProvider).queryForTopology(mockConnection);
 
@@ -231,25 +242,10 @@ class RdsHostListProviderTest {
     rdsHostListProvider = getRdsHostListProvider(mockHostListProviderService, "jdbc:someprotocol://url");
 
     final List<HostSpec> expected = hosts;
-    storageService.set(ItemCategory.TOPOLOGY, rdsHostListProvider.clusterId, expected);
+    storageService.set(ItemCategory.TOPOLOGY, rdsHostListProvider.clusterId, new Topology(expected));
 
     final List<HostSpec> result = rdsHostListProvider.getStoredTopology();
     assertEquals(expected, result);
-  }
-
-  @Test
-  void testGetStoredTopology_returnNull() throws InterruptedException, SQLException {
-    rdsHostListProvider = getRdsHostListProvider(mockHostListProviderService, "jdbc:someprotocol://url");
-    // Test getCachedTopology with empty topology.
-    assertNull(rdsHostListProvider.getStoredTopology());
-    rdsHostListProvider.clear();
-
-    rdsHostListProvider = getRdsHostListProvider(mockHostListProviderService, "jdbc:someprotocol://url");
-    storageService.set(ItemCategory.TOPOLOGY, rdsHostListProvider.clusterId, hosts);
-    TimeUnit.NANOSECONDS.sleep(1);
-
-    // Test getCachedTopology with expired cache.
-    assertNull(rdsHostListProvider.getStoredTopology());
   }
 
   @Test

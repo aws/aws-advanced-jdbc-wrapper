@@ -239,6 +239,7 @@ public class Driver implements java.sql.Driver {
           effectiveConnectionProvider,
           targetDriverDialect,
           configurationProfile,
+          storageService,
           telemetryFactory);
 
     } catch (Exception ex) {

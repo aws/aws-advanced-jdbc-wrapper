@@ -52,6 +52,8 @@ import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.storage.StorageService;
+import software.amazon.jdbc.util.storage.StorageServiceImpl;
 import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -66,6 +68,8 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
 
   private static final String SERVER_NAME = "serverName";
   private static final String SERVER_PORT = "serverPort";
+
+  private static final StorageService storageService = new StorageServiceImpl();
 
   static {
     try {
@@ -259,6 +263,7 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
         effectiveProvider,
         targetDriverDialect,
         configurationProfile,
+        storageService,
         telemetryFactory);
   }
 

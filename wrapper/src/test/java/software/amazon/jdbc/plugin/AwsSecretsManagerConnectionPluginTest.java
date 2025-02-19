@@ -478,7 +478,8 @@ public class AwsSecretsManagerConnectionPluginTest {
     SECRET_ID_PROPERTY.set(props, arn);
 
     this.plugin = spy(new AwsSecretsManagerConnectionPlugin(
-        new PluginServiceImpl(mockConnectionPluginManager, props, "url", TEST_PG_PROTOCOL, mockTargetDriverDialect, storageService),
+        new PluginServiceImpl(
+            mockConnectionPluginManager, props, "url", TEST_PG_PROTOCOL, mockTargetDriverDialect, storageService),
         props,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest));
@@ -498,7 +499,8 @@ public class AwsSecretsManagerConnectionPluginTest {
     REGION_PROPERTY.set(props, expectedRegion.toString());
 
     this.plugin = spy(new AwsSecretsManagerConnectionPlugin(
-        new PluginServiceImpl(mockConnectionPluginManager, props, "url", TEST_PG_PROTOCOL, mockTargetDriverDialect, storageService),
+        new PluginServiceImpl(
+            mockConnectionPluginManager, props, "url", TEST_PG_PROTOCOL, mockTargetDriverDialect, storageService),
         props,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest));
