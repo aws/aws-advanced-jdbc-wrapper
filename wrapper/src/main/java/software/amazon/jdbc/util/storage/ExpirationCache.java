@@ -47,7 +47,7 @@ public class ExpirationCache<K, V> {
   protected final ShouldDisposeFunc<V> shouldDisposeFunc;
   protected final ItemDisposalFunc<V> itemDisposalFunc;
 
-  public ExpirationCache(
+  ExpirationCache(
       final Class<V> valueClass,
       final boolean isRenewableExpiration,
       final long cleanupIntervalNanos,

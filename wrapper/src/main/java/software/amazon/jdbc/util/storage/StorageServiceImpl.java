@@ -16,17 +16,29 @@
 
 package software.amazon.jdbc.util.storage;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.plugin.customendpoint.CustomEndpointInfo;
 import software.amazon.jdbc.util.ItemDisposalFunc;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ShouldDisposeFunc;
 
 public class StorageServiceImpl implements StorageService {
   private static final Logger LOGGER = Logger.getLogger(StorageServiceImpl.class.getName());
-  protected static Map<String, ExpirationCache<Object, ?>> caches = new ConcurrentHashMap<>();
+  protected static final Map<String, ExpirationCache<Object, ?>> caches = new ConcurrentHashMap<>();
+  protected static final Map<String, Supplier<ExpirationCache<Object, ?>>> defaultCacheSuppliers;
+
+  static {
+    Map<String, Supplier<ExpirationCache<Object, ?>>> suppliers = new HashMap<>();
+    suppliers.put(ItemCategory.TOPOLOGY, () -> new ExpirationCacheBuilder<>(Topology.class).build());
+    suppliers.put(ItemCategory.CUSTOM_ENDPOINT, () -> new ExpirationCacheBuilder<>(CustomEndpointInfo.class).build());
+    defaultCacheSuppliers = Collections.unmodifiableMap(suppliers);
+  }
 
   public StorageServiceImpl() {
 
@@ -55,10 +67,15 @@ public class StorageServiceImpl implements StorageService {
   @Override
   @SuppressWarnings("unchecked")
   public <V> void set(String itemCategory, Object key, V value) {
-    final ExpirationCache<Object, ?> cache = caches.get(itemCategory);
+    ExpirationCache<Object, ?> cache = caches.get(itemCategory);
     if (cache == null) {
-      throw new IllegalStateException(
-          Messages.get("StorageServiceImpl.itemCategoryNotRegistered", new Object[] { itemCategory }));
+      Supplier<ExpirationCache<Object, ?>> supplier = defaultCacheSuppliers.get(itemCategory);
+      if (supplier == null) {
+        throw new IllegalStateException(
+            Messages.get("StorageServiceImpl.itemCategoryNotRegistered", new Object[] {itemCategory}));
+      } else {
+        cache = caches.computeIfAbsent(itemCategory, c -> supplier.get());
+      }
     }
 
     if (!cache.getValueClass().isInstance(value)) {
