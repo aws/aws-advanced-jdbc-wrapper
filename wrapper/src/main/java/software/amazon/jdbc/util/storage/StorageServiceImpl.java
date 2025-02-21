@@ -20,6 +20,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -30,8 +35,18 @@ import software.amazon.jdbc.util.ShouldDisposeFunc;
 
 public class StorageServiceImpl implements StorageService {
   private static final Logger LOGGER = Logger.getLogger(StorageServiceImpl.class.getName());
+  protected static final long DEFAULT_CLEANUP_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
   protected static final Map<String, ExpirationCache<Object, ?>> caches = new ConcurrentHashMap<>();
   protected static final Map<String, Supplier<ExpirationCache<Object, ?>>> defaultCacheSuppliers;
+  protected static final AtomicBoolean isInitialized = new AtomicBoolean(false);
+  protected static final ReentrantLock initLock = new ReentrantLock();
+  protected static final Map<String, Long> cleanupTimes = new ConcurrentHashMap<>();
+  protected static final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor((r -> {
+    final Thread thread = new Thread(r);
+    thread.setDaemon(true);
+    return thread;
+  }));
+
 
   static {
     Map<String, Supplier<ExpirationCache<Object, ?>>> suppliers = new HashMap<>();
@@ -41,7 +56,42 @@ public class StorageServiceImpl implements StorageService {
   }
 
   public StorageServiceImpl() {
+    initCleanupThread(DEFAULT_CLEANUP_INTERVAL_NANOS);
+  }
 
+  public StorageServiceImpl(long cleanupIntervalNanos) {
+    initCleanupThread(cleanupIntervalNanos);
+  }
+
+  protected void initCleanupThread(long cleanupIntervalNanos) {
+    if (isInitialized.get()) {
+      return;
+    }
+
+    initLock.lock();
+    try {
+      if (isInitialized.get()) {
+        return;
+      }
+
+      cleanupExecutor.scheduleAtFixedRate(
+          this::cleanAll, cleanupIntervalNanos, cleanupIntervalNanos, TimeUnit.NANOSECONDS);
+    } finally {
+      initLock.unlock();
+    }
+  }
+
+  protected void cleanAll() {
+    for (Map.Entry<String, ExpirationCache<Object, ?>> entry : caches.entrySet()) {
+      String category = entry.getKey();
+      ExpirationCache<Object, ?> cache = entry.getValue();
+      if (System.nanoTime() < cleanupTimes.get(category)) {
+        continue;
+      }
+
+      cache.removeExpiredEntries();
+      cleanupTimes.put(category, System.nanoTime() + cache.getCleanupIntervalNanos());
+    }
   }
 
   @Override
@@ -62,6 +112,7 @@ public class StorageServiceImpl implements StorageService {
             cleanupIntervalNanos,
             shouldDisposeFunc,
             itemDisposalFunc));
+    cleanupTimes.put(itemCategory, System.nanoTime() + cleanupIntervalNanos);
   }
 
   @Override

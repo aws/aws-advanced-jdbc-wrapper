@@ -21,23 +21,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.ItemDisposalFunc;
-import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ShouldDisposeFunc;
 
 public class ExpirationCache<K, V> {
   private static final Logger LOGGER = Logger.getLogger(ExpirationCache.class.getName());
-  protected final ExecutorService cleanupThreadPool = Executors.newFixedThreadPool(1, runnableTarget -> {
-    final Thread monitoringThread = new Thread(runnableTarget);
-    monitoringThread.setDaemon(true);
-    return monitoringThread;
-  });
 
   protected final Map<K, CacheItem> cache = new ConcurrentHashMap<>();
   protected final Class<V> valueClass;
@@ -60,31 +51,10 @@ public class ExpirationCache<K, V> {
     this.timeToLiveNanos = timeToLiveNanos;
     this.shouldDisposeFunc = shouldDisposeFunc;
     this.itemDisposalFunc = itemDisposalFunc;
-    this.initCleanupThread();
   }
 
-  protected void initCleanupThread() {
-    cleanupThreadPool.submit(() -> {
-      while (!Thread.currentThread().isInterrupted()) {
-        try {
-          TimeUnit.NANOSECONDS.sleep(this.cleanupIntervalNanos);
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          LOGGER.fine(Messages.get("ExpirationCache.cleanupThreadInterrupted"));
-          break;
-        }
-
-        LOGGER.finest("ExpirationCache.cleaningUpCache");
-        cache.forEach((key, value) -> {
-          try {
-            removeIfExpired(key);
-          } catch (Exception ex) {
-            // ignore
-          }
-        });
-      }
-    });
-    cleanupThreadPool.shutdown();
+  public long getCleanupIntervalNanos() {
+    return cleanupIntervalNanos;
   }
 
   /**
@@ -209,6 +179,16 @@ public class ExpirationCache<K, V> {
     }
 
     return cacheItem.item;
+  }
+
+  public void removeExpiredEntries() {
+    cache.forEach((key, value) -> {
+      try {
+        removeIfExpired(key);
+      } catch (Exception ex) {
+        // ignore
+      }
+    });
   }
 
   protected void removeIfExpired(K key) {
