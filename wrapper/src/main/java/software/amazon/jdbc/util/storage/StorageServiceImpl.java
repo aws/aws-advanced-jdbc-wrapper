@@ -74,7 +74,7 @@ public class StorageServiceImpl implements StorageService {
       }
 
       cleanupExecutor.scheduleAtFixedRate(
-          this::cleanAll, cleanupIntervalNanos, cleanupIntervalNanos, TimeUnit.NANOSECONDS);
+          this::removeExpiredItems, cleanupIntervalNanos, cleanupIntervalNanos, TimeUnit.NANOSECONDS);
       cleanupExecutor.shutdown();
       isInitialized.set(true);
     } finally {
@@ -82,7 +82,8 @@ public class StorageServiceImpl implements StorageService {
     }
   }
 
-  protected void cleanAll() {
+  protected void removeExpiredItems() {
+    LOGGER.finest(Messages.get("StorageServiceImpl.removeExpiredItems"));
     for (Map.Entry<String, ExpirationCache<Object, ?>> entry : caches.entrySet()) {
       String category = entry.getKey();
       ExpirationCache<Object, ?> cache = entry.getValue();
