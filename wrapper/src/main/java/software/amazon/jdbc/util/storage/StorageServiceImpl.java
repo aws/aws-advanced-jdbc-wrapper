@@ -47,7 +47,6 @@ public class StorageServiceImpl implements StorageService {
     return thread;
   }));
 
-
   static {
     Map<String, Supplier<ExpirationCache<Object, ?>>> suppliers = new HashMap<>();
     suppliers.put(ItemCategory.TOPOLOGY, () -> new ExpirationCacheBuilder<>(Topology.class).build());
@@ -76,6 +75,8 @@ public class StorageServiceImpl implements StorageService {
 
       cleanupExecutor.scheduleAtFixedRate(
           this::cleanAll, cleanupIntervalNanos, cleanupIntervalNanos, TimeUnit.NANOSECONDS);
+      cleanupExecutor.shutdown();
+      isInitialized.set(true);
     } finally {
       initLock.unlock();
     }
@@ -105,14 +106,16 @@ public class StorageServiceImpl implements StorageService {
       @Nullable ItemDisposalFunc<V> itemDisposalFunc) {
     caches.computeIfAbsent(
         itemCategory,
-        category -> new ExpirationCache<>(
-            itemClass,
-            isRenewableExpiration,
-            timeToLiveNanos,
-            cleanupIntervalNanos,
-            shouldDisposeFunc,
-            itemDisposalFunc));
-    cleanupTimes.put(itemCategory, System.nanoTime() + cleanupIntervalNanos);
+        category -> {
+          cleanupTimes.put(category, System.nanoTime() + cleanupIntervalNanos);
+          return new ExpirationCache<>(
+              itemClass,
+              isRenewableExpiration,
+              timeToLiveNanos,
+              cleanupIntervalNanos,
+              shouldDisposeFunc,
+              itemDisposalFunc);
+        });
   }
 
   @Override
