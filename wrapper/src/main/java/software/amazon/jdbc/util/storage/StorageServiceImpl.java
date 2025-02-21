@@ -35,7 +35,7 @@ import software.amazon.jdbc.util.ShouldDisposeFunc;
 
 public class StorageServiceImpl implements StorageService {
   private static final Logger LOGGER = Logger.getLogger(StorageServiceImpl.class.getName());
-  protected static final long DEFAULT_CLEANUP_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
+  protected static final long DEFAULT_CLEANUP_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(1);
   protected static final Map<String, ExpirationCache<Object, ?>> caches = new ConcurrentHashMap<>();
   protected static final Map<String, Supplier<ExpirationCache<Object, ?>>> defaultCacheSuppliers;
   protected static final AtomicBoolean isInitialized = new AtomicBoolean(false);
