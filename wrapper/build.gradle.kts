@@ -45,7 +45,7 @@ dependencies {
     compileOnly("io.opentelemetry:opentelemetry-api:1.47.0")
     compileOnly("io.opentelemetry:opentelemetry-sdk:1.46.0")
     compileOnly("io.opentelemetry:opentelemetry-sdk-metrics:1.43.0")
-    compileOnly("org.jsoup:jsoup:1.18.1")
+    compileOnly("org.jsoup:jsoup:1.18.3")
     compileOnly("org.jetbrains.kotlin:kotlin-stdlib:2.1.0")
 
     testImplementation("org.junit.platform:junit-platform-commons:1.11.3")
@@ -85,7 +85,7 @@ dependencies {
     testImplementation("io.opentelemetry:opentelemetry-sdk:1.46.0")
     testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.43.0")
     testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.47.0")
-    testImplementation("org.jsoup:jsoup:1.18.1")
+    testImplementation("org.jsoup:jsoup:1.18.3")
 }
 
 repositories {
