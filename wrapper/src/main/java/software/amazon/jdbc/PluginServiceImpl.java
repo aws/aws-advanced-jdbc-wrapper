@@ -31,7 +31,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -54,6 +53,7 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.storage.ItemCategory;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -71,7 +71,6 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   private final String driverProtocol;
   protected volatile HostListProvider hostListProvider;
   protected List<HostSpec> allHosts = new ArrayList<>();
-  protected AtomicReference<AllowedAndBlockedHosts> allowedAndBlockedHosts = new AtomicReference<>();
   protected Connection currentConnection;
   protected HostSpec currentHostSpec;
   protected HostSpec initialConnectionHostSpec;
@@ -214,8 +213,15 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
+  public StorageService getStorageService() {
+    return this.storageService;
+  }
+
+  @Override
+  @Deprecated
   public void setAllowedAndBlockedHosts(AllowedAndBlockedHosts allowedAndBlockedHosts) {
-    this.allowedAndBlockedHosts.set(allowedAndBlockedHosts);
+    this.storageService.set(
+        ItemCategory.ALLOWED_AND_BLOCKED_HOSTS, this.initialConnectionHostSpec.getHost(), allowedAndBlockedHosts);
   }
 
   @Override
@@ -409,7 +415,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   @Override
   public List<HostSpec> getHosts() {
-    AllowedAndBlockedHosts hostPermissions = this.allowedAndBlockedHosts.get();
+    AllowedAndBlockedHosts hostPermissions = this.storageService.get(
+        ItemCategory.ALLOWED_AND_BLOCKED_HOSTS, this.initialConnectionHostSpec.getHost(), AllowedAndBlockedHosts.class);
     if (hostPermissions == null) {
       return this.allHosts;
     }

@@ -212,7 +212,8 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     return monitors.computeIfAbsent(
         this.customEndpointHostSpec.getHost(),
         (customEndpoint) -> new CustomEndpointMonitorImpl(
-            this.pluginService,
+            this.pluginService.getStorageService(),
+            this.pluginService.getTelemetryFactory(),
             this.customEndpointHostSpec,
             this.customEndpointId,
             this.region,

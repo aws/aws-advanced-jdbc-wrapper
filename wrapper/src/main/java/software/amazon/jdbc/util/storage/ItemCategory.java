@@ -18,7 +18,7 @@ package software.amazon.jdbc.util.storage;
 
 public class ItemCategory {
   public static final String TOPOLOGY = "topology";
-  public static final String CUSTOM_ENDPOINT = "customEndpoint";
+  public static final String ALLOWED_AND_BLOCKED_HOSTS = "allowedAndBlockedHosts";
 
   private ItemCategory() {
     throw new UnsupportedOperationException(

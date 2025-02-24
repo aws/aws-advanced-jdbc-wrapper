@@ -34,10 +34,11 @@ import software.amazon.awssdk.services.rds.model.DescribeDbClusterEndpointsRespo
 import software.amazon.awssdk.services.rds.model.Filter;
 import software.amazon.jdbc.AllowedAndBlockedHosts;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.storage.ItemCategory;
+import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -60,7 +61,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
   protected final Region region;
   protected final long refreshRateNano;
 
-  protected final PluginService pluginService;
+  protected final StorageService storageService;
   protected final ExecutorService monitorExecutor = Executors.newSingleThreadExecutor(runnableTarget -> {
     final Thread monitoringThread = new Thread(runnableTarget);
     monitoringThread.setDaemon(true);
@@ -75,8 +76,9 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
   /**
    * Constructs a CustomEndpointMonitorImpl instance for the host specified by {@code customEndpointHostSpec}.
    *
-   * @param pluginService          The plugin service to use to update the set of allowed/blocked hosts according to
-   *                               the custom endpoint info.
+   * @param storageService         The storage service used to store the set of allowed/blocked hosts according to the
+   *                               custom endpoint info.
+   * @param telemetryFactory       The telemetry factory
    * @param customEndpointHostSpec The host information for the custom endpoint to be monitored.
    * @param region                 The region of the custom endpoint to be monitored.
    * @param refreshRateNano        Controls how often the custom endpoint information should be fetched and analyzed for
@@ -85,20 +87,20 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
    *                               information.
    */
   public CustomEndpointMonitorImpl(
-      PluginService pluginService,
+      StorageService storageService,
+      TelemetryFactory telemetryFactory,
       HostSpec customEndpointHostSpec,
       String endpointIdentifier,
       Region region,
       long refreshRateNano,
       BiFunction<HostSpec, Region, RdsClient> rdsClientFunc) {
-    this.pluginService = pluginService;
+    this.storageService = storageService;
     this.customEndpointHostSpec = customEndpointHostSpec;
     this.endpointIdentifier = endpointIdentifier;
     this.region = region;
     this.refreshRateNano = refreshRateNano;
     this.rdsClient = rdsClientFunc.apply(customEndpointHostSpec, this.region);
 
-    TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
     this.infoChangedCounter = telemetryFactory.createCounter(TELEMETRY_ENDPOINT_INFO_CHANGED);
 
     this.monitorExecutor.submit(this);
@@ -167,7 +169,8 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
             allowedAndBlockedHosts = new AllowedAndBlockedHosts(null, endpointInfo.getExcludedMembers());
           }
 
-          this.pluginService.setAllowedAndBlockedHosts(allowedAndBlockedHosts);
+          this.storageService.set(
+              ItemCategory.ALLOWED_AND_BLOCKED_HOSTS, this.customEndpointHostSpec.getHost(), allowedAndBlockedHosts);
           customEndpointInfoCache.put(
               this.customEndpointHostSpec.getHost(), endpointInfo, CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO);
           this.infoChangedCounter.inc();
