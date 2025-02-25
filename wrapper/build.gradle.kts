@@ -71,7 +71,7 @@ dependencies {
     testImplementation("software.amazon.awssdk:sts:2.30.22")
     // Note: all org.testcontainers dependencies should have the same version
     testImplementation("org.testcontainers:testcontainers:1.20.4")
-    testImplementation("org.testcontainers:mysql:1.20.4")
+    testImplementation("org.testcontainers:mysql:1.20.5")
     testImplementation("org.testcontainers:postgresql:1.20.4")
     testImplementation("org.testcontainers:mariadb:1.20.4")
     testImplementation("org.testcontainers:junit-jupiter:1.20.4")
