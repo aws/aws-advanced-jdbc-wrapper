@@ -18,8 +18,7 @@ package software.amazon.jdbc.hostlistprovider.monitoring;
 
 import java.util.Properties;
 import java.util.logging.Logger;
-import software.amazon.jdbc.HostListProviderService;
-import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.ServiceContainer;
 
 public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListProvider {
 
@@ -31,15 +30,20 @@ public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListP
   public MonitoringRdsMultiAzHostListProvider(
       final Properties properties,
       final String originalUrl,
-      final HostListProviderService hostListProviderService,
+      final ServiceContainer serviceContainer,
       final String topologyQuery,
       final String nodeIdQuery,
       final String isReaderQuery,
-      final PluginService pluginService,
       final String fetchWriterNodeQuery,
       final String fetchWriterNodeColumnName) {
-    super(properties, originalUrl, hostListProviderService, topologyQuery, nodeIdQuery, isReaderQuery,
-        "", pluginService);
+    super(
+        properties,
+        originalUrl,
+        serviceContainer,
+        topologyQuery,
+        nodeIdQuery,
+        isReaderQuery,
+        "");
     this.fetchWriterNodeQuery = fetchWriterNodeQuery;
     this.fetchWriterNodeColumnName = fetchWriterNodeColumnName;
   }
@@ -48,9 +52,9 @@ public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListP
   protected ClusterTopologyMonitor initMonitor() {
     return monitors.computeIfAbsent(this.clusterId,
         (key) -> new MultiAzClusterTopologyMonitorImpl(
-            key, topologyCache, this.initialHostSpec, this.properties, this.pluginService,
+            key, storageService, this.initialHostSpec, this.properties, this.pluginService,
             this.hostListProviderService, this.clusterInstanceTemplate,
-            this.refreshRateNano, this.highRefreshRateNano, TOPOLOGY_CACHE_EXPIRATION_NANO,
+            this.refreshRateNano, this.highRefreshRateNano,
             this.topologyQuery,
             this.writerTopologyQuery,
             this.nodeIdQuery,

@@ -14,17 +14,14 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.dialect;
+package software.amazon.jdbc.util.storage;
 
-import java.util.Properties;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import software.amazon.jdbc.HostListProvider;
-import software.amazon.jdbc.util.ServiceContainer;
+public class ItemCategory {
+  public static final String TOPOLOGY = "topology";
+  public static final String ALLOWED_AND_BLOCKED_HOSTS = "allowedAndBlockedHosts";
 
-@FunctionalInterface
-public interface HostListProviderSupplier {
-  @NonNull HostListProvider getProvider(
-      final @NonNull Properties properties,
-      final String initialUrl,
-      final @NonNull ServiceContainer serviceContainer);
+  private ItemCategory() {
+    throw new UnsupportedOperationException(
+        "ItemCategories should not be instantiated because its purpose is to provide a set of static constants.");
+  }
 }

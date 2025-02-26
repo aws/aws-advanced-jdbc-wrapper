@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -46,14 +47,15 @@ import software.amazon.awssdk.services.rds.model.DescribeDbClusterEndpointsRespo
 import software.amazon.jdbc.AllowedAndBlockedHosts;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
-import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.util.storage.ItemCategory;
+import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class CustomEndpointMonitorImplTest {
-  @Mock private PluginService mockPluginService;
+  @Mock private StorageService mockStorageService;
   @Mock private BiFunction<HostSpec, Region, RdsClient> mockRdsClientFunc;
   @Mock private RdsClient mockRdsClient;
   @Mock private DescribeDbClusterEndpointsResponse mockDescribeResponse;
@@ -91,7 +93,6 @@ public class CustomEndpointMonitorImplTest {
     twoEndpointList = Arrays.asList(mockClusterEndpoint1, mockClusterEndpoint2);
     oneEndpointList = Collections.singletonList(mockClusterEndpoint1);
 
-    when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.createCounter(any(String.class))).thenReturn(mockTelemetryCounter);
     when(mockRdsClientFunc.apply(any(HostSpec.class), any(Region.class))).thenReturn(mockRdsClient);
     when(mockRdsClient.describeDBClusterEndpoints(any(Consumer.class))).thenReturn(mockDescribeResponse);
@@ -114,7 +115,14 @@ public class CustomEndpointMonitorImplTest {
   @Test
   public void testRun() throws InterruptedException {
     CustomEndpointMonitorImpl monitor = new CustomEndpointMonitorImpl(
-        mockPluginService, host, endpointId, Region.US_EAST_1, TimeUnit.MILLISECONDS.toNanos(50), mockRdsClientFunc);
+        mockStorageService,
+        mockTelemetryFactory,
+        host,
+        endpointId,
+        Region.US_EAST_1,
+        TimeUnit.MILLISECONDS.toNanos(50),
+        mockRdsClientFunc);
+
     // Wait for 2 run cycles. The first will return an unexpected number of endpoints in the API response, the second
     // will return the expected number of endpoints (one).
     TimeUnit.MILLISECONDS.sleep(100);
@@ -122,7 +130,7 @@ public class CustomEndpointMonitorImplTest {
     monitor.close();
 
     ArgumentCaptor<AllowedAndBlockedHosts> captor = ArgumentCaptor.forClass(AllowedAndBlockedHosts.class);
-    verify(mockPluginService).setAllowedAndBlockedHosts(captor.capture());
+    verify(mockStorageService).set(eq(ItemCategory.ALLOWED_AND_BLOCKED_HOSTS), eq(host.getHost()), captor.capture());
     assertEquals(staticMembersSet, captor.getValue().getAllowedHostIds());
     assertNull(captor.getValue().getBlockedHostIds());
 
