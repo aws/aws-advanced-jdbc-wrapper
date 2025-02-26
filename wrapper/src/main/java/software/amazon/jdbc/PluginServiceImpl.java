@@ -139,10 +139,6 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       @Nullable final ConfigurationProfile configurationProfile,
       @Nullable final SessionStateService sessionStateService) throws SQLException {
     this.serviceContainer = serviceContainer;
-    this.serviceContainer.setHostListProviderService(this);
-    this.serviceContainer.setPluginService(this);
-    this.serviceContainer.setPluginManagerService(this);
-
     this.pluginManager = serviceContainer.getConnectionPluginManager();
     this.props = props;
     this.originalUrl = originalUrl;
