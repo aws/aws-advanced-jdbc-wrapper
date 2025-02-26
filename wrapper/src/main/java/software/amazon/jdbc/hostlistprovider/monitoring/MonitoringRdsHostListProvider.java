@@ -25,15 +25,14 @@ import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.BlockingHostListProvider;
-import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.storage.ItemCategory;
-import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.Topology;
 
 public class MonitoringRdsHostListProvider extends RdsHostListProvider
@@ -73,15 +72,13 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
   public MonitoringRdsHostListProvider(
       final Properties properties,
       final String originalUrl,
-      final HostListProviderService hostListProviderService,
-      final StorageService storageService,
+      final ServiceContainer serviceContainer,
       final String topologyQuery,
       final String nodeIdQuery,
       final String isReaderQuery,
-      final String writerTopologyQuery,
-      final PluginService pluginService) {
-    super(properties, originalUrl, hostListProviderService, storageService, topologyQuery, nodeIdQuery, isReaderQuery);
-    this.pluginService = pluginService;
+      final String writerTopologyQuery) {
+    super(properties, originalUrl, serviceContainer, topologyQuery, nodeIdQuery, isReaderQuery);
+    this.pluginService = serviceContainer.getPluginService();
     this.writerTopologyQuery = writerTopologyQuery;
     this.highRefreshRateNano = TimeUnit.MILLISECONDS.toNanos(
         CLUSTER_TOPOLOGY_HIGH_REFRESH_RATE_MS.getLong(this.properties));

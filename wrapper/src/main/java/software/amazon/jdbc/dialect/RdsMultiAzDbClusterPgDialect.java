@@ -22,6 +22,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
 import java.util.logging.Logger;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.MultiAzDbClusterPgExceptionHandler;
 import software.amazon.jdbc.hostlistprovider.RdsMultiAzDbClusterListProvider;
@@ -112,20 +113,18 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
 
   @Override
   public HostListProviderSupplier getHostListProvider() {
-    return (properties, initialUrl, hostListProviderService, pluginService, storageService) -> {
-
+    return (properties, initialUrl, serviceContainer) -> {
+      final PluginService pluginService = serviceContainer.getPluginService();
       final FailoverConnectionPlugin failover2Plugin = pluginService.getPlugin(FailoverConnectionPlugin.class);
 
       if (failover2Plugin != null) {
         return new MonitoringRdsMultiAzHostListProvider(
             properties,
             initialUrl,
-            hostListProviderService,
-            storageService,
+            serviceContainer,
             TOPOLOGY_QUERY,
             NODE_ID_QUERY,
             IS_READER_QUERY,
-            pluginService,
             FETCH_WRITER_NODE_QUERY,
             FETCH_WRITER_NODE_QUERY_COLUMN_NAME);
 
@@ -134,8 +133,7 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
         return new RdsMultiAzDbClusterListProvider(
             properties,
             initialUrl,
-            hostListProviderService,
-            storageService,
+            serviceContainer,
             TOPOLOGY_QUERY,
             NODE_ID_QUERY,
             IS_READER_QUERY,

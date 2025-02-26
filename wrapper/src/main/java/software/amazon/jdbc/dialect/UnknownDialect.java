@@ -81,8 +81,8 @@ public class UnknownDialect implements Dialect {
 
   @Override
   public HostListProviderSupplier getHostListProvider() {
-    return (properties, initialUrl, hostListProviderService, pluginService, storageService) ->
-        new ConnectionStringHostListProvider(properties, initialUrl, hostListProviderService);
+    return (properties, initialUrl, serviceContainer) ->
+        new ConnectionStringHostListProvider(properties, initialUrl, serviceContainer.getHostListProviderService());
   }
 
   @Override

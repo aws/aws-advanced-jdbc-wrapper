@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.RdsMultiAzDbClusterListProvider;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsMultiAzHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverRestriction;
@@ -96,20 +97,18 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
 
   @Override
   public HostListProviderSupplier getHostListProvider() {
-    return (properties, initialUrl, hostListProviderService, pluginService, storageService) -> {
-
+    return (properties, initialUrl, serviceContainer) -> {
+      final PluginService pluginService = serviceContainer.getPluginService();
       final FailoverConnectionPlugin failover2Plugin = pluginService.getPlugin(FailoverConnectionPlugin.class);
 
       if (failover2Plugin != null) {
         return new MonitoringRdsMultiAzHostListProvider(
             properties,
             initialUrl,
-            hostListProviderService,
-            storageService,
+            serviceContainer,
             TOPOLOGY_QUERY,
             NODE_ID_QUERY,
             IS_READER_QUERY,
-            pluginService,
             FETCH_WRITER_NODE_QUERY,
             FETCH_WRITER_NODE_QUERY_COLUMN_NAME);
 
@@ -117,8 +116,7 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
         return new RdsMultiAzDbClusterListProvider(
             properties,
             initialUrl,
-            hostListProviderService,
-            storageService,
+            serviceContainer,
             TOPOLOGY_QUERY,
             NODE_ID_QUERY,
             IS_READER_QUERY,

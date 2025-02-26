@@ -22,6 +22,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Collections;
 import java.util.List;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
@@ -81,27 +82,24 @@ public class AuroraMysqlDialect extends MysqlDialect {
 
   @Override
   public HostListProviderSupplier getHostListProvider() {
-    return (properties, initialUrl, hostListProviderService, pluginService, storageService) -> {
-
+    return  (properties, initialUrl, serviceContainer) -> {
+      final PluginService pluginService = serviceContainer.getPluginService();
       final FailoverConnectionPlugin failover2Plugin = pluginService.getPlugin(FailoverConnectionPlugin.class);
 
       if (failover2Plugin != null) {
         return new MonitoringRdsHostListProvider(
             properties,
             initialUrl,
-            hostListProviderService,
-            storageService,
+            serviceContainer,
             TOPOLOGY_QUERY,
             NODE_ID_QUERY,
             IS_READER_QUERY,
-            IS_WRITER_QUERY,
-            pluginService);
+            IS_WRITER_QUERY);
       }
       return new AuroraHostListProvider(
           properties,
           initialUrl,
-          hostListProviderService,
-          storageService,
+          serviceContainer,
           TOPOLOGY_QUERY,
           NODE_ID_QUERY,
           IS_READER_QUERY);

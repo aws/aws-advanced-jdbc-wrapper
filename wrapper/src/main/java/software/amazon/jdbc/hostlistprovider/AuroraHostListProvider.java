@@ -19,8 +19,7 @@ package software.amazon.jdbc.hostlistprovider;
 
 import java.util.Properties;
 import java.util.logging.Logger;
-import software.amazon.jdbc.HostListProviderService;
-import software.amazon.jdbc.util.storage.StorageService;
+import software.amazon.jdbc.util.ServiceContainer;
 
 
 public class AuroraHostListProvider extends RdsHostListProvider {
@@ -30,15 +29,13 @@ public class AuroraHostListProvider extends RdsHostListProvider {
   public AuroraHostListProvider(
       final Properties properties,
       final String originalUrl,
-      final HostListProviderService hostListProviderService,
-      final StorageService storageService,
+      final ServiceContainer serviceContainer,
       final String topologyQuery,
       final String nodeIdQuery,
       final String isReaderQuery) {
     super(properties,
         originalUrl,
-        hostListProviderService,
-        storageService,
+        serviceContainer,
         topologyQuery,
         nodeIdQuery,
         isReaderQuery);
