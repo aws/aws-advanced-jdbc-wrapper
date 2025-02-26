@@ -56,7 +56,7 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
       "Max number of connection retries fetching Limitless Transaction Router information.");
   public static final AwsWrapperProperty INTERVAL_MILLIS = new AwsWrapperProperty(
       "limitlessTransactionRouterMonitorIntervalMs",
-      "15000",
+      "7500",
       "Interval in millis between polling for Limitless Transaction Routers to the database.");
   public static final AwsWrapperProperty MAX_RETRIES = new AwsWrapperProperty(
       "limitlessConnectMaxRetries",

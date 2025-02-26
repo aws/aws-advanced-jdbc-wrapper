@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### :bug: Fixed
 - Avoid encoding MariaDB connection properties ([PR #1237](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1237)).
 
+### :crab: Changed
+- Changed default value for `limitlessTransactionRouterMonitorIntervalMs` from 15s to 7.5s ([PR #1302](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1302)).
+
 ## [2.5.4] - 2024-12-23
 ### :bug: Fixed
 - Avoid setting ignoreNewTopologyRequestsEndTimeNano on initial connection ([PR #1221](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1221)).
