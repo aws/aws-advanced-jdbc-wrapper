@@ -104,6 +104,7 @@ public class StorageServiceImpl implements StorageService {
       Class<V> itemClass,
       boolean isRenewableExpiration,
       long timeToLiveNanos,
+      // TODO: should we make all caches use a default cleanup interval to simplify the API/implementation?
       long cleanupIntervalNanos,
       @Nullable ShouldDisposeFunc<V> shouldDisposeFunc,
       @Nullable ItemDisposalFunc<V> itemDisposalFunc) {
@@ -122,7 +123,6 @@ public class StorageServiceImpl implements StorageService {
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public <V> void set(String itemCategory, Object key, V value) {
     ExpirationCache<Object, ?> cache = caches.get(itemCategory);
     if (cache == null) {
@@ -142,15 +142,8 @@ public class StorageServiceImpl implements StorageService {
               new Object[] {itemCategory, cache.getValueClass(), value.getClass(), value}));
     }
 
-    try {
-      ExpirationCache<Object, V> typedCache = (ExpirationCache<Object, V>) cache;
-      typedCache.put(key, value);
-    } catch (ClassCastException e) {
-      throw new IllegalArgumentException(
-          Messages.get(
-              "StorageServiceImpl.incorrectValueType",
-              new Object[]{itemCategory, cache.getValueClass(), value.getClass(), value}));
-    }
+    ExpirationCache<Object, V> typedCache = (ExpirationCache<Object, V>) cache;
+    typedCache.put(key, value);
   }
 
   @Override
