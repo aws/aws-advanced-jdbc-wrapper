@@ -46,7 +46,6 @@ public class MonitorServiceImpl implements MonitorService {
           return new ExpirationCache<>(
               monitorClass,
               true,
-              DEFAULT_CLEANUP_INTERVAL_NANOS,
               timeToLiveNanos,
               null,
               null

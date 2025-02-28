@@ -35,12 +35,11 @@ import software.amazon.jdbc.util.ShouldDisposeFunc;
 
 public class StorageServiceImpl implements StorageService {
   private static final Logger LOGGER = Logger.getLogger(StorageServiceImpl.class.getName());
-  protected static final long DEFAULT_CLEANUP_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(1);
+  protected static final long DEFAULT_CLEANUP_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
   protected static final Map<String, ExpirationCache<Object, ?>> caches = new ConcurrentHashMap<>();
   protected static final Map<String, Supplier<ExpirationCache<Object, ?>>> defaultCacheSuppliers;
   protected static final AtomicBoolean isInitialized = new AtomicBoolean(false);
   protected static final ReentrantLock initLock = new ReentrantLock();
-  protected static final Map<String, Long> cleanupTimes = new ConcurrentHashMap<>();
   protected static final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor((r -> {
     final Thread thread = new Thread(r);
     thread.setDaemon(true);
@@ -86,15 +85,8 @@ public class StorageServiceImpl implements StorageService {
 
   protected void removeExpiredItems() {
     LOGGER.finest(Messages.get("StorageServiceImpl.removeExpiredItems"));
-    for (Map.Entry<String, ExpirationCache<Object, ?>> entry : caches.entrySet()) {
-      String category = entry.getKey();
-      ExpirationCache<Object, ?> cache = entry.getValue();
-      if (System.nanoTime() < cleanupTimes.get(category)) {
-        continue;
-      }
-
+    for (ExpirationCache<Object, ?> cache : caches.values()) {
       cache.removeExpiredEntries();
-      cleanupTimes.put(category, System.nanoTime() + cache.getCleanupIntervalNanos());
     }
   }
 
@@ -104,22 +96,16 @@ public class StorageServiceImpl implements StorageService {
       Class<V> itemClass,
       boolean isRenewableExpiration,
       long timeToLiveNanos,
-      // TODO: should we make all caches use a default cleanup interval to simplify the API/implementation?
-      long cleanupIntervalNanos,
       @Nullable ShouldDisposeFunc<V> shouldDisposeFunc,
       @Nullable ItemDisposalFunc<V> itemDisposalFunc) {
     caches.computeIfAbsent(
         itemCategory,
-        category -> {
-          cleanupTimes.put(category, System.nanoTime() + cleanupIntervalNanos);
-          return new ExpirationCache<>(
-              itemClass,
-              isRenewableExpiration,
-              timeToLiveNanos,
-              cleanupIntervalNanos,
-              shouldDisposeFunc,
-              itemDisposalFunc);
-        });
+        category -> new ExpirationCache<>(
+            itemClass,
+            isRenewableExpiration,
+            timeToLiveNanos,
+            shouldDisposeFunc,
+            itemDisposalFunc));
   }
 
   @Override

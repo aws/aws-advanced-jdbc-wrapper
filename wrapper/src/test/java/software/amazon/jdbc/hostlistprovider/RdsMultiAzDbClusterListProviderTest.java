@@ -103,7 +103,6 @@ class RdsMultiAzDbClusterListProviderTest {
         ItemCategory.TOPOLOGY,
         Topology.class,
         false,
-        TimeUnit.MINUTES.toNanos(10),
         TimeUnit.MINUTES.toNanos(5),
         null,
         null);

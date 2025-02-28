@@ -25,7 +25,6 @@ import software.amazon.jdbc.util.ShouldDisposeFunc;
 public class ExpirationCacheBuilder<V> {
   protected @NonNull Class<V> valueClass;
   protected boolean isRenewableExpiration = false;
-  protected long cleanupIntervalNanos = TimeUnit.MINUTES.toNanos(10);
   protected long timeToLiveNanos = TimeUnit.MINUTES.toNanos(5);
   protected @Nullable ShouldDisposeFunc<V> shouldDisposeFunc;
   protected @Nullable ItemDisposalFunc<V> itemDisposalFunc;
@@ -36,11 +35,6 @@ public class ExpirationCacheBuilder<V> {
 
   public ExpirationCacheBuilder<V> withIsRenewableExpiration(boolean isRenewableExpiration) {
     this.isRenewableExpiration = isRenewableExpiration;
-    return this;
-  }
-
-  public ExpirationCacheBuilder<V> withCleanupIntervalNanos(long cleanupIntervalNanos) {
-    this.cleanupIntervalNanos = cleanupIntervalNanos;
     return this;
   }
 
@@ -63,7 +57,6 @@ public class ExpirationCacheBuilder<V> {
     return new ExpirationCache<>(
         this.valueClass,
         this.isRenewableExpiration,
-        this.cleanupIntervalNanos,
         this.timeToLiveNanos,
         this.shouldDisposeFunc,
         this.itemDisposalFunc);

@@ -33,7 +33,6 @@ public class ExpirationCache<K, V> {
   protected final Map<K, CacheItem> cache = new ConcurrentHashMap<>();
   protected final Class<V> valueClass;
   protected final boolean isRenewableExpiration;
-  protected final long cleanupIntervalNanos;
   protected final long timeToLiveNanos;
   protected final ShouldDisposeFunc<V> shouldDisposeFunc;
   protected final ItemDisposalFunc<V> itemDisposalFunc;
@@ -41,20 +40,14 @@ public class ExpirationCache<K, V> {
   public ExpirationCache(
       final Class<V> valueClass,
       final boolean isRenewableExpiration,
-      final long cleanupIntervalNanos,
       final long timeToLiveNanos,
       final @Nullable ShouldDisposeFunc<V> shouldDisposeFunc,
       final @Nullable ItemDisposalFunc<V> itemDisposalFunc) {
     this.valueClass = valueClass;
     this.isRenewableExpiration = isRenewableExpiration;
-    this.cleanupIntervalNanos = cleanupIntervalNanos;
     this.timeToLiveNanos = timeToLiveNanos;
     this.shouldDisposeFunc = shouldDisposeFunc;
     this.itemDisposalFunc = itemDisposalFunc;
-  }
-
-  public long getCleanupIntervalNanos() {
-    return cleanupIntervalNanos;
   }
 
   /**
