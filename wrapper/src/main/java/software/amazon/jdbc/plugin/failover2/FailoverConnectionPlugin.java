@@ -561,7 +561,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         this.failoverWriterFailedCounter.inc();
         LOGGER.severe(
             Messages.get("Failover.exceptionConnectingToWriter", new Object[]{writerCandidate.getHost()}));
-        throw new FailoverFailedSQLException(Messages.get("Failover.exceptionConnectingToWriter"), ex);
+        throw new FailoverFailedSQLException(
+            Messages.get("Failover.exceptionConnectingToWriter", new Object[]{writerCandidate.getHost()}), ex);
       }
 
       HostRole role = this.pluginService.getHostRole(writerCandidateConn);
@@ -574,7 +575,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         this.failoverWriterFailedCounter.inc();
         LOGGER.severe(
             Messages.get("Failover.unexpectedReaderRole", new Object[]{writerCandidate.getHost(), role}));
-        throw new FailoverFailedSQLException(Messages.get("Failover.unexpectedReaderRole"));
+        throw new FailoverFailedSQLException(
+            Messages.get("Failover.unexpectedReaderRole", new Object[]{writerCandidate.getHost(), role}));
       }
 
       this.pluginService.setCurrentConnection(writerCandidateConn, writerCandidate);
@@ -659,7 +661,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return false;
     }
 
-    return this.pluginService.isNetworkException(t);
+    return this.pluginService.isNetworkException(t, this.pluginService.getTargetDriverDialect());
   }
 
   /**
