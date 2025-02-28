@@ -267,7 +267,7 @@ public class ExpirationCache<K, V> {
      * @param item                the item value
      * @param expirationTimeNanos the amount of time before a CacheItem should be marked as expired.
      */
-    public CacheItem(final V item, final long expirationTimeNanos) {
+    protected CacheItem(final V item, final long expirationTimeNanos) {
       this.item = item;
       this.expirationTimeNanos = expirationTimeNanos;
     }
