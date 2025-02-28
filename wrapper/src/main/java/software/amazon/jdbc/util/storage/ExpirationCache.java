@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -29,21 +30,22 @@ import software.amazon.jdbc.util.ShouldDisposeFunc;
 
 public class ExpirationCache<K, V> {
   private static final Logger LOGGER = Logger.getLogger(ExpirationCache.class.getName());
-
+  protected static final long DEFAULT_TIME_TO_LIVE_NANOS = TimeUnit.MINUTES.toNanos(5);
   protected final Map<K, CacheItem> cache = new ConcurrentHashMap<>();
-  protected final Class<V> valueClass;
   protected final boolean isRenewableExpiration;
   protected final long timeToLiveNanos;
   protected final ShouldDisposeFunc<V> shouldDisposeFunc;
   protected final ItemDisposalFunc<V> itemDisposalFunc;
 
+  public ExpirationCache() {
+    this(false, DEFAULT_TIME_TO_LIVE_NANOS, null, null);
+  }
+
   public ExpirationCache(
-      final Class<V> valueClass,
       final boolean isRenewableExpiration,
       final long timeToLiveNanos,
       final @Nullable ShouldDisposeFunc<V> shouldDisposeFunc,
       final @Nullable ItemDisposalFunc<V> itemDisposalFunc) {
-    this.valueClass = valueClass;
     this.isRenewableExpiration = isRenewableExpiration;
     this.timeToLiveNanos = timeToLiveNanos;
     this.shouldDisposeFunc = shouldDisposeFunc;
@@ -239,15 +241,6 @@ public class ExpirationCache<K, V> {
    */
   public int size() {
     return this.cache.size();
-  }
-
-  /**
-   * Get the class of the values stored in the cache.
-   *
-   * @return the class of the values stored in the cache
-   */
-  public Class<V> getValueClass() {
-    return this.valueClass;
   }
 
   protected class CacheItem {

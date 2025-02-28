@@ -28,7 +28,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.jdbc.AllowedAndBlockedHosts;
 import software.amazon.jdbc.util.ItemDisposalFunc;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ShouldDisposeFunc;
@@ -38,6 +37,8 @@ public class StorageServiceImpl implements StorageService {
   protected static final long DEFAULT_CLEANUP_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
   protected static final Map<String, ExpirationCache<Object, ?>> caches = new ConcurrentHashMap<>();
   protected static final Map<String, Supplier<ExpirationCache<Object, ?>>> defaultCacheSuppliers;
+  // Map from item category to the expected value class for that category.
+  protected static final Map<String, Class<?>> valueClasses = new ConcurrentHashMap<>();
   protected static final AtomicBoolean isInitialized = new AtomicBoolean(false);
   protected static final ReentrantLock initLock = new ReentrantLock();
   protected static final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor((r -> {
@@ -48,10 +49,8 @@ public class StorageServiceImpl implements StorageService {
 
   static {
     Map<String, Supplier<ExpirationCache<Object, ?>>> suppliers = new HashMap<>();
-    suppliers.put(ItemCategory.TOPOLOGY, () -> new ExpirationCacheBuilder<>(Topology.class).build());
-    suppliers.put(
-        ItemCategory.ALLOWED_AND_BLOCKED_HOSTS,
-        () -> new ExpirationCacheBuilder<>(AllowedAndBlockedHosts.class).build());
+    suppliers.put(ItemCategory.TOPOLOGY, ExpirationCache::new);
+    suppliers.put(ItemCategory.ALLOWED_AND_BLOCKED_HOSTS, ExpirationCache::new);
     defaultCacheSuppliers = Collections.unmodifiableMap(suppliers);
   }
 
@@ -100,12 +99,14 @@ public class StorageServiceImpl implements StorageService {
       @Nullable ItemDisposalFunc<V> itemDisposalFunc) {
     caches.computeIfAbsent(
         itemCategory,
-        category -> new ExpirationCache<>(
-            itemClass,
-            isRenewableExpiration,
-            timeToLiveNanos,
-            shouldDisposeFunc,
-            itemDisposalFunc));
+        category -> {
+          valueClasses.put(itemCategory, itemClass);
+          return new ExpirationCache<>(
+              isRenewableExpiration,
+              timeToLiveNanos,
+              shouldDisposeFunc,
+              itemDisposalFunc);
+        });
   }
 
   @Override
@@ -121,11 +122,12 @@ public class StorageServiceImpl implements StorageService {
       }
     }
 
-    if (!cache.getValueClass().isInstance(value)) {
+    Class<?> expectedValueClass = valueClasses.get(itemCategory);
+    if (expectedValueClass == null || !expectedValueClass.isInstance(value)) {
       throw new IllegalArgumentException(
           Messages.get(
               "StorageServiceImpl.incorrectValueType",
-              new Object[] {itemCategory, cache.getValueClass(), value.getClass(), value}));
+              new Object[] {itemCategory, expectedValueClass, value.getClass(), value}));
     }
 
     ExpirationCache<Object, V> typedCache = (ExpirationCache<Object, V>) cache;
