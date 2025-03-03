@@ -19,19 +19,97 @@ package software.amazon.jdbc.util.monitoring;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ShouldDisposeFunc;
+import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.storage.ExpirationCache;
 
 public class MonitorServiceImpl implements MonitorService {
   private static final Logger LOGGER = Logger.getLogger(MonitorServiceImpl.class.getName());
   protected static final long DEFAULT_CLEANUP_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(1);
-  protected static final Map<Class<? extends Monitor>, Set<MonitorErrorResponse>> errorResponsesByType = new ConcurrentHashMap<>();
-  protected static final Map<Class<? extends Monitor>, ExpirationCache<Object, MonitorItem<? extends Monitor>>> monitorCaches = new ConcurrentHashMap<>();
+  protected static final Map<Class<? extends Monitor>, Set<MonitorErrorResponse>> errorResponsesByType =
+      new ConcurrentHashMap<>();
+  protected static final Map<Class<? extends Monitor>, ExpirationCache<Object, MonitorItem>> monitorCaches =
+      new ConcurrentHashMap<>();
+  protected static final AtomicBoolean isInitialized = new AtomicBoolean(false);
+  protected static final ReentrantLock initLock = new ReentrantLock();
+  protected static final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor((r -> {
+    final Thread thread = new Thread(r);
+    thread.setDaemon(true);
+    return thread;
+  }));
+
+  public MonitorServiceImpl() {
+    initCleanupThread(DEFAULT_CLEANUP_INTERVAL_NANOS);
+  }
+
+  public MonitorServiceImpl(long cleanupIntervalNanos) {
+    initCleanupThread(cleanupIntervalNanos);
+  }
+
+  protected void initCleanupThread(long cleanupIntervalNanos) {
+    if (isInitialized.get()) {
+      return;
+    }
+
+    initLock.lock();
+    try {
+      if (isInitialized.get()) {
+        return;
+      }
+
+      cleanupExecutor.scheduleAtFixedRate(
+          this::checkMonitors, cleanupIntervalNanos, cleanupIntervalNanos, TimeUnit.NANOSECONDS);
+      cleanupExecutor.shutdown();
+      isInitialized.set(true);
+    } finally {
+      initLock.unlock();
+    }
+  }
+
+  protected void checkMonitors() {
+    LOGGER.finest(Messages.get("MonitorServiceImpl.checkingMonitors"));
+    for (ExpirationCache<Object, MonitorItem> cache : monitorCaches.values()) {
+      // Note: the map returned by getEntries is a copy of the ExpirationCache map
+      for (Map.Entry<Object, MonitorItem> entry : cache.getEntries().entrySet()) {
+        MonitorItem monitorItem = entry.getValue();
+        if (monitorItem == null) {
+          continue;
+        }
+
+        Monitor monitor = monitorItem.getMonitor();
+        if (monitor == null) {
+          continue;
+        }
+
+        if (monitor.getState() != MonitorState.ERROR) {
+          cache.removeIfExpired(entry.getKey());
+          continue;
+        }
+
+        LOGGER.fine(
+            Messages.get("MonitorServiceImpl.errorInMonitor", new Object[]{monitor.getUnhandledException(), monitor}));
+
+        Set<MonitorErrorResponse> errorResponses = errorResponsesByType.get(monitor.getClass());
+        if (!Utils.isNullOrEmpty(errorResponses) && errorResponses.contains(MonitorErrorResponse.RESTART)) {
+          // Note: the put method disposes of the old item
+          LOGGER.fine(Messages.get("MonitorServiceImpl.restartingMonitor", new Object[]{monitor}));
+          cache.put(entry.getKey(), new MonitorItem(monitorItem.getMonitorSupplier()));
+          continue;
+        }
+
+        cache.removeIfExpired(entry.getKey());
+      }
+    }
+  }
 
   @Override
   public <T extends Monitor> void registerMonitorTypeIfAbsent(
@@ -54,21 +132,15 @@ public class MonitorServiceImpl implements MonitorService {
 
   @Override
   public <T extends Monitor> void runIfAbsent(Class<T> monitorClass, Object key, Supplier<T> monitorSupplier) {
-    ExpirationCache<Object, MonitorItem<? extends Monitor>> cache = monitorCaches.get(monitorClass);
+    ExpirationCache<Object, MonitorItem> cache = monitorCaches.get(monitorClass);
     if (cache == null) {
       throw new IllegalStateException(
-          Messages.get("MonitorServiceImpl.monitorClassNotRegistered", new Object[] {monitorClass}));
+          Messages.get("MonitorServiceImpl.monitorTypeNotRegistered", new Object[] {monitorClass}));
     }
 
-    ExpirationCache<Object, MonitorItem<T>> typedCache =
-        (ExpirationCache<Object, MonitorItem<T>>) (ExpirationCache<?, ?>) cache;
-    typedCache.computeIfAbsent(
+    cache.computeIfAbsent(
         key,
-        k -> {
-          T monitor = monitorSupplier.get();
-          monitor.start();
-          return new MonitorItem<>(monitorSupplier, monitor);
-        });
+        k -> new MonitorItem((Supplier<Monitor>) monitorSupplier));
   }
 
   @Override
@@ -80,10 +152,10 @@ public class MonitorServiceImpl implements MonitorService {
 
     Object result = cache.remove(key);
     if (result instanceof MonitorItem) {
-      MonitorItem<? extends Monitor> monitorItem = (MonitorItem<? extends Monitor>) result;
+      MonitorItem monitorItem = (MonitorItem) result;
       Monitor monitor = monitorItem.getMonitor();
       if (monitor != null) {
-        monitor.stop();
+        monitor.close();
       }
     }
   }
@@ -97,10 +169,10 @@ public class MonitorServiceImpl implements MonitorService {
 
     for (Object value : cache.getEntries().values()) {
       if (value instanceof MonitorItem) {
-        MonitorItem<? extends Monitor> monitorItem = (MonitorItem<? extends Monitor>) value;
+        MonitorItem monitorItem = (MonitorItem) value;
         Monitor monitor = monitorItem.getMonitor();
         if (monitor != null) {
-          monitor.stop();
+          monitor.close();
         }
       }
     }
@@ -115,20 +187,20 @@ public class MonitorServiceImpl implements MonitorService {
     }
   }
 
-  protected static class MonitorItem<T extends Monitor> {
-    private final Supplier<T> monitorSupplier;
-    private final T monitor;
+  protected static class MonitorItem {
+    private final Supplier<Monitor> monitorSupplier;
+    private final Monitor monitor;
 
-    protected MonitorItem(Supplier<T> monitorSupplier, T monitor) {
+    protected MonitorItem(Supplier<Monitor> monitorSupplier) {
       this.monitorSupplier = monitorSupplier;
-      this.monitor = monitor;
+      this.monitor = monitorSupplier.get();
     }
 
-    public Supplier<T> getMonitorSupplier() {
+    public Supplier<Monitor> getMonitorSupplier() {
       return monitorSupplier;
     }
 
-    public T getMonitor() {
+    public Monitor getMonitor() {
       return monitor;
     }
   }

@@ -119,7 +119,8 @@ public class ExpirationCache<K, V> {
     }
 
     // cacheItem is the previous value associated with the key.
-    if (cacheItem.shouldCleanup() && this.itemDisposalFunc != null) {
+    // TODO: should we check expiration or call shouldDisposeFunc here even though the item is definitely being removed?
+    if (this.itemDisposalFunc != null) {
       this.itemDisposalFunc.dispose(cacheItem.item);
     }
 
@@ -186,7 +187,7 @@ public class ExpirationCache<K, V> {
     });
   }
 
-  protected void removeIfExpired(K key) {
+  public void removeIfExpired(K key) {
     // A list is used to store the cached item for later disposal since lambdas require references to outer variables
     // to be final. This allows us to dispose of the item after it has been removed and the cache has been unlocked,
     // which is important because the disposal function may be long-running.
@@ -231,6 +232,7 @@ public class ExpirationCache<K, V> {
     for (final Map.Entry<K, CacheItem> entry : this.cache.entrySet()) {
       entries.put(entry.getKey(), entry.getValue().item);
     }
+
     return entries;
   }
 

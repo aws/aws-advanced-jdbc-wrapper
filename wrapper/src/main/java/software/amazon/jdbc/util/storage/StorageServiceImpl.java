@@ -28,6 +28,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.AllowedAndBlockedHosts;
 import software.amazon.jdbc.util.ItemDisposalFunc;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ShouldDisposeFunc;
@@ -50,7 +51,9 @@ public class StorageServiceImpl implements StorageService {
   static {
     Map<String, Supplier<ExpirationCache<Object, ?>>> suppliers = new HashMap<>();
     suppliers.put(ItemCategory.TOPOLOGY, ExpirationCache::new);
+    valueClasses.put(ItemCategory.TOPOLOGY, Topology.class);
     suppliers.put(ItemCategory.ALLOWED_AND_BLOCKED_HOSTS, ExpirationCache::new);
+    valueClasses.put(ItemCategory.ALLOWED_AND_BLOCKED_HOSTS, AllowedAndBlockedHosts.class);
     defaultCacheSuppliers = Collections.unmodifiableMap(suppliers);
   }
 
