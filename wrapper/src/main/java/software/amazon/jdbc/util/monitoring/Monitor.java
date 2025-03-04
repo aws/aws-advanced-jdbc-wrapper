@@ -16,8 +16,6 @@
 
 package software.amazon.jdbc.util.monitoring;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 public interface Monitor {
   void execute();
 
@@ -26,7 +24,4 @@ public interface Monitor {
   long getLastUsedTimestampNanos();
 
   MonitorState getState();
-
-  @Nullable
-  Exception getUnhandledException();
 }

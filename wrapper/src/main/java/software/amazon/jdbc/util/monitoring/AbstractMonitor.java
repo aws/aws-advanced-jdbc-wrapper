@@ -21,18 +21,24 @@ import software.amazon.jdbc.util.Messages;
 
 public abstract class AbstractMonitor implements Monitor, Runnable {
   private static Logger LOGGER = Logger.getLogger(AbstractMonitor.class.getName());
+  private final MonitorService monitorService;
+  private final Object monitorKey;
   protected long lastUsedTimestampNanos;
   protected MonitorState state;
-  protected Exception unhandledException;
+
+  protected AbstractMonitor(MonitorService monitorService, Object monitorKey) {
+    this.monitorService = monitorService;
+    this.monitorKey = monitorKey;
+  }
 
   @Override
   public void run() {
     try {
       execute();
     } catch (Exception e) {
-      LOGGER.fine(Messages.get("AbstractMonitor.unexpectedError", new Object[]{this, this.unhandledException}));
+      LOGGER.fine(Messages.get("AbstractMonitor.unexpectedError", new Object[]{this, e}));
       this.state = MonitorState.ERROR;
-      this.unhandledException = e;
+      monitorService.processMonitorError(this, monitorKey, e);
     }
   }
 
@@ -44,10 +50,5 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
   @Override
   public MonitorState getState() {
     return this.state;
-  }
-
-  @Override
-  public Exception getUnhandledException() {
-    return this.unhandledException;
   }
 }

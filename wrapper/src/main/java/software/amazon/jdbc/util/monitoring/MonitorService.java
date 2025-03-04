@@ -58,6 +58,16 @@ public interface MonitorService {
   <T extends Monitor> void runIfAbsent(Class<T> monitorClass, Object key, Supplier<T> monitorSupplier);
 
   /**
+   * Process a monitor error. The monitor service will respond to the error based on the monitor error responses defined
+   * when the monitor type was registered.
+   *
+   * @param monitor   the monitor that encountered the unexpected exception.
+   * @param key       the key for the monitor.
+   * @param exception the unexpected exception that occurred.
+   */
+  void processMonitorError(Monitor monitor, Object key, Exception exception);
+
+  /**
    * Stops the given monitor and removes it from the monitor service.
    *
    * @param monitorClass the class of the monitor, eg `CustomEndpointMonitorImpl.class`.

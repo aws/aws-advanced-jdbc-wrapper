@@ -16,6 +16,8 @@
 
 package software.amazon.jdbc.util.monitoring;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,7 +31,6 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ShouldDisposeFunc;
-import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.storage.ExpirationCache;
 
 public class MonitorServiceImpl implements MonitorService {
@@ -39,6 +40,8 @@ public class MonitorServiceImpl implements MonitorService {
       new ConcurrentHashMap<>();
   protected static final Map<Class<? extends Monitor>, ExpirationCache<Object, MonitorItem>> monitorCaches =
       new ConcurrentHashMap<>();
+  protected static final Map<Class<? extends Monitor>, Supplier<ExpirationCache<Object, MonitorItem>>>
+      defaultCacheSuppliers;
   protected static final AtomicBoolean isInitialized = new AtomicBoolean(false);
   protected static final ReentrantLock initLock = new ReentrantLock();
   protected static final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor((r -> {
@@ -46,6 +49,23 @@ public class MonitorServiceImpl implements MonitorService {
     thread.setDaemon(true);
     return thread;
   }));
+
+  static {
+    Map<Class<? extends Monitor>, Supplier<ExpirationCache<Object, MonitorItem>>> suppliers = new HashMap<>();
+    // suppliers.put(
+    //     ClusterTopologyMonitorImpl.class,
+    //     () -> new ExpirationCache<Object, MonitorItem>(
+    //         true,
+    //         TimeUnit.MINUTES.toNanos(15),
+    //         null,
+    //         (monitorItem) -> monitorItem.getMonitor().close()));
+    // monitorSettingsByType.put(
+    //     ClusterTopologyMonitorImpl.class,
+    //     new MonitorSettings(
+    //         TimeUnit.MINUTES.toNanos(1),
+    //         new HashSet<>(Collections.singletonList(MonitorErrorResponse.NO_ACTION))));
+    defaultCacheSuppliers = Collections.unmodifiableMap(suppliers);
+  }
 
   public MonitorServiceImpl() {
     initCleanupThread(DEFAULT_CLEANUP_INTERVAL_NANOS);
@@ -101,36 +121,22 @@ public class MonitorServiceImpl implements MonitorService {
         }
 
         Set<MonitorErrorResponse> errorResponses = monitorSettings.getErrorResponses();
-        if (System.nanoTime() - monitor.getLastUsedTimestampNanos() > monitorSettings.getInactiveTimeoutNanos()) {
-          LOGGER.fine(
-              Messages.get("MonitorServiceImpl.monitorStuck",
-                  new Object[]{monitor, TimeUnit.NANOSECONDS.toSeconds(monitorSettings.getInactiveTimeoutNanos())}));
-          if (!Utils.isNullOrEmpty(errorResponses) && errorResponses.contains(MonitorErrorResponse.RESTART)) {
-            // Note: the put method disposes of the old item
-            LOGGER.fine(Messages.get("MonitorServiceImpl.restartingMonitor", new Object[]{monitor}));
-            cache.put(entry.getKey(), new MonitorItem(monitorItem.getMonitorSupplier()));
-            continue;
-          } else {
-            cache.remove(entry.getKey());
-          }
-        }
-
-        if (monitor.getState() != MonitorState.ERROR) {
+        if (System.nanoTime() - monitor.getLastUsedTimestampNanos() < monitorSettings.getInactiveTimeoutNanos()) {
+          // Monitor has updated its last-used timestamp recently and is not considered stuck.
           cache.removeIfExpired(entry.getKey());
-          continue;
         }
 
+        // Monitor has been inactive for longer than the inactive timeout and is considered stuck.
         LOGGER.fine(
-            Messages.get("MonitorServiceImpl.errorInMonitor", new Object[]{monitor.getUnhandledException(), monitor}));
-
-        if (!Utils.isNullOrEmpty(errorResponses) && errorResponses.contains(MonitorErrorResponse.RESTART)) {
+            Messages.get("MonitorServiceImpl.monitorStuck",
+                new Object[]{monitor, TimeUnit.NANOSECONDS.toSeconds(monitorSettings.getInactiveTimeoutNanos())}));
+        if (errorResponses.contains(MonitorErrorResponse.RESTART)) {
           // Note: the put method disposes of the old item
           LOGGER.fine(Messages.get("MonitorServiceImpl.restartingMonitor", new Object[]{monitor}));
           cache.put(entry.getKey(), new MonitorItem(monitorItem.getMonitorSupplier()));
-          continue;
+        } else {
+          cache.remove(entry.getKey());
         }
-
-        cache.removeIfExpired(entry.getKey());
       }
     }
   }
@@ -146,12 +152,13 @@ public class MonitorServiceImpl implements MonitorService {
         monitorClass,
         mc -> {
           monitorSettingsByType.putIfAbsent(monitorClass, new MonitorSettings(inactiveTimeoutNanos, errorResponses));
+          ShouldDisposeFunc<MonitorItem> wrappedShouldDisposeFunc = shouldDisposeFunc == null ? null
+              : (monitorItem) -> shouldDisposeFunc.shouldDispose((T) monitorItem.getMonitor());
           return new ExpirationCache<>(
               true,
               timeToLiveNanos,
-              null,
-              null
-          );
+              wrappedShouldDisposeFunc,
+              (monitorItem) -> monitorItem.getMonitor().close());
         });
   }
 
@@ -169,20 +176,28 @@ public class MonitorServiceImpl implements MonitorService {
   }
 
   @Override
+  public void processMonitorError(Monitor monitor, Object key, Exception exception) {
+    MonitorSettings settings = monitorSettingsByType.get(monitor.getClass());
+    if (settings == null) {
+      stopAndRemove(monitor.getClass(), key);
+      return;
+    }
+
+    Set<MonitorErrorResponse> errorResponses = settings.getErrorResponses();
+    if (errorResponses.contains(MonitorErrorResponse.RESTART)) {
+      LOGGER.fine(Messages.get("MonitorServiceImpl.restartingMonitor", new Object[]{monitor}));
+    }
+  }
+
+  @Override
   public <T extends Monitor> void stopAndRemove(Class<T> monitorClass, Object key) {
     ExpirationCache<Object, ?> cache = monitorCaches.get(monitorClass);
     if (cache == null) {
       return;
     }
 
-    Object result = cache.remove(key);
-    if (result instanceof MonitorItem) {
-      MonitorItem monitorItem = (MonitorItem) result;
-      Monitor monitor = monitorItem.getMonitor();
-      if (monitor != null) {
-        monitor.close();
-      }
-    }
+    // Note: remove() automatically closes the monitor.
+    cache.remove(key);
   }
 
   @Override
@@ -192,16 +207,7 @@ public class MonitorServiceImpl implements MonitorService {
       return;
     }
 
-    for (Object value : cache.getEntries().values()) {
-      if (value instanceof MonitorItem) {
-        MonitorItem monitorItem = (MonitorItem) value;
-        Monitor monitor = monitorItem.getMonitor();
-        if (monitor != null) {
-          monitor.close();
-        }
-      }
-    }
-
+    // Note: clear() automatically closes the monitors.
     cache.clear();
   }
 

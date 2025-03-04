@@ -17,12 +17,13 @@
 package software.amazon.jdbc.util.monitoring;
 
 import java.util.Set;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 public class MonitorSettings {
   private final long inactiveTimeoutNanos;
-  private final Set<MonitorErrorResponse> errorResponses;
+  private @NonNull final Set<MonitorErrorResponse> errorResponses;
 
-  public MonitorSettings(long inactiveTimeoutNanos, Set<MonitorErrorResponse> errorResponses) {
+  public MonitorSettings(long inactiveTimeoutNanos, @NonNull Set<MonitorErrorResponse> errorResponses) {
     this.inactiveTimeoutNanos = inactiveTimeoutNanos;
     this.errorResponses = errorResponses;
   }
@@ -31,7 +32,7 @@ public class MonitorSettings {
     return inactiveTimeoutNanos;
   }
 
-  public Set<MonitorErrorResponse> getErrorResponses() {
+  public @NonNull Set<MonitorErrorResponse> getErrorResponses() {
     return errorResponses;
   }
 }
