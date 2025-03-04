@@ -820,8 +820,14 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   protected <T> String getStatusCacheKey(final Class<T> clazz, final boolean clusterBound) {
+    String clusterId = "";
+    try {
+      clusterId = this.hostListProvider.getClusterId();
+    } catch (Exception ex) {
+      // do nothing
+    }
     return clusterBound
-        ? String.format("%s::%s", this.hostListProvider.getClusterId(), clazz.getName())
+        ? String.format("%s::%s", clusterId, clazz.getName())
         : clazz.getName();
   }
 

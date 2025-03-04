@@ -47,6 +47,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
@@ -249,102 +250,105 @@ public class AuroraTestUtility {
         createMultiAzCluster(
             username, password, dbName, identifier, region, engine, instanceClass, version);
         break;
-      case RDS_MULTI_AZ_INSTANCE:
-        return createMultiAzInstance();
+        // TODO: fix
+//       case RDS_MULTI_AZ_INSTANCE:
+//         return createMultiAzInstance();
       default:
         throw new UnsupportedOperationException(deployment.toString());
     }
   }
 
-  public String createMultiAzInstance(
-      String username,
-      String password,
-      String dbName,
-      String identifier,
-      DatabaseEngineDeployment deployment,
-      String engine,
-      String instanceClass,
-      String version,
-      int numOfInstances,
-      ArrayList<TestInstanceInfo> instances)
-      throws InterruptedException {
+  // TODO: fix
+//   public String createMultiAzInstance(
+//       String username,
+//       String password,
+//       String dbName,
+//       String identifier,
+//       DatabaseEngineDeployment deployment,
+//       String engine,
+//       String instanceClass,
+//       String version,
+//       int numOfInstances,
+//       ArrayList<TestInstanceInfo> instances)
+//       throws InterruptedException {
+//
+//     this.dbUsername = username;
+//     this.dbPassword = password;
+//     this.dbName = dbName;
+//     this.dbIdentifier = identifier;
+//     this.dbEngineDeployment = deployment;
+//     this.dbEngine = engine;
+//     this.dbInstanceClass = instanceClass;
+//     this.dbEngineVersion = version;
+//     this.numOfInstances = numOfInstances;
+//     this.instances = instances;
+//
+//     switch (this.dbEngineDeployment) {
+//       case RDS_MULTI_AZ_INSTANCE:
+//         return createMultiAzInstance();
+//       default:
+//         throw new UnsupportedOperationException(this.dbEngineDeployment.toString());
+//     }
+//   }
 
-    this.dbUsername = username;
-    this.dbPassword = password;
-    this.dbName = dbName;
-    this.dbIdentifier = identifier;
-    this.dbEngineDeployment = deployment;
-    this.dbEngine = engine;
-    this.dbInstanceClass = instanceClass;
-    this.dbEngineVersion = version;
-    this.numOfInstances = numOfInstances;
-    this.instances = instances;
-
-    switch (this.dbEngineDeployment) {
-      case RDS_MULTI_AZ_INSTANCE:
-        return createMultiAzInstance();
-      default:
-        throw new UnsupportedOperationException(this.dbEngineDeployment.toString());
-    }
-  }
-
-  public String createMultiAzInstance() {
-
-    final Tag testRunnerTag = Tag.builder().key("env").value("test-runner").build();
-
-    CreateDbInstanceResponse response = rdsClient.createDBInstance(CreateDbInstanceRequest.builder()
-        .dbInstanceIdentifier(dbIdentifier)
-        .publiclyAccessible(true)
-        .dbName(dbName)
-        .masterUsername(dbUsername)
-        .masterUserPassword(dbPassword)
-        .enableIAMDatabaseAuthentication(true)
-        .multiAZ(true)
-        .engine(dbEngine)
-        .engineVersion(dbEngineVersion)
-        .dbInstanceClass(dbInstanceClass)
-        .enablePerformanceInsights(false)
-        .backupRetentionPeriod(1)
-        .storageEncrypted(true)
-        .storageType(storageType)
-        .allocatedStorage(allocatedStorage)
-        .iops(iops)
-        .tags(testRunnerTag)
-        .build());
-
-    // Wait for all instances to be up
-    final RdsWaiter waiter = rdsClient.waiter();
-    WaiterResponse<DescribeDbInstancesResponse> waiterResponse =
-        waiter.waitUntilDBInstanceAvailable(
-            (requestBuilder) ->
-                requestBuilder.filters(
-                    Filter.builder().name("db-instance-id").values(dbIdentifier).build()),
-            (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(60)));
-
-    if (waiterResponse.matched().exception().isPresent()) {
-      deleteMultiAzInstance();
-      throw new RuntimeException(
-          "Unable to start AWS RDS Instance after waiting for 30 minutes");
-    }
-
-    DescribeDbInstancesResponse dbInstancesResult = waiterResponse.matched().response().orElse(null);
-    if (dbInstancesResult == null) {
-      throw new RuntimeException("Unable to get instance details.");
-    }
-
-    final String endpoint = dbInstancesResult.dbInstances().get(0).endpoint().address();
-    final String rdsDomainPrefix = endpoint.substring(endpoint.indexOf('.') + 1);
-
-    for (DBInstance instance : dbInstancesResult.dbInstances()) {
-      this.instances.add(
-          new TestInstanceInfo(
-              instance.dbInstanceIdentifier(),
-              instance.endpoint().address(),
-              instance.endpoint().port()));
-    }
-
-    return rdsDomainPrefix;
-  }
+  // TODO: fix
+//   public String createMultiAzInstance() {
+//
+//     final Tag testRunnerTag = Tag.builder().key("env").value("test-runner").build();
+//
+//     CreateDbInstanceResponse response = rdsClient.createDBInstance(CreateDbInstanceRequest.builder()
+//         .dbInstanceIdentifier(dbIdentifier)
+//         .publiclyAccessible(true)
+//         .dbName(dbName)
+//         .masterUsername(dbUsername)
+//         .masterUserPassword(dbPassword)
+//         .enableIAMDatabaseAuthentication(true)
+//         .multiAZ(true)
+//         .engine(dbEngine)
+//         .engineVersion(dbEngineVersion)
+//         .dbInstanceClass(dbInstanceClass)
+//         .enablePerformanceInsights(false)
+//         .backupRetentionPeriod(1)
+//         .storageEncrypted(true)
+//         .storageType(storageType)
+//         .allocatedStorage(allocatedStorage)
+//         .iops(iops)
+//         .tags(testRunnerTag)
+//         .build());
+//
+//     // Wait for all instances to be up
+//     final RdsWaiter waiter = rdsClient.waiter();
+//     WaiterResponse<DescribeDbInstancesResponse> waiterResponse =
+//         waiter.waitUntilDBInstanceAvailable(
+//             (requestBuilder) ->
+//                 requestBuilder.filters(
+//                     Filter.builder().name("db-instance-id").values(dbIdentifier).build()),
+//             (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(60)));
+//
+//     if (waiterResponse.matched().exception().isPresent()) {
+//       deleteMultiAzInstance();
+//       throw new RuntimeException(
+//           "Unable to start AWS RDS Instance after waiting for 30 minutes");
+//     }
+//
+//     DescribeDbInstancesResponse dbInstancesResult = waiterResponse.matched().response().orElse(null);
+//     if (dbInstancesResult == null) {
+//       throw new RuntimeException("Unable to get instance details.");
+//     }
+//
+//     final String endpoint = dbInstancesResult.dbInstances().get(0).endpoint().address();
+//     final String rdsDomainPrefix = endpoint.substring(endpoint.indexOf('.') + 1);
+//
+//     for (DBInstance instance : dbInstancesResult.dbInstances()) {
+//       this.instances.add(
+//           new TestInstanceInfo(
+//               instance.dbInstanceIdentifier(),
+//               instance.endpoint().address(),
+//               instance.endpoint().port()));
+//     }
+//
+//     return rdsDomainPrefix;
+//   }
 
   /**
    * Creates an RDS Aurora cluster based on the passed in details. After the cluster is created, this method will wait
@@ -757,38 +761,40 @@ public class AuroraTestUtility {
     }
   }
 
-  public void deleteMultiAzInstance(final String identifier) {
-    this.dbIdentifier = identifier;
-    this.deleteMultiAzInstance();
-  }
+  // TODO: fix
+//   public void deleteMultiAzInstance(final String identifier) {
+//     this.dbIdentifier = identifier;
+//     this.deleteMultiAzInstance();
+//   }
 
-  public void deleteMultiAzInstance() {
-    // Tear down MultiAz Instance
-    int remainingAttempts = 5;
-    while (--remainingAttempts > 0) {
-      try {
-        DeleteDbInstanceResponse response = rdsClient.deleteDBInstance(
-            builder -> builder.skipFinalSnapshot(true).dbInstanceIdentifier(dbIdentifier).build());
-        if (response.sdkHttpResponse().isSuccessful()) {
-          break;
-        }
-        TimeUnit.SECONDS.sleep(30);
-
-      } catch (InvalidDbInstanceStateException invalidDbInstanceStateException) {
-        // Instance is already being deleted.
-        // ignore it
-        LOGGER.finest("MultiAz Instance " + dbIdentifier + " is already being deleted. "
-            + invalidDbInstanceStateException);
-        break;
-      } catch (DbInstanceNotFoundException ex) {
-        // ignore
-        LOGGER.warning("Error deleting db MultiAz Instance " + dbIdentifier + ". Instance not found: " + ex);
-        break;
-      } catch (Exception ex) {
-        LOGGER.warning("Error deleting db MultiAz Instance " + dbIdentifier + ": " + ex);
-      }
-    }
-  }
+  // TODO: fix
+//   public void deleteMultiAzInstance() {
+//     // Tear down MultiAz Instance
+//     int remainingAttempts = 5;
+//     while (--remainingAttempts > 0) {
+//       try {
+//         DeleteDbInstanceResponse response = rdsClient.deleteDBInstance(
+//             builder -> builder.skipFinalSnapshot(true).dbInstanceIdentifier(dbIdentifier).build());
+//         if (response.sdkHttpResponse().isSuccessful()) {
+//           break;
+//         }
+//         TimeUnit.SECONDS.sleep(30);
+//
+//       } catch (InvalidDbInstanceStateException invalidDbInstanceStateException) {
+//         // Instance is already being deleted.
+//         // ignore it
+//         LOGGER.finest("MultiAz Instance " + dbIdentifier + " is already being deleted. "
+//             + invalidDbInstanceStateException);
+//         break;
+//       } catch (DbInstanceNotFoundException ex) {
+//         // ignore
+//         LOGGER.warning("Error deleting db MultiAz Instance " + dbIdentifier + ". Instance not found: " + ex);
+//         break;
+//       } catch (Exception ex) {
+//         LOGGER.warning("Error deleting db MultiAz Instance " + dbIdentifier + ": " + ex);
+//       }
+//     }
+//   }
 
   public boolean doesClusterExist(final String clusterId) {
     final DescribeDbClustersRequest request =
