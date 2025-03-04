@@ -21,7 +21,6 @@ import java.util.function.Supplier;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.ShouldDisposeFunc;
 
-// TODO: fix javadocs (eg monitorType -> monitorClass)
 public interface MonitorService {
   /**
    * Register a new monitor type with the monitor service. This method needs to be called before adding new types of
@@ -30,24 +29,28 @@ public interface MonitorService {
    * but this method can be called by users if they want to add a new monitor type.
    *
    * @param monitorClass         the class of the monitor, eg `CustomEndpointMonitorImpl.class`.
+   * @param timeToLiveNanos      how long a monitor should be stored before being considered expired, in nanoseconds. If
+   *                             the monitor is expired and shouldDisposeFunc returns `true`, the monitor will be
+   *                             stopped.
+   * @param inactiveTimeoutNanos a duration in nanoseconds defining the maximum amount of time that a monitor should
+   *                             take between updating its last-updated timestamp. If a monitor has not updated its
+   *                             last-updated timestamp within this value it will be considered stuck.
    * @param errorResponses       a Set defining actions to take if the monitor is in an error state.
-   * @param timeToLiveNanos      how long a monitor should be stored before expiring, in nanoseconds. If the monitor is
-   *                             expired and shouldDisposeFunc returns `true`, the monitor will be stopped.
-   * @param shouldDisposeFunc    a function defining whether an item should be stopped if expired. If `null` is passed, the
-   *                             monitor will always be stopped if the monitor is expired.
+   * @param shouldDisposeFunc    a function defining whether an item should be stopped if expired. If `null` is
+   *                             passed, the monitor will always be stopped if the monitor is expired.
    */
   <T extends Monitor> void registerMonitorTypeIfAbsent(
       Class<T> monitorClass,
-      Set<MonitorErrorResponse> errorResponses,
-      long cleanupIntervalNanos,
       long timeToLiveNanos,
+      long inactiveTimeoutNanos,
+      Set<MonitorErrorResponse> errorResponses,
       @Nullable ShouldDisposeFunc<T> shouldDisposeFunc);
 
   /**
    * Creates and starts the given monitor if it does not already exist and stores it under the given monitor type and
-   * key.
+   * key. If the monitor already exists, its time-to-live duration will be renewed, even if it was already expired.
    *
-   * @param monitorClass     a String representing the monitor type, eg "customEndpoint".
+   * @param monitorClass    the class of the monitor, eg `CustomEndpointMonitorImpl.class`.
    * @param key             the key for the monitor, eg
    *                        "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
    * @param monitorSupplier a supplier lambda that can be used to create the monitor if it is absent.
@@ -57,16 +60,16 @@ public interface MonitorService {
   /**
    * Stops the given monitor and removes it from the monitor service.
    *
-   * @param monitorClass a String representing the monitor type, eg "customEndpoint".
-   * @param key         the key for the monitor, eg
-   *                    "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
+   * @param monitorClass the class of the monitor, eg `CustomEndpointMonitorImpl.class`.
+   * @param key          the key for the monitor, eg
+   *                     "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
    */
   <T extends Monitor> void stopAndRemove(Class<T> monitorClass, Object key);
 
   /**
    * Stops all monitors for the given type and removes them from the monitor service.
    *
-   * @param monitorClass a String representing the monitor type, eg "customEndpoint".
+   * @param monitorClass the class of the monitor, eg `CustomEndpointMonitorImpl.class`.
    */
   <T extends Monitor> void stopAndRemoveMonitors(Class<T> monitorClass);
 

@@ -16,17 +16,22 @@
 
 package software.amazon.jdbc.util.monitoring;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
+import java.util.Set;
 
-public interface Monitor {
-  void execute();
+public class MonitorSettings {
+  private final long inactiveTimeoutNanos;
+  private final Set<MonitorErrorResponse> errorResponses;
 
-  void close();
+  public MonitorSettings(long inactiveTimeoutNanos, Set<MonitorErrorResponse> errorResponses) {
+    this.inactiveTimeoutNanos = inactiveTimeoutNanos;
+    this.errorResponses = errorResponses;
+  }
 
-  long getLastUsedTimestampNanos();
+  public long getInactiveTimeoutNanos() {
+    return inactiveTimeoutNanos;
+  }
 
-  MonitorState getState();
-
-  @Nullable
-  Exception getUnhandledException();
+  public Set<MonitorErrorResponse> getErrorResponses() {
+    return errorResponses;
+  }
 }
