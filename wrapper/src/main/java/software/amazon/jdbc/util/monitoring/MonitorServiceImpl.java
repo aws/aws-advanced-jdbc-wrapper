@@ -52,18 +52,7 @@ public class MonitorServiceImpl implements MonitorService {
 
   static {
     Map<Class<? extends Monitor>, Supplier<ExpirationCache<Object, MonitorItem>>> suppliers = new HashMap<>();
-    // suppliers.put(
-    //     ClusterTopologyMonitorImpl.class,
-    //     () -> new ExpirationCache<Object, MonitorItem>(
-    //         true,
-    //         TimeUnit.MINUTES.toNanos(15),
-    //         null,
-    //         (monitorItem) -> monitorItem.getMonitor().close()));
-    // monitorSettingsByType.put(
-    //     ClusterTopologyMonitorImpl.class,
-    //     new MonitorSettings(
-    //         TimeUnit.MINUTES.toNanos(1),
-    //         new HashSet<>(Collections.singletonList(MonitorErrorResponse.NO_ACTION))));
+    // TODO: add default suppliers once monitors have been adjusted to implement the Monitor interface
     defaultCacheSuppliers = Collections.unmodifiableMap(suppliers);
   }
 
