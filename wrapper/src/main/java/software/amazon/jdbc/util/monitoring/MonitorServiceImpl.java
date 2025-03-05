@@ -155,8 +155,13 @@ public class MonitorServiceImpl implements MonitorService {
   public <T extends Monitor> void runIfAbsent(Class<T> monitorClass, Object key, Supplier<T> monitorSupplier) {
     ExpirationCache<Object, MonitorItem> cache = monitorCaches.get(monitorClass);
     if (cache == null) {
-      throw new IllegalStateException(
-          Messages.get("MonitorServiceImpl.monitorTypeNotRegistered", new Object[] {monitorClass}));
+      Supplier<ExpirationCache<Object, MonitorItem>> supplier = defaultCacheSuppliers.get(monitorClass);
+      if (supplier == null) {
+        throw new IllegalStateException(
+            Messages.get("MonitorServiceImpl.monitorTypeNotRegistered", new Object[] {monitorClass}));
+      } else {
+        cache = monitorCaches.computeIfAbsent(monitorClass, c -> supplier.get());
+      }
     }
 
     cache.computeIfAbsent(
