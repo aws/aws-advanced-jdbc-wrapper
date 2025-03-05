@@ -64,6 +64,8 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.storage.StorageService;
+import software.amazon.jdbc.util.storage.StorageServiceImpl;
 import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -76,6 +78,8 @@ public class Driver implements java.sql.Driver {
   private static final Logger PARENT_LOGGER = Logger.getLogger("software.amazon.jdbc");
   private static final Logger LOGGER = Logger.getLogger("software.amazon.jdbc.Driver");
   private static @Nullable Driver registeredDriver;
+
+  private static final StorageService storageService = new StorageServiceImpl();
 
   private static final AtomicReference<ResetSessionStateOnCloseCallable> resetSessionStateOnCloseCallable =
       new AtomicReference<>(null);
@@ -223,6 +227,7 @@ public class Driver implements java.sql.Driver {
           effectiveConnectionProvider,
           targetDriverDialect,
           configurationProfile,
+          storageService,
           telemetryFactory);
 
     } catch (Exception ex) {
@@ -388,6 +393,7 @@ public class Driver implements java.sql.Driver {
   }
 
   public static void clearCaches() {
+    storageService.clearAll();
     RdsUtils.clearCache();
     RdsHostListProvider.clearAll();
     PluginServiceImpl.clearCache();

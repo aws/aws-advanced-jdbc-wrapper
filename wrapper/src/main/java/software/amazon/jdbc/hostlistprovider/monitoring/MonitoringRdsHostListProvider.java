@@ -25,13 +25,15 @@ import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.BlockingHostListProvider;
-import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
+import software.amazon.jdbc.util.storage.ItemCategory;
+import software.amazon.jdbc.util.storage.Topology;
 
 public class MonitoringRdsHostListProvider extends RdsHostListProvider
     implements BlockingHostListProvider, CanReleaseResources {
@@ -46,8 +48,6 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
 
   protected static final long CACHE_CLEANUP_NANO = TimeUnit.MINUTES.toNanos(1);
   protected static final long MONITOR_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(15);
-
-  protected static final long TOPOLOGY_CACHE_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(5);
 
   protected static final SlidingExpirationCacheWithCleanupThread<String, ClusterTopologyMonitor> monitors =
       new SlidingExpirationCacheWithCleanupThread<>(
@@ -72,14 +72,13 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
   public MonitoringRdsHostListProvider(
       final Properties properties,
       final String originalUrl,
-      final HostListProviderService hostListProviderService,
+      final ServiceContainer serviceContainer,
       final String topologyQuery,
       final String nodeIdQuery,
       final String isReaderQuery,
-      final String writerTopologyQuery,
-      final PluginService pluginService) {
-    super(properties, originalUrl, hostListProviderService, topologyQuery, nodeIdQuery, isReaderQuery);
-    this.pluginService = pluginService;
+      final String writerTopologyQuery) {
+    super(properties, originalUrl, serviceContainer, topologyQuery, nodeIdQuery, isReaderQuery);
+    this.pluginService = serviceContainer.getPluginService();
     this.writerTopologyQuery = writerTopologyQuery;
     this.highRefreshRateNano = TimeUnit.MILLISECONDS.toNanos(
         CLUSTER_TOPOLOGY_HIGH_REFRESH_RATE_MS.getLong(this.properties));
@@ -109,9 +108,9 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
   protected ClusterTopologyMonitor initMonitor() {
     return monitors.computeIfAbsent(this.clusterId,
         (key) -> new ClusterTopologyMonitorImpl(
-            key, topologyCache, this.initialHostSpec, this.properties, this.pluginService,
+            key, storageService, this.initialHostSpec, this.properties, this.pluginService,
             this.hostListProviderService, this.clusterInstanceTemplate,
-            this.refreshRateNano, this.highRefreshRateNano, TOPOLOGY_CACHE_EXPIRATION_NANO,
+            this.refreshRateNano, this.highRefreshRateNano,
             this.topologyQuery,
             this.writerTopologyQuery,
             this.nodeIdQuery),
@@ -141,9 +140,10 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
       monitors.remove(oldClusterId);
     }
 
-    final List<HostSpec> existingHosts = topologyCache.get(oldClusterId);
+    final Topology existingTopology = storageService.get(ItemCategory.TOPOLOGY, oldClusterId, Topology.class);
+    final List<HostSpec> existingHosts = existingTopology == null ? null : existingTopology.getHosts();
     if (existingHosts != null) {
-      topologyCache.put(this.clusterId, existingHosts, TOPOLOGY_CACHE_EXPIRATION_NANO);
+      storageService.set(ItemCategory.TOPOLOGY, this.clusterId, new Topology(existingHosts));
     }
   }
 

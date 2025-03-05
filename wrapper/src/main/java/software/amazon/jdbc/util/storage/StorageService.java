@@ -33,7 +33,6 @@ public interface StorageService {
    *                               `CustomEndpointInfo.class`.
    * @param isRenewableExpiration  controls whether the item's expiration should be renewed if the item is fetched,
    *                               regardless of whether it is already expired or not.
-   * @param cleanupIntervalNanos   how often the item category should be cleaned of expired entries, in nanoseconds.
    * @param timeToLiveNanos        how long an item should be stored before being considered expired, in nanoseconds.
    * @param shouldDisposeFunc      a function defining whether an item should be disposed if expired. If null is passed,
    *                               the item will always be disposed if expired.
@@ -45,7 +44,6 @@ public interface StorageService {
       String itemCategory,
       Class<V> itemClass,
       boolean isRenewableExpiration,
-      long cleanupIntervalNanos,
       long timeToLiveNanos,
       @Nullable ShouldDisposeFunc<V> shouldDisposeFunc,
       @Nullable ItemDisposalFunc<V> itemDisposalFunc);

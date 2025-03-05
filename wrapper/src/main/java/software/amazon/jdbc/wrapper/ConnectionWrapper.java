@@ -52,9 +52,12 @@ import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.ServiceContainerImpl;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class ConnectionWrapper implements Connection, CanReleaseResources {
@@ -82,6 +85,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       @Nullable final ConnectionProvider effectiveConnectionProvider,
       @NonNull final TargetDriverDialect targetDriverDialect,
       @Nullable final ConfigurationProfile configurationProfile,
+      @NonNull final StorageService storageService,
       @NonNull final TelemetryFactory telemetryFactory)
       throws SQLException {
 
@@ -99,10 +103,19 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
             effectiveConnectionProvider,
             this,
             telemetryFactory);
+    ServiceContainer serviceContainer = new ServiceContainerImpl(storageService, pluginManager, telemetryFactory);
     final PluginServiceImpl pluginService = new PluginServiceImpl(
-        pluginManager, props, url, this.targetDriverProtocol, targetDriverDialect, this.configurationProfile);
+        serviceContainer,
+        props,
+        url,
+        this.targetDriverProtocol,
+        targetDriverDialect,
+        this.configurationProfile);
+    serviceContainer.setHostListProviderService(pluginService);
+    serviceContainer.setPluginService(pluginService);
+    serviceContainer.setPluginManagerService(pluginService);
 
-    init(props, pluginManager, telemetryFactory, pluginService, pluginService, pluginService);
+    init(props, serviceContainer);
 
     if (PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(props)) {
       this.openConnectionStacktrace = new Throwable(Messages.get("ConnectionWrapper.unclosedConnectionInstantiated"));
@@ -117,37 +130,41 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       @NonNull final TelemetryFactory telemetryFactory,
       @NonNull final PluginService pluginService,
       @NonNull final HostListProviderService hostListProviderService,
-      @NonNull final PluginManagerService pluginManagerService)
+      @NonNull final PluginManagerService pluginManagerService,
+      @NonNull final StorageService storageService)
       throws SQLException {
 
     if (StringUtils.isNullOrEmpty(url)) {
       throw new IllegalArgumentException("url");
     }
 
-    init(props,
-        connectionPluginManager, telemetryFactory, pluginService, hostListProviderService, pluginManagerService);
+    ServiceContainer serviceContainer = new ServiceContainerImpl(
+        storageService,
+        connectionPluginManager,
+        telemetryFactory,
+        hostListProviderService,
+        pluginService,
+        pluginManagerService
+    );
+
+    init(props, serviceContainer);
   }
 
   protected void init(
       final Properties props,
-      final ConnectionPluginManager connectionPluginManager,
-      final TelemetryFactory telemetryFactory,
-      final PluginService pluginService,
-      final HostListProviderService hostListProviderService,
-      final PluginManagerService pluginManagerService) throws SQLException {
-    this.pluginManager = connectionPluginManager;
-    this.telemetryFactory = telemetryFactory;
-    this.pluginService = pluginService;
-    this.hostListProviderService = hostListProviderService;
-    this.pluginManagerService = pluginManagerService;
+      final ServiceContainer serviceContainer) throws SQLException {
+    this.pluginManager = serviceContainer.getConnectionPluginManager();
+    this.telemetryFactory = serviceContainer.getTelemetryFactory();
+    this.pluginService = serviceContainer.getPluginService();
+    this.hostListProviderService = serviceContainer.getHostListProviderService();
+    this.pluginManagerService = serviceContainer.getPluginManagerService();
 
     this.pluginManager.init(
         this.pluginService, props, pluginManagerService, this.configurationProfile);
 
     final HostListProviderSupplier supplier = this.pluginService.getDialect().getHostListProvider();
     if (supplier != null) {
-      final HostListProvider provider = supplier.getProvider(
-          props, this.originalUrl, this.hostListProviderService, this.pluginService);
+      final HostListProvider provider = supplier.getProvider(props, this.originalUrl, serviceContainer);
       hostListProviderService.setHostListProvider(provider);
     }
 

@@ -14,17 +14,19 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.dialect;
+package software.amazon.jdbc.util.storage;
 
-import java.util.Properties;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import software.amazon.jdbc.HostListProvider;
-import software.amazon.jdbc.util.ServiceContainer;
+import java.util.List;
+import software.amazon.jdbc.HostSpec;
 
-@FunctionalInterface
-public interface HostListProviderSupplier {
-  @NonNull HostListProvider getProvider(
-      final @NonNull Properties properties,
-      final String initialUrl,
-      final @NonNull ServiceContainer serviceContainer);
+public class Topology {
+  private final List<HostSpec> hosts;
+
+  public Topology(List<HostSpec> hosts) {
+    this.hosts = hosts;
+  }
+
+  public List<HostSpec> getHosts() {
+    return hosts;
+  }
 }

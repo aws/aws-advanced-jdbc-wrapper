@@ -43,6 +43,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.DialectCodes;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
@@ -57,6 +58,7 @@ public class DeveloperConnectionPluginTest {
   @Mock private TelemetryFactory mockTelemetryFactory;
   @Mock TelemetryContext mockTelemetryContext;
   @Mock TargetDriverDialect mockTargetDriverDialect;
+  @Mock StorageService mockStorageService;
 
   private AutoCloseable closeable;
 
@@ -91,6 +93,7 @@ public class DeveloperConnectionPluginTest {
         null,
         mockTargetDriverDialect,
         null,
+        mockStorageService,
         mockTelemetryFactory)) {
 
       ExceptionSimulator simulator = wrapper.unwrap(ExceptionSimulator.class);
@@ -120,6 +123,7 @@ public class DeveloperConnectionPluginTest {
         null,
         mockTargetDriverDialect,
         null,
+        mockStorageService,
         mockTelemetryFactory)) {
 
       ExceptionSimulator simulator = wrapper.unwrap(ExceptionSimulator.class);
@@ -149,6 +153,7 @@ public class DeveloperConnectionPluginTest {
         null,
         mockTargetDriverDialect,
         null,
+        mockStorageService,
         mockTelemetryFactory)) {
 
       ExceptionSimulator simulator = wrapper.unwrap(ExceptionSimulator.class);
@@ -178,6 +183,7 @@ public class DeveloperConnectionPluginTest {
         null,
         mockTargetDriverDialect,
         null,
+        mockStorageService,
         mockTelemetryFactory)) {
 
       ExceptionSimulator simulator = wrapper.unwrap(ExceptionSimulator.class);
@@ -209,6 +215,7 @@ public class DeveloperConnectionPluginTest {
         null,
         mockTargetDriverDialect,
         null,
+        mockStorageService,
         mockTelemetryFactory)) {
 
       ExceptionSimulator simulator = wrapper.unwrap(ExceptionSimulator.class);
@@ -238,6 +245,7 @@ public class DeveloperConnectionPluginTest {
         null,
         mockTargetDriverDialect,
         null,
+        mockStorageService,
         mockTelemetryFactory)) {
 
       ExceptionSimulator simulator = wrapper.unwrap(ExceptionSimulator.class);
@@ -276,6 +284,7 @@ public class DeveloperConnectionPluginTest {
             null,
             mockTargetDriverDialect,
             null,
+            mockStorageService,
             mockTelemetryFactory));
     assertSame(exception, thrownException);
 
@@ -286,6 +295,7 @@ public class DeveloperConnectionPluginTest {
             null,
             mockTargetDriverDialect,
             null,
+            mockStorageService,
             mockTelemetryFactory));
   }
 
@@ -305,6 +315,7 @@ public class DeveloperConnectionPluginTest {
             null,
             mockTargetDriverDialect,
             null,
+            mockStorageService,
             mockTelemetryFactory));
   }
 
@@ -329,6 +340,7 @@ public class DeveloperConnectionPluginTest {
             null,
             mockTargetDriverDialect,
             null,
+            mockStorageService,
             mockTelemetryFactory));
     assertSame(exception, thrownException);
 
@@ -339,6 +351,7 @@ public class DeveloperConnectionPluginTest {
             null,
             mockTargetDriverDialect,
             null,
+            mockStorageService,
             mockTelemetryFactory));
   }
 }

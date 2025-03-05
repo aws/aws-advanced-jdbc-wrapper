@@ -66,14 +66,19 @@ import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.storage.StorageService;
+import software.amazon.jdbc.util.storage.StorageServiceImpl;
 
 public class PluginServiceImplTests {
 
   private static final Properties PROPERTIES = new Properties();
   private static final String URL = "url";
   private static final String DRIVER_PROTOCOL = "driverProtocol";
+  private static final StorageService storageService = new StorageServiceImpl();
   private AutoCloseable closeable;
 
+  @Mock ServiceContainer serviceContainer;
   @Mock ConnectionPluginManager pluginManager;
   @Mock Connection newConnection;
   @Mock Connection oldConnection;
@@ -95,6 +100,8 @@ public class PluginServiceImplTests {
     when(oldConnection.isClosed()).thenReturn(false);
     when(newConnection.createStatement()).thenReturn(statement);
     when(statement.executeQuery(any())).thenReturn(resultSet);
+    when(serviceContainer.getConnectionPluginManager()).thenReturn(pluginManager);
+    when(serviceContainer.getStorageService()).thenReturn(storageService);
     PluginServiceImpl.hostAvailabilityExpiringCache.clear();
   }
 
@@ -111,7 +118,7 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target =
         spy(new PluginServiceImpl(
-            pluginManager,
+            serviceContainer,
             new ExceptionManager(),
             PROPERTIES,
             URL,
@@ -140,7 +147,7 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target =
         spy(new PluginServiceImpl(
-            pluginManager,
+            serviceContainer,
             new ExceptionManager(),
             PROPERTIES,
             URL,
@@ -169,7 +176,7 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target =
         spy(new PluginServiceImpl(
-            pluginManager,
+            serviceContainer,
             new ExceptionManager(),
             PROPERTIES,
             URL,
@@ -202,7 +209,7 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target =
         spy(new PluginServiceImpl(
-            pluginManager,
+            serviceContainer,
             new ExceptionManager(),
             PROPERTIES,
             URL,
@@ -232,7 +239,7 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target =
         spy(new PluginServiceImpl(
-            pluginManager,
+            serviceContainer,
             new ExceptionManager(),
             PROPERTIES,
             URL,
@@ -271,7 +278,7 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target =
         spy(new PluginServiceImpl(
-            pluginManager,
+            serviceContainer,
             new ExceptionManager(),
             PROPERTIES,
             URL,
@@ -310,7 +317,7 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target =
         spy(new PluginServiceImpl(
-            pluginManager,
+            serviceContainer,
             new ExceptionManager(),
             PROPERTIES,
             URL,
@@ -349,7 +356,7 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target =
         spy(new PluginServiceImpl(
-            pluginManager,
+            serviceContainer,
             new ExceptionManager(),
             PROPERTIES,
             URL,
@@ -380,7 +387,7 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager,
+            serviceContainer,
             new ExceptionManager(),
             PROPERTIES,
             URL,
@@ -414,7 +421,7 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager,
+            serviceContainer,
             new ExceptionManager(),
             PROPERTIES,
             URL,
@@ -451,7 +458,7 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager,
+            serviceContainer,
             new ExceptionManager(),
             PROPERTIES,
             URL,
@@ -488,7 +495,7 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager,
+            serviceContainer,
             new ExceptionManager(),
             PROPERTIES,
             URL,
@@ -514,7 +521,7 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager,
+            serviceContainer,
             new ExceptionManager(),
             PROPERTIES,
             URL,
@@ -543,7 +550,7 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager,
+            serviceContainer,
             new ExceptionManager(),
             PROPERTIES,
             URL,
@@ -579,7 +586,7 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager,
+            serviceContainer,
             new ExceptionManager(),
             PROPERTIES,
             URL,
@@ -626,7 +633,7 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager,
+            serviceContainer,
             new ExceptionManager(),
             PROPERTIES,
             URL,
@@ -671,7 +678,7 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager,
+            serviceContainer,
             new ExceptionManager(),
             PROPERTIES,
             URL,
@@ -749,7 +756,7 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager,
+            serviceContainer,
             new ExceptionManager(),
             PROPERTIES,
             URL,
@@ -806,7 +813,7 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager,
+            serviceContainer,
             new ExceptionManager(),
             PROPERTIES,
             URL,
@@ -831,7 +838,7 @@ public class PluginServiceImplTests {
   void testIdentifyConnectionWithNoAliases() throws SQLException {
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager,
+            serviceContainer,
             new ExceptionManager(),
             PROPERTIES,
             URL,
@@ -852,7 +859,7 @@ public class PluginServiceImplTests {
         .build();
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager,
+            serviceContainer,
             new ExceptionManager(),
             PROPERTIES,
             URL,
@@ -880,7 +887,7 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager,
+            serviceContainer,
             new ExceptionManager(),
             PROPERTIES,
             URL,
@@ -902,7 +909,7 @@ public class PluginServiceImplTests {
     final HostSpec empty = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("foo").build();
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager,
+            serviceContainer,
             new ExceptionManager(),
             PROPERTIES,
             URL,

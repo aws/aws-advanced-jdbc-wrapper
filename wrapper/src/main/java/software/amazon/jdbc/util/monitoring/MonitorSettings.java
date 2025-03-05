@@ -16,28 +16,23 @@
 
 package software.amazon.jdbc.util.monitoring;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
+import java.util.Set;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
-public class MonitorStatus {
-  private final MonitorState state;
-  private final long lastUsedTimeNs;
-  private final @Nullable Throwable exception;
+public class MonitorSettings {
+  private final long inactiveTimeoutNanos;
+  private @NonNull final Set<MonitorErrorResponse> errorResponses;
 
-  public MonitorStatus(MonitorState state, long lastUsedTimeNs, @Nullable Throwable exception) {
-    this.state = state;
-    this.lastUsedTimeNs = lastUsedTimeNs;
-    this.exception = exception;
+  public MonitorSettings(long inactiveTimeoutNanos, @NonNull Set<MonitorErrorResponse> errorResponses) {
+    this.inactiveTimeoutNanos = inactiveTimeoutNanos;
+    this.errorResponses = errorResponses;
   }
 
-  public MonitorState getState() {
-    return state;
+  public long getInactiveTimeoutNanos() {
+    return inactiveTimeoutNanos;
   }
 
-  public long getLastUsedTimeNs() {
-    return lastUsedTimeNs;
-  }
-
-  public @Nullable Throwable getException() {
-    return this.exception;
+  public @NonNull Set<MonitorErrorResponse> getErrorResponses() {
+    return errorResponses;
   }
 }
