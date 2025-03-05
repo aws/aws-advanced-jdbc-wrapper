@@ -17,9 +17,9 @@
 package software.amazon.jdbc.util.monitoring;
 
 public interface Monitor {
-  void execute();
+  void start();
 
-  void close();
+  void stop();
 
   long getLastUsedTimestampNanos();
 

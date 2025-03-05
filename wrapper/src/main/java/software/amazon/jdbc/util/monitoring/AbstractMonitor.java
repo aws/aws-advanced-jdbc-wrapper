@@ -22,23 +22,21 @@ import software.amazon.jdbc.util.Messages;
 public abstract class AbstractMonitor implements Monitor, Runnable {
   private static Logger LOGGER = Logger.getLogger(AbstractMonitor.class.getName());
   private final MonitorService monitorService;
-  private final Object monitorKey;
   protected long lastUsedTimestampNanos;
   protected MonitorState state;
 
-  protected AbstractMonitor(MonitorService monitorService, Object monitorKey) {
+  protected AbstractMonitor(MonitorService monitorService) {
     this.monitorService = monitorService;
-    this.monitorKey = monitorKey;
   }
 
   @Override
   public void run() {
     try {
-      execute();
+      start();
     } catch (Exception e) {
       LOGGER.fine(Messages.get("AbstractMonitor.unexpectedError", new Object[]{this, e}));
       this.state = MonitorState.ERROR;
-      monitorService.processMonitorError(this, monitorKey, e);
+      monitorService.processMonitorError(this, e);
     }
   }
 

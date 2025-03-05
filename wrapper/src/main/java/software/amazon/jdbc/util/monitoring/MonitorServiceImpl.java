@@ -133,21 +133,21 @@ public class MonitorServiceImpl implements MonitorService {
   @Override
   public <T extends Monitor> void registerMonitorTypeIfAbsent(
       Class<T> monitorClass,
-      long timeToLiveNanos,
-      long inactiveTimeoutNanos,
+      long expirationTimeoutNanos,
+      long heartbeatTimeoutNanos,
       Set<MonitorErrorResponse> errorResponses,
       @Nullable ShouldDisposeFunc<T> shouldDisposeFunc) {
     monitorCaches.computeIfAbsent(
         monitorClass,
         mc -> {
-          monitorSettingsByType.putIfAbsent(monitorClass, new MonitorSettings(inactiveTimeoutNanos, errorResponses));
+          monitorSettingsByType.putIfAbsent(monitorClass, new MonitorSettings(heartbeatTimeoutNanos, errorResponses));
           ShouldDisposeFunc<MonitorItem> wrappedShouldDisposeFunc = shouldDisposeFunc == null ? null
               : (monitorItem) -> shouldDisposeFunc.shouldDispose((T) monitorItem.getMonitor());
           return new ExpirationCache<>(
               true,
-              timeToLiveNanos,
+              expirationTimeoutNanos,
               wrappedShouldDisposeFunc,
-              (monitorItem) -> monitorItem.getMonitor().close());
+              (monitorItem) -> monitorItem.getMonitor().stop());
         });
   }
 
@@ -170,16 +170,42 @@ public class MonitorServiceImpl implements MonitorService {
   }
 
   @Override
-  public void processMonitorError(Monitor monitor, Object key, Exception exception) {
+  public void processMonitorError(Monitor monitor, Exception exception) {
+    ExpirationCache<Object, MonitorItem> cache = monitorCaches.get(monitor.getClass());
+    if (cache == null) {
+      LOGGER.fine(Messages.get("MonitorServiceImpl.unregisteredMonitorError", new Object[] {monitor, exception}));
+      return;
+    }
+
+    Object monitorKey = null;
+    Supplier<Monitor> monitorSupplier = null;
+    for (Map.Entry<Object, MonitorItem> entry : cache.getEntries().entrySet()) {
+      MonitorItem monitorItem = entry.getValue();
+      if (monitorItem != null && monitorItem.getMonitor() == monitor) {
+        monitorKey = entry.getKey();
+        monitorSupplier = entry.getValue().getMonitorSupplier();
+        break;
+      }
+    }
+
+    if (monitorKey == null || monitorSupplier == null) {
+      LOGGER.fine(Messages.get("MonitorServiceImpl.monitorErrorForMissingMonitor", new Object[] {monitor, exception}));
+      return;
+    }
+
     MonitorSettings settings = monitorSettingsByType.get(monitor.getClass());
     if (settings == null) {
-      stopAndRemove(monitor.getClass(), key);
+      stopAndRemove(monitor.getClass(), monitorKey);
       return;
     }
 
     Set<MonitorErrorResponse> errorResponses = settings.getErrorResponses();
     if (errorResponses.contains(MonitorErrorResponse.RESTART)) {
       LOGGER.fine(Messages.get("MonitorServiceImpl.restartingMonitor", new Object[]{monitor}));
+      // Note: the put method automatically disposes of the old item.
+      cache.put(monitorKey, new MonitorItem(monitorSupplier));
+    } else {
+      stopAndRemove(monitor.getClass(), monitorKey);
     }
   }
 

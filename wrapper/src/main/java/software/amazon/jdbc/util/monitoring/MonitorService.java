@@ -28,21 +28,21 @@ public interface MonitorService {
    * Expected monitor types ("topology" and "customEndpoint") will be added automatically during driver initialization,
    * but this method can be called by users if they want to add a new monitor type.
    *
-   * @param monitorClass         the class of the monitor, eg `CustomEndpointMonitorImpl.class`.
-   * @param timeToLiveNanos      how long a monitor should be stored before being considered expired, in nanoseconds. If
-   *                             the monitor is expired and shouldDisposeFunc returns `true`, the monitor will be
-   *                             stopped.
-   * @param inactiveTimeoutNanos a duration in nanoseconds defining the maximum amount of time that a monitor should
-   *                             take between updating its last-updated timestamp. If a monitor has not updated its
-   *                             last-updated timestamp within this value it will be considered stuck.
-   * @param errorResponses       a Set defining actions to take if the monitor is in an error state.
-   * @param shouldDisposeFunc    a function defining whether an item should be stopped if expired. If `null` is
-   *                             passed, the monitor will always be stopped if the monitor is expired.
+   * @param monitorClass           the class of the monitor, eg `CustomEndpointMonitorImpl.class`.
+   * @param expirationTimeoutNanos how long a monitor should be stored without use before being considered expired, in
+   *                               nanoseconds. If the monitor is expired and shouldDisposeFunc returns `true`, the
+   *                               monitor will be stopped.
+   * @param heartbeatTimeoutNanos  a duration in nanoseconds defining the maximum amount of time that a monitor should
+   *                               take between updating its last-updated timestamp. If a monitor has not updated its
+   *                               last-updated timestamp within this value it will be considered stuck.
+   * @param errorResponses         a Set defining actions to take if the monitor is in an error state.
+   * @param shouldDisposeFunc      a function defining whether an item should be stopped if expired. If `null` is
+   *                               passed, the monitor will always be stopped if the monitor is expired.
    */
   <T extends Monitor> void registerMonitorTypeIfAbsent(
       Class<T> monitorClass,
-      long timeToLiveNanos,
-      long inactiveTimeoutNanos,
+      long expirationTimeoutNanos,
+      long heartbeatTimeoutNanos,
       Set<MonitorErrorResponse> errorResponses,
       @Nullable ShouldDisposeFunc<T> shouldDisposeFunc);
 
@@ -62,10 +62,9 @@ public interface MonitorService {
    * when the monitor type was registered.
    *
    * @param monitor   the monitor that encountered the unexpected exception.
-   * @param key       the key for the monitor.
    * @param exception the unexpected exception that occurred.
    */
-  void processMonitorError(Monitor monitor, Object key, Exception exception);
+  void processMonitorError(Monitor monitor, Exception exception);
 
   /**
    * Stops the given monitor and removes it from the monitor service.
