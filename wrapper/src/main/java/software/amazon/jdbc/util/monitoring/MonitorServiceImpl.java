@@ -30,7 +30,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ShouldDisposeFunc;
-import software.amazon.jdbc.util.storage.ExpirationCache;
+import software.amazon.jdbc.util.storage.ExternallyManagedCache;
 
 public class MonitorServiceImpl implements MonitorService {
   private static final Logger LOGGER = Logger.getLogger(MonitorServiceImpl.class.getName());
@@ -79,8 +79,8 @@ public class MonitorServiceImpl implements MonitorService {
   protected void checkMonitors() {
     LOGGER.finest(Messages.get("MonitorServiceImpl.checkingMonitors"));
     for (CacheContainer container : monitorCaches.values()) {
-      ExpirationCache<Object, MonitorItem> cache = container.getCache();
-      // Note: the map returned by getEntries is a copy of the ExpirationCache map
+      ExternallyManagedCache<Object, MonitorItem> cache = container.getCache();
+      // Note: the map returned by getEntries is a copy of the ExternallyManagedCache map
       for (Map.Entry<Object, MonitorItem> entry : cache.getEntries().entrySet()) {
         MonitorItem monitorItem = entry.getValue();
         if (monitorItem == null) {
@@ -104,6 +104,7 @@ public class MonitorServiceImpl implements MonitorService {
             Messages.get("MonitorServiceImpl.monitorStuck",
                 new Object[]{monitor, TimeUnit.NANOSECONDS.toSeconds(monitorSettings.getInactiveTimeoutNanos())}));
         if (errorResponses.contains(MonitorErrorResponse.RESTART)) {
+          // TODO: fix the inaccurate notes
           // Note: the put method disposes of the old item
           LOGGER.fine(Messages.get("MonitorServiceImpl.restartingMonitor", new Object[]{monitor}));
           cache.put(entry.getKey(), new MonitorItem(monitorItem.getMonitorSupplier()));
@@ -124,13 +125,8 @@ public class MonitorServiceImpl implements MonitorService {
     monitorCaches.computeIfAbsent(
         monitorClass,
         mc -> {
-          ShouldDisposeFunc<MonitorItem> wrappedShouldDisposeFunc = shouldDisposeFunc == null ? null
-              : (monitorItem) -> shouldDisposeFunc.shouldDispose((T) monitorItem.getMonitor());
-          ExpirationCache<Object, MonitorItem> cache = new ExpirationCache<>(
-              true,
-              expirationTimeoutNanos,
-              wrappedShouldDisposeFunc,
-              (monitorItem) -> monitorItem.getMonitor().stop());
+          ExternallyManagedCache<Object, MonitorItem> cache =
+              new ExternallyManagedCache<>(true, expirationTimeoutNanos);
           return new CacheContainer(new MonitorSettings(heartbeatTimeoutNanos, errorResponses), cache);
         });
   }
@@ -158,7 +154,7 @@ public class MonitorServiceImpl implements MonitorService {
 
     Object monitorKey = null;
     Supplier<Monitor> monitorSupplier = null;
-    ExpirationCache<Object, MonitorItem> cache = cacheContainer.getCache();
+    ExternallyManagedCache<Object, MonitorItem> cache = cacheContainer.getCache();
     for (Map.Entry<Object, MonitorItem> entry : cache.getEntries().entrySet()) {
       MonitorItem monitorItem = entry.getValue();
       if (monitorItem != null && monitorItem.getMonitor() == monitor) {
@@ -215,9 +211,9 @@ public class MonitorServiceImpl implements MonitorService {
 
   protected static class CacheContainer {
     private @NonNull final MonitorSettings settings;
-    private @NonNull final ExpirationCache<Object, MonitorItem> cache;
+    private @NonNull final ExternallyManagedCache<Object, MonitorItem> cache;
 
-    public CacheContainer(@NonNull MonitorSettings settings, @NonNull ExpirationCache<Object, MonitorItem> cache) {
+    public CacheContainer(@NonNull MonitorSettings settings, @NonNull ExternallyManagedCache<Object, MonitorItem> cache) {
       this.settings = settings;
       this.cache = cache;
     }
@@ -226,7 +222,7 @@ public class MonitorServiceImpl implements MonitorService {
       return settings;
     }
 
-    public @NonNull ExpirationCache<Object, MonitorItem> getCache() {
+    public @NonNull ExternallyManagedCache<Object, MonitorItem> getCache() {
       return cache;
     }
   }

@@ -53,55 +53,6 @@ public class ExpirationCache<K, V> {
   }
 
   /**
-   * If a value does not exist for the given key or the existing value is expired and non-renewable, stores the value
-   * returned by the given mapping function, unless the function returns null, in which case the key will be removed.
-   *
-   * @param key             the key for the new or existing value
-   * @param mappingFunction the function to call to compute a new value
-   * @return the current (existing or computed) value associated with the specified key, or null if the computed value
-   *     is null
-   */
-  public @Nullable V computeIfAbsent(
-      final K key,
-      Function<? super K, ? extends V> mappingFunction) {
-    // A list is used to store the cached item for later disposal since lambdas require references to outer variables
-    // to be final. This allows us to dispose of the item after it has been removed and the cache has been unlocked,
-    // which is important because the disposal function may be long-running.
-    final List<V> toDisposeList = new ArrayList<>(1);
-    final CacheItem cacheItem = cache.compute(
-        key,
-        (k, v) -> {
-          if (v == null) {
-            // The key is absent; compute and store the new value.
-            return new CacheItem(
-                mappingFunction.apply(k),
-                System.nanoTime() + this.timeToLiveNanos);
-          }
-
-          if (v.shouldCleanup() && !this.isRenewableExpiration) {
-            // The existing value is expired and non-renewable. Mark it for disposal and store the new value.
-            toDisposeList.add(v.item);
-            return new CacheItem(
-                mappingFunction.apply(k),
-                System.nanoTime() + this.timeToLiveNanos);
-          }
-
-          // The existing value is non-expired or renewable. Keep the existing value.
-          return v;
-        });
-
-    if (this.isRenewableExpiration) {
-      cacheItem.extendExpiration();
-    }
-
-    if (this.itemDisposalFunc != null && !toDisposeList.isEmpty()) {
-      this.itemDisposalFunc.dispose(toDisposeList.get(0));
-    }
-
-    return cacheItem.item;
-  }
-
-  /**
    * Store the given value at the given key.
    *
    * @param key   the key at which the value should be stored
@@ -122,6 +73,55 @@ public class ExpirationCache<K, V> {
     // TODO: should we check expiration or call shouldDisposeFunc here even though the item is definitely being removed?
     if (this.itemDisposalFunc != null) {
       this.itemDisposalFunc.dispose(cacheItem.item);
+    }
+
+    return cacheItem.item;
+  }
+
+  /**
+   * If a value does not exist for the given key or the existing value is expired and non-renewable, stores the value
+   * returned by the given mapping function, unless the function returns null, in which case the key will be removed.
+   *
+   * @param key             the key for the new or existing value
+   * @param mappingFunction the function to call to compute a new value
+   * @return the current (existing or computed) value associated with the specified key, or null if the computed value
+   *     is null
+   */
+  public @Nullable V computeIfAbsent(
+      final K key,
+      Function<? super K, ? extends V> mappingFunction) {
+    // A list is used to store the cached item for later disposal since lambdas require references to outer variables
+    // to be final. This allows us to dispose of the item after it has been removed and the cache has been unlocked,
+    // which is important because the disposal function may be long-running.
+    final List<V> toDisposeList = new ArrayList<>(1);
+    final CacheItem cacheItem = cache.compute(
+        key,
+        (k, valueItem) -> {
+          if (valueItem == null) {
+            // The key is absent; compute and store the new value.
+            return new CacheItem(
+                mappingFunction.apply(k),
+                System.nanoTime() + this.timeToLiveNanos);
+          }
+
+          if (valueItem.shouldCleanup() && !this.isRenewableExpiration) {
+            // The existing value is expired and non-renewable. Mark it for disposal and store the new value.
+            toDisposeList.add(valueItem.item);
+            return new CacheItem(
+                mappingFunction.apply(k),
+                System.nanoTime() + this.timeToLiveNanos);
+          }
+
+          // The existing value is non-expired or renewable. Keep the existing value.
+          if (this.isRenewableExpiration) {
+            valueItem.extendExpiration();
+          }
+
+          return valueItem;
+        });
+
+    if (this.itemDisposalFunc != null && !toDisposeList.isEmpty()) {
+      this.itemDisposalFunc.dispose(toDisposeList.get(0));
     }
 
     return cacheItem.item;
@@ -253,7 +253,7 @@ public class ExpirationCache<K, V> {
      * CacheItem constructor.
      *
      * @param item                the item value
-     * @param expirationTimeNanos the amount of time before a CacheItem should be marked as expired.
+     * @param expirationTimeNanos the time at which a CacheItem should be considered expired.
      */
     protected CacheItem(final V item, final long expirationTimeNanos) {
       this.item = item;
@@ -268,7 +268,7 @@ public class ExpirationCache<K, V> {
      * @return true if the cache item should be cleaned up at cleanup time. Otherwise, returns
      *     false.
      */
-    boolean shouldCleanup() {
+    protected boolean shouldCleanup() {
       final boolean isExpired = this.expirationTimeNanos != 0 && System.nanoTime() > this.expirationTimeNanos;
       if (shouldDisposeFunc != null) {
         return isExpired && shouldDisposeFunc.shouldDispose(this.item);
@@ -279,7 +279,7 @@ public class ExpirationCache<K, V> {
     /**
      * Renews a cache item's expiration time.
      */
-    public void extendExpiration() {
+    protected void extendExpiration() {
       this.expirationTimeNanos = System.nanoTime() + timeToLiveNanos;
     }
 
