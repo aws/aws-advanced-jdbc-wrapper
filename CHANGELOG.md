@@ -3,6 +3,28 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [2.5.5] - 2025-03-06
+### :bug: Fixed
+- Various reader failover fixes ([PR #1227](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1227)) & ([PR #1246](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1246)).
+- Avoid encoding MariaDB connection properties ([PR #1237](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1237)).
+- Integration test failures ([PR #1251](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1251)) & ([PR #1258](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1258)).
+- Custom domains during failover ([PR #1265](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1265))
+- Skip failover on interrupted thread ([PR #1284](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1284))
+- Log message parameters ([PR #1303](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1303))
+
+### :crab: Changed
+- Changed default value for `limitlessTransactionRouterMonitorIntervalMs` from 15s to 7.5s ([PR #1302](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1302)).
+- Consolidate cache clean-up in a single place ([PR #1234](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1234)).
+- Relocate custom handlers ([PR #1235](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1235)).
+- Improve forceConnect pipeline ([PR #1238](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1238)).
+- Update deprecated ConnectionProviderManager function calls ([PR #1256](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1256)).
+- Remove mysql-connector-j library dependency for MariaDb ([PR #1287](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1287)).
+- Limitless Connection Plugin - revise default monitor poll rate ([PR #1303](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1303)) and improve [docs](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheLimitlessConnectionPlugin.md).
+- Refactor AuroraTestUtility ([PR #1252](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1252)).
+
+### :magic_wand: Added
+- Documentation for Fastest Response Strategy Plugin. See [List of Available Plugins](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#list-of-available-plugins).
+
 ### :bug: Fixed
 - Avoid encoding MariaDB connection properties ([PR #1237](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1237)).
 
