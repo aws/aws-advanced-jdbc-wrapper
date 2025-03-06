@@ -432,6 +432,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[2.5.5]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.5.4...2.5.5
 [2.5.4]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.5.3...2.5.4
 [2.5.3]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.5.2...2.5.3
 [2.5.2]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.5.1...2.5.2
