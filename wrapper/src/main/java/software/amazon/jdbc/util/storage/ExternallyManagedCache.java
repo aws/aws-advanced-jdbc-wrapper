@@ -130,10 +130,6 @@ public class ExternallyManagedCache<K, V> {
     return entries;
   }
 
-  public void clear() {
-    this.cache.clear();
-  }
-
   protected class CacheItem {
     private final V item;
     private long expirationTimeNanos;

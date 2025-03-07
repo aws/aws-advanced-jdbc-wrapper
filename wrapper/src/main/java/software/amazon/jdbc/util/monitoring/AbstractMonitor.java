@@ -36,7 +36,7 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
     } catch (Exception e) {
       LOGGER.fine(Messages.get("AbstractMonitor.unexpectedError", new Object[]{this, e}));
       this.state = MonitorState.ERROR;
-      monitorService.processMonitorError(this, e);
+      monitorService.handleMonitorError(this, e);
     }
   }
 
