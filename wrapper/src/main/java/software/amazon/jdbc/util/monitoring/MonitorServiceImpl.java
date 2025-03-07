@@ -82,34 +82,41 @@ public class MonitorServiceImpl implements MonitorService {
       ExternallyManagedCache<Object, MonitorItem> cache = container.getCache();
       // Note: the map returned by getEntries is a copy of the ExternallyManagedCache map
       for (Map.Entry<Object, MonitorItem> entry : cache.getEntries().entrySet()) {
-        MonitorItem monitorItem = entry.getValue();
-        if (monitorItem == null) {
+        Object key = entry.getKey();
+        MonitorItem removedItem = cache.removeIf(key, mi -> mi.getMonitor().getState() == MonitorState.STOPPED);
+        if (removedItem != null) {
+          removedItem.getMonitor().stop();
           continue;
-        }
-
-        Monitor monitor = monitorItem.getMonitor();
-        if (monitor.getState() == MonitorState.STOPPED) {
-          cache.remove(entry.getKey());
         }
 
         MonitorSettings monitorSettings = container.getSettings();
         Set<MonitorErrorResponse> errorResponses = monitorSettings.getErrorResponses();
-        if (System.nanoTime() - monitor.getLastUsedTimestampNanos() < monitorSettings.getInactiveTimeoutNanos()) {
-          // Monitor has updated its last-used timestamp recently and is not considered stuck.
-          cache.removeIfExpired(entry.getKey());
+        removedItem = cache.removeIf(key, mi -> mi.getMonitor().getState() == MonitorState.ERROR);
+        if (removedItem != null) {
+          Monitor monitor = removedItem.getMonitor();
+          monitor.stop();
+          if (errorResponses.contains(MonitorErrorResponse.RESTART)) {
+            LOGGER.fine(Messages.get("MonitorServiceImpl.restartingMonitor", new Object[]{monitor}));
+            Supplier<? extends Monitor> monitorSupplier = removedItem.getMonitorSupplier();
+            cache.computeIfAbsent(key, k -> new MonitorItem(monitorSupplier));
+          }
         }
 
-        // Monitor has been inactive for longer than the inactive timeout and is considered stuck.
-        LOGGER.fine(
-            Messages.get("MonitorServiceImpl.monitorStuck",
-                new Object[]{monitor, TimeUnit.NANOSECONDS.toSeconds(monitorSettings.getInactiveTimeoutNanos())}));
-        if (errorResponses.contains(MonitorErrorResponse.RESTART)) {
-          // TODO: fix the inaccurate notes
-          // Note: the put method disposes of the old item
-          LOGGER.fine(Messages.get("MonitorServiceImpl.restartingMonitor", new Object[]{monitor}));
-          cache.put(entry.getKey(), new MonitorItem(monitorItem.getMonitorSupplier()));
-        } else {
-          cache.remove(entry.getKey());
+        long inactiveTimeoutNanos = monitorSettings.getInactiveTimeoutNanos();
+        removedItem = cache.removeIf(
+            key, mi -> System.nanoTime() - mi.getMonitor().getLastUsedTimestampNanos() > inactiveTimeoutNanos);
+        if (removedItem != null) {
+          // Monitor has been inactive for longer than the inactive timeout and is considered stuck.
+          LOGGER.fine(
+              Messages.get("MonitorServiceImpl.monitorStuck",
+                  new Object[]{removedItem.getMonitor(), TimeUnit.NANOSECONDS.toSeconds(inactiveTimeoutNanos)}));
+          Monitor monitor = removedItem.getMonitor();
+          monitor.stop();
+          if (errorResponses.contains(MonitorErrorResponse.RESTART)) {
+            LOGGER.fine(Messages.get("MonitorServiceImpl.restartingMonitor", new Object[]{monitor}));
+            Supplier<? extends Monitor> monitorSupplier = removedItem.getMonitorSupplier();
+            cache.computeIfAbsent(key, k -> new MonitorItem(monitorSupplier));
+          }
         }
       }
     }
@@ -127,7 +134,7 @@ public class MonitorServiceImpl implements MonitorService {
         mc -> {
           ExternallyManagedCache<Object, MonitorItem> cache =
               new ExternallyManagedCache<>(true, expirationTimeoutNanos);
-          return new CacheContainer(new MonitorSettings(heartbeatTimeoutNanos, errorResponses), cache);
+          return new CacheContainer(cache, new MonitorSettings(heartbeatTimeoutNanos, errorResponses));
         });
   }
 
@@ -141,7 +148,7 @@ public class MonitorServiceImpl implements MonitorService {
 
     cacheContainer.getCache().computeIfAbsent(
         key,
-        k -> new MonitorItem((Supplier<Monitor>) monitorSupplier));
+        k -> new MonitorItem(monitorSupplier));
   }
 
   @Override
@@ -153,7 +160,7 @@ public class MonitorServiceImpl implements MonitorService {
     }
 
     Object monitorKey = null;
-    Supplier<Monitor> monitorSupplier = null;
+    Supplier<? extends Monitor> monitorSupplier = null;
     ExternallyManagedCache<Object, MonitorItem> cache = cacheContainer.getCache();
     for (Map.Entry<Object, MonitorItem> entry : cache.getEntries().entrySet()) {
       MonitorItem monitorItem = entry.getValue();
@@ -210,33 +217,34 @@ public class MonitorServiceImpl implements MonitorService {
   }
 
   protected static class CacheContainer {
-    private @NonNull final MonitorSettings settings;
     private @NonNull final ExternallyManagedCache<Object, MonitorItem> cache;
+    private @NonNull final MonitorSettings settings;
 
-    public CacheContainer(@NonNull MonitorSettings settings, @NonNull ExternallyManagedCache<Object, MonitorItem> cache) {
+    public CacheContainer(
+        @NonNull ExternallyManagedCache<Object, MonitorItem> cache, @NonNull MonitorSettings settings) {
       this.settings = settings;
       this.cache = cache;
-    }
-
-    public @NonNull MonitorSettings getSettings() {
-      return settings;
     }
 
     public @NonNull ExternallyManagedCache<Object, MonitorItem> getCache() {
       return cache;
     }
+
+    public @NonNull MonitorSettings getSettings() {
+      return settings;
+    }
   }
 
   protected static class MonitorItem {
-    private @NonNull final Supplier<Monitor> monitorSupplier;
+    private @NonNull final Supplier<? extends Monitor> monitorSupplier;
     private @NonNull final Monitor monitor;
 
-    protected MonitorItem(@NonNull Supplier<Monitor> monitorSupplier) {
+    protected MonitorItem(@NonNull Supplier<? extends Monitor> monitorSupplier) {
       this.monitorSupplier = monitorSupplier;
       this.monitor = monitorSupplier.get();
     }
 
-    public @NonNull Supplier<Monitor> getMonitorSupplier() {
+    public @NonNull Supplier<? extends Monitor> getMonitorSupplier() {
       return monitorSupplier;
     }
 

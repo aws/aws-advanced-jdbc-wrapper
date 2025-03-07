@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -74,6 +75,28 @@ public class ExternallyManagedCache<K, V> {
     }
 
     return cacheItem.item;
+  }
+
+  public @Nullable V removeIf(K key, Predicate<V> predicate) {
+    // The function only returns a value if it was removed. A list is used to store the removed item since lambdas
+    // require references to outer variables to be final.
+    final List<V> removedItemList = new ArrayList<>(1);
+    cache.computeIfPresent(
+        key,
+        (k, valueItem) -> {
+          if (predicate.test(valueItem.item)) {
+            removedItemList.add(valueItem.item);
+            return null;
+          }
+
+          return valueItem;
+        });
+
+    if (removedItemList.isEmpty()) {
+      return null;
+    } else {
+      return removedItemList.get(0);
+    }
   }
 
   public @Nullable V removeIfExpired(K key) {
