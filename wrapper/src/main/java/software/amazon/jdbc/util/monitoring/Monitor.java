@@ -24,4 +24,6 @@ public interface Monitor {
   long getLastUsedTimestampNanos();
 
   MonitorState getState();
+
+  boolean canDispose();
 }

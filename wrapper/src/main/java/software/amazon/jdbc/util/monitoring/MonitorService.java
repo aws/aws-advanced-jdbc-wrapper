@@ -64,7 +64,7 @@ public interface MonitorService {
    * @param monitor   the monitor that encountered the unexpected exception.
    * @param exception the unexpected exception that occurred.
    */
-  void handleMonitorError(Monitor monitor, Exception exception);
+  void reportMonitorError(Monitor monitor, Exception exception);
 
   /**
    * Stops the given monitor and removes it from the monitor service.

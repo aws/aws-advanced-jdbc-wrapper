@@ -99,14 +99,14 @@ public class ExternallyManagedCache<K, V> {
     }
   }
 
-  public @Nullable V removeIfExpired(K key) {
+  public @Nullable V removeExpiredIf(K key, Predicate<V> predicate) {
     // The function only returns a value if it was removed. A list is used to store the removed item since lambdas
     // require references to outer variables to be final.
     final List<V> removedItemList = new ArrayList<>(1);
     cache.computeIfPresent(
         key,
         (k, valueItem) -> {
-          if (valueItem.isExpired()) {
+          if (valueItem.isExpired() && predicate.test(valueItem.item)) {
             removedItemList.add(valueItem.item);
             return null;
           }

@@ -93,6 +93,7 @@ public class MonitorServiceImpl implements MonitorService {
         removedItem = cache.removeIf(key, mi -> mi.getMonitor().getState() == MonitorState.ERROR);
         if (removedItem != null) {
           handleMonitorError(container, key, removedItem);
+          continue;
         }
 
         long inactiveTimeoutNanos = monitorSettings.getInactiveTimeoutNanos();
@@ -104,29 +105,15 @@ public class MonitorServiceImpl implements MonitorService {
               Messages.get("MonitorServiceImpl.monitorStuck",
                   new Object[]{removedItem.getMonitor(), TimeUnit.NANOSECONDS.toSeconds(inactiveTimeoutNanos)}));
           handleMonitorError(container, key, removedItem);
+          continue;
+        }
+
+        removedItem = cache.removeExpiredIf(key, mi -> mi.getMonitor().canDispose());
+        if (removedItem != null) {
+          removedItem.getMonitor().stop();
         }
       }
     }
-  }
-
-  @Override
-  public void handleMonitorError(Monitor monitor, Exception exception) {
-    CacheContainer cacheContainer = monitorCaches.get(monitor.getClass());
-    if (cacheContainer == null) {
-      LOGGER.fine(Messages.get("MonitorServiceImpl.unregisteredMonitorError", new Object[] {monitor, exception}));
-      return;
-    }
-
-    ExternallyManagedCache<Object, MonitorItem> cache = cacheContainer.getCache();
-    for (Map.Entry<Object, MonitorItem> entry : cache.getEntries().entrySet()) {
-      MonitorItem monitorItem = cache.removeIf(entry.getKey(), mi -> mi.getMonitor() == monitor);
-      if (monitorItem != null) {
-        handleMonitorError(cacheContainer, entry.getKey(), monitorItem);
-        return;
-      }
-    }
-
-    LOGGER.finest(Messages.get("MonitorServiceImpl.monitorErrorForMissingMonitor", new Object[] {monitor, exception}));
   }
 
   private void handleMonitorError(CacheContainer container, Object key, MonitorItem monitorItem) {
@@ -165,9 +152,27 @@ public class MonitorServiceImpl implements MonitorService {
           Messages.get("MonitorServiceImpl.monitorTypeNotRegistered", new Object[] {monitorClass}));
     }
 
-    cacheContainer.getCache().computeIfAbsent(
-        key,
-        k -> new MonitorItem(monitorSupplier));
+    cacheContainer.getCache().computeIfAbsent(key, k -> new MonitorItem(monitorSupplier));
+  }
+
+  @Override
+  public void reportMonitorError(Monitor monitor, Exception exception) {
+    CacheContainer cacheContainer = monitorCaches.get(monitor.getClass());
+    if (cacheContainer == null) {
+      LOGGER.fine(Messages.get("MonitorServiceImpl.unregisteredMonitorError", new Object[] {monitor, exception}));
+      return;
+    }
+
+    ExternallyManagedCache<Object, MonitorItem> cache = cacheContainer.getCache();
+    for (Map.Entry<Object, MonitorItem> entry : cache.getEntries().entrySet()) {
+      MonitorItem monitorItem = cache.removeIf(entry.getKey(), mi -> mi.getMonitor() == monitor);
+      if (monitorItem != null) {
+        handleMonitorError(cacheContainer, entry.getKey(), monitorItem);
+        return;
+      }
+    }
+
+    LOGGER.finest(Messages.get("MonitorServiceImpl.monitorErrorForMissingMonitor", new Object[] {monitor, exception}));
   }
 
   @Override
