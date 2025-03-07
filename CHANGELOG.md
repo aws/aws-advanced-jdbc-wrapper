@@ -7,9 +7,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### :bug: Fixed
 - Various reader failover fixes ([PR #1227](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1227)) & ([PR #1246](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1246)).
 - Avoid encoding MariaDB connection properties ([PR #1237](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1237)).
-- Custom domains during failover ([PR #1265](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1265))
-- Skip failover on interrupted thread ([Issue #1283](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1283))
-- Log message parameters ([PR #1303](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1303))
+- Custom domains during failover ([PR #1265](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1265)).
+- Skip failover on interrupted thread ([Issue #1283](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1283)).
+- Log message parameters ([PR #1303](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1303)).
 
 ### :crab: Changed
 - Revise default monitor poll rate from 15s to 7.5s for the Limitless Connection Plugin. For more information see the [docs](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheLimitlessConnectionPlugin.md).
