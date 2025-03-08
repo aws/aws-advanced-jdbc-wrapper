@@ -150,7 +150,7 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect implements SupportBl
 
   @Override
   public String getBlueGreenStatusQuery() {
-    return "SELECT id, endpoint, port, NULL as blue_green_deployment"
+    return "SELECT *"
         + " FROM rds_tools.show_topology('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
   }
 

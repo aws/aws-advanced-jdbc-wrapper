@@ -80,6 +80,8 @@ public interface PluginService extends ExceptionHandler {
 
   HostSpec getInitialConnectionHostSpec();
 
+  String getOriginalUrl();
+
   /**
    * Set the collection of hosts that should be allowed and/or blocked for connections.
    *

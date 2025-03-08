@@ -17,17 +17,22 @@
 package software.amazon.jdbc.plugin.bluegreen;
 
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
+import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.SupportBlueGreen;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.Utils;
 
 public class BlueGreenStatusProvider {
 
@@ -48,7 +53,8 @@ public class BlueGreenStatusProvider {
   private static final String DEFAULT_CONNECT_TIMEOUT_MS = String.valueOf(TimeUnit.SECONDS.toMillis(10));
   private static final String DEFAULT_SOCKET_TIMEOUT_MS = String.valueOf(TimeUnit.SECONDS.toMillis(10));
 
-  protected static BlueGreenStatusMonitor greenBlueGreenStatusMonitor = null;
+  protected static BlueGreenStatusMonitor blueMonitor = null;
+  protected static BlueGreenStatusMonitor greenMonitor = null;
   protected static final ReentrantLock monitorInitLock = new ReentrantLock();
 
   protected static final HashMap<BlueGreenPhases, IntervalType> checkIntervalTypeMap =
@@ -80,25 +86,35 @@ public class BlueGreenStatusProvider {
 
     final Dialect dialect = this.pluginService.getDialect();
     if (dialect instanceof SupportBlueGreen) {
-      final SupportBlueGreen blueGreenDialect = (SupportBlueGreen) dialect;
-      this.initMonitoring(blueGreenDialect);
+      this.initMonitoring();
     } else {
       LOGGER.warning("Blue/Green Deployments isn't supported by this database engine.");
     }
   }
 
-  protected void initMonitoring(final SupportBlueGreen supportBlueGreen) {
-    if (greenBlueGreenStatusMonitor == null) {
+  protected void initMonitoring() {
+    if (blueMonitor == null || greenMonitor == null) {
       monitorInitLock.lock();
       try {
-        if (greenBlueGreenStatusMonitor == null) {
-          greenBlueGreenStatusMonitor =
+        if (blueMonitor == null) {
+          blueMonitor =
               new BlueGreenStatusMonitor(
+                  BlueGreenRole.SOURCE,
+                  this.pluginService.getCurrentHostSpec(),
                   this.pluginService,
                   this.getMonitoringProperties(),
-                  supportBlueGreen,
-                  checkIntervalTypeMap,
-                  checkIntervalMap);
+                  checkIntervalMap,
+                  this::prepareStatus);
+        }
+        if (greenMonitor == null) {
+          greenMonitor =
+              new BlueGreenStatusMonitor(
+                  BlueGreenRole.TARGET,
+                  this.pluginService.getCurrentHostSpec(),
+                  this.pluginService,
+                  this.getMonitoringProperties(),
+                  checkIntervalMap,
+                  this::prepareStatus);
         }
       } finally {
         monitorInitLock.unlock();
@@ -128,9 +144,17 @@ public class BlueGreenStatusProvider {
     return monitoringConnProperties;
   }
 
-  public void notifyGreenNodeChangedName() {
-    if (greenBlueGreenStatusMonitor != null) {
-      greenBlueGreenStatusMonitor.notifyGreenNodeChangedName();
-    }
+  protected void prepareStatus(
+      final BlueGreenRole role,
+      final BlueGreenPhases blueGreenPhase,
+      final List<HostSpec> topology,
+      final Map<String, String> ipAddressesByHostAndPortMap) {
+
+    // TODO: implement
+
+    String ipMap = String.join("\n   ", ipAddressesByHostAndPortMap.entrySet().stream()
+        .map(x -> String.format("%s -> %s", x.getKey(), x.getValue()))
+        .collect(Collectors.toList()));
+    LOGGER.finest(String.format("role %s, phase %s, \n%s \nIP map:\n   %s", role, blueGreenPhase, Utils.logTopology(topology), ipMap));
   }
 }

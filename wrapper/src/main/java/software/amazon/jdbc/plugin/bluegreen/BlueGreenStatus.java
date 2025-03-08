@@ -16,10 +16,12 @@
 
 package software.amazon.jdbc.plugin.bluegreen;
 
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.HostSpec;
 
 public class BlueGreenStatus {
 
@@ -27,18 +29,29 @@ public class BlueGreenStatus {
   private final Map<String, String> hostIpAddresses = new ConcurrentHashMap<>();
   private final Map<String, String> correspondingNodes = new ConcurrentHashMap<>();
 
+  private List<ConnectRouting> connectRouting = new ArrayList<>();
+  private List<ExecuteRouting> executeRouting = new ArrayList<>();
+  private Map<String, BlueGreenRole> roleByEndpoint = new ConcurrentHashMap<>(); // all known endpoints; host and port
   private final boolean greenNodeChangedName;
 
+  // It should be immutable
   public BlueGreenStatus(
       final BlueGreenPhases phase,
       final Map<String, String> hostIpAddresses,
       final Map<String, String> correspondingNodes,
-      final boolean greenNodeChangedName) {
+      final boolean greenNodeChangedName,
+      final List<ConnectRouting> connectRouting,
+      final List<ExecuteRouting> executeRouting,
+      final Map<String, BlueGreenRole> roleByEndpoint) {
 
     this.currentPhase = phase;
     this.hostIpAddresses.putAll(hostIpAddresses);
     this.correspondingNodes.putAll(correspondingNodes);
     this.greenNodeChangedName = greenNodeChangedName;
+    this.connectRouting = connectRouting;
+    this.executeRouting = executeRouting;
+    this.roleByEndpoint.clear();
+    this.roleByEndpoint.putAll(roleByEndpoint);
   }
 
   public @NonNull BlueGreenPhases getCurrentPhase() {
@@ -54,4 +67,14 @@ public class BlueGreenStatus {
   }
 
   public boolean getGreenNodeChangedName() { return this.greenNodeChangedName; }
+
+  // TODO: make it unmodifiable
+  public List<ConnectRouting> getConnectRouting() { return this.connectRouting; }
+
+  // TODO: make it unmodifiable
+  public List<ExecuteRouting> getExecuteRouting() { return this.executeRouting; }
+
+  public Map<String, BlueGreenRole> getRoleByEndpoint() { return this.roleByEndpoint; }
+
+  public BlueGreenRole getRole(HostSpec hostSpec) { return this.roleByEndpoint.get(hostSpec.getHostAndPort()); }
 }

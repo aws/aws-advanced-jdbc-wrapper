@@ -24,174 +24,230 @@ import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import software.amazon.jdbc.HostRole;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.HostListProvider;
+import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.SupportBlueGreen;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
+import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
+import software.amazon.jdbc.util.ConnectionUrlParser;
+import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.StringUtils;
 
 public class BlueGreenStatusMonitor {
 
   private static final Logger LOGGER = Logger.getLogger(BlueGreenStatusMonitor.class.getName());
-  private static final long DEFAULT_CHECK_INTERVAL_MS = TimeUnit.MINUTES.toMillis(5);
-  private static final long CACHE_CLEANUP_NANO = TimeUnit.SECONDS.toNanos(30);
-  private static final long CACHE_HOST_REPLACEMENT_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(1);
+  protected static final long DEFAULT_CHECK_INTERVAL_MS = TimeUnit.MINUTES.toMillis(5);
+  protected static final String BG_CLUSTER_ID = "941d00a8-8238-4f7d-bf59-771bff783a8e";
 
-  private static final HashMap<String, BlueGreenPhases> blueGreenStatusMapping =
+  protected static final HashMap<String, BlueGreenPhases> blueGreenStatusMapping =
       new HashMap<String, BlueGreenPhases>() {
         {
-          put("SOURCE", BlueGreenPhases.CREATED);
-          put("TARGET", BlueGreenPhases.CREATED);
-          put("SWITCHOVER_STARTING_ON_SOURCE", BlueGreenPhases.PREPARATION_TO_SWITCH_OVER);
-          put("SWITCHOVER_STARTING_ON_TARGET", BlueGreenPhases.PREPARATION_TO_SWITCH_OVER);
-          put("SWITCHOVER_IN_PROGRESS_ON_SOURCE", BlueGreenPhases.SWITCHING_OVER);
-          put("SWITCHOVER_IN_PROGRESS_ON_TARGET", BlueGreenPhases.SWITCHING_OVER);
-          put("TARGET_PROMOTED_DNS_UPDATING", BlueGreenPhases.POST_SWITCH_OVER);
-          put("SOURCE_DEMOTED_DNS_UPDATING", BlueGreenPhases.POST_SWITCH_OVER);
+          put("AVAILABLE", BlueGreenPhases.CREATED);
+          put("SWITCHOVER_INITIATED", BlueGreenPhases.PREPARATION_TO_SWITCH_OVER);
+          put("SWITCHOVER_IN_PROGRESS", BlueGreenPhases.SWITCHING_OVER);
+          put("SWITCHOVER_IN_POST_PROCESSING", BlueGreenPhases.POST_SWITCH_OVER);
+          put("SWITCHOVER_COMPLETED", BlueGreenPhases.SWITCH_OVER_COMPLETED);
         }
       };
 
-  protected final SlidingExpirationCacheWithCleanupThread<String, HostReplacementHolder> hostReplacements =
-      new SlidingExpirationCacheWithCleanupThread<>(
-          this::canRemoveHostReplacement,
-          null,
-          CACHE_CLEANUP_NANO);
+  protected static final HashMap<String, BlueGreenRole> blueGreenRoleMapping =
+      new HashMap<String, BlueGreenRole>() {
+        {
+          put("BLUE_GREEN_DEPLOYMENT_SOURCE", BlueGreenRole.SOURCE);
+          put("BLUE_GREEN_DEPLOYMENT_TARGET", BlueGreenRole.TARGET);
+        }
+      };
 
+  protected static final String latestKnownVersion = "1.0";
+
+  // Add more versions here if needed.
+  protected static final Set<String> knownVersions = new HashSet<>(Collections.singletonList(latestKnownVersion));
   protected final SupportBlueGreen supportBlueGreen;
   protected final PluginService pluginService;
   protected final Properties props;
-  protected final AtomicBoolean greenNodeChangedName = new AtomicBoolean(false);
-  protected final Map<BlueGreenPhases, IntervalType> checkIntervalTypeMap;
+  protected final BlueGreenRole role;
+  protected final OnStatusChange onStatusChangeFunc;
   protected final Map<IntervalType, Long> checkIntervalMap;
+
+  protected final HostSpec initialHostSpec;
+
   protected final ExecutorService executorService = Executors.newFixedThreadPool(1);
 
   protected final RdsUtils rdsUtils = new RdsUtils();
-  protected boolean canHoldConnection = true;
+  protected final ConnectionUrlParser connectionUrlParser = new ConnectionUrlParser();
+
+  protected final HostSpecBuilder hostSpecBuilder = new HostSpecBuilder(new SimpleHostAvailabilityStrategy());
+  protected final AtomicBoolean collectIpAddresses = new AtomicBoolean(true);
+  protected final AtomicBoolean collectTopology = new AtomicBoolean(true);
+  protected final AtomicReference<IntervalType> intervalType = new AtomicReference<>(IntervalType.BASELINE);
+  protected final AtomicBoolean stop = new AtomicBoolean(false);
+  protected final AtomicBoolean useIpAddress = new AtomicBoolean(false);
+
+  protected HostListProvider hostListProvider = null;
+  protected List<HostSpec> topology = new ArrayList<>();
+  protected Map<String, String> ipAddressesByHostAndPortMap = new ConcurrentHashMap<>();
+  protected BlueGreenPhases currentPhase = BlueGreenPhases.NOT_CREATED;
+
+  protected String version = "1.0";
+
   protected Connection connection = null;
   protected HostSpec connectionHostSpec = null;
-
-  protected Random random = new Random();
+  protected String connectedIpAddress = null;
+  protected boolean connectionHostSpecCorrect = false;
+  protected boolean panicMode = false;
 
   public BlueGreenStatusMonitor(
+      final @NonNull BlueGreenRole role,
+      final @NonNull HostSpec initialHostSpec,
       final @NonNull PluginService pluginService,
       final @NonNull Properties props,
-      final @NonNull SupportBlueGreen supportBlueGreen,
-      final @NonNull Map<BlueGreenPhases, IntervalType> checkIntervalTypeMap,
-      final @NonNull Map<IntervalType, Long> checkIntervalMap) {
+      final @NonNull Map<IntervalType, Long> checkIntervalMap,
+      final @Nullable OnStatusChange onStatusChangeFunc) {
 
+    this.role = role;
+    this.initialHostSpec = initialHostSpec;
     this.pluginService = pluginService;
     this.props = props;
-    this.supportBlueGreen = supportBlueGreen;
-    this.checkIntervalTypeMap = checkIntervalTypeMap;
     this.checkIntervalMap = checkIntervalMap;
+    this.onStatusChangeFunc = onStatusChangeFunc;
+
+    this.supportBlueGreen = (SupportBlueGreen) this.pluginService.getDialect();
 
     executorService.submit(() -> {
 
-      TimeUnit.SECONDS.sleep(1); // Some delay so the connection is initialized and topology is fetched.
+      try {
+        TimeUnit.SECONDS.sleep(1); // Some delay so the connection is initialized and topology is fetched.
+      } catch (InterruptedException e) {
+        return;
+      }
 
       try {
-        while (true) {
+        while (!this.stop.get()) {
           try {
-            BlueGreenStatus currentStatus = this.pluginService.getStatus(BlueGreenStatus.class, true);
-            final BlueGreenStatus status = this.getStatus(currentStatus);
-            if (currentStatus == null
-                || (status != null && currentStatus.getCurrentPhase() != status.getCurrentPhase())) {
-              LOGGER.finest("Status changed to: " + status.getCurrentPhase());
-            }
-            this.pluginService.setStatus(BlueGreenStatus.class, status, true);
+            BlueGreenPhases oldPhase = this.currentPhase;
+            this.collectStatus();
 
-            IntervalType intervalType =
-                checkIntervalTypeMap.getOrDefault(status.getCurrentPhase(), IntervalType.BASELINE);
-            long delay = checkIntervalMap.getOrDefault(intervalType, DEFAULT_CHECK_INTERVAL_MS);
-            this.canHoldConnection = (delay <= TimeUnit.MINUTES.toMillis(5));
+            if (!this.panicMode) {
+              this.collectTopology();
+              this.collectHostIpAddresses(this.topology);
+            }
+
+            if (oldPhase == null || oldPhase != this.currentPhase) {
+              LOGGER.finest(String.format("[%s] Status changed to: %s", this.role, this.currentPhase));
+            }
+
+            if (this.onStatusChangeFunc != null) {
+              this.onStatusChangeFunc.onStatusChanged(
+                  this.role, this.currentPhase, this.topology, this.ipAddressesByHostAndPortMap);
+            }
+
+            long delay = checkIntervalMap.getOrDefault(
+                this.panicMode ? IntervalType.HIGH : this.intervalType.get(),
+                DEFAULT_CHECK_INTERVAL_MS);
             TimeUnit.MILLISECONDS.sleep(delay);
 
+          } catch (InterruptedException ex) {
+            LOGGER.finest(String.format("[%s] Interrupted.", this.role));
+            return;
           } catch (Exception ex) {
-            LOGGER.log(Level.WARNING, "Unhandled exception while monitoring blue/green status.", ex);
+            LOGGER.log(
+                Level.WARNING,
+                String.format("[%s] Unhandled exception while monitoring blue/green status.", this.role),
+                ex);
           }
         }
       } finally {
         this.closeConnection();
-        LOGGER.finest("Blue/green status monitoring thread is completed.");
+        LOGGER.finest(String.format("[%s] Blue/green status monitoring thread is completed.", this.role));
       }
     });
     executorService.shutdown(); // executor accepts no more tasks
   }
 
-  /**
-   * Collect IP addresses of green nodes and map them to a new-blue FQDN host names.
-   * It's assumed that each blue nodes will be mapped to a single green node.
-   * <p></p>
-   * Example:
-   * Current topology:
-   * - instance-1.XYZ.us-east-2.rds.amazonaws.com (10.0.1.100)
-   * - instance-2.XYZ.us-east-2.rds.amazonaws.com (10.0.1.101)
-   * - instance-3.XYZ.us-east-2.rds.amazonaws.com (10.0.1.102)
-   * - instance-1-green-123456.XYZ.us-east-2.rds.amazonaws.com (10.0.1.103)
-   * - instance-2-green-234567.XYZ.us-east-2.rds.amazonaws.com (10.0.1.104)
-   * -instance-3-green-345678.XYZ.us-east-2.rds.amazonaws.com (10.0.1.105)
-   * Expected mapping:
-   * - instance-1.XYZ.us-east-2.rds.amazonaws.com (10.0.1.103)
-   * - instance-2.XYZ.us-east-2.rds.amazonaws.com (10.0.1.104)
-   * - instance-3.XYZ.us-east-2.rds.amazonaws.com (10.0.1.105)
-   * Resulting map contains both blue and green nodes.
-   */
+  public void setIntervalType(final @NonNull IntervalType intervalType) {
+    this.intervalType.set(intervalType);
+  }
+
+  public void setCollectIpAddresses(final boolean collectIpAddresses) {
+    this.collectIpAddresses.set(collectIpAddresses);
+  }
+
+  public void setCollectTopology(boolean collectTopology) {
+    this.collectTopology.set(collectTopology);
+  }
+
+  public void setUseIpAddress(boolean useIpAddress) {
+    this.useIpAddress.set(useIpAddress);
+  }
+
+  public void setStop(boolean stop) {
+    this.stop.set(stop);
+  }
+
+
   protected void collectHostIpAddresses(final List<HostSpec> hosts) {
 
+    if (!this.collectIpAddresses.get()) {
+      // Do not collect IP addresses but keep already collected IP addresses.
+      return;
+    }
+
+    this.ipAddressesByHostAndPortMap.clear();
+
     for (HostSpec hostSpec : hosts) {
-      if (this.rdsUtils.isGreenInstance(hostSpec.getHost())) {
-        final String greenHost = hostSpec.getHost();
-        final String newBlueHost = this.rdsUtils.removeGreenInstancePrefix(greenHost);
-        try {
-          final String greenIp = InetAddress.getByName(greenHost).getHostAddress();
-          final String newBlueIp = InetAddress.getByName(newBlueHost).getHostAddress();
-
-          hostReplacements.remove(newBlueHost);
-          hostReplacements.computeIfAbsent(
-              newBlueHost,
-              (key) -> new HostReplacementHolder(newBlueHost, false, greenHost, newBlueIp, greenIp),
-              CACHE_HOST_REPLACEMENT_EXPIRATION_NANO);
-
-          hostReplacements.remove(greenHost);
-          hostReplacements.computeIfAbsent(
-              greenHost,
-              (key) -> new HostReplacementHolder(greenHost, true, newBlueHost, greenIp, greenIp),
-              CACHE_HOST_REPLACEMENT_EXPIRATION_NANO);
-
-        } catch (UnknownHostException ex) {
-          // do nothing
+      final String ip = this.getIpAddress(hostSpec.getHost());
+      if (ip != null) {
+        this.ipAddressesByHostAndPortMap.putIfAbsent(hostSpec.getHost(), ip);
+        if (hostSpec.isPortSpecified()) {
+          this.ipAddressesByHostAndPortMap.putIfAbsent(hostSpec.getHostAndPort(),
+              String.format("%s:%s", ip, hostSpec.getPort()));
         }
       }
     }
   }
 
-  protected Map<String, String> getHostIpAddresses() {
-    return new ConcurrentHashMap<>(
-        hostReplacements.getEntries().values().stream()
-            .collect(Collectors.toMap(k -> k.host, v -> v.replacementIp)));
+  protected String getIpAddress(String host) {
+    try {
+      return InetAddress.getByName(host).getHostAddress();
+    } catch (UnknownHostException ex) {
+      return null;
+    }
   }
 
-  protected Map<String, String> getCorrespondingHosts() {
-    return new ConcurrentHashMap<>(
-        hostReplacements.getEntries().values().stream()
-            .collect(Collectors.toMap(k -> k.host, v -> v.correspondingHost)));
+  protected void collectTopology() throws SQLException {
+    if (!this.collectTopology.get()) {
+      // Do not collect topology but keep topology that's already collected.
+      return;
+    }
+
+    if (this.hostListProvider == null || this.connection == null) {
+      return;
+    }
+
+    this.topology = this.hostListProvider.forceRefresh(this.connection);
   }
 
   protected void closeConnection() {
@@ -205,170 +261,187 @@ public class BlueGreenStatusMonitor {
     this.connection = null;
   }
 
-  protected BlueGreenStatus getStatus(final BlueGreenStatus currentStatus) {
+  protected void collectStatus() {
     try {
       if (this.connection == null || this.connection.isClosed()) {
-        this.closeConnection();
+        this.connection = null;
         if (this.connectionHostSpec == null) {
-          this.connectionHostSpec = this.getHostSpec();
-        }
-        if (this.connectionHostSpec == null) {
-          LOGGER.finest("No node found for blue/green status check.");
-          return new BlueGreenStatus(
-              BlueGreenPhases.NOT_CREATED,
-              new ConcurrentHashMap<>(),
-              new ConcurrentHashMap<>(),
-              false);
+          this.connectionHostSpec = this.initialHostSpec;
+          this.connectedIpAddress = null;
+          this.connectionHostSpecCorrect = false;
         }
         try {
-          LOGGER.info("Opening monitoring connection to " + this.connectionHostSpec.getHost());
-          this.connection = this.getConnection(this.connectionHostSpec);
+
+          if (this.useIpAddress.get() && this.connectedIpAddress != null) {
+            final HostSpec connectionWithIpHostSpec = this.hostSpecBuilder.copyFrom(this.connectionHostSpec)
+                .host(this.connectedIpAddress)
+                .build();
+            final Properties connectWithIpProperties = PropertyUtils.copyProperties(this.props);
+            IamAuthConnectionPlugin.IAM_HOST.set(connectWithIpProperties, this.connectionHostSpec.getHost());
+
+            LOGGER.finest(String.format(
+                "[%s] Opening monitoring connection (IP) to %s", this.role, connectionWithIpHostSpec.getHost()));
+
+            this.connection = this.pluginService.forceConnect(connectionWithIpHostSpec, connectWithIpProperties);
+
+          } else {
+            LOGGER.finest(String.format(
+                "[%s] Opening monitoring connection to %s", this.role, this.connectionHostSpec.getHost()));
+
+            this.connectedIpAddress = this.getIpAddress(this.connectionHostSpec.getHost());
+            this.connection = this.pluginService.forceConnect(this.connectionHostSpec, this.props);
+          }
+          this.panicMode = false;
+
         } catch (SQLException ex) {
           // can't open connection
-          // let's return the current status and try to open a connection on the next round
-          return currentStatus;
+          this.connectedIpAddress = null;
+          this.panicMode = true;
+          return;
         }
       }
 
       if (!supportBlueGreen.isStatusAvailable(this.connection)) {
-        if (currentStatus == null || currentStatus.getCurrentPhase() == BlueGreenPhases.NOT_CREATED) {
-          //LOGGER.finest("(status not available) currentPhase: " + BlueGreenPhases.NOT_CREATED);
-          return new BlueGreenStatus(
-              BlueGreenPhases.NOT_CREATED,
-              this.getHostIpAddresses(),
-              this.getCorrespondingHosts(),
-              false);
-        } else {
-          //LOGGER.finest("(status not available) currentPhase: " + BlueGreenPhases.SWITCH_OVER_COMPLETED);
-          this.greenNodeChangedName.set(true);
-          return new BlueGreenStatus(
-              BlueGreenPhases.SWITCH_OVER_COMPLETED,
-              this.getHostIpAddresses(),
-              this.getCorrespondingHosts(),
-              this.greenNodeChangedName.get());
-        }
+          LOGGER.finest(String.format(
+              "[%s] (status not available) currentPhase: %s", this.role, BlueGreenPhases.NOT_CREATED));
+          this.currentPhase = BlueGreenPhases.NOT_CREATED;
       }
 
       final Statement statement = this.connection.createStatement();
       final ResultSet resultSet = statement.executeQuery(this.supportBlueGreen.getBlueGreenStatusQuery());
 
-      final HashMap<String, BlueGreenPhases> phasesByHost = new HashMap<>();
-      final HashSet<BlueGreenPhases> hostPhases = new HashSet<>();
-      final List<HostSpec> hosts = new ArrayList<>();
-
+      final List<StatusInfo> statusEntries = new ArrayList<>();
       while (resultSet.next()) {
+        final String version = resultSet.getString("version");
         final String endpoint = resultSet.getString("endpoint");
         final int port = resultSet.getInt("port");
-        final BlueGreenPhases phase = this.parsePhase(resultSet.getString("blue_green_deployment"));
-        phasesByHost.put(endpoint, phase);
-        hostPhases.add(phase);
-        final HostSpec hostSpec = this.pluginService.getHostSpecBuilder()
-            .host(endpoint)
-            .hostId(this.getHostId(endpoint))
-            .port(port)
-            .build();
-        hosts.add(hostSpec);
+        final BlueGreenRole role = this.parseRole(resultSet.getString("role"), version);
+        final BlueGreenPhases phase = this.parsePhase(resultSet.getString("status"), version);
+
+        if (this.role != role) {
+          continue;
+        }
+
+        statusEntries.add(new StatusInfo(version, endpoint, port, phase, role));
       }
 
-      // try to reconnect to a green host if possible
-      if (!this.rdsUtils.isGreenInstance(this.connectionHostSpec.getHost())) {
-        final HostSpec candidateHostSpec = this.getHostSpec(hosts);
-        if (candidateHostSpec != null && this.rdsUtils.isGreenInstance(candidateHostSpec.getHost())) {
-          try {
-            LOGGER.info("(candidate) Opening monitoring connection to " + candidateHostSpec.getHost());
-            final Connection candidateConnection = this.getConnection(candidateHostSpec);
+      // Check if there's a cluster writer endpoint.
+      StatusInfo statusInfo = statusEntries.stream()
+          .filter(x -> rdsUtils.isWriterClusterDns(x.endpoint))
+          .findFirst()
+          .orElse(null);
 
-            // replace current connection with a candidate one
-            LOGGER.info("Reconnected to green node.");
-            this.closeConnection();
-            this.connectionHostSpec = candidateHostSpec;
-            this.connection = candidateConnection;
-          } catch (SQLException ex) {
-            // can't open connection
-            // continue and try to open a connection on the next round
-          }
+      if (statusInfo == null) {
+        // maybe it's an instance endpoint?
+        statusInfo = statusEntries.stream()
+            .filter(x -> rdsUtils.isRdsInstance(x.endpoint))
+            .findFirst()
+            .orElse(null);
+      }
+
+      if (statusInfo == null) {
+        throw new RuntimeException(String.format("Can't identify %s entry in Blue/Green status table.", this.role));
+      }
+
+      this.currentPhase = statusInfo.phase;
+      this.version = statusInfo.version;
+
+      if (!knownVersions.contains(this.version)) {
+        this.version = latestKnownVersion;
+        LOGGER.warning(String.format(
+            "[%s] Blue/Green deployment uses version '%s' that the driver doesn't support. '%s' version is used instead.",
+            this.role, this.version, latestKnownVersion));
+      }
+
+      if (!this.connectionHostSpecCorrect) {
+        // We connected to an initialHostSpec that might be not the desired Blue or Green cluster.
+        // We need to reconnect to a correct one.
+
+        String statusInfoHostIpAddress = this.getIpAddress(statusInfo.endpoint);
+        if (this.connectedIpAddress != null && !this.connectedIpAddress.equals(statusInfoHostIpAddress)) {
+          // Found endpoint confirms that we're connected to a different node and we need to reconnect.
+          this.connectionHostSpec = this.hostSpecBuilder
+              .host(statusInfo.endpoint)
+              .port(statusInfo.port)
+              .build();
+          this.connectionHostSpecCorrect = true;
+          this.closeConnection();
+          this.panicMode = true;
+
+        } else {
+          // We're already connected to a correct node.
+          this.connectionHostSpecCorrect = true;
+          this.panicMode = false;
         }
       }
 
-      BlueGreenPhases currentPhase;
-
-      if (hostPhases.contains(BlueGreenPhases.SWITCHING_OVER)) {
-        // At least one node is in active switching over phase.
-        currentPhase = BlueGreenPhases.SWITCHING_OVER;
-      } else if (hostPhases.contains(BlueGreenPhases.POST_SWITCH_OVER)) {
-        // At least one node is in post switching over phase.
-        currentPhase = BlueGreenPhases.POST_SWITCH_OVER;
-      } else if (hostPhases.contains(BlueGreenPhases.PREPARATION_TO_SWITCH_OVER)) {
-        // At least one node is in preparation for switching over phase.
-        currentPhase = BlueGreenPhases.PREPARATION_TO_SWITCH_OVER;
-      } else if (hostPhases.contains(BlueGreenPhases.SWITCH_OVER_COMPLETED) && hostPhases.size() == 1) {
-        // All nodes have completed switchover.
-        currentPhase = BlueGreenPhases.SWITCH_OVER_COMPLETED;
-      } else if (hostPhases.contains(BlueGreenPhases.CREATED)) {
-        // At least one node reports that Bleu/Green deployment is created.
-        currentPhase = BlueGreenPhases.CREATED;
-      } else {
-        currentPhase = BlueGreenPhases.NOT_CREATED;
+      if (this.connectionHostSpecCorrect && this.connection != null && this.hostListProvider == null) {
+        // A connection to a correct cluster (blue or green) is established.
+        // Let''s initialize HostListProvider
+        this.initHostListProvider();
       }
-
-      if (currentPhase == BlueGreenPhases.PREPARATION_TO_SWITCH_OVER) {
-        this.pluginService.refreshHostList(this.connection);
-        this.collectHostIpAddresses(hosts);
-        this.greenNodeChangedName.set(false);
-      }
-
-      return new BlueGreenStatus(
-          currentPhase,
-          this.getHostIpAddresses(),
-          this.getCorrespondingHosts(),
-          this.greenNodeChangedName.get());
 
     } catch (SQLSyntaxErrorException sqlSyntaxErrorException) {
-      if (currentStatus == null || currentStatus.getCurrentPhase() == BlueGreenPhases.NOT_CREATED) {
-        LOGGER.finest("(SQLSyntaxErrorException) currentPhase: " + BlueGreenPhases.NOT_CREATED);
-        return new BlueGreenStatus(
-            BlueGreenPhases.NOT_CREATED,
-            this.getHostIpAddresses(),
-            this.getCorrespondingHosts(),
-            false);
-      } else {
-        LOGGER.finest("(SQLSyntaxErrorException) currentPhase: " + BlueGreenPhases.SWITCH_OVER_COMPLETED);
-        this.greenNodeChangedName.set(true);
-        return new BlueGreenStatus(
-            BlueGreenPhases.SWITCH_OVER_COMPLETED,
-            this.getHostIpAddresses(),
-            this.getCorrespondingHosts(),
-            this.greenNodeChangedName.get());
-      }
+      this.currentPhase = BlueGreenPhases.NOT_CREATED;
+      LOGGER.finest(String.format(
+          "[%s] (SQLSyntaxErrorException) currentPhase: %s", this.role, BlueGreenPhases.NOT_CREATED));
     } catch (Exception e) {
       // do nothing
-      LOGGER.log(Level.FINEST, "Unhandled exception.", e);
-    } finally {
-      if (!this.canHoldConnection) {
-        this.closeConnection();
+      LOGGER.log(Level.FINEST, String.format("[%s] Unhandled exception.", this.role), e);
+    }
+  }
+
+  protected void initHostListProvider() {
+    if (this.hostListProvider != null) {
+      return;
+    }
+
+    final Properties hostListProperties = PropertyUtils.copyProperties(this.props);
+
+    // TODO: do we need a more solid way to identify what cluster, blue or green, we're connected to?
+    if (rdsUtils.isGreenInstance(this.pluginService.getCurrentHostSpec().getHost())
+          && this.role == BlueGreenRole.TARGET
+        || rdsUtils.isNoPrefixInstance(this.pluginService.getCurrentHostSpec().getHost())
+          && this.role == BlueGreenRole.SOURCE) {
+
+      // We can reuse the same HostListProvider as PluginService provides
+      LOGGER.finest(String.format("[%s] Reuse HostListProvider from PluginService", this.role));
+      this.hostListProvider = this.pluginService.getHostListProvider();
+
+    } else {
+      // Need to instantiate a separate HostListProvider.
+      // Let''s a special unique clusterId to avoid interference with other HostListProviders opened for this cluster.
+      // Blue and Green clusters are expected to have different clusterId.
+
+
+      String pluginServiceClusterId = "none";
+      try {
+        pluginServiceClusterId = this.pluginService.getHostListProvider().getClusterId();
+      } catch (Exception ex) {
+        // ignore
       }
+
+      RdsHostListProvider.CLUSTER_ID.set(hostListProperties,
+          String.format("%s::%s::%s", this.role, pluginServiceClusterId, BG_CLUSTER_ID));
+
+      LOGGER.finest(String.format(
+          "[%s] Creating a new HostListProvider, clusterId: %s",
+          this.role,
+          RdsHostListProvider.CLUSTER_ID.getString(hostListProperties)));
+
+      String protocol = this.connectionUrlParser.getProtocol(this.pluginService.getOriginalUrl());
+      String hostListProviderUrl = String.format("%s%s/", protocol, this.connectionHostSpec.getHostAndPort());
+      this.hostListProvider = this.pluginService.getDialect()
+          .getHostListProvider()
+          .getProvider(
+              hostListProperties,
+              hostListProviderUrl,
+              (HostListProviderService) this.pluginService,
+              this.pluginService);
     }
-
-    return new BlueGreenStatus(
-        BlueGreenPhases.NOT_CREATED,
-        new ConcurrentHashMap<>(),
-        new ConcurrentHashMap<>(),
-        false);
   }
 
-  public void notifyGreenNodeChangedName() {
-    this.greenNodeChangedName.set(true);
-  }
-
-  protected String getHostId(final String endpoint) {
-    if (StringUtils.isNullOrEmpty(endpoint)) {
-      return null;
-    }
-    final String[] parts = endpoint.split("\\.");
-    return parts != null && parts.length > 0 ? parts[0] : null;
-  }
-
-  protected BlueGreenPhases parsePhase(final String value) {
+  protected BlueGreenPhases parsePhase(final String value, final String version) {
     if (StringUtils.isNullOrEmpty(value)) {
       return BlueGreenPhases.NOT_CREATED;
     }
@@ -380,93 +453,31 @@ public class BlueGreenStatusMonitor {
     return phase;
   }
 
-  protected Connection getConnection(final HostSpec hostSpec) throws SQLException {
-    return this.pluginService.forceConnect(hostSpec, this.props);
+  protected BlueGreenRole parseRole(final String value, final String version) {
+    if (StringUtils.isNullOrEmpty(value)) {
+      throw new IllegalArgumentException("Unknown blue/green role " + value);
+    }
+    final BlueGreenRole role = blueGreenRoleMapping.get(value.toUpperCase());
+
+    if (role == null) {
+      throw new IllegalArgumentException("Unknown blue/green role " + value);
+    }
+    return role;
   }
 
-  protected HostSpec getHostSpec() {
-    return this.getHostSpec(this.pluginService.getHosts());
-  }
+  private static class StatusInfo {
+    public String version;
+    public String endpoint;
+    public int port;
+    public BlueGreenPhases phase;
+    public BlueGreenRole role;
 
-  protected HostSpec getHostSpec(final List<HostSpec> hosts) {
-
-    HostSpec hostSpec = this.getRandomHost(hosts, HostRole.UNKNOWN, true);
-
-    if (hostSpec != null) {
-      return hostSpec;
-    }
-
-    // There's no green nodes in topology.
-    // Try to get any node.
-    hostSpec = this.getRandomHost(hosts, HostRole.READER, false);
-
-    if (hostSpec != null) {
-      return hostSpec;
-    }
-
-    // There's no green nodes in topology.
-    // Try to get any node.
-    hostSpec = this.getRandomHost(hosts, HostRole.WRITER, false);
-
-    if (hostSpec != null) {
-      return hostSpec;
-    }
-
-    return this.getRandomHost(hosts, HostRole.UNKNOWN, false);
-  }
-
-  protected HostSpec getRandomHost(List<HostSpec> hosts, HostRole role, boolean greenHostOnly) {
-    final List<HostSpec> filteredHosts = hosts.stream()
-        .filter(x -> (x.getRole() == role || role == HostRole.UNKNOWN)
-            && (!greenHostOnly || this.rdsUtils.isGreenInstance(x.getHost())))
-        .collect(Collectors.toList());
-
-    return filteredHosts.isEmpty()
-        ? null
-        : filteredHosts.get(this.random.nextInt(filteredHosts.size()));
-  }
-
-  protected boolean canRemoveHostReplacement(final HostReplacementHolder hostReplacementHolder) {
-    if (!this.greenNodeChangedName.get()) {
-      return false;
-    }
-    try {
-      final String currentIp = InetAddress.getByName(hostReplacementHolder.host).getHostAddress();
-      if (!hostReplacementHolder.currentIp.equals(currentIp)) {
-        // DNS has changed. We can remove this replacement.
-        LOGGER.info("Removing host replacement for " + hostReplacementHolder.host);
-        return true;
-      }
-    } catch (UnknownHostException ex) {
-      if (hostReplacementHolder.isGreenPrefix) {
-        // Green node DNS doesn't exist anymore. We can delete it from the cache.
-        LOGGER.info("Removing host replacement for " + hostReplacementHolder.host);
-        return true;
-      }
-      // otherwise do nothing
-    }
-    return false;
-  }
-
-  public static class HostReplacementHolder {
-    public final String host;
-    public final boolean isGreenPrefix;
-    public final String correspondingHost;
-    public final String currentIp;
-    public final String replacementIp;
-
-    public HostReplacementHolder(
-        final String host,
-        final boolean isGreenHost,
-        final String correspondingHost,
-        final String currentIp,
-        final String replacementIp) {
-
-      this.host = host;
-      this.isGreenPrefix = isGreenHost;
-      this.correspondingHost = correspondingHost;
-      this.currentIp = currentIp;
-      this.replacementIp = replacementIp;
+    StatusInfo(String version, String endpoint, int port, BlueGreenPhases phase, BlueGreenRole role) {
+      this.version = version;
+      this.endpoint = endpoint;
+      this.port = port;
+      this.phase = phase;
+      this.role = role;
     }
   }
 }

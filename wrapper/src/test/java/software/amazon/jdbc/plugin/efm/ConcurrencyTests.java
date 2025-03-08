@@ -497,6 +497,11 @@ public class ConcurrencyTests {
     }
 
     @Override
+    public String getOriginalUrl() {
+      return null;
+    }
+
+    @Override
     public void setAllowedAndBlockedHosts(AllowedAndBlockedHosts allowedAndBlockedHosts) {
     }
 
