@@ -27,7 +27,7 @@ import software.amazon.jdbc.util.StringUtils;
 public class RdsMysqlDialect extends MysqlDialect implements SupportBlueGreen {
 
   private static final String BG_STATUS_QUERY =
-      "SELECT id, endpoint, port, blue_green_deployment FROM mysql.rds_topology";
+      "SELECT * FROM mysql.rds_topology";
 
   private static final String TOPOLOGY_TABLE_EXIST_QUERY =
       "SELECT 1 AS tmp FROM information_schema.tables WHERE"

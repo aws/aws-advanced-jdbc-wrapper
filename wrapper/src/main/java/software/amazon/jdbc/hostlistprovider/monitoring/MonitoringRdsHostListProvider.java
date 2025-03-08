@@ -32,6 +32,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
+import software.amazon.jdbc.util.Utils;
 
 public class MonitoringRdsHostListProvider extends RdsHostListProvider
     implements BlockingHostListProvider, CanReleaseResources {

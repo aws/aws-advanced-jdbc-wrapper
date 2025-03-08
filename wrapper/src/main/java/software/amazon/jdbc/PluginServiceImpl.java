@@ -211,6 +211,11 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
+  public String getOriginalUrl() {
+    return this.originalUrl;
+  }
+
+  @Override
   public void setAllowedAndBlockedHosts(AllowedAndBlockedHosts allowedAndBlockedHosts) {
     this.allowedAndBlockedHosts.set(allowedAndBlockedHosts);
   }
