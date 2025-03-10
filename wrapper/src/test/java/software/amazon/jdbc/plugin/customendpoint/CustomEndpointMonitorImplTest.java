@@ -49,12 +49,14 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.ItemCategory;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class CustomEndpointMonitorImplTest {
+  @Mock private MonitorService mockMonitorService;
   @Mock private StorageService mockStorageService;
   @Mock private BiFunction<HostSpec, Region, RdsClient> mockRdsClientFunc;
   @Mock private RdsClient mockRdsClient;
@@ -109,12 +111,12 @@ public class CustomEndpointMonitorImplTest {
   @AfterEach
   void cleanUp() throws Exception {
     closeable.close();
-    CustomEndpointPlugin.monitors.clear();
   }
 
   @Test
   public void testRun() throws InterruptedException {
     CustomEndpointMonitorImpl monitor = new CustomEndpointMonitorImpl(
+        mockMonitorService,
         mockStorageService,
         mockTelemetryFactory,
         host,
@@ -127,7 +129,7 @@ public class CustomEndpointMonitorImplTest {
     // will return the expected number of endpoints (one).
     TimeUnit.MILLISECONDS.sleep(100);
     assertEquals(expectedInfo, CustomEndpointMonitorImpl.customEndpointInfoCache.get(host.getHost()));
-    monitor.close();
+    monitor.stop();
 
     ArgumentCaptor<AllowedAndBlockedHosts> captor = ArgumentCaptor.forClass(AllowedAndBlockedHosts.class);
     verify(mockStorageService).set(eq(ItemCategory.ALLOWED_AND_BLOCKED_HOSTS), eq(host.getHost()), captor.capture());

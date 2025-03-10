@@ -57,6 +57,7 @@ import software.amazon.jdbc.util.ServiceContainerImpl;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -79,14 +80,13 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   protected final ConnectionUrlParser connectionUrlParser = new ConnectionUrlParser();
 
   public ConnectionWrapper(
+      @NonNull final ServiceContainer serviceContainer,
       @NonNull final Properties props,
       @NonNull final String url,
       @NonNull final ConnectionProvider defaultConnectionProvider,
       @Nullable final ConnectionProvider effectiveConnectionProvider,
       @NonNull final TargetDriverDialect targetDriverDialect,
-      @Nullable final ConfigurationProfile configurationProfile,
-      @NonNull final StorageService storageService,
-      @NonNull final TelemetryFactory telemetryFactory)
+      @Nullable final ConfigurationProfile configurationProfile)
       throws SQLException {
 
     if (StringUtils.isNullOrEmpty(url)) {
@@ -102,8 +102,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
             defaultConnectionProvider,
             effectiveConnectionProvider,
             this,
-            telemetryFactory);
-    ServiceContainer serviceContainer = new ServiceContainerImpl(storageService, pluginManager, telemetryFactory);
+            serviceContainer.getTelemetryFactory());
+    serviceContainer.setConnectionPluginManager(pluginManager);
     final PluginServiceImpl pluginService = new PluginServiceImpl(
         serviceContainer,
         props,
@@ -131,7 +131,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       @NonNull final PluginService pluginService,
       @NonNull final HostListProviderService hostListProviderService,
       @NonNull final PluginManagerService pluginManagerService,
-      @NonNull final StorageService storageService)
+      @NonNull final StorageService storageService,
+      @NonNull final MonitorService monitorService)
       throws SQLException {
 
     if (StringUtils.isNullOrEmpty(url)) {
@@ -140,6 +141,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
     ServiceContainer serviceContainer = new ServiceContainerImpl(
         storageService,
+        monitorService,
         connectionPluginManager,
         telemetryFactory,
         hostListProviderService,

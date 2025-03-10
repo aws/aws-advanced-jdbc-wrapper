@@ -73,9 +73,6 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.ServiceContainer;
-import software.amazon.jdbc.util.ServiceContainerImpl;
-import software.amazon.jdbc.util.storage.StorageService;
-import software.amazon.jdbc.util.storage.StorageServiceImpl;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -108,12 +105,11 @@ public class AwsSecretsManagerConnectionPluginTest {
   private static final GetSecretValueResponse INVALID_GET_SECRET_VALUE_RESPONSE =
       GetSecretValueResponse.builder().secretString(INVALID_SECRET_STRING).build();
   private static final Properties TEST_PROPS = new Properties();
-  private static final StorageService storageService = new StorageServiceImpl();
-  private static ServiceContainer serviceContainer;
   private AwsSecretsManagerConnectionPlugin plugin;
 
   private AutoCloseable closeable;
 
+  @Mock ServiceContainer mockServiceContainer;
   @Mock SecretsManagerClient mockSecretsManagerClient;
   @Mock GetSecretValueRequest mockGetValueRequest;
   @Mock JdbcCallable<Connection, SQLException> connectFunc;
@@ -140,6 +136,7 @@ public class AwsSecretsManagerConnectionPluginTest {
     when(mockDialectManager.getDialect(anyString(), anyString(), any(Properties.class)))
         .thenReturn(mockTopologyAwareDialect);
 
+    when(mockServiceContainer.getConnectionPluginManager()).thenReturn(mockConnectionPluginManager);
     when(mockService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockConnectionPluginManager.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
@@ -148,7 +145,6 @@ public class AwsSecretsManagerConnectionPluginTest {
     // noinspection unchecked
     when(mockTelemetryFactory.createGauge(anyString(), any(GaugeCallable.class))).thenReturn(mockTelemetryGauge);
 
-    serviceContainer = new ServiceContainerImpl(storageService, mockConnectionPluginManager, mockTelemetryFactory);
     this.plugin = new AwsSecretsManagerConnectionPlugin(
         mockService,
         TEST_PROPS,
@@ -284,7 +280,7 @@ public class AwsSecretsManagerConnectionPluginTest {
 
   private @NotNull PluginServiceImpl getPluginService(String protocol) throws SQLException {
     return new PluginServiceImpl(
-        serviceContainer,
+        mockServiceContainer,
         new ExceptionManager(),
         TEST_PROPS,
         "url",
@@ -457,7 +453,7 @@ public class AwsSecretsManagerConnectionPluginTest {
     SECRET_ID_PROPERTY.set(props, arn);
 
     this.plugin = spy(new AwsSecretsManagerConnectionPlugin(
-        new PluginServiceImpl(serviceContainer, props, "url", TEST_PG_PROTOCOL, mockTargetDriverDialect),
+        new PluginServiceImpl(mockServiceContainer, props, "url", TEST_PG_PROTOCOL, mockTargetDriverDialect),
         props,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest));
@@ -477,7 +473,7 @@ public class AwsSecretsManagerConnectionPluginTest {
     REGION_PROPERTY.set(props, expectedRegion.toString());
 
     this.plugin = spy(new AwsSecretsManagerConnectionPlugin(
-        new PluginServiceImpl(serviceContainer, props, "url", TEST_PG_PROTOCOL, mockTargetDriverDialect),
+        new PluginServiceImpl(mockServiceContainer, props, "url", TEST_PG_PROTOCOL, mockTargetDriverDialect),
         props,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest));

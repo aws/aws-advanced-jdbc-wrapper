@@ -55,7 +55,6 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.storage.ItemCategory;
-import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class PluginServiceImpl implements PluginService, CanReleaseResources,
@@ -67,7 +66,6 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache = new CacheMap<>();
   protected final ServiceContainer serviceContainer;
   protected final ConnectionPluginManager pluginManager;
-  protected final StorageService storageService;
   private final Properties props;
   private final String originalUrl;
   private final String driverProtocol;
@@ -147,7 +145,6 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     this.exceptionManager = exceptionManager;
     this.dialectProvider = dialectProvider != null ? dialectProvider : new DialectManager(this);
     this.targetDriverDialect = targetDriverDialect;
-    this.storageService = serviceContainer.getStorageService();
     this.connectionProviderManager = new ConnectionProviderManager(
         this.pluginManager.getDefaultConnProvider(),
         this.pluginManager.getEffectiveConnProvider());
@@ -213,14 +210,14 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public StorageService getStorageService() {
-    return this.storageService;
+  public ServiceContainer getServiceContainer() {
+    return this.serviceContainer;
   }
 
   @Override
   @Deprecated
   public void setAllowedAndBlockedHosts(AllowedAndBlockedHosts allowedAndBlockedHosts) {
-    this.storageService.set(
+    this.serviceContainer.getStorageService().set(
         ItemCategory.ALLOWED_AND_BLOCKED_HOSTS, this.initialConnectionHostSpec.getHost(), allowedAndBlockedHosts);
   }
 
@@ -415,7 +412,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   @Override
   public List<HostSpec> getHosts() {
-    AllowedAndBlockedHosts hostPermissions = this.storageService.get(
+    AllowedAndBlockedHosts hostPermissions = this.serviceContainer.getStorageService().get(
         ItemCategory.ALLOWED_AND_BLOCKED_HOSTS, this.initialConnectionHostSpec.getHost(), AllowedAndBlockedHosts.class);
     if (hostPermissions == null) {
       return this.allHosts;

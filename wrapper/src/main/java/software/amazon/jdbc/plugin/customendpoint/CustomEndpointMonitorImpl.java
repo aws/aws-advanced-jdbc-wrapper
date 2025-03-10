@@ -37,6 +37,8 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.monitoring.AbstractMonitor;
+import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.ItemCategory;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -46,7 +48,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
  * The default custom endpoint monitor implementation. This class uses a background thread to monitor a given custom
  * endpoint for custom endpoint information and future changes to the custom endpoint.
  */
-public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
+public class CustomEndpointMonitorImpl extends AbstractMonitor implements CustomEndpointMonitor {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointPlugin.class.getName());
   private static final String TELEMETRY_ENDPOINT_INFO_CHANGED = "customEndpoint.infoChanged.counter";
 
@@ -76,6 +78,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
   /**
    * Constructs a CustomEndpointMonitorImpl instance for the host specified by {@code customEndpointHostSpec}.
    *
+   * @param monitorService         The monitorService used to submit this monitor.
    * @param storageService         The storage service used to store the set of allowed/blocked hosts according to the
    *                               custom endpoint info.
    * @param telemetryFactory       The telemetry factory
@@ -87,6 +90,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
    *                               information.
    */
   public CustomEndpointMonitorImpl(
+      MonitorService monitorService,
       StorageService storageService,
       TelemetryFactory telemetryFactory,
       HostSpec customEndpointHostSpec,
@@ -94,6 +98,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
       Region region,
       long refreshRateNano,
       BiFunction<HostSpec, Region, RdsClient> rdsClientFunc) {
+    super(monitorService);
     this.storageService = storageService;
     this.customEndpointHostSpec = customEndpointHostSpec;
     this.endpointIdentifier = endpointIdentifier;
@@ -111,7 +116,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
    * Analyzes a given custom endpoint for changes to custom endpoint information.
    */
   @Override
-  public void run() {
+  public void start() {
     LOGGER.fine(
         Messages.get(
             "CustomEndpointMonitorImpl.startingMonitor",
@@ -208,16 +213,11 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
     return customEndpointInfoCache.get(this.customEndpointHostSpec.getHost()) != null;
   }
 
-  @Override
-  public boolean shouldDispose() {
-    return true;
-  }
-
   /**
    * Stops the custom endpoint monitor.
    */
   @Override
-  public void close() {
+  public void stop() {
     LOGGER.fine(
         Messages.get(
             "CustomEndpointMonitorImpl.stoppingMonitor",

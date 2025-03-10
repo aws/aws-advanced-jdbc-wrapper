@@ -37,7 +37,6 @@ import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.RegionUtils;
-import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -51,21 +50,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointPlugin.class.getName());
   private static final String TELEMETRY_WAIT_FOR_INFO_COUNTER = "customEndpoint.waitForInfo.counter";
-
-  protected static final long CACHE_CLEANUP_RATE_NANO = TimeUnit.MINUTES.toNanos(1);
   protected static final RegionUtils regionUtils = new RegionUtils();
-  protected static final SlidingExpirationCacheWithCleanupThread<String, CustomEndpointMonitor> monitors =
-      new SlidingExpirationCacheWithCleanupThread<>(
-          CustomEndpointMonitor::shouldDispose,
-          (monitor) -> {
-            try {
-              monitor.close();
-            } catch (Exception ex) {
-              // ignore
-            }
-          },
-          CACHE_CLEANUP_RATE_NANO);
-
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {
@@ -209,19 +194,19 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
    * @param props The connection properties.
    */
   protected CustomEndpointMonitor createMonitorIfAbsent(Properties props) {
-    return monitors.computeIfAbsent(
+    return this.pluginService.getServiceContainer().getMonitorService().runIfAbsent(
+        CustomEndpointMonitorImpl.class,
         this.customEndpointHostSpec.getHost(),
-        (customEndpoint) -> new CustomEndpointMonitorImpl(
-            this.pluginService.getStorageService(),
+        () -> new CustomEndpointMonitorImpl(
+            this.pluginService.getServiceContainer().getMonitorService(),
+            this.pluginService.getServiceContainer().getStorageService(),
             this.pluginService.getTelemetryFactory(),
             this.customEndpointHostSpec,
             this.customEndpointId,
             this.region,
             TimeUnit.MILLISECONDS.toNanos(CUSTOM_ENDPOINT_INFO_REFRESH_RATE_MS.getLong(props)),
             this.rdsClientFunc
-        ),
-        TimeUnit.MILLISECONDS.toNanos(this.idleMonitorExpirationMs)
-    );
+        ));
   }
 
 
@@ -306,14 +291,5 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     }
 
     return jdbcMethodFunc.call();
-  }
-
-  /**
-   * Closes all active custom endpoint monitors.
-   */
-  public static void closeMonitors() {
-    LOGGER.info(Messages.get("CustomEndpointPlugin.closeMonitors"));
-    // The clear call automatically calls close() on all monitors.
-    monitors.clear();
   }
 }

@@ -74,7 +74,7 @@ import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.storage.StorageService;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 @Disabled
@@ -498,7 +498,7 @@ public class ConcurrencyTests {
     }
 
     @Override
-    public StorageService getStorageService() {
+    public ServiceContainer getServiceContainer() {
       return null;
     }
 

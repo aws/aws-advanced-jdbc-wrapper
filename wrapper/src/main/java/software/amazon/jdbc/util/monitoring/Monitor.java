@@ -21,7 +21,7 @@ public interface Monitor {
 
   void stop();
 
-  long getLastUsedTimestampNanos();
+  long getLastActivityTimestampNanos();
 
   MonitorState getState();
 

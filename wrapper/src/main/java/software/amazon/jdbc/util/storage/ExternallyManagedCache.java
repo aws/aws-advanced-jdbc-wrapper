@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class ExternallyManagedCache<K, V> {
@@ -37,7 +38,7 @@ public class ExternallyManagedCache<K, V> {
     this.timeToLiveNanos = timeToLiveNanos;
   }
 
-  public @Nullable V put(K key, V value) {
+  public @Nullable V put(@NonNull K key, @NonNull V value) {
     CacheItem cacheItem = this.cache.put(key, new CacheItem(value, timeToLiveNanos));
     if (cacheItem == null) {
       return null;
@@ -46,7 +47,7 @@ public class ExternallyManagedCache<K, V> {
     return cacheItem.item;
   }
 
-  public @Nullable V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction) {
+  public @NonNull V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction) {
     final CacheItem cacheItem = cache.compute(
         key,
         (k, valueItem) -> {
@@ -131,7 +132,7 @@ public class ExternallyManagedCache<K, V> {
   }
 
   protected class CacheItem {
-    private final V item;
+    private final @NonNull V item;
     private long expirationTimeNanos;
 
     /**
@@ -140,7 +141,7 @@ public class ExternallyManagedCache<K, V> {
      * @param item                the item value
      * @param expirationTimeNanos the amount of time before a CacheItem should be marked as expired.
      */
-    protected CacheItem(final V item, final long expirationTimeNanos) {
+    protected CacheItem(@NonNull final V item, final long expirationTimeNanos) {
       this.item = item;
       this.expirationTimeNanos = expirationTimeNanos;
     }
@@ -160,7 +161,7 @@ public class ExternallyManagedCache<K, V> {
     public int hashCode() {
       final int prime = 31;
       int result = 1;
-      result = prime * result + ((item == null) ? 0 : item.hashCode());
+      result = prime * result + item.hashCode();
       return result;
     }
 

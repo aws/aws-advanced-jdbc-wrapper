@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.util.monitoring;
 
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,6 +29,7 @@ import java.util.function.Supplier;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ShouldDisposeFunc;
 import software.amazon.jdbc.util.storage.ExternallyManagedCache;
@@ -45,7 +47,11 @@ public class MonitorServiceImpl implements MonitorService {
   }));
 
   static {
-    // TODO: add default caches once monitors have been adjusted to implement the Monitor interface
+    Set<MonitorErrorResponse> resetErrorResponse = new HashSet<>(1);
+    resetErrorResponse.add(MonitorErrorResponse.RESTART);
+    MonitorSettings customEndpointSettings = new MonitorSettings(
+        TimeUnit.MINUTES.toNanos(5), TimeUnit.MINUTES.toNanos(1), resetErrorResponse);
+    monitorCaches.put(CustomEndpointMonitorImpl.class, new CacheContainer(customEndpointSettings, null));
   }
 
   public MonitorServiceImpl() {
@@ -80,6 +86,10 @@ public class MonitorServiceImpl implements MonitorService {
     LOGGER.finest(Messages.get("MonitorServiceImpl.checkingMonitors"));
     for (CacheContainer container : monitorCaches.values()) {
       ExternallyManagedCache<Object, MonitorItem> cache = container.getCache();
+      if (cache == null) {
+        continue;
+      }
+
       // Note: the map returned by getEntries is a copy of the ExternallyManagedCache map
       for (Map.Entry<Object, MonitorItem> entry : cache.getEntries().entrySet()) {
         Object key = entry.getKey();
@@ -92,19 +102,19 @@ public class MonitorServiceImpl implements MonitorService {
         MonitorSettings monitorSettings = container.getSettings();
         removedItem = cache.removeIf(key, mi -> mi.getMonitor().getState() == MonitorState.ERROR);
         if (removedItem != null) {
-          handleMonitorError(container, key, removedItem);
+          handleMonitorError(monitorSettings.getErrorResponses(), cache, key, removedItem);
           continue;
         }
 
         long inactiveTimeoutNanos = monitorSettings.getInactiveTimeoutNanos();
         removedItem = cache.removeIf(
-            key, mi -> System.nanoTime() - mi.getMonitor().getLastUsedTimestampNanos() > inactiveTimeoutNanos);
+            key, mi -> System.nanoTime() - mi.getMonitor().getLastActivityTimestampNanos() > inactiveTimeoutNanos);
         if (removedItem != null) {
           // Monitor has been inactive for longer than the inactive timeout and is considered stuck.
           LOGGER.fine(
               Messages.get("MonitorServiceImpl.monitorStuck",
                   new Object[]{removedItem.getMonitor(), TimeUnit.NANOSECONDS.toSeconds(inactiveTimeoutNanos)}));
-          handleMonitorError(container, key, removedItem);
+          handleMonitorError(monitorSettings.getErrorResponses(), cache, key, removedItem);
           continue;
         }
 
@@ -116,14 +126,16 @@ public class MonitorServiceImpl implements MonitorService {
     }
   }
 
-  private void handleMonitorError(CacheContainer container, Object key, MonitorItem monitorItem) {
+  private void handleMonitorError(
+      Set<MonitorErrorResponse> errorResponses,
+      ExternallyManagedCache<Object, MonitorItem> cache,
+      Object key,
+      MonitorItem monitorItem) {
     Monitor monitor = monitorItem.getMonitor();
     monitor.stop();
 
-    Set<MonitorErrorResponse> errorResponses = container.getSettings().getErrorResponses();
     if (errorResponses.contains(MonitorErrorResponse.RESTART)) {
       LOGGER.fine(Messages.get("MonitorServiceImpl.restartingMonitor", new Object[]{monitor}));
-      ExternallyManagedCache<Object, MonitorItem> cache = container.getCache();
       cache.computeIfAbsent(key, k -> new MonitorItem(monitorItem.getMonitorSupplier()));
     }
   }
@@ -140,19 +152,33 @@ public class MonitorServiceImpl implements MonitorService {
         mc -> {
           ExternallyManagedCache<Object, MonitorItem> cache =
               new ExternallyManagedCache<>(true, expirationTimeoutNanos);
-          return new CacheContainer(cache, new MonitorSettings(heartbeatTimeoutNanos, errorResponses));
+          return new CacheContainer(
+              new MonitorSettings(expirationTimeoutNanos, heartbeatTimeoutNanos, errorResponses), cache);
         });
   }
 
   @Override
-  public <T extends Monitor> void runIfAbsent(Class<T> monitorClass, Object key, Supplier<T> monitorSupplier) {
+  public <T extends Monitor> T runIfAbsent(Class<T> monitorClass, Object key, Supplier<T> monitorSupplier) {
     CacheContainer cacheContainer = monitorCaches.get(monitorClass);
     if (cacheContainer == null) {
       throw new IllegalStateException(
           Messages.get("MonitorServiceImpl.monitorTypeNotRegistered", new Object[] {monitorClass}));
     }
 
-    cacheContainer.getCache().computeIfAbsent(key, k -> new MonitorItem(monitorSupplier));
+    ExternallyManagedCache<Object, MonitorItem> cache = cacheContainer.getCache();
+    if (cache == null) {
+      MonitorSettings monitorSettings = cacheContainer.getSettings();
+      cache = new ExternallyManagedCache<>(true, monitorSettings.getExpirationTimeoutNanos());
+      cacheContainer.setCache(cache);
+    }
+
+    Monitor monitor = cache.computeIfAbsent(key, k -> new MonitorItem(monitorSupplier)).getMonitor();
+    if (monitorClass.isInstance(monitor)) {
+      return monitorClass.cast(monitor);
+    }
+
+    throw new IllegalStateException(
+        Messages.get("MonitorServiceImpl.unexpectedMonitorClass", new Object[] {monitorClass, monitor}));
   }
 
   @Override
@@ -164,10 +190,15 @@ public class MonitorServiceImpl implements MonitorService {
     }
 
     ExternallyManagedCache<Object, MonitorItem> cache = cacheContainer.getCache();
+    if (cache == null) {
+      LOGGER.fine(Messages.get("MonitorServiceImpl.monitorErrorForNullCache", new Object[] {monitor, exception}));
+      return;
+    }
+
     for (Map.Entry<Object, MonitorItem> entry : cache.getEntries().entrySet()) {
       MonitorItem monitorItem = cache.removeIf(entry.getKey(), mi -> mi.getMonitor() == monitor);
       if (monitorItem != null) {
-        handleMonitorError(cacheContainer, entry.getKey(), monitorItem);
+        handleMonitorError(cacheContainer.getSettings().getErrorResponses(), cache, entry.getKey(), monitorItem);
         return;
       }
     }
@@ -179,10 +210,17 @@ public class MonitorServiceImpl implements MonitorService {
   public <T extends Monitor> void stopAndRemove(Class<T> monitorClass, Object key) {
     CacheContainer cacheContainer = monitorCaches.get(monitorClass);
     if (cacheContainer == null) {
+      LOGGER.fine(Messages.get("MonitorServiceImpl.stopAndRemoveMissingMonitorType", new Object[] {monitorClass, key}));
       return;
     }
 
-    MonitorItem monitorItem = cacheContainer.getCache().remove(key);
+    ExternallyManagedCache<Object, MonitorItem> cache = cacheContainer.getCache();
+    if (cache == null) {
+      LOGGER.fine(Messages.get("MonitorServiceImpl.stopAndRemoveNullCache", new Object[] {monitorClass, key}));
+      return;
+    }
+
+    MonitorItem monitorItem = cache.remove(key);
     if (monitorItem != null) {
       monitorItem.getMonitor().stop();
     }
@@ -192,10 +230,16 @@ public class MonitorServiceImpl implements MonitorService {
   public <T extends Monitor> void stopAndRemoveMonitors(Class<T> monitorClass) {
     CacheContainer cacheContainer = monitorCaches.get(monitorClass);
     if (cacheContainer == null) {
+      LOGGER.fine(Messages.get("MonitorServiceImpl.stopAndRemoveMonitorsMissingType", new Object[] {monitorClass}));
       return;
     }
 
     ExternallyManagedCache<Object, MonitorItem> cache = cacheContainer.getCache();
+    if (cache == null) {
+      LOGGER.fine(Messages.get("MonitorServiceImpl.stopAndRemoveMonitorsNullCache", new Object[] {monitorClass}));
+      return;
+    }
+
     for (Map.Entry<Object, MonitorItem> entry : cache.getEntries().entrySet()) {
       MonitorItem monitorItem = cache.remove(entry.getKey());
       if (monitorItem != null) {
@@ -212,21 +256,25 @@ public class MonitorServiceImpl implements MonitorService {
   }
 
   protected static class CacheContainer {
-    private @NonNull final ExternallyManagedCache<Object, MonitorItem> cache;
     private @NonNull final MonitorSettings settings;
+    private @Nullable ExternallyManagedCache<Object, MonitorItem> cache;
 
     public CacheContainer(
-        @NonNull ExternallyManagedCache<Object, MonitorItem> cache, @NonNull MonitorSettings settings) {
+        @NonNull MonitorSettings settings, @Nullable ExternallyManagedCache<Object, MonitorItem> cache) {
       this.settings = settings;
       this.cache = cache;
     }
 
-    public @NonNull ExternallyManagedCache<Object, MonitorItem> getCache() {
+    public @NonNull MonitorSettings getSettings() {
+      return settings;
+    }
+
+    public @Nullable ExternallyManagedCache<Object, MonitorItem> getCache() {
       return cache;
     }
 
-    public @NonNull MonitorSettings getSettings() {
-      return settings;
+    public void setCache(@NonNull ExternallyManagedCache<Object, MonitorItem> cache) {
+      this.cache = cache;
     }
   }
 

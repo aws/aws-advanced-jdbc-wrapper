@@ -27,11 +27,14 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
 
   protected AbstractMonitor(MonitorService monitorService) {
     this.monitorService = monitorService;
+    this.lastUsedTimestampNanos = System.nanoTime();
   }
 
   @Override
   public void run() {
     try {
+      this.state = MonitorState.RUNNING;
+      this.lastUsedTimestampNanos = System.nanoTime();
       start();
     } catch (Exception e) {
       LOGGER.fine(Messages.get("AbstractMonitor.unexpectedError", new Object[]{this, e}));
@@ -41,12 +44,17 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
   }
 
   @Override
-  public long getLastUsedTimestampNanos() {
+  public long getLastActivityTimestampNanos() {
     return this.lastUsedTimestampNanos;
   }
 
   @Override
   public MonitorState getState() {
     return this.state;
+  }
+
+  @Override
+  public boolean canDispose() {
+    return true;
   }
 }

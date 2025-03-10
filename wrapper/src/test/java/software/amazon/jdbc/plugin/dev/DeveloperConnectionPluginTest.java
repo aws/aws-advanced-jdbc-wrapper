@@ -17,11 +17,11 @@
 package software.amazon.jdbc.plugin.dev;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -38,27 +38,30 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
-import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.DialectCodes;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.ServiceContainerImpl;
+import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
+@SuppressWarnings({"resource"})
 public class DeveloperConnectionPluginTest {
-
+  private ServiceContainer serviceContainer;
+  @Mock StorageService mockStorageService;
+  @Mock MonitorService mockMonitorService;
   @Mock ConnectionProvider mockConnectionProvider;
   @Mock Connection mockConnection;
-  @Mock PluginServiceImpl mockService;
   @Mock ConnectionPluginManager mockConnectionPluginManager;
   @Mock ExceptionSimulatorConnectCallback mockConnectCallback;
   @Mock private TelemetryFactory mockTelemetryFactory;
   @Mock TelemetryContext mockTelemetryContext;
   @Mock TargetDriverDialect mockTargetDriverDialect;
-  @Mock StorageService mockStorageService;
 
   private AutoCloseable closeable;
 
@@ -70,31 +73,31 @@ public class DeveloperConnectionPluginTest {
   @BeforeEach
   void init() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
+    serviceContainer = new ServiceContainerImpl(mockStorageService, mockMonitorService, mockTelemetryFactory);
 
     when(mockConnectionProvider.connect(any(), any(), any(), any(), any())).thenReturn(mockConnection);
     when(mockConnectCallback.getExceptionToRaise(any(), any(), any(), anyBoolean())).thenReturn(null);
 
-    when(mockService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockConnectionPluginManager.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
     when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
   }
 
   @Test
+  @SuppressWarnings("try")
   public void test_RaiseException() throws SQLException {
 
     final Properties props = new Properties();
     props.put(PropertyDefinition.PLUGINS.name, "dev");
     props.put(DialectManager.DIALECT.name, DialectCodes.PG);
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
+        serviceContainer,
         props,
         "any-protocol://any-host/",
         mockConnectionProvider,
         null,
         mockTargetDriverDialect,
-        null,
-        mockStorageService,
-        mockTelemetryFactory)) {
+        null)) {
 
       ExceptionSimulator simulator = wrapper.unwrap(ExceptionSimulator.class);
       assertNotNull(simulator);
@@ -117,14 +120,13 @@ public class DeveloperConnectionPluginTest {
     props.put(PropertyDefinition.PLUGINS.name, "dev");
     props.put(DialectManager.DIALECT.name, DialectCodes.PG);
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
+        serviceContainer,
         props,
         "any-protocol://any-host/",
         mockConnectionProvider,
         null,
         mockTargetDriverDialect,
-        null,
-        mockStorageService,
-        mockTelemetryFactory)) {
+        null)) {
 
       ExceptionSimulator simulator = wrapper.unwrap(ExceptionSimulator.class);
       assertNotNull(simulator);
@@ -147,14 +149,13 @@ public class DeveloperConnectionPluginTest {
     props.put(PropertyDefinition.PLUGINS.name, "dev");
     props.put(DialectManager.DIALECT.name, DialectCodes.PG);
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
+        serviceContainer,
         props,
         "any-protocol://any-host/",
         mockConnectionProvider,
         null,
         mockTargetDriverDialect,
-        null,
-        mockStorageService,
-        mockTelemetryFactory)) {
+        null)) {
 
       ExceptionSimulator simulator = wrapper.unwrap(ExceptionSimulator.class);
       assertNotNull(simulator);
@@ -177,14 +178,13 @@ public class DeveloperConnectionPluginTest {
     props.put(PropertyDefinition.PLUGINS.name, "dev");
     props.put(DialectManager.DIALECT.name, DialectCodes.PG);
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
+        serviceContainer,
         props,
         "any-protocol://any-host/",
         mockConnectionProvider,
         null,
         mockTargetDriverDialect,
-        null,
-        mockStorageService,
-        mockTelemetryFactory)) {
+        null)) {
 
       ExceptionSimulator simulator = wrapper.unwrap(ExceptionSimulator.class);
       assertNotNull(simulator);
@@ -209,14 +209,13 @@ public class DeveloperConnectionPluginTest {
     props.put(PropertyDefinition.PLUGINS.name, "dev");
     props.put(DialectManager.DIALECT.name, DialectCodes.PG);
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
+        serviceContainer,
         props,
         "any-protocol://any-host/",
         mockConnectionProvider,
         null,
         mockTargetDriverDialect,
-        null,
-        mockStorageService,
-        mockTelemetryFactory)) {
+        null)) {
 
       ExceptionSimulator simulator = wrapper.unwrap(ExceptionSimulator.class);
       assertNotNull(simulator);
@@ -239,14 +238,13 @@ public class DeveloperConnectionPluginTest {
     props.put(PropertyDefinition.PLUGINS.name, "dev");
     props.put(DialectManager.DIALECT.name, DialectCodes.PG);
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
+        serviceContainer,
         props,
         "any-protocol://any-host/",
         mockConnectionProvider,
         null,
         mockTargetDriverDialect,
-        null,
-        mockStorageService,
-        mockTelemetryFactory)) {
+        null)) {
 
       ExceptionSimulator simulator = wrapper.unwrap(ExceptionSimulator.class);
       assertNotNull(simulator);
@@ -258,7 +256,7 @@ public class DeveloperConnectionPluginTest {
       Throwable thrownException = assertThrows(SQLException.class, wrapper::createStatement);
       assertNotNull(thrownException);
       assertNotSame(exception, thrownException);
-      assertTrue(thrownException instanceof SQLException);
+      assertInstanceOf(SQLException.class, thrownException);
       assertNotNull(thrownException.getCause());
       assertSame(thrownException.getCause(), exception);
 
@@ -278,25 +276,25 @@ public class DeveloperConnectionPluginTest {
 
     Throwable thrownException = assertThrows(
         SQLException.class,
-        () -> new ConnectionWrapper(props,
+        () -> new ConnectionWrapper(
+            serviceContainer,
+            props,
             "any-protocol://any-host/",
             mockConnectionProvider,
             null,
             mockTargetDriverDialect,
-            null,
-            mockStorageService,
-            mockTelemetryFactory));
+            null));
     assertSame(exception, thrownException);
 
     assertDoesNotThrow(
-        () -> new ConnectionWrapper(props,
+        () -> new ConnectionWrapper(
+            serviceContainer,
+            props,
             "any-protocol://any-host/",
             mockConnectionProvider,
             null,
             mockTargetDriverDialect,
-            null,
-            mockStorageService,
-            mockTelemetryFactory));
+            null));
   }
 
   @Test
@@ -309,14 +307,14 @@ public class DeveloperConnectionPluginTest {
     ExceptionSimulatorManager.setCallback(mockConnectCallback);
 
     assertDoesNotThrow(
-        () -> new ConnectionWrapper(props,
+        () -> new ConnectionWrapper(
+            serviceContainer,
+            props,
             "any-protocol://any-host/",
             mockConnectionProvider,
             null,
             mockTargetDriverDialect,
-            null,
-            mockStorageService,
-            mockTelemetryFactory));
+            null));
   }
 
   @Test
@@ -334,24 +332,24 @@ public class DeveloperConnectionPluginTest {
 
     Throwable thrownException = assertThrows(
         SQLException.class,
-        () -> new ConnectionWrapper(props,
+        () -> new ConnectionWrapper(
+            serviceContainer,
+            props,
             "any-protocol://any-host/",
             mockConnectionProvider,
             null,
             mockTargetDriverDialect,
-            null,
-            mockStorageService,
-            mockTelemetryFactory));
+            null));
     assertSame(exception, thrownException);
 
     assertDoesNotThrow(
-        () -> new ConnectionWrapper(props,
+        () -> new ConnectionWrapper(
+            serviceContainer,
+            props,
             "any-protocol://any-host/",
             mockConnectionProvider,
             null,
             mockTargetDriverDialect,
-            null,
-            mockStorageService,
-            mockTelemetryFactory));
+            null));
   }
 }

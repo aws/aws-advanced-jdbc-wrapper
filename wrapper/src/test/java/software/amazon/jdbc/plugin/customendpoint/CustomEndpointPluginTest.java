@@ -19,7 +19,6 @@ package software.amazon.jdbc.plugin.customendpoint;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -32,7 +31,6 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -83,7 +81,6 @@ public class CustomEndpointPluginTest {
   void cleanUp() throws Exception {
     closeable.close();
     props.clear();
-    CustomEndpointPlugin.monitors.clear();
   }
 
   private CustomEndpointPlugin getSpyPlugin() {
@@ -146,15 +143,5 @@ public class CustomEndpointPluginTest {
 
     verify(spyPlugin, times(1)).createMonitorIfAbsent(eq(props));
     verify(mockJdbcMethodFunc, times(1)).call();
-  }
-
-  @Test
-  public void testCloseMonitors() throws Exception {
-    CustomEndpointPlugin.monitors.computeIfAbsent("test-monitor", (key) -> mockMonitor, TimeUnit.SECONDS.toNanos(30));
-
-    CustomEndpointPlugin.closeMonitors();
-
-    // close() may be called by the cleanup thread in addition to the call below.
-    verify(mockMonitor, atLeastOnce()).close();
   }
 }

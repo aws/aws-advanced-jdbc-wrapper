@@ -20,12 +20,19 @@ import java.util.Set;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 public class MonitorSettings {
+  private final long expirationTimeoutNanos;
   private final long inactiveTimeoutNanos;
   private @NonNull final Set<MonitorErrorResponse> errorResponses;
 
-  public MonitorSettings(long inactiveTimeoutNanos, @NonNull Set<MonitorErrorResponse> errorResponses) {
+  public MonitorSettings(
+      long expirationTimeoutNanos, long inactiveTimeoutNanos, @NonNull Set<MonitorErrorResponse> errorResponses) {
+    this.expirationTimeoutNanos = expirationTimeoutNanos;
     this.inactiveTimeoutNanos = inactiveTimeoutNanos;
     this.errorResponses = errorResponses;
+  }
+
+  public long getExpirationTimeoutNanos() {
+    return expirationTimeoutNanos;
   }
 
   public long getInactiveTimeoutNanos() {

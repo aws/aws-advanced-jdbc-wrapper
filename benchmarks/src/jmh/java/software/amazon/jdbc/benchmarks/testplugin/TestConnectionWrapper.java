@@ -23,6 +23,7 @@ import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
@@ -37,9 +38,10 @@ public class TestConnectionWrapper extends ConnectionWrapper {
       @NonNull PluginService pluginService,
       @NonNull HostListProviderService hostListProviderService,
       @NonNull PluginManagerService pluginManagerService,
-      @NonNull StorageService storageService)
+      @NonNull StorageService storageService,
+      @NonNull MonitorService monitorService)
       throws SQLException {
     super(props, url, connectionPluginManager, telemetryFactory, pluginService, hostListProviderService,
-        pluginManagerService, storageService);
+        pluginManagerService, storageService, monitorService);
   }
 }

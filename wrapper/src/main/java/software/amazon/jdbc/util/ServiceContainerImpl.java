@@ -17,30 +17,32 @@
 package software.amazon.jdbc.util;
 
 import software.amazon.jdbc.ConnectionPluginManager;
-import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class ServiceContainerImpl implements ServiceContainer {
-  private final StorageService storageService;
-  private final ConnectionPluginManager connectionPluginManager;
-  private final TelemetryFactory telemetryFactory;
-
+  private StorageService storageService;
+  private MonitorService monitorService;
+  private TelemetryFactory telemetryFactory;
+  private ConnectionPluginManager connectionPluginManager;
   private HostListProviderService hostListProviderService;
   private PluginService pluginService;
   private PluginManagerService pluginManagerService;
 
   public ServiceContainerImpl(
       StorageService storageService,
+      MonitorService monitorService,
       ConnectionPluginManager connectionPluginManager,
       TelemetryFactory telemetryFactory,
       HostListProviderService hostListProviderService,
       PluginService pluginService,
       PluginManagerService pluginManagerService) {
-    this(storageService, connectionPluginManager, telemetryFactory);
+    this(storageService, monitorService, telemetryFactory);
+    this.connectionPluginManager = connectionPluginManager;
     this.hostListProviderService = hostListProviderService;
     this.pluginService = pluginService;
     this.pluginManagerService = pluginManagerService;
@@ -48,61 +50,72 @@ public class ServiceContainerImpl implements ServiceContainer {
 
   public ServiceContainerImpl(
       StorageService storageService,
-      ConnectionPluginManager connectionPluginManager,
+      MonitorService monitorService,
       TelemetryFactory telemetryFactory) {
     this.storageService = storageService;
-    this.connectionPluginManager = connectionPluginManager;
+    this.monitorService = monitorService;
     this.telemetryFactory = telemetryFactory;
   }
 
   public StorageService getStorageService() {
-    return storageService;
+    return this.storageService;
   }
 
-  public ConnectionPluginManager getConnectionPluginManager() {
-    return connectionPluginManager;
+  public MonitorService getMonitorService() {
+    return this.monitorService;
   }
 
   public TelemetryFactory getTelemetryFactory() {
-    return telemetryFactory;
+    return this.telemetryFactory;
+  }
+
+  public ConnectionPluginManager getConnectionPluginManager() {
+    return this.connectionPluginManager;
   }
 
   public HostListProviderService getHostListProviderService() {
-    return hostListProviderService;
+    return this.hostListProviderService;
   }
 
   public PluginService getPluginService() {
-    return pluginService;
+    return this.pluginService;
   }
 
   public PluginManagerService getPluginManagerService() {
-    return pluginManagerService;
+    return this.pluginManagerService;
   }
 
   @Override
-  public StorageService setStorageService(StorageService storageService) {
-    return null;
+  public void setMonitorService(MonitorService monitorService) {
+    this.monitorService = monitorService;
   }
 
   @Override
-  public ConnectionPluginManager setConnectionPluginManager(ConnectionProviderManager connectionPluginManager) {
-    return null;
+  public void setStorageService(StorageService storageService) {
+    this.storageService = storageService;
   }
 
   @Override
-  public TelemetryFactory setTelemetryFactory(TelemetryFactory telemetryFactory) {
-    return null;
+  public void setTelemetryFactory(TelemetryFactory telemetryFactory) {
+    this.telemetryFactory = telemetryFactory;
   }
 
+  @Override
+  public void setConnectionPluginManager(ConnectionPluginManager connectionPluginManager) {
+    this.connectionPluginManager = connectionPluginManager;
+  }
 
+  @Override
   public void setHostListProviderService(HostListProviderService hostListProviderService) {
     this.hostListProviderService = hostListProviderService;
   }
 
+  @Override
   public void setPluginService(PluginService pluginService) {
     this.pluginService = pluginService;
   }
 
+  @Override
   public void setPluginManagerService(PluginManagerService pluginManagerService) {
     this.pluginManagerService = pluginManagerService;
   }

@@ -54,8 +54,9 @@ public interface MonitorService {
    * @param key             the key for the monitor, eg
    *                        "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
    * @param monitorSupplier a supplier lambda that can be used to create the monitor if it is absent.
+   * @return the new or existing monitor.
    */
-  <T extends Monitor> void runIfAbsent(Class<T> monitorClass, Object key, Supplier<T> monitorSupplier);
+  <T extends Monitor> T runIfAbsent(Class<T> monitorClass, Object key, Supplier<T> monitorSupplier);
 
   /**
    * Process a monitor error. The monitor service will respond to the error based on the monitor error responses defined
