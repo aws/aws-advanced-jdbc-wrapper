@@ -17,14 +17,12 @@
 package software.amazon.jdbc.hostlistprovider;
 
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.Properties;
+import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostListProviderService;
@@ -34,6 +32,8 @@ import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
 
 public class ConnectionStringHostListProvider implements StaticHostListProvider {
+
+  private static final Logger LOGGER = Logger.getLogger(ConnectionStringHostListProvider.class.getName());
 
   final List<HostSpec> hostList = new ArrayList<>();
   Properties properties;
@@ -115,8 +115,8 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
 
   @Override
   public HostSpec identifyConnection(Connection connection) throws SQLException {
-    throw new UnsupportedOperationException(
-        Messages.get("ConnectionStringHostListProvider.unsupportedIdentifyConnection"));
+    LOGGER.finest(Messages.get("ConnectionStringHostListProvider.unsupportedIdentifyConnection"));
+    return null;
   }
 
   @Override

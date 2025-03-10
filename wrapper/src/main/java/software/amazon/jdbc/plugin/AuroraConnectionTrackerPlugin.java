@@ -96,7 +96,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin impl
 
     if (conn != null) {
       final RdsUrlType type = this.rdsHelper.identifyRdsType(hostSpec.getHost());
-      if (type.isRdsCluster() || type == RdsUrlType.OTHER) {
+      if (type.isRdsCluster() || type == RdsUrlType.OTHER || type == RdsUrlType.IP_ADDRESS) {
         hostSpec.resetAliases();
         this.pluginService.fillAliases(conn, hostSpec);
       }
