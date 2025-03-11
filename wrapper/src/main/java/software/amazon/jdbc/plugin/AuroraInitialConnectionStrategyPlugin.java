@@ -196,7 +196,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
           this.pluginService.forceRefreshHostList(writerCandidateConn);
           writerCandidate = this.pluginService.identifyConnection(writerCandidateConn);
 
-          if (writerCandidate.getRole() != HostRole.WRITER) {
+          if (writerCandidate == null || writerCandidate.getRole() != HostRole.WRITER) {
             // Shouldn't be here. But let's try again.
             this.closeConnection(writerCandidateConn);
             this.delay(retryDelayMs);
@@ -272,6 +272,12 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
           readerCandidateConn = connectFunc.call();
           this.pluginService.forceRefreshHostList(readerCandidateConn);
           readerCandidate = this.pluginService.identifyConnection(readerCandidateConn);
+
+          if (readerCandidate == null) {
+            this.closeConnection(readerCandidateConn);
+            this.delay(retryDelayMs);
+            continue;
+          }
 
           if (readerCandidate.getRole() != HostRole.READER) {
             if (this.hasNoReaders()) {
