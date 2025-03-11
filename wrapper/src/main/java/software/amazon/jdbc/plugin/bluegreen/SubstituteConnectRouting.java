@@ -24,10 +24,10 @@ public class SubstituteConnectRouting extends BaseConnectRouting {
   protected static final RdsUtils RDS_UTILS = new RdsUtils();
 
   protected final HostSpec substituteHostSpec;
-  protected final List<String> iamHosts;
+  protected final List<HostSpec> iamHosts;
 
   public SubstituteConnectRouting(@Nullable String hostAndPort, @Nullable BlueGreenRole role,
-      @NonNull final HostSpec substituteHostSpec, @Nullable final List<String> iamHosts) {
+      @NonNull final HostSpec substituteHostSpec, @Nullable final List<HostSpec> iamHosts) {
     super(hostAndPort, role);
     this.substituteHostSpec = substituteHostSpec;
     this.iamHosts = iamHosts;
@@ -46,26 +46,29 @@ public class SubstituteConnectRouting extends BaseConnectRouting {
       boolean iamInUse = pluginService.isPluginInUse(IamAuthConnectionPlugin.class);
 
       if (iamInUse && (this.iamHosts == null || this.iamHosts.isEmpty())) {
-        throw new SQLException("Connecting with IP address while IAM authentication is enabled requires an IAM host.");
+        throw new SQLException("Connecting with IP address when IAM authentication is enabled requires an 'iamHost' parameter.");
       }
 
       if (iamInUse) {
-        for (String iamHost : this.iamHosts) {
+        for (HostSpec iamHost : this.iamHosts) {
           HostSpec reroutedHostSpec = pluginService.getHostSpecBuilder().copyFrom(this.substituteHostSpec)
-              .hostId(iamHost)
+              .hostId(iamHost.getHost())
               .availability(HostAvailability.AVAILABLE)
               .build();
-          reroutedHostSpec.addAlias(iamHost);
+          reroutedHostSpec.addAlias(iamHost.getHost());
 
           final Properties rerouteProperties = PropertyUtils.copyProperties(props);
-          //rerouteProperties.setProperty(IamAuthConnectionPlugin.IAM_EXPIRATION.name, "0");
-          IamAuthConnectionPlugin.IAM_HOST.set(rerouteProperties, iamHost);
-          //LOGGER.info("iamHost: " + IamAuthConnectionPlugin.IAM_HOST.getString(rerouteProperties));
+          //IamAuthConnectionPlugin.IAM_EXPIRATION.set(rerouteProperties, "0");
+          IamAuthConnectionPlugin.IAM_HOST.set(rerouteProperties, iamHost.getHost());
+          if (iamHost.isPortSpecified()) {
+            IamAuthConnectionPlugin.IAM_DEFAULT_PORT.set(rerouteProperties, String.valueOf(iamHost.getPort()));
+          }
+          LOGGER.finest("Apply iamHost: " + IamAuthConnectionPlugin.IAM_HOST.getString(rerouteProperties));
 
           try {
             return pluginService.connect(reroutedHostSpec, rerouteProperties);
           } catch (SQLException sqlException) {
-            if (!pluginService.isLoginException(sqlException)) {
+            if (!pluginService.isLoginException(sqlException, pluginService.getTargetDriverDialect())) {
               throw sqlException;
             }
             // do nothing

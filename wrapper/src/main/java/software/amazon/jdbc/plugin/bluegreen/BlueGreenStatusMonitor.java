@@ -110,6 +110,7 @@ public class BlueGreenStatusMonitor {
   protected List<HostSpec> topology = new ArrayList<>();
   protected Map<String, String> ipAddressesByHostAndPortMap = new ConcurrentHashMap<>();
   protected BlueGreenPhases currentPhase = BlueGreenPhases.NOT_CREATED;
+  protected Set<String> endpoints = ConcurrentHashMap.newKeySet();
 
   protected String version = "1.0";
 
@@ -161,7 +162,9 @@ public class BlueGreenStatusMonitor {
 
             if (this.onStatusChangeFunc != null) {
               this.onStatusChangeFunc.onStatusChanged(
-                  this.role, this.currentPhase, this.topology, this.ipAddressesByHostAndPortMap);
+                  this.role,
+                  new BlueGreenInterimStatus(
+                      this.currentPhase, this.topology, this.ipAddressesByHostAndPortMap, this.endpoints));
             }
 
             long delay = checkIntervalMap.getOrDefault(
@@ -248,6 +251,10 @@ public class BlueGreenStatusMonitor {
     }
 
     this.topology = this.hostListProvider.forceRefresh(this.connection);
+
+    if (this.topology != null) {
+      this.topology.forEach(x -> this.endpoints.add(x.getHost()));
+    }
   }
 
   protected void closeConnection() {
@@ -324,6 +331,8 @@ public class BlueGreenStatusMonitor {
 
         statusEntries.add(new StatusInfo(version, endpoint, port, phase, role));
       }
+
+      statusEntries.forEach(x -> this.endpoints.add(x.endpoint));
 
       // Check if there's a cluster writer endpoint.
       StatusInfo statusInfo = statusEntries.stream()
