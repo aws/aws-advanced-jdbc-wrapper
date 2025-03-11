@@ -16,12 +16,24 @@
 
 package software.amazon.jdbc.util.monitoring;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.StringUtils;
 
 public abstract class AbstractMonitor implements Monitor, Runnable {
-  private static Logger LOGGER = Logger.getLogger(AbstractMonitor.class.getName());
-  private final MonitorService monitorService;
+  private static final Logger LOGGER = Logger.getLogger(AbstractMonitor.class.getName());
+  protected final MonitorService monitorService;
+  protected final ExecutorService monitorExecutor = Executors.newSingleThreadExecutor(runnableTarget -> {
+    final Thread monitoringThread = new Thread(runnableTarget);
+    monitoringThread.setDaemon(true);
+    if (!StringUtils.isNullOrEmpty(monitoringThread.getName())) {
+      monitoringThread.setName(monitoringThread.getName() + "-" + getMonitorSuffix());
+    }
+    return monitoringThread;
+  });
+
   protected long lastUsedTimestampNanos;
   protected MonitorState state;
 
@@ -31,11 +43,17 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
   }
 
   @Override
+  public void start() {
+    this.monitorExecutor.submit(this);
+    this.monitorExecutor.shutdown();
+  }
+
+  @Override
   public void run() {
     try {
       this.state = MonitorState.RUNNING;
       this.lastUsedTimestampNanos = System.nanoTime();
-      start();
+      monitor();
     } catch (Exception e) {
       LOGGER.fine(Messages.get("AbstractMonitor.unexpectedError", new Object[]{this, e}));
       this.state = MonitorState.ERROR;
@@ -56,5 +74,9 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
   @Override
   public boolean canDispose() {
     return true;
+  }
+
+  private String getMonitorSuffix() {
+    return this.getClass().getSimpleName().replaceAll("[a-z]", "").toLowerCase();
   }
 }

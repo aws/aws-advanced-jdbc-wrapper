@@ -19,8 +19,6 @@ package software.amazon.jdbc.plugin.customendpoint;
 import static software.amazon.jdbc.plugin.customendpoint.MemberListType.STATIC_LIST;
 
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
@@ -36,7 +34,6 @@ import software.amazon.jdbc.AllowedAndBlockedHosts;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.ItemCategory;
@@ -62,16 +59,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
   protected final String endpointIdentifier;
   protected final Region region;
   protected final long refreshRateNano;
-
   protected final StorageService storageService;
-  protected final ExecutorService monitorExecutor = Executors.newSingleThreadExecutor(runnableTarget -> {
-    final Thread monitoringThread = new Thread(runnableTarget);
-    monitoringThread.setDaemon(true);
-    if (!StringUtils.isNullOrEmpty(monitoringThread.getName())) {
-      monitoringThread.setName(monitoringThread.getName() + "-cem");
-    }
-    return monitoringThread;
-  });
 
   private final TelemetryCounter infoChangedCounter;
 
@@ -107,16 +95,13 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
     this.rdsClient = rdsClientFunc.apply(customEndpointHostSpec, this.region);
 
     this.infoChangedCounter = telemetryFactory.createCounter(TELEMETRY_ENDPOINT_INFO_CHANGED);
-
-    this.monitorExecutor.submit(this);
-    this.monitorExecutor.shutdown();
   }
 
   /**
    * Analyzes a given custom endpoint for changes to custom endpoint information.
    */
   @Override
-  public void start() {
+  public void monitor() {
     LOGGER.fine(
         Messages.get(
             "CustomEndpointMonitorImpl.startingMonitor",

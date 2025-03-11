@@ -131,14 +131,18 @@ public class MonitorServiceImpl implements MonitorService {
   private void handleMonitorError(
       CacheContainer cacheContainer,
       Object key,
-      MonitorItem monitorItem) {
-    Monitor monitor = monitorItem.getMonitor();
+      MonitorItem oldMonitorItem) {
+    Monitor monitor = oldMonitorItem.getMonitor();
     monitor.stop();
 
     Set<MonitorErrorResponse> errorResponses = cacheContainer.getSettings().getErrorResponses();
     if (errorResponses.contains(MonitorErrorResponse.RESTART)) {
       LOGGER.fine(Messages.get("MonitorServiceImpl.restartingMonitor", new Object[]{monitor}));
-      cacheContainer.getCache().computeIfAbsent(key, k -> new MonitorItem(monitorItem.getMonitorSupplier()));
+      cacheContainer.getCache().computeIfAbsent(key, k -> {
+        MonitorItem newMonitorItem = new MonitorItem(oldMonitorItem.getMonitorSupplier());
+        newMonitorItem.getMonitor().start();
+        return newMonitorItem;
+      });
     }
   }
 
@@ -168,7 +172,11 @@ public class MonitorServiceImpl implements MonitorService {
     }
 
     Monitor monitor =
-        cacheContainer.getCache().computeIfAbsent(key, k -> new MonitorItem(monitorSupplier)).getMonitor();
+        cacheContainer.getCache().computeIfAbsent(key, k -> {
+          MonitorItem monitorItem = new MonitorItem(monitorSupplier);
+          monitorItem.getMonitor().start();
+          return monitorItem;
+        }).getMonitor();
     if (monitorClass.isInstance(monitor)) {
       return monitorClass.cast(monitor);
     }
