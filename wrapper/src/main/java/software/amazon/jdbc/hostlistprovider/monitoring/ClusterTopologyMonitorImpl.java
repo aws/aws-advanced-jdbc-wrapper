@@ -819,6 +819,18 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
             }
 
             if (!StringUtils.isNullOrEmpty(writerId)) {
+              try {
+                if (this.monitor.pluginService.getHostRole(connection) != HostRole.WRITER) {
+                  // The first connection after failover may be stale.
+                  writerId = null;
+                }
+              } catch (SQLException e) {
+                // Invalid connection, retry.
+                continue;
+              }
+            }
+
+            if (!StringUtils.isNullOrEmpty(writerId)) {
               // this prevents closing connection in finally block
               if (!this.monitor.nodeThreadsWriterConnection.compareAndSet(null, connection)) {
                 // writer connection is already setup
