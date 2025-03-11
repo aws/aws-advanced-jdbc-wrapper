@@ -17,12 +17,15 @@
 package software.amazon.jdbc.plugin.bluegreen;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 
+// It should be immutable
 public class BlueGreenStatus {
 
   private final BlueGreenPhases currentPhase;
@@ -34,7 +37,11 @@ public class BlueGreenStatus {
   private Map<String, BlueGreenRole> roleByEndpoint = new ConcurrentHashMap<>(); // all known endpoints; host and port
   private final boolean greenNodeChangedName;
 
-  // It should be immutable
+  public BlueGreenStatus(final BlueGreenPhases phase) {
+    this(phase, new HashMap<>(), new HashMap<>(), false,
+        new ArrayList<>(), new ArrayList<>(), new HashMap<>());
+  }
+
   public BlueGreenStatus(
       final BlueGreenPhases phase,
       final Map<String, String> hostIpAddresses,

@@ -5,9 +5,5 @@ import java.util.Map;
 import software.amazon.jdbc.HostSpec;
 
 public interface OnStatusChange {
-  void onStatusChanged(
-      BlueGreenRole role,
-      BlueGreenPhases blueGreenPhase,
-      List<HostSpec> topology,
-      Map<String, String> ipAddressesByHostAndPortMap);
+  void onStatusChanged(BlueGreenRole role, BlueGreenInterimStatus interimStatus);
 }

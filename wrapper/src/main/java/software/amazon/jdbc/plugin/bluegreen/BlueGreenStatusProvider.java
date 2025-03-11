@@ -16,21 +16,25 @@
 
 package software.amazon.jdbc.plugin.bluegreen;
 
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.SupportBlueGreen;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.Utils;
 
@@ -53,10 +57,6 @@ public class BlueGreenStatusProvider {
   private static final String DEFAULT_CONNECT_TIMEOUT_MS = String.valueOf(TimeUnit.SECONDS.toMillis(10));
   private static final String DEFAULT_SOCKET_TIMEOUT_MS = String.valueOf(TimeUnit.SECONDS.toMillis(10));
 
-  protected static BlueGreenStatusMonitor blueMonitor = null;
-  protected static BlueGreenStatusMonitor greenMonitor = null;
-  protected static final ReentrantLock monitorInitLock = new ReentrantLock();
-
   protected static final HashMap<BlueGreenPhases, IntervalType> checkIntervalTypeMap =
       new HashMap<BlueGreenPhases, IntervalType>() {
         {
@@ -68,6 +68,14 @@ public class BlueGreenStatusProvider {
         }
       };
 
+  protected final BlueGreenStatusMonitor[] monitors = { null, null };
+  protected int[] statusHashes = { 0, 0 };
+  protected BlueGreenInterimStatus[] interimStatuses = { null, null };
+  protected final Map<String, String> hostIpAddresses = new ConcurrentHashMap<>();
+  protected final Map<String, Pair<HostSpec, HostSpec>> correspondingNodes = new ConcurrentHashMap<>();
+  protected Map<String, BlueGreenRole> roleByEndpoint = new ConcurrentHashMap<>(); // all known endpoints; host and port
+  protected BlueGreenStatus summaryStatus = null;
+  protected final ReentrantLock monitorInitLock = new ReentrantLock();
   protected final HashMap<IntervalType, Long> checkIntervalMap = new HashMap<>();
 
   protected final PluginService pluginService;
@@ -93,11 +101,11 @@ public class BlueGreenStatusProvider {
   }
 
   protected void initMonitoring() {
-    if (blueMonitor == null || greenMonitor == null) {
+    if (monitors[BlueGreenRole.SOURCE.getValue()] == null || monitors[BlueGreenRole.TARGET.getValue()] == null) {
       monitorInitLock.lock();
       try {
-        if (blueMonitor == null) {
-          blueMonitor =
+        if (monitors[BlueGreenRole.SOURCE.getValue()] == null) {
+          monitors[BlueGreenRole.SOURCE.getValue()] =
               new BlueGreenStatusMonitor(
                   BlueGreenRole.SOURCE,
                   this.pluginService.getCurrentHostSpec(),
@@ -106,8 +114,8 @@ public class BlueGreenStatusProvider {
                   checkIntervalMap,
                   this::prepareStatus);
         }
-        if (greenMonitor == null) {
-          greenMonitor =
+        if (monitors[BlueGreenRole.TARGET.getValue()] == null) {
+          monitors[BlueGreenRole.TARGET.getValue()] =
               new BlueGreenStatusMonitor(
                   BlueGreenRole.TARGET,
                   this.pluginService.getCurrentHostSpec(),
@@ -146,15 +154,120 @@ public class BlueGreenStatusProvider {
 
   protected void prepareStatus(
       final BlueGreenRole role,
-      final BlueGreenPhases blueGreenPhase,
-      final List<HostSpec> topology,
-      final Map<String, String> ipAddressesByHostAndPortMap) {
+      final BlueGreenInterimStatus interimStatus) {
 
-    // TODO: implement
+    LOGGER.finest(String.format("%s -> %s", role, interimStatus));
 
-    String ipMap = String.join("\n   ", ipAddressesByHostAndPortMap.entrySet().stream()
-        .map(x -> String.format("%s -> %s", x.getKey(), x.getValue()))
-        .collect(Collectors.toList()));
-    LOGGER.finest(String.format("role %s, phase %s, \n%s \nIP map:\n   %s", role, blueGreenPhase, Utils.logTopology(topology), ipMap));
+    int statusHash = this.getStatusHash(interimStatus);
+    if (this.statusHashes[role.getValue()] == statusHash) {
+      // no changes detected
+      return;
+    }
+    this.statusHashes[role.getValue()] = statusHash;
+    this.interimStatuses[role.getValue()] = interimStatus;
+
+    this.hostIpAddresses.putAll(interimStatus.ipAddressesByHostAndPortMap);
+    interimStatus.endpoints.stream().forEach(x -> this.roleByEndpoint.put(x, role));
+
+    if (role == BlueGreenRole.SOURCE
+        && !Utils.isNullOrEmpty(interimStatus.topology)
+        && this.interimStatuses[role.getValue()] != null
+        && !Utils.isNullOrEmpty(this.interimStatuses[role.getValue()].topology)) {
+
+      HostSpec blueWriterHostSpec = interimStatus.topology.stream()
+          .filter(x -> x.getRole() == HostRole.WRITER)
+          .findFirst()
+          .orElse(null);
+
+      HostSpec greenWriterHostSpec = this.interimStatuses[BlueGreenRole.TARGET.getValue()].topology.stream()
+          .filter(x -> x.getRole() == HostRole.WRITER)
+          .findFirst()
+          .orElse(null);
+
+      List<HostSpec> sortedBlueReaderHostSpecs = interimStatus.topology.stream()
+          .filter(x -> x.getRole() != HostRole.WRITER)
+          .sorted(Comparator.comparing(HostSpec::getHostAndPort))
+          .collect(Collectors.toList());
+
+      List<HostSpec> sortedGreenReaderHostSpecs =
+          this.interimStatuses[BlueGreenRole.TARGET.getValue()].topology.stream()
+            .filter(x -> x.getRole() != HostRole.WRITER)
+            .sorted(Comparator.comparing(HostSpec::getHostAndPort))
+            .collect(Collectors.toList());
+
+      int greenIndex = 0;
+      this.correspondingNodes.clear();
+
+      if (blueWriterHostSpec != null) {
+        if (greenWriterHostSpec != null) {
+          this.correspondingNodes.put(
+              blueWriterHostSpec.getHostAndPort(), Pair.create(blueWriterHostSpec, greenWriterHostSpec));
+          greenIndex++;
+          greenIndex = greenIndex % sortedGreenReaderHostSpecs.size();
+        } else {
+          HostSpec anyGreenHostSpec = sortedGreenReaderHostSpecs.stream().findFirst().orElse(null);
+          if (anyGreenHostSpec != null) {
+            this.correspondingNodes.put(
+                blueWriterHostSpec.getHostAndPort(), Pair.create(blueWriterHostSpec, anyGreenHostSpec));
+          }
+        }
+      }
+
+      for (HostSpec blueHostSpec : sortedBlueReaderHostSpecs) {
+        this.correspondingNodes.put(
+            blueHostSpec.getHostAndPort(), Pair.create(blueHostSpec, sortedGreenReaderHostSpecs.get(greenIndex++)));
+        greenIndex = greenIndex % sortedGreenReaderHostSpecs.size();
+      }
+    }
+
+    switch (interimStatus.blueGreenPhase) {
+      case NOT_CREATED:
+        this.summaryStatus = new BlueGreenStatus(BlueGreenPhases.NOT_CREATED);
+        break;
+      case CREATED:
+        this.summaryStatus = new BlueGreenStatus(BlueGreenPhases.NOT_CREATED);
+        break;
+      case PREPARATION_TO_SWITCH_OVER:
+        this.summaryStatus = new BlueGreenStatus(BlueGreenPhases.NOT_CREATED);
+        break;
+      case SWITCHING_OVER:
+        this.summaryStatus = new BlueGreenStatus(BlueGreenPhases.NOT_CREATED);
+        break;
+      case POST_SWITCH_OVER:
+        this.summaryStatus = new BlueGreenStatus(BlueGreenPhases.NOT_CREATED);
+        break;
+      case SWITCH_OVER_COMPLETED:
+        this.summaryStatus = new BlueGreenStatus(BlueGreenPhases.NOT_CREATED);
+        break;
+      default:
+        throw new UnsupportedOperationException("Unknown BG phase " + interimStatus.blueGreenPhase);
+    }
+
+    this.pluginService.setStatus(BlueGreenStatus.class, this.summaryStatus, true);
+  }
+
+  protected int getStatusHash(BlueGreenInterimStatus interimStatus) {
+
+    int result = this.getStatusHash(1,
+        interimStatus.blueGreenPhase == null ? "" : interimStatus.blueGreenPhase.toString());
+    result = this.getStatusHash(result,
+        interimStatus.topology == null
+            ? ""
+            : interimStatus.topology.stream()
+                .map(x -> x.getHostAndPort() + x.getRole())
+                .sorted(Comparator.comparing(x -> x))
+                .collect(Collectors.joining(",")));
+    result = this.getStatusHash(result,
+        interimStatus.ipAddressesByHostAndPortMap == null
+            ? ""
+            : interimStatus.ipAddressesByHostAndPortMap.entrySet().stream()
+                .map(x -> x.getKey() + x.getValue())
+                .sorted(Comparator.comparing(x -> x))
+                .collect(Collectors.joining(",")));
+    return result;
+  }
+
+  protected int getStatusHash(int currentHash, String val) {
+    return currentHash * 31 + val.hashCode();
   }
 }
