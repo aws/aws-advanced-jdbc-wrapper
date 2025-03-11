@@ -38,13 +38,15 @@ public interface MonitorService {
    * @param errorResponses         a Set defining actions to take if the monitor is in an error state.
    * @param shouldDisposeFunc      a function defining whether an item should be stopped if expired. If `null` is
    *                               passed, the monitor will always be stopped if the monitor is expired.
+   * @param producedDataClass      the class of data produced by the monitor.
    */
   <T extends Monitor> void registerMonitorTypeIfAbsent(
       Class<T> monitorClass,
       long expirationTimeoutNanos,
       long heartbeatTimeoutNanos,
       Set<MonitorErrorResponse> errorResponses,
-      @Nullable ShouldDisposeFunc<T> shouldDisposeFunc);
+      @Nullable ShouldDisposeFunc<T> shouldDisposeFunc,
+      @Nullable Class<?> producedDataClass);
 
   /**
    * Creates and starts the given monitor if it does not already exist and stores it under the given monitor type and

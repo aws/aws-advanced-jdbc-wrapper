@@ -69,6 +69,13 @@ public class ExternallyManagedCache<K, V> {
     return cacheItem.item;
   }
 
+  public void extendExpiration(K key) {
+    final CacheItem cacheItem = cache.get(key);
+    if (cacheItem != null) {
+      cacheItem.extendExpiration();
+    }
+  }
+
   public @Nullable V remove(K key) {
     CacheItem cacheItem = cache.remove(key);
     if (cacheItem == null) {

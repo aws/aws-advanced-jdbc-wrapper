@@ -1,0 +1,82 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package software.amazon.jdbc.util.events;
+
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import software.amazon.jdbc.util.StringUtils;
+
+public class PeriodicEventPublisher implements EventPublisher {
+  protected static final long DEFAULT_MESSAGE_INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(30);
+  protected final Map<Class<? extends Event>, Set<EventSubscriber>> subscribers = new ConcurrentHashMap<>();
+  // ConcurrentHashMap.newKeySet() is the recommended way to get a concurrent set. A set is used to prevent duplicate
+  // event messages from being sent in the same message batch.
+  protected final Set<Event> eventMessages = ConcurrentHashMap.newKeySet();
+  protected static final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor((r -> {
+    final Thread thread = new Thread(r);
+    thread.setDaemon(true);
+    if (!StringUtils.isNullOrEmpty(thread.getName())) {
+      thread.setName(thread.getName() + "-epi");
+    }
+    return thread;
+  }));
+
+  public PeriodicEventPublisher() {
+    this(DEFAULT_MESSAGE_INTERVAL_NANOS);
+  }
+
+
+  public PeriodicEventPublisher(long messageIntervalNanos) {
+    cleanupExecutor.scheduleAtFixedRate(
+        this::sendMessages, messageIntervalNanos, messageIntervalNanos, TimeUnit.NANOSECONDS);
+  }
+
+  private void sendMessages() {
+    for (Event event : eventMessages) {
+      for (EventSubscriber subscriber : subscribers.get(event.getClass())) {
+        subscriber.processEvent(event);
+      }
+    }
+  }
+
+  @Override
+  public void subscribe(EventSubscriber subscriber, Set<Class<? extends Event>> eventClasses) {
+    for (Class<? extends Event> eventClass : eventClasses) {
+      // ConcurrentHashMap.newKeySet() is the recommended way to get a concurrent set.
+      subscribers.compute(eventClass, (k, v) -> v == null ? ConcurrentHashMap.newKeySet() : v).add(subscriber);
+    }
+  }
+
+  @Override
+  public void unsubscribe(EventSubscriber subscriber, Set<Class<? extends Event>> eventClasses) {
+    for (Class<? extends Event> eventClass : eventClasses) {
+      subscribers.computeIfPresent(eventClass, (k, v) -> {
+        v.remove(subscriber);
+        return v.isEmpty() ? null : v;
+      });
+    }
+  }
+
+  @Override
+  public void publish(Event event) {
+    eventMessages.add(event);
+  }
+}

@@ -54,6 +54,8 @@ import software.amazon.jdbc.util.ServiceContainerImpl;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.events.EventPublisher;
+import software.amazon.jdbc.util.events.PeriodicEventPublisher;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.monitoring.MonitorServiceImpl;
 import software.amazon.jdbc.util.storage.StorageService;
@@ -73,8 +75,9 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
   private static final String SERVER_NAME = "serverName";
   private static final String SERVER_PORT = "serverPort";
 
-  private static final StorageService storageService = new StorageServiceImpl();
-  private static final MonitorService monitorService = new MonitorServiceImpl();
+  private static final EventPublisher publisher = new PeriodicEventPublisher();
+  private static final StorageService storageService = new StorageServiceImpl(publisher);
+  private static final MonitorService monitorService = new MonitorServiceImpl(publisher);
 
   static {
     try {

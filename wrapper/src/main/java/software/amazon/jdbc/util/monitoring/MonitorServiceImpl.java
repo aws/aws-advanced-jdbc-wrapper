@@ -31,12 +31,18 @@ import java.util.function.Supplier;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.AllowedAndBlockedHosts;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ShouldDisposeFunc;
+import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.events.DataAccessEvent;
+import software.amazon.jdbc.util.events.Event;
+import software.amazon.jdbc.util.events.EventPublisher;
+import software.amazon.jdbc.util.events.EventSubscriber;
 import software.amazon.jdbc.util.storage.ExternallyManagedCache;
 
-public class MonitorServiceImpl implements MonitorService {
+public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   private static final Logger LOGGER = Logger.getLogger(MonitorServiceImpl.class.getName());
   protected static final long DEFAULT_CLEANUP_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(1);
   protected static final Map<Class<? extends Monitor>, CacheContainer> monitorCaches = new ConcurrentHashMap<>();
@@ -46,8 +52,13 @@ public class MonitorServiceImpl implements MonitorService {
   protected static final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor((r -> {
     final Thread thread = new Thread(r);
     thread.setDaemon(true);
+    if (!StringUtils.isNullOrEmpty(thread.getName())) {
+      thread.setName(thread.getName() + "-msi");
+    }
     return thread;
   }));
+
+  protected final EventPublisher publisher;
 
   static {
     Map<Class<? extends Monitor>, Supplier<CacheContainer>> suppliers = new HashMap<>();
@@ -56,15 +67,18 @@ public class MonitorServiceImpl implements MonitorService {
     MonitorSettings defaultSettings = new MonitorSettings(
         TimeUnit.MINUTES.toNanos(5), TimeUnit.MINUTES.toNanos(1), resetErrorResponse);
 
-    suppliers.put(CustomEndpointMonitorImpl.class, () -> new CacheContainer(defaultSettings));
+    suppliers.put(
+        CustomEndpointMonitorImpl.class, () -> new CacheContainer(defaultSettings, AllowedAndBlockedHosts.class));
     defaultSuppliers = Collections.unmodifiableMap(suppliers);
   }
 
-  public MonitorServiceImpl() {
-    initCleanupThread(DEFAULT_CLEANUP_INTERVAL_NANOS);
+  public MonitorServiceImpl(EventPublisher publisher) {
+    this(DEFAULT_CLEANUP_INTERVAL_NANOS, publisher);
   }
 
-  public MonitorServiceImpl(long cleanupIntervalNanos) {
+  public MonitorServiceImpl(long cleanupIntervalNanos, EventPublisher publisher) {
+    this.publisher = publisher;
+    this.publisher.subscribe(this, new HashSet<>(Collections.singletonList(DataAccessEvent.class)));
     initCleanupThread(cleanupIntervalNanos);
   }
 
@@ -152,10 +166,12 @@ public class MonitorServiceImpl implements MonitorService {
       long expirationTimeoutNanos,
       long heartbeatTimeoutNanos,
       Set<MonitorErrorResponse> errorResponses,
-      @Nullable ShouldDisposeFunc<T> shouldDisposeFunc) {
+      @Nullable ShouldDisposeFunc<T> shouldDisposeFunc,
+      @Nullable Class<?> producedDataClass) {
     monitorCaches.computeIfAbsent(
         monitorClass,
-        mc -> new CacheContainer(new MonitorSettings(expirationTimeoutNanos, heartbeatTimeoutNanos, errorResponses)));
+        mc -> new CacheContainer(
+            new MonitorSettings(expirationTimeoutNanos, heartbeatTimeoutNanos, errorResponses), producedDataClass));
   }
 
   @Override
@@ -243,13 +259,32 @@ public class MonitorServiceImpl implements MonitorService {
     }
   }
 
+  @Override
+  public void processEvent(Event event) {
+    if (!(event instanceof DataAccessEvent)) {
+      return;
+    }
+
+    DataAccessEvent accessEvent = (DataAccessEvent) event;
+    for (CacheContainer container : monitorCaches.values()) {
+      if (container.getProducedDataClass() == null
+          || !accessEvent.getDataClass().equals(container.getProducedDataClass())) {
+        continue;
+      }
+
+      container.getCache().extendExpiration(accessEvent.getKey());
+    }
+  }
+
   protected static class CacheContainer {
     private @NonNull final MonitorSettings settings;
     private @NonNull final ExternallyManagedCache<Object, MonitorItem> cache;
+    private @Nullable final Class<?> producedDataClass;
 
-    public CacheContainer(@NonNull final MonitorSettings settings) {
+    public CacheContainer(@NonNull final MonitorSettings settings, @Nullable Class<?> producedDataClass) {
       this.settings = settings;
       this.cache = new ExternallyManagedCache<>(true, settings.getExpirationTimeoutNanos());
+      this.producedDataClass = producedDataClass;
     }
 
     public @NonNull MonitorSettings getSettings() {
@@ -258,6 +293,10 @@ public class MonitorServiceImpl implements MonitorService {
 
     public @NonNull ExternallyManagedCache<Object, MonitorItem> getCache() {
       return cache;
+    }
+
+    public @Nullable Class<?> getProducedDataClass() {
+      return producedDataClass;
     }
   }
 

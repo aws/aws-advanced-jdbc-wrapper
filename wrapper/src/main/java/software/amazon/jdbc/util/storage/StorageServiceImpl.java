@@ -32,6 +32,9 @@ import software.amazon.jdbc.AllowedAndBlockedHosts;
 import software.amazon.jdbc.util.ItemDisposalFunc;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ShouldDisposeFunc;
+import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.events.DataAccessEvent;
+import software.amazon.jdbc.util.events.EventPublisher;
 
 public class StorageServiceImpl implements StorageService {
   private static final Logger LOGGER = Logger.getLogger(StorageServiceImpl.class.getName());
@@ -45,8 +48,13 @@ public class StorageServiceImpl implements StorageService {
   protected static final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor((r -> {
     final Thread thread = new Thread(r);
     thread.setDaemon(true);
+    if (!StringUtils.isNullOrEmpty(thread.getName())) {
+      thread.setName(thread.getName() + "-ssi");
+    }
     return thread;
   }));
+
+  protected final EventPublisher publisher;
 
   static {
     Map<String, Supplier<ExpirationCache<Object, ?>>> suppliers = new HashMap<>();
@@ -57,11 +65,12 @@ public class StorageServiceImpl implements StorageService {
     defaultCacheSuppliers = Collections.unmodifiableMap(suppliers);
   }
 
-  public StorageServiceImpl() {
-    initCleanupThread(DEFAULT_CLEANUP_INTERVAL_NANOS);
+  public StorageServiceImpl(EventPublisher publisher) {
+    this(DEFAULT_CLEANUP_INTERVAL_NANOS, publisher);
   }
 
-  public StorageServiceImpl(long cleanupIntervalNanos) {
+  public StorageServiceImpl(long cleanupIntervalNanos, EventPublisher publisher) {
+    this.publisher = publisher;
     initCleanupThread(cleanupIntervalNanos);
   }
 
@@ -150,6 +159,8 @@ public class StorageServiceImpl implements StorageService {
     }
 
     if (itemClass.isInstance(value)) {
+      DataAccessEvent event = new DataAccessEvent(itemCategory, itemClass, key);
+      this.publisher.publish(event);
       return itemClass.cast(value);
     }
 
