@@ -50,7 +50,6 @@ import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.util.monitoring.MonitorService;
-import software.amazon.jdbc.util.storage.ItemCategory;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -124,6 +123,7 @@ public class CustomEndpointMonitorImplTest {
         Region.US_EAST_1,
         TimeUnit.MILLISECONDS.toNanos(50),
         mockRdsClientFunc);
+    monitor.start();
 
     // Wait for 2 run cycles. The first will return an unexpected number of endpoints in the API response, the second
     // will return the expected number of endpoints (one).
@@ -132,7 +132,7 @@ public class CustomEndpointMonitorImplTest {
     monitor.stop();
 
     ArgumentCaptor<AllowedAndBlockedHosts> captor = ArgumentCaptor.forClass(AllowedAndBlockedHosts.class);
-    verify(mockStorageService).set(eq(ItemCategory.ALLOWED_AND_BLOCKED_HOSTS), eq(host.getHost()), captor.capture());
+    verify(mockStorageService).set(eq(host.getHost()), captor.capture());
     assertEquals(staticMembersSet, captor.getValue().getAllowedHostIds());
     assertNull(captor.getValue().getBlockedHostIds());
 

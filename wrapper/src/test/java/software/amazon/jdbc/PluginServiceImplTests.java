@@ -67,6 +67,7 @@ import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.StorageServiceImpl;
 
@@ -75,10 +76,11 @@ public class PluginServiceImplTests {
   private static final Properties PROPERTIES = new Properties();
   private static final String URL = "url";
   private static final String DRIVER_PROTOCOL = "driverProtocol";
-  private static final StorageService storageService = new StorageServiceImpl();
+  private StorageService storageService;
   private AutoCloseable closeable;
 
   @Mock ServiceContainer serviceContainer;
+  @Mock EventPublisher mockEventPublisher;
   @Mock ConnectionPluginManager pluginManager;
   @Mock Connection newConnection;
   @Mock Connection oldConnection;
@@ -102,6 +104,7 @@ public class PluginServiceImplTests {
     when(statement.executeQuery(any())).thenReturn(resultSet);
     when(serviceContainer.getConnectionPluginManager()).thenReturn(pluginManager);
     when(serviceContainer.getStorageService()).thenReturn(storageService);
+    storageService = new StorageServiceImpl(mockEventPublisher);
     PluginServiceImpl.hostAvailabilityExpiringCache.clear();
   }
 

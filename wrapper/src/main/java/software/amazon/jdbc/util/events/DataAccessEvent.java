@@ -20,18 +20,12 @@ import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 public class DataAccessEvent implements Event {
-  protected @NonNull String dataCategory;
   protected @NonNull Class<?> dataClass;
   protected @NonNull Object key;
 
-  public DataAccessEvent(@NonNull String dataCategory, @NonNull Class<?> dataClass, @NonNull Object key) {
-    this.dataCategory = dataCategory;
+  public DataAccessEvent(@NonNull Class<?> dataClass, @NonNull Object key) {
     this.dataClass = dataClass;
     this.key = key;
-  }
-
-  public @NonNull String getDataCategory() {
-    return dataCategory;
   }
 
   public @NonNull Class<?> getDataClass() {
@@ -57,8 +51,7 @@ public class DataAccessEvent implements Event {
     }
 
     DataAccessEvent event = (DataAccessEvent) obj;
-    return Objects.equals(this.dataCategory, event.dataCategory)
-        && Objects.equals(this.dataClass, event.dataClass)
+    return Objects.equals(this.dataClass, event.dataClass)
         && Objects.equals(this.key, event.key);
   }
 
@@ -66,7 +59,6 @@ public class DataAccessEvent implements Event {
   public int hashCode() {
     final int prime = 31;
     int result = 1;
-    result = prime * result + this.dataCategory.hashCode();
     result = prime * result + this.dataClass.hashCode();
     result = prime * result + this.key.hashCode();
     return result;

@@ -54,7 +54,6 @@ import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
-import software.amazon.jdbc.util.storage.ItemCategory;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.Topology;
 
@@ -261,7 +260,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
   }
 
   private List<HostSpec> getStoredHosts() {
-    Topology topology = storageService.get(ItemCategory.TOPOLOGY, this.clusterId, Topology.class);
+    Topology topology = storageService.get(Topology.class, this.clusterId);
     return topology == null ? null : topology.getHosts();
   }
 
@@ -597,7 +596,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
 
   protected void updateTopologyCache(final @NonNull List<HostSpec> hosts) {
     synchronized (this.requestToUpdateTopology) {
-      storageService.set(ItemCategory.TOPOLOGY, this.clusterId, new Topology(hosts));
+      storageService.set(this.clusterId, new Topology(hosts));
       synchronized (this.topologyUpdated) {
         this.requestToUpdateTopology.set(false);
 

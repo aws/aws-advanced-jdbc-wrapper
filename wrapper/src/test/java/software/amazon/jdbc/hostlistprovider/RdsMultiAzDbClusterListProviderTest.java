@@ -42,7 +42,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -60,13 +59,13 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider.FetchTopologyResult;
 import software.amazon.jdbc.util.ServiceContainer;
-import software.amazon.jdbc.util.storage.ItemCategory;
+import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.StorageServiceImpl;
 import software.amazon.jdbc.util.storage.Topology;
 
 class RdsMultiAzDbClusterListProviderTest {
-  private final StorageService storageService = new StorageServiceImpl();
+  private StorageService storageService;
   private RdsMultiAzDbClusterListProvider rdsMazDbClusterHostListProvider;
 
   @Mock private Connection mockConnection;
@@ -75,6 +74,7 @@ class RdsMultiAzDbClusterListProviderTest {
   @Mock private ServiceContainer mockServiceContainer;
   @Mock private PluginService mockPluginService;
   @Mock private HostListProviderService mockHostListProviderService;
+  @Mock private EventPublisher mockEventPublisher;
   @Mock Dialect mockTopologyAwareDialect;
   @Captor private ArgumentCaptor<String> queryCaptor;
 
@@ -88,6 +88,7 @@ class RdsMultiAzDbClusterListProviderTest {
   @BeforeEach
   void setUp() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
+    storageService = new StorageServiceImpl(mockEventPublisher);
     when(mockServiceContainer.getHostListProviderService()).thenReturn(mockHostListProviderService);
     when(mockServiceContainer.getStorageService()).thenReturn(storageService);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
@@ -98,14 +99,6 @@ class RdsMultiAzDbClusterListProviderTest {
     when(mockHostListProviderService.getDialect()).thenReturn(mockTopologyAwareDialect);
     when(mockHostListProviderService.getHostSpecBuilder())
         .thenReturn(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
-
-    storageService.registerItemCategoryIfAbsent(
-        ItemCategory.TOPOLOGY,
-        Topology.class,
-        false,
-        TimeUnit.MINUTES.toNanos(5),
-        null,
-        null);
   }
 
   @AfterEach
@@ -134,7 +127,7 @@ class RdsMultiAzDbClusterListProviderTest {
   void testGetTopology_returnCachedTopology() throws SQLException {
     rdsMazDbClusterHostListProvider = Mockito.spy(getRdsMazDbClusterHostListProvider("protocol://url/"));
     final List<HostSpec> expected = hosts;
-    storageService.set(ItemCategory.TOPOLOGY, rdsMazDbClusterHostListProvider.clusterId, new Topology(expected));
+    storageService.set(rdsMazDbClusterHostListProvider.clusterId, new Topology(expected));
 
     final FetchTopologyResult result = rdsMazDbClusterHostListProvider.getTopology(mockConnection, false);
     assertEquals(expected, result.hosts);
@@ -147,8 +140,7 @@ class RdsMultiAzDbClusterListProviderTest {
     rdsMazDbClusterHostListProvider = Mockito.spy(getRdsMazDbClusterHostListProvider("jdbc:someprotocol://url"));
     rdsMazDbClusterHostListProvider.isInitialized = true;
 
-    storageService.set(
-        ItemCategory.TOPOLOGY, rdsMazDbClusterHostListProvider.clusterId, new Topology(hosts));
+    storageService.set(rdsMazDbClusterHostListProvider.clusterId, new Topology(hosts));
 
     final List<HostSpec> newHosts = Collections.singletonList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("newHost").build());
@@ -167,8 +159,7 @@ class RdsMultiAzDbClusterListProviderTest {
     rdsMazDbClusterHostListProvider.isInitialized = true;
 
     final List<HostSpec> expected = hosts;
-    storageService.set(
-        ItemCategory.TOPOLOGY, rdsMazDbClusterHostListProvider.clusterId, new Topology(expected));
+    storageService.set(rdsMazDbClusterHostListProvider.clusterId, new Topology(expected));
 
     doReturn(new ArrayList<>()).when(rdsMazDbClusterHostListProvider).queryForTopology(mockConnection);
 
@@ -208,8 +199,7 @@ class RdsMultiAzDbClusterListProviderTest {
     rdsMazDbClusterHostListProvider = getRdsMazDbClusterHostListProvider("jdbc:someprotocol://url");
 
     final List<HostSpec> expected = hosts;
-    storageService.set(
-        ItemCategory.TOPOLOGY, rdsMazDbClusterHostListProvider.clusterId, new Topology(expected));
+    storageService.set(rdsMazDbClusterHostListProvider.clusterId, new Topology(expected));
 
     final List<HostSpec> result = rdsMazDbClusterHostListProvider.getStoredTopology();
     assertEquals(expected, result);
@@ -233,7 +223,7 @@ class RdsMultiAzDbClusterListProviderTest {
     doReturn(topologyClusterA)
         .when(provider1).queryForTopology(any(Connection.class));
 
-    assertEquals(0, storageService.size(ItemCategory.TOPOLOGY));
+    assertEquals(0, storageService.size(Topology.class));
 
     final List<HostSpec> topologyProvider1 = provider1.refresh(Mockito.mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider1);
@@ -255,7 +245,7 @@ class RdsMultiAzDbClusterListProviderTest {
     final List<HostSpec> topologyProvider2 = provider2.refresh(Mockito.mock(Connection.class));
     assertEquals(topologyClusterB, topologyProvider2);
 
-    assertEquals(2, storageService.size(ItemCategory.TOPOLOGY));
+    assertEquals(2, storageService.size(Topology.class));
   }
 
   @Test
@@ -285,7 +275,7 @@ class RdsMultiAzDbClusterListProviderTest {
 
     doReturn(topologyClusterA).when(provider1).queryForTopology(any(Connection.class));
 
-    assertEquals(0, storageService.size(ItemCategory.TOPOLOGY));
+    assertEquals(0, storageService.size(Topology.class));
 
     final List<HostSpec> topologyProvider1 = provider1.refresh(Mockito.mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider1);
@@ -302,7 +292,7 @@ class RdsMultiAzDbClusterListProviderTest {
     final List<HostSpec> topologyProvider2 = provider2.refresh(Mockito.mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider2);
 
-    assertEquals(1, storageService.size(ItemCategory.TOPOLOGY));
+    assertEquals(1, storageService.size(Topology.class));
   }
 
   @Test
@@ -332,7 +322,7 @@ class RdsMultiAzDbClusterListProviderTest {
 
     doReturn(topologyClusterA).when(provider1).queryForTopology(any(Connection.class));
 
-    assertEquals(0, storageService.size(ItemCategory.TOPOLOGY));
+    assertEquals(0, storageService.size(Topology.class));
 
     final List<HostSpec> topologyProvider1 = provider1.refresh(Mockito.mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider1);
@@ -349,7 +339,7 @@ class RdsMultiAzDbClusterListProviderTest {
     final List<HostSpec> topologyProvider2 = provider2.refresh(Mockito.mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider2);
 
-    assertEquals(1, storageService.size(ItemCategory.TOPOLOGY));
+    assertEquals(1, storageService.size(Topology.class));
   }
 
   @Test
@@ -379,7 +369,7 @@ class RdsMultiAzDbClusterListProviderTest {
 
     doAnswer(a -> topologyClusterA).when(provider1).queryForTopology(any(Connection.class));
 
-    assertEquals(0, storageService.size(ItemCategory.TOPOLOGY));
+    assertEquals(0, storageService.size(Topology.class));
 
     List<HostSpec> topologyProvider1 = provider1.refresh(Mockito.mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider1);
@@ -399,7 +389,7 @@ class RdsMultiAzDbClusterListProviderTest {
     assertNotEquals(provider1.clusterId, provider2.clusterId);
     assertFalse(provider1.isPrimaryClusterId);
     assertTrue(provider2.isPrimaryClusterId);
-    assertEquals(2, storageService.size(ItemCategory.TOPOLOGY));
+    assertEquals(2, storageService.size(Topology.class));
     assertEquals("cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com",
         RdsMultiAzDbClusterListProvider.suggestedPrimaryClusterIdCache.get(provider1.clusterId));
 

@@ -36,7 +36,6 @@ import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
 import software.amazon.jdbc.util.monitoring.MonitorService;
-import software.amazon.jdbc.util.storage.ItemCategory;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -159,8 +158,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
             allowedAndBlockedHosts = new AllowedAndBlockedHosts(null, endpointInfo.getExcludedMembers());
           }
 
-          this.storageService.set(
-              ItemCategory.ALLOWED_AND_BLOCKED_HOSTS, this.customEndpointHostSpec.getHost(), allowedAndBlockedHosts);
+          this.storageService.set(this.customEndpointHostSpec.getHost(), allowedAndBlockedHosts);
           customEndpointInfoCache.put(
               this.customEndpointHostSpec.getHost(), endpointInfo, CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO);
           this.infoChangedCounter.inc();

@@ -58,7 +58,6 @@ import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
-import software.amazon.jdbc.util.storage.ItemCategory;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.Topology;
 
@@ -232,7 +231,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
    *     Returns an empty list if isn't available or is invalid (doesn't contain a writer).
    * @throws SQLException if errors occurred while retrieving the topology.
    */
-  public FetchTopologyResult getTopology(final Connection conn, final boolean forceUpdate) throws SQLException {
+  protected FetchTopologyResult getTopology(final Connection conn, final boolean forceUpdate) throws SQLException {
     init();
 
     final String suggestedPrimaryClusterId = suggestedPrimaryClusterIdCache.get(this.clusterId);
@@ -268,7 +267,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       final List<HostSpec> hosts = queryForTopology(conn);
 
       if (!Utils.isNullOrEmpty(hosts)) {
-        storageService.set(ItemCategory.TOPOLOGY, this.clusterId, new Topology(hosts));
+        storageService.set(this.clusterId, new Topology(hosts));
         if (needToSuggest) {
           this.suggestPrimaryCluster(hosts);
         }
@@ -289,7 +288,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   }
 
   protected ClusterSuggestedResult getSuggestedClusterId(final String url) {
-    Map<String, Topology> entries = storageService.getEntries(ItemCategory.TOPOLOGY);
+    Map<String, Topology> entries = storageService.getEntries(Topology.class);
     if (entries == null) {
       return null;
     }
@@ -326,7 +325,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       primaryClusterHostUrls.add(hostSpec.getUrl());
     }
 
-    Map<String, Topology> entries = storageService.getEntries(ItemCategory.TOPOLOGY);
+    Map<String, Topology> entries = storageService.getEntries(Topology.class);
     if (entries == null) {
       return;
     }
@@ -509,7 +508,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
    *     cached topology is outdated, it returns null.
    */
   public @Nullable List<HostSpec> getStoredTopology() {
-    Topology topology = storageService.get(ItemCategory.TOPOLOGY, this.clusterId, Topology.class);
+    Topology topology = storageService.get(Topology.class, this.clusterId);
     return topology == null ? null : topology.getHosts();
   }
 
@@ -525,7 +524,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
    * Clear topology cache for the current cluster.
    */
   public void clear() {
-    storageService.remove(ItemCategory.TOPOLOGY, this.clusterId);
+    storageService.remove(Topology.class, this.clusterId);
   }
 
   @Override
@@ -571,7 +570,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   }
 
   private void validateHostPatternSetting(final String hostPattern) {
-    if (!this.rdsHelper.isDnsPatternValid(hostPattern)) {
+    if (!rdsHelper.isDnsPatternValid(hostPattern)) {
       // "Invalid value for the 'clusterInstanceHostPattern' configuration setting - the host
       // pattern must contain a '?'
       // character as a placeholder for the DB instance identifiers of the instances in the cluster"
@@ -580,7 +579,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       throw new RuntimeException(message);
     }
 
-    final RdsUrlType rdsUrlType = this.rdsHelper.identifyRdsType(hostPattern);
+    final RdsUrlType rdsUrlType = rdsHelper.identifyRdsType(hostPattern);
     if (rdsUrlType == RdsUrlType.RDS_PROXY) {
       // "An RDS Proxy url can't be used as the 'clusterInstanceHostPattern' configuration setting."
       final String message =
@@ -599,7 +598,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
     }
   }
 
-  static class FetchTopologyResult {
+  protected static class FetchTopologyResult {
 
     public List<HostSpec> hosts;
     public boolean isCachedData;

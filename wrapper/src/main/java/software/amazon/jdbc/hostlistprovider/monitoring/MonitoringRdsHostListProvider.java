@@ -32,7 +32,6 @@ import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
-import software.amazon.jdbc.util.storage.ItemCategory;
 import software.amazon.jdbc.util.storage.Topology;
 
 public class MonitoringRdsHostListProvider extends RdsHostListProvider
@@ -140,10 +139,10 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
       monitors.remove(oldClusterId);
     }
 
-    final Topology existingTopology = storageService.get(ItemCategory.TOPOLOGY, oldClusterId, Topology.class);
+    final Topology existingTopology = storageService.get(Topology.class, oldClusterId);
     final List<HostSpec> existingHosts = existingTopology == null ? null : existingTopology.getHosts();
     if (existingHosts != null) {
-      storageService.set(ItemCategory.TOPOLOGY, this.clusterId, new Topology(existingHosts));
+      storageService.set(this.clusterId, new Topology(existingHosts));
     }
   }
 

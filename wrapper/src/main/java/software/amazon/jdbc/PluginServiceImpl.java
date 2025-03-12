@@ -54,7 +54,6 @@ import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.Utils;
-import software.amazon.jdbc.util.storage.ItemCategory;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class PluginServiceImpl implements PluginService, CanReleaseResources,
@@ -217,8 +216,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   @Deprecated
   public void setAllowedAndBlockedHosts(AllowedAndBlockedHosts allowedAndBlockedHosts) {
-    this.serviceContainer.getStorageService().set(
-        ItemCategory.ALLOWED_AND_BLOCKED_HOSTS, this.initialConnectionHostSpec.getHost(), allowedAndBlockedHosts);
+    this.serviceContainer.getStorageService().set(this.initialConnectionHostSpec.getHost(), allowedAndBlockedHosts);
   }
 
   @Override
@@ -413,7 +411,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   public List<HostSpec> getHosts() {
     AllowedAndBlockedHosts hostPermissions = this.serviceContainer.getStorageService().get(
-        ItemCategory.ALLOWED_AND_BLOCKED_HOSTS, this.initialConnectionHostSpec.getHost(), AllowedAndBlockedHosts.class);
+        AllowedAndBlockedHosts.class, this.initialConnectionHostSpec.getHost());
     if (hostPermissions == null) {
       return this.allHosts;
     }
