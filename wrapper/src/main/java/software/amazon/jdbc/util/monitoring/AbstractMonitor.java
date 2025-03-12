@@ -19,9 +19,13 @@ package software.amazon.jdbc.util.monitoring;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Logger;
+import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
+/**
+ * An AbstractMonitor that implements common monitor logic.
+ */
 public abstract class AbstractMonitor implements Monitor, Runnable {
   private static final Logger LOGGER = Logger.getLogger(AbstractMonitor.class.getName());
   protected final MonitorService monitorService;
@@ -29,7 +33,7 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
     final Thread monitoringThread = new Thread(runnableTarget);
     monitoringThread.setDaemon(true);
     if (!StringUtils.isNullOrEmpty(monitoringThread.getName())) {
-      monitoringThread.setName(monitoringThread.getName() + "-" + getMonitorSuffix());
+      monitoringThread.setName(monitoringThread.getName() + "-" + getMonitorNameSuffix());
     }
     return monitoringThread;
   });
@@ -48,6 +52,11 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
     this.monitorExecutor.shutdown();
   }
 
+  /**
+   * Starts the monitor workflow, making sure to set the initial state of the monitor. The monitor's workflow is wrapped
+   * in a try-catch so that unexpected exceptions are reported to the monitor service and the monitor's state is updated
+   * to {@link MonitorState#ERROR}.
+   */
   @Override
   public void run() {
     try {
@@ -76,7 +85,13 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
     return true;
   }
 
-  private String getMonitorSuffix() {
+  /**
+   * Forms the suffix for the monitor thread name by abbreviating the concrete class name. For example, a
+   * {@link CustomEndpointMonitorImpl} will have a suffix of "cemi".
+   *
+   * @return the suffix for the monitor thread name.
+   */
+  private String getMonitorNameSuffix() {
     return this.getClass().getSimpleName().replaceAll("[a-z]", "").toLowerCase();
   }
 }

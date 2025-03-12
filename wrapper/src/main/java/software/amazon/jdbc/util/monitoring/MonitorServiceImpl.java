@@ -46,9 +46,9 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   private static final Logger LOGGER = Logger.getLogger(MonitorServiceImpl.class.getName());
   protected static final long DEFAULT_CLEANUP_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(1);
   protected static final Map<Class<? extends Monitor>, CacheContainer> monitorCaches = new ConcurrentHashMap<>();
+  protected static final Map<Class<? extends Monitor>, Supplier<CacheContainer>> defaultSuppliers;
   protected static final AtomicBoolean isInitialized = new AtomicBoolean(false);
   protected static final ReentrantLock initLock = new ReentrantLock();
-  protected static final Map<Class<? extends Monitor>, Supplier<CacheContainer>> defaultSuppliers;
   protected static final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor((r -> {
     final Thread thread = new Thread(r);
     thread.setDaemon(true);
@@ -58,12 +58,10 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
     return thread;
   }));
 
-  protected final EventPublisher publisher;
-
   static {
     Map<Class<? extends Monitor>, Supplier<CacheContainer>> suppliers = new HashMap<>();
     Set<MonitorErrorResponse> resetErrorResponse =
-        new HashSet<>(Collections.singletonList(MonitorErrorResponse.RESTART));
+        new HashSet<>(Collections.singletonList(MonitorErrorResponse.RECREATE));
     MonitorSettings defaultSettings = new MonitorSettings(
         TimeUnit.MINUTES.toNanos(5), TimeUnit.MINUTES.toNanos(1), resetErrorResponse);
 
@@ -72,10 +70,20 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
     defaultSuppliers = Collections.unmodifiableMap(suppliers);
   }
 
+  protected final EventPublisher publisher;
+
   public MonitorServiceImpl(EventPublisher publisher) {
     this(DEFAULT_CLEANUP_INTERVAL_NANOS, publisher);
   }
 
+  /**
+   * Constructs a MonitorServiceImpl instance, subscribes to the given publisher's data access events, and submits a
+   * cleanup thread to supervise submitted monitors.
+   *
+   * @param cleanupIntervalNanos the interval at which the cleanup thread should check on submitted monitors, in
+   *                             nanoseconds.
+   * @param publisher            the publisher to subscribe to for data access events.
+   */
   public MonitorServiceImpl(long cleanupIntervalNanos, EventPublisher publisher) {
     this.publisher = publisher;
     this.publisher.subscribe(this, new HashSet<>(Collections.singletonList(DataAccessEvent.class)));
@@ -129,31 +137,33 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
           // Monitor has been inactive for longer than the inactive timeout and is considered stuck.
           LOGGER.fine(
               Messages.get("MonitorServiceImpl.monitorStuck",
-                  new Object[]{removedItem.getMonitor(), TimeUnit.NANOSECONDS.toSeconds(inactiveTimeoutNanos)}));
+                  new Object[] {removedItem.getMonitor(), TimeUnit.NANOSECONDS.toSeconds(inactiveTimeoutNanos)}));
           handleMonitorError(container, key, removedItem);
           continue;
         }
 
         removedItem = cache.removeExpiredIf(key, mi -> mi.getMonitor().canDispose());
         if (removedItem != null) {
+          LOGGER.fine(
+              Messages.get("MonitorServiceImpl.removedExpiredMonitor", new Object[] {removedItem.getMonitor()}));
           removedItem.getMonitor().stop();
         }
       }
     }
   }
 
-  private void handleMonitorError(
+  protected void handleMonitorError(
       CacheContainer cacheContainer,
       Object key,
-      MonitorItem oldMonitorItem) {
-    Monitor monitor = oldMonitorItem.getMonitor();
+      MonitorItem errorMonitorItem) {
+    Monitor monitor = errorMonitorItem.getMonitor();
     monitor.stop();
 
     Set<MonitorErrorResponse> errorResponses = cacheContainer.getSettings().getErrorResponses();
-    if (errorResponses.contains(MonitorErrorResponse.RESTART)) {
-      LOGGER.fine(Messages.get("MonitorServiceImpl.restartingMonitor", new Object[]{monitor}));
+    if (errorResponses.contains(MonitorErrorResponse.RECREATE)) {
+      LOGGER.fine(Messages.get("MonitorServiceImpl.restartingMonitor", new Object[] {monitor}));
       cacheContainer.getCache().computeIfAbsent(key, k -> {
-        MonitorItem newMonitorItem = new MonitorItem(oldMonitorItem.getMonitorSupplier());
+        MonitorItem newMonitorItem = new MonitorItem(errorMonitorItem.getMonitorSupplier());
         newMonitorItem.getMonitor().start();
         return newMonitorItem;
       });
@@ -187,12 +197,12 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       cacheContainer = monitorCaches.computeIfAbsent(monitorClass, k -> supplier.get());
     }
 
-    Monitor monitor =
-        cacheContainer.getCache().computeIfAbsent(key, k -> {
-          MonitorItem monitorItem = new MonitorItem(monitorSupplier);
-          monitorItem.getMonitor().start();
-          return monitorItem;
-        }).getMonitor();
+    Monitor monitor = cacheContainer.getCache().computeIfAbsent(key, k -> {
+      MonitorItem monitorItem = new MonitorItem(monitorSupplier);
+      monitorItem.getMonitor().start();
+      return monitorItem;
+    }).getMonitor();
+
     if (monitorClass.isInstance(monitor)) {
       return monitorClass.cast(monitor);
     }
@@ -205,7 +215,8 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   public void reportMonitorError(Monitor monitor, Exception exception) {
     CacheContainer cacheContainer = monitorCaches.get(monitor.getClass());
     if (cacheContainer == null) {
-      LOGGER.fine(Messages.get("MonitorServiceImpl.unregisteredMonitorError", new Object[] {monitor, exception}));
+      LOGGER.fine(
+          Messages.get("MonitorServiceImpl.monitorErrorForUnregisteredType", new Object[] {monitor, exception}));
       return;
     }
 
@@ -272,15 +283,27 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
         continue;
       }
 
+      // The data produced by the monitor in this cache with this key has been accessed recently, so we extend the
+      // monitor's expiration.
       container.getCache().extendExpiration(accessEvent.getKey());
     }
   }
 
+  /**
+   * A container that holds a cache of monitors of a given type with the related settings and info for that type.
+   */
   protected static class CacheContainer {
     private @NonNull final MonitorSettings settings;
     private @NonNull final ExternallyManagedCache<Object, MonitorItem> cache;
     private @Nullable final Class<?> producedDataClass;
 
+    /**
+     * Constructs a CacheContainer instance. As part of the constructor, a new cache will be created based on the given
+     * settings.
+     *
+     * @param settings          the settings for the cache and monitor type.
+     * @param producedDataClass the class of the data produced by the monitor type, if it produces any data.
+     */
     public CacheContainer(@NonNull final MonitorSettings settings, @Nullable Class<?> producedDataClass) {
       this.settings = settings;
       this.cache = new ExternallyManagedCache<>(true, settings.getExpirationTimeoutNanos());
@@ -300,10 +323,20 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
     }
   }
 
+  /**
+   * A container object that holds a monitor together with the supplier used to generate the monitor. The supplier can
+   * be used to recreate the monitor if it encounters an error or becomes stuck.
+   */
   protected static class MonitorItem {
     private @NonNull final Supplier<? extends Monitor> monitorSupplier;
     private @NonNull final Monitor monitor;
 
+    /**
+     * Constructs a MonitorItem instance. As part of the constructor, a new monitor will be created using the given
+     * monitor supplier.
+     *
+     * @param monitorSupplier a supplier lambda that produces a monitor.
+     */
     protected MonitorItem(@NonNull Supplier<? extends Monitor> monitorSupplier) {
       this.monitorSupplier = monitorSupplier;
       this.monitor = monitorSupplier.get();

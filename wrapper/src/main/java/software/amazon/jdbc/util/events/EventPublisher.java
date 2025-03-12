@@ -18,9 +18,13 @@ package software.amazon.jdbc.util.events;
 
 import java.util.Set;
 
+/**
+ * An event publisher that publishes events to subscribers. Subscribers can specify which types of events they would
+ * like to receive.
+ */
 public interface EventPublisher {
   /**
-   * Register the given subscriber for the given event classes.
+   * Registers the given subscriber for the given event classes.
    *
    * @param subscriber   the subscriber to be notified when the given event classes occur.
    * @param eventClasses the classes of event that the subscriber should be notified of.
@@ -28,7 +32,7 @@ public interface EventPublisher {
   void subscribe(EventSubscriber subscriber, Set<Class<? extends Event>> eventClasses);
 
   /**
-   * Unsubscribe the subscriber from the given event classes.
+   * Unsubscribes the given subscriber from the given event classes.
    *
    * @param subscriber   the subscriber to unsubscribe from the given event classes.
    * @param eventClasses the classes of events that the subscriber wants to unsubscribe from.
@@ -36,7 +40,7 @@ public interface EventPublisher {
   void unsubscribe(EventSubscriber subscriber, Set<Class<? extends Event>> eventClasses);
 
   /**
-   * Publish an event. All subscribers to the given event class will be notified of the event.
+   * Publishes an event. All subscribers to the given event class will be notified of the event.
    *
    * @param event the event to publish.
    */

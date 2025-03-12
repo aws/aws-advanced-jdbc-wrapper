@@ -16,8 +16,22 @@
 
 package software.amazon.jdbc.util.monitoring;
 
+/**
+ * Represents the different states of a monitor.
+ */
 public enum MonitorState {
+  /**
+   * The monitor is running.
+   */
   RUNNING,
+
+  /**
+   * The monitor has stopped running in an expected manner.
+   */
   STOPPED,
+
+  /**
+   * The monitor has stopped due to an unexpected error.
+   */
   ERROR
 }

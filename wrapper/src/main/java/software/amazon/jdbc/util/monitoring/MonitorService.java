@@ -23,10 +23,10 @@ import software.amazon.jdbc.util.ShouldDisposeFunc;
 
 public interface MonitorService {
   /**
-   * Register a new monitor type with the monitor service. This method needs to be called before adding new types of
-   * monitors to the monitor service, so that the monitor service knows when to dispose of a monitor.
-   * Expected monitor types ("topology" and "customEndpoint") will be added automatically during driver initialization,
-   * but this method can be called by users if they want to add a new monitor type.
+   * Registers a new monitor type with the monitor service. This method needs to be called before adding new types of
+   * monitors to the monitor service, so that the monitor service knows when to dispose of a monitor. Expected monitor
+   * types will be added automatically during driver initialization, but this method can be called by users if they want
+   * to add a new monitor type.
    *
    * @param monitorClass           the class of the monitor, eg `CustomEndpointMonitorImpl.class`.
    * @param expirationTimeoutNanos how long a monitor should be stored without use before being considered expired, in
@@ -34,7 +34,7 @@ public interface MonitorService {
    *                               monitor will be stopped.
    * @param heartbeatTimeoutNanos  a duration in nanoseconds defining the maximum amount of time that a monitor should
    *                               take between updating its last-updated timestamp. If a monitor has not updated its
-   *                               last-updated timestamp within this value it will be considered stuck.
+   *                               last-updated timestamp within this duration it will be considered stuck.
    * @param errorResponses         a Set defining actions to take if the monitor is in an error state.
    * @param shouldDisposeFunc      a function defining whether an item should be stopped if expired. If `null` is
    *                               passed, the monitor will always be stopped if the monitor is expired.
@@ -61,8 +61,8 @@ public interface MonitorService {
   <T extends Monitor> T runIfAbsent(Class<T> monitorClass, Object key, Supplier<T> monitorSupplier);
 
   /**
-   * Process a monitor error. The monitor service will respond to the error based on the monitor error responses defined
-   * when the monitor type was registered.
+   * Processes a monitor error. The monitor service will respond to the error based on the monitor error responses
+   * defined when the monitor type was registered.
    *
    * @param monitor   the monitor that encountered the unexpected exception.
    * @param exception the unexpected exception that occurred.

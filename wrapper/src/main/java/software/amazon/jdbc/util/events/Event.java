@@ -16,6 +16,8 @@
 
 package software.amazon.jdbc.util.events;
 
-// A marker interface for events that need to be communicated between different components.
+/**
+ * A marker interface for events that need to be communicated between different components.
+ */
 public interface Event {
 }

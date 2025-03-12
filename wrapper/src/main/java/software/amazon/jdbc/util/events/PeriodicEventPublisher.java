@@ -24,6 +24,10 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import software.amazon.jdbc.util.StringUtils;
 
+/**
+ * An event publisher that periodically sends out all messages received during the latest interval of time. Messages are
+ * recorded in a set so that messages of equivalent value are not duplicated in the same message batch.
+ */
 public class PeriodicEventPublisher implements EventPublisher {
   protected static final long DEFAULT_MESSAGE_INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(30);
   protected final Map<Class<? extends Event>, Set<EventSubscriber>> subscribers = new ConcurrentHashMap<>();
@@ -43,7 +47,11 @@ public class PeriodicEventPublisher implements EventPublisher {
     this(DEFAULT_MESSAGE_INTERVAL_NANOS);
   }
 
-
+  /**
+   * Constructs a PeriodicEventPublisher instance and submits a thread to periodically send message batches.
+   *
+   * @param messageIntervalNanos the rate at which messages batches should be sent, in nanoseconds.
+   */
   public PeriodicEventPublisher(long messageIntervalNanos) {
     cleanupExecutor.scheduleAtFixedRate(
         this::sendMessages, messageIntervalNanos, messageIntervalNanos, TimeUnit.NANOSECONDS);

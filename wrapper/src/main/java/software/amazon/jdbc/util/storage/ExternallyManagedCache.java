@@ -27,19 +27,44 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+/**
+ * A cache with expiration functionality that does not automatically remove expired entries. The removal of expired
+ * entries is instead handled by an external class. This class is similar to {@link ExpirationCache}, but allows users
+ * to manually renew item expiration and provides more control over the conditions in which items are removed. Disposal
+ * of removed items should be handled outside of this class.
+ *
+ * @param <K> the type of the keys in the cache.
+ * @param <V> the type of the values in the cache.
+ */
 public class ExternallyManagedCache<K, V> {
   private static final Logger LOGGER = Logger.getLogger(ExpirationCache.class.getName());
   protected final Map<K, CacheItem> cache = new ConcurrentHashMap<>();
   protected final boolean isRenewableExpiration;
   protected final long timeToLiveNanos;
 
+  /**
+   * Constructs an externally managed cache.
+   *
+   * @param isRenewableExpiration controls whether an item's expiration should be renewed when retrieved. If the item is
+   *                              expired when it is retrieved and isRenewableExpiration is true, the item's expiration
+   *                              will be renewed and the item will be returned.
+   * @param timeToLiveNanos       the duration that the item should sit in the cache before being considered expired, in
+   *                              nanoseconds.
+   */
   public ExternallyManagedCache(boolean isRenewableExpiration, long timeToLiveNanos) {
     this.isRenewableExpiration = isRenewableExpiration;
     this.timeToLiveNanos = timeToLiveNanos;
   }
 
+  /**
+   * Stores the given value in the cache at the given key.
+   *
+   * @param key   the key for the value.
+   * @param value the value to store.
+   * @return the previous value stored at the key, or null if there was no value stored at the key.
+   */
   public @Nullable V put(@NonNull K key, @NonNull V value) {
-    CacheItem cacheItem = this.cache.put(key, new CacheItem(value, timeToLiveNanos));
+    CacheItem cacheItem = this.cache.put(key, new CacheItem(value, System.nanoTime() + timeToLiveNanos));
     if (cacheItem == null) {
       return null;
     }
@@ -47,6 +72,15 @@ public class ExternallyManagedCache<K, V> {
     return cacheItem.item;
   }
 
+  /**
+   * If a value does not exist for the given key, stores the value returned by the given mapping function, unless the
+   * function returns null, in which case the key will be removed. If the
+   *
+   * @param key             the key for the new or existing value.
+   * @param mappingFunction the function to call to compute a new value.
+   * @return the current (existing or computed) value associated with the specified key, or null if the computed value
+   *     is null.
+   */
   public @NonNull V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction) {
     final CacheItem cacheItem = cache.compute(
         key,
@@ -58,24 +92,40 @@ public class ExternallyManagedCache<K, V> {
                 System.nanoTime() + this.timeToLiveNanos);
           }
 
-          // The existing value is non-expired or renewable. Keep the existing value.
+          // TODO: what if the object is expired and non-renewable? The caller needs the old value so that it can
+          //  dispose of it, but this could be confusing since computeIfAbsent returns the current value in other
+          //  classes.
           if (this.isRenewableExpiration) {
             valueItem.extendExpiration();
           }
 
+          // The existing value is non-expired or renewable. Keep the existing value.
           return valueItem;
         });
 
     return cacheItem.item;
   }
 
+  /**
+   * Extends the expiration of the item stored at the given key, if it exists.
+   *
+   * @param key the key for the value whose expiration should be extended.
+   */
   public void extendExpiration(K key) {
     final CacheItem cacheItem = cache.get(key);
+    // TODO: should we log if the key doesn't exist?
+
     if (cacheItem != null) {
       cacheItem.extendExpiration();
     }
   }
 
+  /**
+   * Removes the value stored at the given key from the cache.
+   *
+   * @param key the key for the value to be removed.
+   * @return the value that was removed, or null if the key did not exist.
+   */
   public @Nullable V remove(K key) {
     CacheItem cacheItem = cache.remove(key);
     if (cacheItem == null) {
@@ -85,6 +135,14 @@ public class ExternallyManagedCache<K, V> {
     return cacheItem.item;
   }
 
+  /**
+   * Removes the value stored at the given key if the given predicate returns true for the value. Otherwise, does
+   * nothing.
+   *
+   * @param key       the key for the value to assess for removal.
+   * @param predicate a predicate lambda that defines the condition under which the value should be removed.
+   * @return the removed value, or null if no value was removed.
+   */
   public @Nullable V removeIf(K key, Predicate<V> predicate) {
     // The function only returns a value if it was removed. A list is used to store the removed item since lambdas
     // require references to outer variables to be final.
@@ -107,6 +165,15 @@ public class ExternallyManagedCache<K, V> {
     }
   }
 
+  /**
+   * Removes the value stored at the given key if it is expired and the given predicate returns true for the value.
+   * Otherwise, does nothing.
+   *
+   * @param key       the key for the value to assess for removal.
+   * @param predicate a predicate lambda that defines the condition under which the value should be removed if it is
+   *                  also expired.
+   * @return the removed value, or null if no value was removed.
+   */
   public @Nullable V removeExpiredIf(K key, Predicate<V> predicate) {
     // The function only returns a value if it was removed. A list is used to store the removed item since lambdas
     // require references to outer variables to be final.
@@ -129,6 +196,11 @@ public class ExternallyManagedCache<K, V> {
     }
   }
 
+  /**
+   * Gets a map copy of all entries in the cache, including expired entries.
+   *
+   * @return a map copy of all entries in the cache, including expired entries.
+   */
   public Map<K, V> getEntries() {
     final Map<K, V> entries = new HashMap<>();
     for (final Map.Entry<K, CacheItem> entry : this.cache.entrySet()) {
@@ -138,14 +210,17 @@ public class ExternallyManagedCache<K, V> {
     return entries;
   }
 
+  /**
+   * A container class that holds a cache value together with the time at which the value should be considered expired.
+   */
   protected class CacheItem {
     private final @NonNull V item;
     private long expirationTimeNanos;
 
     /**
-     * CacheItem constructor.
+     * Constructs a CacheItem.
      *
-     * @param item                the item value
+     * @param item                the item value.
      * @param expirationTimeNanos the amount of time before a CacheItem should be marked as expired.
      */
     protected CacheItem(@NonNull final V item, final long expirationTimeNanos) {
@@ -153,6 +228,11 @@ public class ExternallyManagedCache<K, V> {
       this.expirationTimeNanos = expirationTimeNanos;
     }
 
+    /**
+     * Indicates whether this item is expired.
+     *
+     * @return true if this item is expired, otherwise returns false.
+     */
     protected boolean isExpired() {
       return System.nanoTime() >= expirationTimeNanos;
     }

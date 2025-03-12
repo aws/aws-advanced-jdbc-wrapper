@@ -19,10 +19,20 @@ package software.amazon.jdbc.util.events;
 import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
+/**
+ * A class defining an occurrence of data access. The class specifies the class of the data that was accessed and the
+ * key for the data.
+ */
 public class DataAccessEvent implements Event {
   protected @NonNull Class<?> dataClass;
   protected @NonNull Object key;
 
+  /**
+   * Constructor for a DataAccessEvent.
+   *
+   * @param dataClass the class of the data that was accessed.
+   * @param key       the key for the data that was accessed.
+   */
   public DataAccessEvent(@NonNull Class<?> dataClass, @NonNull Object key) {
     this.dataClass = dataClass;
     this.key = key;

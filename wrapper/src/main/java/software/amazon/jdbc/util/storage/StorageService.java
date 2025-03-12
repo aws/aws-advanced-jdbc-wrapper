@@ -23,10 +23,9 @@ import software.amazon.jdbc.util.ShouldDisposeFunc;
 
 public interface StorageService {
   /**
-   * Register a new item class with the storage service. This method needs to be called before adding new classes of
-   * items to the service, so that the service knows when and how to dispose of the item. Expected item classes
-   * (`Topology.class` and `AllowedAndBlockedHosts.class`) will be added automatically during driver initialization, but
-   * this method can be called to add new classes of items.
+   * Registers a new item class with the storage service. This method needs to be called before adding new classes of
+   * items to the service, so that the service knows when and how to dispose of the item. Expected item classes will be
+   * added automatically during driver initialization, but this method can be called to add new classes of items.
    *
    * @param itemClass              the class of the item that will be stored, eg `CustomEndpointInfo.class`.
    * @param isRenewableExpiration  controls whether the item's expiration should be renewed if the item is fetched,

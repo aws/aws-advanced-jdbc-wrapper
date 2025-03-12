@@ -18,30 +18,30 @@ package software.amazon.jdbc.util.monitoring;
 
 public interface Monitor {
   /**
-   * Submit this monitor in a separate thread to begin its monitoring tasks.
+   * Submits this monitor in a separate thread to begin its monitoring tasks.
    */
   void start();
 
   /**
-   * Execute the monitoring loop for this monitor. This method should be called in the run() method of the thread
+   * Executes the monitoring loop for this monitor. This method should be called in the run() method of the thread
    * submitted during the call to {@link #start()}.
    */
   void monitor();
 
   /**
-   * Stop the monitoring tasks for this monitor and close all resources.
+   * Stops the monitoring tasks for this monitor and close all resources.
    */
   void stop();
 
   /**
-   * Get the timestamp for the last action performed by this monitor, in nanoseconds.
+   * Gets the timestamp for the last action performed by this monitor, in nanoseconds.
    *
    * @return the timestamp for the last action performed by this monitor, in nanoseconds.
    */
   long getLastActivityTimestampNanos();
 
   /**
-   * Get the current state of this monitor.
+   * Gets the current state of this monitor.
    *
    * @return the current state of this monitor.
    */

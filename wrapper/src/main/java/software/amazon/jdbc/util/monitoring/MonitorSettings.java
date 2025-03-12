@@ -19,11 +19,24 @@ package software.amazon.jdbc.util.monitoring;
 import java.util.Set;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
+/**
+ * A class defining settings for a monitor or monitor type.
+ */
 public class MonitorSettings {
   private final long expirationTimeoutNanos;
   private final long inactiveTimeoutNanos;
   private @NonNull final Set<MonitorErrorResponse> errorResponses;
 
+  /**
+   * Constructs a MonitorSettings instance.
+   *
+   * @param expirationTimeoutNanos the amount of time that a monitor should sit in a cache before being considered
+   *                               expired.
+   * @param inactiveTimeoutNanos   a duration in nanoseconds defining the maximum amount of time that a monitor should
+   *                               take between updating its last-updated timestamp. If a monitor has not updated its
+   *                               last-updated timestamp within this duration it will be considered stuck.
+   * @param errorResponses         a Set defining actions to take if the monitor is in an error state.
+   */
   public MonitorSettings(
       long expirationTimeoutNanos, long inactiveTimeoutNanos, @NonNull Set<MonitorErrorResponse> errorResponses) {
     this.expirationTimeoutNanos = expirationTimeoutNanos;
