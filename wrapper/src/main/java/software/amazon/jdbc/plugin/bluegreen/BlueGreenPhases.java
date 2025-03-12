@@ -19,11 +19,11 @@ package software.amazon.jdbc.plugin.bluegreen;
 public enum BlueGreenPhases {
   NOT_CREATED(0),
   CREATED(1),
-  PREPARATION_TO_SWITCH_OVER(2), // nodes are accessible
-  SWITCHING_OVER(3), // active phase; nodes are not accessible
+  PREPARATION(2), // nodes are accessible
+  IN_PROGRESS(3), // active phase; nodes are not accessible
 
-  POST_SWITCH_OVER(4), // nodes are accessible; some change are still in progress
-  SWITCH_OVER_COMPLETED(5); // all changes are completed
+  POST(4), // nodes are accessible; some change are still in progress
+  COMPLETED(5); // all changes are completed
 
   private final int value;
 

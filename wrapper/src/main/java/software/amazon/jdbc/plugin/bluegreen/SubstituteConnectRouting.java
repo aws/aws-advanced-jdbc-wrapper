@@ -5,6 +5,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPlugin;
@@ -82,5 +83,17 @@ public class SubstituteConnectRouting extends BaseConnectRouting {
       }
     }
     return pluginService.connect(this.substituteHostSpec, props, plugin);
+  }
+
+  @Override
+  public String toString() {
+    return String.format("%s [%s, %s, substitute: %s, iamHosts: %s]",
+        super.toString(),
+        this.hostAndPort == null ? "<null>" : this.hostAndPort,
+        this.role == null ? "<null>" : this.role.toString(),
+        this.substituteHostSpec == null ? "<null>" : this.substituteHostSpec.getHostAndPort(),
+        this.iamHosts == null
+            ? "<null>"
+            : this.iamHosts.stream().map(HostSpec::getHostAndPort).collect(Collectors.joining(", ")));
   }
 }

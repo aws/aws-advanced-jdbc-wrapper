@@ -3,6 +3,7 @@ package software.amazon.jdbc.plugin.bluegreen;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
+import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.HostSpec;
@@ -34,4 +35,12 @@ public abstract class BaseConnectRouting implements ConnectRouting {
       JdbcCallable<Connection, SQLException> connectFunc,
       PluginService pluginService)
       throws SQLException;
+
+  @Override
+  public String toString() {
+    return String.format("%s [%s, %s]",
+        super.toString(),
+        this.hostAndPort == null ? "<null>" : this.hostAndPort,
+        this.role == null ? "<null>" : this.role.toString());
+  }
 }
