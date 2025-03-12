@@ -56,7 +56,7 @@ public class HoldConnectRouting extends BaseConnectRouting {
 
       while (this.getNanoTime() <= endTime
           && bgStatus != null
-          && bgStatus.getCurrentPhase() == BlueGreenPhases.SWITCHING_OVER) {
+          && bgStatus.getCurrentPhase() == BlueGreenPhases.IN_PROGRESS) {
 
         try {
           TimeUnit.MILLISECONDS.sleep(100);
@@ -68,7 +68,7 @@ public class HoldConnectRouting extends BaseConnectRouting {
 
       holdEndTime = this.getNanoTime();
 
-      if (bgStatus != null && bgStatus.getCurrentPhase() == BlueGreenPhases.SWITCHING_OVER) {
+      if (bgStatus != null && bgStatus.getCurrentPhase() == BlueGreenPhases.IN_PROGRESS) {
         throw new SQLTimeoutException(
             String.format(
                 "Blue/Green Deployment switchover is still in progress after %d ms. Try connect again later.",

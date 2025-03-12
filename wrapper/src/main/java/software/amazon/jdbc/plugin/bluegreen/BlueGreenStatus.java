@@ -18,46 +18,37 @@ package software.amazon.jdbc.plugin.bluegreen;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.util.Utils;
 
 // It should be immutable
 public class BlueGreenStatus {
 
   private final BlueGreenPhases currentPhase;
-  private final Map<String, String> hostIpAddresses = new ConcurrentHashMap<>();
-  private final Map<String, String> correspondingNodes = new ConcurrentHashMap<>();
-
-  private List<ConnectRouting> connectRouting = new ArrayList<>();
-  private List<ExecuteRouting> executeRouting = new ArrayList<>();
-  private Map<String, BlueGreenRole> roleByEndpoint = new ConcurrentHashMap<>(); // all known endpoints; host and port
-  private final boolean greenNodeChangedName;
+  private final List<ConnectRouting> unmodifiableConnectRouting;
+  private final List<ExecuteRouting> unmodifiableExecuteRouting;
+  private final Map<String, BlueGreenRole> roleByEndpoint = new ConcurrentHashMap<>(); // all known endpoints; host and port
 
   public BlueGreenStatus(final BlueGreenPhases phase) {
-    this(phase, new HashMap<>(), new HashMap<>(), false,
-        new ArrayList<>(), new ArrayList<>(), new HashMap<>());
+    this(phase, new ArrayList<>(), new ArrayList<>(), new HashMap<>());
   }
 
   public BlueGreenStatus(
       final BlueGreenPhases phase,
-      final Map<String, String> hostIpAddresses,
-      final Map<String, String> correspondingNodes,
-      final boolean greenNodeChangedName,
       final List<ConnectRouting> connectRouting,
       final List<ExecuteRouting> executeRouting,
       final Map<String, BlueGreenRole> roleByEndpoint) {
 
     this.currentPhase = phase;
-    this.hostIpAddresses.putAll(hostIpAddresses);
-    this.correspondingNodes.putAll(correspondingNodes);
-    this.greenNodeChangedName = greenNodeChangedName;
-    this.connectRouting = connectRouting;
-    this.executeRouting = executeRouting;
-    this.roleByEndpoint.clear();
+    this.unmodifiableConnectRouting = Collections.unmodifiableList(new ArrayList<>(connectRouting));
+    this.unmodifiableExecuteRouting = Collections.unmodifiableList(new ArrayList<>(executeRouting));
     this.roleByEndpoint.putAll(roleByEndpoint);
   }
 
@@ -65,23 +56,37 @@ public class BlueGreenStatus {
     return this.currentPhase;
   }
 
-  public @NonNull Map<String, String> getHostIpAddresses() {
-    return this.hostIpAddresses;
-  }
+  public List<ConnectRouting> getConnectRouting() { return this.unmodifiableConnectRouting; }
 
-  public @NonNull Map<String, String> getCorrespondingNodes() {
-    return this.correspondingNodes;
-  }
-
-  public boolean getGreenNodeChangedName() { return this.greenNodeChangedName; }
-
-  // TODO: make it unmodifiable
-  public List<ConnectRouting> getConnectRouting() { return this.connectRouting; }
-
-  // TODO: make it unmodifiable
-  public List<ExecuteRouting> getExecuteRouting() { return this.executeRouting; }
+  public List<ExecuteRouting> getExecuteRouting() { return this.unmodifiableExecuteRouting; }
 
   public Map<String, BlueGreenRole> getRoleByEndpoint() { return this.roleByEndpoint; }
 
   public BlueGreenRole getRole(HostSpec hostSpec) { return this.roleByEndpoint.get(hostSpec.getHostAndPort()); }
+
+  @Override
+  public String toString() {
+    String roleByEndpointMap = this.roleByEndpoint.entrySet().stream()
+        .map(x -> String.format("%s -> %s", x.getKey(), x.getValue()))
+        .collect(Collectors.joining("\n      "));
+    String connectRoutingStr = this.unmodifiableConnectRouting.stream().map(Object::toString)
+        .collect(Collectors.joining("\n      "));
+    String executeRoutingStr = this.unmodifiableExecuteRouting.stream().map(Object::toString)
+        .collect(Collectors.joining("\n      "));
+
+    return String.format("%s [\n"
+            + "   phase %s, \n"
+            + "   Connect routing: \n"
+            + "   %s \n"
+            + "   Execute routing: \n"
+            + "   %s \n"
+            + "   roleByEndpoint: \n"
+            + "   %s \n"
+            + "]",
+        super.toString(),
+        this.currentPhase,
+        connectRoutingStr,
+        executeRoutingStr,
+        roleByEndpointMap);
+  }
 }

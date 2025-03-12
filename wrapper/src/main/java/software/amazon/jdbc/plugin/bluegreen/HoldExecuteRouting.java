@@ -60,7 +60,7 @@ public class HoldExecuteRouting extends BaseExecuteRouting {
 
       while (this.getNanoTime() <= endTime
           && bgStatus != null
-          && bgStatus.getCurrentPhase() == BlueGreenPhases.SWITCHING_OVER) {
+          && bgStatus.getCurrentPhase() == BlueGreenPhases.IN_PROGRESS) {
 
         try {
           TimeUnit.MILLISECONDS.sleep(100);
@@ -72,7 +72,7 @@ public class HoldExecuteRouting extends BaseExecuteRouting {
 
       holdEndTime = this.getNanoTime();
 
-      if (bgStatus != null && bgStatus.getCurrentPhase() == BlueGreenPhases.SWITCHING_OVER) {
+      if (bgStatus != null && bgStatus.getCurrentPhase() == BlueGreenPhases.IN_PROGRESS) {
         throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass,
             new SQLTimeoutException(
                 String.format(

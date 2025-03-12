@@ -24,12 +24,12 @@ import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -66,10 +66,10 @@ public class BlueGreenStatusMonitor {
       new HashMap<String, BlueGreenPhases>() {
         {
           put("AVAILABLE", BlueGreenPhases.CREATED);
-          put("SWITCHOVER_INITIATED", BlueGreenPhases.PREPARATION_TO_SWITCH_OVER);
-          put("SWITCHOVER_IN_PROGRESS", BlueGreenPhases.SWITCHING_OVER);
-          put("SWITCHOVER_IN_POST_PROCESSING", BlueGreenPhases.POST_SWITCH_OVER);
-          put("SWITCHOVER_COMPLETED", BlueGreenPhases.SWITCH_OVER_COMPLETED);
+          put("SWITCHOVER_INITIATED", BlueGreenPhases.PREPARATION);
+          put("SWITCHOVER_IN_PROGRESS", BlueGreenPhases.IN_PROGRESS);
+          put("SWITCHOVER_IN_POST_PROCESSING", BlueGreenPhases.POST);
+          put("SWITCHOVER_COMPLETED", BlueGreenPhases.COMPLETED);
         }
       };
 
@@ -107,12 +107,21 @@ public class BlueGreenStatusMonitor {
   protected final AtomicBoolean useIpAddress = new AtomicBoolean(false);
 
   protected HostListProvider hostListProvider = null;
-  protected List<HostSpec> topology = new ArrayList<>();
-  protected Map<String, String> ipAddressesByHostAndPortMap = new ConcurrentHashMap<>();
+  protected List<HostSpec> startTopology = new ArrayList<>();
+  protected List<HostSpec> currentTopology = new ArrayList<>();
+  protected Map<String, Optional<String>> startIpAddressesByHostMap = new ConcurrentHashMap<>();
+  protected Map<String, Optional<String>> currentIpAddressesByHostMap = new ConcurrentHashMap<>();
+
+  // Track all endpoints in startTopology and check whether all their IP addresses have changed.
+  protected boolean allStartTopologyIpChanged = false;
+
+  // Track all endpoints in startTopology and check whether they are removed (i.e. could not be resolved ayt DNS).
+  protected boolean allStartTopologyEndpointsRemoved = false;
   protected BlueGreenPhases currentPhase = BlueGreenPhases.NOT_CREATED;
   protected Set<String> endpoints = ConcurrentHashMap.newKeySet();
 
   protected String version = "1.0";
+  protected int port = -1;
 
   protected Connection connection = null;
   protected HostSpec connectionHostSpec = null;
@@ -153,7 +162,8 @@ public class BlueGreenStatusMonitor {
 
             if (!this.panicMode) {
               this.collectTopology();
-              this.collectHostIpAddresses(this.topology);
+              this.collectHostIpAddresses();
+              this.updateIpAddressFlags();
             }
 
             if (oldPhase == null || oldPhase != this.currentPhase) {
@@ -164,7 +174,16 @@ public class BlueGreenStatusMonitor {
               this.onStatusChangeFunc.onStatusChanged(
                   this.role,
                   new BlueGreenInterimStatus(
-                      this.currentPhase, this.topology, this.ipAddressesByHostAndPortMap, this.endpoints));
+                      this.currentPhase,
+                      this.version,
+                      this.port,
+                      this.startTopology,
+                      this.currentTopology,
+                      this.startIpAddressesByHostMap,
+                      this.currentIpAddressesByHostMap,
+                      this.endpoints,
+                      this.allStartTopologyIpChanged,
+                      this.allStartTopologyEndpointsRemoved));
             }
 
             long delay = checkIntervalMap.getOrDefault(
@@ -210,50 +229,74 @@ public class BlueGreenStatusMonitor {
     this.stop.set(stop);
   }
 
+  public void resetCollectedData() {
+    this.startIpAddressesByHostMap.clear();
+    this.startTopology.clear();
+    this.endpoints.clear();
+  }
 
-  protected void collectHostIpAddresses(final List<HostSpec> hosts) {
+  protected void collectHostIpAddresses() {
 
-    if (!this.collectIpAddresses.get()) {
-      // Do not collect IP addresses but keep already collected IP addresses.
-      return;
+    this.currentIpAddressesByHostMap.clear();
+
+    for (HostSpec hostSpec : this.currentTopology) {
+      this.currentIpAddressesByHostMap.putIfAbsent(hostSpec.getHost(), this.getIpAddress(hostSpec.getHost()));
     }
 
-    this.ipAddressesByHostAndPortMap.clear();
-
-    for (HostSpec hostSpec : hosts) {
-      final String ip = this.getIpAddress(hostSpec.getHost());
-      if (ip != null) {
-        this.ipAddressesByHostAndPortMap.putIfAbsent(hostSpec.getHost(), ip);
-        if (hostSpec.isPortSpecified()) {
-          this.ipAddressesByHostAndPortMap.putIfAbsent(hostSpec.getHostAndPort(),
-              String.format("%s:%s", ip, hostSpec.getPort()));
-        }
-      }
+    if (this.collectIpAddresses.get()) {
+      this.startIpAddressesByHostMap.clear();
+      this.startIpAddressesByHostMap.putAll(this.currentIpAddressesByHostMap);
     }
   }
 
-  protected String getIpAddress(String host) {
+  protected void updateIpAddressFlags() {
+    if (this.collectTopology.get()) {
+      this.allStartTopologyIpChanged = false;
+      this.allStartTopologyEndpointsRemoved = false;
+    } else {
+      if (!this.collectIpAddresses.get()) {
+        // All hosts in startTopology should resolve to different IP address.
+        this.allStartTopologyIpChanged = this.startTopology.stream()
+            .allMatch(x -> this.startIpAddressesByHostMap.get(x.getHost()) != null
+                && this.startIpAddressesByHostMap.get(x.getHost()).isPresent()
+                && this.currentIpAddressesByHostMap.get(x.getHost()) != null
+                && this.currentIpAddressesByHostMap.get(x.getHost()).isPresent()
+                && !this.startIpAddressesByHostMap.get(x.getHost()).get()
+                  .equals(this.currentIpAddressesByHostMap.get(x.getHost()).get()));
+      }
+
+      // All hosts in startTopology should have no IP address. That means that host endpoint
+      // couldn't be resolved since DNS entry doesn't exist anymore.
+      this.allStartTopologyEndpointsRemoved = this.startTopology.stream()
+          .allMatch(x -> this.startIpAddressesByHostMap.get(x.getHost()) != null
+              && this.startIpAddressesByHostMap.get(x.getHost()).isPresent()
+              && this.currentIpAddressesByHostMap.get(x.getHost()) != null
+              && !this.currentIpAddressesByHostMap.get(x.getHost()).isPresent());
+    }
+  }
+
+  protected Optional<String> getIpAddress(String host) {
     try {
-      return InetAddress.getByName(host).getHostAddress();
+      return Optional.of(InetAddress.getByName(host).getHostAddress());
     } catch (UnknownHostException ex) {
-      return null;
+      return Optional.empty();
     }
   }
 
   protected void collectTopology() throws SQLException {
-    if (!this.collectTopology.get()) {
-      // Do not collect topology but keep topology that's already collected.
-      return;
-    }
 
     if (this.hostListProvider == null || this.connection == null) {
       return;
     }
 
-    this.topology = this.hostListProvider.forceRefresh(this.connection);
+    this.currentTopology = this.hostListProvider.forceRefresh(this.connection);
 
-    if (this.topology != null) {
-      this.topology.forEach(x -> this.endpoints.add(x.getHost()));
+    if (this.currentTopology != null) {
+      this.currentTopology.forEach(x -> this.endpoints.add(x.getHost()));
+    }
+
+    if (this.collectTopology.get()) {
+      this.startTopology = this.currentTopology;
     }
   }
 
@@ -295,7 +338,7 @@ public class BlueGreenStatusMonitor {
             LOGGER.finest(String.format(
                 "[%s] Opening monitoring connection to %s", this.role, this.connectionHostSpec.getHost()));
 
-            this.connectedIpAddress = this.getIpAddress(this.connectionHostSpec.getHost());
+            this.connectedIpAddress = this.getIpAddress(this.connectionHostSpec.getHost()).orElse(null);
             this.connection = this.pluginService.forceConnect(this.connectionHostSpec, this.props);
           }
           this.panicMode = false;
@@ -354,6 +397,7 @@ public class BlueGreenStatusMonitor {
 
       this.currentPhase = statusInfo.phase;
       this.version = statusInfo.version;
+      this.port = statusInfo.port;
 
       if (!knownVersions.contains(this.version)) {
         this.version = latestKnownVersion;
@@ -366,9 +410,9 @@ public class BlueGreenStatusMonitor {
         // We connected to an initialHostSpec that might be not the desired Blue or Green cluster.
         // We need to reconnect to a correct one.
 
-        String statusInfoHostIpAddress = this.getIpAddress(statusInfo.endpoint);
+        String statusInfoHostIpAddress = this.getIpAddress(statusInfo.endpoint).orElse(null);
         if (this.connectedIpAddress != null && !this.connectedIpAddress.equals(statusInfoHostIpAddress)) {
-          // Found endpoint confirms that we're connected to a different node and we need to reconnect.
+          // Found endpoint confirms that we're connected to a different node, and we need to reconnect.
           this.connectionHostSpec = this.hostSpecBuilder
               .host(statusInfo.endpoint)
               .port(statusInfo.port)

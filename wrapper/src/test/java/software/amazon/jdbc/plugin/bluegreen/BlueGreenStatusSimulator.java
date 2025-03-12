@@ -43,9 +43,9 @@ public class BlueGreenStatusSimulator {
     executorService.submit(() -> {
       while (System.nanoTime() <= switchoverCompleteTimeNano) {
         if (System.nanoTime() >= switchoverTimeNano) {
-          if (currentPhase.get() != BlueGreenPhases.SWITCHING_OVER) {
-            currentPhase.set(BlueGreenPhases.SWITCHING_OVER);
-            LOGGER.info("================= " + BlueGreenPhases.SWITCHING_OVER);
+          if (currentPhase.get() != BlueGreenPhases.IN_PROGRESS) {
+            currentPhase.set(BlueGreenPhases.IN_PROGRESS);
+            LOGGER.info("================= " + BlueGreenPhases.IN_PROGRESS);
           }
         }
         try {
@@ -54,8 +54,8 @@ public class BlueGreenStatusSimulator {
           throw new RuntimeException(e);
         }
       }
-      currentPhase.set(BlueGreenPhases.SWITCH_OVER_COMPLETED);
-      LOGGER.info("================= " + BlueGreenPhases.SWITCH_OVER_COMPLETED);
+      currentPhase.set(BlueGreenPhases.COMPLETED);
+      LOGGER.info("================= " + BlueGreenPhases.COMPLETED);
     });
     executorService.shutdown();
   }

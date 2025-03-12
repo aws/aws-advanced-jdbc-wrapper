@@ -16,11 +16,17 @@
 
 package software.amazon.jdbc.plugin.bluegreen;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
@@ -30,10 +36,12 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.SupportBlueGreen;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.Utils;
@@ -62,19 +70,25 @@ public class BlueGreenStatusProvider {
         {
           put(BlueGreenPhases.NOT_CREATED, IntervalType.BASELINE);
           put(BlueGreenPhases.CREATED, IntervalType.INCREASED);
-          put(BlueGreenPhases.PREPARATION_TO_SWITCH_OVER, IntervalType.INCREASED);
-          put(BlueGreenPhases.SWITCHING_OVER, IntervalType.HIGH);
-          put(BlueGreenPhases.SWITCH_OVER_COMPLETED, IntervalType.INCREASED);
+          put(BlueGreenPhases.PREPARATION, IntervalType.INCREASED);
+          put(BlueGreenPhases.IN_PROGRESS, IntervalType.HIGH);
+          put(BlueGreenPhases.COMPLETED, IntervalType.INCREASED);
         }
       };
+
+  protected final HostSpecBuilder hostSpecBuilder = new HostSpecBuilder(new SimpleHostAvailabilityStrategy());
 
   protected final BlueGreenStatusMonitor[] monitors = { null, null };
   protected int[] statusHashes = { 0, 0 };
   protected BlueGreenInterimStatus[] interimStatuses = { null, null };
-  protected final Map<String, String> hostIpAddresses = new ConcurrentHashMap<>();
+  protected final Map<String, Optional<String>> hostIpAddresses = new ConcurrentHashMap<>();
   protected final Map<String, Pair<HostSpec, HostSpec>> correspondingNodes = new ConcurrentHashMap<>();
   protected Map<String, BlueGreenRole> roleByEndpoint = new ConcurrentHashMap<>(); // all known endpoints; host and port
   protected BlueGreenStatus summaryStatus = null;
+
+  protected boolean rollback = false;
+  protected boolean blueDnsUpdateCompleted = false;
+  protected boolean greenDnsRemoved = false;
   protected final ReentrantLock monitorInitLock = new ReentrantLock();
   protected final HashMap<IntervalType, Long> checkIntervalMap = new HashMap<>();
 
@@ -156,41 +170,66 @@ public class BlueGreenStatusProvider {
       final BlueGreenRole role,
       final BlueGreenInterimStatus interimStatus) {
 
-    LOGGER.finest(String.format("%s -> %s", role, interimStatus));
+    LOGGER.finest(String.format("[%s] %s", role, interimStatus));
 
     int statusHash = this.getStatusHash(interimStatus);
     if (this.statusHashes[role.getValue()] == statusHash) {
       // no changes detected
       return;
     }
+
     this.statusHashes[role.getValue()] = statusHash;
+
+    BlueGreenPhases currentInterimPhase = this.interimStatuses[role.getValue()] == null
+        ? BlueGreenPhases.NOT_CREATED
+        : this.interimStatuses[role.getValue()].blueGreenPhase;
+    if (interimStatus.blueGreenPhase.getValue() < currentInterimPhase.getValue()) {
+      this.rollback = true;
+      LOGGER.finest("Blue/Green deployment is in rollback mode.");
+    }
+
+    BlueGreenPhases latestStatusPhase = this.summaryStatus == null
+        ? BlueGreenPhases.NOT_CREATED
+        : this.summaryStatus.getCurrentPhase();
+
+    // Do not allow status moves backward (that could be caused by updating blue/green nodes delays)
+    if (currentInterimPhase.getValue() > latestStatusPhase.getValue()) {
+      currentInterimPhase = latestStatusPhase;
+    }
+
     this.interimStatuses[role.getValue()] = interimStatus;
 
-    this.hostIpAddresses.putAll(interimStatus.ipAddressesByHostAndPortMap);
+    this.hostIpAddresses.putAll(interimStatus.startIpAddressesByHostMap);
     interimStatus.endpoints.stream().forEach(x -> this.roleByEndpoint.put(x, role));
 
-    if (role == BlueGreenRole.SOURCE
-        && !Utils.isNullOrEmpty(interimStatus.topology)
-        && this.interimStatuses[role.getValue()] != null
-        && !Utils.isNullOrEmpty(this.interimStatuses[role.getValue()].topology)) {
+    // Update corresponding nodes
+    // Blue writer node is mapped to a green writer node.
+    // Blue reader nodes are mapped to green reader nodes.
+    if (this.interimStatuses[BlueGreenRole.SOURCE.getValue()] != null
+        && !Utils.isNullOrEmpty(this.interimStatuses[BlueGreenRole.SOURCE.getValue()].currentTopology)
+        && this.interimStatuses[BlueGreenRole.TARGET.getValue()] != null
+        && !Utils.isNullOrEmpty(this.interimStatuses[BlueGreenRole.TARGET.getValue()].currentTopology)) {
 
-      HostSpec blueWriterHostSpec = interimStatus.topology.stream()
-          .filter(x -> x.getRole() == HostRole.WRITER)
-          .findFirst()
-          .orElse(null);
+      HostSpec blueWriterHostSpec =
+          this.interimStatuses[BlueGreenRole.SOURCE.getValue()].currentTopology.stream()
+            .filter(x -> x.getRole() == HostRole.WRITER)
+            .findFirst()
+            .orElse(null);
 
-      HostSpec greenWriterHostSpec = this.interimStatuses[BlueGreenRole.TARGET.getValue()].topology.stream()
-          .filter(x -> x.getRole() == HostRole.WRITER)
-          .findFirst()
-          .orElse(null);
+      HostSpec greenWriterHostSpec =
+          this.interimStatuses[BlueGreenRole.TARGET.getValue()].currentTopology.stream()
+            .filter(x -> x.getRole() == HostRole.WRITER)
+            .findFirst()
+            .orElse(null);
 
-      List<HostSpec> sortedBlueReaderHostSpecs = interimStatus.topology.stream()
-          .filter(x -> x.getRole() != HostRole.WRITER)
-          .sorted(Comparator.comparing(HostSpec::getHostAndPort))
-          .collect(Collectors.toList());
+      List<HostSpec> sortedBlueReaderHostSpecs =
+          this.interimStatuses[BlueGreenRole.SOURCE.getValue()].currentTopology.stream()
+            .filter(x -> x.getRole() != HostRole.WRITER)
+            .sorted(Comparator.comparing(HostSpec::getHostAndPort))
+            .collect(Collectors.toList());
 
       List<HostSpec> sortedGreenReaderHostSpecs =
-          this.interimStatuses[BlueGreenRole.TARGET.getValue()].topology.stream()
+          this.interimStatuses[BlueGreenRole.TARGET.getValue()].currentTopology.stream()
             .filter(x -> x.getRole() != HostRole.WRITER)
             .sorted(Comparator.comparing(HostSpec::getHostAndPort))
             .collect(Collectors.toList());
@@ -205,11 +244,10 @@ public class BlueGreenStatusProvider {
           greenIndex++;
           greenIndex = greenIndex % sortedGreenReaderHostSpecs.size();
         } else {
-          HostSpec anyGreenHostSpec = sortedGreenReaderHostSpecs.stream().findFirst().orElse(null);
-          if (anyGreenHostSpec != null) {
-            this.correspondingNodes.put(
-                blueWriterHostSpec.getHostAndPort(), Pair.create(blueWriterHostSpec, anyGreenHostSpec));
-          }
+          sortedGreenReaderHostSpecs.stream()
+              .findFirst()
+              .ifPresent(anyGreenHostSpec -> this.correspondingNodes.put(
+                  blueWriterHostSpec.getHostAndPort(), Pair.create(blueWriterHostSpec, anyGreenHostSpec)));
         }
       }
 
@@ -220,24 +258,84 @@ public class BlueGreenStatusProvider {
       }
     }
 
-    switch (interimStatus.blueGreenPhase) {
+    if (this.blueDnsUpdateCompleted) {
+      LOGGER.finest("DNS update completed.");
+    }
+
+    if (role == BlueGreenRole.SOURCE) {
+      if (this.blueDnsUpdateCompleted != interimStatus.allStartTopologyIpChanged) {
+        LOGGER.finest("Blue DNS update completed.");
+      }
+      this.blueDnsUpdateCompleted = interimStatus.allStartTopologyIpChanged;
+    }
+
+    if (role == BlueGreenRole.TARGET) {
+      if (this.greenDnsRemoved != interimStatus.allStartTopologyEndpointsRemoved) {
+        LOGGER.finest("Green DNS update completed.");
+      }
+      this.greenDnsRemoved = interimStatus.allStartTopologyEndpointsRemoved;
+    }
+
+    switch (currentInterimPhase) {
       case NOT_CREATED:
         this.summaryStatus = new BlueGreenStatus(BlueGreenPhases.NOT_CREATED);
+        Arrays.stream(this.monitors).forEach(x -> {
+          x.setIntervalType(IntervalType.BASELINE);
+          x.setCollectIpAddresses(false);
+          x.setCollectTopology(false);
+          x.setUseIpAddress(false);
+        });
         break;
       case CREATED:
-        this.summaryStatus = new BlueGreenStatus(BlueGreenPhases.NOT_CREATED);
+        this.summaryStatus = this.getStatusOfCreated();
+        Arrays.stream(this.monitors).forEach(x -> {
+          x.setIntervalType(IntervalType.INCREASED);
+          x.setCollectIpAddresses(true);
+          x.setCollectTopology(true);
+          x.setUseIpAddress(false);
+          if (this.rollback) {
+            x.resetCollectedData();
+          }
+        });
         break;
-      case PREPARATION_TO_SWITCH_OVER:
-        this.summaryStatus = new BlueGreenStatus(BlueGreenPhases.NOT_CREATED);
+      case PREPARATION:
+        this.summaryStatus = this.getStatusOfPreparation();
+        Arrays.stream(this.monitors).forEach(x -> {
+          x.setIntervalType(IntervalType.HIGH);
+          x.setCollectIpAddresses(false);
+          x.setCollectTopology(false);
+          x.setUseIpAddress(true);
+        });
         break;
-      case SWITCHING_OVER:
-        this.summaryStatus = new BlueGreenStatus(BlueGreenPhases.NOT_CREATED);
+      case IN_PROGRESS:
+        this.summaryStatus = this.getStatusOfInProgress();
+        Arrays.stream(this.monitors).forEach(x -> {
+          x.setIntervalType(IntervalType.HIGH);
+          x.setCollectIpAddresses(false);
+          x.setCollectTopology(false);
+          x.setUseIpAddress(true);
+        });
         break;
-      case POST_SWITCH_OVER:
-        this.summaryStatus = new BlueGreenStatus(BlueGreenPhases.NOT_CREATED);
+      case POST:
+        this.summaryStatus = this.getStatusOfPost();
+        Arrays.stream(this.monitors).forEach(x -> {
+          x.setIntervalType(IntervalType.HIGH);
+          x.setCollectIpAddresses(false);
+          x.setCollectTopology(false);
+          x.setUseIpAddress(true);
+        });
         break;
-      case SWITCH_OVER_COMPLETED:
-        this.summaryStatus = new BlueGreenStatus(BlueGreenPhases.NOT_CREATED);
+      case COMPLETED:
+        this.summaryStatus = this.getStatusOfCompleted();
+        Arrays.stream(this.monitors).forEach(x -> {
+          x.setIntervalType(IntervalType.BASELINE);
+          x.setCollectIpAddresses(false);
+          x.setCollectTopology(false);
+          x.setUseIpAddress(!(this.blueDnsUpdateCompleted && this.greenDnsRemoved));
+          if (this.blueDnsUpdateCompleted && this.greenDnsRemoved) {
+            x.resetCollectedData();
+          }
+        });
         break;
       default:
         throw new UnsupportedOperationException("Unknown BG phase " + interimStatus.blueGreenPhase);
@@ -251,16 +349,16 @@ public class BlueGreenStatusProvider {
     int result = this.getStatusHash(1,
         interimStatus.blueGreenPhase == null ? "" : interimStatus.blueGreenPhase.toString());
     result = this.getStatusHash(result,
-        interimStatus.topology == null
+        interimStatus.currentTopology == null
             ? ""
-            : interimStatus.topology.stream()
+            : interimStatus.currentTopology.stream()
                 .map(x -> x.getHostAndPort() + x.getRole())
                 .sorted(Comparator.comparing(x -> x))
                 .collect(Collectors.joining(",")));
     result = this.getStatusHash(result,
-        interimStatus.ipAddressesByHostAndPortMap == null
+        interimStatus.startIpAddressesByHostMap == null
             ? ""
-            : interimStatus.ipAddressesByHostAndPortMap.entrySet().stream()
+            : interimStatus.startIpAddressesByHostMap.entrySet().stream()
                 .map(x -> x.getKey() + x.getValue())
                 .sorted(Comparator.comparing(x -> x))
                 .collect(Collectors.joining(",")));
@@ -269,5 +367,274 @@ public class BlueGreenStatusProvider {
 
   protected int getStatusHash(int currentHash, String val) {
     return currentHash * 31 + val.hashCode();
+  }
+
+  protected String getHostAndPort(String host, int port) {
+    if (port > 0) {
+      return String.format("%s:%d", host, port);
+    }
+    return host;
+  }
+
+  // New connect requests: go to blue or green nodes; default behaviour; no routing
+  // Existing connections: default behaviour; no action
+  // Execute JDBC calls: default behaviour; no action
+  protected BlueGreenStatus getStatusOfCreated() {
+    return new BlueGreenStatus(
+        BlueGreenPhases.CREATED,
+        new ArrayList<>(),
+        new ArrayList<>(),
+        this.roleByEndpoint);
+  }
+
+  // New connect requests to blue: route to corresponding IP address
+  // New connect requests to green: route to corresponding IP address
+  // New connect requests with IP address: default behaviour; no routing
+  // Existing connections: default behaviour; no action
+  // Execute JDBC calls: default behaviour; no action
+  protected BlueGreenStatus getStatusOfPreparation() {
+
+    List<ConnectRouting> connectRouting = new ArrayList<>();
+
+    this.roleByEndpoint.entrySet().stream()
+        .filter(x -> this.correspondingNodes.containsKey(x.getKey()))
+        .forEach(x -> {
+          HostSpec hostSpec = this.correspondingNodes.get(x.getKey()).getValue1();
+          Optional<String> blueIp = this.hostIpAddresses.get(hostSpec.getHost());
+          HostSpec substituteHostSpecWithIp = blueIp == null || !blueIp.isPresent()
+              ? hostSpec
+              : this.hostSpecBuilder.copyFrom(hostSpec).host(blueIp.get()).build();
+
+          connectRouting.add(new SubstituteConnectRouting(
+              x.getKey(),
+              x.getValue(),
+              substituteHostSpecWithIp,
+              Collections.singletonList(hostSpec)));
+          connectRouting.add(new SubstituteConnectRouting(
+              this.getHostAndPort(
+                  x.getKey(),
+                  this.interimStatuses[x.getValue().getValue()].port),
+              x.getValue(),
+              substituteHostSpecWithIp,
+              Collections.singletonList(hostSpec)));
+        });
+
+    return new BlueGreenStatus(
+        BlueGreenPhases.PREPARATION,
+        connectRouting,
+        new ArrayList<>(),
+        this.roleByEndpoint);
+  }
+
+  // New connect requests to blue: route to corresponding IP address
+  // New connect requests to green: route to corresponding IP address
+  // New connect requests with IP address: default behaviour; no routing
+  // Existing connections: default behaviour; no action
+  // Execute JDBC calls: default behaviour; no action
+  protected BlueGreenStatus getStatusOfInProgress() {
+
+    List<ConnectRouting> connectRouting = new ArrayList<>();
+    List<ExecuteRouting> executeRouting = new ArrayList<>();
+
+    // All blue and green connect calls should be on hold.
+    connectRouting.add(new HoldConnectRouting(null, BlueGreenRole.SOURCE));
+    connectRouting.add(new HoldConnectRouting(null, BlueGreenRole.TARGET));
+
+    // All connect calls with IP address that belongs to blue or green node should be on hold.
+    this.hostIpAddresses.values().stream()
+        .filter(Optional::isPresent)
+        .map(Optional::get)
+        .distinct()
+        .forEach(ipAddress -> {
+
+          // Try to confirm tht ipAddress belongs to one of the blue nodes
+          BlueGreenInterimStatus interimStatus = this.interimStatuses[BlueGreenRole.SOURCE.getValue()];
+          if (interimStatus != null) {
+            if (interimStatus.startIpAddressesByHostMap.values().stream()
+                .filter(x -> x.isPresent() && x.get().equals(ipAddress))
+                .map(x -> true)
+                .findFirst()
+                .orElse(false)) {
+
+              connectRouting.add(new HoldConnectRouting(ipAddress, BlueGreenRole.SOURCE));
+              connectRouting.add(new HoldConnectRouting(
+                  this.getHostAndPort(ipAddress, interimStatus.port),
+                  BlueGreenRole.SOURCE));
+
+              return;
+            }
+          }
+
+          // Try to confirm tht ipAddress belongs to one of the green nodes
+          interimStatus = this.interimStatuses[BlueGreenRole.TARGET.getValue()];
+          if (interimStatus != null) {
+            if (interimStatus.startIpAddressesByHostMap.values().stream()
+                .filter(x -> x.isPresent() && x.get().equals(ipAddress))
+                .map(x -> true)
+                .findFirst()
+                .orElse(false)) {
+
+              connectRouting.add(new HoldConnectRouting(ipAddress, BlueGreenRole.TARGET));
+              connectRouting.add(new HoldConnectRouting(
+                  this.getHostAndPort(ipAddress, interimStatus.port),
+                  BlueGreenRole.TARGET));
+
+              return;
+            }
+          }
+
+          connectRouting.add(new HoldConnectRouting(ipAddress, null));
+        });
+
+    // All blue and green traffic should be on hold.
+    executeRouting.add(new HoldExecuteRouting(null, BlueGreenRole.SOURCE));
+    executeRouting.add(new HoldExecuteRouting(null, BlueGreenRole.TARGET));
+
+    // All traffic through connections with IP addresses that belong to blue or green nodes should be on hold.
+    this.hostIpAddresses.values().stream()
+        .filter(Optional::isPresent)
+        .map(Optional::get)
+        .distinct()
+        .forEach(ipAddress -> {
+
+          // Try to confirm tht ipAddress belongs to one of the blue nodes
+          BlueGreenInterimStatus interimStatus = this.interimStatuses[BlueGreenRole.SOURCE.getValue()];
+          if (interimStatus != null) {
+            if (interimStatus.startIpAddressesByHostMap.values().stream()
+                .filter(x -> x.isPresent() && x.get().equals(ipAddress))
+                .map(x -> true)
+                .findFirst()
+                .orElse(false)) {
+
+              executeRouting.add(new HoldExecuteRouting(ipAddress, BlueGreenRole.SOURCE));
+              executeRouting.add(new HoldExecuteRouting(
+                  this.getHostAndPort(ipAddress, interimStatus.port),
+                  BlueGreenRole.SOURCE));
+
+              return;
+            }
+          }
+
+          // Try to confirm tht ipAddress belongs to one of the green nodes
+          interimStatus = this.interimStatuses[BlueGreenRole.TARGET.getValue()];
+          if (interimStatus != null) {
+            if (interimStatus.startIpAddressesByHostMap.values().stream()
+                .filter(x -> x.isPresent() && x.get().equals(ipAddress))
+                .map(x -> true)
+                .findFirst()
+                .orElse(false)) {
+
+              executeRouting.add(new HoldExecuteRouting(ipAddress, BlueGreenRole.TARGET));
+              executeRouting.add(new HoldExecuteRouting(
+                  this.getHostAndPort(ipAddress, interimStatus.port),
+                  BlueGreenRole.TARGET));
+
+              return;
+            }
+          }
+
+          executeRouting.add(new HoldExecuteRouting(ipAddress, null));
+        });
+
+    return new BlueGreenStatus(
+        BlueGreenPhases.IN_PROGRESS,
+        connectRouting,
+        executeRouting,
+        this.roleByEndpoint);
+  }
+
+  protected BlueGreenStatus getStatusOfPost() {
+    List<ConnectRouting> connectRouting = new ArrayList<>();
+    List<ExecuteRouting> executeRouting = new ArrayList<>();
+
+    this.createPostRouting(connectRouting, executeRouting);
+
+    return new BlueGreenStatus(
+        BlueGreenPhases.POST,
+        connectRouting,
+        executeRouting,
+        this.roleByEndpoint);
+  }
+
+  protected void createPostRouting(
+      List<ConnectRouting> connectRouting,
+      List<ExecuteRouting> executeRouting) {
+
+    // New connect calls to blue nodes should be routed to green nodes.
+    this.roleByEndpoint.entrySet().stream()
+        .filter(x -> x.getValue() == BlueGreenRole.SOURCE)
+        .filter(x -> this.correspondingNodes.containsKey(x.getKey()))
+        .forEach(x -> {
+          HostSpec hostSpec = this.correspondingNodes.get(x.getKey()).getValue1();
+          HostSpec substituteHostSpec = this.correspondingNodes.get(x.getKey()).getValue2();
+          Optional<String> greenIp = this.hostIpAddresses.get(substituteHostSpec.getHost());
+          HostSpec substituteHostSpecWithIp = greenIp == null || !greenIp.isPresent()
+              ? substituteHostSpec
+              : this.hostSpecBuilder.copyFrom(substituteHostSpec).host(greenIp.get()).build();
+
+          connectRouting.add(new SubstituteConnectRouting(
+              x.getKey(),
+              x.getValue(),
+              substituteHostSpecWithIp,
+              Arrays.asList(substituteHostSpec, hostSpec))); // TODO: try substitute (green) host name first? should we use cluster endpoint?
+          connectRouting.add(new SubstituteConnectRouting(
+              this.getHostAndPort(
+                  x.getKey(),
+                  this.interimStatuses[x.getValue().getValue()].port),
+              x.getValue(),
+              substituteHostSpecWithIp,
+              Arrays.asList(substituteHostSpec, hostSpec))); // TODO: try substitute (green) host name first? should we use cluster endpoint?
+          Optional<String> blueIp = this.hostIpAddresses.get(x.getKey());
+          if (blueIp != null && blueIp.isPresent()) {
+            connectRouting.add(new SubstituteConnectRouting(
+                blueIp.get(),
+                x.getValue(),
+                substituteHostSpecWithIp,
+                Arrays.asList(substituteHostSpec, hostSpec))); // TODO: try substitute (green) host name first? should we use cluster endpoint?
+            connectRouting.add(new SubstituteConnectRouting(
+                this.getHostAndPort(
+                    blueIp.get(),
+                    this.interimStatuses[x.getValue().getValue()].port),
+                x.getValue(),
+                substituteHostSpecWithIp,
+                Arrays.asList(substituteHostSpec, hostSpec))); // TODO: try substitute (green) host name first? should we use cluster endpoint?
+          }
+        });
+
+    // New connect calls to green endpoints should be rejected.
+    this.roleByEndpoint.entrySet().stream()
+        .filter(x -> x.getValue() == BlueGreenRole.TARGET)
+        .forEach(x -> {
+          connectRouting.add(new RejectConnectRouting(x.getKey(), x.getValue()));
+          connectRouting.add(new RejectConnectRouting(
+              String.format("%s:%d", x.getKey(), this.interimStatuses[x.getValue().getValue()].port),
+              x.getValue()));
+        });
+
+    // Existing connections to blue nodes should be closed.
+    this.roleByEndpoint.entrySet().stream()
+        .filter(x -> x.getValue() == BlueGreenRole.SOURCE)
+        .forEach(x -> {
+          executeRouting.add(new CloseConnectionExecuteRouting(x.getKey(), x.getValue()));
+          executeRouting.add(new CloseConnectionExecuteRouting(
+              this.getHostAndPort(x.getKey(), this.interimStatuses[x.getValue().getValue()].port),
+              x.getValue()));
+        });
+  }
+
+  protected BlueGreenStatus getStatusOfCompleted() {
+    List<ConnectRouting> connectRouting = new ArrayList<>();
+    List<ExecuteRouting> executeRouting = new ArrayList<>();
+
+    if (!this.blueDnsUpdateCompleted || !this.greenDnsRemoved) {
+      // Continue with rerouting of blue and green nodes until DNS gets updated.
+      this.createPostRouting(connectRouting, executeRouting);
+    }
+
+    return new BlueGreenStatus(
+        BlueGreenPhases.COMPLETED,
+        connectRouting,
+        executeRouting,
+        this.roleByEndpoint);
   }
 }
