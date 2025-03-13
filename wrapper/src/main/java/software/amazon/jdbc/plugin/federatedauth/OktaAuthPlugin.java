@@ -77,7 +77,7 @@ public class OktaAuthPlugin extends AbstractConnectionPlugin {
   public static final AwsWrapperProperty HTTP_CLIENT_CONNECT_TIMEOUT = new AwsWrapperProperty(
       "httpClientConnectTimeout", String.valueOf(DEFAULT_HTTP_TIMEOUT_MILLIS),
       "The connect timeout value in milliseconds for the HttpClient used by the OktaAuthPlugin");
-  public static final AwsWrapperProperty SSL_INSECURE = new AwsWrapperProperty("sslInsecure", "true",
+  public static final AwsWrapperProperty SSL_INSECURE = new AwsWrapperProperty("sslInsecure", "false",
       "Whether or not the SSL session is to be secure and the sever's certificates will be verified");
   public static final AwsWrapperProperty DB_USER =
       new AwsWrapperProperty("dbUser", null, "The database user used to access the database");
