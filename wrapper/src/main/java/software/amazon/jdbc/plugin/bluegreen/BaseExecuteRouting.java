@@ -36,4 +36,12 @@ public abstract class BaseExecuteRouting implements ExecuteRouting {
       final Object[] jdbcMethodArgs,
       final PluginService pluginService,
       final Properties props) throws E;
+
+  @Override
+  public String toString() {
+    return String.format("%s [%s, %s]",
+        super.toString(),
+        this.hostAndPort == null ? "<null>" : this.hostAndPort,
+        this.role == null ? "<null>" : this.role.toString());
+  }
 }

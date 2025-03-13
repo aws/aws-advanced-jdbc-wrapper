@@ -40,6 +40,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostListProvider;
@@ -231,7 +232,7 @@ public class BlueGreenStatusMonitor {
 
   public void resetCollectedData() {
     this.startIpAddressesByHostMap.clear();
-    this.startTopology.clear();
+    this.startTopology = new ArrayList<>();
     this.endpoints.clear();
   }
 
@@ -256,22 +257,24 @@ public class BlueGreenStatusMonitor {
     } else {
       if (!this.collectIpAddresses.get()) {
         // All hosts in startTopology should resolve to different IP address.
-        this.allStartTopologyIpChanged = this.startTopology.stream()
-            .allMatch(x -> this.startIpAddressesByHostMap.get(x.getHost()) != null
-                && this.startIpAddressesByHostMap.get(x.getHost()).isPresent()
-                && this.currentIpAddressesByHostMap.get(x.getHost()) != null
-                && this.currentIpAddressesByHostMap.get(x.getHost()).isPresent()
-                && !this.startIpAddressesByHostMap.get(x.getHost()).get()
-                  .equals(this.currentIpAddressesByHostMap.get(x.getHost()).get()));
+        this.allStartTopologyIpChanged = !this.startTopology.isEmpty()
+            && this.startTopology.stream()
+                .allMatch(x -> this.startIpAddressesByHostMap.get(x.getHost()) != null
+                    && this.startIpAddressesByHostMap.get(x.getHost()).isPresent()
+                    && this.currentIpAddressesByHostMap.get(x.getHost()) != null
+                    && this.currentIpAddressesByHostMap.get(x.getHost()).isPresent()
+                    && !this.startIpAddressesByHostMap.get(x.getHost()).get()
+                      .equals(this.currentIpAddressesByHostMap.get(x.getHost()).get()));
       }
 
       // All hosts in startTopology should have no IP address. That means that host endpoint
       // couldn't be resolved since DNS entry doesn't exist anymore.
-      this.allStartTopologyEndpointsRemoved = this.startTopology.stream()
-          .allMatch(x -> this.startIpAddressesByHostMap.get(x.getHost()) != null
-              && this.startIpAddressesByHostMap.get(x.getHost()).isPresent()
-              && this.currentIpAddressesByHostMap.get(x.getHost()) != null
-              && !this.currentIpAddressesByHostMap.get(x.getHost()).isPresent());
+      this.allStartTopologyEndpointsRemoved = !this.startTopology.isEmpty()
+          && this.startTopology.stream()
+              .allMatch(x -> this.startIpAddressesByHostMap.get(x.getHost()) != null
+                  && this.startIpAddressesByHostMap.get(x.getHost()).isPresent()
+                  && this.currentIpAddressesByHostMap.get(x.getHost()) != null
+                  && !this.currentIpAddressesByHostMap.get(x.getHost()).isPresent());
     }
   }
 
@@ -292,7 +295,7 @@ public class BlueGreenStatusMonitor {
     this.currentTopology = this.hostListProvider.forceRefresh(this.connection);
 
     if (this.currentTopology != null) {
-      this.currentTopology.forEach(x -> this.endpoints.add(x.getHost()));
+      this.endpoints.addAll(this.currentTopology.stream().map(HostSpec::getHost).collect(Collectors.toSet()));
     }
 
     if (this.collectTopology.get()) {
@@ -375,13 +378,22 @@ public class BlueGreenStatusMonitor {
         statusEntries.add(new StatusInfo(version, endpoint, port, phase, role));
       }
 
-      statusEntries.forEach(x -> this.endpoints.add(x.endpoint));
+      this.endpoints.addAll(
+          statusEntries.stream()
+            .map(x -> x.endpoint == null ? "" : x.endpoint.toLowerCase())
+            .collect(Collectors.toSet()));
 
       // Check if there's a cluster writer endpoint.
       StatusInfo statusInfo = statusEntries.stream()
           .filter(x -> rdsUtils.isWriterClusterDns(x.endpoint))
           .findFirst()
           .orElse(null);
+
+      if (statusInfo != null) {
+        // Cluster writer endpoint found.
+        // Add cluster reader endpoint as well.
+        this.endpoints.add(statusInfo.endpoint.toLowerCase().replace(".cluster-", ".cluster-ro-"));
+      }
 
       if (statusInfo == null) {
         // maybe it's an instance endpoint?

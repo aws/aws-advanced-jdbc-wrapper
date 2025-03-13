@@ -88,7 +88,7 @@ public class SubstituteConnectRouting extends BaseConnectRouting {
   @Override
   public String toString() {
     return String.format("%s [%s, %s, substitute: %s, iamHosts: %s]",
-        super.toString(),
+        this.getClass().getName() + "@" + Integer.toHexString(this.hashCode()),
         this.hostAndPort == null ? "<null>" : this.hostAndPort,
         this.role == null ? "<null>" : this.role.toString(),
         this.substituteHostSpec == null ? "<null>" : this.substituteHostSpec.getHostAndPort(),
