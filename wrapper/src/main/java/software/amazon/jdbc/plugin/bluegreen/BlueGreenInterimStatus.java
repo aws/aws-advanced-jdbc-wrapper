@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.Utils;
 
 public class BlueGreenInterimStatus {
@@ -50,25 +51,37 @@ public class BlueGreenInterimStatus {
   public String toString() {
     String currentIpMap = this.currentIpAddressesByHostMap.entrySet().stream()
         .map(x -> String.format("%s -> %s", x.getKey(), x.getValue()))
-        .collect(Collectors.joining("\n      "));
+        .collect(Collectors.joining("\n   "));
     String startIpMap = this.startIpAddressesByHostMap.entrySet().stream()
         .map(x -> String.format("%s -> %s", x.getKey(), x.getValue()))
-        .collect(Collectors.joining("\n      "));
+        .collect(Collectors.joining("\n   "));
+    String endpointStr = String.join("\n   ", this.endpoints);
+    String startTopologyStr = Utils.logTopology(this.startTopology);
+    String currentTopologyStr = Utils.logTopology(this.currentTopology);
     return String.format("%s [\n"
-          + "   phase %s, \n"
-          + "   %s \n"
-          + "   start IP map:\n"
-          + "   %s \n"
-          + "   current IP map:\n"
-          + "   %s \n"
-          + "   allStartTopologyIpChanged: %s \n"
-          + "   allStartTopologyEndpointsRemoved: %s \n"
-          + "]",
-        super.toString(), this.blueGreenPhase,
-        Utils.logTopology(this.startTopology, "Start topology"),
-        startIpMap,
-        Utils.logTopology(this.currentTopology, "Current topology"),
-        currentIpMap,
+            + " phase %s, \n"
+            + " version '%s', \n"
+            + " port %d, \n"
+            + " endpoints:\n"
+            + "   %s \n"
+            + " Start %s \n"
+            + " start IP map:\n"
+            + "   %s \n"
+            + " Current %s \n"
+            + " current IP map:\n"
+            + "   %s \n"
+            + " allStartTopologyIpChanged: %s \n"
+            + " allStartTopologyEndpointsRemoved: %s \n"
+            + "]",
+        super.toString(),
+        this.blueGreenPhase,
+        this.version,
+        this.port,
+        StringUtils.isNullOrEmpty(endpointStr) ? "-" : endpointStr,
+        StringUtils.isNullOrEmpty(startTopologyStr) ? "-" : startTopologyStr,
+        StringUtils.isNullOrEmpty(startIpMap) ? "-" : startIpMap,
+        StringUtils.isNullOrEmpty(currentTopologyStr) ? "-" : currentTopologyStr,
+        StringUtils.isNullOrEmpty(currentIpMap) ? "-" : currentIpMap,
         this.allStartTopologyIpChanged,
         this.allStartTopologyEndpointsRemoved);
   }

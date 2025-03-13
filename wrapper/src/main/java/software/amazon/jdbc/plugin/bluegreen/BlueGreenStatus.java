@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.Utils;
 
 // It should be immutable
@@ -62,31 +63,33 @@ public class BlueGreenStatus {
 
   public Map<String, BlueGreenRole> getRoleByEndpoint() { return this.roleByEndpoint; }
 
-  public BlueGreenRole getRole(HostSpec hostSpec) { return this.roleByEndpoint.get(hostSpec.getHostAndPort()); }
+  public BlueGreenRole getRole(HostSpec hostSpec) {
+    return this.roleByEndpoint.get(hostSpec.getHostAndPort().toLowerCase());
+  }
 
   @Override
   public String toString() {
     String roleByEndpointMap = this.roleByEndpoint.entrySet().stream()
         .map(x -> String.format("%s -> %s", x.getKey(), x.getValue()))
-        .collect(Collectors.joining("\n      "));
+        .collect(Collectors.joining("\n   "));
     String connectRoutingStr = this.unmodifiableConnectRouting.stream().map(Object::toString)
-        .collect(Collectors.joining("\n      "));
+        .collect(Collectors.joining("\n   "));
     String executeRoutingStr = this.unmodifiableExecuteRouting.stream().map(Object::toString)
-        .collect(Collectors.joining("\n      "));
+        .collect(Collectors.joining("\n   "));
 
     return String.format("%s [\n"
-            + "   phase %s, \n"
-            + "   Connect routing: \n"
+            + " phase %s, \n"
+            + " Connect routing: \n"
             + "   %s \n"
-            + "   Execute routing: \n"
+            + " Execute routing: \n"
             + "   %s \n"
-            + "   roleByEndpoint: \n"
+            + " roleByEndpoint: \n"
             + "   %s \n"
             + "]",
         super.toString(),
         this.currentPhase,
-        connectRoutingStr,
-        executeRoutingStr,
-        roleByEndpointMap);
+        StringUtils.isNullOrEmpty(connectRoutingStr) ? "-" : connectRoutingStr,
+        StringUtils.isNullOrEmpty(executeRoutingStr) ? "-" : executeRoutingStr,
+        StringUtils.isNullOrEmpty(roleByEndpointMap) ? "-" : roleByEndpointMap);
   }
 }
