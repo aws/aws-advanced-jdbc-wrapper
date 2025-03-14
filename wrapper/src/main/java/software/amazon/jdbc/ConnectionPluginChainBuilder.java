@@ -34,6 +34,7 @@ import software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPluginFactory;
 import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPluginFactory;
 import software.amazon.jdbc.plugin.ConnectTimeConnectionPluginFactory;
 import software.amazon.jdbc.plugin.DataCacheConnectionPluginFactory;
+import software.amazon.jdbc.plugin.DataRemoteCachePluginFactory;
 import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
 import software.amazon.jdbc.plugin.DriverMetaDataConnectionPluginFactory;
 import software.amazon.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
@@ -73,6 +74,7 @@ public class ConnectionPluginChainBuilder {
           put("executionTime", new ExecutionTimeConnectionPluginFactory());
           put("logQuery", new LogQueryConnectionPluginFactory());
           put("dataCache", new DataCacheConnectionPluginFactory());
+          put("dataRemoteCache", new DataRemoteCachePluginFactory());
           put("customEndpoint", new CustomEndpointPluginFactory());
           put("efm", new HostMonitoringConnectionPluginV1Factory());
           put("efm2", new HostMonitoringConnectionPluginV2Factory());
@@ -109,6 +111,7 @@ public class ConnectionPluginChainBuilder {
           put(DriverMetaDataConnectionPluginFactory.class, 100);
           put(BlueGreenConnectionPluginFactory.class, 200);
           put(DataCacheConnectionPluginFactory.class, 300);
+          put(DataRemoteCachePluginFactory.class, 350);
           put(CustomEndpointPluginFactory.class, 400);
           put(AuroraInitialConnectionStrategyPluginFactory.class, 500);
           put(AuroraConnectionTrackerPluginFactory.class, 600);
