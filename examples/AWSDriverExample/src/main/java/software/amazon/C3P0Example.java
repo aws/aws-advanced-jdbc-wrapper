@@ -18,9 +18,12 @@ package software.amazon;
 
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
+import software.amazon.jdbc.C3P0PooledConnectionProvider;
+import software.amazon.jdbc.ConnectionProviderManager;
 
 public class C3P0Example {
   private static final String PROTOCOL = "jdbc:aws-wrapper:mysql://";
@@ -47,12 +50,28 @@ public class C3P0Example {
     props.put("idleTimeout", "300000");
     props.put("useSSL", "false");
 
+//     runExternalPoolExample(props);
+    runInternalPoolExample(props);
+  }
+
+  private static void runExternalPoolExample(Properties props) {
     ComboPooledDataSource dataSource = new ComboPooledDataSource();
     dataSource.setProperties(props);
     dataSource.setJdbcUrl(CONN_STRING);
     try (Connection conn = dataSource.getConnection()) {
       Statement stmt = conn.createStatement();
-      stmt.executeQuery("SELECT sleep(10)");
+      stmt.executeQuery("SELECT 1");
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private static void runInternalPoolExample(Properties props) {
+    C3P0PooledConnectionProvider provider = new C3P0PooledConnectionProvider();
+    ConnectionProviderManager.setConnectionProvider(provider);
+    try (Connection conn = DriverManager.getConnection(CONN_STRING, props)) {
+      Statement stmt = conn.createStatement();
+      stmt.executeQuery("SELECT 1");
     } catch (SQLException e) {
       throw new RuntimeException(e);
     }
