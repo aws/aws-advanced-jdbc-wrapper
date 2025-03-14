@@ -58,6 +58,7 @@ dependencies {
     testImplementation("io.opentelemetry:opentelemetry-sdk:1.42.1")
     testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.43.0")
     testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.44.1")
+    testImplementation("io.lettuce:lettuce-core:6.6.0.RELEASE")
     testImplementation("de.vandermeer:asciitable:0.3.2")
     testImplementation("org.hibernate:hibernate-core:5.6.15.Final") // the latest version compatible with Java 8
     testImplementation("jakarta.persistence:jakarta.persistence-api:2.2.3")

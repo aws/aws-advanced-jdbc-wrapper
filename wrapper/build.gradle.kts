@@ -50,6 +50,7 @@ dependencies {
     optionalImplementation("io.opentelemetry:opentelemetry-sdk:1.59.0")
     optionalImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.59.0")
 
+    compileOnly("io.lettuce:lettuce-core:6.6.0.RELEASE")
     compileOnly("org.checkerframework:checker-qual:3.49.5")
     compileOnly("com.mysql:mysql-connector-j:9.4.0")
     compileOnly("org.postgresql:postgresql:42.7.7")
@@ -98,6 +99,7 @@ dependencies {
     testImplementation("org.slf4j:slf4j-simple:2.0.17")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
     testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
+    testImplementation("io.lettuce:lettuce-core:6.6.0.RELEASE")
     testImplementation("io.opentelemetry:opentelemetry-api:1.59.0")
     testImplementation("io.opentelemetry:opentelemetry-sdk:1.59.0")
     testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.59.0")

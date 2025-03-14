@@ -29,6 +29,7 @@ dependencies {
     implementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
     implementation("org.jsoup:jsoup:1.21.1")
     implementation("com.mchange:c3p0:0.11.2")
+    implementation("io.lettuce:lettuce-core:6.6.0.RELEASE")
 }
 
 tasks.withType<JavaExec> {
