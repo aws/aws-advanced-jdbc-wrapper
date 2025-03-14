@@ -27,7 +27,7 @@ import software.amazon.jdbc.ConnectionProviderManager;
 
 public class C3P0Example {
   private static final String PROTOCOL = "jdbc:aws-wrapper:mysql://";
-  private static final String URL = "mydbname.cluster-ro-xyz.us-east-1.rds.amazonaws.com";
+  private static final String URL = "mydbname.cluster-xyz.us-east-1.rds.amazonaws.com";
   private static final String USERNAME = "username";
   private static final String PASSWORD = "password";
   private static final String DB = "dbname";
