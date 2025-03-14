@@ -29,7 +29,7 @@ public interface Monitor {
   void monitor();
 
   /**
-   * Stops the monitoring tasks for this monitor and close all resources.
+   * Stops the monitoring tasks for this monitor and closes all resources.
    */
   void stop();
 

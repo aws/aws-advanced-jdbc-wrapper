@@ -27,7 +27,7 @@ public interface EventPublisher {
    * Registers the given subscriber for the given event classes.
    *
    * @param subscriber   the subscriber to be notified when the given event classes occur.
-   * @param eventClasses the classes of event that the subscriber should be notified of.
+   * @param eventClasses the classes of events that the subscriber should be notified of.
    */
   void subscribe(EventSubscriber subscriber, Set<Class<? extends Event>> eventClasses);
 

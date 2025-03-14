@@ -39,20 +39,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class ExternallyManagedCache<K, V> {
   private static final Logger LOGGER = Logger.getLogger(ExpirationCache.class.getName());
   protected final Map<K, CacheItem> cache = new ConcurrentHashMap<>();
-  protected final boolean isRenewableExpiration;
   protected final long timeToLiveNanos;
 
   /**
    * Constructs an externally managed cache.
    *
-   * @param isRenewableExpiration controls whether an item's expiration should be renewed when retrieved. If the item is
-   *                              expired when it is retrieved and isRenewableExpiration is true, the item's expiration
-   *                              will be renewed and the item will be returned.
    * @param timeToLiveNanos       the duration that the item should sit in the cache before being considered expired, in
    *                              nanoseconds.
    */
-  public ExternallyManagedCache(boolean isRenewableExpiration, long timeToLiveNanos) {
-    this.isRenewableExpiration = isRenewableExpiration;
+  public ExternallyManagedCache(long timeToLiveNanos) {
     this.timeToLiveNanos = timeToLiveNanos;
   }
 
@@ -92,14 +87,7 @@ public class ExternallyManagedCache<K, V> {
                 System.nanoTime() + this.timeToLiveNanos);
           }
 
-          // TODO: what if the object is expired and non-renewable? The caller needs the old value so that it can
-          //  dispose of it, but this could be confusing since computeIfAbsent returns the current value in other
-          //  classes.
-          if (this.isRenewableExpiration) {
-            valueItem.extendExpiration();
-          }
-
-          // The existing value is non-expired or renewable. Keep the existing value.
+          valueItem.extendExpiration();
           return valueItem;
         });
 

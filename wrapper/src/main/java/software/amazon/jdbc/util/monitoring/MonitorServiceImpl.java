@@ -34,7 +34,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AllowedAndBlockedHosts;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.ShouldDisposeFunc;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.events.DataAccessEvent;
 import software.amazon.jdbc.util.events.Event;
@@ -176,7 +175,6 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       long expirationTimeoutNanos,
       long heartbeatTimeoutNanos,
       Set<MonitorErrorResponse> errorResponses,
-      @Nullable ShouldDisposeFunc<T> shouldDisposeFunc,
       @Nullable Class<?> producedDataClass) {
     monitorCaches.computeIfAbsent(
         monitorClass,
@@ -306,7 +304,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
      */
     public CacheContainer(@NonNull final MonitorSettings settings, @Nullable Class<?> producedDataClass) {
       this.settings = settings;
-      this.cache = new ExternallyManagedCache<>(true, settings.getExpirationTimeoutNanos());
+      this.cache = new ExternallyManagedCache<>(settings.getExpirationTimeoutNanos());
       this.producedDataClass = producedDataClass;
     }
 

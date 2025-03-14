@@ -110,6 +110,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
       while (!this.stop.get() && !Thread.currentThread().isInterrupted()) {
         try {
           long start = System.nanoTime();
+          this.lastActivityTimestampNanos = System.nanoTime();
 
           final Filter customEndpointFilter =
               Filter.builder().name("db-cluster-endpoint-type").values("custom").build();

@@ -19,7 +19,6 @@ package software.amazon.jdbc.util.monitoring;
 import java.util.Set;
 import java.util.function.Supplier;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.jdbc.util.ShouldDisposeFunc;
 
 public interface MonitorService {
   /**
@@ -36,8 +35,6 @@ public interface MonitorService {
    *                               take between updating its last-updated timestamp. If a monitor has not updated its
    *                               last-updated timestamp within this duration it will be considered stuck.
    * @param errorResponses         a Set defining actions to take if the monitor is in an error state.
-   * @param shouldDisposeFunc      a function defining whether an item should be stopped if expired. If `null` is
-   *                               passed, the monitor will always be stopped if the monitor is expired.
    * @param producedDataClass      the class of data produced by the monitor.
    */
   <T extends Monitor> void registerMonitorTypeIfAbsent(
@@ -45,7 +42,6 @@ public interface MonitorService {
       long expirationTimeoutNanos,
       long heartbeatTimeoutNanos,
       Set<MonitorErrorResponse> errorResponses,
-      @Nullable ShouldDisposeFunc<T> shouldDisposeFunc,
       @Nullable Class<?> producedDataClass);
 
   /**
