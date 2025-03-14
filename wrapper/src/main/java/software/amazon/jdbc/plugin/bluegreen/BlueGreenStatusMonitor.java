@@ -106,6 +106,7 @@ public class BlueGreenStatusMonitor {
   protected final AtomicReference<IntervalType> intervalType = new AtomicReference<>(IntervalType.BASELINE);
   protected final AtomicBoolean stop = new AtomicBoolean(false);
   protected final AtomicBoolean useIpAddress = new AtomicBoolean(false);
+  protected final Object sleepWaitObj = new Object();
 
   protected HostListProvider hostListProvider = null;
   protected List<HostSpec> startTopology = new ArrayList<>();
@@ -148,13 +149,6 @@ public class BlueGreenStatusMonitor {
     this.supportBlueGreen = (SupportBlueGreen) this.pluginService.getDialect();
 
     executorService.submit(() -> {
-
-      try {
-        TimeUnit.SECONDS.sleep(1); // Some delay so the connection is initialized and topology is fetched.
-      } catch (InterruptedException e) {
-        return;
-      }
-
       try {
         while (!this.stop.get()) {
           try {
@@ -187,10 +181,11 @@ public class BlueGreenStatusMonitor {
                       this.allStartTopologyEndpointsRemoved));
             }
 
-            long delay = checkIntervalMap.getOrDefault(
+            long delayMs = checkIntervalMap.getOrDefault(
                 this.panicMode ? IntervalType.HIGH : this.intervalType.get(),
                 DEFAULT_CHECK_INTERVAL_MS);
-            TimeUnit.MILLISECONDS.sleep(delay);
+
+            this.delay(delayMs);
 
           } catch (InterruptedException ex) {
             LOGGER.finest(String.format("[%s] Interrupted.", this.role));
@@ -210,8 +205,28 @@ public class BlueGreenStatusMonitor {
     executorService.shutdown(); // executor accepts no more tasks
   }
 
+  protected void delay(long delayMs) throws InterruptedException {
+    long start = System.nanoTime();
+    long end = start + TimeUnit.MILLISECONDS.toNanos(delayMs);
+    IntervalType currentIntervalType = this.intervalType.get();
+    long minDelay = Math.min(delayMs, 50);
+
+    // Check whether intervalType or stop flag change, or until waited specified delay time.
+    do {
+      synchronized (this.sleepWaitObj) {
+        this.sleepWaitObj.wait(minDelay);
+      }
+    } while (this.intervalType.get() == currentIntervalType
+        && System.nanoTime() < end
+        && !this.stop.get());
+  }
+
   public void setIntervalType(final @NonNull IntervalType intervalType) {
     this.intervalType.set(intervalType);
+
+    synchronized (this.sleepWaitObj) {
+      this.sleepWaitObj.notifyAll();
+    }
   }
 
   public void setCollectIpAddresses(final boolean collectIpAddresses) {
@@ -228,6 +243,10 @@ public class BlueGreenStatusMonitor {
 
   public void setStop(boolean stop) {
     this.stop.set(stop);
+
+    synchronized (this.sleepWaitObj) {
+      this.sleepWaitObj.notifyAll();
+    }
   }
 
   public void resetCollectedData() {

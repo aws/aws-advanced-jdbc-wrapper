@@ -21,12 +21,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
@@ -42,6 +40,12 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.SupportBlueGreen;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.plugin.bluegreen.routing.ConnectRouting;
+import software.amazon.jdbc.plugin.bluegreen.routing.ExecuteRouting;
+import software.amazon.jdbc.plugin.bluegreen.routing.HoldConnectRouting;
+import software.amazon.jdbc.plugin.bluegreen.routing.HoldExecuteRouting;
+import software.amazon.jdbc.plugin.bluegreen.routing.RejectConnectRouting;
+import software.amazon.jdbc.plugin.bluegreen.routing.SubstituteConnectRouting;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.Utils;
@@ -343,7 +347,17 @@ public class BlueGreenStatusProvider {
         throw new UnsupportedOperationException("Unknown BG phase " + interimStatus.blueGreenPhase);
     }
 
+    final BlueGreenStatus latestStatus = this.pluginService.getStatus(BlueGreenStatus.class, true);
     this.pluginService.setStatus(BlueGreenStatus.class, this.summaryStatus, true);
+
+    // Notify all waiting threads that status is changed.
+    // Those waiting threads are waiting on an existing status so we need to notify on it.
+    if (latestStatus != null) {
+      synchronized (latestStatus) {
+        latestStatus.notifyAll();
+      }
+    }
+
     LOGGER.finest("Summary status:\n" + (this.summaryStatus == null ? "<null>" : this.summaryStatus.toString()));
   }
 
@@ -627,23 +641,6 @@ public class BlueGreenStatusProvider {
                 x.getValue(),
                 substituteHostSpecWithIp,
                 Arrays.asList(substituteHostSpec, hostSpec)));
-
-            // TODO: routing connects with blue IP to green IP. Confirm we don't need it.
-//           Optional<String> blueIp = this.hostIpAddresses.get(x.getKey());
-//           if (blueIp != null && blueIp.isPresent()) {
-//             connectRouting.add(new SubstituteConnectRouting(
-//                 blueIp.get(),
-//                 x.getValue(),
-//                 substituteHostSpecWithIp,
-//                 Arrays.asList(substituteHostSpec, hostSpec)));
-//             connectRouting.add(new SubstituteConnectRouting(
-//                 this.getHostAndPort(
-//                     blueIp.get(),
-//                     this.interimStatuses[x.getValue().getValue()].port),
-//                 x.getValue(),
-//                 substituteHostSpecWithIp,
-//                 Arrays.asList(substituteHostSpec, hostSpec)));
-//           }
           });
     }
 

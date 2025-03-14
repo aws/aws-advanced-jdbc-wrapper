@@ -1,4 +1,4 @@
-package software.amazon.jdbc.plugin.bluegreen;
+package software.amazon.jdbc.plugin.bluegreen.routing;
 
 import static software.amazon.jdbc.plugin.bluegreen.BlueGreenConnectionPlugin.BG_CONNECT_TIMEOUT;
 
@@ -13,6 +13,10 @@ import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.plugin.bluegreen.BlueGreenPhases;
+import software.amazon.jdbc.plugin.bluegreen.BlueGreenRole;
+import software.amazon.jdbc.plugin.bluegreen.BlueGreenStatus;
+import software.amazon.jdbc.plugin.bluegreen.IntervalType;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
@@ -59,10 +63,12 @@ public class HoldConnectRouting extends BaseConnectRouting {
           && bgStatus.getCurrentPhase() == BlueGreenPhases.IN_PROGRESS) {
 
         try {
-          TimeUnit.MILLISECONDS.sleep(100);
+          this.delay(100, bgStatus, pluginService);
         } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
           throw new RuntimeException(e);
         }
+
         bgStatus = pluginService.getStatus(BlueGreenStatus.class, true);
       }
 
@@ -90,5 +96,29 @@ public class HoldConnectRouting extends BaseConnectRouting {
 
   protected long getNanoTime() {
     return System.nanoTime();
+  }
+
+  protected void delay(long delayMs, BlueGreenStatus bgStatus, PluginService pluginService)
+      throws InterruptedException {
+
+    long start = System.nanoTime();
+    long end = start + TimeUnit.MILLISECONDS.toNanos(delayMs);
+    final BlueGreenStatus currentStatus = bgStatus;
+    long minDelay = Math.min(delayMs, 50);
+
+    if (currentStatus == null) {
+      TimeUnit.MILLISECONDS.sleep(delayMs);
+    } else {
+      // Check whether intervalType or stop flag change, or until waited specified delay time.
+      do {
+        synchronized (currentStatus) {
+          currentStatus.wait(minDelay);
+        }
+      } while (
+          // check if status reference is changed
+          currentStatus == pluginService.getStatus(BlueGreenStatus.class, true)
+          && System.nanoTime() < end
+          && !Thread.currentThread().isInterrupted());
+    }
   }
 }

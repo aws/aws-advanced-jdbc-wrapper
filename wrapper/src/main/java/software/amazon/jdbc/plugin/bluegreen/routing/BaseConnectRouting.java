@@ -1,14 +1,14 @@
-package software.amazon.jdbc.plugin.bluegreen;
+package software.amazon.jdbc.plugin.bluegreen.routing;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
-import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.plugin.bluegreen.BlueGreenRole;
 
 public abstract class BaseConnectRouting implements ConnectRouting {
 
