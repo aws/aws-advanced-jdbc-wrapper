@@ -1,4 +1,4 @@
-package software.amazon.jdbc.plugin.bluegreen;
+package software.amazon.jdbc.plugin.bluegreen.routing;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -13,6 +13,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.plugin.bluegreen.BlueGreenRole;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;

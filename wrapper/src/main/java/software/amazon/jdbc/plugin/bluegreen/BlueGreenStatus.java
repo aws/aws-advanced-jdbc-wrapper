@@ -17,7 +17,6 @@
 package software.amazon.jdbc.plugin.bluegreen;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -26,8 +25,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.plugin.bluegreen.routing.ConnectRouting;
+import software.amazon.jdbc.plugin.bluegreen.routing.ExecuteRouting;
 import software.amazon.jdbc.util.StringUtils;
-import software.amazon.jdbc.util.Utils;
 
 // It should be immutable
 public class BlueGreenStatus {
