@@ -29,6 +29,8 @@ public class SessionState {
   public SessionStateField<Integer> transactionIsolation = new SessionStateField<>();
   public SessionStateField<Map<String, Class<?>>> typeMap = new SessionStateField<>();
 
+  // TODO: add support for session states that affects the query result from the database
+
   public SessionState copy() {
     final SessionState newSessionState = new SessionState();
     newSessionState.autoCommit = this.autoCommit.copy();

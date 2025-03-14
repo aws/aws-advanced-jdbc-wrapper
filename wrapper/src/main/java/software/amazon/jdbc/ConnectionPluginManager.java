@@ -35,6 +35,7 @@ import software.amazon.jdbc.plugin.AuroraConnectionTrackerPlugin;
 import software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPlugin;
 import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin;
 import software.amazon.jdbc.plugin.DataCacheConnectionPlugin;
+import software.amazon.jdbc.plugin.DataRemoteCachePlugin;
 import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
 import software.amazon.jdbc.plugin.ExecutionTimeConnectionPlugin;
 import software.amazon.jdbc.plugin.LogQueryConnectionPlugin;
@@ -74,6 +75,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
           put(AuroraConnectionTrackerPlugin.class, "plugin:auroraConnectionTracker");
           put(LogQueryConnectionPlugin.class, "plugin:logQuery");
           put(DataCacheConnectionPlugin.class, "plugin:dataCache");
+          put(DataRemoteCachePlugin.class, "plugin:dataRemoteCache");
           put(HostMonitoringConnectionPlugin.class, "plugin:efm");
           put(software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin.class, "plugin:efm2");
           put(FailoverConnectionPlugin.class, "plugin:failover");
