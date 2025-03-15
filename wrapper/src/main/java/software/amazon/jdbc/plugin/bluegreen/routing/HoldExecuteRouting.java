@@ -25,10 +25,13 @@ public class HoldExecuteRouting extends BaseExecuteRouting {
 
   private static final Logger LOGGER = Logger.getLogger(HoldExecuteRouting.class.getName());
 
-  private static final String TELEMETRY_SWITCHOVER = "Blue/Green switchover";
+  protected static final String TELEMETRY_SWITCHOVER = "Blue/Green switchover";
 
-  public HoldExecuteRouting(@Nullable String hostAndPort, @Nullable BlueGreenRole role) {
+  protected String bgdId;
+
+  public HoldExecuteRouting(@Nullable String hostAndPort, @Nullable BlueGreenRole role, final String bgdId) {
     super(hostAndPort, role);
+    this.bgdId = bgdId;
   }
 
   @Override
@@ -56,7 +59,7 @@ public class HoldExecuteRouting extends BaseExecuteRouting {
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(TELEMETRY_SWITCHOVER,
         TelemetryTraceLevel.NESTED);
 
-    BlueGreenStatus bgStatus = pluginService.getStatus(BlueGreenStatus.class, true);
+    BlueGreenStatus bgStatus = pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
 
     try {
       long endTime = this.getNanoTime() + timeoutNano;
@@ -66,11 +69,13 @@ public class HoldExecuteRouting extends BaseExecuteRouting {
           && bgStatus.getCurrentPhase() == BlueGreenPhases.IN_PROGRESS) {
 
         try {
-          TimeUnit.MILLISECONDS.sleep(100);
+          this.delay(100, bgStatus, pluginService, this.bgdId);
         } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
           throw new RuntimeException(e);
         }
-        bgStatus = pluginService.getStatus(BlueGreenStatus.class, true);
+
+        bgStatus = pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
       }
 
       holdEndTime = this.getNanoTime();
@@ -95,9 +100,5 @@ public class HoldExecuteRouting extends BaseExecuteRouting {
 
     // returning no results so a next routing can handle it
     return Optional.empty();
-  }
-
-  protected long getNanoTime() {
-    return System.nanoTime();
   }
 }

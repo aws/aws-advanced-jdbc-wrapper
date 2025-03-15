@@ -21,11 +21,11 @@ import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Supplier;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
@@ -48,8 +48,11 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
       "bgConnectTimeout", "30000",
       "Connect timeout (in msec) during Blue/Green Deployment switchover.");
 
-  protected static final ReentrantLock providerInitLock = new ReentrantLock();
-  protected static BlueGreenStatusProvider provider = null;
+  public static final AwsWrapperProperty BGD_ID = new AwsWrapperProperty(
+      "bgdId", "1",
+      "Blue/Green Deployment identifier that helps the driver to distinguish different deployments.");
+
+  protected static Map<String, BlueGreenStatusProvider> provider = new ConcurrentHashMap<>();
 
   private static final Set<String> CLOSING_METHOD_NAMES = Collections.unmodifiableSet(
       new HashSet<>(Arrays.asList(
@@ -68,30 +71,32 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
   protected final PluginService pluginService;
   protected final Properties props;
   protected final Set<String> subscribedMethods;
-  protected Supplier<BlueGreenStatusProvider> initProviderSupplier;
+  protected BlueGreenProviderSupplier providerSupplier;
 
   protected final TelemetryFactory telemetryFactory;
   protected final RdsUtils rdsUtils = new RdsUtils();
 
   protected BlueGreenStatus bgStatus = null;
+  protected String bgdId;
 
   protected boolean isIamInUse = false;
 
   public BlueGreenConnectionPlugin(
       final @NonNull PluginService pluginService,
       final @NonNull Properties props) {
-    this(pluginService, props, () -> new BlueGreenStatusProvider(pluginService, props));
+    this(pluginService, props, BlueGreenStatusProvider::new);
   }
 
   public BlueGreenConnectionPlugin(
       final @NonNull PluginService pluginService,
       final @NonNull Properties props,
-      final @NonNull Supplier<BlueGreenStatusProvider> initProviderSupplier) {
+      final @NonNull BlueGreenProviderSupplier providerSupplier) {
 
     this.pluginService = pluginService;
     this.props = props;
     this.telemetryFactory = pluginService.getTelemetryFactory();
-    this.initProviderSupplier = initProviderSupplier;
+    this.providerSupplier = providerSupplier;
+    this.bgdId = BGD_ID.getString(this.props).trim().toLowerCase();
 
     final Set<String> methods = new HashSet<>();
     /*
@@ -117,7 +122,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
-    this.bgStatus = this.pluginService.getStatus(BlueGreenStatus.class, true);
+    this.bgStatus = this.pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
 
     if (this.bgStatus == null) {
       return regularOpenConnection(connectFunc, isInitialConnection);
@@ -151,7 +156,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
       if (conn == null) {
 
-        this.bgStatus = this.pluginService.getStatus(BlueGreenStatus.class, true);
+        this.bgStatus = this.pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
 
         routing = this.bgStatus.getConnectRouting().stream()
             .filter(r -> r.isMatch(hostSpec, hostRole))
@@ -302,7 +307,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
       return jdbcMethodFunc.call();
     }
 
-    this.bgStatus = this.pluginService.getStatus(BlueGreenStatus.class, true);
+    this.bgStatus = this.pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
 
     if (this.bgStatus == null) {
       return jdbcMethodFunc.call();
@@ -336,7 +341,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
       if (!result.isPresent()) {
 
-        this.bgStatus = this.pluginService.getStatus(BlueGreenStatus.class, true);
+        this.bgStatus = this.pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
 
         routing = this.bgStatus.getExecuteRouting().stream()
             .filter(r -> r.isMatch(currentHostSpec, hostRole))
@@ -353,15 +358,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   protected void initProvider() {
-    if (provider == null) {
-      providerInitLock.lock();
-      try {
-        if (provider == null) {
-          provider = this.initProviderSupplier.get();
-        }
-      } finally {
-        providerInitLock.unlock();
-      }
-    }
+    provider.computeIfAbsent(this.bgdId,
+        (key) -> this.providerSupplier.create(this.pluginService, this.props, this.bgdId));
   }
 }

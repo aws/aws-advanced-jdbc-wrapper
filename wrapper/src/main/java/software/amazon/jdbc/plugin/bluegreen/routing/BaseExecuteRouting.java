@@ -10,7 +10,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenRole;
 
-public abstract class BaseExecuteRouting implements ExecuteRouting {
+public abstract class BaseExecuteRouting extends BaseRouting implements ExecuteRouting {
 
   protected final String hostAndPort;
   protected BlueGreenRole role;

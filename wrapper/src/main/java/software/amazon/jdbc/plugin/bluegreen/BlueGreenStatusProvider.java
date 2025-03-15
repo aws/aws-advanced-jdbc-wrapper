@@ -98,13 +98,16 @@ public class BlueGreenStatusProvider {
 
   protected final PluginService pluginService;
   protected final Properties props;
+  protected final String bgdId;
 
   public BlueGreenStatusProvider(
       final @NonNull PluginService pluginService,
-      final @NonNull Properties props) {
+      final @NonNull Properties props,
+      final @NonNull String bgdId) {
 
     this.pluginService = pluginService;
     this.props = props;
+    this.bgdId = bgdId;
 
     checkIntervalMap.put(IntervalType.BASELINE, BG_INTERVAL_BASELINE.getLong(props));
     checkIntervalMap.put(IntervalType.INCREASED, BG_INTERVAL_INCREASED.getLong(props));
@@ -114,7 +117,9 @@ public class BlueGreenStatusProvider {
     if (dialect instanceof SupportBlueGreen) {
       this.initMonitoring();
     } else {
-      LOGGER.warning("Blue/Green Deployments isn't supported by this database engine.");
+      LOGGER.warning(String.format(
+          "[bgdId: '%s'] Blue/Green Deployments isn't supported by this database dialect.",
+          this.bgdId));
     }
   }
 
@@ -174,7 +179,7 @@ public class BlueGreenStatusProvider {
       final BlueGreenRole role,
       final BlueGreenInterimStatus interimStatus) {
 
-    //LOGGER.finest(String.format("[%s] %s", role, interimStatus));
+    //LOGGER.finest(String.format("[bgdId: '%s', role: %s] %s", this.bgdId, role, interimStatus));
 
     int statusHash = this.getStatusHash(interimStatus);
     if (this.statusHashes[role.getValue()] == statusHash) {
@@ -182,7 +187,7 @@ public class BlueGreenStatusProvider {
       return;
     }
 
-    LOGGER.finest(String.format("[%s] %s", role, interimStatus));
+    LOGGER.finest(String.format("[bgdId: '%s', role: %s] %s", this.bgdId, role, interimStatus));
 
     this.statusHashes[role.getValue()] = statusHash;
 
@@ -191,7 +196,7 @@ public class BlueGreenStatusProvider {
         : this.interimStatuses[role.getValue()].blueGreenPhase;
     if (interimStatus.blueGreenPhase.getValue() < latestInterimPhase.getValue()) {
       this.rollback = true;
-      LOGGER.finest("Blue/Green deployment is in rollback mode.");
+      LOGGER.finest(String.format("[bgdId: '%s'] Blue/Green deployment is in rollback mode.", this.bgdId));
     }
 
     BlueGreenPhases latestStatusPhase = this.summaryStatus == null
@@ -275,7 +280,7 @@ public class BlueGreenStatusProvider {
 
     switch (latestInterimPhase) {
       case NOT_CREATED:
-        this.summaryStatus = new BlueGreenStatus(BlueGreenPhases.NOT_CREATED);
+        this.summaryStatus = new BlueGreenStatus(this.bgdId, BlueGreenPhases.NOT_CREATED);
         Arrays.stream(this.monitors).forEach(x -> {
           x.setIntervalType(IntervalType.BASELINE);
           x.setCollectIpAddresses(false);
@@ -344,11 +349,12 @@ public class BlueGreenStatusProvider {
         });
         break;
       default:
-        throw new UnsupportedOperationException("Unknown BG phase " + interimStatus.blueGreenPhase);
+        throw new UnsupportedOperationException(
+            String.format("[bgdId: '%s'] Unknown BG phase '%s'", this.bgdId, interimStatus.blueGreenPhase));
     }
 
     final BlueGreenStatus latestStatus = this.pluginService.getStatus(BlueGreenStatus.class, true);
-    this.pluginService.setStatus(BlueGreenStatus.class, this.summaryStatus, true);
+    this.pluginService.setStatus(BlueGreenStatus.class, this.summaryStatus, this.bgdId);
 
     // Notify all waiting threads that status is changed.
     // Those waiting threads are waiting on an existing status so we need to notify on it.
@@ -358,20 +364,22 @@ public class BlueGreenStatusProvider {
       }
     }
 
-    LOGGER.finest("Summary status:\n" + (this.summaryStatus == null ? "<null>" : this.summaryStatus.toString()));
+    LOGGER.finest(String.format("[bgdId: '%s'] Summary status:\n",
+        this.bgdId,
+        this.summaryStatus == null ? "<null>" : this.summaryStatus.toString()));
   }
 
   protected void updateDnsFlags(BlueGreenRole role, BlueGreenInterimStatus interimStatus) {
     if (role == BlueGreenRole.SOURCE) {
       if (this.blueDnsUpdateCompleted != interimStatus.allStartTopologyIpChanged) {
-        LOGGER.finest("Blue DNS update completed.");
+        LOGGER.finest(String.format("[bgdId: '%s'] Blue DNS update completed.", this.bgdId));
       }
       this.blueDnsUpdateCompleted = interimStatus.allStartTopologyIpChanged;
     }
 
     if (role == BlueGreenRole.TARGET) {
       if (this.greenDnsRemoved != interimStatus.allStartTopologyEndpointsRemoved) {
-        LOGGER.finest("Green DNS update completed.");
+        LOGGER.finest(String.format("[bgdId: '%s'] Green DNS update completed.", this.bgdId));
       }
       this.greenDnsRemoved = interimStatus.allStartTopologyEndpointsRemoved;
     }
@@ -437,6 +445,7 @@ public class BlueGreenStatusProvider {
   // Execute JDBC calls: default behaviour; no action
   protected BlueGreenStatus getStatusOfCreated() {
     return new BlueGreenStatus(
+        this.bgdId,
         BlueGreenPhases.CREATED,
         new ArrayList<>(),
         new ArrayList<>(),
@@ -476,6 +485,7 @@ public class BlueGreenStatusProvider {
         });
 
     return new BlueGreenStatus(
+        this.bgdId,
         BlueGreenPhases.PREPARATION,
         connectRouting,
         new ArrayList<>(),
@@ -493,8 +503,8 @@ public class BlueGreenStatusProvider {
     List<ExecuteRouting> executeRouting = new ArrayList<>();
 
     // All blue and green connect calls should be on hold.
-    connectRouting.add(new HoldConnectRouting(null, BlueGreenRole.SOURCE));
-    connectRouting.add(new HoldConnectRouting(null, BlueGreenRole.TARGET));
+    connectRouting.add(new HoldConnectRouting(null, BlueGreenRole.SOURCE, this.bgdId));
+    connectRouting.add(new HoldConnectRouting(null, BlueGreenRole.TARGET, this.bgdId));
 
     // All connect calls with IP address that belongs to blue or green node should be on hold.
     this.hostIpAddresses.values().stream()
@@ -512,10 +522,11 @@ public class BlueGreenStatusProvider {
                 .findFirst()
                 .orElse(false)) {
 
-              connectRouting.add(new HoldConnectRouting(ipAddress, null));
+              connectRouting.add(new HoldConnectRouting(ipAddress, null, this.bgdId));
               connectRouting.add(new HoldConnectRouting(
                   this.getHostAndPort(ipAddress, interimStatus.port),
-                  null));
+                  null,
+                  this.bgdId));
 
               return;
             }
@@ -530,21 +541,22 @@ public class BlueGreenStatusProvider {
                 .findFirst()
                 .orElse(false)) {
 
-              connectRouting.add(new HoldConnectRouting(ipAddress, null));
+              connectRouting.add(new HoldConnectRouting(ipAddress, null, this.bgdId));
               connectRouting.add(new HoldConnectRouting(
                   this.getHostAndPort(ipAddress, interimStatus.port),
-                  null));
+                  null,
+                  this.bgdId));
 
               return;
             }
           }
 
-          connectRouting.add(new HoldConnectRouting(ipAddress, null));
+          connectRouting.add(new HoldConnectRouting(ipAddress, null, this.bgdId));
         });
 
     // All blue and green traffic should be on hold.
-    executeRouting.add(new HoldExecuteRouting(null, BlueGreenRole.SOURCE));
-    executeRouting.add(new HoldExecuteRouting(null, BlueGreenRole.TARGET));
+    executeRouting.add(new HoldExecuteRouting(null, BlueGreenRole.SOURCE, this.bgdId));
+    executeRouting.add(new HoldExecuteRouting(null, BlueGreenRole.TARGET, this.bgdId));
 
     // All traffic through connections with IP addresses that belong to blue or green nodes should be on hold.
     this.hostIpAddresses.values().stream()
@@ -562,10 +574,11 @@ public class BlueGreenStatusProvider {
                 .findFirst()
                 .orElse(false)) {
 
-              executeRouting.add(new HoldExecuteRouting(ipAddress, null));
+              executeRouting.add(new HoldExecuteRouting(ipAddress, null, this.bgdId));
               executeRouting.add(new HoldExecuteRouting(
                   this.getHostAndPort(ipAddress, interimStatus.port),
-                  null));
+                  null,
+                  this.bgdId));
 
               return;
             }
@@ -580,19 +593,21 @@ public class BlueGreenStatusProvider {
                 .findFirst()
                 .orElse(false)) {
 
-              executeRouting.add(new HoldExecuteRouting(ipAddress, null));
+              executeRouting.add(new HoldExecuteRouting(ipAddress, null, this.bgdId));
               executeRouting.add(new HoldExecuteRouting(
                   this.getHostAndPort(ipAddress, interimStatus.port),
-                  null));
+                  null,
+                  this.bgdId));
 
               return;
             }
           }
 
-          executeRouting.add(new HoldExecuteRouting(ipAddress, null));
+          executeRouting.add(new HoldExecuteRouting(ipAddress, null, this.bgdId));
         });
 
     return new BlueGreenStatus(
+        this.bgdId,
         BlueGreenPhases.IN_PROGRESS,
         connectRouting,
         executeRouting,
@@ -606,6 +621,7 @@ public class BlueGreenStatusProvider {
     this.createPostRouting(connectRouting, executeRouting);
 
     return new BlueGreenStatus(
+        this.bgdId,
         BlueGreenPhases.POST,
         connectRouting,
         executeRouting,
@@ -658,6 +674,7 @@ public class BlueGreenStatusProvider {
     this.createPostRouting(connectRouting, executeRouting);
 
     return new BlueGreenStatus(
+        this.bgdId,
         BlueGreenPhases.COMPLETED,
         connectRouting,
         executeRouting,

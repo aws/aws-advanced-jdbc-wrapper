@@ -28,8 +28,11 @@ public class HoldConnectRouting extends BaseConnectRouting {
 
   private static final String TELEMETRY_SWITCHOVER = "Blue/Green switchover";
 
-  public HoldConnectRouting(@Nullable String hostAndPort, @Nullable BlueGreenRole role) {
+  protected String bgdId;
+
+  public HoldConnectRouting(@Nullable String hostAndPort, @Nullable BlueGreenRole role, final String bgdId) {
     super(hostAndPort, role);
+    this.bgdId = bgdId;
   }
 
   @Override
@@ -53,7 +56,7 @@ public class HoldConnectRouting extends BaseConnectRouting {
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(TELEMETRY_SWITCHOVER,
         TelemetryTraceLevel.NESTED);
 
-    BlueGreenStatus bgStatus = pluginService.getStatus(BlueGreenStatus.class, true);
+    BlueGreenStatus bgStatus = pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
 
     try {
       long endTime = this.getNanoTime() + timeoutNano;
@@ -63,13 +66,13 @@ public class HoldConnectRouting extends BaseConnectRouting {
           && bgStatus.getCurrentPhase() == BlueGreenPhases.IN_PROGRESS) {
 
         try {
-          this.delay(100, bgStatus, pluginService);
+          this.delay(100, bgStatus, pluginService, this.bgdId);
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           throw new RuntimeException(e);
         }
 
-        bgStatus = pluginService.getStatus(BlueGreenStatus.class, true);
+        bgStatus = pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
       }
 
       holdEndTime = this.getNanoTime();
@@ -92,33 +95,5 @@ public class HoldConnectRouting extends BaseConnectRouting {
 
     // returning no connection so a next routing can handle it
     return null;
-  }
-
-  protected long getNanoTime() {
-    return System.nanoTime();
-  }
-
-  protected void delay(long delayMs, BlueGreenStatus bgStatus, PluginService pluginService)
-      throws InterruptedException {
-
-    long start = System.nanoTime();
-    long end = start + TimeUnit.MILLISECONDS.toNanos(delayMs);
-    final BlueGreenStatus currentStatus = bgStatus;
-    long minDelay = Math.min(delayMs, 50);
-
-    if (currentStatus == null) {
-      TimeUnit.MILLISECONDS.sleep(delayMs);
-    } else {
-      // Check whether intervalType or stop flag change, or until waited specified delay time.
-      do {
-        synchronized (currentStatus) {
-          currentStatus.wait(minDelay);
-        }
-      } while (
-          // check if status reference is changed
-          currentStatus == pluginService.getStatus(BlueGreenStatus.class, true)
-          && System.nanoTime() < end
-          && !Thread.currentThread().isInterrupted());
-    }
   }
 }
