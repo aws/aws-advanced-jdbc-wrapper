@@ -32,21 +32,24 @@ import software.amazon.jdbc.util.StringUtils;
 // It should be immutable
 public class BlueGreenStatus {
 
+  private final String bgdId;
   private final BlueGreenPhases currentPhase;
   private final List<ConnectRouting> unmodifiableConnectRouting;
   private final List<ExecuteRouting> unmodifiableExecuteRouting;
   private final Map<String, BlueGreenRole> roleByEndpoint = new ConcurrentHashMap<>(); // all known endpoints; host and port
 
-  public BlueGreenStatus(final BlueGreenPhases phase) {
-    this(phase, new ArrayList<>(), new ArrayList<>(), new HashMap<>());
+  public BlueGreenStatus(final String bgdId, final BlueGreenPhases phase) {
+    this(bgdId, phase, new ArrayList<>(), new ArrayList<>(), new HashMap<>());
   }
 
   public BlueGreenStatus(
+      final String bgdId,
       final BlueGreenPhases phase,
       final List<ConnectRouting> connectRouting,
       final List<ExecuteRouting> executeRouting,
       final Map<String, BlueGreenRole> roleByEndpoint) {
 
+    this.bgdId = bgdId;
     this.currentPhase = phase;
     this.unmodifiableConnectRouting = Collections.unmodifiableList(new ArrayList<>(connectRouting));
     this.unmodifiableExecuteRouting = Collections.unmodifiableList(new ArrayList<>(executeRouting));
@@ -78,7 +81,8 @@ public class BlueGreenStatus {
         .collect(Collectors.joining("\n   "));
 
     return String.format("%s [\n"
-            + " phase %s, \n"
+            + " bgdId: '%s', \n"
+            + " phase: %s, \n"
             + " Connect routing: \n"
             + "   %s \n"
             + " Execute routing: \n"
@@ -87,6 +91,7 @@ public class BlueGreenStatus {
             + "   %s \n"
             + "]",
         super.toString(),
+        this.bgdId,
         this.currentPhase,
         StringUtils.isNullOrEmpty(connectRoutingStr) ? "-" : connectRoutingStr,
         StringUtils.isNullOrEmpty(executeRoutingStr) ? "-" : executeRoutingStr,

@@ -10,7 +10,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenRole;
 
-public abstract class BaseConnectRouting implements ConnectRouting {
+public abstract class BaseConnectRouting extends BaseRouting implements ConnectRouting {
 
   protected final String hostAndPort;
   protected BlueGreenRole role;

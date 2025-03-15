@@ -807,7 +807,19 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   public <T> void setStatus(final Class<T> clazz, final @Nullable T status, final boolean clusterBound) {
-    final String cacheKey = this.getStatusCacheKey(clazz, clusterBound);
+    String clusterId = null;
+    if (clusterBound) {
+      try {
+        clusterId = this.hostListProvider.getClusterId();
+      } catch (Exception ex) {
+        // do nothing
+      }
+    }
+    this.setStatus(clazz, status, clusterId);
+  }
+
+  public <T> void setStatus(final Class<T> clazz, final @Nullable T status, final String key) {
+    final String cacheKey = this.getStatusCacheKey(clazz, key);
     LOGGER.finest(String.format("statusCacheKey: %s, size: %d", cacheKey, statusesExpiringCache.size()));
     if (status == null) {
       statusesExpiringCache.remove(cacheKey);
@@ -819,21 +831,25 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   public <T> T getStatus(final @NonNull Class<T> clazz, final boolean clusterBound) {
-    final String cacheKey = this.getStatusCacheKey(clazz, clusterBound);
-    LOGGER.finest(String.format("statusCacheKey: %s, size: %d", cacheKey, statusesExpiringCache.size()));
-    return clazz.cast(statusesExpiringCache.get(cacheKey));
+    String clusterId = null;
+    if (clusterBound) {
+      try {
+        clusterId = this.hostListProvider.getClusterId();
+      } catch (Exception ex) {
+        // do nothing
+      }
+    }
+    return this.getStatus(clazz, clusterId);
   }
 
-  protected <T> String getStatusCacheKey(final Class<T> clazz, final boolean clusterBound) {
-    String clusterId = "";
-    try {
-      clusterId = this.hostListProvider.getClusterId();
-    } catch (Exception ex) {
-      // do nothing
-    }
-    return clusterBound
-        ? String.format("%s::%s", clusterId, clazz.getName())
-        : clazz.getName();
+  public <T> T getStatus(final @NonNull Class<T> clazz, String key) {
+    key = key == null ? "" : key.trim().toLowerCase();
+    LOGGER.finest(String.format("statusCacheKey: %s, size: %d", key, statusesExpiringCache.size()));
+    return clazz.cast(statusesExpiringCache.get(key));
+  }
+
+  protected <T> String getStatusCacheKey(final Class<T> clazz, final String key) {
+    return String.format("%s::%s", key == null ? "" : key.trim().toLowerCase(), clazz.getName());
   }
 
   public boolean isPluginInUse(final Class<? extends ConnectionPlugin> pluginClazz) {

@@ -686,7 +686,16 @@ public class ConcurrencyTests {
     }
 
     @Override
+    public <T> void setStatus(final Class<T> clazz, final @Nullable T status, final String key) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
     public <T> T getStatus(final @NonNull Class<T> clazz, final boolean clusterBound) {
+      throw new UnsupportedOperationException();
+    }
+
+    public <T> T getStatus(final @NonNull Class<T> clazz, String key) {
       throw new UnsupportedOperationException();
     }
 
