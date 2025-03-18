@@ -34,6 +34,7 @@ dependencies {
     compileOnly("software.amazon.awssdk:http-client-spi:2.30.32") // Required for IAM (light implementation)
     compileOnly("software.amazon.awssdk:sts:2.30.27")
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
+    compileOnly("com.mchange:c3p0:0.9.5.5")
     compileOnly("software.amazon.awssdk:secretsmanager:2.30.21")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.18.2")
     compileOnly("com.mysql:mysql-connector-j:9.2.0")
@@ -61,6 +62,7 @@ dependencies {
     testImplementation("com.mysql:mysql-connector-j:9.2.0")
     testImplementation("org.mariadb.jdbc:mariadb-java-client:3.5.1")
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
+    testImplementation("com.mchange:c3p0:0.9.5.5")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
     testImplementation("software.amazon.awssdk:rds:2.31.2")
@@ -70,11 +72,11 @@ dependencies {
     testImplementation("software.amazon.awssdk:secretsmanager:2.30.21")
     testImplementation("software.amazon.awssdk:sts:2.30.27")
     // Note: all org.testcontainers dependencies should have the same version
-    testImplementation("org.testcontainers:testcontainers:1.20.4")
-    testImplementation("org.testcontainers:mysql:1.20.5")
+    testImplementation("org.testcontainers:testcontainers:1.20.6")
+    testImplementation("org.testcontainers:mysql:1.20.6")
     testImplementation("org.testcontainers:postgresql:1.20.6")
-    testImplementation("org.testcontainers:mariadb:1.20.4")
-    testImplementation("org.testcontainers:junit-jupiter:1.20.4")
+    testImplementation("org.testcontainers:mariadb:1.20.6")
+    testImplementation("org.testcontainers:junit-jupiter:1.20.6")
     testImplementation("org.testcontainers:toxiproxy:1.20.6")
     testImplementation("eu.rekawek.toxiproxy:toxiproxy-java:2.1.7")
     testImplementation("org.apache.poi:poi-ooxml:5.3.0")
