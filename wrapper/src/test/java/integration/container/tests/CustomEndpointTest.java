@@ -89,7 +89,7 @@ public class CustomEndpointTest {
   @BeforeAll
   public static void setupEndpoint() {
     TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
-    String clusterId = envInfo.getAuroraClusterName();
+    String clusterId = envInfo.getRdsDbName();
     String region = envInfo.getRegion();
 
     try (RdsClient client = RdsClient.builder().region(Region.of(region)).build()) {

@@ -84,13 +84,10 @@ public class TestEnvironmentConfiguration {
 
   public String rdsDbRegion = System.getenv("RDS_DB_REGION");
 
-  public boolean reuseRdsCluster = Boolean.parseBoolean(System.getenv("REUSE_RDS_CLUSTER"));
-  public String rdsClusterName = System.getenv("RDS_CLUSTER_NAME"); // "cluster-mysql"
-  public String rdsClusterDomain =
-      System.getenv("RDS_CLUSTER_DOMAIN"); // "XYZ.us-west-2.rds.amazonaws.com"
-
-  public boolean reuseRdsInstance = Boolean.parseBoolean(System.getenv("REUSE_RDS_INSTANCE"));
-  public String rdsInstanceName = System.getenv("RDS_INSTANCE_NAME"); // "instance-name"
+  public boolean reuseRdsDb = Boolean.parseBoolean(System.getenv("REUSE_RDS_DB"));
+  public String rdsDbName = System.getenv("RDS_DB_NAME"); // "cluster-mysql", "instance-name", "cluster-multi-az-name"
+  public String rdsDbDomain =
+      System.getenv("RDS_DB_DOMAIN"); // "XYZ.us-west-2.rds.amazonaws.com"
 
   public String rdsEndpoint =
       System.getenv("RDS_ENDPOINT"); // "https://rds-int.amazon.com"

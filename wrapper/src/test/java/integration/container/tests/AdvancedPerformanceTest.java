@@ -645,7 +645,7 @@ public class AdvancedPerformanceTest {
   }
 
   private void failoverCluster() throws InterruptedException {
-    String clusterId = TestEnvironment.getCurrent().getInfo().getAuroraClusterName();
+    String clusterId = TestEnvironment.getCurrent().getInfo().getRdsDbName();
     String randomNode = auroraUtil.getRandomDBClusterReaderInstanceId(clusterId);
     auroraUtil.failoverClusterToTarget(clusterId, randomNode);
   }
@@ -653,7 +653,7 @@ public class AdvancedPerformanceTest {
   private void ensureClusterHealthy() throws InterruptedException {
 
     auroraUtil.waitUntilClusterHasRightState(
-        TestEnvironment.getCurrent().getInfo().getAuroraClusterName());
+        TestEnvironment.getCurrent().getInfo().getRdsDbName());
 
     // Always get the latest topology info with writer as first
     List<String> latestTopology = new ArrayList<>();
@@ -676,7 +676,7 @@ public class AdvancedPerformanceTest {
     }
     assertTrue(
         auroraUtil.isDBInstanceWriter(
-            TestEnvironment.getCurrent().getInfo().getAuroraClusterName(), latestTopology.get(0)));
+            TestEnvironment.getCurrent().getInfo().getRdsDbName(), latestTopology.get(0)));
     String currentWriter = latestTopology.get(0);
 
     // Adjust database info to reflect a current writer and to move corresponding instance to

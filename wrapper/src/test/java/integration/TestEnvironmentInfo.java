@@ -26,7 +26,7 @@ public class TestEnvironmentInfo {
 
   private String region;
   private String rdsEndpoint;
-  private String auroraClusterName;
+  private String rdsDbName;
   private String iamUsername;
 
   private TestDatabaseInfo databaseInfo;
@@ -86,8 +86,8 @@ public class TestEnvironmentInfo {
     return this.rdsEndpoint;
   }
 
-  public String getAuroraClusterName() {
-    return this.auroraClusterName;
+  public String getRdsDbName() {
+    return this.rdsDbName;
   }
 
   public String getIamUsername() {
@@ -106,8 +106,8 @@ public class TestEnvironmentInfo {
     this.rdsEndpoint = rdsEndpoint;
   }
 
-  public void setAuroraClusterName(String auroraClusterName) {
-    this.auroraClusterName = auroraClusterName;
+  public void setRdsDbName(String auroraClusterName) {
+    this.rdsDbName = auroraClusterName;
   }
 
   public void setDatabaseInfo(TestDatabaseInfo databaseInfo) {
