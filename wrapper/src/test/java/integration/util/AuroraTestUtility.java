@@ -84,10 +84,13 @@ import software.amazon.awssdk.services.ec2.model.IpPermission;
 import software.amazon.awssdk.services.ec2.model.IpRange;
 import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.awssdk.services.rds.RdsClientBuilder;
+import software.amazon.awssdk.services.rds.model.ApplyMethod;
 import software.amazon.awssdk.services.rds.model.BlueGreenDeployment;
 import software.amazon.awssdk.services.rds.model.BlueGreenDeploymentNotFoundException;
 import software.amazon.awssdk.services.rds.model.CreateBlueGreenDeploymentRequest;
 import software.amazon.awssdk.services.rds.model.CreateBlueGreenDeploymentResponse;
+import software.amazon.awssdk.services.rds.model.CreateDbClusterParameterGroupRequest;
+import software.amazon.awssdk.services.rds.model.CreateDbClusterParameterGroupResponse;
 import software.amazon.awssdk.services.rds.model.CreateDbClusterRequest;
 import software.amazon.awssdk.services.rds.model.CreateDbInstanceRequest;
 import software.amazon.awssdk.services.rds.model.CreateDbInstanceResponse;
@@ -99,6 +102,7 @@ import software.amazon.awssdk.services.rds.model.DbClusterNotFoundException;
 import software.amazon.awssdk.services.rds.model.DbInstanceNotFoundException;
 import software.amazon.awssdk.services.rds.model.DeleteBlueGreenDeploymentRequest;
 import software.amazon.awssdk.services.rds.model.DeleteBlueGreenDeploymentResponse;
+import software.amazon.awssdk.services.rds.model.DeleteDbClusterParameterGroupRequest;
 import software.amazon.awssdk.services.rds.model.DeleteDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.DeleteDbInstanceRequest;
 import software.amazon.awssdk.services.rds.model.DeleteDbInstanceResponse;
@@ -112,6 +116,9 @@ import software.amazon.awssdk.services.rds.model.DescribeDbInstancesResponse;
 import software.amazon.awssdk.services.rds.model.FailoverDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.Filter;
 import software.amazon.awssdk.services.rds.model.InvalidDbInstanceStateException;
+import software.amazon.awssdk.services.rds.model.ModifyDbClusterParameterGroupRequest;
+import software.amazon.awssdk.services.rds.model.ModifyDbClusterParameterGroupResponse;
+import software.amazon.awssdk.services.rds.model.Parameter;
 import software.amazon.awssdk.services.rds.model.RebootDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.RebootDbInstanceResponse;
 import software.amazon.awssdk.services.rds.model.SwitchoverBlueGreenDeploymentRequest;
@@ -235,13 +242,15 @@ public class AuroraTestUtility {
       String engine,
       String instanceClass,
       String version,
+      @Nullable String clusterParameterGroupName,
       int numInstances)
       throws InterruptedException {
 
     switch (deployment) {
       case AURORA:
         createAuroraCluster(
-            username, password, dbName, identifier, region, engine, instanceClass, version, numInstances);
+            username, password, dbName, identifier, region, engine, instanceClass,
+            version, clusterParameterGroupName, numInstances);
         break;
       case RDS_MULTI_AZ_CLUSTER:
         if (numInstances != MULTI_AZ_SIZE) {
@@ -355,6 +364,7 @@ public class AuroraTestUtility {
       String engine,
       String instanceClass,
       String version,
+      @Nullable String clusterParameterGroupName,
       int numInstances)
       throws InterruptedException {
     final Tag testRunnerTag = Tag.builder().key("env").value("test-runner").build();
@@ -370,6 +380,7 @@ public class AuroraTestUtility {
             .engineVersion(version)
             .storageEncrypted(true)
             .tags(testRunnerTag)
+            .dbClusterParameterGroupName(clusterParameterGroupName)
             .build();
 
     rdsClient.createDBCluster(dbClusterRequest);
@@ -445,10 +456,8 @@ public class AuroraTestUtility {
             .enablePerformanceInsights(false)
             .backupRetentionPeriod(1)
             .storageEncrypted(true)
-            .tags(testRunnerTag);
-
-    clusterBuilder =
-        clusterBuilder.allocatedStorage(DEFAULT_ALLOCATED_STORAGE)
+            .tags(testRunnerTag)
+            .allocatedStorage(DEFAULT_ALLOCATED_STORAGE)
             .dbClusterInstanceClass(instanceClass)
             .storageType(DEFAULT_STORAGE_TYPE)
             .iops(DEFAULT_IOPS);
@@ -561,6 +570,42 @@ public class AuroraTestUtility {
           "Instance deletion timeout for " + instanceToDelete.getInstanceId()
               + ". The instance was not deleted within 5 minutes");
     }
+  }
+
+  public void createCustomClusterParameterGroup(String groupName, DatabaseEngine engine) {
+    CreateDbClusterParameterGroupResponse response = rdsClient.createDBClusterParameterGroup(
+                CreateDbClusterParameterGroupRequest.builder()
+                .dbClusterParameterGroupName(groupName)
+                .description("Test custom cluster parameter group for BGD.")
+                .dbParameterGroupFamily(this.getAuroraParameterGroupFamily(engine))
+                .build());
+
+    if (!response.sdkHttpResponse().isSuccessful()) {
+      throw new RuntimeException("Error creating custom cluster parameter group. " + response.sdkHttpResponse());
+    }
+
+    ModifyDbClusterParameterGroupResponse response2 = rdsClient.modifyDBClusterParameterGroup(
+        ModifyDbClusterParameterGroupRequest.builder()
+            .dbClusterParameterGroupName(groupName)
+            .parameters(Parameter.builder()
+                .parameterName("binlog_format")
+                .parameterValue("ROW")
+                .applyMethod(ApplyMethod.PENDING_REBOOT)
+                .build())
+            .build()
+    );
+
+    if (!response2.sdkHttpResponse().isSuccessful()) {
+      throw new RuntimeException("Error updating parameter. " + response2.sdkHttpResponse());
+    }
+  }
+
+  public void deleteCustomClusterParameterGroup(String groupName) {
+    rdsClient.deleteDBClusterParameterGroup(
+        DeleteDbClusterParameterGroupRequest.builder()
+            .dbClusterParameterGroupName(groupName)
+            .build()
+    );
   }
 
   /**
@@ -842,10 +887,11 @@ public class AuroraTestUtility {
       case AURORA:
         return "db.r5.large";
       case RDS:
+      case RDS_MULTI_AZ_INSTANCE:
       case RDS_MULTI_AZ_CLUSTER:
         return "db.m5d.large";
       default:
-        throw new NotImplementedException(request.getDatabaseEngine().toString());
+        throw new NotImplementedException(request.getDatabaseEngineDeployment().toString());
     }
   }
 
@@ -857,6 +903,17 @@ public class AuroraTestUtility {
         return DatabaseEngine.MYSQL;
       default:
         throw new UnsupportedOperationException(instance.engine());
+    }
+  }
+
+  public String getAuroraParameterGroupFamily(DatabaseEngine engine) {
+    switch (engine) {
+      case PG:
+        return "aurora-postgresql14";
+      case MYSQL:
+        return "aurora-mysql5.7";
+      default:
+        throw new UnsupportedOperationException(engine.toString());
     }
   }
 
@@ -1722,7 +1779,9 @@ public class AuroraTestUtility {
           stmt.execute("DROP USER IF EXISTS " + dbUser + ";");
           stmt.execute(
               "CREATE USER " + dbUser + " IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS';");
-          stmt.execute("GRANT ALL PRIVILEGES ON " + databaseName + ".* TO '" + dbUser + "'@'%';");
+          if (!StringUtils.isNullOrEmpty(databaseName)) {
+            stmt.execute("GRANT ALL PRIVILEGES ON " + databaseName + ".* TO '" + dbUser + "'@'%';");
+          }
 
           // BG switchover status needs it.
           stmt.execute("GRANT SELECT ON mysql.* TO '" + dbUser + "'@'%';");
@@ -1927,7 +1986,7 @@ public class AuroraTestUtility {
     try {
       DescribeBlueGreenDeploymentsResponse response = rdsClient.describeBlueGreenDeployments(
           builder -> builder.filters(f -> f.name("source").values(sourceArn)));
-      if (response.hasBlueGreenDeployments()) {
+      if (!response.blueGreenDeployments().isEmpty()) {
         return response.blueGreenDeployments().get(0);
       }
       return null;

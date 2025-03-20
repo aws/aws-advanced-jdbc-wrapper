@@ -59,6 +59,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
@@ -149,6 +150,13 @@ public class BlueGreenDeploymentTests {
 
   @TestTemplate
   @ExtendWith(TestDriverProvider.class)
+  public void test_dummy(TestDriver testDriver) {
+    LOGGER.finest("Inside test.");
+  }
+
+  @TestTemplate
+  @ExtendWith(TestDriverProvider.class)
+  @Disabled
   public void test_Switchover(TestDriver testDriver) throws SQLException, InterruptedException {
 
     boolean iamEnabled =

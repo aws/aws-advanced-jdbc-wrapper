@@ -38,6 +38,8 @@ public class TestEnvironmentInfo {
 
   private String blueGreenDeploymentId;
 
+  private String clusterParameterGroupName = null;
+
   public TestDatabaseInfo getDatabaseInfo() {
     return this.databaseInfo;
   }
@@ -156,5 +158,11 @@ public class TestEnvironmentInfo {
 
   public void setBlueGreenDeploymentId(final String blueGreenDeploymentId) {
     this.blueGreenDeploymentId = blueGreenDeploymentId;
+  }
+
+  public String getClusterParameterGroupName() { return this.clusterParameterGroupName; }
+
+  public void setClusterParameterGroupName(String clusterParameterGroupName) {
+    this.clusterParameterGroupName = clusterParameterGroupName;
   }
 }

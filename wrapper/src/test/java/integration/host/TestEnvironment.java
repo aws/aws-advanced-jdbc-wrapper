@@ -154,6 +154,7 @@ public class TestEnvironment implements AutoCloseable {
       case AURORA:
       case RDS_MULTI_AZ_CLUSTER:
       case RDS_MULTI_AZ_INSTANCE:
+
         env = createAuroraOrMultiAzEnvironment(request);
         authorizeIP(env);
 
@@ -239,15 +240,24 @@ public class TestEnvironment implements AutoCloseable {
     } else {
       TestEnvironment env = new TestEnvironment(request);
       initDatabaseParams(env);
+      initAwsCredentials(env);
 
       switch (request.getDatabaseEngineDeployment()) {
         case RDS_MULTI_AZ_INSTANCE:
-          initAwsCredentials(env);
+          initEnv(env);
           createMultiAzInstance(env);
           configureIamAccess(env);
           break;
         case RDS_MULTI_AZ_CLUSTER:
+          initEnv(env);
+          createDbCluster(env);
+          configureIamAccess(env);
+          break;
         case AURORA:
+          initEnv(env);
+          if (env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)) {
+            createCustomClusterParameterGroup(env);
+          }
           createDbCluster(env);
           configureIamAccess(env);
           break;
@@ -296,6 +306,12 @@ public class TestEnvironment implements AutoCloseable {
       LOGGER.warning("BG Deployments are supported for RDS MultiAz Instances and Aurora clusters only."
           + " Proceed without creating BG Deployment.");
     }
+  }
+
+  private static void createCustomClusterParameterGroup(TestEnvironment env) {
+    String groupName = String.format("test-cpg-%d", System.nanoTime());
+    env.auroraUtil.createCustomClusterParameterGroup(groupName, env.info.getRequest().getDatabaseEngine());
+    env.info.setClusterParameterGroupName(groupName);
   }
 
   private static void createDatabaseContainers(TestEnvironment env) {
@@ -426,8 +442,7 @@ public class TestEnvironment implements AutoCloseable {
     }
   }
 
-  private static void createDbCluster(TestEnvironment env, int numOfInstances) {
-
+  private static void initEnv(TestEnvironment env) {
     env.info.setRegion(
         !StringUtils.isNullOrEmpty(config.rdsDbRegion)
             ? config.rdsDbRegion
@@ -446,6 +461,10 @@ public class TestEnvironment implements AutoCloseable {
             env.awsAccessKeyId,
             env.awsSecretAccessKey,
             env.awsSessionToken);
+  }
+
+  private static void createDbCluster(TestEnvironment env, int numOfInstances) {
+
     if (env.reuseDb) {
       if (StringUtils.isNullOrEmpty(env.rdsDbDomain)) {
         throw new RuntimeException("Environment variable RDS_DB_DOMAIN is required.");
@@ -518,6 +537,7 @@ public class TestEnvironment implements AutoCloseable {
             engine,
             instanceClass,
             engineVersion,
+            env.info.getClusterParameterGroupName(),
             numOfInstances);
 
         List<DBInstance> dbInstances = env.auroraUtil.getDBInstances(env.rdsDbName);
@@ -577,16 +597,6 @@ public class TestEnvironment implements AutoCloseable {
   }
 
   private static void createMultiAzInstance(TestEnvironment env) {
-    env.info.setRegion(
-        !StringUtils.isNullOrEmpty(config.rdsDbRegion)
-            ? config.rdsDbRegion
-            : "us-east-2");
-
-    env.reuseDb = config.reuseRdsDb;
-    env.rdsDbName = config.rdsDbName; // "instance-name"
-    env.rdsDbDomain = config.rdsDbDomain; // "XYZ.us-west-2.rds.amazonaws.com"
-    env.rdsEndpoint = config.rdsEndpoint; // "XYZ.us-west-2.rds.amazonaws.com"
-    env.info.setRdsEndpoint(env.rdsEndpoint);
 
     env.auroraUtil =
         new AuroraTestUtility(
@@ -669,7 +679,7 @@ public class TestEnvironment implements AutoCloseable {
             "Created a new RDS Instance " + env.rdsDbName + "." + env.rdsDbDomain);
       } catch (Exception e) {
 
-        LOGGER.finer("Error creating a RDS Instance " + env.rdsDbName + ". " + e.getMessage());
+        LOGGER.finer("Error creating a RDS Instance " + env.rdsDbName + ". " + e);
 
         // remove RDS instance
         LOGGER.finer("Deleting RDS Instance " + env.rdsDbName);
@@ -806,9 +816,10 @@ public class TestEnvironment implements AutoCloseable {
 
   private static void initDatabaseParams(TestEnvironment env) {
     final String dbName =
-        !StringUtils.isNullOrEmpty(config.dbName)
-            ? config.dbName
-            : "test_database";
+        config.dbName == null
+            ? "test_database"
+            : config.dbName.trim();
+
     final String dbUsername =
         !StringUtils.isNullOrEmpty(config.dbUsername)
             ? config.dbUsername
@@ -1223,7 +1234,13 @@ public class TestEnvironment implements AutoCloseable {
             && !StringUtils.isNullOrEmpty(this.info.getBlueGreenDeploymentId())) {
           deleteBlueGreenDeployment();
         }
+
         deleteDbCluster();
+
+        if (this.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)
+            && !StringUtils.isNullOrEmpty(this.info.getClusterParameterGroupName())) {
+          deleteCustomClusterParameterGroup(this.info.getClusterParameterGroupName());
+        }
         break;
       case RDS_MULTI_AZ_CLUSTER:
         deleteDbCluster();
@@ -1234,11 +1251,12 @@ public class TestEnvironment implements AutoCloseable {
           deleteBlueGreenDeployment();
         }
         deleteMultiAzInstance();
-        //break;
+        break;
       case RDS:
-        throw new NotImplementedException(this.info.getRequest().getTargetJvm().toString());
+        // not in use at the moment
+        break;
       default:
-        // do nothing
+        throw new NotImplementedException(this.info.getRequest().getDatabaseEngineDeployment().toString());
     }
   }
 
@@ -1304,6 +1322,14 @@ public class TestEnvironment implements AutoCloseable {
         break;
       default:
         throw new RuntimeException("Unsupported " + this.info.getRequest().getDatabaseEngineDeployment());
+    }
+  }
+
+  private void deleteCustomClusterParameterGroup(String groupName) {
+    try {
+      this.auroraUtil.deleteCustomClusterParameterGroup(groupName);
+    } catch (Exception ex) {
+      LOGGER.finest(String.format("Error deleting cluster parameter group %s. %s", groupName, ex));
     }
   }
 

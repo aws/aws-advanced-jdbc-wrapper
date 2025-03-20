@@ -81,6 +81,7 @@ import software.amazon.jdbc.plugin.failover.TransactionStateUnknownSQLException;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.SqlState;
+import software.amazon.jdbc.util.StringUtils;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
@@ -847,8 +848,10 @@ public class ReadWriteSplittingTests {
         DatabaseEngine engine = info.getRequest().getDatabaseEngine();
         if (DatabaseEngine.MYSQL.equals(engine)) {
           String db = info.getDatabaseInfo().getDefaultDbName();
-          // MySQL needs this extra command to allow the limited user access to the database
-          stmt.execute("GRANT ALL PRIVILEGES ON " + db + ".* to " + limitedUserName);
+          if (!StringUtils.isNullOrEmpty(db)) {
+            // MySQL needs this extra command to allow the limited user access to the database
+            stmt.execute("GRANT ALL PRIVILEGES ON " + db + ".* to " + limitedUserName);
+          }
         }
       }
 
