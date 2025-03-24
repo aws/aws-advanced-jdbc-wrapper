@@ -21,8 +21,6 @@ public class BlueGreenInterimStatus {
   public boolean allStartTopologyIpChanged;
   public boolean allStartTopologyEndpointsRemoved;
 
-
-
   public BlueGreenInterimStatus(
       final BlueGreenPhases blueGreenPhase,
       final String version,
@@ -74,7 +72,7 @@ public class BlueGreenInterimStatus {
             + " allStartTopologyEndpointsRemoved: %s \n"
             + "]",
         super.toString(),
-        this.blueGreenPhase,
+        this.blueGreenPhase == null ? "<null>" : this.blueGreenPhase,
         this.version,
         this.port,
         StringUtils.isNullOrEmpty(endpointStr) ? "-" : endpointStr,

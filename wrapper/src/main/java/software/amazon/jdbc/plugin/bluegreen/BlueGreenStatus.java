@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
@@ -31,6 +32,8 @@ import software.amazon.jdbc.util.StringUtils;
 
 // It should be immutable
 public class BlueGreenStatus {
+
+  private static final Logger LOGGER = Logger.getLogger(BlueGreenStatus.class.getName());
 
   private final String bgdId;
   private final BlueGreenPhases currentPhase;
@@ -67,7 +70,7 @@ public class BlueGreenStatus {
   public Map<String, BlueGreenRole> getRoleByEndpoint() { return this.roleByEndpoint; }
 
   public BlueGreenRole getRole(HostSpec hostSpec) {
-    return this.roleByEndpoint.get(hostSpec.getHostAndPort().toLowerCase());
+    return this.roleByEndpoint.get(hostSpec.getHost().toLowerCase());
   }
 
   @Override

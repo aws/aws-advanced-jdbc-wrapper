@@ -145,7 +145,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
     final boolean isCachedToken = tokenInfo != null && !tokenInfo.isExpired();
 
     if (isCachedToken && tokenExpirationSec > 0) {
-      LOGGER.info(
+      LOGGER.finest(
           () -> Messages.get(
               "AuthenticationToken.useCachedToken",
               new Object[] {tokenInfo.getToken()}));
@@ -161,7 +161,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
           port,
           region,
           AwsCredentialsManager.getProvider(hostSpec, props));
-      LOGGER.info(
+      LOGGER.fine(
           () -> Messages.get(
               "AuthenticationToken.generatedNewToken",
               new Object[] {token}));

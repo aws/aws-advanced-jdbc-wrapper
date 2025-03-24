@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.plugin.bluegreen;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -25,8 +26,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -68,17 +71,7 @@ public class BlueGreenStatusProvider {
   private static final String MONITORING_PROPERTY_PREFIX = "blue-green-monitoring-";
   private static final String DEFAULT_CONNECT_TIMEOUT_MS = String.valueOf(TimeUnit.SECONDS.toMillis(10));
   private static final String DEFAULT_SOCKET_TIMEOUT_MS = String.valueOf(TimeUnit.SECONDS.toMillis(10));
-
-  protected static final HashMap<BlueGreenPhases, IntervalType> checkIntervalTypeMap =
-      new HashMap<BlueGreenPhases, IntervalType>() {
-        {
-          put(BlueGreenPhases.NOT_CREATED, IntervalType.BASELINE);
-          put(BlueGreenPhases.CREATED, IntervalType.INCREASED);
-          put(BlueGreenPhases.PREPARATION, IntervalType.INCREASED);
-          put(BlueGreenPhases.IN_PROGRESS, IntervalType.HIGH);
-          put(BlueGreenPhases.COMPLETED, IntervalType.INCREASED);
-        }
-      };
+  private static final long DEFAULT_POST_STATUS_DURATION_NANO = TimeUnit.MINUTES.toNanos(3); // TODO: make it configurable?
 
   protected final HostSpecBuilder hostSpecBuilder = new HostSpecBuilder(new SimpleHostAvailabilityStrategy());
 
@@ -87,18 +80,25 @@ public class BlueGreenStatusProvider {
   protected BlueGreenInterimStatus[] interimStatuses = { null, null };
   protected final Map<String, Optional<String>> hostIpAddresses = new ConcurrentHashMap<>();
   protected final Map<String, Pair<HostSpec, HostSpec>> correspondingNodes = new ConcurrentHashMap<>();
-  protected Map<String, BlueGreenRole> roleByEndpoint = new ConcurrentHashMap<>(); // all known endpoints; host and port
+  protected final Map<String, BlueGreenRole> roleByEndpoint = new ConcurrentHashMap<>(); // all known endpoints; host and port
+  protected final Map<String, Set<String>> iamHostSuccessfulConnects = new ConcurrentHashMap<>();
   protected BlueGreenStatus summaryStatus = null;
+  protected BlueGreenPhases latestStatusPhase = BlueGreenPhases.NOT_CREATED;
 
   protected boolean rollback = false;
   protected boolean blueDnsUpdateCompleted = false;
   protected boolean greenDnsRemoved = false;
+  protected final AtomicBoolean greenNodeChangedName = new AtomicBoolean(false);
+  protected long postStatusEndTimeNano = 0;
   protected final ReentrantLock monitorInitLock = new ReentrantLock();
-  protected final HashMap<IntervalType, Long> checkIntervalMap = new HashMap<>();
+  protected final ReentrantLock processStatusLock = new ReentrantLock();
+  protected final Map<IntervalType, Long> checkIntervalMap = new HashMap<>();
 
   protected final PluginService pluginService;
   protected final Properties props;
   protected final String bgdId;
+  protected Map<String, Pair<Instant, Long>> phaseTimeNano = new ConcurrentHashMap<>();
+  protected boolean loggedSwitchoverSummary = false;
 
   public BlueGreenStatusProvider(
       final @NonNull PluginService pluginService,
@@ -117,9 +117,10 @@ public class BlueGreenStatusProvider {
     if (dialect instanceof SupportBlueGreen) {
       this.initMonitoring();
     } else {
-      LOGGER.warning(String.format(
-          "[bgdId: '%s'] Blue/Green Deployments isn't supported by this database dialect.",
-          this.bgdId));
+      LOGGER.warning(() -> String.format(
+          "[bgdId: '%s'] Blue/Green Deployments isn't supported by database dialect %s.",
+          this.bgdId,
+          dialect.getClass().getSimpleName()));
     }
   }
 
@@ -179,209 +180,244 @@ public class BlueGreenStatusProvider {
       final BlueGreenRole role,
       final BlueGreenInterimStatus interimStatus) {
 
-    //LOGGER.finest(String.format("[bgdId: '%s', role: %s] %s", this.bgdId, role, interimStatus));
+    this.processStatusLock.lock();
+    try {
+      //LOGGER.finest(() -> String.format("#1 [bgdId: '%s', role: %s] %s", this.bgdId, role, interimStatus));
 
-    int statusHash = this.getStatusHash(interimStatus);
-    if (this.statusHashes[role.getValue()] == statusHash) {
-      // no changes detected
-      return;
-    }
+      int statusHash = this.getStatusHash(interimStatus);
+      if (this.statusHashes[role.getValue()] == statusHash) {
+        // no changes detected
+        //LOGGER.finest("No changes detected.");
+        return;
+      }
 
-    LOGGER.finest(String.format("[bgdId: '%s', role: %s] %s", this.bgdId, role, interimStatus));
+      LOGGER.finest(() -> String.format("[bgdId: '%s', role: %s] %s", this.bgdId, role, interimStatus));
 
-    this.statusHashes[role.getValue()] = statusHash;
+      this.statusHashes[role.getValue()] = statusHash;
 
-    BlueGreenPhases latestInterimPhase = this.interimStatuses[role.getValue()] == null
-        ? BlueGreenPhases.NOT_CREATED
-        : this.interimStatuses[role.getValue()].blueGreenPhase;
-    if (interimStatus.blueGreenPhase.getValue() < latestInterimPhase.getValue()) {
-      this.rollback = true;
-      LOGGER.finest(String.format("[bgdId: '%s'] Blue/Green deployment is in rollback mode.", this.bgdId));
-    }
+      BlueGreenPhases latestInterimPhase = this.interimStatuses[role.getValue()] == null
+          ? BlueGreenPhases.NOT_CREATED
+          : this.interimStatuses[role.getValue()].blueGreenPhase;
 
-    BlueGreenPhases latestStatusPhase = this.summaryStatus == null
-        ? BlueGreenPhases.NOT_CREATED
-        : this.summaryStatus.getCurrentPhase();
+      if (latestInterimPhase != null
+          && interimStatus.blueGreenPhase != null
+          && interimStatus.blueGreenPhase.getValue() < latestInterimPhase.getValue()) {
+        this.rollback = true;
+        LOGGER.finest(() -> String.format("[bgdId: '%s'] Blue/Green deployment is in rollback mode.", this.bgdId));
+      }
 
-    // Do not allow status moves backward (that could be caused by updating blue/green nodes delays)
-    if (interimStatus.blueGreenPhase.getValue() >= latestStatusPhase.getValue()) {
-      latestInterimPhase = interimStatus.blueGreenPhase;
-    }
-
-    this.interimStatuses[role.getValue()] = interimStatus;
-
-    this.hostIpAddresses.putAll(interimStatus.startIpAddressesByHostMap);
-    interimStatus.endpoints.stream().forEach(x -> this.roleByEndpoint.put(x, role));
-
-    // Update corresponding nodes
-    // Blue writer node is mapped to a green writer node.
-    // Blue reader nodes are mapped to green reader nodes.
-    if (this.interimStatuses[BlueGreenRole.SOURCE.getValue()] != null
-        && !Utils.isNullOrEmpty(this.interimStatuses[BlueGreenRole.SOURCE.getValue()].currentTopology)
-        && this.interimStatuses[BlueGreenRole.TARGET.getValue()] != null
-        && !Utils.isNullOrEmpty(this.interimStatuses[BlueGreenRole.TARGET.getValue()].currentTopology)) {
-
-      HostSpec blueWriterHostSpec =
-          this.interimStatuses[BlueGreenRole.SOURCE.getValue()].currentTopology.stream()
-            .filter(x -> x.getRole() == HostRole.WRITER)
-            .findFirst()
-            .orElse(null);
-
-      HostSpec greenWriterHostSpec =
-          this.interimStatuses[BlueGreenRole.TARGET.getValue()].currentTopology.stream()
-            .filter(x -> x.getRole() == HostRole.WRITER)
-            .findFirst()
-            .orElse(null);
-
-      List<HostSpec> sortedBlueReaderHostSpecs =
-          this.interimStatuses[BlueGreenRole.SOURCE.getValue()].currentTopology.stream()
-            .filter(x -> x.getRole() != HostRole.WRITER)
-            .sorted(Comparator.comparing(HostSpec::getHostAndPort))
-            .collect(Collectors.toList());
-
-      List<HostSpec> sortedGreenReaderHostSpecs =
-          this.interimStatuses[BlueGreenRole.TARGET.getValue()].currentTopology.stream()
-            .filter(x -> x.getRole() != HostRole.WRITER)
-            .sorted(Comparator.comparing(HostSpec::getHostAndPort))
-            .collect(Collectors.toList());
-
-      int greenIndex = 0;
-      this.correspondingNodes.clear();
-
-      if (blueWriterHostSpec != null) {
-        if (greenWriterHostSpec != null) {
-          this.correspondingNodes.put(
-              blueWriterHostSpec.getHostAndPort(), Pair.create(blueWriterHostSpec, greenWriterHostSpec));
-          greenIndex++;
-          greenIndex = greenIndex % sortedGreenReaderHostSpecs.size();
-        } else {
-          sortedGreenReaderHostSpecs.stream()
-              .findFirst()
-              .ifPresent(anyGreenHostSpec -> this.correspondingNodes.put(
-                  blueWriterHostSpec.getHostAndPort(), Pair.create(blueWriterHostSpec, anyGreenHostSpec)));
+      // Do not allow status moves backward (unless it's rollback).
+      // That could be caused by updating blue/green nodes delays.
+      if (!this.rollback) {
+        if (interimStatus.blueGreenPhase != null
+            && interimStatus.blueGreenPhase.getValue() >= this.latestStatusPhase.getValue()) {
+          this.latestStatusPhase = interimStatus.blueGreenPhase;
+          LOGGER.finest("latestStatusPhase=" + this.latestStatusPhase);
+        }
+      } else {
+        if (interimStatus.blueGreenPhase != null
+            && interimStatus.blueGreenPhase.getValue() < this.latestStatusPhase.getValue()) {
+          this.latestStatusPhase = interimStatus.blueGreenPhase;
+          LOGGER.finest("(rollback) latestStatusPhase=" + this.latestStatusPhase);
         }
       }
 
-      for (HostSpec blueHostSpec : sortedBlueReaderHostSpecs) {
-        this.correspondingNodes.put(
-            blueHostSpec.getHostAndPort(), Pair.create(blueHostSpec, sortedGreenReaderHostSpecs.get(greenIndex++)));
-        greenIndex = greenIndex % sortedGreenReaderHostSpecs.size();
-      }
-    }
+      this.interimStatuses[role.getValue()] = interimStatus;
 
-    // TODO: debug
-//     if (latestInterimPhase == BlueGreenPhases.CREATED
-//         && this.interimStatuses[BlueGreenRole.SOURCE.getValue()] != null
-//         && !this.interimStatuses[BlueGreenRole.SOURCE.getValue()].startIpAddressesByHostMap.isEmpty()
-//         && this.interimStatuses[BlueGreenRole.TARGET.getValue()] != null
-//         && !this.interimStatuses[BlueGreenRole.TARGET.getValue()].startIpAddressesByHostMap.isEmpty()) {
-//       latestInterimPhase = BlueGreenPhases.COMPLETED;
-//     }
+      this.hostIpAddresses.putAll(interimStatus.startIpAddressesByHostMap);
+      interimStatus.endpoints.stream().forEach(x -> this.roleByEndpoint.put(x.toLowerCase(), role));
 
-    switch (latestInterimPhase) {
-      case NOT_CREATED:
-        this.summaryStatus = new BlueGreenStatus(this.bgdId, BlueGreenPhases.NOT_CREATED);
-        Arrays.stream(this.monitors).forEach(x -> {
-          x.setIntervalType(IntervalType.BASELINE);
-          x.setCollectIpAddresses(false);
-          x.setCollectTopology(false);
-          x.setUseIpAddress(false);
-        });
-        break;
-      case CREATED:
-        this.summaryStatus = this.getStatusOfCreated();
-        Arrays.stream(this.monitors).forEach(x -> {
-          x.setIntervalType(IntervalType.INCREASED);
-          x.setCollectIpAddresses(true);
-          x.setCollectTopology(true);
-          x.setUseIpAddress(false);
-          if (this.rollback) {
-            x.resetCollectedData();
+      // Update corresponding nodes
+      // Blue writer node is mapped to a green writer node.
+      // Blue reader nodes are mapped to green reader nodes.
+      if (this.interimStatuses[BlueGreenRole.SOURCE.getValue()] != null
+          && !Utils.isNullOrEmpty(this.interimStatuses[BlueGreenRole.SOURCE.getValue()].currentTopology)
+          && this.interimStatuses[BlueGreenRole.TARGET.getValue()] != null
+          && !Utils.isNullOrEmpty(this.interimStatuses[BlueGreenRole.TARGET.getValue()].currentTopology)) {
+
+        HostSpec blueWriterHostSpec =
+            this.interimStatuses[BlueGreenRole.SOURCE.getValue()].currentTopology.stream()
+                .filter(x -> x.getRole() == HostRole.WRITER)
+                .findFirst()
+                .orElse(null);
+
+        HostSpec greenWriterHostSpec =
+            this.interimStatuses[BlueGreenRole.TARGET.getValue()].currentTopology.stream()
+                .filter(x -> x.getRole() == HostRole.WRITER)
+                .findFirst()
+                .orElse(null);
+
+        List<HostSpec> sortedBlueReaderHostSpecs =
+            this.interimStatuses[BlueGreenRole.SOURCE.getValue()].currentTopology.stream()
+                .filter(x -> x.getRole() != HostRole.WRITER)
+                .sorted(Comparator.comparing(HostSpec::getHostAndPort))
+                .collect(Collectors.toList());
+
+        List<HostSpec> sortedGreenReaderHostSpecs =
+            this.interimStatuses[BlueGreenRole.TARGET.getValue()].currentTopology.stream()
+                .filter(x -> x.getRole() != HostRole.WRITER)
+                .sorted(Comparator.comparing(HostSpec::getHostAndPort))
+                .collect(Collectors.toList());
+
+        this.correspondingNodes.clear();
+
+        if (blueWriterHostSpec != null) {
+          if (greenWriterHostSpec != null) {
+            this.correspondingNodes.put(
+                blueWriterHostSpec.getHost(), Pair.create(blueWriterHostSpec, greenWriterHostSpec));
+          } else {
+            sortedGreenReaderHostSpecs.stream()
+                .findFirst()
+                .ifPresent(anyGreenHostSpec -> this.correspondingNodes.put(
+                    blueWriterHostSpec.getHost(), Pair.create(blueWriterHostSpec, anyGreenHostSpec)));
           }
-        });
-        break;
-      case PREPARATION:
-        this.updateDnsFlags(role, interimStatus);
-        this.summaryStatus = this.getStatusOfPreparation();
-        Arrays.stream(this.monitors).forEach(x -> {
-          x.setIntervalType(IntervalType.HIGH);
-          x.setCollectIpAddresses(false);
-          x.setCollectTopology(false);
-          x.setUseIpAddress(true);
-        });
-        break;
-      case IN_PROGRESS:
-        this.updateDnsFlags(role, interimStatus);
-        this.summaryStatus = this.getStatusOfInProgress();
-        Arrays.stream(this.monitors).forEach(x -> {
-          x.setIntervalType(IntervalType.HIGH);
-          x.setCollectIpAddresses(false);
-          x.setCollectTopology(false);
-          x.setUseIpAddress(true);
-        });
-        break;
-      case POST:
-        this.updateDnsFlags(role, interimStatus);
-        this.summaryStatus = this.getStatusOfPost();
-        Arrays.stream(this.monitors).forEach(x -> {
-          x.setIntervalType(IntervalType.HIGH);
-          x.setCollectIpAddresses(false);
-          x.setCollectTopology(false);
-          x.setUseIpAddress(true);
-        });
-        break;
-      case COMPLETED:
-        this.updateDnsFlags(role, interimStatus);
+        }
 
-        //TODO: debug
-        //this.blueDnsUpdateCompleted = true;
-        //this.greenDnsRemoved = true;
-
-        this.summaryStatus = this.getStatusOfCompleted();
-        Arrays.stream(this.monitors).forEach(x -> {
-          x.setIntervalType(IntervalType.BASELINE);
-          x.setCollectIpAddresses(false);
-          x.setCollectTopology(false);
-          x.setUseIpAddress(!(this.blueDnsUpdateCompleted && this.greenDnsRemoved));
-          if (this.blueDnsUpdateCompleted && this.greenDnsRemoved) {
-            x.resetCollectedData();
-          }
-        });
-        break;
-      default:
-        throw new UnsupportedOperationException(
-            String.format("[bgdId: '%s'] Unknown BG phase '%s'", this.bgdId, interimStatus.blueGreenPhase));
-    }
-
-    final BlueGreenStatus latestStatus = this.pluginService.getStatus(BlueGreenStatus.class, true);
-    this.pluginService.setStatus(BlueGreenStatus.class, this.summaryStatus, this.bgdId);
-
-    // Notify all waiting threads that status is changed.
-    // Those waiting threads are waiting on an existing status so we need to notify on it.
-    if (latestStatus != null) {
-      synchronized (latestStatus) {
-        latestStatus.notifyAll();
+        int greenIndex = 0;
+        for (HostSpec blueHostSpec : sortedBlueReaderHostSpecs) {
+          this.correspondingNodes.put(
+              blueHostSpec.getHostAndPort(), Pair.create(blueHostSpec, sortedGreenReaderHostSpecs.get(greenIndex++)));
+          greenIndex = greenIndex % sortedGreenReaderHostSpecs.size();
+        }
       }
-    }
 
-    LOGGER.finest(String.format("[bgdId: '%s'] Summary status:\n",
-        this.bgdId,
-        this.summaryStatus == null ? "<null>" : this.summaryStatus.toString()));
+      switch (this.latestStatusPhase) {
+        case PREPARATION:
+        case IN_PROGRESS:
+        case POST:
+        case COMPLETED:
+          this.updateDnsFlags(role, interimStatus);
+        default:
+          // do nothing
+      }
+
+      switch (this.latestStatusPhase) {
+        case NOT_CREATED:
+          this.summaryStatus = new BlueGreenStatus(this.bgdId, BlueGreenPhases.NOT_CREATED);
+          Arrays.stream(this.monitors).forEach(x -> {
+            x.setIntervalType(IntervalType.BASELINE);
+            x.setCollectIpAddresses(false);
+            x.setCollectTopology(false);
+            x.setUseIpAddress(false);
+          });
+          break;
+        case CREATED:
+          this.summaryStatus = this.getStatusOfCreated();
+          Arrays.stream(this.monitors).forEach(x -> {
+            x.setIntervalType(IntervalType.INCREASED);
+            x.setCollectIpAddresses(true);
+            x.setCollectTopology(true);
+            x.setUseIpAddress(false);
+            if (this.rollback) {
+              x.resetCollectedData();
+            }
+          });
+          break;
+        case PREPARATION:
+          if (this.postStatusEndTimeNano == 0) {
+            this.postStatusEndTimeNano = this.getNanoTime() + DEFAULT_POST_STATUS_DURATION_NANO;
+          }
+          this.summaryStatus = this.getStatusOfPreparation();
+          Arrays.stream(this.monitors).forEach(x -> {
+            x.setIntervalType(IntervalType.HIGH);
+            x.setCollectIpAddresses(false);
+            x.setCollectTopology(false);
+            x.setUseIpAddress(true);
+          });
+          break;
+        case IN_PROGRESS:
+          this.summaryStatus = this.getStatusOfInProgress();
+          Arrays.stream(this.monitors).forEach(x -> {
+            x.setIntervalType(IntervalType.HIGH);
+            x.setCollectIpAddresses(false);
+            x.setCollectTopology(false);
+            x.setUseIpAddress(true);
+          });
+          break;
+        case POST:
+          this.summaryStatus = this.getStatusOfPost();
+          Arrays.stream(this.monitors).forEach(x -> {
+            x.setIntervalType(IntervalType.HIGH);
+            x.setCollectIpAddresses(false);
+            x.setCollectTopology(false);
+            x.setUseIpAddress(true);
+          });
+          break;
+        case COMPLETED:
+          this.summaryStatus = this.getStatusOfCompleted();
+          Arrays.stream(this.monitors).forEach(x -> {
+            x.setIntervalType(IntervalType.BASELINE);
+            x.setCollectIpAddresses(false);
+            x.setCollectTopology(false);
+            x.setUseIpAddress(false);
+
+            if (this.summaryStatus.getCurrentPhase() == BlueGreenPhases.COMPLETED) {
+              x.resetCollectedData();
+            }
+          });
+          break;
+        default:
+          throw new UnsupportedOperationException(
+              String.format("[bgdId: '%s'] Unknown BG phase '%s'", this.bgdId, this.latestStatusPhase));
+      }
+
+      final BlueGreenStatus latestStatus = this.pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
+      this.pluginService.setStatus(BlueGreenStatus.class, this.summaryStatus, this.bgdId);
+      this.storePhaseTime(this.summaryStatus.getCurrentPhase());
+
+      // Notify all waiting threads that status is changed.
+      // Those waiting threads are waiting on an existing status so we need to notify on it.
+      if (latestStatus != null) {
+        synchronized (latestStatus) {
+          latestStatus.notifyAll();
+        }
+      }
+
+      LOGGER.finest(() -> String.format("[bgdId: '%s'] Summary status:\n%s",
+          this.bgdId,
+          this.summaryStatus == null ? "<null>" : this.summaryStatus.toString()));
+
+      LOGGER.finest(() -> "Corresponding nodes:\n"
+          + this.correspondingNodes.entrySet().stream()
+          .map(x -> String.format("%s -> %s",
+              x.getKey(),
+              x.getValue().getValue2().getHostAndPort()))
+          .collect(Collectors.joining("\n")));
+
+      LOGGER.finest(() -> "Phase time:\n"
+          + this.phaseTimeNano.entrySet().stream()
+          .map(x -> String.format("%s -> %s",
+              x.getKey(),
+              x.getValue().getValue1()))
+          .collect(Collectors.joining("\n")));
+
+      LOGGER.finest(() -> String.format(
+          "\nlatestStatusPhase: %s\nblueDnsUpdateCompleted: %s\ngreenDnsRemoved: %s\ngreenNodeChangedName: %s",
+          this.latestStatusPhase,
+          this.blueDnsUpdateCompleted,
+          this.greenDnsRemoved,
+          this.greenNodeChangedName.get()));
+
+      if (this.summaryStatus.getCurrentPhase() == BlueGreenPhases.COMPLETED) {
+        this.logSwitchoverSummary();
+      }
+
+    } finally {
+      this.processStatusLock.unlock();
+    }
   }
 
   protected void updateDnsFlags(BlueGreenRole role, BlueGreenInterimStatus interimStatus) {
-    if (role == BlueGreenRole.SOURCE) {
-      if (this.blueDnsUpdateCompleted != interimStatus.allStartTopologyIpChanged) {
-        LOGGER.finest(String.format("[bgdId: '%s'] Blue DNS update completed.", this.bgdId));
-      }
-      this.blueDnsUpdateCompleted = interimStatus.allStartTopologyIpChanged;
+    if (role == BlueGreenRole.SOURCE && !this.blueDnsUpdateCompleted && interimStatus.allStartTopologyIpChanged) {
+      LOGGER.finest(() -> String.format("[bgdId: '%s'] Blue DNS update completed.", this.bgdId));
+      this.blueDnsUpdateCompleted = true;
+      this.storeBlueDnsUpdateTime();
     }
 
-    if (role == BlueGreenRole.TARGET) {
-      if (this.greenDnsRemoved != interimStatus.allStartTopologyEndpointsRemoved) {
-        LOGGER.finest(String.format("[bgdId: '%s'] Green DNS update completed.", this.bgdId));
-      }
-      this.greenDnsRemoved = interimStatus.allStartTopologyEndpointsRemoved;
+    if (role == BlueGreenRole.TARGET && !this.greenDnsRemoved && interimStatus.allStartTopologyEndpointsRemoved) {
+      LOGGER.finest(() -> String.format("[bgdId: '%s'] Green DNS update completed.", this.bgdId));
+      this.greenDnsRemoved = true;
+      this.storeGreenDnsRemoveTime();
     }
   }
 
@@ -392,6 +428,13 @@ public class BlueGreenStatusProvider {
     result = this.getStatusHash(result,
         interimStatus.version == null ? "" : interimStatus.version);
     result = this.getStatusHash(result, String.valueOf(interimStatus.port));
+    result = this.getStatusHash(result, String.valueOf(interimStatus.allStartTopologyIpChanged));
+    result = this.getStatusHash(result, String.valueOf(interimStatus.allStartTopologyEndpointsRemoved));
+
+    // Provider context
+    result = this.getStatusHash(result, String.valueOf(this.greenNodeChangedName.get()));
+    result = this.getStatusHash(result, String.valueOf(this.iamHostSuccessfulConnects.size()));
+
     result = this.getStatusHash(result,
         interimStatus.endpoints == null
             ? ""
@@ -474,14 +517,17 @@ public class BlueGreenStatusProvider {
               x.getKey(),
               x.getValue(),
               substituteHostSpecWithIp,
-              Collections.singletonList(hostSpec)));
+              Collections.singletonList(hostSpec),
+              null));
+
           connectRouting.add(new SubstituteConnectRouting(
               this.getHostAndPort(
                   x.getKey(),
                   this.interimStatuses[x.getValue().getValue()].port),
               x.getValue(),
               substituteHostSpecWithIp,
-              Collections.singletonList(hostSpec)));
+              Collections.singletonList(hostSpec),
+              null));
         });
 
     return new BlueGreenStatus(
@@ -615,9 +661,9 @@ public class BlueGreenStatusProvider {
   }
 
   protected BlueGreenStatus getStatusOfPost() {
+
     List<ConnectRouting> connectRouting = new ArrayList<>();
     List<ExecuteRouting> executeRouting = new ArrayList<>();
-
     this.createPostRouting(connectRouting, executeRouting);
 
     return new BlueGreenStatus(
@@ -639,24 +685,35 @@ public class BlueGreenStatusProvider {
           .filter(x -> this.correspondingNodes.containsKey(x.getKey()))
           .forEach(x -> {
             HostSpec hostSpec = this.correspondingNodes.get(x.getKey()).getValue1();
-            HostSpec substituteHostSpec = this.correspondingNodes.get(x.getKey()).getValue2();
-            Optional<String> greenIp = this.hostIpAddresses.get(substituteHostSpec.getHost());
-            HostSpec substituteHostSpecWithIp = greenIp == null || !greenIp.isPresent()
-                ? substituteHostSpec
-                : this.hostSpecBuilder.copyFrom(substituteHostSpec).host(greenIp.get()).build();
+            HostSpec greenHostSpec = this.correspondingNodes.get(x.getKey()).getValue2();
+            final String greenHost = greenHostSpec.getHost();
+            Optional<String> greenIp = this.hostIpAddresses.get(greenHostSpec.getHost());
+            HostSpec greenHostSpecWithIp = greenIp == null || !greenIp.isPresent()
+                ? greenHostSpec
+                : this.hostSpecBuilder.copyFrom(greenHostSpec).host(greenIp.get()).build();
+
+            // Check whether green host is already been connected with blue (no-prefixes) IAM host name.
+            List<HostSpec> iamHosts = this.isAlreadySuccessfullyConnected(greenHost, x.getKey())
+                // Green node has already changed its name and not it's a new blue node (no prefixes).
+                ? Collections.singletonList(hostSpec)
+                // Green node isn't yet changed its name, so we need to try both possible IAM host options.
+                : Arrays.asList(greenHostSpec, hostSpec);
 
             connectRouting.add(new SubstituteConnectRouting(
                 x.getKey(),
                 x.getValue(),
-                substituteHostSpecWithIp,
-                Arrays.asList(substituteHostSpec, hostSpec)));
+                greenHostSpecWithIp,
+                iamHosts,
+                (iamHost) -> this.registerIamHost(greenHost, iamHost)));
+
             connectRouting.add(new SubstituteConnectRouting(
                 this.getHostAndPort(
                     x.getKey(),
                     this.interimStatuses[x.getValue().getValue()].port),
                 x.getValue(),
-                substituteHostSpecWithIp,
-                Arrays.asList(substituteHostSpec, hostSpec)));
+                greenHostSpecWithIp,
+                iamHosts,
+                (iamHost) -> this.registerIamHost(greenHost, iamHost)));
           });
     }
 
@@ -667,17 +724,94 @@ public class BlueGreenStatusProvider {
   }
 
   protected BlueGreenStatus getStatusOfCompleted() {
-    List<ConnectRouting> connectRouting = new ArrayList<>();
-    List<ExecuteRouting> executeRouting = new ArrayList<>();
 
-    // Continue with rerouting of blue and green nodes until DNS gets updated.
-    this.createPostRouting(connectRouting, executeRouting);
+    // BGD reports that it's completed but DNS hasn't yet updated completely.
+    // Pretend that status isn't (yet) completed.
+    if (!this.blueDnsUpdateCompleted
+        || !this.greenDnsRemoved
+        || (!this.iamHostSuccessfulConnects.isEmpty() && !this.greenNodeChangedName.get())) {
+
+      // We want to limit duration in POST status up to DEFAULT_POST_STATUS_DURATION_NANO.
+      if (this.postStatusEndTimeNano > 0 && this.postStatusEndTimeNano >= this.getNanoTime()) {
+        LOGGER.finest("BG switchover max time is over."); // TODO: debug
+        return this.getStatusOfPost();
+      }
+    }
 
     return new BlueGreenStatus(
         this.bgdId,
         BlueGreenPhases.COMPLETED,
-        connectRouting,
-        executeRouting,
+        new ArrayList<>(),
+        new ArrayList<>(),
         this.roleByEndpoint);
+  }
+
+  protected void registerIamHost(String greenHost, String iamHost) {
+    if (greenHost != null && !greenHost.equals(iamHost)) {
+      if (!this.greenNodeChangedName.get()) {
+        LOGGER.finest(() -> String.format("Green node %s has changed its name to %s", greenHost, iamHost));
+        LOGGER.finest("greenNodeChangedName: true");
+      }
+      this.greenNodeChangedName.set(true);
+      this.storeGreenNodeChangeNameTime();
+    }
+    this.iamHostSuccessfulConnects.computeIfAbsent(greenHost, (key) -> ConcurrentHashMap.newKeySet())
+        .add(iamHost);
+  }
+
+  protected boolean isAlreadySuccessfullyConnected(String greenHost, String iamHost) {
+    return this.iamHostSuccessfulConnects.computeIfAbsent(greenHost, (key) -> ConcurrentHashMap.newKeySet())
+        .contains(iamHost);
+  }
+
+  // For testing purposes
+  protected long getNanoTime() {
+    return System.nanoTime();
+  }
+
+  protected void storePhaseTime(BlueGreenPhases phase) {
+    if (phase == null) {
+      return;
+    }
+    this.phaseTimeNano.putIfAbsent(phase.name(), Pair.create(Instant.now(), this.getNanoTime()));
+  }
+
+  protected void storeBlueDnsUpdateTime() {
+    this.phaseTimeNano.putIfAbsent("Blue DNS updated", Pair.create(Instant.now(), this.getNanoTime()));
+  }
+
+  protected void storeGreenDnsRemoveTime() {
+    this.phaseTimeNano.putIfAbsent("Green DNS removed", Pair.create(Instant.now(), this.getNanoTime()));
+  }
+
+  protected void storeGreenNodeChangeNameTime() {
+    this.phaseTimeNano.putIfAbsent("Green node changed name", Pair.create(Instant.now(), this.getNanoTime()));
+  }
+
+  protected void logSwitchoverSummary() {
+    if (this.loggedSwitchoverSummary) {
+      return;
+    }
+
+    this.loggedSwitchoverSummary = true;
+    Pair<Instant, Long> timeZero = this.phaseTimeNano.get(BlueGreenPhases.IN_PROGRESS.name());
+    String divider = "---------------------------------------------------------------------------\n";
+
+    String logMessage =
+        "\n" + divider
+        + String.format("%-28s %15s %25s\n",
+        "timestamp",
+        "time offset (ms)",
+        "event")
+        + divider
+        + this.phaseTimeNano.entrySet().stream()
+        .sorted(Comparator.comparing(y -> y.getValue().getValue2()))
+        .map(x -> String.format("%28s %18s ms %25s",
+            x.getValue().getValue1(),
+            timeZero == null ? "" : TimeUnit.NANOSECONDS.toMillis(x.getValue().getValue2() - timeZero.getValue2()),
+            x.getKey()))
+        .collect(Collectors.joining("\n"))
+        + "\n" + divider;
+    LOGGER.info(logMessage);
   }
 }

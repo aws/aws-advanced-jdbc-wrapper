@@ -16,14 +16,15 @@ public abstract class BaseExecuteRouting extends BaseRouting implements ExecuteR
   protected BlueGreenRole role;
 
   public BaseExecuteRouting(@Nullable String hostAndPort, @Nullable BlueGreenRole role) {
-    this.hostAndPort = hostAndPort;
+    this.hostAndPort = hostAndPort == null ? null : hostAndPort.toLowerCase();
     this.role = role;
   }
 
   @Override
   public boolean isMatch(HostSpec hostSpec, BlueGreenRole hostRole) {
-    return (this.hostAndPort == null || this.hostAndPort.equals(hostSpec == null ? null : hostSpec.getHostAndPort())
-        && (this.role == null || this.role == hostRole));
+    return (this.hostAndPort == null || this.hostAndPort.equals(
+              hostSpec == null ? null : hostSpec.getHostAndPort().toLowerCase()))
+        && (this.role == null || this.role.equals(hostRole));
   }
 
   @Override

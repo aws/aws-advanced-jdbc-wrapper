@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.Callable;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -27,17 +28,15 @@ public class SubstituteConnectRouting extends BaseConnectRouting {
 
   protected final HostSpec substituteHostSpec;
   protected final List<HostSpec> iamHosts;
+  protected final IamSuccessfulConnectFunc iamSuccessfulConnectNotify;
 
   public SubstituteConnectRouting(@Nullable String hostAndPort, @Nullable BlueGreenRole role,
-      @NonNull final HostSpec substituteHostSpec, @Nullable final List<HostSpec> iamHosts) {
+      @NonNull final HostSpec substituteHostSpec, @Nullable final List<HostSpec> iamHosts,
+      @Nullable IamSuccessfulConnectFunc iamSuccessfulConnectNotify) {
     super(hostAndPort, role);
     this.substituteHostSpec = substituteHostSpec;
     this.iamHosts = iamHosts;
-  }
-
-  @Override
-  public boolean isMatch(HostSpec hostSpec, BlueGreenRole hostRole) {
-    return false;
+    this.iamSuccessfulConnectNotify = iamSuccessfulConnectNotify;
   }
 
   @Override
@@ -65,10 +64,21 @@ public class SubstituteConnectRouting extends BaseConnectRouting {
           if (iamHost.isPortSpecified()) {
             IamAuthConnectionPlugin.IAM_DEFAULT_PORT.set(rerouteProperties, String.valueOf(iamHost.getPort()));
           }
-          LOGGER.finest("Apply iamHost: " + IamAuthConnectionPlugin.IAM_HOST.getString(rerouteProperties));
+          //LOGGER.finest(() -> "Apply iamHost: " + IamAuthConnectionPlugin.IAM_HOST.getString(rerouteProperties));
 
           try {
-            return pluginService.connect(reroutedHostSpec, rerouteProperties);
+            Connection conn = pluginService.connect(reroutedHostSpec, rerouteProperties);
+
+            if (this.iamSuccessfulConnectNotify != null) {
+              try {
+                this.iamSuccessfulConnectNotify.notify(iamHost.getHost());
+              } catch (Exception ex) {
+                // do nothing
+              }
+            }
+
+            return conn;
+
           } catch (SQLException sqlException) {
             if (!pluginService.isLoginException(sqlException, pluginService.getTargetDriverDialect())) {
               throw sqlException;
@@ -96,5 +106,9 @@ public class SubstituteConnectRouting extends BaseConnectRouting {
         this.iamHosts == null
             ? "<null>"
             : this.iamHosts.stream().map(HostSpec::getHostAndPort).collect(Collectors.joining(", ")));
+  }
+
+  public interface IamSuccessfulConnectFunc {
+    void notify(String iamHost);
   }
 }

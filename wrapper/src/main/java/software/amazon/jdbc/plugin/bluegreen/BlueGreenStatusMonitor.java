@@ -74,14 +74,6 @@ public class BlueGreenStatusMonitor {
         }
       };
 
-  protected static final HashMap<String, BlueGreenRole> blueGreenRoleMapping =
-      new HashMap<String, BlueGreenRole>() {
-        {
-          put("BLUE_GREEN_DEPLOYMENT_SOURCE", BlueGreenRole.SOURCE);
-          put("BLUE_GREEN_DEPLOYMENT_TARGET", BlueGreenRole.TARGET);
-        }
-      };
-
   protected static final String latestKnownVersion = "1.0";
 
   // Add more versions here if needed.
@@ -155,14 +147,17 @@ public class BlueGreenStatusMonitor {
             BlueGreenPhases oldPhase = this.currentPhase;
             this.collectStatus();
 
-            if (!this.panicMode) {
+            // TODO: do we need this condition?
+            //if (!this.panicMode) {
               this.collectTopology();
-              this.collectHostIpAddresses();
-              this.updateIpAddressFlags();
-            }
+            //}
 
-            if (oldPhase == null || oldPhase != this.currentPhase) {
-              LOGGER.finest(String.format("[%s] Status changed to: %s", this.role, this.currentPhase));
+            this.collectHostIpAddresses();
+            this.updateIpAddressFlags();
+
+            if ((oldPhase == null && this.currentPhase != null)
+                || (this.currentPhase != null && oldPhase != this.currentPhase)) {
+              LOGGER.finest(() -> String.format("[%s] Status changed to: %s", this.role, this.currentPhase));
             }
 
             if (this.onStatusChangeFunc != null) {
@@ -188,18 +183,20 @@ public class BlueGreenStatusMonitor {
             this.delay(delayMs);
 
           } catch (InterruptedException ex) {
-            LOGGER.finest(String.format("[%s] Interrupted.", this.role));
+            LOGGER.finest(() -> String.format("[%s] Interrupted.", this.role));
             return;
           } catch (Exception ex) {
-            LOGGER.log(
-                Level.WARNING,
-                String.format("[%s] Unhandled exception while monitoring blue/green status.", this.role),
-                ex);
+            if (LOGGER.isLoggable(Level.WARNING)) {
+              LOGGER.log(
+                  Level.WARNING,
+                  String.format("[%s] Unhandled exception while monitoring blue/green status.", this.role),
+                  ex);
+            }
           }
         }
       } finally {
         this.closeConnection();
-        LOGGER.finest(String.format("[%s] Blue/green status monitoring thread is completed.", this.role));
+        LOGGER.finest(() -> String.format("[%s] Blue/green status monitoring thread is completed.", this.role));
       }
     });
     executorService.shutdown(); // executor accepts no more tasks
@@ -313,12 +310,13 @@ public class BlueGreenStatusMonitor {
 
     this.currentTopology = this.hostListProvider.forceRefresh(this.connection);
 
-    if (this.currentTopology != null) {
-      this.endpoints.addAll(this.currentTopology.stream().map(HostSpec::getHost).collect(Collectors.toSet()));
-    }
-
     if (this.collectTopology.get()) {
       this.startTopology = this.currentTopology;
+    }
+
+    // Do not update endpoints when topology is frozen.
+    if (this.currentTopology != null && this.collectTopology.get()) {
+      this.endpoints.addAll(this.currentTopology.stream().map(HostSpec::getHost).collect(Collectors.toSet()));
     }
   }
 
@@ -351,32 +349,44 @@ public class BlueGreenStatusMonitor {
             final Properties connectWithIpProperties = PropertyUtils.copyProperties(this.props);
             IamAuthConnectionPlugin.IAM_HOST.set(connectWithIpProperties, this.connectionHostSpec.getHost());
 
-            LOGGER.finest(String.format(
+            LOGGER.finest(() -> String.format(
                 "[%s] Opening monitoring connection (IP) to %s", this.role, connectionWithIpHostSpec.getHost()));
 
             this.connection = this.pluginService.forceConnect(connectionWithIpHostSpec, connectWithIpProperties);
+            LOGGER.finest(() -> String.format(
+                "[%s] Opened monitoring connection (IP) to %s", this.role, connectionWithIpHostSpec.getHost()));
 
           } else {
-            LOGGER.finest(String.format(
+            LOGGER.finest(() -> String.format(
                 "[%s] Opening monitoring connection to %s", this.role, this.connectionHostSpec.getHost()));
 
             this.connectedIpAddress = this.getIpAddress(this.connectionHostSpec.getHost()).orElse(null);
             this.connection = this.pluginService.forceConnect(this.connectionHostSpec, this.props);
+            LOGGER.finest(() -> String.format(
+                "[%s] Opened monitoring connection to %s", this.role, this.connectionHostSpec.getHost()));
           }
           this.panicMode = false;
 
         } catch (SQLException ex) {
           // can't open connection
-          this.connectedIpAddress = null;
+          //this.connectedIpAddress = null;
           this.panicMode = true;
           return;
         }
       }
 
       if (!supportBlueGreen.isStatusAvailable(this.connection)) {
-          LOGGER.finest(String.format(
-              "[%s] (status not available) currentPhase: %s", this.role, BlueGreenPhases.NOT_CREATED));
-          this.currentPhase = BlueGreenPhases.NOT_CREATED;
+          if (!this.connection.isClosed()) {
+            this.currentPhase = BlueGreenPhases.NOT_CREATED;
+            LOGGER.finest(() -> String.format(
+                "[%s] (status not available) currentPhase: %s", this.role, BlueGreenPhases.NOT_CREATED));
+          } else {
+            LOGGER.finest(() -> String.format("[%s] Status is not available since connection is closed.", this.role));
+            this.closeConnection();
+            this.currentPhase = null;
+            this.panicMode = true;
+            return;
+          }
       }
 
       final Statement statement = this.connection.createStatement();
@@ -387,7 +397,7 @@ public class BlueGreenStatusMonitor {
         final String version = resultSet.getString("version");
         final String endpoint = resultSet.getString("endpoint");
         final int port = resultSet.getInt("port");
-        final BlueGreenRole role = this.parseRole(resultSet.getString("role"), version);
+        final BlueGreenRole role = BlueGreenRole.parseRole(resultSet.getString("role"), version);
         final BlueGreenPhases phase = this.parsePhase(resultSet.getString("status"), version);
 
         if (this.role != role) {
@@ -396,11 +406,6 @@ public class BlueGreenStatusMonitor {
 
         statusEntries.add(new StatusInfo(version, endpoint, port, phase, role));
       }
-
-      this.endpoints.addAll(
-          statusEntries.stream()
-            .map(x -> x.endpoint == null ? "" : x.endpoint.toLowerCase())
-            .collect(Collectors.toSet()));
 
       // Check if there's a cluster writer endpoint.
       StatusInfo statusInfo = statusEntries.stream()
@@ -423,21 +428,39 @@ public class BlueGreenStatusMonitor {
       }
 
       if (statusInfo == null) {
-        throw new RuntimeException(String.format("Can't identify %s entry in Blue/Green status table.", this.role));
-      }
 
-      this.currentPhase = statusInfo.phase;
-      this.version = statusInfo.version;
-      this.port = statusInfo.port;
+        if (statusEntries.isEmpty()) {
+          // It's normal to expect that the status table has no entries after BGD is completed.
+          // Old1 cluster/instance has been separated and no longer receives
+          // updates from related green cluster/instance.
+          if (this.role != BlueGreenRole.SOURCE) {
+            LOGGER.warning(() -> String.format("[%s] No entries in status table.", this.role));
+          }
+          this.currentPhase = null;
+        }
+
+      } else {
+        this.currentPhase = statusInfo.phase;
+        this.version = statusInfo.version;
+        this.port = statusInfo.port;
+      }
 
       if (!knownVersions.contains(this.version)) {
         this.version = latestKnownVersion;
-        LOGGER.warning(String.format(
+        LOGGER.warning(() -> String.format(
             "[%s] Blue/Green deployment uses version '%s' that the driver doesn't support. '%s' version is used instead.",
             this.role, this.version, latestKnownVersion));
       }
 
-      if (!this.connectionHostSpecCorrect) {
+      if (this.collectTopology.get()) {
+        this.endpoints.addAll(
+            statusEntries.stream()
+                .filter(x -> x.endpoint != null)
+                .map(x -> x.endpoint.toLowerCase())
+                .collect(Collectors.toSet()));
+      }
+
+      if (!this.connectionHostSpecCorrect && statusInfo != null) {
         // We connected to an initialHostSpec that might be not the desired Blue or Green cluster.
         // We need to reconnect to a correct one.
 
@@ -467,12 +490,33 @@ public class BlueGreenStatusMonitor {
 
     } catch (SQLSyntaxErrorException sqlSyntaxErrorException) {
       this.currentPhase = BlueGreenPhases.NOT_CREATED;
-      LOGGER.finest(String.format(
+      LOGGER.finest(() -> String.format(
           "[%s] (SQLSyntaxErrorException) currentPhase: %s", this.role, BlueGreenPhases.NOT_CREATED));
+    } catch (SQLException e) {
+      if (!this.isConnectionClosed()) {
+        // It's normal to get connection closed during BGD switchover.
+        // If connection isn't closed but there's an exception then let's log it.
+        if (LOGGER.isLoggable(Level.FINEST)) {
+          LOGGER.log(Level.FINEST, String.format("[%s] Unhandled SQLException.", this.role), e);
+        }
+      }
+      this.closeConnection();
+      this.panicMode = true;
     } catch (Exception e) {
       // do nothing
-      LOGGER.log(Level.FINEST, String.format("[%s] Unhandled exception.", this.role), e);
+      if (LOGGER.isLoggable(Level.FINEST)) {
+        LOGGER.log(Level.FINEST, String.format("[%s] Unhandled exception.", this.role), e);
+      }
     }
+  }
+
+  protected boolean isConnectionClosed() {
+    try {
+      return this.connection == null || this.connection.isClosed();
+    } catch (SQLException ex) {
+      // do nothing
+    }
+    return true;
   }
 
   protected void initHostListProvider() {
@@ -489,7 +533,7 @@ public class BlueGreenStatusMonitor {
           && this.role == BlueGreenRole.SOURCE) {
 
       // We can reuse the same HostListProvider as PluginService provides
-      LOGGER.finest(String.format("[%s] Reuse HostListProvider from PluginService", this.role));
+      LOGGER.finest(() -> String.format("[%s] Reuse HostListProvider from PluginService", this.role));
       this.hostListProvider = this.pluginService.getHostListProvider();
 
     } else {
@@ -508,7 +552,7 @@ public class BlueGreenStatusMonitor {
       RdsHostListProvider.CLUSTER_ID.set(hostListProperties,
           String.format("%s::%s::%s", this.role, pluginServiceClusterId, BG_CLUSTER_ID));
 
-      LOGGER.finest(String.format(
+      LOGGER.finest(() -> String.format(
           "[%s] Creating a new HostListProvider, clusterId: %s",
           this.role,
           RdsHostListProvider.CLUSTER_ID.getString(hostListProperties)));
@@ -535,18 +579,6 @@ public class BlueGreenStatusMonitor {
       throw new IllegalArgumentException("Unknown blue/green status " + value);
     }
     return phase;
-  }
-
-  protected BlueGreenRole parseRole(final String value, final String version) {
-    if (StringUtils.isNullOrEmpty(value)) {
-      throw new IllegalArgumentException("Unknown blue/green role " + value);
-    }
-    final BlueGreenRole role = blueGreenRoleMapping.get(value.toUpperCase());
-
-    if (role == null) {
-      throw new IllegalArgumentException("Unknown blue/green role " + value);
-    }
-    return role;
   }
 
   private static class StatusInfo {

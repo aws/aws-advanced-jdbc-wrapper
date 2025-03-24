@@ -820,6 +820,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   public <T> void setStatus(final Class<T> clazz, final @Nullable T status, final String key) {
     final String cacheKey = this.getStatusCacheKey(clazz, key);
+    // TODO: debug
+    LOGGER.info(String.format("before statusCacheKey: %s, size: %d", cacheKey, statusesExpiringCache.size()));
     LOGGER.finest(String.format("statusCacheKey: %s, size: %d", cacheKey, statusesExpiringCache.size()));
     if (status == null) {
       statusesExpiringCache.remove(cacheKey);
@@ -828,6 +830,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       statusesExpiringCache.put(cacheKey, status, DEFAULT_STATUS_CACHE_EXPIRE_NANO);
       LOGGER.finest(String.format("set status, size: %d", statusesExpiringCache.size()));
     }
+    // TODO: debug
+    LOGGER.info(String.format("after statusCacheKey: %s, size: %d", cacheKey, statusesExpiringCache.size()));
   }
 
   public <T> T getStatus(final @NonNull Class<T> clazz, final boolean clusterBound) {
@@ -843,13 +847,14 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   public <T> T getStatus(final @NonNull Class<T> clazz, String key) {
-    key = key == null ? "" : key.trim().toLowerCase();
-    LOGGER.finest(String.format("statusCacheKey: %s, size: %d", key, statusesExpiringCache.size()));
-    return clazz.cast(statusesExpiringCache.get(key));
+    return clazz.cast(statusesExpiringCache.get(this.getStatusCacheKey(clazz, key)));
   }
 
   protected <T> String getStatusCacheKey(final Class<T> clazz, final String key) {
-    return String.format("%s::%s", key == null ? "" : key.trim().toLowerCase(), clazz.getName());
+    String cacheKey = String.format("%s::%s", key == null ? "" : key.trim().toLowerCase(), clazz.getName());
+    // TODO: debug
+    LOGGER.info(String.format("statusCacheKey: %s, size: %d", cacheKey, statusesExpiringCache.size()));
+    return cacheKey;
   }
 
   public boolean isPluginInUse(final Class<? extends ConnectionPlugin> pluginClazz) {

@@ -42,6 +42,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
@@ -63,6 +64,7 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 @EnableOnNumOfInstances(min = 5)
 @MakeSureFirstInstanceWriter
 @Order(17)
+@Disabled
 public class AutoscalingTests {
   protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
 

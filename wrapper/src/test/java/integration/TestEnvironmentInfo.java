@@ -39,6 +39,7 @@ public class TestEnvironmentInfo {
   private String blueGreenDeploymentId;
 
   private String clusterParameterGroupName = null;
+  private String randomBase = null;
 
   public TestDatabaseInfo getDatabaseInfo() {
     return this.databaseInfo;
@@ -164,5 +165,11 @@ public class TestEnvironmentInfo {
 
   public void setClusterParameterGroupName(String clusterParameterGroupName) {
     this.clusterParameterGroupName = clusterParameterGroupName;
+  }
+
+  public String getRandomBase() { return this.randomBase; }
+
+  public void setRandomBase(String randomBase) {
+    this.randomBase = randomBase;
   }
 }
