@@ -80,7 +80,7 @@ import software.amazon.jdbc.util.RdsUtils;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @EnableOnTestFeature(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)
-@EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE)
+@EnableOnDatabaseEngineDeployment({DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE, DatabaseEngineDeployment.AURORA})
 @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
 @Order(16)
 public class BlueGreenDeploymentTests {
@@ -150,8 +150,13 @@ public class BlueGreenDeploymentTests {
 
   @TestTemplate
   @ExtendWith(TestDriverProvider.class)
-  public void test_dummy(TestDriver testDriver) {
-    LOGGER.finest("Inside test.");
+  public void test_dummy(TestDriver testDriver) throws InterruptedException {
+
+    //auroraUtil.switchoverBlueGreenDeployment(TestEnvironment.getCurrent().getInfo().getBlueGreenDeploymentId());
+    LOGGER.finest("Sleep 3 min.");
+
+    TimeUnit.MINUTES.sleep(3);
+    LOGGER.finest("Done sleep 3 min.");
   }
 
   @TestTemplate

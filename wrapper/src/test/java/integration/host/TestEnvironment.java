@@ -43,6 +43,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -239,6 +240,7 @@ public class TestEnvironment implements AutoCloseable {
 
     } else {
       TestEnvironment env = new TestEnvironment(request);
+      initRandomBase(env);
       initDatabaseParams(env);
       initAwsCredentials(env);
 
@@ -255,7 +257,8 @@ public class TestEnvironment implements AutoCloseable {
           break;
         case AURORA:
           initEnv(env);
-          if (env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)) {
+          if (!env.reuseDb
+              && env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)) {
             createCustomClusterParameterGroup(env);
           }
           createDbCluster(env);
@@ -278,6 +281,7 @@ public class TestEnvironment implements AutoCloseable {
         BlueGreenDeployment bgDeployment = env.auroraUtil.getBlueGreenDeploymentBySource(clusterInfo.dbClusterArn());
         if (bgDeployment != null) {
           env.info.setBlueGreenDeploymentId(bgDeployment.blueGreenDeploymentIdentifier());
+          waitForBlueGreenClustersHaveRightState(env, bgDeployment);
           return;
         }
       }
@@ -287,12 +291,18 @@ public class TestEnvironment implements AutoCloseable {
           env.rdsDbName, clusterInfo.dbClusterArn());
       env.info.setBlueGreenDeploymentId(blueGreenId);
 
+      BlueGreenDeployment bgDeployment = env.auroraUtil.getBlueGreenDeployment(blueGreenId);
+      if (bgDeployment != null) {
+        waitForBlueGreenClustersHaveRightState(env, bgDeployment);
+      }
+
     } else if (env.info.getRequest().getDatabaseEngineDeployment() == DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE) {
       DBInstance instanceInfo = env.auroraUtil.getRdsInstanceInfo(env.rdsDbName);
       if (env.reuseDb) {
         BlueGreenDeployment bgDeployment = env.auroraUtil.getBlueGreenDeploymentBySource(instanceInfo.dbInstanceArn());
         if (bgDeployment != null) {
           env.info.setBlueGreenDeploymentId(bgDeployment.blueGreenDeploymentIdentifier());
+          waitForBlueGreenInstancesHaveRightState(env, bgDeployment);
           return;
         }
       }
@@ -302,15 +312,70 @@ public class TestEnvironment implements AutoCloseable {
           env.rdsDbName, instanceInfo.dbInstanceArn());
       env.info.setBlueGreenDeploymentId(blueGreenId);
 
+      BlueGreenDeployment bgDeployment = env.auroraUtil.getBlueGreenDeployment(blueGreenId);
+      if (bgDeployment != null) {
+        waitForBlueGreenInstancesHaveRightState(env, bgDeployment);
+      }
+
     } else {
       LOGGER.warning("BG Deployments are supported for RDS MultiAz Instances and Aurora clusters only."
           + " Proceed without creating BG Deployment.");
     }
   }
 
+  private static void waitForBlueGreenClustersHaveRightState(TestEnvironment env, BlueGreenDeployment bgDeployment) {
+
+    DBCluster blueClusterInfo = env.auroraUtil.getClusterByArn(bgDeployment.source());
+    if (blueClusterInfo != null) {
+      try {
+        env.auroraUtil.waitUntilClusterHasRightState(blueClusterInfo.dbClusterIdentifier());
+      } catch (InterruptedException ex) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(ex);
+      }
+    }
+
+    DBCluster greenClusterInfo = env.auroraUtil.getClusterByArn(bgDeployment.target());
+    if (greenClusterInfo != null) {
+      try {
+        env.auroraUtil.waitUntilClusterHasRightState(greenClusterInfo.dbClusterIdentifier());
+      } catch (InterruptedException ex) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(ex);
+      }
+    }
+  }
+
+  private static void waitForBlueGreenInstancesHaveRightState(TestEnvironment env, BlueGreenDeployment bgDeployment) {
+
+    DBInstance blueInstanceInfo = env.auroraUtil.getRdsInstanceInfoByArn(bgDeployment.source());
+    if (blueInstanceInfo != null) {
+      try {
+        env.auroraUtil.waitUntilInstanceHasRightState(
+            blueInstanceInfo.dbInstanceIdentifier(), "available");
+      } catch (InterruptedException ex) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(ex);
+      }
+    }
+
+    DBInstance greenInstanceInfo = env.auroraUtil.getRdsInstanceInfoByArn(bgDeployment.target());
+    if (greenInstanceInfo != null) {
+      try {
+        env.auroraUtil.waitUntilInstanceHasRightState(
+            greenInstanceInfo.dbInstanceIdentifier(), "available");
+      } catch (InterruptedException ex) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(ex);
+      }
+    }
+  }
+
   private static void createCustomClusterParameterGroup(TestEnvironment env) {
-    String groupName = String.format("test-cpg-%d", System.nanoTime());
-    env.auroraUtil.createCustomClusterParameterGroup(groupName, env.info.getRequest().getDatabaseEngine());
+    String groupName = String.format("test-cpg-%s", env.info.getRandomBase());
+    String engine = getDbEngine(env.info.getRequest());
+    String engineVersion = getDbEngineVersion(engine, env);
+    env.auroraUtil.createCustomClusterParameterGroup(groupName, engine, engineVersion);
     env.info.setClusterParameterGroupName(groupName);
   }
 
@@ -502,9 +567,11 @@ public class TestEnvironment implements AutoCloseable {
         int remainingTries = 5;
         boolean clusterExists = false;
         while (remainingTries-- > 0) {
-          env.rdsDbName = getRandomName(env.info.getRequest());
+          env.rdsDbName = getRandomName(env);
           if (env.auroraUtil.doesClusterExist(env.rdsDbName)) {
             clusterExists = true;
+            env.info.setRandomBase(null);
+            initRandomBase(env);
             LOGGER.finest("Cluster " + env.rdsDbName + " already exists. Pick up another name.");
           } else {
             clusterExists = false;
@@ -557,7 +624,7 @@ public class TestEnvironment implements AutoCloseable {
 
         // remove cluster and instances
         LOGGER.finer("Deleting cluster " + env.rdsDbName);
-        env.auroraUtil.deleteCluster(env.rdsDbName, env.info.getRequest().getDatabaseEngineDeployment());
+        env.auroraUtil.deleteCluster(env.rdsDbName, env.info.getRequest().getDatabaseEngineDeployment(), false);
         LOGGER.finer("Deleted cluster " + env.rdsDbName);
 
         throw new RuntimeException(e);
@@ -647,7 +714,7 @@ public class TestEnvironment implements AutoCloseable {
 
     } else {
       if (StringUtils.isNullOrEmpty(env.rdsDbName)) {
-        env.rdsDbName = getRandomName(env.info.getRequest());
+        env.rdsDbName = getRandomName(env);
         LOGGER.finer("RDS Instance to create: " + env.rdsDbName);
       }
 
@@ -683,7 +750,7 @@ public class TestEnvironment implements AutoCloseable {
 
         // remove RDS instance
         LOGGER.finer("Deleting RDS Instance " + env.rdsDbName);
-        env.auroraUtil.deleteMultiAzInstance(env.rdsDbName);
+        env.auroraUtil.deleteMultiAzInstance(env.rdsDbName, false);
         LOGGER.finer("Deleted RDS Instance " + env.rdsDbName);
 
         throw new RuntimeException(e);
@@ -722,15 +789,37 @@ public class TestEnvironment implements AutoCloseable {
     env.auroraUtil.ec2AuthorizeIP(env.runnerIP);
   }
 
-  private static String getRandomName(TestEnvironmentRequest request) {
-    switch (request.getDatabaseEngine()) {
-      case MYSQL:
-        return "test-mysql-" + System.nanoTime();
-      case PG:
-        return "test-pg-" + System.nanoTime();
-      default:
-        return String.valueOf(System.nanoTime());
+  private static void initRandomBase(TestEnvironment env) {
+    String randomBase = env.info.getRandomBase();
+    if (StringUtils.isNullOrEmpty(randomBase)) {
+      env.info.setRandomBase(generateRandom(10));
     }
+  }
+
+  private static String getRandomName(TestEnvironment env) {
+
+    switch (env.info.getRequest().getDatabaseEngine()) {
+      case MYSQL:
+        return "test-mysql-" + env.info.getRandomBase();
+      case PG:
+        return "test-pg-" + env.info.getRandomBase();
+      default:
+        return env.info.getRandomBase();
+    }
+  }
+
+  private static String generateRandom(int length){
+    String alphabet = "0123456789abcdefghijklmnopqrstuvwxyz";
+
+    int n = alphabet.length();
+    StringBuilder result = new StringBuilder();
+    Random r = new Random();
+
+    for (int i=0; i<length; i++) {
+      result.append(alphabet.charAt(r.nextInt(n)));
+    }
+
+    return result.toString();
   }
 
   private static String getDbEngine(TestEnvironmentRequest request) {
@@ -1233,17 +1322,14 @@ public class TestEnvironment implements AutoCloseable {
         if (this.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)
             && !StringUtils.isNullOrEmpty(this.info.getBlueGreenDeploymentId())) {
           deleteBlueGreenDeployment();
-        }
-
-        deleteDbCluster();
-
-        if (this.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)
-            && !StringUtils.isNullOrEmpty(this.info.getClusterParameterGroupName())) {
+          deleteDbCluster(true);
           deleteCustomClusterParameterGroup(this.info.getClusterParameterGroupName());
+        } else {
+          deleteDbCluster(false);
         }
         break;
       case RDS_MULTI_AZ_CLUSTER:
-        deleteDbCluster();
+        deleteDbCluster(false);
         break;
       case RDS_MULTI_AZ_INSTANCE:
         if (this.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)
@@ -1260,7 +1346,7 @@ public class TestEnvironment implements AutoCloseable {
     }
   }
 
-  private void deleteDbCluster() {
+  private void deleteDbCluster(boolean waitForCompletion) {
     if (!this.reuseDb && !StringUtils.isNullOrEmpty(this.runnerIP)) {
       if (ipAddressUsageRefCount.decrementAndGet() == 0) {
         // Another test environments are still in use of test task runner IP address.
@@ -1271,7 +1357,8 @@ public class TestEnvironment implements AutoCloseable {
 
     if (!this.reuseDb) {
       LOGGER.finest("Deleting cluster " + this.rdsDbName + ".cluster-" + this.rdsDbDomain);
-      auroraUtil.deleteCluster(this.rdsDbName, this.info.getRequest().getDatabaseEngineDeployment());
+      auroraUtil.deleteCluster(
+          this.rdsDbName, this.info.getRequest().getDatabaseEngineDeployment(), waitForCompletion);
       LOGGER.finest("Deleted cluster " + this.rdsDbName + ".cluster-" + this.rdsDbDomain);
     }
   }
@@ -1287,7 +1374,7 @@ public class TestEnvironment implements AutoCloseable {
 
     if (!this.reuseDb) {
       LOGGER.finest("Deleting MultiAz Instance " + this.rdsDbName + "." + this.rdsDbDomain);
-      auroraUtil.deleteMultiAzInstance(this.rdsDbName);
+      auroraUtil.deleteMultiAzInstance(this.rdsDbName, false);
       LOGGER.finest("Deleted MultiAz Instance " + this.rdsDbName + "." + this.rdsDbDomain);
     }
   }
@@ -1297,26 +1384,82 @@ public class TestEnvironment implements AutoCloseable {
     switch (this.info.getRequest().getDatabaseEngineDeployment()) {
       case AURORA:
         if (!this.reuseDb) {
-          auroraUtil.deleteBlueGreenDeployment(this.info.getBlueGreenDeploymentId());
-          String old1ClusterName = this.rdsDbName + "-old1";
-          if (auroraUtil.doesClusterExist(old1ClusterName)) {
-            LOGGER.finest("Deleting MultiAz cluster " + old1ClusterName + ".cluster-" + this.rdsDbDomain);
-            auroraUtil.deleteCluster(old1ClusterName, this.info.getRequest().getDatabaseEngineDeployment());
-            LOGGER.finest("Deleted MultiAz cluster " + old1ClusterName + ".cluster-" + this.rdsDbDomain);
+          BlueGreenDeployment blueGreenDeployment =
+              auroraUtil.getBlueGreenDeployment(this.info.getBlueGreenDeploymentId());
+
+          if (blueGreenDeployment == null) {
+            return;
+          }
+
+          auroraUtil.deleteBlueGreenDeployment(this.info.getBlueGreenDeploymentId(), true);
+
+          // Remove extra DB cluster
+
+          // For BGD in AVAILABLE status: source = blue, target = green
+          // For BGD in SWITCHOVER_COMPLETED: source = old1, target = blue
+          LOGGER.finest("BG source: " + blueGreenDeployment.source());
+          LOGGER.finest("BG target: " + blueGreenDeployment.target());
+
+          if ("SWITCHOVER_COMPLETED".equals(blueGreenDeployment.status())) {
+            // Delete old1 cluster
+            DBCluster old1ClusterInfo = auroraUtil.getClusterByArn(blueGreenDeployment.source());
+            if (old1ClusterInfo != null) {
+              LOGGER.finest("Deleting Aurora cluster " + old1ClusterInfo.dbClusterIdentifier());
+              auroraUtil.deleteCluster(
+                  old1ClusterInfo.dbClusterIdentifier(),
+                  this.info.getRequest().getDatabaseEngineDeployment(),
+                  true);
+              LOGGER.finest("Deleted Aurora cluster " + old1ClusterInfo.dbClusterIdentifier());
+            }
+          } else {
+            // Delete green cluster
+            DBCluster greenClusterInfo = auroraUtil.getClusterByArn(blueGreenDeployment.target());
+            if (greenClusterInfo != null) {
+              auroraUtil.promoteClusterToStandalone(blueGreenDeployment.target());
+              LOGGER.finest("Deleting Aurora cluster " + greenClusterInfo.dbClusterIdentifier());
+              auroraUtil.deleteCluster(
+                  greenClusterInfo.dbClusterIdentifier(),
+                  this.info.getRequest().getDatabaseEngineDeployment(),
+                  true);
+              LOGGER.finest("Deleted Aurora cluster " + greenClusterInfo.dbClusterIdentifier());
+            }
           }
         }
         break;
       case RDS_MULTI_AZ_INSTANCE:
         if (!this.reuseDb) {
+
           BlueGreenDeployment blueGreenDeployment =
               auroraUtil.getBlueGreenDeployment(this.info.getBlueGreenDeploymentId());
-          auroraUtil.deleteBlueGreenDeployment(this.info.getBlueGreenDeploymentId());
 
-          DBInstance old1Instance = auroraUtil.getRdsInstanceInfoByArn(blueGreenDeployment.source());
-          if (old1Instance != null) {
-            LOGGER.finest("Deleting MultiAz Instance " + old1Instance.dbInstanceIdentifier() + "." + this.rdsDbDomain);
-            auroraUtil.deleteMultiAzInstance(old1Instance.dbInstanceIdentifier());
-            LOGGER.finest("Deleted MultiAz Instance " + old1Instance.dbInstanceIdentifier() + "." + this.rdsDbDomain);
+          if (blueGreenDeployment == null) {
+            return;
+          }
+
+          auroraUtil.deleteBlueGreenDeployment(this.info.getBlueGreenDeploymentId(), true);
+
+          // For BGD in AVAILABLE status: source = blue, target = green
+          // For BGD in SWITCHOVER_COMPLETED: source = old1, target = blue
+          LOGGER.finest("BG source: " + blueGreenDeployment.source());
+          LOGGER.finest("BG target: " + blueGreenDeployment.target());
+
+          if ("SWITCHOVER_COMPLETED".equals(blueGreenDeployment.status())) {
+            // Delete old1 cluster
+            DBInstance old1InstanceInfo = auroraUtil.getRdsInstanceInfoByArn(blueGreenDeployment.source());
+            if (old1InstanceInfo != null) {
+              LOGGER.finest("Deleting MultiAz Instance " + old1InstanceInfo.dbInstanceIdentifier());
+              auroraUtil.deleteMultiAzInstance(old1InstanceInfo.dbInstanceIdentifier(), true);
+              LOGGER.finest("Deleted MultiAz Instance " + old1InstanceInfo.dbInstanceIdentifier());
+            }
+          } else {
+            // Delete green cluster
+            DBInstance greenInstanceInfo = auroraUtil.getRdsInstanceInfoByArn(blueGreenDeployment.target());
+            if (greenInstanceInfo != null) {
+              auroraUtil.promoteInstanceToStandalone(blueGreenDeployment.target());
+              LOGGER.finest("Deleting MultiAz Instance " + greenInstanceInfo.dbInstanceIdentifier());
+              auroraUtil.deleteMultiAzInstance(greenInstanceInfo.dbInstanceIdentifier(), true);
+              LOGGER.finest("Deleted MultiAz Instance " + greenInstanceInfo.dbInstanceIdentifier());
+            }
           }
         }
         break;
@@ -1358,15 +1501,26 @@ public class TestEnvironment implements AutoCloseable {
         preCreateInfo.envPreCreateFuture = envPreCreateExecutor.submit(() -> {
           final long startTime = System.nanoTime();
           try {
+            initRandomBase(env);
             initDatabaseParams(env);
+            initAwsCredentials(env);
 
             switch (env.info.getRequest().getDatabaseEngineDeployment()) {
               case RDS_MULTI_AZ_INSTANCE:
+                initEnv(env);
                 createMultiAzInstance(env);
                 configureIamAccess(env);
                 break;
               case RDS_MULTI_AZ_CLUSTER:
+                initEnv(env);
+                createDbCluster(env);
+                configureIamAccess(env);
+                break;
               case AURORA:
+                initEnv(env);
+                if (env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)) {
+                  createCustomClusterParameterGroup(env);
+                }
                 createDbCluster(env);
                 configureIamAccess(env);
                 break;

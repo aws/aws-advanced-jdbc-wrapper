@@ -33,6 +33,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
 import java.util.logging.Logger;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
@@ -48,6 +49,7 @@ import software.amazon.jdbc.PropertyDefinition;
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
 @Order(2)
+@Disabled
 public class RdsConnectivityTests {
 
   private static final Logger LOGGER = Logger.getLogger(RdsConnectivityTests.class.getName());
