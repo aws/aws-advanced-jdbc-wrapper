@@ -27,7 +27,7 @@ dependencies {
     implementation("io.opentelemetry:opentelemetry-sdk:1.48.0")
     implementation("io.opentelemetry:opentelemetry-exporter-otlp:1.48.0")
     implementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
-    implementation("org.jsoup:jsoup:1.18.3")
+    implementation("org.jsoup:jsoup:1.19.1")
     implementation("com.mchange:c3p0:0.9.5.5")
 }
 
