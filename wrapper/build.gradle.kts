@@ -29,7 +29,7 @@ plugins {
 dependencies {
     implementation("org.checkerframework:checker-qual:3.49.0")
     compileOnly("org.apache.httpcomponents:httpclient:4.5.14")
-    compileOnly("software.amazon.awssdk:rds:2.31.2")
+    compileOnly("software.amazon.awssdk:rds:2.31.7")
     compileOnly("software.amazon.awssdk:auth:2.30.37") // Required for IAM (light implementation)
     compileOnly("software.amazon.awssdk:http-client-spi:2.30.32") // Required for IAM (light implementation)
     compileOnly("software.amazon.awssdk:sts:2.30.27")
@@ -65,7 +65,7 @@ dependencies {
     testImplementation("com.mchange:c3p0:0.10.2")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
-    testImplementation("software.amazon.awssdk:rds:2.31.2")
+    testImplementation("software.amazon.awssdk:rds:2.31.7")
     testImplementation("software.amazon.awssdk:auth:2.30.37") // Required for IAM (light implementation)
     testImplementation("software.amazon.awssdk:http-client-spi:2.30.32") // Required for IAM (light implementation)
     testImplementation("software.amazon.awssdk:ec2:2.30.21")
