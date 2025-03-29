@@ -66,7 +66,7 @@ To use the AWS JDBC Driver with a connection pool, you must:
    ds.addDataSourceProperty("database", "postgres");
    
    // Alternatively, the AwsWrapperDataSource can be configured with a JDBC URL instead of individual properties as seen above.
-   ds.addDataSourceProperty("jdbcUrl", "jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/postgres");
+   ds.addDataSourceProperty("jdbcUrl", "jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/postgres");// See this [example](../../examples/AWSDriverExample/src/main/java/software/amazon/DatasourceUrlExample.java)
    ```
 
 4. Set the driver-specific datasource:
