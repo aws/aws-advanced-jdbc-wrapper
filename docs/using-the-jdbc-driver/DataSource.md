@@ -80,8 +80,11 @@ To use the AWS JDBC Driver with a connection pool, you must:
    targetDataSourceProps.setProperty("socketTimeout", "10");
    targetDataSourceProps.setProperty("wrapperLoggerLevel", "ALL");
    ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
-   ```
 
+   // Alternatively, the driver-specific datasource and any AWS JDBC Driver properties can be configured with JDBC URL, instead in code:
+   ds.addDataSourceProperty("jdbcUrl", "jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/postgres?socketTimeout=10&wrapperLoggerLevel=ALL");
+```
+   
 > [!WARNING]\
 > HikariCP supports either DataSource-based configuration or DriverManager-based configuration by specifying the `dataSourceClassName` or the `jdbcUrl`. When using the `AwsWrapperDataSource` you must specify the `dataSourceClassName`, and the  `HikariDataSource.setJdbcUrl` method should not be used. For more information see HikariCP's [documentation](https://github.com/brettwooldridge/HikariCP#gear-configuration-knobs-baby).
 
