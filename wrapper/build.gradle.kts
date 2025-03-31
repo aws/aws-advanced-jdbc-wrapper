@@ -53,7 +53,7 @@ dependencies {
     testImplementation("org.junit.platform:junit-platform-engine:1.11.0")
     testImplementation("org.junit.platform:junit-platform-launcher:1.12.1")
     testImplementation("org.junit.platform:junit-platform-suite-engine:1.12.0")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.11.3")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.12.1")
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.11.4")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
