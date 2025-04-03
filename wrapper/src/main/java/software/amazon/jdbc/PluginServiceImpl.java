@@ -442,9 +442,10 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       return;
     }
 
-    if (!this.dialect.supportAvailability(hostAliases)) {
-      return;
-    }
+    // TODO: review
+//     if (!this.dialect.supportAvailability(hostAliases)) {
+//       return;
+//     }
 
     final List<HostSpec> hostsToChange = this.getAllHosts().stream()
         .filter((host) -> hostAliases.contains(host.asAlias())
@@ -820,18 +821,11 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   public <T> void setStatus(final Class<T> clazz, final @Nullable T status, final String key) {
     final String cacheKey = this.getStatusCacheKey(clazz, key);
-    // TODO: debug
-    LOGGER.info(String.format("before statusCacheKey: %s, size: %d", cacheKey, statusesExpiringCache.size()));
-    LOGGER.finest(String.format("statusCacheKey: %s, size: %d", cacheKey, statusesExpiringCache.size()));
     if (status == null) {
       statusesExpiringCache.remove(cacheKey);
-      LOGGER.finest(String.format("remove status, size: %d", statusesExpiringCache.size()));
     } else {
       statusesExpiringCache.put(cacheKey, status, DEFAULT_STATUS_CACHE_EXPIRE_NANO);
-      LOGGER.finest(String.format("set status, size: %d", statusesExpiringCache.size()));
     }
-    // TODO: debug
-    LOGGER.info(String.format("after statusCacheKey: %s, size: %d", cacheKey, statusesExpiringCache.size()));
   }
 
   public <T> T getStatus(final @NonNull Class<T> clazz, final boolean clusterBound) {
@@ -851,10 +845,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   protected <T> String getStatusCacheKey(final Class<T> clazz, final String key) {
-    String cacheKey = String.format("%s::%s", key == null ? "" : key.trim().toLowerCase(), clazz.getName());
-    // TODO: debug
-    LOGGER.info(String.format("statusCacheKey: %s, size: %d", cacheKey, statusesExpiringCache.size()));
-    return cacheKey;
+    return String.format("%s::%s", key == null ? "" : key.trim().toLowerCase(), clazz.getName());
   }
 
   public boolean isPluginInUse(final Class<? extends ConnectionPlugin> pluginClazz) {

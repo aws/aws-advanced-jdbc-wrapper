@@ -124,6 +124,7 @@ import software.amazon.awssdk.services.rds.model.PromoteReadReplicaDbClusterRequ
 import software.amazon.awssdk.services.rds.model.PromoteReadReplicaDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.PromoteReadReplicaRequest;
 import software.amazon.awssdk.services.rds.model.PromoteReadReplicaResponse;
+import software.amazon.awssdk.services.rds.model.RdsException;
 import software.amazon.awssdk.services.rds.model.RebootDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.RebootDbInstanceResponse;
 import software.amazon.awssdk.services.rds.model.SwitchoverBlueGreenDeploymentRequest;
@@ -913,6 +914,7 @@ public class AuroraTestUtility {
     }
   }
 
+  // TODO: review
   public void deleteClusterUntilDeleted(String clusterArn, DatabaseEngineDeployment deployment) {
     if (StringUtils.isNullOrEmpty(clusterArn)) {
       return;
@@ -1067,23 +1069,6 @@ public class AuroraTestUtility {
     }
   }
 
-  public List<TestInstanceInfo> getClusterInstanceIds(final String clusterId) {
-    final DescribeDbInstancesResponse dbInstancesResult =
-        rdsClient.describeDBInstances(
-            (builder) ->
-                builder.filters(Filter.builder().name("db-cluster-id").values(clusterId).build()));
-
-    List<TestInstanceInfo> result = new ArrayList<>();
-    for (DBInstance instance : dbInstancesResult.dbInstances()) {
-      result.add(
-          new TestInstanceInfo(
-              instance.dbInstanceIdentifier(),
-              instance.endpoint().address(),
-              instance.endpoint().port()));
-    }
-    return result;
-  }
-
   public List<TestInstanceInfo> getTestInstancesInfo(final String clusterId) {
     List<DBInstance> dbInstances = getDBInstances(clusterId);
     List<TestInstanceInfo> instancesInfo = new ArrayList<>();
@@ -1118,22 +1103,6 @@ public class AuroraTestUtility {
       status = tmpStatus;
     }
     LOGGER.finest("Cluster status (after wait): " + status);
-  }
-
-  public void waitUntilRdsInstanceHasRightState(String instanceId, String allowedStatus) throws InterruptedException {
-    String status = getRdsInstanceInfo(instanceId).dbInstanceStatus();
-    LOGGER.finest("RDS Instance " + instanceId + " status: " + status + ", waiting for status: " + allowedStatus);
-    final Set<String> allowedStatuses = new HashSet<>(Arrays.asList(allowedStatus.toLowerCase()));
-    final long waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(10);
-    while (!allowedStatuses.contains(status.toLowerCase()) && waitTillNanoTime > System.nanoTime()) {
-      TimeUnit.MILLISECONDS.sleep(1000);
-      String tmpStatus = getRdsInstanceInfo(instanceId).dbInstanceStatus();
-      if (!tmpStatus.equalsIgnoreCase(status)) {
-        LOGGER.finest("RDS Instance " + instanceId + " status (waiting): " + tmpStatus);
-      }
-      status = tmpStatus;
-    }
-    LOGGER.finest("RDS Instance " + instanceId + " status (after wait): " + status);
   }
 
   public DBCluster getDBCluster(String clusterId) {
@@ -1418,62 +1387,6 @@ public class AuroraTestUtility {
 
     if (!remainingInstances.isEmpty()) {
       fail("The following instances are still down: \n" + String.join("\n", remainingInstances.keySet()));
-    }
-  }
-
-  public void makeSureInstancesUp(List<String> hosts, int port,  boolean finalCheck)
-      throws InterruptedException {
-    final ConcurrentHashMap<String, Boolean> remainingInstances = new ConcurrentHashMap<>();
-    hosts.forEach((k) -> remainingInstances.put(k, true));
-
-    final Properties props = ConnectionStringHelper.getDefaultProperties();
-    DriverHelper.setConnectTimeout(props, 30, TimeUnit.SECONDS);
-    DriverHelper.setSocketTimeout(props, 30, TimeUnit.SECONDS);
-    final ExecutorService executorService = Executors.newFixedThreadPool(hosts.size());
-    final CountDownLatch latch = new CountDownLatch(hosts.size());
-
-    for (final String host : hosts) {
-      executorService.submit(() -> {
-        while (true) {
-          String url = ConnectionStringHelper.getUrl(
-              host,
-              port,
-              TestEnvironment.getCurrent()
-                  .getInfo()
-                  .getDatabaseInfo()
-                  .getDefaultDbName());
-          try (final Connection conn = DriverManager.getConnection(url, props)) {
-            LOGGER.finest("Instance " + host + " is up.");
-            remainingInstances.remove(host);
-            latch.countDown();
-            break;
-          } catch (final SQLException ex) {
-            // Continue waiting until instance is up.
-            LOGGER.log(Level.FINEST, "Exception while trying to connect to instance " + host, ex);
-          } catch (final Exception ex) {
-            LOGGER.log(Level.SEVERE, "Exception:", ex);
-            break;
-          }
-          try {
-            TimeUnit.MILLISECONDS.sleep(5000);
-          } catch (InterruptedException e) {
-            break;
-          }
-        }
-      });
-    }
-
-    latch.await(5, TimeUnit.MINUTES);
-    executorService.shutdownNow();
-
-    if (finalCheck) {
-      assertTrue(
-          remainingInstances.isEmpty(),
-          "The following hosts are still down: \n"
-              + String.join("\n", remainingInstances.keySet()));
-    } else {
-      LOGGER.finest("The following hosts are still down: \n"
-          + String.join("\n", remainingInstances.keySet()));
     }
   }
 
@@ -2029,12 +1942,35 @@ public class AuroraTestUtility {
 
     final String blueGreenName = "bgd-" + name;
 
-    final CreateBlueGreenDeploymentResponse response = rdsClient.createBlueGreenDeployment(
-        CreateBlueGreenDeploymentRequest.builder()
-            .blueGreenDeploymentName(blueGreenName)
-            .source(sourceArn)
-            .tags(Tag.builder().key("test-bg-created").value(Instant.now().toString()).build())
-            .build());
+    CreateBlueGreenDeploymentResponse response = null;
+    int count = 10;
+    while (response == null && count-- > 0) {
+      try {
+        response = rdsClient.createBlueGreenDeployment(
+            CreateBlueGreenDeploymentRequest.builder()
+                .blueGreenDeploymentName(blueGreenName)
+                .source(sourceArn)
+                .tags(Tag.builder().key("test-bg-created").value(Instant.now().toString()).build())
+                .build());
+      } catch (RdsException ex) {
+        if (ex.statusCode() != 500 || count == 0) {
+          throw ex;
+        }
+
+        LOGGER.finest("Can't send createBlueGreenDeployment request. Wait 1min and try again.");
+
+        try {
+          TimeUnit.MINUTES.sleep(1);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new RuntimeException(e);
+        }
+      }
+    }
+
+    if (response == null) {
+      throw new RuntimeException("Can't send createBlueGreenDeployment request.");
+    }
 
     if (!response.sdkHttpResponse().isSuccessful()) {
       LOGGER.finest(String.format("createBlueGreenDeployment response: %d, %s",
@@ -2116,16 +2052,6 @@ public class AuroraTestUtility {
       return response.blueGreenDeployments() != null && !response.blueGreenDeployments().isEmpty();
     } catch (BlueGreenDeploymentNotFoundException ex) {
       LOGGER.finest("blueGreenDeployments not found");
-      return false;
-    }
-  }
-
-  public boolean doesBlueGreenDeploymentBySourceExist(String sourceArn) {
-    try {
-      DescribeBlueGreenDeploymentsResponse response = rdsClient.describeBlueGreenDeployments(
-          builder -> builder.filters(f -> f.name("source").values(sourceArn)));
-      return response.hasBlueGreenDeployments();
-    } catch (BlueGreenDeploymentNotFoundException ex) {
       return false;
     }
   }

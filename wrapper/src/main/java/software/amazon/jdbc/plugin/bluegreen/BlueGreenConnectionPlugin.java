@@ -158,9 +158,6 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
       }
 
       while (routing != null && conn == null) {
-        // TODO: debug
-//         ConnectRouting finalRouting = routing;
-//         LOGGER.finest(() -> "Routing: " + finalRouting);
         conn = routing.apply(
             this,
             hostSpec,
@@ -259,9 +256,6 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
       }
 
       while (routing != null && !result.isPresent()) {
-        // TODO: debug
-//         ExecuteRouting finalRouting = routing;
-//         LOGGER.finest(() -> "Routing: " + finalRouting);
         result = routing.apply(
             this,
             resultClass,

@@ -35,6 +35,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -88,6 +89,7 @@ public class BlueGreenStatusMonitor {
   protected final HostSpec initialHostSpec;
 
   protected final ExecutorService executorService = Executors.newFixedThreadPool(1);
+  protected final ExecutorService openConnectionExecutorService = Executors.newFixedThreadPool(1);
 
   protected final RdsUtils rdsUtils = new RdsUtils();
   protected final ConnectionUrlParser connectionUrlParser = new ConnectionUrlParser();
@@ -102,7 +104,7 @@ public class BlueGreenStatusMonitor {
 
   protected HostListProvider hostListProvider = null;
   protected List<HostSpec> startTopology = new ArrayList<>();
-  protected List<HostSpec> currentTopology = new ArrayList<>();
+  protected final AtomicReference<List<HostSpec>> currentTopology = new AtomicReference<>(new ArrayList<>());
   protected Map<String, Optional<String>> startIpAddressesByHostMap = new ConcurrentHashMap<>();
   protected Map<String, Optional<String>> currentIpAddressesByHostMap = new ConcurrentHashMap<>();
 
@@ -117,11 +119,12 @@ public class BlueGreenStatusMonitor {
   protected String version = "1.0";
   protected int port = -1;
 
-  protected Connection connection = null;
-  protected HostSpec connectionHostSpec = null;
-  protected String connectedIpAddress = null;
-  protected boolean connectionHostSpecCorrect = false;
-  protected boolean panicMode = false;
+  protected final AtomicReference<Connection> connection = new AtomicReference<>(null);
+  protected final AtomicReference<HostSpec> connectionHostSpec = new AtomicReference<>(null);
+  protected final AtomicReference<String> connectedIpAddress = new AtomicReference<>(null);
+  protected final AtomicBoolean connectionHostSpecCorrect = new AtomicBoolean(false);
+  protected final AtomicBoolean panicMode = new AtomicBoolean(true);
+  protected Future openConnectionFuture = null;
 
   public BlueGreenStatusMonitor(
       final @NonNull BlueGreenRole role,
@@ -140,72 +143,71 @@ public class BlueGreenStatusMonitor {
 
     this.supportBlueGreen = (SupportBlueGreen) this.pluginService.getDialect();
 
-    executorService.submit(() -> {
-      try {
-        while (!this.stop.get()) {
-          try {
-            BlueGreenPhases oldPhase = this.currentPhase;
-            this.collectStatus();
+    executorService.submit(this::runMonitoringLoop);
+    executorService.shutdown(); // executor accepts no more tasks
+  }
 
-            // TODO: do we need this condition?
-            //if (!this.panicMode) {
-              this.collectTopology();
-            //}
+  protected void runMonitoringLoop() {
+    try {
+      while (!this.stop.get()) {
+        try {
+          BlueGreenPhases oldPhase = this.currentPhase;
+          this.openConnection();
+          this.collectStatus();
+          this.collectTopology();
+          this.collectHostIpAddresses();
+          this.updateIpAddressFlags();
 
-            this.collectHostIpAddresses();
-            this.updateIpAddressFlags();
+          if ((oldPhase == null && this.currentPhase != null)
+              || (this.currentPhase != null && oldPhase != this.currentPhase)) {
+            LOGGER.finest(() -> String.format("[%s] Status changed to: %s", this.role, this.currentPhase));
+          }
 
-            if ((oldPhase == null && this.currentPhase != null)
-                || (this.currentPhase != null && oldPhase != this.currentPhase)) {
-              LOGGER.finest(() -> String.format("[%s] Status changed to: %s", this.role, this.currentPhase));
-            }
+          if (this.onStatusChangeFunc != null) {
+            this.onStatusChangeFunc.onStatusChanged(
+                this.role,
+                new BlueGreenInterimStatus(
+                    this.currentPhase,
+                    this.version,
+                    this.port,
+                    this.startTopology,
+                    this.currentTopology.get(),
+                    this.startIpAddressesByHostMap,
+                    this.currentIpAddressesByHostMap,
+                    this.endpoints,
+                    this.allStartTopologyIpChanged,
+                    this.allStartTopologyEndpointsRemoved));
+          }
 
-            if (this.onStatusChangeFunc != null) {
-              this.onStatusChangeFunc.onStatusChanged(
-                  this.role,
-                  new BlueGreenInterimStatus(
-                      this.currentPhase,
-                      this.version,
-                      this.port,
-                      this.startTopology,
-                      this.currentTopology,
-                      this.startIpAddressesByHostMap,
-                      this.currentIpAddressesByHostMap,
-                      this.endpoints,
-                      this.allStartTopologyIpChanged,
-                      this.allStartTopologyEndpointsRemoved));
-            }
+          long delayMs = checkIntervalMap.getOrDefault(
+              this.panicMode.get() ? IntervalType.HIGH : this.intervalType.get(),
+              DEFAULT_CHECK_INTERVAL_MS);
 
-            long delayMs = checkIntervalMap.getOrDefault(
-                this.panicMode ? IntervalType.HIGH : this.intervalType.get(),
-                DEFAULT_CHECK_INTERVAL_MS);
+          this.delay(delayMs);
 
-            this.delay(delayMs);
-
-          } catch (InterruptedException ex) {
-            LOGGER.finest(() -> String.format("[%s] Interrupted.", this.role));
-            return;
-          } catch (Exception ex) {
-            if (LOGGER.isLoggable(Level.WARNING)) {
-              LOGGER.log(
-                  Level.WARNING,
-                  String.format("[%s] Unhandled exception while monitoring blue/green status.", this.role),
-                  ex);
-            }
+        } catch (InterruptedException ex) {
+          LOGGER.finest(() -> String.format("[%s] Interrupted.", this.role));
+          return;
+        } catch (Exception ex) {
+          if (LOGGER.isLoggable(Level.WARNING)) {
+            LOGGER.log(
+                Level.WARNING,
+                String.format("[%s] Unhandled exception while monitoring blue/green status.", this.role),
+                ex);
           }
         }
-      } finally {
-        this.closeConnection();
-        LOGGER.finest(() -> String.format("[%s] Blue/green status monitoring thread is completed.", this.role));
       }
-    });
-    executorService.shutdown(); // executor accepts no more tasks
+    } finally {
+      this.closeConnection();
+      LOGGER.finest(() -> String.format("[%s] Blue/green status monitoring thread is completed.", this.role));
+    }
   }
 
   protected void delay(long delayMs) throws InterruptedException {
     long start = System.nanoTime();
     long end = start + TimeUnit.MILLISECONDS.toNanos(delayMs);
     IntervalType currentIntervalType = this.intervalType.get();
+    boolean currentPanic = this.panicMode.get();
     long minDelay = Math.min(delayMs, 50);
 
     // Check whether intervalType or stop flag change, or until waited specified delay time.
@@ -215,15 +217,13 @@ public class BlueGreenStatusMonitor {
       }
     } while (this.intervalType.get() == currentIntervalType
         && System.nanoTime() < end
-        && !this.stop.get());
+        && !this.stop.get()
+        && currentPanic == this.panicMode.get());
   }
 
   public void setIntervalType(final @NonNull IntervalType intervalType) {
     this.intervalType.set(intervalType);
-
-    synchronized (this.sleepWaitObj) {
-      this.sleepWaitObj.notifyAll();
-    }
+    this.notifyChanges();
   }
 
   public void setCollectIpAddresses(final boolean collectIpAddresses) {
@@ -240,10 +240,7 @@ public class BlueGreenStatusMonitor {
 
   public void setStop(boolean stop) {
     this.stop.set(stop);
-
-    synchronized (this.sleepWaitObj) {
-      this.sleepWaitObj.notifyAll();
-    }
+    this.notifyChanges();
   }
 
   public void resetCollectedData() {
@@ -256,8 +253,11 @@ public class BlueGreenStatusMonitor {
 
     this.currentIpAddressesByHostMap.clear();
 
-    for (HostSpec hostSpec : this.currentTopology) {
-      this.currentIpAddressesByHostMap.putIfAbsent(hostSpec.getHost(), this.getIpAddress(hostSpec.getHost()));
+    final List<HostSpec> currentTopologyCopy = this.currentTopology.get();
+    if (currentTopologyCopy != null) {
+      for (HostSpec hostSpec : currentTopologyCopy) {
+        this.currentIpAddressesByHostMap.putIfAbsent(hostSpec.getHost(), this.getIpAddress(hostSpec.getHost()));
+      }
     }
 
     if (this.collectIpAddresses.get()) {
@@ -308,88 +308,57 @@ public class BlueGreenStatusMonitor {
       return;
     }
 
-    this.currentTopology = this.hostListProvider.forceRefresh(this.connection);
+    final Connection conn = this.connection.get();
+    if (conn == null || conn.isClosed()) {
+      return;
+    }
+    this.currentTopology.set(this.hostListProvider.forceRefresh(conn));
 
     if (this.collectTopology.get()) {
-      this.startTopology = this.currentTopology;
+      this.startTopology = this.currentTopology.get();
     }
 
     // Do not update endpoints when topology is frozen.
-    if (this.currentTopology != null && this.collectTopology.get()) {
-      this.endpoints.addAll(this.currentTopology.stream().map(HostSpec::getHost).collect(Collectors.toSet()));
+    final List<HostSpec> currentTopologyCopy = this.currentTopology.get();
+    if (currentTopologyCopy != null && this.collectTopology.get()) {
+      this.endpoints.addAll(currentTopologyCopy.stream().map(HostSpec::getHost).collect(Collectors.toSet()));
     }
   }
 
   protected void closeConnection() {
+    final Connection conn = this.connection.get();
+    this.connection.set(null);
     try {
-      if (this.connection != null && !this.connection.isClosed()) {
-        this.connection.close();
+      if (conn != null && !conn.isClosed()) {
+        conn.close();
       }
     } catch (SQLException sqlException) {
       // ignore
     }
-    this.connection = null;
   }
 
   protected void collectStatus() {
+    final Connection conn = this.connection.get();
     try {
-      if (this.connection == null || this.connection.isClosed()) {
-        this.connection = null;
-        if (this.connectionHostSpec == null) {
-          this.connectionHostSpec = this.initialHostSpec;
-          this.connectedIpAddress = null;
-          this.connectionHostSpecCorrect = false;
-        }
-        try {
-
-          if (this.useIpAddress.get() && this.connectedIpAddress != null) {
-            final HostSpec connectionWithIpHostSpec = this.hostSpecBuilder.copyFrom(this.connectionHostSpec)
-                .host(this.connectedIpAddress)
-                .build();
-            final Properties connectWithIpProperties = PropertyUtils.copyProperties(this.props);
-            IamAuthConnectionPlugin.IAM_HOST.set(connectWithIpProperties, this.connectionHostSpec.getHost());
-
-            LOGGER.finest(() -> String.format(
-                "[%s] Opening monitoring connection (IP) to %s", this.role, connectionWithIpHostSpec.getHost()));
-
-            this.connection = this.pluginService.forceConnect(connectionWithIpHostSpec, connectWithIpProperties);
-            LOGGER.finest(() -> String.format(
-                "[%s] Opened monitoring connection (IP) to %s", this.role, connectionWithIpHostSpec.getHost()));
-
-          } else {
-            LOGGER.finest(() -> String.format(
-                "[%s] Opening monitoring connection to %s", this.role, this.connectionHostSpec.getHost()));
-
-            this.connectedIpAddress = this.getIpAddress(this.connectionHostSpec.getHost()).orElse(null);
-            this.connection = this.pluginService.forceConnect(this.connectionHostSpec, this.props);
-            LOGGER.finest(() -> String.format(
-                "[%s] Opened monitoring connection to %s", this.role, this.connectionHostSpec.getHost()));
-          }
-          this.panicMode = false;
-
-        } catch (SQLException ex) {
-          // can't open connection
-          //this.connectedIpAddress = null;
-          this.panicMode = true;
-          return;
-        }
+      if (conn == null || conn.isClosed()) {
+        return;
       }
 
-      if (!supportBlueGreen.isStatusAvailable(this.connection)) {
-          if (!this.connection.isClosed()) {
+      if (!supportBlueGreen.isStatusAvailable(conn)) {
+          if (!conn.isClosed()) {
             this.currentPhase = BlueGreenPhases.NOT_CREATED;
             LOGGER.finest(() -> String.format(
                 "[%s] (status not available) currentPhase: %s", this.role, BlueGreenPhases.NOT_CREATED));
           } else {
             LOGGER.finest(() -> String.format("[%s] Status is not available since connection is closed.", this.role));
-            this.closeConnection();
+            this.connection.set(null);
             this.currentPhase = null;
-            this.panicMode = true;
+            this.panicMode.set(true);
             return;
           }
       }
 
-      final Statement statement = this.connection.createStatement();
+      final Statement statement = conn.createStatement();
       final ResultSet resultSet = statement.executeQuery(this.supportBlueGreen.getBlueGreenStatusQuery());
 
       final List<StatusInfo> statusEntries = new ArrayList<>();
@@ -399,6 +368,12 @@ public class BlueGreenStatusMonitor {
         final int port = resultSet.getInt("port");
         final BlueGreenRole role = BlueGreenRole.parseRole(resultSet.getString("role"), version);
         final BlueGreenPhases phase = this.parsePhase(resultSet.getString("status"), version);
+
+        // TODO: debug
+//         LOGGER.finest(() -> String.format("Entry: %s, role: %s, phase: %s",
+//             endpoint,
+//             role == null ? "<null>" : role,
+//             phase == null ? "<null>" : phase));
 
         if (this.role != role) {
           continue;
@@ -460,29 +435,30 @@ public class BlueGreenStatusMonitor {
                 .collect(Collectors.toSet()));
       }
 
-      if (!this.connectionHostSpecCorrect && statusInfo != null) {
+      if (!this.connectionHostSpecCorrect.get() && statusInfo != null) {
         // We connected to an initialHostSpec that might be not the desired Blue or Green cluster.
         // We need to reconnect to a correct one.
 
         String statusInfoHostIpAddress = this.getIpAddress(statusInfo.endpoint).orElse(null);
-        if (this.connectedIpAddress != null && !this.connectedIpAddress.equals(statusInfoHostIpAddress)) {
+        String connectedIpAddressCopy = this.connectedIpAddress.get();
+        if (connectedIpAddressCopy != null && !connectedIpAddressCopy.equals(statusInfoHostIpAddress)) {
           // Found endpoint confirms that we're connected to a different node, and we need to reconnect.
-          this.connectionHostSpec = this.hostSpecBuilder
+          this.connectionHostSpec.set(this.hostSpecBuilder
               .host(statusInfo.endpoint)
               .port(statusInfo.port)
-              .build();
-          this.connectionHostSpecCorrect = true;
+              .build());
+          this.connectionHostSpecCorrect.set(true);
           this.closeConnection();
-          this.panicMode = true;
+          this.panicMode.set(true);
 
         } else {
           // We're already connected to a correct node.
-          this.connectionHostSpecCorrect = true;
-          this.panicMode = false;
+          this.connectionHostSpecCorrect.set(true);
+          this.panicMode.set(false);
         }
       }
 
-      if (this.connectionHostSpecCorrect && this.connection != null && this.hostListProvider == null) {
+      if (this.connectionHostSpecCorrect.get() && this.hostListProvider == null) {
         // A connection to a correct cluster (blue or green) is established.
         // Let''s initialize HostListProvider
         this.initHostListProvider();
@@ -493,7 +469,7 @@ public class BlueGreenStatusMonitor {
       LOGGER.finest(() -> String.format(
           "[%s] (SQLSyntaxErrorException) currentPhase: %s", this.role, BlueGreenPhases.NOT_CREATED));
     } catch (SQLException e) {
-      if (!this.isConnectionClosed()) {
+      if (!this.isConnectionClosed(conn)) {
         // It's normal to get connection closed during BGD switchover.
         // If connection isn't closed but there's an exception then let's log it.
         if (LOGGER.isLoggable(Level.FINEST)) {
@@ -501,7 +477,7 @@ public class BlueGreenStatusMonitor {
         }
       }
       this.closeConnection();
-      this.panicMode = true;
+      this.panicMode.set(true);
     } catch (Exception e) {
       // do nothing
       if (LOGGER.isLoggable(Level.FINEST)) {
@@ -510,17 +486,98 @@ public class BlueGreenStatusMonitor {
     }
   }
 
-  protected boolean isConnectionClosed() {
+  protected boolean isConnectionClosed(Connection conn) {
     try {
-      return this.connection == null || this.connection.isClosed();
+      return conn == null || conn.isClosed();
     } catch (SQLException ex) {
       // do nothing
     }
     return true;
   }
 
+  protected void openConnection() {
+    final Connection conn = this.connection.get();
+    if (!this.isConnectionClosed(conn)) {
+      return;
+    }
+
+    if (this.openConnectionFuture != null) {
+      if (this.openConnectionFuture.isDone()) {
+        if (!this.panicMode.get()) {
+          return; // Connection should be open by now.
+        }
+      } else if (!this.openConnectionFuture.isCancelled()) {
+        // Opening a new connection is in progress. Let's wait.
+        return;
+      } else {
+        this.openConnectionFuture = null;
+      }
+    }
+
+    this.connection.set(null);
+    this.panicMode.set(true);
+
+    this.openConnectionFuture = openConnectionExecutorService.submit(() -> {
+
+      HostSpec connectionHostSpecCopy = this.connectionHostSpec.get();
+      String connectedIpAddressCopy = this.connectedIpAddress.get();
+
+      if (connectionHostSpecCopy == null) {
+        this.connectionHostSpec.set(this.initialHostSpec);
+        connectionHostSpecCopy = this.initialHostSpec;
+        this.connectedIpAddress.set(null);
+        connectedIpAddressCopy = null;
+        this.connectionHostSpecCorrect.set(false);
+      }
+      try {
+
+        if (this.useIpAddress.get() && connectedIpAddressCopy != null) {
+          final HostSpec connectionWithIpHostSpec = this.hostSpecBuilder.copyFrom(connectionHostSpecCopy)
+              .host(connectedIpAddressCopy)
+              .build();
+          final Properties connectWithIpProperties = PropertyUtils.copyProperties(this.props);
+          IamAuthConnectionPlugin.IAM_HOST.set(connectWithIpProperties, connectionHostSpecCopy.getHost());
+
+          LOGGER.finest(() -> String.format(
+              "[%s] Opening monitoring connection (IP) to %s", this.role, connectionWithIpHostSpec.getHost()));
+
+          this.connection.set(this.pluginService.forceConnect(connectionWithIpHostSpec, connectWithIpProperties));
+          LOGGER.finest(() -> String.format(
+              "[%s] Opened monitoring connection (IP) to %s", this.role, connectionWithIpHostSpec.getHost()));
+
+        } else {
+
+          final HostSpec finalConnectionHostSpecCopy = connectionHostSpecCopy;
+          LOGGER.finest(() -> String.format(
+              "[%s] Opening monitoring connection to %s", this.role, finalConnectionHostSpecCopy.getHost()));
+
+          connectedIpAddressCopy = this.getIpAddress(connectionHostSpecCopy.getHost()).orElse(null);
+          this.connection.set(this.pluginService.forceConnect(connectionHostSpecCopy, this.props));
+          this.connectedIpAddress.set(connectedIpAddressCopy);
+
+          LOGGER.finest(() -> String.format(
+              "[%s] Opened monitoring connection to %s", this.role, finalConnectionHostSpecCopy.getHost()));
+        }
+        this.panicMode.set(false);
+        this.notifyChanges();
+
+      } catch (SQLException ex) {
+        // can't open connection
+        this.connection.set(null);
+        this.panicMode.set(true);
+        this.notifyChanges();
+      }
+    });
+  }
+
+  protected void notifyChanges() {
+    synchronized (this.sleepWaitObj) {
+      this.sleepWaitObj.notifyAll();
+    }
+  }
+
   protected void initHostListProvider() {
-    if (this.hostListProvider != null) {
+    if (this.hostListProvider != null || !this.connectionHostSpecCorrect.get()) {
       return;
     }
 
@@ -558,14 +615,17 @@ public class BlueGreenStatusMonitor {
           RdsHostListProvider.CLUSTER_ID.getString(hostListProperties)));
 
       String protocol = this.connectionUrlParser.getProtocol(this.pluginService.getOriginalUrl());
-      String hostListProviderUrl = String.format("%s%s/", protocol, this.connectionHostSpec.getHostAndPort());
-      this.hostListProvider = this.pluginService.getDialect()
-          .getHostListProvider()
-          .getProvider(
-              hostListProperties,
-              hostListProviderUrl,
-              (HostListProviderService) this.pluginService,
-              this.pluginService);
+      final HostSpec connectionHostSpecCopy = this.connectionHostSpec.get();
+      if (connectionHostSpecCopy != null) {
+        String hostListProviderUrl = String.format("%s%s/", protocol, connectionHostSpecCopy.getHostAndPort());
+        this.hostListProvider = this.pluginService.getDialect()
+            .getHostListProvider()
+            .getProvider(
+                hostListProperties,
+                hostListProviderUrl,
+                (HostListProviderService) this.pluginService,
+                this.pluginService);
+      }
     }
   }
 

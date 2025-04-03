@@ -32,7 +32,7 @@ import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.RdsUtils;
 
-public class RdsMultiAzDbClusterPgDialect extends PgDialect implements SupportBlueGreen {
+public class RdsMultiAzDbClusterPgDialect extends PgDialect {
 
   private static final Logger LOGGER = Logger.getLogger(RdsMultiAzDbClusterPgDialect.class.getName());
 
@@ -149,29 +149,13 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect implements SupportBl
   }
 
   @Override
-  public String getBlueGreenStatusQuery() {
-    return "SELECT *"
-        + " FROM rds_tools.show_topology('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
-  }
-
-  @Override
-  public boolean isStatusAvailable(final Connection connection) {
-    try {
-      try (Statement statement = connection.createStatement();
-          ResultSet rs = statement.executeQuery(WRITER_NODE_FUNC_EXIST_QUERY)) {
-        return rs.next();
-      }
-    } catch (SQLException ex) {
-      return false;
-    }
-  }
-
-  @Override
   public boolean supportAvailability(final @NonNull Set<String> hostAliases) {
-    return hostAliases.stream()
-        .filter(this.rdsUtils::isGreenInstance)
-        .map(x -> false)
-        .findAny()
-        .orElse(true);
+    return true;
+    // TODO: review
+//     return hostAliases.stream()
+//         .filter(this.rdsUtils::isGreenInstance)
+//         .map(x -> false)
+//         .findAny()
+//         .orElse(true);
   }
 }

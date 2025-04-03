@@ -34,12 +34,9 @@ import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 
-public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect implements SupportBlueGreen {
+public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
 
   private static final String TOPOLOGY_QUERY = "SELECT id, endpoint, port FROM mysql.rds_topology";
-
-  private static final String BG_STATUS_QUERY =
-      "SELECT * FROM mysql.rds_topology";
 
   private static final String TOPOLOGY_TABLE_EXIST_QUERY =
       "SELECT 1 AS tmp FROM information_schema.tables WHERE"
@@ -162,28 +159,13 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect implements Sup
   }
 
   @Override
-  public String getBlueGreenStatusQuery() {
-    return BG_STATUS_QUERY;
-  }
-
-  @Override
-  public boolean isStatusAvailable(final Connection connection) {
-    try {
-      try (Statement statement = connection.createStatement();
-          ResultSet rs = statement.executeQuery(TOPOLOGY_TABLE_EXIST_QUERY)) {
-        return rs.next();
-      }
-    } catch (SQLException ex) {
-      return false;
-    }
-  }
-
-  @Override
   public boolean supportAvailability(final @NonNull Set<String> hostAliases) {
-    return hostAliases.stream()
-        .filter(this.rdsUtils::isGreenInstance)
-        .map(x -> false)
-        .findAny()
-        .orElse(true);
+    return true;
+    // TODO: review
+//     return hostAliases.stream()
+//         .filter(this.rdsUtils::isGreenInstance)
+//         .map(x -> false)
+//         .findAny()
+//         .orElse(true);
   }
 }
