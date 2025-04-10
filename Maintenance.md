@@ -1,36 +1,37 @@
 # Release Schedule
 
-| Release Date       | Release                                                                                   |
-|--------------------|-------------------------------------------------------------------------------------------|
-| October 5, 2022    | [Release 1.0.0](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/1.0.0)  |  
-| January 31, 2023   | [Release 1.0.1](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/1.0.1)  | 
-| Mar 30, 2023       | [Release 1.0.2](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/1.0.2)  |
-| April 28, 2023     | [Release 2.0.0](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.0.0)  |  
-| May 11, 2023       | [Release 2.1.0](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.1.0)  |
-| May 21, 2023       | [Release 2.1.1](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.1.1)  |
-| June 14, 2023      | [Release 2.2.0](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.2.0)  |
-| June 16, 2023      | [Release 2.2.1](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.2.1)  |
-| July 5, 2023       | [Release 2.2.2](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.2.2)  |
-| July 31, 2023      | [Release 2.2.3](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.2.3)  |
-| August 25, 2023    | [Release 2.2.4](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.2.4)  |
-| October 3, 2023    | [Release 2.2.5](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.2.5)  |
-| November 15, 2023  | [Release 2.3.0](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.3.0)  |
-| November 29, 2023  | [Release 2.3.1](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.3.1)  |
-| December 18, 2023  | [Release 2.3.2](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.3.2)  |
-| January 23, 2024   | [Release 2.3.3](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.3.3)  |
-| March 1, 2024      | [Release 2.3.4](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.3.4)  |
-| March 14, 2024     | [Release 2.3.5](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.3.5)  |
-| May 01, 2024       | [Release 2.3.6](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.3.6)  |
-| June 05, 2024      | [Release 2.3.7](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.3.7)  |
-| July 31, 2024      | [Release 2.3.8](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.3.8)  |
-| August 9, 2024     | [Release 2.3.9](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.3.9)  |
-| September 25, 2024 | [Release 2.4.0](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.4.0)  |
-| October 18, 2024   | [Release 2.5.0](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.5.0)  |
-| October 24, 2024   | [Release 2.5.1](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.5.1)  |
-| November 5, 2024   | [Release 2.5.2](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.5.2)  |
-| November 29, 2024  | [Release 2.5.3](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.5.3)  |
-| December 23, 2024  | [Release 2.5.4](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.5.4)  |
+| Release Date       | Release                                                                                  |
+|--------------------|------------------------------------------------------------------------------------------|
+| October 5, 2022    | [Release 1.0.0](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/1.0.0) |  
+| January 31, 2023   | [Release 1.0.1](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/1.0.1) | 
+| Mar 30, 2023       | [Release 1.0.2](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/1.0.2) |
+| April 28, 2023     | [Release 2.0.0](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.0.0) |  
+| May 11, 2023       | [Release 2.1.0](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.1.0) |
+| May 21, 2023       | [Release 2.1.1](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.1.1) |
+| June 14, 2023      | [Release 2.2.0](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.2.0) |
+| June 16, 2023      | [Release 2.2.1](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.2.1) |
+| July 5, 2023       | [Release 2.2.2](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.2.2) |
+| July 31, 2023      | [Release 2.2.3](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.2.3) |
+| August 25, 2023    | [Release 2.2.4](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.2.4) |
+| October 3, 2023    | [Release 2.2.5](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.2.5) |
+| November 15, 2023  | [Release 2.3.0](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.3.0) |
+| November 29, 2023  | [Release 2.3.1](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.3.1) |
+| December 18, 2023  | [Release 2.3.2](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.3.2) |
+| January 23, 2024   | [Release 2.3.3](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.3.3) |
+| March 1, 2024      | [Release 2.3.4](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.3.4) |
+| March 14, 2024     | [Release 2.3.5](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.3.5) |
+| May 01, 2024       | [Release 2.3.6](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.3.6) |
+| June 05, 2024      | [Release 2.3.7](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.3.7) |
+| July 31, 2024      | [Release 2.3.8](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.3.8) |
+| August 9, 2024     | [Release 2.3.9](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.3.9) |
+| September 25, 2024 | [Release 2.4.0](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.4.0) |
+| October 18, 2024   | [Release 2.5.0](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.5.0) |
+| October 24, 2024   | [Release 2.5.1](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.5.1) |
+| November 5, 2024   | [Release 2.5.2](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.5.2) |
+| November 29, 2024  | [Release 2.5.3](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.5.3) |
+| December 23, 2024  | [Release 2.5.4](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.5.4) |
 | March 6, 2025      | [Release 2.5.5](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.5.5) |
+| April 9, 2025      | [Release 2.5.6](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.5.6) |
 
 `aws-advanced-jdbc-wrapper` [follows semver](https://semver.org/#semantic-versioning-200) which means we will only
 release breaking changes in major versions. Generally speaking patches will be released to fix existing problems without
@@ -84,4 +85,4 @@ from the updated source after the PRs are merged.
 | Major Version | Latest Minor Version | Status      | Initial Release | Maintenance Window Start | Maintenance Window End |
 |---------------|----------------------|-------------|-----------------|--------------------------|------------------------|
 | 1             | 1.0.2                | Maintenance | Oct 5, 2022     | Apr 28, 2023             | Apr 28, 2024           | 
-| 2             | 2.5.5                | Current     | Apr 28, 2023    | N/A                      | N/A                    | 
+| 2             | 2.5.6                | Current     | Apr 28, 2023    | N/A                      | N/A                    | 
