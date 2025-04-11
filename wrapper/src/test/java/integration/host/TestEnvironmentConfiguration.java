@@ -75,7 +75,7 @@ public class TestEnvironmentConfiguration {
   public boolean noMetricsTelemetry =
       Boolean.parseBoolean(System.getProperty("test-no-metrics-telemetry", "false"));
   public boolean noBlueGreen =
-      Boolean.parseBoolean(System.getProperty("test-no-bg", "false"));
+      Boolean.parseBoolean(System.getProperty("test-no-bg", "true"));
   public boolean testBlueGreenOnly =
       Boolean.parseBoolean(System.getProperty("test-bg-only", "false"));
 

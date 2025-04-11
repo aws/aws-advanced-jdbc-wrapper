@@ -1341,6 +1341,9 @@ public class TestEnvironment implements AutoCloseable {
       case RDS:
         // not in use at the moment
         break;
+      case DOCKER:
+        // no external resources to dispose
+        // do nothing
       default:
         throw new NotImplementedException(this.info.getRequest().getDatabaseEngineDeployment().toString());
     }
