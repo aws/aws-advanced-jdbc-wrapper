@@ -150,7 +150,9 @@ public class XRayTelemetryContext implements TelemetryContext {
   public void setException(Exception exception) {
     if (this.traceEntity != null && exception != null) {
       setAttribute("exceptionType", exception.getClass().getSimpleName());
-      setAttribute("exceptionMessage", exception.getMessage());
+      if (exception.getMessage() != null) {
+        setAttribute("exceptionMessage", exception.getMessage());
+      }
     }
   }
 
