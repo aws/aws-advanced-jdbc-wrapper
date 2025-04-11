@@ -46,6 +46,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
@@ -290,13 +291,6 @@ public class AuroraTestUtility {
       throw new UnsupportedOperationException(deployment.toString());
     }
 
-    DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT);
-    final Tag testRunnerTag = Tag.builder()
-        .key("created-by").value("test-runner")
-        .key("env").value("test-runner")
-        .key("created").value(formatter.format(ZonedDateTime.now().toLocalDateTime()))
-        .build();
-
     CreateDbInstanceResponse response = rdsClient.createDBInstance(CreateDbInstanceRequest.builder()
         .dbInstanceIdentifier(identifier)
         .publiclyAccessible(true)
@@ -314,7 +308,7 @@ public class AuroraTestUtility {
         .storageType(DEFAULT_STORAGE_TYPE)
         .allocatedStorage(DEFAULT_ALLOCATED_STORAGE)
         .iops(DEFAULT_IOPS)
-        .tags(testRunnerTag)
+        .tags(this.getTag())
         .build());
 
     // Wait for all instances to be up
@@ -381,14 +375,6 @@ public class AuroraTestUtility {
       @Nullable String clusterParameterGroupName,
       int numInstances)
       throws InterruptedException {
-    DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT);
-    String currentDateTimeFormatted = formatter.format(ZonedDateTime.now().toLocalDateTime());
-    LOGGER.info("currentDateTimeFormatted=" + currentDateTimeFormatted);
-    final Tag testRunnerTag = Tag.builder()
-        .key("created-by").value("test-runner")
-        .key("env").value("test-runner")
-        .key("created").value(currentDateTimeFormatted)
-        .build();
     final CreateDbClusterRequest dbClusterRequest =
         CreateDbClusterRequest.builder()
             .dbClusterIdentifier(identifier)
@@ -400,7 +386,7 @@ public class AuroraTestUtility {
             .engine(engine)
             .engineVersion(version)
             .storageEncrypted(true)
-            .tags(testRunnerTag)
+            .tags(this.getTag())
             .dbClusterParameterGroupName(clusterParameterGroupName)
             .build();
 
@@ -417,7 +403,7 @@ public class AuroraTestUtility {
               .engine(engine)
               .engineVersion(version)
               .publiclyAccessible(true)
-              .tags(testRunnerTag)
+              .tags(this.getTag())
               .build());
     }
 
@@ -463,12 +449,6 @@ public class AuroraTestUtility {
       String instanceClass,
       String version)
       throws InterruptedException {
-    DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT);
-    final Tag testRunnerTag = Tag.builder()
-        .key("created-by").value("test-runner")
-        .key("env").value("test-runner")
-        .key("created").value(formatter.format(ZonedDateTime.now().toLocalDateTime()))
-        .build();
     CreateDbClusterRequest.Builder clusterBuilder =
         CreateDbClusterRequest.builder()
             .dbClusterIdentifier(identifier)
@@ -482,7 +462,7 @@ public class AuroraTestUtility {
             .enablePerformanceInsights(false)
             .backupRetentionPeriod(1)
             .storageEncrypted(true)
-            .tags(testRunnerTag)
+            .tags(this.getTag())
             .allocatedStorage(DEFAULT_ALLOCATED_STORAGE)
             .dbClusterInstanceClass(instanceClass)
             .storageType(DEFAULT_STORAGE_TYPE)
@@ -515,12 +495,6 @@ public class AuroraTestUtility {
    * @throws InterruptedException if the new instance is not available within 5 minutes
    */
   public TestInstanceInfo createInstance(String instanceClass, String instanceId) throws InterruptedException {
-    DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT);
-    final Tag testRunnerTag = Tag.builder()
-        .key("created-by").value("test-runner")
-        .key("env").value("test-runner")
-        .key("created").value(formatter.format(ZonedDateTime.now().toLocalDateTime()))
-        .build();
     final TestEnvironmentInfo info = TestEnvironment.getCurrent().getInfo();
 
     rdsClient.createDBInstance(
@@ -531,7 +505,7 @@ public class AuroraTestUtility {
             .engine(info.getDatabaseEngine())
             .engineVersion(info.getDatabaseEngineVersion())
             .publiclyAccessible(true)
-            .tags(testRunnerTag)
+            .tags(this.getTag())
             .build());
 
     // Wait for the instance to become available
@@ -1972,13 +1946,6 @@ public class AuroraTestUtility {
 
     final String blueGreenName = "bgd-" + name;
 
-    DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT);
-    final Tag testRunnerTag = Tag.builder()
-        .key("created-by").value("test-runner")
-        .key("env").value("test-runner")
-        .key("created").value(formatter.format(ZonedDateTime.now().toLocalDateTime()))
-        .build();
-
     CreateBlueGreenDeploymentResponse response = null;
     int count = 10;
     while (response == null && count-- > 0) {
@@ -1987,7 +1954,7 @@ public class AuroraTestUtility {
             CreateBlueGreenDeploymentRequest.builder()
                 .blueGreenDeploymentName(blueGreenName)
                 .source(sourceArn)
-                .tags(testRunnerTag)
+                .tags(this.getTag())
                 .build());
       } catch (RdsException ex) {
         if (ex.statusCode() != 500 || count == 0) {
@@ -2157,5 +2124,15 @@ public class AuroraTestUtility {
             "Unable to delete Blue/Green Deployment after waiting for 30 minutes");
       }
     }
+  }
+
+  private Tag getTag() {
+    ZoneId zoneId = ZoneId.of("America/Los_Angeles");
+    ZonedDateTime zdt = Instant.now().atZone( zoneId );
+    String timeStr = zdt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss zzz"));
+    return Tag.builder()
+        .key("env").value("test-runner")
+        .key("created").value(timeStr)
+        .build();
   }
 }
