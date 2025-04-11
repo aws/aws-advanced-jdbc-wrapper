@@ -382,10 +382,12 @@ public class AuroraTestUtility {
       int numInstances)
       throws InterruptedException {
     DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT);
+    String currentDateTimeFormatted = formatter.format(ZonedDateTime.now().toLocalDateTime());
+    LOGGER.info("currentDateTimeFormatted=" + currentDateTimeFormatted);
     final Tag testRunnerTag = Tag.builder()
         .key("created-by").value("test-runner")
         .key("env").value("test-runner")
-        .key("created").value(formatter.format(ZonedDateTime.now().toLocalDateTime()))
+        .key("created").value(currentDateTimeFormatted)
         .build();
     final CreateDbClusterRequest dbClusterRequest =
         CreateDbClusterRequest.builder()
@@ -754,7 +756,11 @@ public class AuroraTestUtility {
    * @param waitForCompletion if true, wait for cluster completely deleted
    */
   public void deleteAuroraCluster(String identifier, boolean waitForCompletion) {
-    List<DBClusterMember> members = getDBCluster(identifier).dbClusterMembers();
+    DBCluster dbCluster = getDBCluster(identifier);
+    if (dbCluster == null) {
+      return;
+    }
+    List<DBClusterMember> members = dbCluster.dbClusterMembers();
 
     // Tear down instances
     for (DBClusterMember member : members) {
