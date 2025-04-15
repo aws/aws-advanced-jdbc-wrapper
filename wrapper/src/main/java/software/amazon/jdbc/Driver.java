@@ -425,7 +425,6 @@ public class Driver implements java.sql.Driver {
     ConnectionProviderManager.releaseResources();
     HikariPoolsHolder.closeAllPools();
     HostResponseTimeServiceImpl.closeAllMonitors();
-    MonitoringRdsHostListProvider.closeAllMonitors();
     clearCaches();
   }
 }

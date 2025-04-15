@@ -57,6 +57,16 @@ public interface MonitorService {
   <T extends Monitor> T runIfAbsent(Class<T> monitorClass, Object key, Supplier<T> monitorSupplier);
 
   /**
+   * Get the monitor stored at the given key.
+   *
+   * @param monitorClass the expected class of the monitor.
+   * @param key          the key for the monitor.
+   * @return the monitor stored at the given key.
+   */
+  @Nullable
+  <T extends Monitor> T get(Class<T> monitorClass, Object key);
+
+  /**
    * Processes a monitor error. The monitor service will respond to the error based on the monitor error responses
    * defined when the monitor type was registered.
    *
@@ -64,6 +74,18 @@ public interface MonitorService {
    * @param exception the unexpected exception that occurred.
    */
   void reportMonitorError(Monitor monitor, Exception exception);
+
+  /**
+   * Removes the monitor stored at the given key. If the expected monitor class does not match the actual monitor class
+   * no action will be performed.
+   *
+   * @param monitorClass the expected class of the monitor.
+   * @param key          the key for the monitor.
+   * @return the monitor that was removed. Returns null if there was no monitor at the given key or the expected monitor
+   *     class did not match the actual monitor class.
+   */
+  @Nullable
+  <T extends Monitor> T remove(Class<T> monitorClass, Object key);
 
   /**
    * Stops the given monitor and removes it from the monitor service.

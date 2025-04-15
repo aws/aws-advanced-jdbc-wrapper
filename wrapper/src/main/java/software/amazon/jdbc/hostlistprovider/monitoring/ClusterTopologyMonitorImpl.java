@@ -51,13 +51,15 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.monitoring.AbstractMonitor;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.Topology;
 
-public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
+public class ClusterTopologyMonitorImpl extends AbstractMonitor implements ClusterTopologyMonitor {
 
   private static final Logger LOGGER = Logger.getLogger(ClusterTopologyMonitorImpl.class.getName());
 
@@ -116,24 +118,23 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
   });
 
   public ClusterTopologyMonitorImpl(
+      final ServiceContainer serviceContainer,
       final String clusterId,
-      final StorageService storageService,
       final HostSpec initialHostSpec,
       final Properties properties,
-      final PluginService pluginService,
-      final HostListProviderService hostListProviderService,
       final HostSpec clusterInstanceTemplate,
       final long refreshRateNano,
       final long highRefreshRateNano,
       final String topologyQuery,
       final String writerTopologyQuery,
       final String nodeIdQuery) {
+    super(serviceContainer.getMonitorService());
 
     this.clusterId = clusterId;
-    this.storageService = storageService;
+    this.storageService = serviceContainer.getStorageService();
+    this.pluginService = serviceContainer.getPluginService();
+    this.hostListProviderService = serviceContainer.getHostListProviderService();
     this.initialHostSpec = initialHostSpec;
-    this.pluginService = pluginService;
-    this.hostListProviderService = hostListProviderService;
     this.clusterInstanceTemplate = clusterInstanceTemplate;
     this.properties = properties;
     this.refreshRateNano = refreshRateNano;
@@ -265,7 +266,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
   }
 
   @Override
-  public void close() throws Exception {
+  public void stop() {
     this.stop.set(true);
     this.nodeThreadsStop.set(true);
 
@@ -276,7 +277,13 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
     }
 
     // Waiting for 30s gives a thread enough time to exit monitoring loop and close database connection.
-    if (!this.monitorExecutor.awaitTermination(30, TimeUnit.SECONDS)) {
+    try {
+      if (!this.monitorExecutor.awaitTermination(30, TimeUnit.SECONDS)) {
+        LOGGER.fine(Messages.get("ClusterTopologyMonitorImpl.interrupted"));
+        this.monitorExecutor.shutdownNow();
+        Thread.currentThread().interrupt();
+      }
+    } catch (InterruptedException e) {
       this.monitorExecutor.shutdownNow();
     }
 
@@ -284,13 +291,14 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
   }
 
   @Override
-  public void run() {
+  public void monitor() {
     try {
       LOGGER.finest(() -> Messages.get(
           "ClusterTopologyMonitorImpl.startMonitoringThread",
           new Object[]{this.initialHostSpec.getHost()}));
 
-      while (!this.stop.get()) {
+      while (!this.stop.get() && !Thread.currentThread().isInterrupted()) {
+        this.lastActivityTimestampNanos = System.nanoTime();
 
         if (this.isInPanicMode()) {
 

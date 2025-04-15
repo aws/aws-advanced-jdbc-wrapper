@@ -68,8 +68,27 @@ public class ExternallyManagedCache<K, V> {
   }
 
   /**
+   * Get the value stored at the given key. If the value is expired, null will be returned.
+   *
+   * @param key the key for the value.
+   * @return the value stored at the given key, or null if the value is expired.
+   */
+  public @Nullable V get(@NonNull K key) {
+    CacheItem cacheItem = this.cache.get(key);
+    if (cacheItem == null) {
+      return null;
+    }
+
+    if (cacheItem.isExpired()) {
+      return null;
+    }
+
+    return cacheItem.item;
+  }
+
+  /**
    * If a value does not exist for the given key, stores the value returned by the given mapping function, unless the
-   * function returns null, in which case the key will be removed. If the
+   * function returns null, in which case the key will be removed.
    *
    * @param key             the key for the new or existing value.
    * @param mappingFunction the function to call to compute a new value.

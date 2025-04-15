@@ -32,6 +32,7 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AllowedAndBlockedHosts;
+import software.amazon.jdbc.hostlistprovider.monitoring.ClusterTopologyMonitorImpl;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
@@ -40,6 +41,7 @@ import software.amazon.jdbc.util.events.Event;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.events.EventSubscriber;
 import software.amazon.jdbc.util.storage.ExternallyManagedCache;
+import software.amazon.jdbc.util.storage.Topology;
 
 public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   private static final Logger LOGGER = Logger.getLogger(MonitorServiceImpl.class.getName());
@@ -66,6 +68,9 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
 
     suppliers.put(
         CustomEndpointMonitorImpl.class, () -> new CacheContainer(defaultSettings, AllowedAndBlockedHosts.class));
+    MonitorSettings topologySettings =
+        new MonitorSettings(TimeUnit.MINUTES.toNanos(5), TimeUnit.MINUTES.toNanos(3), resetErrorResponse);
+    suppliers.put(ClusterTopologyMonitorImpl.class, () -> new CacheContainer(topologySettings, Topology.class));
     defaultSuppliers = Collections.unmodifiableMap(suppliers);
   }
 
@@ -210,6 +215,30 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   }
 
   @Override
+  public @Nullable <T extends Monitor> T get(Class<T> monitorClass, Object key) {
+    CacheContainer cacheContainer = monitorCaches.get(monitorClass);
+    if (cacheContainer == null) {
+      return null;
+    }
+
+    MonitorItem item = cacheContainer.getCache().get(key);
+    if (item == null) {
+      return null;
+    }
+
+    Monitor monitor = item.getMonitor();
+    if (monitorClass.isInstance(monitor)) {
+      return monitorClass.cast(monitor);
+    }
+
+    LOGGER.fine(
+        Messages.get(
+            "MonitorServiceImpl.monitorClassMismatch",
+            new Object[]{key, monitorClass, monitor, monitor.getClass()}));
+    return null;
+  }
+
+  @Override
   public void reportMonitorError(Monitor monitor, Exception exception) {
     CacheContainer cacheContainer = monitorCaches.get(monitor.getClass());
     if (cacheContainer == null) {
@@ -228,6 +257,22 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
     }
 
     LOGGER.finest(Messages.get("MonitorServiceImpl.monitorErrorForMissingMonitor", new Object[] {monitor, exception}));
+  }
+
+  @Override
+  public <T extends Monitor> T remove(Class<T> monitorClass, Object key) {
+    CacheContainer cacheContainer = monitorCaches.get(monitorClass);
+    if (cacheContainer == null) {
+      return null;
+    }
+
+    MonitorItem item = cacheContainer.getCache().removeIf(
+        key, monitorItem -> monitorClass.isInstance(monitorItem.getMonitor()));
+    if (item == null) {
+      return null;
+    }
+
+    return monitorClass.cast(item.getMonitor());
   }
 
   @Override
