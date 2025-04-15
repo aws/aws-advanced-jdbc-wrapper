@@ -3,6 +3,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [2.5.6] - 2025-04-09
+### :bug: Fixed
+- Issue with non-cluster database dialects and/or custom domains ([PR #1315](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1315)).
+- Use ExecutorService to manage node monitoring threads to prevent thread leaking ([PR #1325](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1325)).
+
+### :crab: Changed
+- Set default SSLInsecure parameter to false.
+
+### :magic_wand: Added
+- C3P0 example. See [here](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/examples/AWSDriverExample/src/main/java/software/amazon/C3P0Example.java).
+
 ## [2.5.5] - 2025-03-06
 ### :bug: Fixed
 - Various reader failover fixes ([PR #1227](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1227)) & ([PR #1246](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1246)).
@@ -424,6 +435,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[2.5.6]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.5.5...2.5.6
 [2.5.5]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.5.4...2.5.5
 [2.5.4]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.5.3...2.5.4
 [2.5.3]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.5.2...2.5.3
