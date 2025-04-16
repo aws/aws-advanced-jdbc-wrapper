@@ -20,12 +20,12 @@ plugins {
 
 dependencies {
     jmhImplementation(project(":aws-advanced-jdbc-wrapper"))
-    implementation("org.postgresql:postgresql:42.7.4")
-    implementation("com.mysql:mysql-connector-j:9.1.0")
+    implementation("org.postgresql:postgresql:42.7.5")
+    implementation("com.mysql:mysql-connector-j:9.2.0")
     implementation("org.mariadb.jdbc:mariadb-java-client:3.5.1")
     implementation("com.zaxxer:HikariCP:4.0.3")
 
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.11.3")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.12.1")
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 }

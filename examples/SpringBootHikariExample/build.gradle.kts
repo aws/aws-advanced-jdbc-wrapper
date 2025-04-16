@@ -16,13 +16,13 @@
 
 plugins {
 	id("org.springframework.boot") version "2.7.0"
-	id("io.spring.dependency-management") version "1.1.6"
+	id("io.spring.dependency-management") version "1.1.7"
 }
 
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
 	implementation("org.springframework.boot:spring-boot-starter-web")
-	implementation("org.postgresql:postgresql:42.7.4")
+	implementation("org.postgresql:postgresql:42.7.5")
     implementation(project(":aws-advanced-jdbc-wrapper"))
 
 }

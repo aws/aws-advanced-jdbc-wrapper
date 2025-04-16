@@ -80,7 +80,7 @@ public class FederatedAuthPlugin extends AbstractConnectionPlugin {
   public static final AwsWrapperProperty HTTP_CLIENT_CONNECT_TIMEOUT = new AwsWrapperProperty(
       "httpClientConnectTimeout", String.valueOf(DEFAULT_HTTP_TIMEOUT_MILLIS),
       "The connect timeout value in milliseconds for the HttpClient used by the FederatedAuthPlugin");
-  public static final AwsWrapperProperty SSL_INSECURE = new AwsWrapperProperty("sslInsecure", "true",
+  public static final AwsWrapperProperty SSL_INSECURE = new AwsWrapperProperty("sslInsecure", "false",
       "Whether or not the SSL session is to be secure and the sever's certificates will be verified");
   public static AwsWrapperProperty
       IDP_NAME = new AwsWrapperProperty("idpName", "adfs", "The name of the Identity Provider implementation used");

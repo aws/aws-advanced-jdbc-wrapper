@@ -20,13 +20,14 @@ import java.lang.ref.WeakReference;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Logger;
@@ -35,6 +36,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
@@ -50,16 +52,17 @@ public class OpenedConnectionTracker {
             invalidateThread.setDaemon(true);
             return invalidateThread;
           });
-  private static final ExecutorService abortConnectionExecutorService =
-      Executors.newCachedThreadPool(
-          r -> {
-            final Thread abortThread = new Thread(r);
-            abortThread.setDaemon(true);
-            return abortThread;
-          });
+  private static final Executor abortConnectionExecutor = new SynchronousExecutor();
 
   private static final Logger LOGGER = Logger.getLogger(OpenedConnectionTracker.class.getName());
   private static final RdsUtils rdsUtils = new RdsUtils();
+
+  private static final Set<String> safeToCheckClosedClasses = new HashSet<>(Arrays.asList(
+      "HikariProxyConnection",
+      "org.postgresql.jdbc.PgConnection",
+      "com.mysql.cj.jdbc.ConnectionImpl",
+      "org.mariadb.jdbc.Connection"));
+
   private final PluginService pluginService;
 
   public OpenedConnectionTracker(final PluginService pluginService) {
@@ -72,6 +75,7 @@ public class OpenedConnectionTracker {
     // Check if the connection was established using an instance endpoint
     if (rdsUtils.isRdsInstance(hostSpec.getHost())) {
       trackConnection(hostSpec.getHostAndPort(), conn);
+      logOpenedConnections();
       return;
     }
 
@@ -80,14 +84,17 @@ public class OpenedConnectionTracker {
         .max(String::compareToIgnoreCase)
         .orElse(null);
 
-    if (instanceEndpoint == null) {
-      LOGGER.finest(
-          Messages.get("OpenedConnectionTracker.unableToPopulateOpenedConnectionQueue",
-            new Object[] {hostSpec.getHost()}));
+    if (instanceEndpoint != null) {
+      trackConnection(instanceEndpoint, conn);
+      logOpenedConnections();
       return;
     }
 
-    trackConnection(instanceEndpoint, conn);
+    // It seems there's no RDS instance host found. It might be a custom domain name. Let's track by all aliases
+    for (String alias : aliases) {
+      trackConnection(alias, conn);
+    }
+    logOpenedConnections();
   }
 
   /**
@@ -100,28 +107,27 @@ public class OpenedConnectionTracker {
     invalidateAllConnections(hostSpec.getAliases().toArray(new String[] {}));
   }
 
-  public void invalidateAllConnections(final String... node) {
+  public void invalidateAllConnections(final String... keys) {
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
         TELEMETRY_INVALIDATE_CONNECTIONS, TelemetryTraceLevel.NESTED);
 
     try {
-      final Optional<String> instanceEndpoint = Arrays.stream(node)
-          .filter(x -> rdsUtils.isRdsInstance(rdsUtils.removePort(x)))
-          .findFirst();
-      if (!instanceEndpoint.isPresent()) {
-        return;
+      for (String key : keys) {
+        try {
+          final Queue<WeakReference<Connection>> connectionQueue = openedConnections.get(key);
+          logConnectionQueue(key, connectionQueue);
+          invalidateConnections(connectionQueue);
+        } catch (Exception ex) {
+          // ignore and continue
+        }
       }
-      final Queue<WeakReference<Connection>> connectionQueue = openedConnections.get(instanceEndpoint.get());
-      logConnectionQueue(instanceEndpoint.get(), connectionQueue);
-      invalidateConnections(openedConnections.get(instanceEndpoint.get()));
-
     } finally {
       telemetryContext.closeContext();
     }
   }
 
-  public void invalidateCurrentConnection(final HostSpec hostSpec, final Connection connection) {
+  public void removeConnectionTracking(final HostSpec hostSpec, final Connection connection) {
     final String host = rdsUtils.isRdsInstance(hostSpec.getHost())
         ? hostSpec.asAlias()
         : hostSpec.getAliases().stream()
@@ -134,8 +140,11 @@ public class OpenedConnectionTracker {
     }
 
     final Queue<WeakReference<Connection>> connectionQueue = openedConnections.get(host);
-    logConnectionQueue(host, connectionQueue);
-    connectionQueue.removeIf(connectionWeakReference -> Objects.equals(connectionWeakReference.get(), connection));
+    if (connectionQueue != null) {
+      logConnectionQueue(host, connectionQueue);
+      connectionQueue.removeIf(
+          connectionWeakReference -> Objects.equals(connectionWeakReference.get(), connection));
+    }
   }
 
   private void trackConnection(final String instanceEndpoint, final Connection connection) {
@@ -144,10 +153,12 @@ public class OpenedConnectionTracker {
             instanceEndpoint,
             (k) -> new ConcurrentLinkedQueue<>());
     connectionQueue.add(new WeakReference<>(connection));
-    logOpenedConnections();
   }
 
   private void invalidateConnections(final Queue<WeakReference<Connection>> connectionQueue) {
+    if (connectionQueue == null || connectionQueue.isEmpty()) {
+      return;
+    }
     invalidateConnectionsExecutorService.submit(() -> {
       WeakReference<Connection> connReference;
       while ((connReference = connectionQueue.poll()) != null) {
@@ -157,7 +168,7 @@ public class OpenedConnectionTracker {
         }
 
         try {
-          conn.abort(abortConnectionExecutorService);
+          conn.abort(abortConnectionExecutor);
         } catch (final SQLException e) {
           // swallow this exception, current connection should be useless anyway.
         }
@@ -204,7 +215,10 @@ public class OpenedConnectionTracker {
         if (conn == null) {
           return true;
         }
-        if (conn.getClass().getSimpleName().equals("HikariProxyConnection")) {
+        // The following classes do not check connection validity by calling a DB server
+        // so it's safe to check whether connection is already closed.
+        if (safeToCheckClosedClasses.contains(conn.getClass().getSimpleName())
+            || safeToCheckClosedClasses.contains(conn.getClass().getName())) {
           try {
             return conn.isClosed();
           } catch (SQLException ex) {

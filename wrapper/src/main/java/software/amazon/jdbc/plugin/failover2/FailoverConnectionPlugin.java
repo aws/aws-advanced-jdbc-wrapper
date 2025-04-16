@@ -98,10 +98,20 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
               + "network exception. Note that this may result in a connection to a different instance in the cluster "
               + "than was specified by the URL.");
 
+  public static final AwsWrapperProperty SKIP_FAILOVER_ON_INTERRUPTED_THREAD =
+      new AwsWrapperProperty(
+          "skipFailoverOnInterruptedThread", "false",
+          "Enable to skip failover if the current thread is interrupted.");
+
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {
           addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
+
+          /* Hikari need to clear warnings on a connection before returning it back to a pool. And a current
+          connection might be closed since recent failover so failover plugin needs to handle it. */
+          add("Connection.clearWarnings");
+
           add("connect");
           add("initHostProvider");
         }
@@ -132,6 +142,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   protected final TelemetryCounter failoverReaderTriggeredCounter;
   protected final TelemetryCounter failoverReaderSuccessCounter;
   protected final TelemetryCounter failoverReaderFailedCounter;
+  protected final boolean skipFailoverOnInterruptedThread;
+
 
   static {
     PropertyDefinition.registerPluginProperties(FailoverConnectionPlugin.class);
@@ -160,6 +172,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         TELEMETRY_FAILOVER_ADDITIONAL_TOP_TRACE.getBoolean(this.properties);
     this.failoverReaderHostSelectorStrategySetting =
         FAILOVER_READER_HOST_SELECTOR_STRATEGY.getString(this.properties);
+    this.skipFailoverOnInterruptedThread = SKIP_FAILOVER_ON_INTERRUPTED_THREAD.getBoolean(this.properties);
 
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
     this.failoverWriterTriggeredCounter = telemetryFactory.createCounter("writerFailover.triggered.count");
@@ -184,6 +197,18 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final JdbcCallable<T, E> jdbcMethodFunc,
       final Object[] jdbcMethodArgs)
       throws E {
+
+    try {
+      if (this.pluginService.getCurrentConnection() != null
+          && !this.canDirectExecute(methodName)
+          && !this.closedExplicitly
+          && this.pluginService.getCurrentConnection().isClosed()) {
+        this.pickNewConnection();
+      }
+    } catch (SQLException ex) {
+      throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, ex);
+    }
+
     if (canDirectExecute(methodName)) {
       return jdbcMethodFunc.call();
     }
@@ -536,7 +561,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         this.failoverWriterFailedCounter.inc();
         LOGGER.severe(
             Messages.get("Failover.exceptionConnectingToWriter", new Object[]{writerCandidate.getHost()}));
-        throw new FailoverFailedSQLException(Messages.get("Failover.exceptionConnectingToWriter"), ex);
+        throw new FailoverFailedSQLException(
+            Messages.get("Failover.exceptionConnectingToWriter", new Object[]{writerCandidate.getHost()}), ex);
       }
 
       HostRole role = this.pluginService.getHostRole(writerCandidateConn);
@@ -549,7 +575,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         this.failoverWriterFailedCounter.inc();
         LOGGER.severe(
             Messages.get("Failover.unexpectedReaderRole", new Object[]{writerCandidate.getHost(), role}));
-        throw new FailoverFailedSQLException(Messages.get("Failover.unexpectedReaderRole"));
+        throw new FailoverFailedSQLException(
+            Messages.get("Failover.unexpectedReaderRole", new Object[]{writerCandidate.getHost(), role}));
       }
 
       this.pluginService.setCurrentConnection(writerCandidateConn, writerCandidate);
@@ -620,6 +647,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return false;
     }
 
+    if (this.skipFailoverOnInterruptedThread && Thread.currentThread().isInterrupted()) {
+      LOGGER.fine(() -> Messages.get("Failover.skipFailoverOnInterruptedThread"));
+      return false;
+    }
+
     String sqlState = null;
     if (t instanceof SQLException) {
       sqlState = ((SQLException) t).getSQLState();
@@ -629,7 +661,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return false;
     }
 
-    return this.pluginService.isNetworkException(t);
+    return this.pluginService.isNetworkException(t, this.pluginService.getTargetDriverDialect());
   }
 
   /**

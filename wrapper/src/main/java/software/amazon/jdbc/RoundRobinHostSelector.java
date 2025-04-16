@@ -45,8 +45,7 @@ public class RoundRobinHostSelector implements HostSelector {
   private static final int DEFAULT_WEIGHT = 1;
   private static final long DEFAULT_ROUND_ROBIN_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(10);
   static final Pattern HOST_WEIGHT_PAIRS_PATTERN =
-      Pattern.compile(
-          "((?<host>[^:/?#]*):(?<weight>[0-9]*))");
+      Pattern.compile("((?<host>[^:/?#]*):(?<weight>[0-9]*))");
   protected static final CacheMap<String, RoundRobinClusterInfo> roundRobinCache = new CacheMap<>();
 
   protected static final ReentrantLock lock = new ReentrantLock();

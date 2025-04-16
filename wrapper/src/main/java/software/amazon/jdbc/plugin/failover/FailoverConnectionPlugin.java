@@ -72,6 +72,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
           add("Connection.abort");
           add("Connection.close");
+
+          /* Hikari need to clear warnings on a connection before returning it back to a pool. And a current
+          connection might be closed since recent failover so failover plugin needs to handle it. */
+          add("Connection.clearWarnings");
+
           add("initHostProvider");
           add("connect");
           add("notifyConnectionChanged");
@@ -159,12 +164,19 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           "telemetryFailoverAdditionalTopTrace", "false",
           "Post an additional top-level trace for failover process.");
 
+  public static final AwsWrapperProperty SKIP_FAILOVER_ON_INTERRUPTED_THREAD =
+      new AwsWrapperProperty(
+          "skipFailoverOnInterruptedThread", "false",
+          "Enable to skip failover if the current thread is interrupted.");
+
   private final TelemetryCounter failoverWriterTriggeredCounter;
   private final TelemetryCounter failoverWriterSuccessCounter;
   private final TelemetryCounter failoverWriterFailedCounter;
   private final TelemetryCounter failoverReaderTriggeredCounter;
   private final TelemetryCounter failoverReaderSuccessCounter;
   private final TelemetryCounter failoverReaderFailedCounter;
+
+  private boolean skipFailoverOnInterruptedThread;
 
   static {
     PropertyDefinition.registerPluginProperties(FailoverConnectionPlugin.class);
@@ -213,6 +225,19 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final JdbcCallable<T, E> jdbcMethodFunc,
       final Object[] jdbcMethodArgs)
       throws E {
+
+    try {
+      if (this.enableFailoverSetting
+          && !this.canDirectExecute(methodName)
+          && !this.closedExplicitly.get()
+          && this.pluginService.getCurrentConnection() != null
+          && this.pluginService.getCurrentConnection().isClosed()) {
+        this.pickNewConnection();
+      }
+    } catch (SQLException ex) {
+      throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, ex);
+    }
+
     if (!this.enableFailoverSetting || canDirectExecute(methodName)) {
       T result = jdbcMethodFunc.call();
       if (METHOD_ABORT.equals(methodName) || METHOD_CLOSE.equals(methodName)) {
@@ -351,6 +376,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     this.failoverReaderConnectTimeoutMsSetting = FAILOVER_READER_CONNECT_TIMEOUT_MS.getInteger(this.properties);
     this.telemetryFailoverAdditionalTopTraceSetting =
         TELEMETRY_FAILOVER_ADDITIONAL_TOP_TRACE.getBoolean(this.properties);
+    this.skipFailoverOnInterruptedThread = SKIP_FAILOVER_ON_INTERRUPTED_THREAD.getBoolean(this.properties);
   }
 
   protected void initFailoverMode() {
@@ -767,6 +793,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
     if (!isFailoverEnabled()) {
       LOGGER.fine(() -> Messages.get("Failover.failoverDisabled"));
+      return false;
+    }
+
+    if (this.skipFailoverOnInterruptedThread && Thread.currentThread().isInterrupted()) {
+      LOGGER.fine(() -> Messages.get("Failover.skipFailoverOnInterruptedThread"));
       return false;
     }
 

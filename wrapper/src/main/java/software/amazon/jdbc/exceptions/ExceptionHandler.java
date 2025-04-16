@@ -16,13 +16,32 @@
 
 package software.amazon.jdbc.exceptions;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+
 public interface ExceptionHandler {
 
+  /**
+   * The method determines whether provided throwable is about any network issues.
+   *
+   * @deprecated Use similar method below that accepts throwable and target driver dialect.
+   */
+  @Deprecated()
   boolean isNetworkException(Throwable throwable);
+
+  boolean isNetworkException(Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect);
 
   boolean isNetworkException(String sqlState);
 
   boolean isLoginException(String sqlState);
 
+  /**
+   * The method determines whether provided throwable is about any login or authentication issues.
+   *
+   * @deprecated Use similar method below that accepts throwable and target driver dialect.
+   */
+  @Deprecated()
   boolean isLoginException(Throwable throwable);
+
+  boolean isLoginException(Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect);
 }

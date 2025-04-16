@@ -183,4 +183,9 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
       }
     });
   }
+
+  @Override
+  public String getSQLState(Throwable throwable) {
+    return null;
+  }
 }
