@@ -14,22 +14,19 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.util.events;
+package software.amazon.jdbc.util.storage;
 
-public class WriterChangedExampleEvent implements Event {
-  final String newWriterUrl;
-  final String oldWriterUrl;
+import java.util.List;
+import software.amazon.jdbc.HostSpec;
 
-  public WriterChangedExampleEvent(String newWriterUrl, String oldWriterUrl) {
-    this.newWriterUrl = newWriterUrl;
-    this.oldWriterUrl = oldWriterUrl;
+public class Topology {
+  private final List<HostSpec> hosts;
+
+  public Topology(List<HostSpec> hosts) {
+    this.hosts = hosts;
   }
 
-  public String getNewWriterUrl() {
-    return newWriterUrl;
-  }
-
-  public String getOldWriterUrl() {
-    return oldWriterUrl;
+  public List<HostSpec> getHosts() {
+    return hosts;
   }
 }

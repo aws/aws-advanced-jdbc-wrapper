@@ -22,13 +22,10 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
-import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.util.CacheMap;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.StringUtils;
 
 public class MultiAzClusterTopologyMonitorImpl extends ClusterTopologyMonitorImpl {
@@ -39,24 +36,20 @@ public class MultiAzClusterTopologyMonitorImpl extends ClusterTopologyMonitorImp
   protected final String fetchWriterNodeColumnName;
 
   public MultiAzClusterTopologyMonitorImpl(
+      final ServiceContainer serviceContainer,
       final String clusterId,
-      final CacheMap<String, List<HostSpec>> topologyMap,
       final HostSpec initialHostSpec,
       final Properties properties,
-      final PluginService pluginService,
-      final HostListProviderService hostListProviderService,
       final HostSpec clusterInstanceTemplate,
       final long refreshRateNano,
       final long highRefreshRateNano,
-      final long topologyCacheExpirationNano,
       final String topologyQuery,
       final String writerTopologyQuery,
       final String nodeIdQuery,
       final String fetchWriterNodeQuery,
       final String fetchWriterNodeColumnName) {
-    super(clusterId, topologyMap, initialHostSpec, properties, pluginService, hostListProviderService,
-        clusterInstanceTemplate, refreshRateNano, highRefreshRateNano, topologyCacheExpirationNano,
-        topologyQuery, writerTopologyQuery, nodeIdQuery);
+    super(serviceContainer, clusterId, initialHostSpec, properties, clusterInstanceTemplate, refreshRateNano,
+        highRefreshRateNano, topologyQuery, writerTopologyQuery, nodeIdQuery);
     this.fetchWriterNodeQuery = fetchWriterNodeQuery;
     this.fetchWriterNodeColumnName = fetchWriterNodeColumnName;
   }

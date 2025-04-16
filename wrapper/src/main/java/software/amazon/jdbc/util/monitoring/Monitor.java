@@ -17,9 +17,40 @@
 package software.amazon.jdbc.util.monitoring;
 
 public interface Monitor {
+  /**
+   * Submits this monitor in a separate thread to begin its monitoring tasks.
+   */
   void start();
 
+  /**
+   * Executes the monitoring loop for this monitor. This method should be called in the run() method of the thread
+   * submitted during the call to {@link #start()}.
+   */
+  void monitor();
+
+  /**
+   * Stops the monitoring tasks for this monitor and closes all resources.
+   */
   void stop();
 
-  MonitorStatus getStatus();
+  /**
+   * Gets the timestamp for the last action performed by this monitor, in nanoseconds.
+   *
+   * @return the timestamp for the last action performed by this monitor, in nanoseconds.
+   */
+  long getLastActivityTimestampNanos();
+
+  /**
+   * Gets the current state of this monitor.
+   *
+   * @return the current state of this monitor.
+   */
+  MonitorState getState();
+
+  /**
+   * Defines whether this monitor can be disposed.
+   *
+   * @return true if this monitor can be disposed, otherwise returns false.
+   */
+  boolean canDispose();
 }

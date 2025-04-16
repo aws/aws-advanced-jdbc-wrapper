@@ -17,18 +17,13 @@
 package integration.container.aurora;
 
 import java.util.Properties;
-import software.amazon.jdbc.HostListProviderService;
-import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
+import software.amazon.jdbc.util.ServiceContainer;
 
 public class TestAuroraHostListProvider extends AuroraHostListProvider {
 
-  public TestAuroraHostListProvider(
-      HostListProviderService hostListProviderService,
-      Properties properties,
-      String originalUrl) {
-
-    super(properties, originalUrl, hostListProviderService, "", "", "");
+  public TestAuroraHostListProvider(ServiceContainer serviceContainer, Properties properties, String originalUrl) {
+    super(properties, originalUrl, serviceContainer, "", "", "");
   }
 
   public static void clearCache() {

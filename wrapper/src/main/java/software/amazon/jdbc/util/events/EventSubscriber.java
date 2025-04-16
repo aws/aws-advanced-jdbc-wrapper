@@ -16,9 +16,15 @@
 
 package software.amazon.jdbc.util.events;
 
+import java.util.Set;
+
+/**
+ * An event subscriber. Subscribers can subscribe to a publisher's events using
+ * {@link EventPublisher#subscribe(EventSubscriber, Set)}.
+ */
 public interface EventSubscriber {
   /**
-   * Process an event. This method will only be called on this subscriber if it has subscribed to the event class via
+   * Processes an event. This method will only be called on this subscriber if it has subscribed to the event class via
    * {@link EventPublisher#subscribe}.
    *
    * @param event the event to process.

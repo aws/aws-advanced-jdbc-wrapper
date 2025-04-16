@@ -19,57 +19,89 @@ package software.amazon.jdbc.util.monitoring;
 import java.util.Set;
 import java.util.function.Supplier;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.jdbc.util.ShouldDisposeFunc;
 
 public interface MonitorService {
   /**
-   * Register a new monitor type with the monitor service. This method needs to be called before adding new types of
-   * monitors to the monitor service, so that the monitor service knows when a running monitor should be stopped.
-   * Expected monitor types ("topology" and "customEndpoint") will be added automatically during driver initialization,
-   * but this method can be called by users if they want to add a new monitor type.
+   * Registers a new monitor type with the monitor service. This method needs to be called before adding new types of
+   * monitors to the monitor service, so that the monitor service knows when to dispose of a monitor. Expected monitor
+   * types will be added automatically during driver initialization, but this method can be called by users if they want
+   * to add a new monitor type.
    *
-   * @param monitorType       a String representing the monitor type, eg "customEndpoint".
-   * @param errorResponses    a Set defining actions to take if the monitor is in an error state.
-   * @param expirationTimeNs  how long a monitor should be stored before expiring, in nanoseconds. If the monitor is
-   *                          expired and shouldDisposeFunc returns `true`, the monitor will be stopped.
-   * @param shouldDisposeFunc a function defining whether an item should be stopped if expired. If `null` is passed, the
-   *                          monitor will always be stopped if the monitor is expired.
+   * @param monitorClass           the class of the monitor, eg `CustomEndpointMonitorImpl.class`.
+   * @param expirationTimeoutNanos how long a monitor should be stored without use before being considered expired, in
+   *                               nanoseconds. If the monitor is expired and shouldDisposeFunc returns `true`, the
+   *                               monitor will be stopped.
+   * @param heartbeatTimeoutNanos  a duration in nanoseconds defining the maximum amount of time that a monitor should
+   *                               take between updating its last-updated timestamp. If a monitor has not updated its
+   *                               last-updated timestamp within this duration it will be considered stuck.
+   * @param errorResponses         a Set defining actions to take if the monitor is in an error state.
+   * @param producedDataClass      the class of data produced by the monitor.
    */
-  void registerMonitorTypeIfAbsent(
-      String monitorType,
+  <T extends Monitor> void registerMonitorTypeIfAbsent(
+      Class<T> monitorClass,
+      long expirationTimeoutNanos,
+      long heartbeatTimeoutNanos,
       Set<MonitorErrorResponse> errorResponses,
-      long expirationTimeNs,
-      @Nullable ShouldDisposeFunc<Monitor> shouldDisposeFunc);
+      @Nullable Class<?> producedDataClass);
 
   /**
    * Creates and starts the given monitor if it does not already exist and stores it under the given monitor type and
-   * key.
+   * key. If the monitor already exists, its time-to-live duration will be renewed, even if it was already expired.
    *
-   * @param monitorType     a String representing the monitor type, eg "customEndpoint".
+   * @param monitorClass    the class of the monitor, eg `CustomEndpointMonitorImpl.class`.
    * @param key             the key for the monitor, eg
    *                        "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
-   * @param monitorSupplier an initialization lambda that can be used to create the monitor if it is absent.
+   * @param monitorSupplier a supplier lambda that can be used to create the monitor if it is absent.
+   * @return the new or existing monitor.
    */
-  void runIfAbsent(
-      String monitorType,
-      Object key,
-      Supplier<Monitor> monitorSupplier);
+  <T extends Monitor> T runIfAbsent(Class<T> monitorClass, Object key, Supplier<T> monitorSupplier);
+
+  /**
+   * Get the monitor stored at the given key.
+   *
+   * @param monitorClass the expected class of the monitor.
+   * @param key          the key for the monitor.
+   * @return the monitor stored at the given key.
+   */
+  @Nullable
+  <T extends Monitor> T get(Class<T> monitorClass, Object key);
+
+  /**
+   * Processes a monitor error. The monitor service will respond to the error based on the monitor error responses
+   * defined when the monitor type was registered.
+   *
+   * @param monitor   the monitor that encountered the unexpected exception.
+   * @param exception the unexpected exception that occurred.
+   */
+  void reportMonitorError(Monitor monitor, Exception exception);
+
+  /**
+   * Removes the monitor stored at the given key. If the expected monitor class does not match the actual monitor class
+   * no action will be performed.
+   *
+   * @param monitorClass the expected class of the monitor.
+   * @param key          the key for the monitor.
+   * @return the monitor that was removed. Returns null if there was no monitor at the given key or the expected monitor
+   *     class did not match the actual monitor class.
+   */
+  @Nullable
+  <T extends Monitor> T remove(Class<T> monitorClass, Object key);
 
   /**
    * Stops the given monitor and removes it from the monitor service.
    *
-   * @param monitorType a String representing the monitor type, eg "customEndpoint".
-   * @param key         the key for the monitor, eg
-   *                    "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
+   * @param monitorClass the class of the monitor, eg `CustomEndpointMonitorImpl.class`.
+   * @param key          the key for the monitor, eg
+   *                     "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
    */
-  void stopAndRemove(String monitorType, Object key);
+  <T extends Monitor> void stopAndRemove(Class<T> monitorClass, Object key);
 
   /**
    * Stops all monitors for the given type and removes them from the monitor service.
    *
-   * @param monitorType a String representing the monitor type, eg "customEndpoint".
+   * @param monitorClass the class of the monitor, eg `CustomEndpointMonitorImpl.class`.
    */
-  void stopAndRemoveMonitors(String monitorType);
+  <T extends Monitor> void stopAndRemoveMonitors(Class<T> monitorClass);
 
   /**
    * Stops all monitors and removes them from the monitor service.

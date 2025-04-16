@@ -29,6 +29,7 @@ import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
@@ -80,11 +81,15 @@ public interface PluginService extends ExceptionHandler {
 
   HostSpec getInitialConnectionHostSpec();
 
+  ServiceContainer getServiceContainer();
+
   /**
    * Set the collection of hosts that should be allowed and/or blocked for connections.
    *
    * @param allowedAndBlockedHosts An object defining the allowed and blocked sets of hosts.
+   * @deprecated use StorageService#set(key, allowedAndBlockedHosts) instead.
    */
+  @Deprecated
   void setAllowedAndBlockedHosts(AllowedAndBlockedHosts allowedAndBlockedHosts);
 
   /**
