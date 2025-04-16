@@ -2136,7 +2136,7 @@ public class AuroraTestUtility {
 
   private Tag getTag() {
     ZoneId zoneId = ZoneId.of("America/Los_Angeles");
-    ZonedDateTime zdt = Instant.now().atZone( zoneId );
+    ZonedDateTime zdt = Instant.now().atZone(zoneId);
     String timeStr = zdt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss zzz"));
     return Tag.builder()
         .key("env").value("test-runner")
