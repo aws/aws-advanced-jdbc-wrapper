@@ -27,17 +27,17 @@ public class TestEnvironmentConfiguration {
   public boolean noPerformance =
       Boolean.parseBoolean(System.getProperty("test-no-performance", "false"));
   public boolean noMysqlEngine =
-      Boolean.parseBoolean(System.getProperty("test-no-mysql-engine", "true"));
+      Boolean.parseBoolean(System.getProperty("test-no-mysql-engine", "false"));
   public boolean noMysqlDriver =
-      Boolean.parseBoolean(System.getProperty("test-no-mysql-driver", "true"));
+      Boolean.parseBoolean(System.getProperty("test-no-mysql-driver", "false"));
   public boolean noPgEngine =
       Boolean.parseBoolean(System.getProperty("test-no-pg-engine", "false"));
   public boolean noPgDriver =
       Boolean.parseBoolean(System.getProperty("test-no-pg-driver", "false"));
   public boolean noMariadbEngine =
-      Boolean.parseBoolean(System.getProperty("test-no-mariadb-engine", "true"));
+      Boolean.parseBoolean(System.getProperty("test-no-mariadb-engine", "false"));
   public boolean noMariadbDriver =
-      Boolean.parseBoolean(System.getProperty("test-no-mariadb-driver", "true"));
+      Boolean.parseBoolean(System.getProperty("test-no-mariadb-driver", "false"));
   public boolean noFailover =
       Boolean.parseBoolean(System.getProperty("test-no-failover", "false"));
   public boolean noIam =
@@ -47,24 +47,24 @@ public class TestEnvironmentConfiguration {
   public boolean noHikari =
       Boolean.parseBoolean(System.getProperty("test-no-hikari", "false"));
   public boolean noGraalVm =
-      Boolean.parseBoolean(System.getProperty("test-no-graalvm", "true"));
+      Boolean.parseBoolean(System.getProperty("test-no-graalvm", "false"));
   public boolean noOpenJdk =
       Boolean.parseBoolean(System.getProperty("test-no-openjdk", "false"));
   public boolean noOpenJdk8 =
       Boolean.parseBoolean(System.getProperty("test-no-openjdk8", "false"));
   public boolean noOpenJdk11 =
-      Boolean.parseBoolean(System.getProperty("test-no-openjdk11", "true"));
+      Boolean.parseBoolean(System.getProperty("test-no-openjdk11", "false"));
   public boolean testHibernateOnly =
       Boolean.parseBoolean(System.getProperty("test-hibernate-only", "false"));
   public boolean testAutoscalingOnly =
       Boolean.parseBoolean(System.getProperty("test-autoscaling-only", "false"));
 
   public boolean noInstances1 =
-      Boolean.parseBoolean(System.getProperty("test-no-instances-1", "true"));
+      Boolean.parseBoolean(System.getProperty("test-no-instances-1", "false"));
   public boolean noInstances2 =
-      Boolean.parseBoolean(System.getProperty("test-no-instances-2", "true"));
+      Boolean.parseBoolean(System.getProperty("test-no-instances-2", "false"));
   public boolean noInstances3 =
-      Boolean.parseBoolean(System.getProperty("test-no-instances-3", "true"));
+      Boolean.parseBoolean(System.getProperty("test-no-instances-3", "false"));
   public boolean noInstances5 =
       Boolean.parseBoolean(System.getProperty("test-no-instances-5", "false"));
 
