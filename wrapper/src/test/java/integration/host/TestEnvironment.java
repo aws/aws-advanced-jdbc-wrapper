@@ -1391,6 +1391,7 @@ public class TestEnvironment implements AutoCloseable {
       case DOCKER:
         // no external resources to dispose
         // do nothing
+        break;
       default:
         throw new NotImplementedException(this.info.getRequest().getDatabaseEngineDeployment().toString());
     }
