@@ -27,15 +27,14 @@ import software.amazon.jdbc.util.StringUtils;
 /**
  * An event publisher that periodically sends out all messages received during the latest interval of time. Messages are
  * recorded in a set so that messages of equivalent value are not duplicated in the same message batch.
- *
- * TODO: should duplicate events be allowed? Data access events may happen frequently so duplicates could result in
- *  unnecessary repeated processing.
  */
 public class PeriodicEventPublisher implements EventPublisher {
   protected static final long DEFAULT_MESSAGE_INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(30);
   protected final Map<Class<? extends Event>, Set<EventSubscriber>> subscribers = new ConcurrentHashMap<>();
   // ConcurrentHashMap.newKeySet() is the recommended way to get a concurrent set. A set is used to prevent duplicate
   // event messages from being sent in the same message batch.
+  // TODO: should duplicate events be allowed? Data access events may happen frequently so duplicates could result in
+  //  a lot of unnecessary repeated processing.
   protected final Set<Event> eventMessages = ConcurrentHashMap.newKeySet();
   protected static final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor((r -> {
     final Thread thread = new Thread(r);
