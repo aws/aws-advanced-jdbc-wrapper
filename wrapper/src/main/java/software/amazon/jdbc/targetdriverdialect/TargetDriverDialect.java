@@ -56,4 +56,6 @@ public interface TargetDriverDialect {
   boolean ping(final @NonNull Connection connection);
 
   Set<String> getAllowedOnConnectionMethodNames();
+
+  String getSQLState(final Throwable throwable);
 }

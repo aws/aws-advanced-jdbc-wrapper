@@ -232,7 +232,7 @@ public interface PluginService extends ExceptionHandler {
 
   void updateDialect(final @NonNull Connection connection) throws SQLException;
 
-  HostSpec identifyConnection(final Connection connection) throws SQLException;
+  @Nullable HostSpec identifyConnection(final Connection connection) throws SQLException;
 
   void fillAliases(final Connection connection, final HostSpec hostSpec) throws SQLException;
 
