@@ -29,6 +29,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class PropertyDefinition {
 
+  public static final AwsWrapperProperty CASE_SENSITIVE =
+      new AwsWrapperProperty(
+          "wrapperCaseSensitive", "true",
+          "Allows the driver to change case sensitivity for parameter names in the connection string.");
+
   public static final AwsWrapperProperty LOG_UNCLOSED_CONNECTIONS =
       new AwsWrapperProperty(
           "wrapperLogUnclosedConnections", "false",
@@ -169,6 +174,8 @@ public class PropertyDefinition {
 
   private static final Map<String, AwsWrapperProperty> PROPS_BY_NAME =
       new ConcurrentHashMap<>();
+  private static final Map<String, AwsWrapperProperty> PROPS_BY_NAME_LOWERCASE =
+      new ConcurrentHashMap<>();
   private static final Set<String> KNOWN_PROPS_BY_PREFIX = ConcurrentHashMap.newKeySet();
 
   static {
@@ -177,6 +184,10 @@ public class PropertyDefinition {
 
   public static @Nullable AwsWrapperProperty byName(final String name) {
     return PROPS_BY_NAME.get(name);
+  }
+
+  public static @Nullable AwsWrapperProperty byNameIgnoreCase(final String name) {
+    return PROPS_BY_NAME_LOWERCASE.get(name.toLowerCase());
   }
 
   public static Collection<AwsWrapperProperty> allProperties() {
@@ -244,6 +255,7 @@ public class PropertyDefinition {
 
               if (prop != null) {
                 PROPS_BY_NAME.put(prop.name, prop);
+                PROPS_BY_NAME_LOWERCASE.put(prop.name.toLowerCase(), prop);
               }
             });
 

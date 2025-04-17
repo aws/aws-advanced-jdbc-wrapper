@@ -16,17 +16,21 @@
 
 package software.amazon.jdbc.util;
 
+import com.fasterxml.jackson.databind.annotation.JsonAppend.Prop;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
+import software.amazon.jdbc.PropertyDefinition;
 
 public class ConnectionUrlParser {
 
@@ -187,6 +191,42 @@ public class ConnectionUrlParser {
       }
       final String currentParameterName = param.substring(0, pos);
       props.setProperty(currentParameterName, currentParameterValue);
+    }
+
+    // try to detect "wrapperCaseSensitive" parameter
+    String caseSensitiveSettingStr = props.getProperty(PropertyDefinition.CASE_SENSITIVE.name);
+    if (caseSensitiveSettingStr == null) {
+      // try low case
+      caseSensitiveSettingStr = props.getProperty(PropertyDefinition.CASE_SENSITIVE.name.toLowerCase());
+    }
+    if (caseSensitiveSettingStr == null) {
+      caseSensitiveSettingStr = PropertyDefinition.CASE_SENSITIVE.defaultValue;
+    }
+
+    final boolean caseSensitive = Boolean.parseBoolean(caseSensitiveSettingStr);
+
+    if (!caseSensitive) {
+      // restore case for parsed parameters
+      final Properties propsCopy = new Properties();
+      propsCopy.putAll(props);
+      props.clear();
+      for (final Map.Entry<Object, Object> entry : propsCopy.entrySet()) {
+        AwsWrapperProperty awsWrapperProperty = PropertyDefinition.byName(entry.getKey().toString());
+        if (awsWrapperProperty != null) {
+          props.setProperty(entry.getKey().toString(), entry.getValue().toString());
+          continue;
+        }
+
+        awsWrapperProperty = PropertyDefinition.byNameIgnoreCase(entry.getKey().toString());
+        if (awsWrapperProperty != null) {
+          // use original (camel-case) property name
+          props.setProperty(awsWrapperProperty.name, entry.getValue().toString());
+          continue;
+        }
+
+        // not an AWS Wrapper property
+        props.setProperty(entry.getKey().toString(), entry.getValue().toString());
+      }
     }
   }
 
