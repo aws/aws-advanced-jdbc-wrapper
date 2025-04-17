@@ -168,14 +168,13 @@ public class ConnectionUrlParser {
       return;
     }
 
-    final Properties parsedProps = new Properties();
     final String[] listOfParameters = urlParameters[1].split("&");
     for (final String param : listOfParameters) {
       final int pos = param.indexOf("=");
       String currentParameterValue = "";
 
       if (pos == -1) {
-        parsedProps.setProperty(param, currentParameterValue);
+        props.setProperty(param, currentParameterValue);
         continue;
       }
 
@@ -191,14 +190,14 @@ public class ConnectionUrlParser {
         currentParameterValue = "";
       }
       final String currentParameterName = param.substring(0, pos);
-      parsedProps.setProperty(currentParameterName, currentParameterValue);
+      props.setProperty(currentParameterName, currentParameterValue);
     }
 
     // try to detect "wrapperCaseSensitive" parameter
-    String caseSensitiveSettingStr = parsedProps.getProperty(PropertyDefinition.CASE_SENSITIVE.name);
+    String caseSensitiveSettingStr = props.getProperty(PropertyDefinition.CASE_SENSITIVE.name);
     if (caseSensitiveSettingStr == null) {
       // try low case
-      caseSensitiveSettingStr = parsedProps.getProperty(PropertyDefinition.CASE_SENSITIVE.name.toLowerCase());
+      caseSensitiveSettingStr = props.getProperty(PropertyDefinition.CASE_SENSITIVE.name.toLowerCase());
     }
     if (caseSensitiveSettingStr == null) {
       caseSensitiveSettingStr = PropertyDefinition.CASE_SENSITIVE.defaultValue;
@@ -206,11 +205,12 @@ public class ConnectionUrlParser {
 
     final boolean caseSensitive = Boolean.parseBoolean(caseSensitiveSettingStr);
 
-    if (caseSensitive) {
-      props.putAll(parsedProps);
-    } else {
+    if (!caseSensitive) {
       // restore case for parsed parameters
-      for (final Map.Entry<Object, Object> entry : parsedProps.entrySet()) {
+      final Properties propsCopy = new Properties();
+      propsCopy.putAll(props);
+      props.clear();
+      for (final Map.Entry<Object, Object> entry : propsCopy.entrySet()) {
         AwsWrapperProperty awsWrapperProperty = PropertyDefinition.byName(entry.getKey().toString());
         if (awsWrapperProperty != null) {
           props.setProperty(entry.getKey().toString(), entry.getValue().toString());
