@@ -23,6 +23,7 @@ import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -31,7 +32,8 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 // Test class allowing for mocks to be used with ConnectionWrapper logic
 public class TestConnectionWrapper extends ConnectionWrapper {
 
-  public TestConnectionWrapper(@NonNull Properties props,
+  public TestConnectionWrapper(
+      @NonNull Properties props,
       @NonNull String url,
       @NonNull ConnectionPluginManager connectionPluginManager,
       @NonNull final TelemetryFactory telemetryFactory,
@@ -39,9 +41,10 @@ public class TestConnectionWrapper extends ConnectionWrapper {
       @NonNull HostListProviderService hostListProviderService,
       @NonNull PluginManagerService pluginManagerService,
       @NonNull StorageService storageService,
-      @NonNull MonitorService monitorService)
+      @NonNull MonitorService monitorService,
+      @NonNull ConnectionService connectionService)
       throws SQLException {
     super(props, url, connectionPluginManager, telemetryFactory, pluginService, hostListProviderService,
-        pluginManagerService, storageService, monitorService);
+        pluginManagerService, storageService, monitorService, connectionService);
   }
 }

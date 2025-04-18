@@ -20,6 +20,7 @@ import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -30,6 +31,8 @@ public interface ServiceContainer {
   MonitorService getMonitorService();
 
   TelemetryFactory getTelemetryFactory();
+
+  ConnectionService getConnectionService();
 
   ConnectionPluginManager getConnectionPluginManager();
 
@@ -44,6 +47,8 @@ public interface ServiceContainer {
   void setStorageService(StorageService storageService);
 
   void setTelemetryFactory(TelemetryFactory telemetryFactory);
+
+  void setConnectionService(ConnectionService connectionService);
 
   void setConnectionPluginManager(ConnectionPluginManager connectionPluginManager);
 
