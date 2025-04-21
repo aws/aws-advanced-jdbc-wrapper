@@ -38,7 +38,9 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.connection.ConnectionService;
 
 /**
  * An implementation of ReaderFailoverHandler.
@@ -63,18 +65,19 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   protected int timeoutMs;
   protected boolean isStrictReaderRequired;
   protected final PluginService pluginService;
+  protected final ConnectionService connectionService;
 
   /**
    * ClusterAwareReaderFailoverHandler constructor.
    *
-   * @param pluginService          A provider for creating new connections.
+   * @param serviceContainer       The service container for the services required by this class.
    * @param initialConnectionProps The initial connection properties to copy over to the new reader.
    */
   public ClusterAwareReaderFailoverHandler(
-      final PluginService pluginService,
+      final ServiceContainer serviceContainer,
       final Properties initialConnectionProps) {
     this(
-        pluginService,
+        serviceContainer,
         initialConnectionProps,
         DEFAULT_FAILOVER_TIMEOUT,
         DEFAULT_READER_CONNECT_TIMEOUT,
@@ -84,20 +87,21 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   /**
    * ClusterAwareReaderFailoverHandler constructor.
    *
-   * @param pluginService              A provider for creating new connections.
-   * @param initialConnectionProps     The initial connection properties to copy over to the new reader.
-   * @param maxFailoverTimeoutMs       Maximum allowed time for the entire reader failover process.
-   * @param timeoutMs                  Maximum allowed time in milliseconds for each reader connection attempt during
-   *                                   the reader failover process.
+   * @param serviceContainer       The service container for the services required by this class.
+   * @param initialConnectionProps The initial connection properties to copy over to the new reader.
+   * @param maxFailoverTimeoutMs   Maximum allowed time for the entire reader failover process.
+   * @param timeoutMs              Maximum allowed time in milliseconds for each reader connection attempt during
+   *                               the reader failover process.
    * @param isStrictReaderRequired When true, it disables adding a writer to a list of nodes to connect
    */
   public ClusterAwareReaderFailoverHandler(
-      final PluginService pluginService,
+      final ServiceContainer serviceContainer,
       final Properties initialConnectionProps,
       final int maxFailoverTimeoutMs,
       final int timeoutMs,
       final boolean isStrictReaderRequired) {
-    this.pluginService = pluginService;
+    this.pluginService = serviceContainer.getPluginService();
+    this.connectionService = serviceContainer.getConnectionService();
     this.initialConnectionProps = initialConnectionProps;
     this.maxFailoverTimeoutMs = maxFailoverTimeoutMs;
     this.timeoutMs = timeoutMs;
@@ -277,8 +281,8 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
 
     final int numOfReaders = activeReaders.size() + downHostList.size();
     if (writerHost != null && (numOfReaders == 0
-          || this.pluginService.getDialect().getFailoverRestrictions()
-                .contains(FailoverRestriction.ENABLE_WRITER_IN_TASK_B))) {
+        || this.pluginService.getDialect().getFailoverRestrictions()
+        .contains(FailoverRestriction.ENABLE_WRITER_IN_TASK_B))) {
       hostsByPriority.add(writerHost);
     }
 
@@ -389,7 +393,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
         final Properties copy = new Properties();
         copy.putAll(initialConnectionProps);
 
-        final Connection conn = pluginService.forceConnect(this.newHost, copy);
+        final Connection conn = connectionService.createAuxiliaryConnection(this.newHost, copy);
         pluginService.setAvailability(this.newHost.asAliases(), HostAvailability.AVAILABLE);
 
         if (this.isStrictReaderRequired) {
@@ -400,7 +404,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
               LOGGER.fine(
                   Messages.get(
                       "ClusterAwareReaderFailoverHandler.readerRequired",
-                      new Object[]{ this.newHost.getUrl(), role }));
+                      new Object[] {this.newHost.getUrl(), role}));
 
               try {
                 conn.close();
@@ -411,7 +415,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
               return FAILED_READER_FAILOVER_RESULT;
             }
           } catch (SQLException e) {
-            LOGGER.fine(Messages.get("ClusterAwareReaderFailoverHandler.errorGettingHostRole", new Object[]{e}));
+            LOGGER.fine(Messages.get("ClusterAwareReaderFailoverHandler.errorGettingHostRole", new Object[] {e}));
 
             try {
               conn.close();

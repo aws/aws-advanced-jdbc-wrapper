@@ -847,7 +847,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
           if (connection == null) {
 
             try {
-              connection = this.monitor.pluginService.forceConnect(
+              connection = this.monitor.connectionService.createAuxiliaryConnection(
                   hostSpec, this.monitor.monitoringProperties);
               this.monitor.pluginService.setAvailability(
                   hostSpec.asAliases(), HostAvailability.AVAILABLE);

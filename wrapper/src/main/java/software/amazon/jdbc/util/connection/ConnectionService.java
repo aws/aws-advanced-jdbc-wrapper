@@ -19,16 +19,16 @@ package software.amazon.jdbc.util.connection;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
+import software.amazon.jdbc.HostSpec;
 
 public interface ConnectionService {
   /**
    * Creates an auxiliary connection. Auxiliary connections are driver-internal connections that accomplish various
    * specific tasks such as monitoring a host's availability, checking the topology information for a cluster, etc.
    *
-   * @param underlyingDriverConnString the connection string for the underlying driver and database, eg
-   *                                   "jdbc:postgresql://mydb.cluster-xyz.us-east-1.rds.amazonaws.com/some_db".
+   * @param hostSpec the hostSpec containing the host information for the auxiliary connection.
    * @param props the properties for the auxiliary connection.
-   * @return a new connection to the given connection string using the given props.
+   * @return a new connection to the given host using the given props.
    */
-  Connection createAuxiliaryConnection(String underlyingDriverConnString, Properties props) throws SQLException;
+  Connection createAuxiliaryConnection(HostSpec hostSpec, Properties props) throws SQLException;
 }

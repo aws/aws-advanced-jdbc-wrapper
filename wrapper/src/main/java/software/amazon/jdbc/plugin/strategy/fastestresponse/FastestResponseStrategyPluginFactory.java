@@ -25,6 +25,6 @@ public class FastestResponseStrategyPluginFactory implements ConnectionPluginFac
 
   @Override
   public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
-    return new FastestResponseStrategyPlugin(pluginService, props);
+    return new FastestResponseStrategyPlugin(pluginService.getServiceContainer(), props);
   }
 }

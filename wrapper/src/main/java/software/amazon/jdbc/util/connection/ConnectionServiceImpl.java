@@ -20,6 +20,8 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionProvider;
+import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
@@ -28,23 +30,30 @@ public class ConnectionServiceImpl implements ConnectionService {
   protected ServiceContainer serviceContainer;
   protected ConnectionProvider connectionProvider;
   protected TargetDriverDialect driverDialect;
+  protected String targetDriverProtocol;
 
   public ConnectionServiceImpl(
-      ServiceContainer serviceContainer, ConnectionProvider connectionProvider, TargetDriverDialect driverDialect) {
+      ServiceContainer serviceContainer,
+      ConnectionProvider connectionProvider,
+      TargetDriverDialect driverDialect,
+      String targetDriverProtocol) {
     this.serviceContainer = serviceContainer;
     this.connectionProvider = connectionProvider;
     this.driverDialect = driverDialect;
+    this.targetDriverProtocol = targetDriverProtocol;
   }
 
   @Override
-  public Connection createAuxiliaryConnection(String underlyingDriverConnString, Properties props) throws SQLException {
+  public Connection createAuxiliaryConnection(HostSpec hostSpec, Properties props) throws SQLException {
+    ConnectInfo connectInfo = this.driverDialect.prepareConnectInfo(this.targetDriverProtocol, hostSpec, props);
     return new ConnectionWrapper(
         this.serviceContainer,
         props,
-        underlyingDriverConnString,
+        connectInfo.url,
         this.connectionProvider,
         null,
-        this.driverDialect, null
+        this.driverDialect,
+        null
     );
   }
 }

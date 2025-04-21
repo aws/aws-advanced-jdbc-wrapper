@@ -49,13 +49,17 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 class MonitorImplTest {
 
+  @Mock ServiceContainer serviceContainer;
   @Mock PluginService pluginService;
+  @Mock ConnectionService connectionService;
   @Mock Connection connection;
   @Mock HostSpec hostSpec;
   @Mock Properties properties;
@@ -89,15 +93,18 @@ class MonitorImplTest {
         .thenReturn(LONG_INTERVAL_MILLIS);
     when(booleanProperty.getStringValue()).thenReturn(Boolean.TRUE.toString());
     when(longProperty.getValue()).thenReturn(SHORT_INTERVAL_MILLIS);
-    when(pluginService.forceConnect(any(HostSpec.class), any(Properties.class))).thenReturn(connection);
-    when(pluginService.getTelemetryFactory()).thenReturn(telemetryFactory);
+    when(serviceContainer.getPluginService()).thenReturn(pluginService);
+    when(serviceContainer.getConnectionService()).thenReturn(connectionService);
+    when(serviceContainer.getTelemetryFactory()).thenReturn(telemetryFactory);
+    when(connectionService.createAuxiliaryConnection(any(HostSpec.class), any(Properties.class)))
+        .thenReturn(connection);
     when(telemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(telemetryContext);
     when(telemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(telemetryContext);
     when(telemetryFactory.createCounter(anyString())).thenReturn(telemetryCounter);
     when(executorServiceInitializer.createExecutorService()).thenReturn(executorService);
     threadContainer = MonitorThreadContainer.getInstance(executorServiceInitializer);
 
-    monitor = spy(new MonitorImpl(pluginService, hostSpec, properties, 0L, threadContainer));
+    monitor = spy(new MonitorImpl(serviceContainer, hostSpec, properties, 0L, threadContainer));
   }
 
   @AfterEach
@@ -112,7 +119,7 @@ class MonitorImplTest {
     final MonitorImpl.ConnectionStatus status =
         monitor.checkConnectionStatus(SHORT_INTERVAL_MILLIS);
 
-    verify(pluginService).forceConnect(any(HostSpec.class), any(Properties.class));
+    verify(connectionService).createAuxiliaryConnection(any(HostSpec.class), any(Properties.class));
     assertTrue(status.isValid);
     assertTrue(status.elapsedTimeNano >= 0);
   }

@@ -54,10 +54,14 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.connection.ConnectionService;
 
 class ClusterAwareReaderFailoverHandlerTest {
 
+  @Mock ServiceContainer mockServiceContainer;
   @Mock PluginService mockPluginService;
+  @Mock ConnectionService mockConnectionService;
   @Mock Connection mockConnection;
 
   private AutoCloseable closeable;
@@ -80,6 +84,8 @@ class ClusterAwareReaderFailoverHandlerTest {
   @BeforeEach
   void setUp() {
     closeable = MockitoAnnotations.openMocks(this);
+    when(mockServiceContainer.getPluginService()).thenReturn(mockPluginService);
+    when(mockServiceContainer.getConnectionService()).thenReturn(mockConnectionService);
   }
 
   @AfterEach
@@ -100,11 +106,11 @@ class ClusterAwareReaderFailoverHandlerTest {
     for (int i = 0; i < hosts.size(); i++) {
       if (i != successHostIndex) {
         final SQLException exception = new SQLException("exception", "08S01", null);
-        when(mockPluginService.forceConnect(hosts.get(i), properties))
+        when(mockConnectionService.createAuxiliaryConnection(hosts.get(i), properties))
             .thenThrow(exception);
         when(mockPluginService.isNetworkException(exception)).thenReturn(true);
       } else {
-        when(mockPluginService.forceConnect(hosts.get(i), properties)).thenReturn(mockConnection);
+        when(mockConnectionService.createAuxiliaryConnection(hosts.get(i), properties)).thenReturn(mockConnection);
       }
     }
 
@@ -113,7 +119,7 @@ class ClusterAwareReaderFailoverHandlerTest {
 
     final ReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockPluginService,
+            mockServiceContainer,
             properties);
     final ReaderFailoverResult result = target.failover(hosts, hosts.get(currentHostIndex));
 
@@ -140,7 +146,7 @@ class ClusterAwareReaderFailoverHandlerTest {
     final List<HostSpec> hosts = defaultHosts;
     final int currentHostIndex = 2;
     for (HostSpec host : hosts) {
-      when(mockPluginService.forceConnect(host, properties))
+      when(mockConnectionService.createAuxiliaryConnection(host, properties))
           .thenAnswer((Answer<Connection>) invocation -> {
             Thread.sleep(20000);
             return mockConnection;
@@ -152,7 +158,7 @@ class ClusterAwareReaderFailoverHandlerTest {
 
     final ReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockPluginService,
+            mockServiceContainer,
             properties,
             5000,
             30000,
@@ -175,7 +181,7 @@ class ClusterAwareReaderFailoverHandlerTest {
   public void testFailover_nullOrEmptyHostList() throws SQLException {
     final ClusterAwareReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockPluginService,
+            mockServiceContainer,
             properties);
     final HostSpec currentHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("writer")
         .port(1234).build();
@@ -200,14 +206,14 @@ class ClusterAwareReaderFailoverHandlerTest {
     final List<HostSpec> hosts = defaultHosts.subList(0, 3); // 2 connection attempts (writer not attempted)
     final HostSpec slowHost = hosts.get(1);
     final HostSpec fastHost = hosts.get(2);
-    when(mockPluginService.forceConnect(slowHost, properties))
+    when(mockConnectionService.createAuxiliaryConnection(slowHost, properties))
         .thenAnswer(
             (Answer<Connection>)
                 invocation -> {
                   Thread.sleep(20000);
                   return mockConnection;
                 });
-    when(mockPluginService.forceConnect(eq(fastHost), eq(properties))).thenReturn(mockConnection);
+    when(mockConnectionService.createAuxiliaryConnection(eq(fastHost), eq(properties))).thenReturn(mockConnection);
 
     Dialect mockDialect = Mockito.mock(Dialect.class);
     when(mockDialect.getFailoverRestrictions()).thenReturn(EnumSet.noneOf(FailoverRestriction.class));
@@ -215,7 +221,7 @@ class ClusterAwareReaderFailoverHandlerTest {
 
     final ReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockPluginService,
+            mockServiceContainer,
             properties);
     final ReaderFailoverResult result = target.getReaderConnection(hosts);
 
@@ -234,7 +240,8 @@ class ClusterAwareReaderFailoverHandlerTest {
     // first connection attempt to return fails
     // expected test result: failure to get reader
     final List<HostSpec> hosts = defaultHosts.subList(0, 4); // 3 connection attempts (writer not attempted)
-    when(mockPluginService.forceConnect(any(), eq(properties))).thenThrow(new SQLException("exception", "08S01", null));
+    when(mockConnectionService.createAuxiliaryConnection(any(), eq(properties)))
+        .thenThrow(new SQLException("exception", "08S01", null));
 
     Dialect mockDialect = Mockito.mock(Dialect.class);
     when(mockDialect.getFailoverRestrictions()).thenReturn(EnumSet.noneOf(FailoverRestriction.class));
@@ -244,7 +251,7 @@ class ClusterAwareReaderFailoverHandlerTest {
 
     final ReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockPluginService,
+            mockServiceContainer,
             properties);
     final ReaderFailoverResult result = target.getReaderConnection(hosts);
 
@@ -259,7 +266,7 @@ class ClusterAwareReaderFailoverHandlerTest {
     // first connection attempt to return times out
     // expected test result: failure to get reader
     final List<HostSpec> hosts = defaultHosts.subList(0, 3); // 2 connection attempts (writer not attempted)
-    when(mockPluginService.forceConnect(any(), eq(properties)))
+    when(mockConnectionService.createAuxiliaryConnection(any(), eq(properties)))
         .thenAnswer(
             (Answer<Connection>)
                 invocation -> {
@@ -277,7 +284,7 @@ class ClusterAwareReaderFailoverHandlerTest {
 
     final ClusterAwareReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockPluginService,
+            mockServiceContainer,
             properties,
             60000,
             1000,
@@ -298,7 +305,7 @@ class ClusterAwareReaderFailoverHandlerTest {
 
     final ClusterAwareReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockPluginService,
+            mockServiceContainer,
             properties);
     final List<HostSpec> hostsByPriority = target.getHostsByPriority(originalHosts);
 
@@ -340,7 +347,7 @@ class ClusterAwareReaderFailoverHandlerTest {
 
     final ClusterAwareReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockPluginService,
+            mockServiceContainer,
             properties);
     final List<HostSpec> hostsByPriority = target.getReaderHostsByPriority(originalHosts);
 
@@ -377,7 +384,7 @@ class ClusterAwareReaderFailoverHandlerTest {
     when(mockPluginService.getDialect()).thenReturn(mockDialect);
     final ClusterAwareReaderFailoverHandler target =
             new ClusterAwareReaderFailoverHandler(
-                    mockPluginService,
+                    mockServiceContainer,
                     properties,
                     DEFAULT_FAILOVER_TIMEOUT,
                     DEFAULT_READER_CONNECT_TIMEOUT,

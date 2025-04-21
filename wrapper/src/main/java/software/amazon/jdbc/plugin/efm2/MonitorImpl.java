@@ -39,7 +39,9 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -62,6 +64,7 @@ public class MonitorImpl implements Monitor {
   private final Map<Long, Queue<WeakReference<MonitorConnectionContext>>> newContexts =
       new ConcurrentHashMap<>();
   private final PluginService pluginService;
+  private final ConnectionService connectionService;
   private final TelemetryFactory telemetryFactory;
   private final Properties properties;
   private final HostSpec hostSpec;
@@ -84,20 +87,18 @@ public class MonitorImpl implements Monitor {
 
   private final TelemetryGauge newContextsSizeGauge;
   private final TelemetryGauge activeContextsSizeGauge;
-  private final TelemetryGauge nodeHealtyGauge;
+  private final TelemetryGauge nodeHealthyGauge;
   private final TelemetryCounter abortedConnectionsCounter;
 
   /**
    * Store the monitoring configuration for a connection.
    *
-   * @param pluginService             A service for creating new connections.
-   * @param hostSpec                  The {@link HostSpec} of the server this {@link MonitorImpl}
-   *                                  instance is monitoring.
-   * @param properties                The {@link Properties} containing additional monitoring
-   *                                  configuration.
+   * @param serviceContainer The service container for the services required by this class.
+   * @param hostSpec         The {@link HostSpec} of the server this {@link MonitorImpl} instance is monitoring.
+   * @param properties       The {@link Properties} containing additional monitoring configuration.
    */
   public MonitorImpl(
-      final @NonNull PluginService pluginService,
+      final @NonNull ServiceContainer serviceContainer,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties properties,
       final int failureDetectionTimeMillis,
@@ -105,8 +106,9 @@ public class MonitorImpl implements Monitor {
       final int failureDetectionCount,
       final TelemetryCounter abortedConnectionsCounter) {
 
-    this.pluginService = pluginService;
-    this.telemetryFactory = pluginService.getTelemetryFactory();
+    this.pluginService = serviceContainer.getPluginService();
+    this.connectionService = serviceContainer.getConnectionService();
+    this.telemetryFactory = serviceContainer.getTelemetryFactory();
     this.hostSpec = hostSpec;
     this.properties = properties;
     this.failureDetectionTimeNano = TimeUnit.MILLISECONDS.toNanos(failureDetectionTimeMillis);
@@ -126,7 +128,7 @@ public class MonitorImpl implements Monitor {
         String.format("efm2.activeContexts.size.%s", hostId),
         () -> (long) this.activeContexts.size());
 
-    this.nodeHealtyGauge = telemetryFactory.createGauge(
+    this.nodeHealthyGauge = telemetryFactory.createGauge(
         String.format("efm2.nodeHealthy.%s", hostId),
         () -> this.nodeUnhealthy ? 0L : 1L);
 
@@ -356,7 +358,7 @@ public class MonitorImpl implements Monitor {
                 });
 
         LOGGER.finest(() -> "Opening a monitoring connection to " + this.hostSpec.getUrl());
-        this.monitoringConn = this.pluginService.forceConnect(this.hostSpec, monitoringConnProperties);
+        this.monitoringConn = this.connectionService.createAuxiliaryConnection(this.hostSpec, monitoringConnProperties);
         LOGGER.finest(() -> "Opened monitoring connection: " + this.monitoringConn);
         return true;
       }

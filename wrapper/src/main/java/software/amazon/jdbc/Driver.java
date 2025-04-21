@@ -65,8 +65,6 @@ import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.ServiceContainerImpl;
 import software.amazon.jdbc.util.StringUtils;
-import software.amazon.jdbc.util.connection.ConnectionService;
-import software.amazon.jdbc.util.connection.ConnectionServiceImpl;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.events.PeriodicEventPublisher;
 import software.amazon.jdbc.util.monitoring.MonitorService;
@@ -230,11 +228,6 @@ public class Driver implements java.sql.Driver {
       }
 
       ServiceContainer serviceContainer = new ServiceContainerImpl(storageService, monitorService, telemetryFactory);
-      ConnectionService connectionService = new ConnectionServiceImpl(
-          serviceContainer,
-          defaultConnectionProvider,
-          targetDriverDialect);
-      serviceContainer.setConnectionService(connectionService);
 
       return new ConnectionWrapper(
           serviceContainer,

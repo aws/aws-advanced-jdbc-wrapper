@@ -29,7 +29,9 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -60,6 +62,7 @@ public class MonitorImpl implements Monitor {
 
   final Queue<MonitorConnectionContext> activeContexts = new ConcurrentLinkedQueue<>();
   private final Queue<MonitorConnectionContext> newContexts = new ConcurrentLinkedQueue<>();
+  private final ConnectionService connectionService;
   private final PluginService pluginService;
   private final TelemetryFactory telemetryFactory;
   private final Properties properties;
@@ -77,7 +80,7 @@ public class MonitorImpl implements Monitor {
   /**
    * Store the monitoring configuration for a connection.
    *
-   * @param pluginService             A service for creating new connections.
+   * @param serviceContainer          The service container for the services required by this class.
    * @param hostSpec                  The {@link HostSpec} of the server this {@link MonitorImpl}
    *                                  instance is monitoring.
    * @param properties                The {@link Properties} containing additional monitoring
@@ -89,13 +92,14 @@ public class MonitorImpl implements Monitor {
    *                                  that initialized this class.
    */
   public MonitorImpl(
-      final @NonNull PluginService pluginService,
+      final @NonNull ServiceContainer serviceContainer,
       @NonNull final HostSpec hostSpec,
       @NonNull final Properties properties,
       final long monitorDisposalTimeMillis,
       @NonNull final MonitorThreadContainer threadContainer) {
-    this.pluginService = pluginService;
-    this.telemetryFactory = pluginService.getTelemetryFactory();
+    this.pluginService = serviceContainer.getPluginService();
+    this.connectionService = serviceContainer.getConnectionService();
+    this.telemetryFactory = serviceContainer.getTelemetryFactory();
     this.hostSpec = hostSpec;
     this.properties = properties;
     this.monitorDisposalTimeMillis = monitorDisposalTimeMillis;
@@ -332,7 +336,7 @@ public class MonitorImpl implements Monitor {
 
         LOGGER.finest(() -> "Opening a monitoring connection to " + this.hostSpec.getUrl());
         startNano = this.getCurrentTimeNano();
-        this.monitoringConn = this.pluginService.forceConnect(this.hostSpec, monitoringConnProperties);
+        this.monitoringConn = this.connectionService.createAuxiliaryConnection(this.hostSpec, monitoringConnProperties);
         LOGGER.finest(() -> "Opened monitoring connection: " + this.monitoringConn);
         return new ConnectionStatus(true, this.getCurrentTimeNano() - startNano);
       }

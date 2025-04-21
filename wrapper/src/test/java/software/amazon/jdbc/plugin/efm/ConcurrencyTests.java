@@ -141,7 +141,7 @@ public class ConcurrencyTests {
         PluginService pluginService = new TestPluginService(hostSpec, connection);
 
         final HostMonitoringConnectionPlugin targetPlugin =
-            new HostMonitoringConnectionPlugin(pluginService, properties);
+            new HostMonitoringConnectionPlugin(pluginService.getServiceContainer(), properties);
 
         final Logger threadLogger = Logger.getLogger("software.amazon.jdbc.plugin.efm");
         threadLogger.setLevel(logLevel);
@@ -228,7 +228,7 @@ public class ConcurrencyTests {
     final PluginService pluginService = new TestPluginService(hostSpec, connection);
 
     final HostMonitoringConnectionPlugin targetPlugin =
-        new HostMonitoringConnectionPlugin(pluginService, properties);
+        new HostMonitoringConnectionPlugin(pluginService.getServiceContainer(), properties);
 
     for (int i = 0; i < 10; i++) {
       executor.submit(() -> {

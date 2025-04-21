@@ -28,12 +28,12 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.RoundRobinHostSelector;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
@@ -49,7 +49,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
   protected final SlidingExpirationCacheWithCleanupThread<String, List<HostSpec>> limitlessRouterCache;
   protected final String limitlessRouterCacheKey;
   protected final @NonNull Properties props;
-  protected final @NonNull PluginService pluginService;
+  protected final @NonNull ConnectionService connectionService;
   protected final LimitlessQueryHelper queryHelper;
   protected final TelemetryFactory telemetryFactory;
   protected Connection monitoringConn = null;
@@ -63,13 +63,13 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
   private final AtomicBoolean stopped = new AtomicBoolean(false);
 
   public LimitlessRouterMonitor(
-      final @NonNull PluginService pluginService,
+      final @NonNull ServiceContainer serviceContainer,
       final @NonNull HostSpec hostSpec,
       final @NonNull SlidingExpirationCacheWithCleanupThread<String, List<HostSpec>> limitlessRouterCache,
       final @NonNull String limitlessRouterCacheKey,
       final @NonNull Properties props,
       final int intervalMs) {
-    this.pluginService = pluginService;
+    this.connectionService = serviceContainer.getConnectionService();
     this.hostSpec = hostSpec;
     this.limitlessRouterCache = limitlessRouterCache;
     this.limitlessRouterCacheKey = limitlessRouterCacheKey;
@@ -86,8 +86,8 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
     this.props.setProperty(LimitlessConnectionPlugin.WAIT_FOR_ROUTER_INFO.name, "false");
 
     this.intervalMs = intervalMs;
-    this.telemetryFactory = this.pluginService.getTelemetryFactory();
-    this.queryHelper = new LimitlessQueryHelper(this.pluginService);
+    this.telemetryFactory = serviceContainer.getTelemetryFactory();
+    this.queryHelper = new LimitlessQueryHelper(serviceContainer.getPluginService());
     this.threadPool.submit(this);
     this.threadPool.shutdown(); // No more task are accepted by pool.
   }
@@ -169,7 +169,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
         LOGGER.finest(() -> Messages.get(
             "LimitlessRouterMonitor.openingConnection",
             new Object[] {this.hostSpec.getUrl()}));
-        this.monitoringConn = this.pluginService.forceConnect(this.hostSpec, this.props);
+        this.monitoringConn = this.connectionService.createAuxiliaryConnection(this.hostSpec, this.props);
         LOGGER.finest(() -> Messages.get(
             "LimitlessRouterMonitor.openedConnection",
             new Object[] {this.monitoringConn}));

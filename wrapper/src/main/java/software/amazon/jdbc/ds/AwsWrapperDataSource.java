@@ -54,8 +54,6 @@ import software.amazon.jdbc.util.ServiceContainerImpl;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
-import software.amazon.jdbc.util.connection.ConnectionService;
-import software.amazon.jdbc.util.connection.ConnectionServiceImpl;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.events.PeriodicEventPublisher;
 import software.amazon.jdbc.util.monitoring.MonitorService;
@@ -267,10 +265,6 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
       final @Nullable ConfigurationProfile configurationProfile,
       final TelemetryFactory telemetryFactory) throws SQLException {
     ServiceContainer serviceContainer = new ServiceContainerImpl(storageService, monitorService, telemetryFactory);
-    ConnectionService connectionService =
-        new ConnectionServiceImpl(serviceContainer, defaultProvider, targetDriverDialect);
-    serviceContainer.setConnectionService(connectionService);
-
     return new ConnectionWrapper(
         serviceContainer,
         props,

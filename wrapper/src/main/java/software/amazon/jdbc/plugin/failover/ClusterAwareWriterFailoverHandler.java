@@ -37,7 +37,9 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.connection.ConnectionService;
 
 /**
  * An implementation of WriterFailoverHandler.
@@ -56,28 +58,30 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
   protected int reconnectWriterIntervalMs = 5000; // 5 sec
   protected Properties initialConnectionProps;
   protected PluginService pluginService;
+  protected ConnectionService connectionService;
   protected ReaderFailoverHandler readerFailoverHandler;
   private static final WriterFailoverResult DEFAULT_RESULT =
       new WriterFailoverResult(false, false, null, null, "None");
 
   public ClusterAwareWriterFailoverHandler(
-      final PluginService pluginService,
+      final ServiceContainer serviceContainer,
       final ReaderFailoverHandler readerFailoverHandler,
       final Properties initialConnectionProps) {
-    this.pluginService = pluginService;
+    this.pluginService = serviceContainer.getPluginService();
+    this.connectionService = serviceContainer.getConnectionService();
     this.readerFailoverHandler = readerFailoverHandler;
     this.initialConnectionProps = initialConnectionProps;
   }
 
   public ClusterAwareWriterFailoverHandler(
-      final PluginService pluginService,
+      final ServiceContainer serviceContainer,
       final ReaderFailoverHandler readerFailoverHandler,
       final Properties initialConnectionProps,
       final int failoverTimeoutMs,
       final int readTopologyIntervalMs,
       final int reconnectWriterIntervalMs) {
     this(
-        pluginService,
+        serviceContainer,
         readerFailoverHandler,
         initialConnectionProps);
     this.maxFailoverTimeoutMs = failoverTimeoutMs;
@@ -257,7 +261,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
               conn.close();
             }
 
-            conn = pluginService.forceConnect(this.originalWriterHost, initialConnectionProps);
+            conn = connectionService.createAuxiliaryConnection(this.originalWriterHost, initialConnectionProps);
             pluginService.forceRefreshHostList(conn);
             latestTopology = pluginService.getAllHosts();
 
@@ -464,7 +468,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
                 new Object[] {writerCandidate.getUrl()}));
         try {
           // connect to the new writer
-          this.currentConnection = pluginService.forceConnect(writerCandidate, initialConnectionProps);
+          this.currentConnection = connectionService.createAuxiliaryConnection(writerCandidate, initialConnectionProps);
           pluginService.setAvailability(writerCandidate.asAliases(), HostAvailability.AVAILABLE);
           return true;
         } catch (final SQLException exception) {

@@ -95,7 +95,7 @@ public interface ConnectionPlugin {
    * @throws SQLException if there was an error establishing a {@link Connection} to the requested
    *                      host
    *
-   * @deprecated Use {@link ConnectionService#createAuxiliaryConnection(String, Properties)} instead.
+   * @deprecated Use {@link ConnectionService#createAuxiliaryConnection(HostSpec, Properties)} instead.
    */
   @Deprecated
   Connection forceConnect(

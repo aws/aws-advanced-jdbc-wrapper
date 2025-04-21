@@ -32,7 +32,9 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryGauge;
@@ -55,6 +57,7 @@ public class NodeResponseTimeMonitor implements AutoCloseable, Runnable {
 
   private final @NonNull Properties props;
   private final @NonNull PluginService pluginService;
+  private final @NonNull ConnectionService connectionService;
 
   private final TelemetryFactory telemetryFactory;
   private final TelemetryGauge responseTimeMsGauge;
@@ -69,16 +72,17 @@ public class NodeResponseTimeMonitor implements AutoCloseable, Runnable {
   });
 
   public NodeResponseTimeMonitor(
-      final @NonNull PluginService pluginService,
+      final @NonNull ServiceContainer serviceContainer,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props,
       int intervalMs) {
 
-    this.pluginService = pluginService;
+    this.pluginService = serviceContainer.getPluginService();
+    this.connectionService = serviceContainer.getConnectionService();
     this.hostSpec = hostSpec;
     this.props = props;
     this.intervalMs = intervalMs;
-    this.telemetryFactory = this.pluginService.getTelemetryFactory();
+    this.telemetryFactory = serviceContainer.getTelemetryFactory();
 
     final String nodeId = StringUtils.isNullOrEmpty(this.hostSpec.getHostId())
         ? this.hostSpec.getHost()
@@ -215,7 +219,7 @@ public class NodeResponseTimeMonitor implements AutoCloseable, Runnable {
         LOGGER.finest(() -> Messages.get(
                 "NodeResponseTimeMonitor.openingConnection",
                 new Object[] {this.hostSpec.getUrl()}));
-        this.monitoringConn = this.pluginService.forceConnect(this.hostSpec, monitoringConnProperties);
+        this.monitoringConn = this.connectionService.createAuxiliaryConnection(this.hostSpec, monitoringConnProperties);
         LOGGER.finest(() -> Messages.get(
             "NodeResponseTimeMonitor.openedConnection",
             new Object[] {this.monitoringConn}));

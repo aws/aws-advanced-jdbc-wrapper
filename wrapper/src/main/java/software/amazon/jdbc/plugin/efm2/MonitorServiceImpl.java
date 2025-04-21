@@ -28,6 +28,7 @@ import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -66,9 +67,9 @@ public class MonitorServiceImpl implements MonitorService {
   protected final TelemetryFactory telemetryFactory;
   protected final TelemetryCounter abortedConnectionsCounter;
 
-  public MonitorServiceImpl(final @NonNull PluginService pluginService) {
+  public MonitorServiceImpl(final @NonNull ServiceContainer serviceContainer) {
     this(
-        pluginService,
+        serviceContainer,
         (hostSpec,
             properties,
             failureDetectionTimeMillis,
@@ -76,7 +77,7 @@ public class MonitorServiceImpl implements MonitorService {
             failureDetectionCount,
             abortedConnectionsCounter) ->
             new MonitorImpl(
-                pluginService,
+                serviceContainer,
                 hostSpec,
                 properties,
                 failureDetectionTimeMillis,
@@ -86,10 +87,10 @@ public class MonitorServiceImpl implements MonitorService {
   }
 
   MonitorServiceImpl(
-      final @NonNull PluginService pluginService,
+      final @NonNull ServiceContainer serviceContainer,
       final @NonNull MonitorInitializer monitorInitializer) {
-    this.pluginService = pluginService;
-    this.telemetryFactory = pluginService.getTelemetryFactory();
+    this.pluginService = serviceContainer.getPluginService();
+    this.telemetryFactory = serviceContainer.getTelemetryFactory();
     this.abortedConnectionsCounter = telemetryFactory.createCounter("efm2.connections.aborted");
     this.monitorInitializer = monitorInitializer;
   }
