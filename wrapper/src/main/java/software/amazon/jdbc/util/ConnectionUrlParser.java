@@ -193,6 +193,17 @@ public class ConnectionUrlParser {
       props.setProperty(currentParameterName, currentParameterValue);
     }
 
+    final boolean caseSensitive = getCaseSensitiveParameter(props);
+
+    if (!caseSensitive) {
+      // User has provided parameters in case-insensitive manner.
+      // The AWS Wrapper driver internally uses case-sensitive approach for all properties.
+      // Try to recognize known properties and restore case for parsed parameters.
+      restorePropertyNameCase(props);
+    }
+  }
+
+  private static boolean getCaseSensitiveParameter(final Properties props) {
     // try to detect "wrapperCaseSensitive" parameter
     String caseSensitiveSettingStr = props.getProperty(PropertyDefinition.CASE_SENSITIVE.name);
     if (caseSensitiveSettingStr == null) {
@@ -202,31 +213,30 @@ public class ConnectionUrlParser {
     if (caseSensitiveSettingStr == null) {
       caseSensitiveSettingStr = PropertyDefinition.CASE_SENSITIVE.defaultValue;
     }
+    return Boolean.parseBoolean(caseSensitiveSettingStr);
+  }
 
-    final boolean caseSensitive = Boolean.parseBoolean(caseSensitiveSettingStr);
+  private static void restorePropertyNameCase(final Properties props) {
+    final Properties propsCopy = new Properties();
+    propsCopy.putAll(props);
+    props.clear();
 
-    if (!caseSensitive) {
-      // restore case for parsed parameters
-      final Properties propsCopy = new Properties();
-      propsCopy.putAll(props);
-      props.clear();
-      for (final Map.Entry<Object, Object> entry : propsCopy.entrySet()) {
-        AwsWrapperProperty awsWrapperProperty = PropertyDefinition.byName(entry.getKey().toString());
-        if (awsWrapperProperty != null) {
-          props.setProperty(entry.getKey().toString(), entry.getValue().toString());
-          continue;
-        }
-
-        awsWrapperProperty = PropertyDefinition.byNameIgnoreCase(entry.getKey().toString());
-        if (awsWrapperProperty != null) {
-          // use original (camel-case) property name
-          props.setProperty(awsWrapperProperty.name, entry.getValue().toString());
-          continue;
-        }
-
-        // not an AWS Wrapper property
-        props.setProperty(entry.getKey().toString(), entry.getValue().toString());
+    for (final Map.Entry<Object, Object> entry : propsCopy.entrySet()) {
+      // Try to find a property in case-insensitive manner.
+      // Search by "someAwsWrapperPropertyName" -> "someAwsWrapperPropertyName"
+      // Search by "someawswrapperpropertyname" -> "someAwsWrapperPropertyName"
+      AwsWrapperProperty awsWrapperProperty = PropertyDefinition.byNameIgnoreCase(entry.getKey().toString());
+      if (awsWrapperProperty != null) {
+        // Use name from AwsWrapperProperty (camel-case): "someAwsWrapperPropertyName"
+        props.setProperty(awsWrapperProperty.name, entry.getValue().toString());
+        continue;
       }
+
+      // It's not an AWS Wrapper property. It could be a target driver property.
+      // Use the same property name case as it's defined by user.
+      // "anyNonAwsWrapperPropertyName" -> "anyNonAwsWrapperPropertyName"
+      // "anyotherproperyname" -> "anyotherproperyname"
+      props.setProperty(entry.getKey().toString(), entry.getValue().toString());
     }
   }
 
