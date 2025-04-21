@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import software.amazon.jdbc.util.connection.ConnectionService;
 
 /**
  * Interface for connection plugins. This class implements ways to execute a JDBC method and to clean up resources used
@@ -93,7 +94,10 @@ public interface ConnectionPlugin {
    * @return a {@link Connection} to the requested host
    * @throws SQLException if there was an error establishing a {@link Connection} to the requested
    *                      host
+   *
+   * @deprecated Use {@link ConnectionService#createAuxiliaryConnection(String, Properties)} instead.
    */
+  @Deprecated
   Connection forceConnect(
       final String driverProtocol,
       final HostSpec hostSpec,

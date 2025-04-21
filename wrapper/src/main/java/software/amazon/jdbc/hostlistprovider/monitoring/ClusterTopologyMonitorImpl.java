@@ -56,6 +56,7 @@ import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.Topology;
@@ -67,7 +68,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected static final String MONITORING_PROPERTY_PREFIX = "topology-monitoring-";
   protected static final Executor networkTimeoutExecutor = new SynchronousExecutor();
   protected static final RdsUtils rdsHelper = new RdsUtils();
-
 
   protected static final int defaultTopologyQueryTimeoutMs = 1000;
   protected static final int closeConnectionNetworkTimeoutMs = 500;
@@ -86,6 +86,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected final PluginService pluginService;
   protected final HostSpec initialHostSpec;
   protected final StorageService storageService;
+  protected final ConnectionService connectionService;
   protected final String topologyQuery;
   protected final String nodeIdQuery;
   protected final String writerTopologyQuery;
@@ -135,6 +136,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
     this.clusterId = clusterId;
     this.storageService = serviceContainer.getStorageService();
+    this.connectionService = serviceContainer.getConnectionService();
     this.pluginService = serviceContainer.getPluginService();
     this.hostListProviderService = serviceContainer.getHostListProviderService();
     this.initialHostSpec = initialHostSpec;
@@ -513,7 +515,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
       // open a new connection
       try {
-        conn = this.pluginService.forceConnect(this.initialHostSpec, this.monitoringProperties);
+        conn = this.connectionService.createAuxiliaryConnection(this.initialHostSpec, this.monitoringProperties);
       } catch (SQLException ex) {
         // can't connect
         return null;

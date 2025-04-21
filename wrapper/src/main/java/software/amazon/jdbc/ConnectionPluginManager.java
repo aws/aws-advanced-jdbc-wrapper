@@ -53,6 +53,7 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
@@ -420,7 +421,10 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    * @return a {@link Connection} to the requested host
    * @throws SQLException if there was an error establishing a {@link Connection} to the requested
    *                      host
+   *
+   * @deprecated Use {@link ConnectionService#createAuxiliaryConnection(String, Properties)} instead.
    */
+  @Deprecated
   public Connection forceConnect(
       final String driverProtocol,
       final HostSpec hostSpec,
