@@ -62,6 +62,7 @@ public class MonitorConnectionContext {
    * @param failureDetectionIntervalMillis Interval between each failed connection check.
    * @param failureDetectionCount          Number of failed connection checks before considering database
    *                                       node as unhealthy.
+   * @param abortedConnectionsCounter Aborted connection telemetry counter.
    */
   public MonitorConnectionContext(
       final Monitor monitor,

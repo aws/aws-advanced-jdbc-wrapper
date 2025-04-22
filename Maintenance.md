@@ -30,7 +30,7 @@
 | November 5, 2024   | [Release 2.5.2](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.5.2)  |
 | November 29, 2024  | [Release 2.5.3](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.5.3)  |
 | December 23, 2024  | [Release 2.5.4](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.5.4)  |
-| March 6, 2025      | [Release 2.5.45](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.5.5) |
+| March 6, 2025      | [Release 2.5.5](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.5.5) |
 
 `aws-advanced-jdbc-wrapper` [follows semver](https://semver.org/#semantic-versioning-200) which means we will only
 release breaking changes in major versions. Generally speaking patches will be released to fix existing problems without

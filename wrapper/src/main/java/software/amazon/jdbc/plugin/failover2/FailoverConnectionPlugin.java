@@ -277,6 +277,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   /**
    * Checks if the given method is allowed on closed connections.
    *
+   * @param methodName A method name to check.
    * @return true if the given method is allowed on closed connections
    */
   protected boolean allowedOnClosedConnection(final String methodName) {
