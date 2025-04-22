@@ -192,6 +192,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
    * Creates a monitor for the custom endpoint if it does not already exist.
    *
    * @param props The connection properties.
+   * @return {@link CustomEndpointMonitor}
    */
   protected CustomEndpointMonitor createMonitorIfAbsent(Properties props) {
     return this.pluginService.getServiceContainer().getMonitorService().runIfAbsent(
@@ -215,6 +216,8 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
    * If custom endpoint info does not exist for the current custom endpoint, waits a short time for the info to be
    * made available by the custom endpoint monitor. This is necessary so that other plugins can rely on accurate custom
    * endpoint info. Since custom endpoint monitors and information are shared, we should not have to wait often.
+   *
+   * @param monitor A {@link CustomEndpointMonitor} monitor.
    */
   protected void waitForCustomEndpointInfo(CustomEndpointMonitor monitor) throws SQLException {
     boolean hasCustomEndpointInfo = monitor.hasCustomEndpointInfo();

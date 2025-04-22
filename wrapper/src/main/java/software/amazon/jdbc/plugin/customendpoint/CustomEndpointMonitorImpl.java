@@ -70,6 +70,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
    *                               custom endpoint info.
    * @param telemetryFactory       The telemetry factory
    * @param customEndpointHostSpec The host information for the custom endpoint to be monitored.
+   * @param endpointIdentifier An endpoint identifier.
    * @param region                 The region of the custom endpoint to be monitored.
    * @param refreshRateNano        Controls how often the custom endpoint information should be fetched and analyzed for
    *                               changes. The value specified should be in nanoseconds.

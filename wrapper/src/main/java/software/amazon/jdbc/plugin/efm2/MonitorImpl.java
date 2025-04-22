@@ -93,9 +93,15 @@ public class MonitorImpl implements Monitor {
   /**
    * Store the monitoring configuration for a connection.
    *
-   * @param serviceContainer The service container for the services required by this class.
-   * @param hostSpec         The {@link HostSpec} of the server this {@link MonitorImpl} instance is monitoring.
-   * @param properties       The {@link Properties} containing additional monitoring configuration.
+   * @param pluginService             A service for creating new connections.
+   * @param hostSpec                  The {@link HostSpec} of the server this {@link MonitorImpl}
+   *                                  instance is monitoring.
+   * @param properties                The {@link Properties} containing additional monitoring
+   *                                  configuration.
+   * @param failureDetectionTimeMillis A failure detection time in millis.
+   * @param failureDetectionIntervalMillis A failure detection interval in millis.
+   * @param failureDetectionCount A failure detection count.
+   * @param abortedConnectionsCounter Aborted connection telemetry counter.
    */
   public MonitorImpl(
       final @NonNull ServiceContainer serviceContainer,

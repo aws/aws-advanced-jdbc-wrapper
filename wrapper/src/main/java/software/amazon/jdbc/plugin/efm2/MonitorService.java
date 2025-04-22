@@ -39,6 +39,7 @@ public interface MonitorService {
    * Removes the context from the {@link MonitorImpl}.
    *
    * @param context The {@link MonitorConnectionContext} representing a connection.
+   * @param connectionToAbort A connection to abort.
    */
   void stopMonitoring(MonitorConnectionContext context, Connection connectionToAbort);
 
