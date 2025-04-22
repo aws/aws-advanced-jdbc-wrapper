@@ -21,6 +21,7 @@ import java.sql.SQLException;
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ServiceContainer;
@@ -46,9 +47,10 @@ public class ConnectionServiceImpl implements ConnectionService {
   @Override
   public Connection createAuxiliaryConnection(HostSpec hostSpec, Properties props) throws SQLException {
     ConnectInfo connectInfo = this.driverDialect.prepareConnectInfo(this.targetDriverProtocol, hostSpec, props);
+    PropertyDefinition.IS_AUXILIARY_CONNECTION.set(connectInfo.props, "true");
     return new ConnectionWrapper(
         this.serviceContainer,
-        props,
+        connectInfo.props,
         connectInfo.url,
         this.connectionProvider,
         null,

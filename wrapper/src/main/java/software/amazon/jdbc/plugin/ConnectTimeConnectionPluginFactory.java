@@ -21,7 +21,7 @@ import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.PluginService;
 
-public class ConnectTimeConnectionPluginFactory implements ConnectionPluginFactory {
+public class ConnectTimeConnectionPluginFactory implements ConnectionPluginFactory, AuxiliaryPluginFactory {
 
   @Override
   public ConnectionPlugin getInstance(PluginService pluginService, Properties props) {

@@ -48,6 +48,11 @@ public class PropertyDefinition {
       new AwsWrapperProperty(
           "wrapperPlugins", null, "Comma separated list of connection plugin codes");
 
+  public static final AwsWrapperProperty IS_AUXILIARY_CONNECTION =
+      new AwsWrapperProperty(
+          "isAuxiliaryConnection", "false", "Represents whether a connection is a "
+          + "driver-internal auxiliary connection or not. Auxiliary connections only contain auxiliary plugins.");
+
   public static final AwsWrapperProperty AUTO_SORT_PLUGIN_ORDER =
       new AwsWrapperProperty(
           "autoSortWrapperPluginOrder",

@@ -14,18 +14,14 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.dev;
+package software.amazon.jdbc.plugin;
 
 import java.util.Properties;
-import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.ConnectionPluginFactory;
-import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.plugin.AuxiliaryPluginFactory;
+import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.util.connection.ConnectionService;
 
-public class DeveloperConnectionPluginFactory implements ConnectionPluginFactory, AuxiliaryPluginFactory {
-
-  @Override
-  public ConnectionPlugin getInstance(PluginService pluginService, Properties props) {
-    return new DeveloperConnectionPlugin();
-  }
-}
+/**
+ * A marker interface for plugin factories that create plugins that should be included in auxiliary connections created
+ * with {@link ConnectionService#createAuxiliaryConnection(HostSpec, Properties)}.
+ */
+public interface AuxiliaryPluginFactory {}

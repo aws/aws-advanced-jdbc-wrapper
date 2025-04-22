@@ -21,10 +21,11 @@ import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.plugin.AuxiliaryPluginFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
-public class FederatedAuthPluginFactory implements ConnectionPluginFactory {
+public class FederatedAuthPluginFactory implements ConnectionPluginFactory, AuxiliaryPluginFactory {
 
   @Override
   public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
