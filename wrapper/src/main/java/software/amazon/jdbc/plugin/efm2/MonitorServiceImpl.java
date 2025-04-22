@@ -160,6 +160,9 @@ public class MonitorServiceImpl implements MonitorService {
    *
    * @param hostSpec Information such as hostname of the server.
    * @param properties The user configuration for the current connection.
+   * @param failureDetectionTimeMillis A failure detection time in millis.
+   * @param failureDetectionIntervalMillis A failure detection interval in millis.
+   * @param failureDetectionCount A failure detection count.
    * @return A {@link MonitorImpl} object associated with a specific server.
    */
   protected Monitor getMonitor(

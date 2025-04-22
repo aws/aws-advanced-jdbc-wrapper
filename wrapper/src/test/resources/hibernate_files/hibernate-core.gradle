@@ -307,6 +307,7 @@ if ( gradle.ext.javaVersions.test.release.asInt() >= 17 && gradle.ext.javaToolch
 
 javadoc {
     configure(options) {
+        (this as CoreJavadocOptions).addBooleanOption("Xdoclint:none", true)
         overview = 'src/main/javadoc/overview.html'
         stylesheetFile = new File(projectDir, 'src/main/javadoc/stylesheet.css')
     }
