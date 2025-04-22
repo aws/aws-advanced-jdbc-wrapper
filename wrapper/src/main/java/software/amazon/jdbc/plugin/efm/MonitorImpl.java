@@ -368,6 +368,8 @@ public class MonitorImpl implements Monitor {
 
   /**
    * Used to help with testing.
+   *
+   * @param duration Duration of sleep in millis.
    */
   protected void sleep(long duration) throws InterruptedException {
     TimeUnit.MILLISECONDS.sleep(duration);

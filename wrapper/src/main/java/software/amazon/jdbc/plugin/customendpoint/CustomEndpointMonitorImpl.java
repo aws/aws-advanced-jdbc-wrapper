@@ -78,6 +78,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
    * @param pluginService          The plugin service to use to update the set of allowed/blocked hosts according to
    *                               the custom endpoint info.
    * @param customEndpointHostSpec The host information for the custom endpoint to be monitored.
+   * @param endpointIdentifier An endpoint identifier.
    * @param region                 The region of the custom endpoint to be monitored.
    * @param refreshRateNano        Controls how often the custom endpoint information should be fetched and analyzed for
    *                               changes. The value specified should be in nanoseconds.

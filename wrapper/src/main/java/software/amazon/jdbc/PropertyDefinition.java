@@ -190,8 +190,7 @@ public class PropertyDefinition {
    * The usage of the method should be restricted. In most cases the {@link #byName(String)} method should be used
    * since the driver internally treats all properties in case-sensitive manner.
    *
-   * <p/>
-   * For the moment only {@link software.amazon.jdbc.util.ConnectionUrlParser} uses this method.
+   * <p></p>For the moment only {@link software.amazon.jdbc.util.ConnectionUrlParser} uses this method.
    */
   public static @Nullable AwsWrapperProperty byNameIgnoreCase(final String name) {
     return PROPS_BY_NAME_LOWERCASE.get(name.toLowerCase());
