@@ -22,9 +22,11 @@ import java.util.Properties;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.ServiceContainerImpl;
+import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 public class ConnectionServiceImpl implements ConnectionService {
@@ -46,12 +48,26 @@ public class ConnectionServiceImpl implements ConnectionService {
 
   @Override
   public Connection createAuxiliaryConnection(HostSpec hostSpec, Properties props) throws SQLException {
-    ConnectInfo connectInfo = this.driverDialect.prepareConnectInfo(this.targetDriverProtocol, hostSpec, props);
-    PropertyDefinition.IS_AUXILIARY_CONNECTION.set(connectInfo.props, "true");
+    // TODO: is it necessary to create a copy of the properties or are the passed props already a copy?
+    final Properties auxiliaryProps = PropertyUtils.copyProperties(props);
+    final String databaseName = PropertyDefinition.DATABASE.getString(auxiliaryProps) != null
+            ? PropertyDefinition.DATABASE.getString(auxiliaryProps)
+            : "";
+    final String connString = this.targetDriverProtocol + hostSpec.getUrl() + databaseName;
+    PropertyDefinition.IS_AUXILIARY_CONNECTION.set(auxiliaryProps, "true");
+
+    // The auxiliary connection should have its own separate service container since the original container holds
+    // services that should not be shared between connections (for example, PluginService).
+    ServiceContainerImpl auxiliaryServiceContainer = new ServiceContainerImpl(
+        this.serviceContainer.getStorageService(),
+        this.serviceContainer.getMonitorService(),
+        new DefaultTelemetryFactory(auxiliaryProps));
+
+    // TODO: does the auxiliary connection need its own ConnectionProvider/TargetDriverDialect, or is it okay to share?
     return new ConnectionWrapper(
-        this.serviceContainer,
-        connectInfo.props,
-        connectInfo.url,
+        auxiliaryServiceContainer,
+        auxiliaryProps,
+        connString,
         this.connectionProvider,
         null,
         this.driverDialect,
