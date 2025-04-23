@@ -57,7 +57,8 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
             try {
               limitlessRouterMonitor.close();
             } catch (Exception e) {
-              // ignore
+              LOGGER.warning(Messages.get("LimitlessRouterServiceImpl.errorClosingMonitor",
+                  new Object[]{e.getMessage()}));
             }
           },
           CACHE_CLEANUP_NANO
