@@ -93,15 +93,14 @@ public class MonitorImpl implements Monitor {
   /**
    * Store the monitoring configuration for a connection.
    *
-   * @param pluginService             A service for creating new connections.
-   * @param hostSpec                  The {@link HostSpec} of the server this {@link MonitorImpl}
-   *                                  instance is monitoring.
-   * @param properties                The {@link Properties} containing additional monitoring
-   *                                  configuration.
-   * @param failureDetectionTimeMillis A failure detection time in millis.
+   * @param serviceContainer               The service container for the services required by this class.
+   * @param hostSpec                       The {@link HostSpec} of the server this {@link MonitorImpl} instance is
+   *                                       monitoring.
+   * @param properties                     The {@link Properties} containing additional monitoring configuration.
+   * @param failureDetectionTimeMillis     A failure detection time in millis.
    * @param failureDetectionIntervalMillis A failure detection interval in millis.
-   * @param failureDetectionCount A failure detection count.
-   * @param abortedConnectionsCounter Aborted connection telemetry counter.
+   * @param failureDetectionCount          A failure detection count.
+   * @param abortedConnectionsCounter      Aborted connection telemetry counter.
    */
   public MonitorImpl(
       final @NonNull ServiceContainer serviceContainer,
@@ -200,7 +199,7 @@ public class MonitorImpl implements Monitor {
 
     LOGGER.finest(() -> Messages.get(
         "MonitorImpl.startMonitoringThreadNewContext",
-        new Object[]{this.hostSpec.getHost()}));
+        new Object[] {this.hostSpec.getHost()}));
 
     try {
       while (!this.stopped.get()) {
@@ -238,14 +237,14 @@ public class MonitorImpl implements Monitor {
             Level.FINEST,
             Messages.get(
                 "MonitorImpl.exceptionDuringMonitoringStop",
-                new Object[]{this.hostSpec.getHost()}),
+                new Object[] {this.hostSpec.getHost()}),
             ex); // We want to print full trace stack of the exception.
       }
     }
 
     LOGGER.finest(() -> Messages.get(
         "MonitorImpl.stopMonitoringThreadNewContext",
-        new Object[]{this.hostSpec.getHost()}));
+        new Object[] {this.hostSpec.getHost()}));
   }
 
   @Override
@@ -253,7 +252,7 @@ public class MonitorImpl implements Monitor {
 
     LOGGER.finest(() -> Messages.get(
         "MonitorImpl.startMonitoringThread",
-        new Object[]{this.hostSpec.getHost()}));
+        new Object[] {this.hostSpec.getHost()}));
 
     try {
       while (!this.stopped.get()) {
@@ -319,7 +318,7 @@ public class MonitorImpl implements Monitor {
             Level.FINEST,
             Messages.get(
                 "MonitorImpl.exceptionDuringMonitoringStop",
-                new Object[]{this.hostSpec.getHost()}),
+                new Object[] {this.hostSpec.getHost()}),
             ex); // We want to print full trace stack of the exception.
       }
     } finally {
@@ -335,7 +334,7 @@ public class MonitorImpl implements Monitor {
 
     LOGGER.finest(() -> Messages.get(
         "MonitorImpl.stopMonitoringThread",
-        new Object[]{this.hostSpec.getHost()}));
+        new Object[] {this.hostSpec.getHost()}));
   }
 
   /**
