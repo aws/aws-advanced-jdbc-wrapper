@@ -44,6 +44,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -77,11 +78,11 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingSQLExcep
 @Order(16)
 public class CustomEndpointTest {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointTest.class.getName());
-  protected static final String endpointId = "aurora-pg";
+  protected static final String endpointId = "test-endpoint-1-" + UUID.randomUUID();
   protected static DBClusterEndpoint endpointInfo;
 
   protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
-  protected static final boolean reuseExistingEndpoint = true;
+  protected static final boolean reuseExistingEndpoint = false;
 
   protected String currentWriter;
 
