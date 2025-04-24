@@ -42,6 +42,7 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
@@ -170,8 +171,13 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
-
-    ConnectionProvider connProvider = this.connProviderManager.getConnectionProvider(driverProtocol, hostSpec, props);
+    ConnectionProvider connProvider;
+    if (PropertyDefinition.IS_AUXILIARY_CONNECTION.getBoolean(props))  {
+      // Auxiliary connections should connect directly instead of using custom connection providers.
+      connProvider = this.defaultConnProvider;
+    } else {
+      connProvider = this.connProviderManager.getConnectionProvider(driverProtocol, hostSpec, props);
+    }
 
     // It's guaranteed that this plugin is always the last in plugin chain so connectFunc can be
     // ignored.
