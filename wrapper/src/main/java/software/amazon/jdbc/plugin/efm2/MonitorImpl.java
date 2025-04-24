@@ -95,6 +95,10 @@ public class MonitorImpl implements Monitor {
    *                                  instance is monitoring.
    * @param properties                The {@link Properties} containing additional monitoring
    *                                  configuration.
+   * @param failureDetectionTimeMillis A failure detection time in millis.
+   * @param failureDetectionIntervalMillis A failure detection interval in millis.
+   * @param failureDetectionCount A failure detection count.
+   * @param abortedConnectionsCounter Aborted connection telemetry counter.
    */
   public MonitorImpl(
       final @NonNull PluginService pluginService,
