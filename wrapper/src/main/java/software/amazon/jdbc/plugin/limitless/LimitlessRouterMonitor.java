@@ -104,6 +104,15 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
   @Override
   public void close() throws Exception {
     this.stopped.set(true);
+    try {
+      if (this.monitoringConn != null && !this.monitoringConn.isClosed()) {
+        this.monitoringConn.close();
+      }
+    } catch (final SQLException ex) {
+      // ignore
+    }
+
+    this.monitoringConn = null;
 
     // Waiting for 5s gives a thread enough time to exit monitoring loop and close database connection.
     if (!this.threadPool.awaitTermination(5, TimeUnit.SECONDS)) {
@@ -120,46 +129,65 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
         "LimitlessRouterMonitor.running",
         new Object[] {this.hostSpec.getHost()}));
 
-    while (!this.stopped.get()) {
-      TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
-          "limitless router monitor thread", TelemetryTraceLevel.TOP_LEVEL);
-      telemetryContext.setAttribute("url", hostSpec.getUrl());
-      try {
-        this.openConnection();
-        if (this.monitoringConn == null || this.monitoringConn.isClosed()) {
-          continue;
-        }
-        List<HostSpec> newLimitlessRouters = queryHelper.queryForLimitlessRouters(this.monitoringConn,
-            this.hostSpec.getPort());
+    try {
+      while (!this.stopped.get()) {
+        TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
+            "limitless router monitor thread", TelemetryTraceLevel.TOP_LEVEL);
+        telemetryContext.setAttribute("url", hostSpec.getUrl());
+        try {
+          this.openConnection();
+          if (this.monitoringConn == null || this.monitoringConn.isClosed()) {
+            continue;
+          }
+          List<HostSpec> newLimitlessRouters = queryHelper.queryForLimitlessRouters(this.monitoringConn,
+              this.hostSpec.getPort());
 
-        limitlessRouterCache.put(
-            this.limitlessRouterCacheKey,
-            newLimitlessRouters,
-            TimeUnit.MILLISECONDS.toNanos(LimitlessRouterServiceImpl.MONITOR_DISPOSAL_TIME_MS.getLong(props)));
+          limitlessRouterCache.put(
+              this.limitlessRouterCacheKey,
+              newLimitlessRouters,
+              TimeUnit.MILLISECONDS.toNanos(LimitlessRouterServiceImpl.MONITOR_DISPOSAL_TIME_MS.getLong(props)));
 
-        LOGGER.finest(Utils.logTopology(newLimitlessRouters, "[limitlessRouterMonitor] Topology:"));
-        TimeUnit.MILLISECONDS.sleep(this.intervalMs); // do not include this in the telemetry
-      } catch (final InterruptedException exception) {
-        LOGGER.finest(
-            () -> Messages.get(
-                "LimitlessRouterMonitor.interruptedExceptionDuringMonitoring",
-                new Object[] {this.hostSpec.getHost()}));
-      } catch (final Exception ex) {
-        // this should not be reached; log and exit thread
-        if (LOGGER.isLoggable(Level.FINEST)) {
-          LOGGER.log(
-              Level.FINEST,
-              Messages.get(
-                  "LimitlessRouterMonitor.exceptionDuringMonitoringStop",
-                  new Object[] {this.hostSpec.getHost()}),
-              ex); // We want to print full trace stack of the exception.
-        }
-      } finally {
-        if (telemetryContext != null) {
-          telemetryContext.closeContext();
+          LOGGER.finest(Utils.logTopology(newLimitlessRouters, "[limitlessRouterMonitor] Topology:"));
+          TimeUnit.MILLISECONDS.sleep(this.intervalMs); // do not include this in the telemetry
+        } catch (final Exception ex) {
+          if (telemetryContext != null) {
+            telemetryContext.setException(ex);
+            telemetryContext.setSuccess(false);
+          }
+          throw ex;
+        } finally {
+          if (telemetryContext != null) {
+            telemetryContext.closeContext();
+          }
         }
       }
+    } catch (final InterruptedException exception) {
+      LOGGER.finest(
+          () -> Messages.get(
+              "LimitlessRouterMonitor.interruptedExceptionDuringMonitoring",
+              new Object[] {this.hostSpec.getHost()}));
+    } catch (final Exception ex) {
+      // this should not be reached; log and exit thread
+      if (LOGGER.isLoggable(Level.FINEST)) {
+        LOGGER.log(
+            Level.FINEST,
+            Messages.get(
+                "LimitlessRouterMonitor.exceptionDuringMonitoringStop",
+                new Object[] {this.hostSpec.getHost()}),
+            ex); // We want to print full trace stack of the exception.
+      }
+    } finally {
+      this.stopped.set(true);
+      try {
+        if (this.monitoringConn != null && !this.monitoringConn.isClosed()) {
+          this.monitoringConn.close();
+        }
+      } catch (final SQLException ex) {
+        // ignore
+      }
+      this.monitoringConn = null;
     }
+
   }
 
   private void openConnection() throws SQLException {
