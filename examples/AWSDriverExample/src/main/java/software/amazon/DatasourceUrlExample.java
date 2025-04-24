@@ -30,7 +30,7 @@ public class DatasourceUrlExample {
     AwsWrapperDataSource ds = new AwsWrapperDataSource();
     // Configure basic information and any driver-specific and AWS JDBC Driver properties:
     // Configure any AWS JDBC Driver properties:
-    dataSource.setJdbcUrl("jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com/employees?ssl=true&wrapperLoggerLevel=ALL");
+    ds.setJdbcUrl("jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com/employees?ssl=true&wrapperLoggerLevel=ALL");
 
     // Specify the driver-specific data source:
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
