@@ -111,16 +111,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected final AtomicReference<Connection> nodeThreadsReaderConnection = new AtomicReference<>(null);
   protected final AtomicReference<List<HostSpec>> nodeThreadsLatestTopology = new AtomicReference<>(null);
 
-
-  protected final ExecutorService monitorExecutor = Executors.newSingleThreadExecutor(runnableTarget -> {
-    final Thread monitoringThread = new Thread(runnableTarget);
-    monitoringThread.setDaemon(true);
-    if (!StringUtils.isNullOrEmpty(monitoringThread.getName())) {
-      monitoringThread.setName(monitoringThread.getName() + "-m");
-    }
-    return monitoringThread;
-  });
-
   public ClusterTopologyMonitorImpl(
       final ServiceContainer serviceContainer,
       final String clusterId,
@@ -168,9 +158,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       PropertyDefinition.CONNECT_TIMEOUT.set(
           this.monitoringProperties, String.valueOf(defaultConnectionTimeoutMs));
     }
-
-    this.monitorExecutor.submit(this);
-    this.monitorExecutor.shutdown(); // No more tasks are accepted by the pool.
   }
 
   @Override
@@ -290,6 +277,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
         Thread.currentThread().interrupt();
       }
     } catch (InterruptedException e) {
+      // TODO: should we add log?
       this.monitorExecutor.shutdownNow();
     }
   }
