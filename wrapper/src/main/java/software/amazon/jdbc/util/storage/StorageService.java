@@ -97,6 +97,5 @@ public interface StorageService {
   //  method should potentially be removed at that point as well.
   <K, V> @Nullable Map<K, V> getEntries(Class<?> itemClass);
 
-  // TODO: this method is only called by tests. We should evaluate whether we want to keep it or not.
   int size(Class<?> itemClass);
 }

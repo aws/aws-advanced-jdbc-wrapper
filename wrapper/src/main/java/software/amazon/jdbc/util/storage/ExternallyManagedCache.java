@@ -26,6 +26,7 @@ import java.util.function.Predicate;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.util.Messages;
 
 /**
  * A cache with expiration functionality that does not automatically remove expired entries. The removal of expired
@@ -120,10 +121,10 @@ public class ExternallyManagedCache<K, V> {
    */
   public void extendExpiration(K key) {
     final CacheItem cacheItem = cache.get(key);
-    // TODO: should we log if the key doesn't exist?
-
     if (cacheItem != null) {
       cacheItem.extendExpiration();
+    } else {
+      LOGGER.finest(Messages.get("ExternallyManagedCache.extendExpirationOnNonExistingKey", new Object[]{key}));
     }
   }
 

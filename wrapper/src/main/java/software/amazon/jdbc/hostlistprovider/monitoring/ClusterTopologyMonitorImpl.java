@@ -271,13 +271,17 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
     // Waiting for 30s gives a thread enough time to exit monitoring loop and close database connection.
     try {
-      if (!this.monitorExecutor.awaitTermination(30, TimeUnit.SECONDS)) {
-        LOGGER.fine(Messages.get("ClusterTopologyMonitorImpl.interrupted"));
+      long timeout = 30;
+      TimeUnit timeoutUnit = TimeUnit.SECONDS;
+      if (!this.monitorExecutor.awaitTermination(timeout, timeoutUnit)) {
+        LOGGER.fine(
+            Messages.get("ClusterTopologyMonitorImpl.awaitTerminationTimeout", new Object[]{timeout, timeoutUnit}));
         this.monitorExecutor.shutdownNow();
         Thread.currentThread().interrupt();
       }
     } catch (InterruptedException e) {
-      // TODO: should we add log?
+      LOGGER.fine(
+          Messages.get("ClusterTopologyMonitorImpl.interruptedWhileTerminating"));
       this.monitorExecutor.shutdownNow();
     }
   }

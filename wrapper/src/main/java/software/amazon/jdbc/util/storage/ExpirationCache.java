@@ -29,7 +29,8 @@ import software.amazon.jdbc.util.ItemDisposalFunc;
 import software.amazon.jdbc.util.ShouldDisposeFunc;
 
 /**
- * A cache that can be used to store values that expire after a configured period of time.
+ * A cache that can be used to store values that expire after a configured period of time. Entries are disposed when
+ * removed from the cache if an {@link ItemDisposalFunc} is defined.
  *
  * @param <K> the type of the keys in the cache.
  * @param <V> the type of the values in the cache.
@@ -88,7 +89,6 @@ public class ExpirationCache<K, V> {
     }
 
     // cacheItem is the previous value associated with the key.
-    // TODO: should we check expiration or call shouldDisposeFunc here even though the item is definitely being removed?
     if (this.itemDisposalFunc != null) {
       this.itemDisposalFunc.dispose(cacheItem.item);
     }

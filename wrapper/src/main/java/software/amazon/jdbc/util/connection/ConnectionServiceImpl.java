@@ -48,7 +48,6 @@ public class ConnectionServiceImpl implements ConnectionService {
 
   @Override
   public Connection createAuxiliaryConnection(HostSpec hostSpec, Properties props) throws SQLException {
-    // TODO: is it necessary to create a copy of the properties or are the passed props already a copy?
     final Properties auxiliaryProps = PropertyUtils.copyProperties(props);
     final String databaseName = PropertyDefinition.DATABASE.getString(auxiliaryProps) != null
             ? PropertyDefinition.DATABASE.getString(auxiliaryProps)
