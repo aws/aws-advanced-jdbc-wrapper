@@ -169,7 +169,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     this.customEndpointHostSpec = hostSpec;
     LOGGER.finest(
         Messages.get(
-            "CustomEndpointPlugin.connectionRequestToCustomEndpoint", new Object[] {hostSpec.getHost()}));
+            "CustomEndpointPlugin.connectionRequestToCustomEndpoint", new Object[] {hostSpec.getUrl()}));
 
     this.customEndpointId = this.rdsUtils.getRdsClusterId(customEndpointHostSpec.getHost());
     if (StringUtils.isNullOrEmpty(customEndpointId)) {
