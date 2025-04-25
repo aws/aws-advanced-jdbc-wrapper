@@ -414,7 +414,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   public List<HostSpec> getHosts() {
     AllowedAndBlockedHosts hostPermissions = this.storageService.get(
-        AllowedAndBlockedHosts.class, this.initialConnectionHostSpec.getHost());
+        AllowedAndBlockedHosts.class, this.initialConnectionHostSpec.getUrl());
     if (hostPermissions == null) {
       return this.allHosts;
     }
