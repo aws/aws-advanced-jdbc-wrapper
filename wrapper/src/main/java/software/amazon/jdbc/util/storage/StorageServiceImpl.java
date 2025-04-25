@@ -106,7 +106,7 @@ public class StorageServiceImpl implements StorageService {
       @Nullable ItemDisposalFunc<V> itemDisposalFunc) {
     caches.computeIfAbsent(
         itemClass,
-        category -> new ExpirationCache<>(
+        k -> new ExpirationCache<>(
             isRenewableExpiration,
             timeToLiveNanos,
             shouldDisposeFunc,
@@ -157,7 +157,7 @@ public class StorageServiceImpl implements StorageService {
     LOGGER.fine(
         Messages.get(
             "StorageServiceImpl.itemClassMismatch",
-            new Object[]{key, itemClass, value, value.getClass()}));
+            new Object[] {key, itemClass, value, value.getClass()}));
     return null;
   }
 
@@ -174,11 +174,9 @@ public class StorageServiceImpl implements StorageService {
   @Override
   public void remove(Class<?> itemClass, Object key) {
     final ExpirationCache<Object, ?> cache = caches.get(itemClass);
-    if (cache == null) {
-      return;
+    if (cache != null) {
+      cache.remove(key);
     }
-
-    cache.remove(key);
   }
 
   @Override

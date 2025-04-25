@@ -45,8 +45,8 @@ public class ExternallyManagedCache<K, V> {
   /**
    * Constructs an externally managed cache.
    *
-   * @param timeToLiveNanos       the duration that the item should sit in the cache before being considered expired, in
-   *                              nanoseconds.
+   * @param timeToLiveNanos the duration that the item should sit in the cache before being considered expired, in
+   *                        nanoseconds.
    */
   public ExternallyManagedCache(long timeToLiveNanos) {
     this.timeToLiveNanos = timeToLiveNanos;
@@ -72,7 +72,7 @@ public class ExternallyManagedCache<K, V> {
    * Get the value stored at the given key. If the value is expired, null will be returned.
    *
    * @param key the key for the value.
-   * @return the value stored at the given key, or null if the value is expired.
+   * @return the value stored at the given key, or null if the key does not exist or the value is expired.
    */
   public @Nullable V get(@NonNull K key) {
     CacheItem cacheItem = this.cache.get(key);
@@ -124,7 +124,7 @@ public class ExternallyManagedCache<K, V> {
     if (cacheItem != null) {
       cacheItem.extendExpiration();
     } else {
-      LOGGER.finest(Messages.get("ExternallyManagedCache.extendExpirationOnNonExistingKey", new Object[]{key}));
+      LOGGER.finest(Messages.get("ExternallyManagedCache.extendExpirationOnNonExistingKey", new Object[] {key}));
     }
   }
 
@@ -229,7 +229,7 @@ public class ExternallyManagedCache<K, V> {
      * Constructs a CacheItem.
      *
      * @param item                the item value.
-     * @param expirationTimeNanos the amount of time before a CacheItem should be marked as expired.
+     * @param expirationTimeNanos the time at which the CacheItem should be considered expired.
      */
     protected CacheItem(@NonNull final V item, final long expirationTimeNanos) {
       this.item = item;
@@ -267,7 +267,6 @@ public class ExternallyManagedCache<K, V> {
         return true;
       }
 
-      // First check null and type (use instanceof for correct type checking)
       if (obj == null || getClass() != obj.getClass()) {
         return false;
       }

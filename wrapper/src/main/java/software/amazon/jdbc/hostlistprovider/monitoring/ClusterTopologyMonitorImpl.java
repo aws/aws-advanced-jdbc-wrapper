@@ -277,9 +277,9 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
         LOGGER.fine(
             Messages.get("ClusterTopologyMonitorImpl.awaitTerminationTimeout", new Object[]{timeout, timeoutUnit}));
         this.monitorExecutor.shutdownNow();
-        Thread.currentThread().interrupt();
       }
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       LOGGER.fine(
           Messages.get("ClusterTopologyMonitorImpl.interruptedWhileTerminating"));
       this.monitorExecutor.shutdownNow();
@@ -418,7 +418,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
     } catch (final InterruptedException intEx) {
       Thread.currentThread().interrupt();
-
     } catch (final Exception ex) {
       // this should not be reached; log and exit thread
       if (LOGGER.isLoggable(Level.FINEST)) {

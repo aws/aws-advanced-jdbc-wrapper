@@ -168,27 +168,9 @@ public class ConnectionPluginChainBuilder {
         // The requested connection is an auxiliary connection. Auxiliary connections should only use auxiliary plugins
         // because non-auxiliary plugins can interfere with their intended purpose. For example, auxiliary EFM
         // connections should not contain the failover plugin because they should always monitor the same instance.
-        List<Class<? extends ConnectionPluginFactory>> auxiliaryPluginFactories = new ArrayList<>();
-        List<Class<? extends ConnectionPluginFactory>> removedPluginFactories = new ArrayList<>();
-        for (Class<? extends ConnectionPluginFactory> factory : pluginFactories) {
-          if (AuxiliaryPluginFactory.class.isAssignableFrom(factory)) {
-            auxiliaryPluginFactories.add(factory);
-          } else {
-            removedPluginFactories.add(factory);
-          }
-        }
-
-        if (!removedPluginFactories.isEmpty()) {
-          pluginFactories = auxiliaryPluginFactories;
-          String factoriesString =
-              auxiliaryPluginFactories.stream().map(Class::getSimpleName).collect(Collectors.joining(", "));
-          String removedFactoriesString =
-              removedPluginFactories.stream().map(Class::getSimpleName).collect(Collectors.joining(", "));
-          LOGGER.finest(
-              Messages.get(
-                  "ConnectionPluginChainBuilder.removedNonAuxiliaryPlugins",
-                  new Object[]{removedFactoriesString, factoriesString}));
-        }
+        pluginFactories = pluginFactories.stream()
+            .filter(AuxiliaryPluginFactory.class::isAssignableFrom)
+            .collect(Collectors.toList());
       }
 
       if (PropertyDefinition.AUTO_SORT_PLUGIN_ORDER.getBoolean(props)) {

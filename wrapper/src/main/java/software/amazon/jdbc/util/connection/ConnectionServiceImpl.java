@@ -50,8 +50,8 @@ public class ConnectionServiceImpl implements ConnectionService {
   public Connection createAuxiliaryConnection(HostSpec hostSpec, Properties props) throws SQLException {
     final Properties auxiliaryProps = PropertyUtils.copyProperties(props);
     final String databaseName = PropertyDefinition.DATABASE.getString(auxiliaryProps) != null
-            ? PropertyDefinition.DATABASE.getString(auxiliaryProps)
-            : "";
+        ? PropertyDefinition.DATABASE.getString(auxiliaryProps)
+        : "";
     final String connString = this.targetDriverProtocol + hostSpec.getUrl() + databaseName;
     PropertyDefinition.IS_AUXILIARY_CONNECTION.set(auxiliaryProps, "true");
 

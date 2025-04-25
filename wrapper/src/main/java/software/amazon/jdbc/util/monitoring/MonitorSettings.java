@@ -35,7 +35,7 @@ public class MonitorSettings {
    * @param inactiveTimeoutNanos   a duration in nanoseconds defining the maximum amount of time that a monitor should
    *                               take between updating its last-updated timestamp. If a monitor has not updated its
    *                               last-updated timestamp within this duration it will be considered stuck.
-   * @param errorResponses         a Set defining actions to take if the monitor is in an error state.
+   * @param errorResponses         a {@link Set} defining actions to take if the monitor is in an error state.
    */
   public MonitorSettings(
       long expirationTimeoutNanos, long inactiveTimeoutNanos, @NonNull Set<MonitorErrorResponse> errorResponses) {

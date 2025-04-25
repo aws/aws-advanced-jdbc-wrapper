@@ -27,7 +27,7 @@ public interface ConnectionService {
    * specific tasks such as monitoring a host's availability, checking the topology information for a cluster, etc.
    *
    * @param hostSpec the hostSpec containing the host information for the auxiliary connection.
-   * @param props the properties for the auxiliary connection.
+   * @param props    the properties for the auxiliary connection.
    * @return a new connection to the given host using the given props.
    */
   Connection createAuxiliaryConnection(HostSpec hostSpec, Properties props) throws SQLException;

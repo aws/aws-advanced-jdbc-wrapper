@@ -17,8 +17,7 @@
 package software.amazon.jdbc.util;
 
 /**
- * An optional function defining the conditions under which an expired entry should be cleaned up
- * at cleanup time.
+ * An optional function defining the conditions under which an expired entry should be cleaned up at cleanup time.
  *
  * @param <V> the type of object being analyzed for disposal
  */

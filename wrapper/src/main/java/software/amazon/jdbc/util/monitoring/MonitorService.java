@@ -29,12 +29,11 @@ public interface MonitorService {
    *
    * @param monitorClass           the class of the monitor, eg `CustomEndpointMonitorImpl.class`.
    * @param expirationTimeoutNanos how long a monitor should be stored without use before being considered expired, in
-   *                               nanoseconds. If the monitor is expired and shouldDisposeFunc returns `true`, the
-   *                               monitor will be stopped.
+   *                               nanoseconds. Expired monitors may be removed and stopped.
    * @param heartbeatTimeoutNanos  a duration in nanoseconds defining the maximum amount of time that a monitor should
    *                               take between updating its last-updated timestamp. If a monitor has not updated its
    *                               last-updated timestamp within this duration it will be considered stuck.
-   * @param errorResponses         a Set defining actions to take if the monitor is in an error state.
+   * @param errorResponses         a {@link Set} defining actions to take if the monitor is stuck or in an error state.
    * @param producedDataClass      the class of data produced by the monitor.
    */
   <T extends Monitor> void registerMonitorTypeIfAbsent(
@@ -46,7 +45,7 @@ public interface MonitorService {
 
   /**
    * Creates and starts the given monitor if it does not already exist and stores it under the given monitor type and
-   * key. If the monitor already exists, its time-to-live duration will be renewed, even if it was already expired.
+   * key. If the monitor already exists, its expiration time will be renewed, even if it was already expired.
    *
    * @param monitorClass    the class of the monitor, eg `CustomEndpointMonitorImpl.class`.
    * @param key             the key for the monitor, eg
@@ -57,7 +56,7 @@ public interface MonitorService {
   <T extends Monitor> T runIfAbsent(Class<T> monitorClass, Object key, Supplier<T> monitorSupplier);
 
   /**
-   * Get the monitor stored at the given key.
+   * Gets the monitor stored at the given key.
    *
    * @param monitorClass the expected class of the monitor.
    * @param key          the key for the monitor.

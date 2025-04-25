@@ -71,7 +71,7 @@ public class PeriodicEventPublisher implements EventPublisher {
   public void subscribe(EventSubscriber subscriber, Set<Class<? extends Event>> eventClasses) {
     for (Class<? extends Event> eventClass : eventClasses) {
       // ConcurrentHashMap.newKeySet() is the recommended way to get a concurrent set.
-      subscribers.compute(eventClass, (k, v) -> v == null ? ConcurrentHashMap.newKeySet() : v).add(subscriber);
+      subscribers.computeIfAbsent(eventClass, (k) -> ConcurrentHashMap.newKeySet()).add(subscriber);
     }
   }
 

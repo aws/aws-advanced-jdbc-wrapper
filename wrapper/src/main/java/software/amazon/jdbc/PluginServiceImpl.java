@@ -54,6 +54,7 @@ import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class PluginServiceImpl implements PluginService, CanReleaseResources,
@@ -64,6 +65,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache = new CacheMap<>();
   protected final ServiceContainer serviceContainer;
+  protected final StorageService storageService;
   protected final ConnectionPluginManager pluginManager;
   private final Properties props;
   private final String originalUrl;
@@ -136,6 +138,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       @Nullable final ConfigurationProfile configurationProfile,
       @Nullable final SessionStateService sessionStateService) throws SQLException {
     this.serviceContainer = serviceContainer;
+    this.storageService = serviceContainer.getStorageService();
     this.pluginManager = serviceContainer.getConnectionPluginManager();
     this.props = props;
     this.originalUrl = originalUrl;
@@ -216,7 +219,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   @Deprecated
   public void setAllowedAndBlockedHosts(AllowedAndBlockedHosts allowedAndBlockedHosts) {
-    this.serviceContainer.getStorageService().set(this.initialConnectionHostSpec.getHost(), allowedAndBlockedHosts);
+    this.storageService.set(this.initialConnectionHostSpec.getHost(), allowedAndBlockedHosts);
   }
 
   @Override
@@ -410,7 +413,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   @Override
   public List<HostSpec> getHosts() {
-    AllowedAndBlockedHosts hostPermissions = this.serviceContainer.getStorageService().get(
+    AllowedAndBlockedHosts hostPermissions = this.storageService.get(
         AllowedAndBlockedHosts.class, this.initialConnectionHostSpec.getHost());
     if (hostPermissions == null) {
       return this.allHosts;

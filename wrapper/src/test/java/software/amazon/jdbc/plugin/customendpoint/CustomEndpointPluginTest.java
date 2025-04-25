@@ -45,6 +45,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -59,6 +60,7 @@ public class CustomEndpointPluginTest {
   private final HostSpec writerClusterHost = hostSpecBuilder.host(writerClusterUrl).build();
   private final HostSpec host = hostSpecBuilder.host(customEndpointUrl).build();
 
+  @Mock private ServiceContainer mockServiceContainer;
   @Mock private PluginService mockPluginService;
   @Mock private BiFunction<HostSpec, Region, RdsClient> mockRdsClientFunc;
   @Mock private TelemetryFactory mockTelemetryFactory;
@@ -72,7 +74,8 @@ public class CustomEndpointPluginTest {
   public void init() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
 
-    when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
+    when(mockServiceContainer.getPluginService()).thenReturn(mockPluginService);
+    when(mockServiceContainer.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.createCounter(any(String.class))).thenReturn(mockTelemetryCounter);
     when(mockMonitor.hasCustomEndpointInfo()).thenReturn(true);
   }
@@ -84,7 +87,7 @@ public class CustomEndpointPluginTest {
   }
 
   private CustomEndpointPlugin getSpyPlugin() {
-    CustomEndpointPlugin plugin = new CustomEndpointPlugin(mockPluginService, props, mockRdsClientFunc);
+    CustomEndpointPlugin plugin = new CustomEndpointPlugin(mockServiceContainer, props, mockRdsClientFunc);
     CustomEndpointPlugin spyPlugin = spy(plugin);
     doReturn(mockMonitor).when(spyPlugin).createMonitorIfAbsent(any(Properties.class));
     return spyPlugin;

@@ -26,6 +26,7 @@ import java.util.function.Function;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.ItemDisposalFunc;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ShouldDisposeFunc;
 
 /**
@@ -57,6 +58,7 @@ public class ExpirationCache<K, V> {
    * @param timeToLiveNanos       the duration that the item should sit in the cache before being considered expired, in
    *                              nanoseconds.
    * @param shouldDisposeFunc     a function defining the conditions under which an expired entry should be cleaned up.
+   *                              If null is passed, the entry will always be cleaned up if it is expired.
    * @param itemDisposalFunc      a function defining how to dispose of an item when it is removed. If null is passed,
    *                              the item will be removed without performing any additional operations.
    */
@@ -76,8 +78,8 @@ public class ExpirationCache<K, V> {
    *
    * @param key   the key at which the value should be stored.
    * @param value the value to store.
-   * @return the previous value stored at the given key, or null if there was no previous value. If the previous value
-   *     is expired it will be disposed and returned.
+   * @return the previous value stored at the given key, or null if there was no previous value. If there was a previous
+   *     value it will also be disposed.
    */
   public @Nullable V put(
       final K key,
@@ -148,8 +150,8 @@ public class ExpirationCache<K, V> {
   /**
    * Retrieves the value stored at the given key.
    *
-   * @param key the key from which to retrieve the value.
-   * @return the value stored at the given key, or null if there is no existing value.
+   * @param key the key for the value.
+   * @return the value stored at the given key, or null if there is no existing value or the existing value is expired.
    */
   public @Nullable V get(final K key) {
     final CacheItem cacheItem = cache.get(key);
@@ -166,6 +168,12 @@ public class ExpirationCache<K, V> {
     return cacheItem.item;
   }
 
+  /**
+   * Indicates whether a non-expired value is stored at the given key.
+   *
+   * @param key the key for the value.
+   * @return true if there is a non-expired value stored at the given key, otherwise returns false.
+   */
   public boolean exists(final K key) {
     final CacheItem cacheItem = cache.get(key);
     return cacheItem != null && !cacheItem.shouldCleanup();
@@ -203,7 +211,7 @@ public class ExpirationCache<K, V> {
       try {
         removeIfExpired(key);
       } catch (Exception ex) {
-        // ignore
+        LOGGER.fine(Messages.get("ExpirationCache.exceptionWhileRemovingEntry", new Object[] {key, value, ex}));
       }
     });
   }
@@ -294,7 +302,7 @@ public class ExpirationCache<K, V> {
      * Determines if a cache item should be cleaned up. An item should be cleaned up if it has past its expiration time
      * and the {@link ShouldDisposeFunc} (if defined) indicates that it should be cleaned up.
      *
-     * @return true if the cache item should be cleaned up at cleanup time. Otherwise, returns false.
+     * @return true if the cache item should be cleaned up. Otherwise, returns false.
      */
     protected boolean shouldCleanup() {
       final boolean isExpired = this.expirationTimeNanos != 0 && System.nanoTime() > this.expirationTimeNanos;
@@ -326,7 +334,6 @@ public class ExpirationCache<K, V> {
         return true;
       }
 
-      // First check null and type (use instanceof for correct type checking)
       if (obj == null || getClass() != obj.getClass()) {
         return false;
       }

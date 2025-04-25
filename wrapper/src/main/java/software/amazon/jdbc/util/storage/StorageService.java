@@ -27,15 +27,15 @@ public interface StorageService {
    * items to the service, so that the service knows when and how to dispose of the item. Expected item classes will be
    * added automatically during driver initialization, but this method can be called to add new classes of items.
    *
-   * @param itemClass              the class of the item that will be stored, eg `CustomEndpointInfo.class`.
-   * @param isRenewableExpiration  controls whether the item's expiration should be renewed if the item is fetched,
-   *                               regardless of whether it is already expired or not.
-   * @param timeToLiveNanos        how long an item should be stored before being considered expired, in nanoseconds.
-   * @param shouldDisposeFunc      a function defining whether an item should be disposed if expired. If null is passed,
-   *                               the item will always be disposed if expired.
-   * @param itemDisposalFunc       a function defining how to dispose of an item when it is removed. If null is
-   *                               passed, the item will be removed without performing any additional operations.
-   * @param <V>                    the type of item that will be stored under the item class.
+   * @param itemClass             the class of the item that will be stored, eg `CustomEndpointInfo.class`.
+   * @param isRenewableExpiration controls whether the item's expiration should be renewed if the item is fetched,
+   *                              regardless of whether it is already expired or not.
+   * @param timeToLiveNanos       how long an item should be stored before being considered expired, in nanoseconds.
+   * @param shouldDisposeFunc     a function defining whether an item should be disposed if expired. If null is passed,
+   *                              the item will always be disposed if expired.
+   * @param itemDisposalFunc      a function defining how to dispose of an item when it is removed. If null is
+   *                              passed, the item will be removed without performing any additional operations.
+   * @param <V>                   the type of item that will be stored under the item class.
    */
   <V> void registerItemClassIfAbsent(
       Class<V> itemClass,
@@ -47,18 +47,18 @@ public interface StorageService {
   /**
    * Stores an item in the storage service under the given item class.
    *
-   * @param key          the key for the item, eg "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com".
-   * @param item         the item to store.
-   * @param <V>          the type of the item being retrieved.
+   * @param key  the key for the item, eg "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
+   * @param item the item to store.
+   * @param <V>  the type of the item being retrieved.
    */
   <V> void set(Object key, V item);
 
   /**
    * Gets an item stored in the storage service.
    *
-   * @param itemClass    the expected class of the item being retrieved, eg `CustomEndpointInfo.class`.
-   * @param key          the key for the item, eg "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com".
-   * @param <V>          the type of the item being retrieved.
+   * @param itemClass the expected class of the item being retrieved, eg `CustomEndpointInfo.class`.
+   * @param key       the key for the item, eg "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
+   * @param <V>       the type of the item being retrieved.
    * @return the item stored at the given key for the given item class.
    */
   <V> @Nullable V get(Class<V> itemClass, Object key);
@@ -66,8 +66,8 @@ public interface StorageService {
   /**
    * Indicates whether an item exists under the given item class and key.
    *
-   * @param itemClass    the class of the item.
-   * @param key          the key for the item, eg "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com".
+   * @param itemClass the class of the item.
+   * @param key       the key for the item, eg "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
    * @return true if the item exists under the given item class and key, otherwise returns false.
    */
   boolean exists(Class<?> itemClass, Object key);
@@ -75,8 +75,8 @@ public interface StorageService {
   /**
    * Removes an item stored under the given item class.
    *
-   * @param itemClass    the class of the item.
-   * @param key          the key for the item, eg "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com".
+   * @param itemClass the class of the item.
+   * @param key       the key for the item, eg "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
    */
   void remove(Class<?> itemClass, Object key);
 

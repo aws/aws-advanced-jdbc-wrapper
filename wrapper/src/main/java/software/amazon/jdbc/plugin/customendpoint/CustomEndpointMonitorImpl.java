@@ -34,11 +34,10 @@ import software.amazon.jdbc.AllowedAndBlockedHosts;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
-import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
-import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
  * The default custom endpoint monitor implementation. This class uses a background thread to monitor a given custom
@@ -65,10 +64,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
   /**
    * Constructs a CustomEndpointMonitorImpl instance for the host specified by {@code customEndpointHostSpec}.
    *
-   * @param monitorService         The monitorService used to submit this monitor.
-   * @param storageService         The storage service used to store the set of allowed/blocked hosts according to the
-   *                               custom endpoint info.
-   * @param telemetryFactory       The telemetry factory
+   * @param serviceContainer The service container for the services required by this class.
    * @param customEndpointHostSpec The host information for the custom endpoint to be monitored.
    * @param endpointIdentifier An endpoint identifier.
    * @param region                 The region of the custom endpoint to be monitored.
@@ -78,23 +74,21 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
    *                               information.
    */
   public CustomEndpointMonitorImpl(
-      MonitorService monitorService,
-      StorageService storageService,
-      TelemetryFactory telemetryFactory,
+      ServiceContainer serviceContainer,
       HostSpec customEndpointHostSpec,
       String endpointIdentifier,
       Region region,
       long refreshRateNano,
       BiFunction<HostSpec, Region, RdsClient> rdsClientFunc) {
-    super(monitorService);
-    this.storageService = storageService;
+    super(serviceContainer.getMonitorService());
+    this.storageService = serviceContainer.getStorageService();
     this.customEndpointHostSpec = customEndpointHostSpec;
     this.endpointIdentifier = endpointIdentifier;
     this.region = region;
     this.refreshRateNano = refreshRateNano;
     this.rdsClient = rdsClientFunc.apply(customEndpointHostSpec, this.region);
 
-    this.infoChangedCounter = telemetryFactory.createCounter(TELEMETRY_ENDPOINT_INFO_CHANGED);
+    this.infoChangedCounter = serviceContainer.getTelemetryFactory().createCounter(TELEMETRY_ENDPOINT_INFO_CHANGED);
   }
 
   /**
@@ -105,7 +99,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
     LOGGER.fine(
         Messages.get(
             "CustomEndpointMonitorImpl.startingMonitor",
-            new Object[] { this.customEndpointHostSpec.getHost() }));
+            new Object[] { this.customEndpointHostSpec.getUrl() }));
 
     try {
       while (!this.stop.get() && !Thread.currentThread().isInterrupted()) {
@@ -139,7 +133,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
           }
 
           CustomEndpointInfo endpointInfo = CustomEndpointInfo.fromDBClusterEndpoint(endpoints.get(0));
-          CustomEndpointInfo cachedEndpointInfo = customEndpointInfoCache.get(this.customEndpointHostSpec.getHost());
+          CustomEndpointInfo cachedEndpointInfo = customEndpointInfoCache.get(this.customEndpointHostSpec.getUrl());
           if (cachedEndpointInfo != null && cachedEndpointInfo.equals(endpointInfo)) {
             long elapsedTime = System.nanoTime() - start;
             long sleepDuration = Math.max(0, this.refreshRateNano - elapsedTime);
@@ -150,7 +144,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
           LOGGER.fine(
               Messages.get(
                   "CustomEndpointMonitorImpl.detectedChangeInCustomEndpointInfo",
-                  new Object[] {this.customEndpointHostSpec.getHost(), endpointInfo}));
+                  new Object[] {this.customEndpointHostSpec.getUrl(), endpointInfo}));
 
           // The custom endpoint info has changed, so we need to update the set of allowed/blocked hosts.
           AllowedAndBlockedHosts allowedAndBlockedHosts;
@@ -160,9 +154,9 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
             allowedAndBlockedHosts = new AllowedAndBlockedHosts(null, endpointInfo.getExcludedMembers());
           }
 
-          this.storageService.set(this.customEndpointHostSpec.getHost(), allowedAndBlockedHosts);
+          this.storageService.set(this.customEndpointHostSpec.getUrl(), allowedAndBlockedHosts);
           customEndpointInfoCache.put(
-              this.customEndpointHostSpec.getHost(), endpointInfo, CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO);
+              this.customEndpointHostSpec.getUrl(), endpointInfo, CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO);
           this.infoChangedCounter.inc();
 
           long elapsedTime = System.nanoTime() - start;
@@ -175,27 +169,27 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
           LOGGER.log(Level.SEVERE,
               Messages.get(
                   "CustomEndpointMonitorImpl.exception",
-                  new Object[]{this.customEndpointHostSpec.getHost()}), e);
+                  new Object[]{this.customEndpointHostSpec.getUrl()}), e);
         }
       }
     } catch (InterruptedException e) {
       LOGGER.fine(
           Messages.get(
               "CustomEndpointMonitorImpl.interrupted",
-              new Object[]{ this.customEndpointHostSpec.getHost() }));
+              new Object[]{ this.customEndpointHostSpec.getUrl() }));
       Thread.currentThread().interrupt();
     } finally {
-      customEndpointInfoCache.remove(this.customEndpointHostSpec.getHost());
+      customEndpointInfoCache.remove(this.customEndpointHostSpec.getUrl());
       this.rdsClient.close();
       LOGGER.fine(
           Messages.get(
               "CustomEndpointMonitorImpl.stoppedMonitor",
-              new Object[]{ this.customEndpointHostSpec.getHost() }));
+              new Object[]{ this.customEndpointHostSpec.getUrl() }));
     }
   }
 
   public boolean hasCustomEndpointInfo() {
-    return customEndpointInfoCache.get(this.customEndpointHostSpec.getHost()) != null;
+    return customEndpointInfoCache.get(this.customEndpointHostSpec.getUrl()) != null;
   }
 
   /**
@@ -206,7 +200,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
     LOGGER.fine(
         Messages.get(
             "CustomEndpointMonitorImpl.stoppingMonitor",
-            new Object[]{ this.customEndpointHostSpec.getHost() }));
+            new Object[]{ this.customEndpointHostSpec.getUrl() }));
 
     this.stop.set(true);
 
@@ -216,7 +210,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
         LOGGER.info(
             Messages.get(
                 "CustomEndpointMonitorImpl.monitorTerminationTimeout",
-                new Object[]{ terminationTimeoutSec, this.customEndpointHostSpec.getHost() }));
+                new Object[]{ terminationTimeoutSec, this.customEndpointHostSpec.getUrl() }));
 
         this.monitorExecutor.shutdownNow();
       }
@@ -224,12 +218,12 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
       LOGGER.info(
           Messages.get(
               "CustomEndpointMonitorImpl.interruptedWhileTerminating",
-              new Object[]{ this.customEndpointHostSpec.getHost() }));
+              new Object[]{ this.customEndpointHostSpec.getUrl() }));
 
       Thread.currentThread().interrupt();
       this.monitorExecutor.shutdownNow();
     } finally {
-      customEndpointInfoCache.remove(this.customEndpointHostSpec.getHost());
+      customEndpointInfoCache.remove(this.customEndpointHostSpec.getUrl());
       this.rdsClient.close();
     }
   }

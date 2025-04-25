@@ -17,7 +17,7 @@
 package software.amazon.jdbc.util.monitoring;
 
 /**
- * Represents the different states of a monitor.
+ * Represents the state of a monitor.
  */
 public enum MonitorState {
   /**

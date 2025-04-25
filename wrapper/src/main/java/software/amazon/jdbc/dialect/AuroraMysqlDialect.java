@@ -82,7 +82,7 @@ public class AuroraMysqlDialect extends MysqlDialect {
 
   @Override
   public HostListProviderSupplier getHostListProvider() {
-    return  (properties, initialUrl, serviceContainer) -> {
+    return (properties, initialUrl, serviceContainer) -> {
       final PluginService pluginService = serviceContainer.getPluginService();
       final FailoverConnectionPlugin failover2Plugin = pluginService.getPlugin(FailoverConnectionPlugin.class);
 

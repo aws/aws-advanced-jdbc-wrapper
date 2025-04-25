@@ -17,16 +17,17 @@
 package software.amazon.jdbc.util.storage;
 
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 
 public class Topology {
-  private final List<HostSpec> hosts;
+  private final @NonNull List<HostSpec> hosts;
 
-  public Topology(List<HostSpec> hosts) {
+  public Topology(@NonNull List<HostSpec> hosts) {
     this.hosts = hosts;
   }
 
-  public List<HostSpec> getHosts() {
+  public @NonNull List<HostSpec> getHosts() {
     return hosts;
   }
 }

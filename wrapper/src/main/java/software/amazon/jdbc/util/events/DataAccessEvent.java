@@ -20,8 +20,8 @@ import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
- * A class defining an occurrence of data access. The class specifies the class of the data that was accessed and the
- * key for the data.
+ * A class defining a data access event. The class specifies the class of the data that was accessed and the key for the
+ * data.
  */
 public class DataAccessEvent implements Event {
   protected @NonNull Class<?> dataClass;

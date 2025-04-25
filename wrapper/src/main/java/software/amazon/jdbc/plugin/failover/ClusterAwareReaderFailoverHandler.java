@@ -280,9 +280,9 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     hostsByPriority.addAll(downHostList);
 
     final int numOfReaders = activeReaders.size() + downHostList.size();
-    if (writerHost != null && (numOfReaders == 0
-        || this.pluginService.getDialect().getFailoverRestrictions()
-        .contains(FailoverRestriction.ENABLE_WRITER_IN_TASK_B))) {
+    final boolean enableWriterInTaskB =
+        this.pluginService.getDialect().getFailoverRestrictions().contains(FailoverRestriction.ENABLE_WRITER_IN_TASK_B);
+    if (writerHost != null && (numOfReaders == 0 || enableWriterInTaskB)) {
       hostsByPriority.add(writerHost);
     }
 

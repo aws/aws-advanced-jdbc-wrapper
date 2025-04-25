@@ -30,16 +30,18 @@ import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
-import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.RegionUtils;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.monitoring.MonitorService;
+import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -87,7 +89,10 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     PropertyDefinition.registerPluginProperties(CustomEndpointPlugin.class);
   }
 
-  protected final PluginService pluginService;
+  protected final ServiceContainer serviceContainer;
+  protected final StorageService storageService;
+  protected final MonitorService monitorService;
+  protected final TelemetryFactory telemetryFactory;
   protected final Properties props;
   protected final RdsUtils rdsUtils = new RdsUtils();
   protected final BiFunction<HostSpec, Region, RdsClient> rdsClientFunc;
@@ -103,12 +108,12 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   /**
    * Constructs a new CustomEndpointPlugin instance.
    *
-   * @param pluginService The plugin service that the custom endpoint plugin should use.
-   * @param props         The properties that the custom endpoint plugin should use.
+   * @param serviceContainer The service container for the services required by this class.
+   * @param props            The properties that the custom endpoint plugin should use.
    */
-  public CustomEndpointPlugin(final PluginService pluginService, final Properties props) {
+  public CustomEndpointPlugin(final ServiceContainer serviceContainer, final Properties props) {
     this(
-        pluginService,
+        serviceContainer,
         props,
         (hostSpec, region) ->
             RdsClient.builder()
@@ -120,15 +125,19 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   /**
    * Constructs a new CustomEndpointPlugin instance.
    *
-   * @param pluginService The plugin service that the custom endpoint plugin should use.
-   * @param props         The properties that the custom endpoint plugin should use.
-   * @param rdsClientFunc The function to call to obtain an {@link RdsClient} instance.
+   * @param serviceContainer The service container for the services required by this class.
+   * @param props            The properties that the custom endpoint plugin should use.
+   * @param rdsClientFunc    The function to call to obtain an {@link RdsClient} instance.
    */
   public CustomEndpointPlugin(
-      final PluginService pluginService,
+      final ServiceContainer serviceContainer,
       final Properties props,
       final BiFunction<HostSpec, Region, RdsClient> rdsClientFunc) {
-    this.pluginService = pluginService;
+    this.serviceContainer = serviceContainer;
+    this.storageService = serviceContainer.getStorageService();
+    this.monitorService = serviceContainer.getMonitorService();
+    this.telemetryFactory = serviceContainer.getTelemetryFactory();
+
     this.props = props;
     this.rdsClientFunc = rdsClientFunc;
 
@@ -136,7 +145,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     this.waitOnCachedInfoDurationMs = WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS.getInteger(this.props);
     this.idleMonitorExpirationMs = CUSTOM_ENDPOINT_MONITOR_IDLE_EXPIRATION_MS.getInteger(this.props);
 
-    TelemetryFactory telemetryFactory = pluginService.getTelemetryFactory();
+    TelemetryFactory telemetryFactory = serviceContainer.getTelemetryFactory();
     this.waitForInfoCounter = telemetryFactory.createCounter(TELEMETRY_WAIT_FOR_INFO_COUNTER);
   }
 
@@ -160,7 +169,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     this.customEndpointHostSpec = hostSpec;
     LOGGER.finest(
         Messages.get(
-            "CustomEndpointPlugin.connectionRequestToCustomEndpoint", new Object[]{ hostSpec.getHost() }));
+            "CustomEndpointPlugin.connectionRequestToCustomEndpoint", new Object[] {hostSpec.getHost()}));
 
     this.customEndpointId = this.rdsUtils.getRdsClusterId(customEndpointHostSpec.getHost());
     if (StringUtils.isNullOrEmpty(customEndpointId)) {
@@ -195,13 +204,11 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
    * @return {@link CustomEndpointMonitor}
    */
   protected CustomEndpointMonitor createMonitorIfAbsent(Properties props) {
-    return this.pluginService.getServiceContainer().getMonitorService().runIfAbsent(
+    return this.monitorService.runIfAbsent(
         CustomEndpointMonitorImpl.class,
-        this.customEndpointHostSpec.getHost(),
+        this.customEndpointHostSpec.getUrl(),
         () -> new CustomEndpointMonitorImpl(
-            this.pluginService.getServiceContainer().getMonitorService(),
-            this.pluginService.getServiceContainer().getStorageService(),
-            this.pluginService.getTelemetryFactory(),
+            this.serviceContainer,
             this.customEndpointHostSpec,
             this.customEndpointId,
             this.region,
@@ -209,7 +216,6 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
             this.rdsClientFunc
         ));
   }
-
 
 
   /**
@@ -229,7 +235,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
       LOGGER.fine(
           Messages.get(
               "CustomEndpointPlugin.waitingForCustomEndpointInfo",
-              new Object[]{ this.customEndpointHostSpec.getHost(), this.waitOnCachedInfoDurationMs }));
+              new Object[] {this.customEndpointHostSpec.getUrl(), this.waitOnCachedInfoDurationMs}));
       long waitForEndpointInfoTimeoutNano =
           System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(this.waitOnCachedInfoDurationMs);
 
@@ -243,13 +249,13 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
         throw new SQLException(
             Messages.get(
                 "CustomEndpointPlugin.interruptedThread",
-                new Object[]{ this.customEndpointHostSpec.getHost() }));
+                new Object[] {this.customEndpointHostSpec.getUrl()}));
       }
 
       if (!hasCustomEndpointInfo) {
         throw new SQLException(
             Messages.get("CustomEndpointPlugin.timedOutWaitingForCustomEndpointInfo",
-                new Object[]{this.waitOnCachedInfoDurationMs, this.customEndpointHostSpec.getHost()}));
+                new Object[] {this.waitOnCachedInfoDurationMs, this.customEndpointHostSpec.getUrl()}));
       }
     }
   }

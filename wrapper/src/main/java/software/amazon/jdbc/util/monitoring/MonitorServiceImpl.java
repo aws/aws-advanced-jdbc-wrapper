@@ -61,15 +61,15 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
 
   static {
     Map<Class<? extends Monitor>, Supplier<CacheContainer>> suppliers = new HashMap<>();
-    Set<MonitorErrorResponse> resetErrorResponse =
+    Set<MonitorErrorResponse> recreateOnError =
         new HashSet<>(Collections.singletonList(MonitorErrorResponse.RECREATE));
     MonitorSettings defaultSettings = new MonitorSettings(
-        TimeUnit.MINUTES.toNanos(5), TimeUnit.MINUTES.toNanos(1), resetErrorResponse);
+        TimeUnit.MINUTES.toNanos(5), TimeUnit.MINUTES.toNanos(1), recreateOnError);
 
     suppliers.put(
         CustomEndpointMonitorImpl.class, () -> new CacheContainer(defaultSettings, AllowedAndBlockedHosts.class));
     MonitorSettings topologySettings =
-        new MonitorSettings(TimeUnit.MINUTES.toNanos(5), TimeUnit.MINUTES.toNanos(3), resetErrorResponse);
+        new MonitorSettings(TimeUnit.MINUTES.toNanos(5), TimeUnit.MINUTES.toNanos(3), recreateOnError);
     suppliers.put(ClusterTopologyMonitorImpl.class, () -> new CacheContainer(topologySettings, Topology.class));
     defaultSuppliers = Collections.unmodifiableMap(suppliers);
   }
@@ -141,7 +141,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
           // Monitor has been inactive for longer than the inactive timeout and is considered stuck.
           LOGGER.fine(
               Messages.get("MonitorServiceImpl.monitorStuck",
-                  new Object[] {removedItem.getMonitor(), TimeUnit.NANOSECONDS.toSeconds(inactiveTimeoutNanos)}));
+                  new Object[] {removedItem.getMonitor(), TimeUnit.NANOSECONDS.toMillis(inactiveTimeoutNanos)}));
           handleMonitorError(container, key, removedItem);
           continue;
         }
@@ -165,8 +165,8 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
 
     Set<MonitorErrorResponse> errorResponses = cacheContainer.getSettings().getErrorResponses();
     if (errorResponses.contains(MonitorErrorResponse.RECREATE)) {
-      LOGGER.fine(Messages.get("MonitorServiceImpl.restartingMonitor", new Object[] {monitor}));
       cacheContainer.getCache().computeIfAbsent(key, k -> {
+        LOGGER.fine(Messages.get("MonitorServiceImpl.recreatingMonitor", new Object[] {monitor}));
         MonitorItem newMonitorItem = new MonitorItem(errorMonitorItem.getMonitorSupplier());
         newMonitorItem.getMonitor().start();
         return newMonitorItem;
