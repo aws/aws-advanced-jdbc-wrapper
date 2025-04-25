@@ -27,7 +27,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
-import software.amazon.jdbc.util.SlidingExpirationCache;
+import software.amazon.jdbc.util.storage.SlidingExpirationCache;
 
 public class LeastConnectionsHostSelector implements HostSelector {
   public static final String STRATEGY_LEAST_CONNECTIONS = "leastConnections";

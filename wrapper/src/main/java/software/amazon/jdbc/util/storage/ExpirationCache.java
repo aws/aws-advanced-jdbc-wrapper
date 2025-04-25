@@ -25,9 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.jdbc.util.ItemDisposalFunc;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.ShouldDisposeFunc;
 
 /**
  * A cache that can be used to store values that expire after a configured period of time. Entries are disposed when

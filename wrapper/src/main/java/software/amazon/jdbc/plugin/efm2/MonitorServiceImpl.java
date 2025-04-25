@@ -29,7 +29,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ServiceContainer;
-import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
+import software.amazon.jdbc.util.storage.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 

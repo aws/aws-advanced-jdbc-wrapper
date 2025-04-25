@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.util;
+package software.amazon.jdbc.util.storage;
 
 /**
- * An optional function defining extra cleanup steps to take when a cache item is cleaned up.
+ * An optional function defining the conditions under which an expired entry should be cleaned up at cleanup time.
  *
- * @param <V> the type of object being disposed
+ * @param <V> the type of object being analyzed for disposal
  */
-public interface ItemDisposalFunc<V> {
-  void dispose(V item);
+public interface ShouldDisposeFunc<V> {
+  boolean shouldDispose(V item);
 }

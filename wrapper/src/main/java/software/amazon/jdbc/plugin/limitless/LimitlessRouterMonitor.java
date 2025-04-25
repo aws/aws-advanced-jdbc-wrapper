@@ -31,7 +31,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.ServiceContainer;
-import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
+import software.amazon.jdbc.util.storage.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;

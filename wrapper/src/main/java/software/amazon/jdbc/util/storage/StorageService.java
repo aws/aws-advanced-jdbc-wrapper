@@ -18,8 +18,6 @@ package software.amazon.jdbc.util.storage;
 
 import java.util.Map;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.jdbc.util.ItemDisposalFunc;
-import software.amazon.jdbc.util.ShouldDisposeFunc;
 
 public interface StorageService {
   /**

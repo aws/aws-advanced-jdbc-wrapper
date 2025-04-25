@@ -17,7 +17,7 @@
 package software.amazon.jdbc;
 
 import software.amazon.jdbc.util.Pair;
-import software.amazon.jdbc.util.SlidingExpirationCache;
+import software.amazon.jdbc.util.storage.SlidingExpirationCache;
 
 public class HikariPoolsHolder {
   static SlidingExpirationCache<Pair, AutoCloseable> databasePools =

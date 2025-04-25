@@ -33,7 +33,7 @@ import software.amazon.jdbc.RoundRobinHostSelector;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ServiceContainer;
-import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
+import software.amazon.jdbc.util.storage.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.wrapper.HighestWeightHostSelector;
 

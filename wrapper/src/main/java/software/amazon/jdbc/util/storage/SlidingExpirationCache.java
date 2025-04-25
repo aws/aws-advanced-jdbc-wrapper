@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.util;
+package software.amazon.jdbc.util.storage;
 
 import java.util.ArrayList;
 import java.util.HashMap;
