@@ -37,5 +37,8 @@ public enum BlueGreenPhases {
   public int getValue() {
     return this.value;
   }
-  public boolean isActiveSwitchover() { return this.activeSwitchover; }
+
+  public boolean isActiveSwitchover() {
+    return this.activeSwitchover;
+  }
 }
