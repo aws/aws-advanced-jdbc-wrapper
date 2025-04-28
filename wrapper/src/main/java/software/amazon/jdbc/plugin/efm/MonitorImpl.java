@@ -26,7 +26,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.ServiceContainer;
@@ -63,7 +62,6 @@ public class MonitorImpl implements Monitor {
   final Queue<MonitorConnectionContext> activeContexts = new ConcurrentLinkedQueue<>();
   private final Queue<MonitorConnectionContext> newContexts = new ConcurrentLinkedQueue<>();
   private final ConnectionService connectionService;
-  private final PluginService pluginService;
   private final TelemetryFactory telemetryFactory;
   private final Properties properties;
   private final HostSpec hostSpec;
@@ -97,7 +95,6 @@ public class MonitorImpl implements Monitor {
       @NonNull final Properties properties,
       final long monitorDisposalTimeMillis,
       @NonNull final MonitorThreadContainer threadContainer) {
-    this.pluginService = serviceContainer.getPluginService();
     this.connectionService = serviceContainer.getConnectionService();
     this.telemetryFactory = serviceContainer.getTelemetryFactory();
     this.hostSpec = hostSpec;

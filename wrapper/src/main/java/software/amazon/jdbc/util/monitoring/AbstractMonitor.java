@@ -19,7 +19,6 @@ package software.amazon.jdbc.util.monitoring;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Logger;
-import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -29,20 +28,25 @@ import software.amazon.jdbc.util.StringUtils;
 public abstract class AbstractMonitor implements Monitor, Runnable {
   private static final Logger LOGGER = Logger.getLogger(AbstractMonitor.class.getName());
   protected final MonitorService monitorService;
-  protected final ExecutorService monitorExecutor = Executors.newSingleThreadExecutor(runnableTarget -> {
-    final Thread monitoringThread = new Thread(runnableTarget);
-    monitoringThread.setDaemon(true);
-    if (!StringUtils.isNullOrEmpty(monitoringThread.getName())) {
-      monitoringThread.setName(monitoringThread.getName() + "-" + getMonitorNameSuffix());
-    }
-    return monitoringThread;
-  });
+  protected final ExecutorService monitorExecutor;
 
   protected long lastActivityTimestampNanos;
   protected MonitorState state;
 
-  protected AbstractMonitor(MonitorService monitorService) {
+  protected AbstractMonitor(MonitorService monitorService, String threadNameSuffix) {
+    this(monitorService, Executors.newSingleThreadExecutor(runnableTarget -> {
+      final Thread monitoringThread = new Thread(runnableTarget);
+      monitoringThread.setDaemon(true);
+      if (!StringUtils.isNullOrEmpty(monitoringThread.getName())) {
+        monitoringThread.setName(monitoringThread.getName() + "-" + threadNameSuffix);
+      }
+      return monitoringThread;
+    }));
+  }
+
+  protected AbstractMonitor(MonitorService monitorService, ExecutorService monitorExecutor) {
     this.monitorService = monitorService;
+    this.monitorExecutor = monitorExecutor;
     this.lastActivityTimestampNanos = System.nanoTime();
   }
 
@@ -83,15 +87,5 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
   @Override
   public boolean canDispose() {
     return true;
-  }
-
-  /**
-   * Forms the suffix for the monitor thread name by abbreviating the concrete class name. For example, a
-   * {@link CustomEndpointMonitorImpl} will have a suffix of "cemi".
-   *
-   * @return the suffix for the monitor thread name.
-   */
-  private String getMonitorNameSuffix() {
-    return this.getClass().getSimpleName().replaceAll("[a-z]", "").toLowerCase();
   }
 }

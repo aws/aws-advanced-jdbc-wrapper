@@ -42,6 +42,7 @@ import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.connection.ConnectionService;
+import software.amazon.jdbc.util.monitoring.AbstractMonitor;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -52,7 +53,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
  * This class uses a background thread to monitor a particular server with one or more active {@link
  * Connection}.
  */
-public class MonitorImpl implements Monitor {
+public class MonitorImpl extends AbstractMonitor {
 
   private static final Logger LOGGER = Logger.getLogger(MonitorImpl.class.getName());
   private static final long THREAD_SLEEP_NANO = TimeUnit.MILLISECONDS.toNanos(100);
@@ -70,11 +71,6 @@ public class MonitorImpl implements Monitor {
   private final HostSpec hostSpec;
   private final AtomicBoolean stopped = new AtomicBoolean(false);
   private Connection monitoringConn = null;
-  private final ExecutorService threadPool = Executors.newFixedThreadPool(2, runnableTarget -> {
-    final Thread monitoringThread = new Thread(runnableTarget);
-    monitoringThread.setDaemon(true);
-    return monitoringThread;
-  });
 
   private final long failureDetectionTimeNano;
   private final long failureDetectionIntervalNano;
@@ -83,7 +79,6 @@ public class MonitorImpl implements Monitor {
   private long invalidNodeStartTimeNano;
   private long failureCount;
   private boolean nodeUnhealthy = false;
-
 
   private final TelemetryGauge newContextsSizeGauge;
   private final TelemetryGauge activeContextsSizeGauge;
@@ -110,6 +105,14 @@ public class MonitorImpl implements Monitor {
       final int failureDetectionIntervalMillis,
       final int failureDetectionCount,
       final TelemetryCounter abortedConnectionsCounter) {
+    super(serviceContainer.getMonitorService(), Executors.newFixedThreadPool(2, runnableTarget -> {
+      final Thread monitoringThread = new Thread(runnableTarget);
+      monitoringThread.setDaemon(true);
+      if (!StringUtils.isNullOrEmpty(monitoringThread.getName())) {
+        monitoringThread.setName(monitoringThread.getName() + "-efm");
+      }
+      return monitoringThread;
+    }));
 
     this.pluginService = serviceContainer.getPluginService();
     this.connectionService = serviceContainer.getConnectionService();
@@ -136,10 +139,6 @@ public class MonitorImpl implements Monitor {
     this.nodeHealthyGauge = telemetryFactory.createGauge(
         String.format("efm2.nodeHealthy.%s", hostId),
         () -> this.nodeUnhealthy ? 0L : 1L);
-
-    this.threadPool.submit(this::newContextRun); // task to handle new contexts
-    this.threadPool.submit(this); // task to handle active monitoring contexts
-    this.threadPool.shutdown(); // No more tasks are accepted by pool.
   }
 
   @Override
@@ -148,13 +147,32 @@ public class MonitorImpl implements Monitor {
   }
 
   @Override
-  public void close() throws Exception {
+  public void start() {
+    this.monitorExecutor.submit(this::newContextRun); // task to handle new contexts
+    this.monitorExecutor.submit(this); // task to handle active monitoring contexts
+    this.monitorExecutor.shutdown(); // No more tasks are accepted by pool.
+  }
+
+  @Override
+  public void stop() {
     this.stopped.set(true);
 
     // Waiting for 30s gives a thread enough time to exit monitoring loop and close database connection.
-    if (!this.threadPool.awaitTermination(30, TimeUnit.SECONDS)) {
-      this.threadPool.shutdownNow();
+    try {
+      long timeout = 30;
+      TimeUnit timeoutUnit = TimeUnit.SECONDS;
+      if (!this.monitorExecutor.awaitTermination(timeout, timeoutUnit)) {
+        LOGGER.fine(
+            Messages.get("MonitorImpl.awaitTerminationTimeout", new Object[]{timeout, timeoutUnit}));
+        this.monitorExecutor.shutdownNow();
+      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      LOGGER.fine(
+          Messages.get("MonitorImpl.interruptedWhileTerminating"));
+      this.monitorExecutor.shutdownNow();
     }
+
     LOGGER.finest(() -> Messages.get(
         "MonitorImpl.stopped",
         new Object[] {this.hostSpec.getHost()}));
@@ -248,7 +266,7 @@ public class MonitorImpl implements Monitor {
   }
 
   @Override
-  public void run() {
+  public void monitor() {
 
     LOGGER.finest(() -> Messages.get(
         "MonitorImpl.startMonitoringThread",

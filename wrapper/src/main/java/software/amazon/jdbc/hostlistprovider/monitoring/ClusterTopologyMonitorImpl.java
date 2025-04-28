@@ -122,7 +122,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       final String topologyQuery,
       final String writerTopologyQuery,
       final String nodeIdQuery) {
-    super(serviceContainer.getMonitorService());
+    super(serviceContainer.getMonitorService(), "ctmi");
 
     this.clusterId = clusterId;
     this.storageService = serviceContainer.getStorageService();
