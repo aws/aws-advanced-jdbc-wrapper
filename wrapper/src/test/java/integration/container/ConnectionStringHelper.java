@@ -67,21 +67,8 @@ public class ConnectionStringHelper {
     return url;
   }
 
-  public static String getUrlWithPlugins(String host, int port, String databaseName, String wrapperPlugins) {
-    final String url = getUrl(TestEnvironment.getCurrent().getCurrentDriver(), host, port, databaseName);
-    return url
-        + (url.contains("?") ? "&" : "?")
-        + "wrapperPlugins="
-        + wrapperPlugins;
-  }
-
-  public static String getUrlWithPlugins(
-      TestDriver testDriver,
-      String host,
-      int port,
-      String databaseName,
-      String wrapperPlugins) {
-    final String url = getUrl(testDriver, host, port, databaseName);
+  public static String getWrapperUrlWithPlugins(String host, int port, String databaseName, String wrapperPlugins) {
+    final String url = getWrapperUrl(TestEnvironment.getCurrent().getCurrentDriver(), host, port, databaseName);
     return url
         + (url.contains("?") ? "&" : "?")
         + "wrapperPlugins="
