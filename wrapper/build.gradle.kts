@@ -50,7 +50,7 @@ dependencies {
     compileOnly("org.jetbrains.kotlin:kotlin-stdlib:2.1.20")
 
     testImplementation("org.junit.platform:junit-platform-commons:1.12.2")
-    testImplementation("org.junit.platform:junit-platform-engine:1.11.0")
+    testImplementation("org.junit.platform:junit-platform-engine:1.12.2")
     testImplementation("org.junit.platform:junit-platform-launcher:1.12.2")
     testImplementation("org.junit.platform:junit-platform-suite-engine:1.12.2")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.12.2")
