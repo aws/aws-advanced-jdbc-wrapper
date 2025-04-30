@@ -50,7 +50,7 @@ import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.states.SessionStateServiceImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.CacheMap;
+import software.amazon.jdbc.util.storage.CacheMap;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.Utils;

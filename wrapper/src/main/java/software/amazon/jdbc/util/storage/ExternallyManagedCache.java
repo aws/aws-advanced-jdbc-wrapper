@@ -39,7 +39,7 @@ import software.amazon.jdbc.util.Messages;
  */
 public class ExternallyManagedCache<K, V> {
   private static final Logger LOGGER = Logger.getLogger(ExpirationCache.class.getName());
-  protected final Map<K, CacheItem> cache = new ConcurrentHashMap<>();
+  protected final Map<K, CacheItem<V>> cache = new ConcurrentHashMap<>();
   protected final long timeToLiveNanos;
 
   /**
@@ -60,7 +60,7 @@ public class ExternallyManagedCache<K, V> {
    * @return the previous value stored at the key, or null if there was no value stored at the key.
    */
   public @Nullable V put(@NonNull K key, @NonNull V value) {
-    CacheItem cacheItem = this.cache.put(key, new CacheItem(value, System.nanoTime() + timeToLiveNanos));
+    CacheItem<V> cacheItem = this.cache.put(key, new CacheItem<>(value, System.nanoTime() + timeToLiveNanos));
     if (cacheItem == null) {
       return null;
     }
@@ -75,7 +75,7 @@ public class ExternallyManagedCache<K, V> {
    * @return the value stored at the given key, or null if the key does not exist or the value is expired.
    */
   public @Nullable V get(@NonNull K key) {
-    CacheItem cacheItem = this.cache.get(key);
+    CacheItem<V> cacheItem = this.cache.get(key);
     if (cacheItem == null) {
       return null;
     }
@@ -97,17 +97,17 @@ public class ExternallyManagedCache<K, V> {
    *     is null.
    */
   public @NonNull V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction) {
-    final CacheItem cacheItem = cache.compute(
+    final CacheItem<V> cacheItem = cache.compute(
         key,
         (k, valueItem) -> {
           if (valueItem == null) {
             // The key is absent; compute and store the new value.
-            return new CacheItem(
+            return new CacheItem<>(
                 mappingFunction.apply(k),
                 System.nanoTime() + this.timeToLiveNanos);
           }
 
-          valueItem.extendExpiration();
+          valueItem.extendExpiration(this.timeToLiveNanos);
           return valueItem;
         });
 
@@ -120,9 +120,9 @@ public class ExternallyManagedCache<K, V> {
    * @param key the key for the value whose expiration should be extended.
    */
   public void extendExpiration(K key) {
-    final CacheItem cacheItem = cache.get(key);
+    final CacheItem<V> cacheItem = cache.get(key);
     if (cacheItem != null) {
-      cacheItem.extendExpiration();
+      cacheItem.extendExpiration(this.timeToLiveNanos);
     } else {
       LOGGER.finest(Messages.get("ExternallyManagedCache.extendExpirationOnNonExistingKey", new Object[] {key}));
     }
@@ -135,7 +135,7 @@ public class ExternallyManagedCache<K, V> {
    * @return the value that was removed, or null if the key did not exist.
    */
   public @Nullable V remove(K key) {
-    CacheItem cacheItem = cache.remove(key);
+    CacheItem<V> cacheItem = cache.remove(key);
     if (cacheItem == null) {
       return null;
     }
@@ -211,73 +211,10 @@ public class ExternallyManagedCache<K, V> {
    */
   public Map<K, V> getEntries() {
     final Map<K, V> entries = new HashMap<>();
-    for (final Map.Entry<K, CacheItem> entry : this.cache.entrySet()) {
+    for (final Map.Entry<K, CacheItem<V>> entry : this.cache.entrySet()) {
       entries.put(entry.getKey(), entry.getValue().item);
     }
 
     return entries;
-  }
-
-  /**
-   * A container class that holds a cache value together with the time at which the value should be considered expired.
-   */
-  protected class CacheItem {
-    private final @NonNull V item;
-    private long expirationTimeNanos;
-
-    /**
-     * Constructs a CacheItem.
-     *
-     * @param item                the item value.
-     * @param expirationTimeNanos the time at which the CacheItem should be considered expired.
-     */
-    protected CacheItem(@NonNull final V item, final long expirationTimeNanos) {
-      this.item = item;
-      this.expirationTimeNanos = expirationTimeNanos;
-    }
-
-    /**
-     * Indicates whether this item is expired.
-     *
-     * @return true if this item is expired, otherwise returns false.
-     */
-    protected boolean isExpired() {
-      return System.nanoTime() >= expirationTimeNanos;
-    }
-
-    /**
-     * Renews a cache item's expiration time.
-     */
-    protected void extendExpiration() {
-      this.expirationTimeNanos = System.nanoTime() + timeToLiveNanos;
-    }
-
-    @Override
-    public int hashCode() {
-      final int prime = 31;
-      int result = 1;
-      result = prime * result + item.hashCode();
-      return result;
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public boolean equals(Object obj) {
-      if (this == obj) {
-        return true;
-      }
-
-      if (obj == null || getClass() != obj.getClass()) {
-        return false;
-      }
-
-      CacheItem other = (CacheItem) obj;
-      return this.item.equals(other.item) && this.expirationTimeNanos == other.expirationTimeNanos;
-    }
-
-    @Override
-    public String toString() {
-      return "CacheItem [item=" + item + ", expirationTime=" + expirationTimeNanos + "]";
-    }
   }
 }
