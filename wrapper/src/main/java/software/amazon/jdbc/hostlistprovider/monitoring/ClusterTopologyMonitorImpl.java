@@ -52,12 +52,12 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
+import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.Topology;
 
@@ -112,23 +112,27 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected final AtomicReference<List<HostSpec>> nodeThreadsLatestTopology = new AtomicReference<>(null);
 
   public ClusterTopologyMonitorImpl(
-      final ServiceContainer serviceContainer,
       final String clusterId,
+      final StorageService storageService,
+      final MonitorService monitorService,
+      final ConnectionService connectionService,
       final HostSpec initialHostSpec,
       final Properties properties,
+      final PluginService pluginService,
+      final HostListProviderService hostListProviderService,
       final HostSpec clusterInstanceTemplate,
       final long refreshRateNano,
       final long highRefreshRateNano,
       final String topologyQuery,
       final String writerTopologyQuery,
       final String nodeIdQuery) {
-    super(serviceContainer.getMonitorService());
+    super(monitorService);
 
     this.clusterId = clusterId;
-    this.storageService = serviceContainer.getStorageService();
-    this.connectionService = serviceContainer.getConnectionService();
-    this.pluginService = serviceContainer.getPluginService();
-    this.hostListProviderService = serviceContainer.getHostListProviderService();
+    this.storageService = storageService;
+    this.connectionService = connectionService;
+    this.pluginService = pluginService;
+    this.hostListProviderService = hostListProviderService;
     this.initialHostSpec = initialHostSpec;
     this.clusterInstanceTemplate = clusterInstanceTemplate;
     this.properties = properties;

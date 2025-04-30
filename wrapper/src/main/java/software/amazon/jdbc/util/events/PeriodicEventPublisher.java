@@ -16,8 +16,10 @@
 
 package software.amazon.jdbc.util.events;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -30,7 +32,7 @@ import software.amazon.jdbc.util.StringUtils;
  */
 public class PeriodicEventPublisher implements EventPublisher {
   protected static final long DEFAULT_MESSAGE_INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(30);
-  protected final Map<Class<? extends Event>, Set<EventSubscriber>> subscribers = new ConcurrentHashMap<>();
+  protected final Map<Class<? extends Event>, Set<EventSubscriber>> subscribersMap = new ConcurrentHashMap<>();
   // ConcurrentHashMap.newKeySet() is the recommended way to get a concurrent set. A set is used to prevent duplicate
   // event messages from being sent in the same message batch.
   // TODO: should duplicate events be allowed? Data access events may happen frequently so duplicates could result in
@@ -61,7 +63,7 @@ public class PeriodicEventPublisher implements EventPublisher {
 
   private void sendMessages() {
     for (Event event : eventMessages) {
-      for (EventSubscriber subscriber : subscribers.get(event.getClass())) {
+      for (EventSubscriber subscriber : subscribersMap.get(event.getClass())) {
         subscriber.processEvent(event);
       }
     }
@@ -70,15 +72,17 @@ public class PeriodicEventPublisher implements EventPublisher {
   @Override
   public void subscribe(EventSubscriber subscriber, Set<Class<? extends Event>> eventClasses) {
     for (Class<? extends Event> eventClass : eventClasses) {
-      // ConcurrentHashMap.newKeySet() is the recommended way to get a concurrent set.
-      subscribers.computeIfAbsent(eventClass, (k) -> ConcurrentHashMap.newKeySet()).add(subscriber);
+      // The subscriber collection is a weakly referenced set so that we avoid garbage collection issues.
+      // TODO: do subscribers need to implement equals/hashcode?
+      subscribersMap.computeIfAbsent(
+          eventClass, (k) -> Collections.newSetFromMap(new WeakHashMap<>())).add(subscriber);
     }
   }
 
   @Override
   public void unsubscribe(EventSubscriber subscriber, Set<Class<? extends Event>> eventClasses) {
     for (Class<? extends Event> eventClass : eventClasses) {
-      subscribers.computeIfPresent(eventClass, (k, v) -> {
+      subscribersMap.computeIfPresent(eventClass, (k, v) -> {
         v.remove(subscriber);
         return v.isEmpty() ? null : v;
       });

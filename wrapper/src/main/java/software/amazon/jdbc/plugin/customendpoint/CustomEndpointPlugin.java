@@ -204,11 +204,13 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
    * @return {@link CustomEndpointMonitor}
    */
   protected CustomEndpointMonitor createMonitorIfAbsent(Properties props) {
-    return this.monitorService.runIfAbsent(
+    return this.serviceContainer.getMonitorService().runIfAbsent(
         CustomEndpointMonitorImpl.class,
-        this.customEndpointHostSpec.getUrl(),
+        this.customEndpointHostSpec.getHost(),
         () -> new CustomEndpointMonitorImpl(
-            this.serviceContainer,
+            this.serviceContainer.getMonitorService(),
+            this.serviceContainer.getStorageService(),
+            this.serviceContainer.getTelemetryFactory(),
             this.customEndpointHostSpec,
             this.customEndpointId,
             this.region,

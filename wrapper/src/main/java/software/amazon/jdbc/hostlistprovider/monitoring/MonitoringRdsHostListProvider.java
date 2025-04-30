@@ -45,9 +45,6 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
           "100",
           "Cluster topology high refresh rate in millis.");
 
-  protected static final long CACHE_CLEANUP_NANO = TimeUnit.MINUTES.toNanos(1);
-  protected static final long MONITOR_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(15);
-
   static {
     PropertyDefinition.registerPluginProperties(MonitoringRdsHostListProvider.class);
   }
@@ -89,10 +86,14 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
         ClusterTopologyMonitorImpl.class,
         this.clusterId,
         () -> new ClusterTopologyMonitorImpl(
-            this.serviceContainer,
             this.clusterId,
+            this.serviceContainer.getStorageService(),
+            this.monitorService,
+            this.serviceContainer.getConnectionService(),
             this.initialHostSpec,
             this.properties,
+            this.pluginService,
+            this.serviceContainer.getHostListProviderService(),
             this.clusterInstanceTemplate,
             this.refreshRateNano,
             this.highRefreshRateNano,

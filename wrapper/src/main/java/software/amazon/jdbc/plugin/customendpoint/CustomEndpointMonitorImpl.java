@@ -32,12 +32,13 @@ import software.amazon.awssdk.services.rds.model.DescribeDbClusterEndpointsRespo
 import software.amazon.awssdk.services.rds.model.Filter;
 import software.amazon.jdbc.AllowedAndBlockedHosts;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.util.storage.CacheMap;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
+import software.amazon.jdbc.util.monitoring.MonitorService;
+import software.amazon.jdbc.util.storage.CacheMap;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
  * The default custom endpoint monitor implementation. This class uses a background thread to monitor a given custom
@@ -64,7 +65,10 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
   /**
    * Constructs a CustomEndpointMonitorImpl instance for the host specified by {@code customEndpointHostSpec}.
    *
-   * @param serviceContainer The service container for the services required by this class.
+   * @param monitorService         The monitorService used to submit this monitor.
+   * @param storageService         The storage service used to store the set of allowed/blocked hosts according to the
+   *                               custom endpoint info.
+   * @param telemetryFactory       The telemetry factory
    * @param customEndpointHostSpec The host information for the custom endpoint to be monitored.
    * @param endpointIdentifier An endpoint identifier.
    * @param region                 The region of the custom endpoint to be monitored.
@@ -74,21 +78,23 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
    *                               information.
    */
   public CustomEndpointMonitorImpl(
-      ServiceContainer serviceContainer,
+      MonitorService monitorService,
+      StorageService storageService,
+      TelemetryFactory telemetryFactory,
       HostSpec customEndpointHostSpec,
       String endpointIdentifier,
       Region region,
       long refreshRateNano,
       BiFunction<HostSpec, Region, RdsClient> rdsClientFunc) {
-    super(serviceContainer.getMonitorService());
-    this.storageService = serviceContainer.getStorageService();
+    super(monitorService);
+    this.storageService = storageService;
     this.customEndpointHostSpec = customEndpointHostSpec;
     this.endpointIdentifier = endpointIdentifier;
     this.region = region;
     this.refreshRateNano = refreshRateNano;
     this.rdsClient = rdsClientFunc.apply(customEndpointHostSpec, this.region);
 
-    this.infoChangedCounter = serviceContainer.getTelemetryFactory().createCounter(TELEMETRY_ENDPOINT_INFO_CHANGED);
+    this.infoChangedCounter = telemetryFactory.createCounter(TELEMETRY_ENDPOINT_INFO_CHANGED);
   }
 
   /**
