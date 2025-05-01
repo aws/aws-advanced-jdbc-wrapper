@@ -28,7 +28,7 @@ import java.util.function.Function;
 
 public class SlidingExpirationCache<K, V> {
 
-  protected final Map<K, CacheItem> cache = new ConcurrentHashMap<>();
+  protected final Map<K, CacheItem<V>> cache = new ConcurrentHashMap<>();
   protected long cleanupIntervalNanos = TimeUnit.MINUTES.toNanos(10);
   protected final AtomicLong cleanupTimeNanos = new AtomicLong(System.nanoTime() + cleanupIntervalNanos);
   protected final AtomicReference<ShouldDisposeFunc<V>> shouldDisposeFunc = new AtomicReference<>(null);
@@ -92,12 +92,14 @@ public class SlidingExpirationCache<K, V> {
       final long itemExpirationNano) {
 
     cleanUp();
-    final CacheItem cacheItem = cache.computeIfAbsent(
+    final CacheItem<V> cacheItem = cache.computeIfAbsent(
         key,
-        k -> new CacheItem(
+        k -> new CacheItem<>(
             mappingFunction.apply(k),
-            System.nanoTime() + itemExpirationNano));
-    return cacheItem.withExtendExpiration(itemExpirationNano).item;
+            System.nanoTime() + itemExpirationNano,
+            this.shouldDisposeFunc.get()));
+    cacheItem.extendExpiration(itemExpirationNano);
+    return cacheItem.item;
   }
 
   public V put(
@@ -105,17 +107,25 @@ public class SlidingExpirationCache<K, V> {
       final V value,
       final long itemExpirationNano) {
     cleanUp();
-    final CacheItem cacheItem = cache.put(key, new CacheItem(value, System.nanoTime() + itemExpirationNano));
+    final CacheItem<V> cacheItem = cache.put(
+        key, new CacheItem<>(value, System.nanoTime() + itemExpirationNano));
     if (cacheItem == null) {
       return null;
     }
-    return cacheItem.withExtendExpiration(itemExpirationNano).item;
+
+    cacheItem.extendExpiration(itemExpirationNano);
+    return cacheItem.item;
   }
 
   public V get(final K key, final long itemExpirationNano) {
     cleanUp();
-    final CacheItem cacheItem = cache.get(key);
-    return cacheItem == null ? null : cacheItem.withExtendExpiration(itemExpirationNano).item;
+    final CacheItem<V> cacheItem = cache.get(key);
+    if (cacheItem == null) {
+      return null;
+    }
+
+    cacheItem.extendExpiration(itemExpirationNano);
+    return cacheItem.item;
   }
 
   /**
@@ -130,7 +140,7 @@ public class SlidingExpirationCache<K, V> {
   }
 
   protected void removeAndDispose(K key) {
-    final CacheItem cacheItem = cache.remove(key);
+    final CacheItem<V> cacheItem = cache.remove(key);
     if (cacheItem != null && itemDisposalFunc != null) {
       itemDisposalFunc.dispose(cacheItem.item);
     }
@@ -178,7 +188,7 @@ public class SlidingExpirationCache<K, V> {
    */
   public Map<K, V> getEntries() {
     final Map<K, V> entries = new HashMap<>();
-    for (final Map.Entry<K, CacheItem> entry : this.cache.entrySet()) {
+    for (final Map.Entry<K, CacheItem<V>> entry : this.cache.entrySet()) {
       entries.put(entry.getKey(), entry.getValue().item);
     }
     return entries;
@@ -215,7 +225,7 @@ public class SlidingExpirationCache<K, V> {
   }
 
   // For testing purposes only
-  Map<K, CacheItem> getCache() {
+  Map<K, CacheItem<V>> getCache() {
     return cache;
   }
 }

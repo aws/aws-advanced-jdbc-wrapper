@@ -37,7 +37,7 @@ import software.amazon.jdbc.util.Messages;
 public class ExpirationCache<K, V> {
   private static final Logger LOGGER = Logger.getLogger(ExpirationCache.class.getName());
   protected static final long DEFAULT_TIME_TO_LIVE_NANOS = TimeUnit.MINUTES.toNanos(5);
-  protected final Map<K, DisposableCacheItem<V>> cache = new ConcurrentHashMap<>();
+  protected final Map<K, CacheItem<V>> cache = new ConcurrentHashMap<>();
   protected final boolean isRenewableExpiration;
   protected final long timeToLiveNanos;
   protected final ShouldDisposeFunc<V> shouldDisposeFunc;
@@ -83,7 +83,8 @@ public class ExpirationCache<K, V> {
       final K key,
       final V value) {
     final CacheItem<V> cacheItem =
-        cache.put(key, new DisposableCacheItem<>(value, System.nanoTime() + this.timeToLiveNanos));
+        cache.put(key, new CacheItem<>(
+            value, System.nanoTime() + this.timeToLiveNanos, this.shouldDisposeFunc));
     if (cacheItem == null) {
       return null;
     }
@@ -117,17 +118,19 @@ public class ExpirationCache<K, V> {
         (k, valueItem) -> {
           if (valueItem == null) {
             // The key is absent; compute and store the new value.
-            return new DisposableCacheItem<>(
+            return new CacheItem<>(
                 mappingFunction.apply(k),
-                System.nanoTime() + this.timeToLiveNanos);
+                System.nanoTime() + this.timeToLiveNanos,
+                this.shouldDisposeFunc);
           }
 
           if (valueItem.shouldCleanup() && !this.isRenewableExpiration) {
             // The existing value is expired and non-renewable. Mark it for disposal and store the new value.
             toDisposeList.add(valueItem.item);
-            return new DisposableCacheItem<>(
+            return new CacheItem<>(
                 mappingFunction.apply(k),
-                System.nanoTime() + this.timeToLiveNanos);
+                System.nanoTime() + this.timeToLiveNanos,
+                this.shouldDisposeFunc);
           }
 
           // The existing value is non-expired or renewable. Keep the existing value.
@@ -152,7 +155,7 @@ public class ExpirationCache<K, V> {
    * @return the value stored at the given key, or null if there is no existing value or the existing value is expired.
    */
   public @Nullable V get(final K key) {
-    final DisposableCacheItem<V> cacheItem = cache.get(key);
+    final CacheItem<V> cacheItem = cache.get(key);
     if (cacheItem == null) {
       return null;
     }
@@ -173,7 +176,7 @@ public class ExpirationCache<K, V> {
    * @return true if there is a non-expired value stored at the given key, otherwise returns false.
    */
   public boolean exists(final K key) {
-    final DisposableCacheItem<V> cacheItem = cache.get(key);
+    final CacheItem<V> cacheItem = cache.get(key);
     return cacheItem != null && !cacheItem.shouldCleanup();
   }
 
@@ -189,7 +192,7 @@ public class ExpirationCache<K, V> {
   }
 
   protected @Nullable V removeAndDispose(K key) {
-    final DisposableCacheItem<V> cacheItem = cache.remove(key);
+    final CacheItem<V> cacheItem = cache.remove(key);
     if (cacheItem == null) {
       return null;
     }
@@ -262,7 +265,7 @@ public class ExpirationCache<K, V> {
    */
   public Map<K, V> getEntries() {
     final Map<K, V> entries = new HashMap<>();
-    for (final Map.Entry<K, DisposableCacheItem<V>> entry : this.cache.entrySet()) {
+    for (final Map.Entry<K, CacheItem<V>> entry : this.cache.entrySet()) {
       entries.put(entry.getKey(), entry.getValue().item);
     }
 

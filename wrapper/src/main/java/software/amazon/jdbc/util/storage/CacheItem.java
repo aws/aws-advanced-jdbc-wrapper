@@ -17,6 +17,7 @@
 package software.amazon.jdbc.util.storage;
 
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A container class that holds a cache value together with the time at which the value should be considered expired.
@@ -24,6 +25,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 public class CacheItem<V> {
   protected final @NonNull V item;
   protected long expirationTimeNanos;
+  protected final @Nullable ShouldDisposeFunc<V> shouldDisposeFunc;
 
   /**
    * Constructs a CacheItem.
@@ -34,6 +36,21 @@ public class CacheItem<V> {
   protected CacheItem(final @NonNull V item, final long expirationTimeNanos) {
     this.item = item;
     this.expirationTimeNanos = expirationTimeNanos;
+    this.shouldDisposeFunc = null;
+  }
+
+  /**
+   * Constructs a CacheItem.
+   *
+   * @param item                the item value.
+   * @param expirationTimeNanos the time at which the CacheItem should be considered expired.
+   * @param shouldDisposeFunc   a function defining whether an expired item should be disposed. If null, items will
+   *                            always be disposed when expired.
+   */
+  protected CacheItem(final @NonNull V item, final long expirationTimeNanos, final ShouldDisposeFunc<V> shouldDisposeFunc) {
+    this.item = item;
+    this.expirationTimeNanos = expirationTimeNanos;
+    this.shouldDisposeFunc = shouldDisposeFunc;
   }
 
   /**
@@ -50,6 +67,20 @@ public class CacheItem<V> {
    */
   protected void extendExpiration(long timeToLiveNanos) {
     this.expirationTimeNanos = System.nanoTime() + timeToLiveNanos;
+  }
+
+  /**
+   * Determines if a cache item should be cleaned up. An item should be cleaned up if it has past its expiration time
+   * and the {@link ShouldDisposeFunc} (if defined) indicates that it should be cleaned up.
+   *
+   * @return true if the cache item should be cleaned up. Otherwise, returns false.
+   */
+  protected boolean shouldCleanup() {
+    final boolean isExpired = this.expirationTimeNanos != 0 && System.nanoTime() > this.expirationTimeNanos;
+    if (shouldDisposeFunc != null) {
+      return isExpired && shouldDisposeFunc.shouldDispose(this.item);
+    }
+    return isExpired;
   }
 
   @Override
