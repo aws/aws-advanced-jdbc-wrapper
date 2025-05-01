@@ -221,12 +221,9 @@ public interface PluginService extends ExceptionHandler {
    * @return a {@link Connection} to the requested host
    * @throws SQLException if there was an error establishing a {@link Connection} to the requested
    *                      host
-   * @deprecated Use {@link ConnectionService#createAuxiliaryConnection(HostSpec, Properties)} instead.
    */
-  @Deprecated
   Connection forceConnect(HostSpec hostSpec, Properties props) throws SQLException;
 
-  @Deprecated
   Connection forceConnect(
       HostSpec hostSpec, Properties props, final @Nullable ConnectionPlugin pluginToSkip) throws SQLException;
 
