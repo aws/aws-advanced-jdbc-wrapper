@@ -118,7 +118,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
   public ConnectionPluginManager(
       final @NonNull ConnectionProvider defaultConnProvider,
       final @Nullable ConnectionProvider effectiveConnProvider,
-      final @NonNull ConnectionWrapper connectionWrapper,
+      final @Nullable ConnectionWrapper connectionWrapper,
       final @NonNull TelemetryFactory telemetryFactory) {
     this.defaultConnProvider = defaultConnProvider;
     this.effectiveConnProvider = effectiveConnProvider;

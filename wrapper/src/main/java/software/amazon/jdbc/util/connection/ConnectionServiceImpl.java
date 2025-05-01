@@ -19,57 +19,53 @@ package software.amazon.jdbc.util.connection;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
+import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.MonitorPluginService;
+import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.ServiceContainer;
-import software.amazon.jdbc.util.ServiceContainerImpl;
-import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
-import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 public class ConnectionServiceImpl implements ConnectionService {
-  protected ServiceContainer serviceContainer;
-  protected ConnectionProvider connectionProvider;
-  protected TargetDriverDialect driverDialect;
-  protected String targetDriverProtocol;
+  protected final ServiceContainer serviceContainer;
+  protected final ConnectionProvider connectionProvider;
+  protected final TargetDriverDialect driverDialect;
+  protected final String targetDriverProtocol;
+  protected final ConnectionPluginManager pluginManager;
+  protected final MonitorPluginService monitorPluginService;
 
   public ConnectionServiceImpl(
       ServiceContainer serviceContainer,
       ConnectionProvider connectionProvider,
       TargetDriverDialect driverDialect,
-      String targetDriverProtocol) {
+      Dialect dbDialect,
+      String targetDriverProtocol,
+      Properties props) throws SQLException {
     this.serviceContainer = serviceContainer;
     this.connectionProvider = connectionProvider;
     this.driverDialect = driverDialect;
     this.targetDriverProtocol = targetDriverProtocol;
+    this.pluginManager = new ConnectionPluginManager(
+        this.connectionProvider,
+        null,
+        null,
+        // TODO: is it okay to share the telemetry factory?
+        serviceContainer.getTelemetryFactory());
+    this.monitorPluginService = new MonitorPluginService(
+        this.serviceContainer,
+        props,
+        this.targetDriverProtocol,
+        this.driverDialect,
+        dbDialect);
+
+    this.pluginManager.init(this.monitorPluginService, props, this.monitorPluginService, null);
   }
 
   @Override
+  // TODO: do we need the props parameter or should we just use the props passed to the constructor? Not clear if they
+  //  will differ.
   public Connection createAuxiliaryConnection(HostSpec hostSpec, Properties props) throws SQLException {
-    final Properties auxiliaryProps = PropertyUtils.copyProperties(props);
-    final String databaseName = PropertyDefinition.DATABASE.getString(auxiliaryProps) != null
-        ? PropertyDefinition.DATABASE.getString(auxiliaryProps)
-        : "";
-    final String connString = this.targetDriverProtocol + hostSpec.getUrl() + databaseName;
-
-    // The auxiliary connection should have its own separate service container since the original container holds
-    // services that should not be shared between connections (for example, PluginService).
-    ServiceContainerImpl auxiliaryServiceContainer = new ServiceContainerImpl(
-        this.serviceContainer.getStorageService(),
-        this.serviceContainer.getMonitorService(),
-        new DefaultTelemetryFactory(auxiliaryProps));
-
-    // TODO: does the auxiliary connection need its own ConnectionProvider/TargetDriverDialect, or is it okay to share?
-    return new ConnectionWrapper(
-        auxiliaryServiceContainer,
-        auxiliaryProps,
-        connString,
-        this.connectionProvider,
-        null,
-        this.driverDialect,
-        null
-    );
+    return this.pluginManager.forceConnect(this.targetDriverProtocol, hostSpec, props, false, null);
   }
 }
