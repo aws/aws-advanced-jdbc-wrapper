@@ -53,7 +53,6 @@ public class ConnectionServiceImpl implements ConnectionService {
         ? PropertyDefinition.DATABASE.getString(auxiliaryProps)
         : "";
     final String connString = this.targetDriverProtocol + hostSpec.getUrl() + databaseName;
-    PropertyDefinition.IS_AUXILIARY_CONNECTION.set(auxiliaryProps, "true");
 
     // The auxiliary connection should have its own separate service container since the original container holds
     // services that should not be shared between connections (for example, PluginService).
