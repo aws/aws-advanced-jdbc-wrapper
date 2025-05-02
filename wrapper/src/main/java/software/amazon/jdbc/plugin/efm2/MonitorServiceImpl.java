@@ -50,18 +50,6 @@ public class MonitorServiceImpl implements MonitorService {
 
   protected static final Executor ABORT_EXECUTOR = Executors.newSingleThreadExecutor();
 
-  protected static final SlidingExpirationCacheWithCleanupThread<String, Monitor> monitors =
-      new SlidingExpirationCacheWithCleanupThread<>(
-          Monitor::canDispose,
-          (monitor) -> {
-            try {
-              monitor.close();
-            } catch (Exception ex) {
-              // ignore
-            }
-          },
-          CACHE_CLEANUP_NANO);
-
   protected final PluginService pluginService;
   protected final MonitorInitializer monitorInitializer;
   protected final TelemetryFactory telemetryFactory;
@@ -96,14 +84,7 @@ public class MonitorServiceImpl implements MonitorService {
   }
 
   public static void closeAllMonitors() {
-    monitors.getEntries().values().forEach(monitor -> {
-      try {
-        monitor.close();
-      } catch (Exception ex) {
-        // ignore
-      }
-    });
-    monitors.clear();
+    monitorService.
   }
 
   @Override

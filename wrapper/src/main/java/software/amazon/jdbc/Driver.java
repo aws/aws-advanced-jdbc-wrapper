@@ -421,7 +421,6 @@ public class Driver implements java.sql.Driver {
 
   public static void releaseResources() {
     monitorService.stopAndRemoveAll();
-    software.amazon.jdbc.plugin.efm2.MonitorServiceImpl.closeAllMonitors();
     MonitorThreadContainer.releaseInstance();
     ConnectionProviderManager.releaseResources();
     HikariPoolsHolder.closeAllPools();

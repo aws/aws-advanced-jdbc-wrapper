@@ -53,7 +53,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
  * This class uses a background thread to monitor a particular server with one or more active {@link
  * Connection}.
  */
-public class MonitorImpl extends AbstractMonitor {
+public class MonitorImpl extends AbstractMonitor, implements Monitor {
 
   private static final Logger LOGGER = Logger.getLogger(MonitorImpl.class.getName());
   private static final long THREAD_SLEEP_NANO = TimeUnit.MILLISECONDS.toNanos(100);

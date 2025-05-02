@@ -23,7 +23,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 /** Interface for initialize a new {@link MonitorImpl}. */
 @FunctionalInterface
 public interface MonitorInitializer {
-  Monitor createMonitor(
+  software.amazon.jdbc.util.monitoring.Monitor createMonitor(
       HostSpec hostSpec,
       Properties properties,
       final int failureDetectionTimeMillis,
