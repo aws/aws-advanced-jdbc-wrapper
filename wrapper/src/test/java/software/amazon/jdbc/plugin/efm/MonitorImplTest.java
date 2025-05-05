@@ -94,7 +94,6 @@ class MonitorImplTest {
     when(booleanProperty.getStringValue()).thenReturn(Boolean.TRUE.toString());
     when(longProperty.getValue()).thenReturn(SHORT_INTERVAL_MILLIS);
     when(serviceContainer.getPluginService()).thenReturn(pluginService);
-    when(serviceContainer.getConnectionService()).thenReturn(connectionService);
     when(serviceContainer.getTelemetryFactory()).thenReturn(telemetryFactory);
     when(connectionService.createAuxiliaryConnection(any(HostSpec.class), any(Properties.class)))
         .thenReturn(connection);

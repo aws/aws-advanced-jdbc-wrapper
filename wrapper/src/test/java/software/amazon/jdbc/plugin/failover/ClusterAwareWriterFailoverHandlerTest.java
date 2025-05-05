@@ -83,7 +83,6 @@ class ClusterAwareWriterFailoverHandlerTest {
   void setUp() {
     closeable = MockitoAnnotations.openMocks(this);
     when(mockServiceContainer.getPluginService()).thenReturn(mockPluginService);
-    when(mockServiceContainer.getConnectionService()).thenReturn(mockConnectionService);
     writer.addAlias("writer-host");
     newWriterHost.addAlias("new-writer-host");
     readerA.addAlias("reader-a-host");

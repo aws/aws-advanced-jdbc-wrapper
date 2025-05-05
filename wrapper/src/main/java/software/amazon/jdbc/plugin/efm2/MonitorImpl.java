@@ -41,7 +41,6 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.StringUtils;
-import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -64,7 +63,6 @@ public class MonitorImpl implements Monitor {
   private final Map<Long, Queue<WeakReference<MonitorConnectionContext>>> newContexts =
       new ConcurrentHashMap<>();
   private final PluginService pluginService;
-  private final ConnectionService connectionService;
   private final TelemetryFactory telemetryFactory;
   private final Properties properties;
   private final HostSpec hostSpec;
@@ -112,7 +110,6 @@ public class MonitorImpl implements Monitor {
       final TelemetryCounter abortedConnectionsCounter) {
 
     this.pluginService = serviceContainer.getPluginService();
-    this.connectionService = serviceContainer.getConnectionService();
     this.telemetryFactory = serviceContainer.getTelemetryFactory();
     this.hostSpec = hostSpec;
     this.properties = properties;
@@ -363,7 +360,8 @@ public class MonitorImpl implements Monitor {
                 });
 
         LOGGER.finest(() -> "Opening a monitoring connection to " + this.hostSpec.getUrl());
-        this.monitoringConn = this.connectionService.createAuxiliaryConnection(this.hostSpec, monitoringConnProperties);
+        // TODO: replace with ConnectionService#createAuxiliaryConnection
+        this.monitoringConn = this.pluginService.forceConnect(this.hostSpec, monitoringConnProperties);
         LOGGER.finest(() -> "Opened monitoring connection: " + this.monitoringConn);
         return true;
       }

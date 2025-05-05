@@ -23,49 +23,52 @@ import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.MonitorPluginService;
-import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.ServiceContainerImpl;
+import software.amazon.jdbc.util.monitoring.MonitorService;
+import software.amazon.jdbc.util.storage.StorageService;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class ConnectionServiceImpl implements ConnectionService {
-  protected final ServiceContainer serviceContainer;
-  protected final ConnectionProvider connectionProvider;
-  protected final TargetDriverDialect driverDialect;
   protected final String targetDriverProtocol;
   protected final ConnectionPluginManager pluginManager;
-  protected final MonitorPluginService monitorPluginService;
 
   public ConnectionServiceImpl(
-      ServiceContainer serviceContainer,
+      StorageService storageService,
+      MonitorService monitorService,
+      TelemetryFactory telemetryFactory,
       ConnectionProvider connectionProvider,
       TargetDriverDialect driverDialect,
-      Dialect dbDialect,
       String targetDriverProtocol,
+      String originalUrl,
       Properties props) throws SQLException {
-    this.serviceContainer = serviceContainer;
-    this.connectionProvider = connectionProvider;
-    this.driverDialect = driverDialect;
     this.targetDriverProtocol = targetDriverProtocol;
+
+    ServiceContainer serviceContainer = new ServiceContainerImpl(storageService, monitorService, telemetryFactory);
     this.pluginManager = new ConnectionPluginManager(
-        this.connectionProvider,
+        connectionProvider,
         null,
         null,
         // TODO: is it okay to share the telemetry factory?
-        serviceContainer.getTelemetryFactory());
-    this.monitorPluginService = new MonitorPluginService(
-        this.serviceContainer,
-        props,
-        this.targetDriverProtocol,
-        this.driverDialect,
-        dbDialect);
+        telemetryFactory);
+    serviceContainer.setConnectionPluginManager(this.pluginManager);
 
-    this.pluginManager.init(this.monitorPluginService, props, this.monitorPluginService, null);
+    MonitorPluginService monitorPluginService = new MonitorPluginService(
+        serviceContainer,
+        props,
+        originalUrl,
+        this.targetDriverProtocol,
+        driverDialect);
+    serviceContainer.setHostListProviderService(monitorPluginService);
+    serviceContainer.setPluginService(monitorPluginService);
+    serviceContainer.setPluginManagerService(monitorPluginService);
+
+    this.pluginManager.init(monitorPluginService, props, monitorPluginService, null);
   }
 
   @Override
-  // TODO: do we need the props parameter or should we just use the props passed to the constructor? Not clear if they
-  //  will differ.
   public Connection createAuxiliaryConnection(HostSpec hostSpec, Properties props) throws SQLException {
-    return this.pluginManager.forceConnect(this.targetDriverProtocol, hostSpec, props, false, null);
+    return this.pluginManager.forceConnect(this.targetDriverProtocol, hostSpec, props, true, null);
   }
 }

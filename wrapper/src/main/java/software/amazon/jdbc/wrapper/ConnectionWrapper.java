@@ -87,7 +87,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       @NonNull final String url,
       @NonNull final ConnectionProvider defaultConnectionProvider,
       @Nullable final ConnectionProvider effectiveConnectionProvider,
-      @NonNull final TargetDriverDialect targetDriverDialect,
+      @NonNull final TargetDriverDialect driverDialect,
       @Nullable final ConfigurationProfile configurationProfile)
       throws SQLException {
 
@@ -111,20 +111,13 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         props,
         url,
         this.targetDriverProtocol,
-        targetDriverDialect,
+        driverDialect,
         this.configurationProfile);
     serviceContainer.setHostListProviderService(pluginService);
     serviceContainer.setPluginService(pluginService);
     serviceContainer.setPluginManagerService(pluginService);
 
-    ConnectionService connectionService = new ConnectionServiceImpl(
-        serviceContainer,
-        defaultConnectionProvider,
-        targetDriverDialect,
-        this.targetDriverProtocol);
-    serviceContainer.setConnectionService(connectionService);
-
-    init(props, serviceContainer);
+    init(props, serviceContainer, defaultConnectionProvider, driverDialect);
 
     if (PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(props)) {
       this.openConnectionStacktrace = new Throwable(Messages.get("ConnectionWrapper.unclosedConnectionInstantiated"));
@@ -135,6 +128,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   protected ConnectionWrapper(
       @NonNull final Properties props,
       @NonNull final String url,
+      @NonNull final ConnectionProvider defaultConnectionProvider,
+      @NonNull final TargetDriverDialect driverDialect,
       @NonNull final ConnectionPluginManager connectionPluginManager,
       @NonNull final TelemetryFactory telemetryFactory,
       @NonNull final PluginService pluginService,
@@ -160,12 +155,14 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         pluginManagerService
     );
 
-    init(props, serviceContainer);
+    init(props, serviceContainer, defaultConnectionProvider, driverDialect);
   }
 
   protected void init(
       final Properties props,
-      final ServiceContainer serviceContainer) throws SQLException {
+      final ServiceContainer serviceContainer,
+      final ConnectionProvider defaultConnectionProvider,
+      final TargetDriverDialect driverDialect) throws SQLException {
     this.pluginManager = serviceContainer.getConnectionPluginManager();
     this.telemetryFactory = serviceContainer.getTelemetryFactory();
     this.pluginService = serviceContainer.getPluginService();
@@ -185,6 +182,17 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.targetDriverProtocol, this.originalUrl, props, this.hostListProviderService);
 
     this.pluginService.refreshHostList();
+
+    ConnectionService connectionService = new ConnectionServiceImpl(
+        serviceContainer.getStorageService(),
+        serviceContainer.getMonitorService(),
+        serviceContainer.getTelemetryFactory(),
+        defaultConnectionProvider,
+        driverDialect,
+        this.targetDriverProtocol,
+        this.originalUrl,
+        props);
+    serviceContainer.setConnectionService(connectionService);
 
     if (this.pluginService.getCurrentConnection() == null) {
       final Connection conn =

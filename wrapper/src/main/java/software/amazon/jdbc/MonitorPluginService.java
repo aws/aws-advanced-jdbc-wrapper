@@ -39,6 +39,7 @@ import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.dialect.DialectProvider;
+import software.amazon.jdbc.dialect.HostListProviderSupplier;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.hostavailability.HostAvailability;
@@ -54,7 +55,6 @@ import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.storage.CacheMap;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 public class MonitorPluginService implements PluginService, CanReleaseResources,
     HostListProviderService, PluginManagerService {
@@ -67,6 +67,7 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
   protected final StorageService storageService;
   protected final ConnectionPluginManager pluginManager;
   private final Properties props;
+  private final String originalUrl;
   private final String driverProtocol;
   protected volatile HostListProvider hostListProvider;
   protected List<HostSpec> allHosts = new ArrayList<>();
@@ -89,17 +90,17 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
   public MonitorPluginService(
       @NonNull final ServiceContainer serviceContainer,
       @NonNull final Properties props,
+      @NonNull final String originalUrl,
       @NonNull final String targetDriverProtocol,
-      @NonNull final TargetDriverDialect targetDriverDialect,
-      @NonNull final Dialect dbDialect) {
+      @NonNull final TargetDriverDialect targetDriverDialect) throws SQLException {
     this(
         serviceContainer,
         new ExceptionManager(),
         props,
+        originalUrl,
         targetDriverProtocol,
         null,
         targetDriverDialect,
-        dbDialect,
         null,
         null);
   }
@@ -107,18 +108,18 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
   public MonitorPluginService(
       @NonNull final ServiceContainer serviceContainer,
       @NonNull final Properties props,
+      @NonNull final String originalUrl,
       @NonNull final String targetDriverProtocol,
       @NonNull final TargetDriverDialect targetDriverDialect,
-      @NonNull final Dialect dbDialect,
-      @Nullable final ConfigurationProfile configurationProfile) {
+      @Nullable final ConfigurationProfile configurationProfile) throws SQLException {
     this(
         serviceContainer,
         new ExceptionManager(),
         props,
+        originalUrl,
         targetDriverProtocol,
         null,
         targetDriverDialect,
-        dbDialect,
         configurationProfile,
         null);
   }
@@ -127,16 +128,17 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
       @NonNull final ServiceContainer serviceContainer,
       @NonNull final ExceptionManager exceptionManager,
       @NonNull final Properties props,
+      @NonNull final String originalUrl,
       @NonNull final String targetDriverProtocol,
       @Nullable final DialectProvider dialectProvider,
       @NonNull final TargetDriverDialect targetDriverDialect,
-      @NonNull final Dialect dbDialect,
       @Nullable final ConfigurationProfile configurationProfile,
-      @Nullable final SessionStateService sessionStateService) {
+      @Nullable final SessionStateService sessionStateService) throws SQLException {
     this.serviceContainer = serviceContainer;
     this.storageService = serviceContainer.getStorageService();
     this.pluginManager = serviceContainer.getConnectionPluginManager();
     this.props = props;
+    this.originalUrl = originalUrl;
     this.driverProtocol = targetDriverProtocol;
     this.configurationProfile = configurationProfile;
     this.exceptionManager = exceptionManager;
@@ -154,7 +156,7 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
         ? this.configurationProfile.getExceptionHandler()
         : null;
 
-    this.dbDialect = dbDialect;
+    this.dialectProvider.getDialect(this.driverProtocol, this.originalUrl, this.props);
   }
 
   @Override
@@ -710,11 +712,19 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
     return this.targetDriverDialect;
   }
 
+  @Override
   public void updateDialect(final @NonNull Connection connection) throws SQLException {
-    LOGGER.warning(
-        Messages.get(
-            "MonitorPluginService.methodNotIntendedForUse", new Object[] {"MonitorPluginService.updateDialect"}));
-    throw new NotImplementedException();
+    final Dialect originalDialect = this.dbDialect;
+    this.dbDialect = this.dialectProvider.getDialect(
+        this.originalUrl,
+        this.initialConnectionHostSpec,
+        connection);
+    if (originalDialect == this.dbDialect) {
+      return;
+    }
+
+    final HostListProviderSupplier supplier = this.dbDialect.getHostListProvider();
+    this.setHostListProvider(supplier.getProvider(this.props, this.originalUrl, this.serviceContainer));
   }
 
   @Override

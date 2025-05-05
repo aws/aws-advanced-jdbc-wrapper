@@ -85,7 +85,6 @@ class ClusterAwareReaderFailoverHandlerTest {
   void setUp() {
     closeable = MockitoAnnotations.openMocks(this);
     when(mockServiceContainer.getPluginService()).thenReturn(mockPluginService);
-    when(mockServiceContainer.getConnectionService()).thenReturn(mockConnectionService);
   }
 
   @AfterEach

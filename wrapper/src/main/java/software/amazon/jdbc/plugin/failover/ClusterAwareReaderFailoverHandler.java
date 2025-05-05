@@ -40,7 +40,6 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.Utils;
-import software.amazon.jdbc.util.connection.ConnectionService;
 
 /**
  * An implementation of ReaderFailoverHandler.
@@ -65,7 +64,6 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   protected int timeoutMs;
   protected boolean isStrictReaderRequired;
   protected final PluginService pluginService;
-  protected final ConnectionService connectionService;
 
   /**
    * ClusterAwareReaderFailoverHandler constructor.
@@ -101,7 +99,6 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       final int timeoutMs,
       final boolean isStrictReaderRequired) {
     this.pluginService = serviceContainer.getPluginService();
-    this.connectionService = serviceContainer.getConnectionService();
     this.initialConnectionProps = initialConnectionProps;
     this.maxFailoverTimeoutMs = maxFailoverTimeoutMs;
     this.timeoutMs = timeoutMs;
@@ -393,7 +390,8 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
         final Properties copy = new Properties();
         copy.putAll(initialConnectionProps);
 
-        final Connection conn = connectionService.createAuxiliaryConnection(this.newHost, copy);
+        // TODO: replace with ConnectionService#createAuxiliaryConnection
+        final Connection conn = pluginService.forceConnect(this.newHost, copy);
         pluginService.setAvailability(this.newHost.asAliases(), HostAvailability.AVAILABLE);
 
         if (this.isStrictReaderRequired) {
