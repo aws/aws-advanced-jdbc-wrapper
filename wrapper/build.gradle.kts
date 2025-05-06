@@ -51,6 +51,7 @@ dependencies {
     optionalImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.52.0")
 
     compileOnly("io.lettuce:lettuce-core:6.6.0.RELEASE")
+    compileOnly("org.apache.commons:commons-pool2:2.11.1")
     compileOnly("org.checkerframework:checker-qual:3.49.5")
     compileOnly("com.mysql:mysql-connector-j:9.4.0")
     compileOnly("org.postgresql:postgresql:42.7.7")
@@ -104,6 +105,7 @@ dependencies {
     testImplementation("io.opentelemetry:opentelemetry-sdk:1.52.0")
     testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.52.0")
     testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.52.0")
+    testImplementation("org.apache.commons:commons-pool2:2.11.1")
     testImplementation("org.jsoup:jsoup:1.21.1")
     testImplementation("de.vandermeer:asciitable:0.3.2")
     testImplementation("org.hibernate:hibernate-core:5.6.15.Final") // the latest version compatible with Java 8

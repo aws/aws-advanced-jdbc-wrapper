@@ -30,6 +30,7 @@ dependencies {
     implementation("org.jsoup:jsoup:1.21.1")
     implementation("com.mchange:c3p0:0.11.2")
     implementation("io.lettuce:lettuce-core:6.6.0.RELEASE")
+    implementation("org.apache.commons:commons-pool2:2.11.1")
 }
 
 tasks.withType<JavaExec> {
