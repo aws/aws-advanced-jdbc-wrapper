@@ -51,6 +51,7 @@ dependencies {
     testImplementation("org.testcontainers:mariadb:1.20.4")
     testImplementation("org.testcontainers:junit-jupiter:1.20.4")
     testImplementation("org.testcontainers:toxiproxy:1.20.4")
+    testImplementation("org.apache.commons:commons-pool2:2.11.1")
     testImplementation("org.apache.poi:poi-ooxml:5.3.0")
     testImplementation("org.slf4j:slf4j-simple:2.0.13")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.17.1")
