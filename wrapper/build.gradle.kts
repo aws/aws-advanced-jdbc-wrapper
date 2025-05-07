@@ -302,8 +302,8 @@ tasks.register("maskJunitHtmlReport") {
     doLast {
         if (project.file("${layout.buildDirectory.get()}/report/data.js").exists()) {
             val jsFile = project.file("${layout.buildDirectory.get()}/report/data.js")
-            var text = jsFile.readText()
-            var regex = "\"([^\"]*(AWS_ACCESS_|AWS_SECRET_|AWS_SESSION_)[^\"]*)\", value: \"([^\"]*)\"".toRegex(setOf(RegexOption.MULTILINE, RegexOption.IGNORE_CASE))
+            val text = jsFile.readText()
+            val regex = "\"([^\"]*(AWS_ACCESS_|AWS_SECRET_|AWS_SESSION_)[^\"]*)\", value: \"([^\"]*)\"".toRegex(setOf(RegexOption.MULTILINE, RegexOption.IGNORE_CASE))
             val maskedText = regex.replace(text, "\"$1\", value: \"*****\"")
             jsFile.writeText(maskedText)
         }
@@ -491,7 +491,32 @@ tasks.register<Test>("test-bgd-mysql-aurora") {
         systemProperty("test-no-instances-5", "true")
         systemProperty("test-no-multi-az-cluster", "true")
         systemProperty("test-bg-only", "true")
-        systemProperty("test-no-bg", "true")
+    }
+}
+
+tasks.register<Test>("test-bgd-pg-aurora") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
+    doFirst {
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-no-mysql-driver", "true")
+        systemProperty("test-no-mysql-engine", "true")
+        systemProperty("test-no-mariadb-driver", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+        systemProperty("test-no-graalvm", "true")
+        systemProperty("test-no-openjdk8", "true")
+        systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-failover", "true")
+        //systemProperty("test-no-iam", "true")
+        systemProperty("test-no-secrets-manager", "true")
+        systemProperty("test-no-hikari", "true")
+        systemProperty("test-no-instances-1", "true")
+        systemProperty("test-no-instances-2", "false")
+        systemProperty("test-no-instances-3", "true")
+        systemProperty("test-no-instances-5", "true")
+        systemProperty("test-no-multi-az-cluster", "true")
+        systemProperty("test-bg-only", "true")
     }
 }
 

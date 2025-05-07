@@ -89,7 +89,7 @@ import software.amazon.jdbc.util.RdsUtils;
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @EnableOnTestFeature(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)
 @EnableOnDatabaseEngineDeployment({DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE, DatabaseEngineDeployment.AURORA})
-@EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
+@EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
 @Order(16)
 public class BlueGreenDeploymentTests {
 
@@ -102,6 +102,10 @@ public class BlueGreenDeploymentTests {
   private static final String MYSQL_BG_STATUS_QUERY =
       "SELECT id, SUBSTRING_INDEX(endpoint, '.', 1) as hostId, endpoint, port, role, status, version"
       + " FROM mysql.rds_topology";
+
+  private static final String PG_BG_STATUS_QUERY =
+      "SELECT id, SPLIT_PART(endpoint, '.', 1) as hostId, endpoint, port, role, status, version"
+      + " FROM get_blue_green_fast_switchover_metadata('aws_jdbc_driver')";
 
   private static final String TEST_CLUSTER_ID = "test-cluster-id";
 
@@ -516,6 +520,20 @@ public class BlueGreenDeploymentTests {
     return new Thread(() -> {
 
       Connection conn = null;
+
+      String query;
+      switch (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine()) {
+        case MYSQL:
+          query = "SELECT sleep(5)";
+          break;
+        case PG:
+          query = "SELECT pg_sleep(5)";
+          break;
+        default:
+          throw new UnsupportedOperationException(
+              TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine().toString());
+      }
+
       try {
         final Properties props = this.getWrapperConnectionProperties();
         conn = DriverManager.getConnection(
@@ -542,7 +560,7 @@ public class BlueGreenDeploymentTests {
           long startTime = System.nanoTime();
           long endTime;
           try  {
-            ResultSet rs = statement.executeQuery("SELECT sleep(5)");
+            ResultSet rs = statement.executeQuery(query);
             endTime = System.nanoTime();
             results.blueWrapperExecuteTimes.add(
                 new TimeHolder(startTime, endTime, bgPlugin.getHoldTimeNano()));
@@ -781,6 +799,19 @@ public class BlueGreenDeploymentTests {
 
       Connection conn = null;
 
+      String query;
+      switch (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine()) {
+        case MYSQL:
+          query = MYSQL_BG_STATUS_QUERY;
+          break;
+        case PG:
+          query = PG_BG_STATUS_QUERY;
+          break;
+        default:
+          throw new UnsupportedOperationException(
+              TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine().toString());
+      }
+
       try {
         final Properties props = ConnectionStringHelper.getDefaultProperties();
         conn = openConnectionWithRetry(
@@ -810,7 +841,7 @@ public class BlueGreenDeploymentTests {
 
           try {
             final Statement statement = conn.createStatement();
-            final ResultSet rs = statement.executeQuery(MYSQL_BG_STATUS_QUERY);
+            final ResultSet rs = statement.executeQuery(query);
             while (rs.next()) {
               String queryRole = rs.getString("role");
               String queryVersion = rs.getString("version");
@@ -1180,7 +1211,7 @@ public class BlueGreenDeploymentTests {
             ConnectionStringHelper.getUrl(
                 greenCluster.endpoint(),
                 TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpointPort(),
-                ""),
+                TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
             TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername(),
             TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
 
@@ -1209,12 +1240,31 @@ public class BlueGreenDeploymentTests {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
     RdsHostListProvider.CLUSTER_ID.set(props, TEST_CLUSTER_ID);
 
+    DatabaseEngine databaseEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
     switch (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()) {
       case AURORA:
-        DialectManager.DIALECT.set(props, DialectCodes.AURORA_MYSQL);
+        switch (databaseEngine) {
+          case MYSQL:
+            DialectManager.DIALECT.set(props, DialectCodes.AURORA_MYSQL);
+            break;
+          case PG:
+            DialectManager.DIALECT.set(props, DialectCodes.AURORA_PG);
+            break;
+          default:
+            // do nothing
+        }
         break;
       case RDS_MULTI_AZ_INSTANCE:
-        DialectManager.DIALECT.set(props, DialectCodes.RDS_MYSQL);
+        switch (databaseEngine) {
+          case MYSQL:
+            DialectManager.DIALECT.set(props, DialectCodes.RDS_MYSQL);
+            break;
+          case PG:
+            DialectManager.DIALECT.set(props, DialectCodes.RDS_PG);
+            break;
+          default:
+            // do nothing
+        }
         break;
       default:
         // do nothing

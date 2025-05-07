@@ -388,7 +388,8 @@ public class TestEnvironment implements AutoCloseable {
     String groupName = String.format("test-cpg-%s", env.info.getRandomBase());
     String engine = getDbEngine(env.info.getRequest());
     String engineVersion = getDbEngineVersion(engine, env);
-    env.auroraUtil.createCustomClusterParameterGroup(groupName, engine, engineVersion);
+    env.auroraUtil.createCustomClusterParameterGroup(
+        groupName, engine, engineVersion, env.info.getRequest().getDatabaseEngine());
     env.info.setClusterParameterGroupName(groupName);
   }
 

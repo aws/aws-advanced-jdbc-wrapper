@@ -49,7 +49,6 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -414,7 +413,7 @@ public class AuroraTestUtility {
             (requestBuilder) ->
                 requestBuilder.filters(
                     Filter.builder().name("db-cluster-id").values(identifier).build()),
-            (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(30)));
+            (configurationBuilder) -> configurationBuilder.maxAttempts(480).waitTimeout(Duration.ofMinutes(240)));
 
     if (waiterResponse.matched().exception().isPresent()) {
       deleteCluster(identifier, DatabaseEngineDeployment.AURORA, false);
@@ -577,7 +576,8 @@ public class AuroraTestUtility {
     }
   }
 
-  public void createCustomClusterParameterGroup(String groupName, String engine, String engineVersion) {
+  public void createCustomClusterParameterGroup(
+      String groupName, String engine, String engineVersion, DatabaseEngine databaseEngine) {
     CreateDbClusterParameterGroupResponse response = rdsClient.createDBClusterParameterGroup(
                 CreateDbClusterParameterGroupRequest.builder()
                 .dbClusterParameterGroupName(groupName)
@@ -589,16 +589,33 @@ public class AuroraTestUtility {
       throw new RuntimeException("Error creating custom cluster parameter group. " + response.sdkHttpResponse());
     }
 
-    ModifyDbClusterParameterGroupResponse response2 = rdsClient.modifyDBClusterParameterGroup(
-        ModifyDbClusterParameterGroupRequest.builder()
-            .dbClusterParameterGroupName(groupName)
-            .parameters(Parameter.builder()
-                .parameterName("binlog_format")
-                .parameterValue("ROW")
-                .applyMethod(ApplyMethod.PENDING_REBOOT)
-                .build())
-            .build()
-    );
+    ModifyDbClusterParameterGroupResponse response2;
+    switch (databaseEngine) {
+      case MYSQL:
+        response2 = rdsClient.modifyDBClusterParameterGroup(
+            ModifyDbClusterParameterGroupRequest.builder()
+                .dbClusterParameterGroupName(groupName)
+                .parameters(Parameter.builder()
+                    .parameterName("binlog_format")
+                    .parameterValue("ROW")
+                    .applyMethod(ApplyMethod.PENDING_REBOOT)
+                    .build())
+                .build());
+        break;
+      case PG:
+        response2 = rdsClient.modifyDBClusterParameterGroup(
+            ModifyDbClusterParameterGroupRequest.builder()
+                .dbClusterParameterGroupName(groupName)
+                .parameters(Parameter.builder()
+                    .parameterName("rds.logical_replication")
+                    .parameterValue("true")
+                    .applyMethod(ApplyMethod.PENDING_REBOOT)
+                    .build())
+                .build());
+        break;
+      default:
+        throw new UnsupportedOperationException(databaseEngine.toString());
+    }
 
     if (!response2.sdkHttpResponse().isSuccessful()) {
       throw new RuntimeException("Error updating parameter. " + response2.sdkHttpResponse());
@@ -1062,7 +1079,7 @@ public class AuroraTestUtility {
   public String getAuroraParameterGroupFamily(String engine, String engineVersion) {
     switch (engine) {
       case "aurora-postgresql":
-        return "aurora-postgresql14";
+        return "aurora-postgresql16";
       case "aurora-mysql":
         if (StringUtils.isNullOrEmpty(engineVersion) || engineVersion.contains("8.0")) {
           return "aurora-mysql8.0";
@@ -1877,7 +1894,7 @@ public class AuroraTestUtility {
 
           if (useBlueGreen) {
             // BG switchover status needs it.
-            stmt.execute("GRANT SELECT ON rds_tools.* TO " + dbUser + ";");
+            //stmt.execute("GRANT SELECT ON rds_tools.* TO " + dbUser + ";"); // TODO: review
           }
           break;
         default:
@@ -1996,11 +2013,11 @@ public class AuroraTestUtility {
     String blueGreenId = response.blueGreenDeployment().blueGreenDeploymentIdentifier();
 
     BlueGreenDeployment blueGreenDeployment = getBlueGreenDeployment(blueGreenId);
-    long end = System.nanoTime() + TimeUnit.MINUTES.toNanos(60);
+    long end = System.nanoTime() + TimeUnit.MINUTES.toNanos(240);
     while ((blueGreenDeployment == null || !blueGreenDeployment.status().equalsIgnoreCase("available"))
         && System.nanoTime() < end) {
       try {
-        TimeUnit.SECONDS.sleep(30);
+        TimeUnit.SECONDS.sleep(60);
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
       }

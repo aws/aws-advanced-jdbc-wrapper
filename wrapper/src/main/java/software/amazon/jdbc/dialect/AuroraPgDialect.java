@@ -29,7 +29,7 @@ import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
  * Suitable for the following AWS PG configurations.
  * - Regional Cluster
  */
-public class AuroraPgDialect extends PgDialect implements AuroraLimitlessDialect {
+public class AuroraPgDialect extends PgDialect implements AuroraLimitlessDialect, SupportBlueGreen {
   private static final Logger LOGGER = Logger.getLogger(AuroraPgDialect.class.getName());
 
   private static final String extensionsSql =
@@ -55,6 +55,12 @@ public class AuroraPgDialect extends PgDialect implements AuroraLimitlessDialect
   private static final String IS_READER_QUERY = "SELECT pg_is_in_recovery()";
   protected static final String LIMITLESS_ROUTER_ENDPOINT_QUERY =
       "select router_endpoint, load from aurora_limitless_router_endpoints()";
+
+  private static final String BG_STATUS_QUERY =
+      "SELECT * FROM get_blue_green_fast_switchover_metadata('aws_jdbc_driver')";
+
+  private static final String TOPOLOGY_TABLE_EXIST_QUERY =
+      "SELECT 'get_blue_green_fast_switchover_metadata'::regproc";
 
   @Override
   public boolean isDialect(final Connection connection) {
@@ -155,5 +161,22 @@ public class AuroraPgDialect extends PgDialect implements AuroraLimitlessDialect
   @Override
   public String getLimitlessRouterEndpointQuery() {
     return LIMITLESS_ROUTER_ENDPOINT_QUERY;
+  }
+
+  @Override
+  public String getBlueGreenStatusQuery() {
+    return BG_STATUS_QUERY;
+  }
+
+  @Override
+  public boolean isStatusAvailable(final Connection connection) {
+    try {
+      try (Statement statement = connection.createStatement();
+          ResultSet rs = statement.executeQuery(TOPOLOGY_TABLE_EXIST_QUERY)) {
+        return rs.next();
+      }
+    } catch (SQLException ex) {
+      return false;
+    }
   }
 }
