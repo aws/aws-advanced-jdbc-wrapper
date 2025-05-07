@@ -24,6 +24,7 @@ import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.MonitorPluginService;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.ServiceContainerImpl;
@@ -41,9 +42,10 @@ public class ConnectionServiceImpl implements ConnectionService {
       MonitorService monitorService,
       TelemetryFactory telemetryFactory,
       ConnectionProvider connectionProvider,
-      TargetDriverDialect driverDialect,
-      String targetDriverProtocol,
       String originalUrl,
+      String targetDriverProtocol,
+      TargetDriverDialect driverDialect,
+      Dialect dbDialect,
       Properties props) throws SQLException {
     this.targetDriverProtocol = targetDriverProtocol;
 
@@ -61,7 +63,10 @@ public class ConnectionServiceImpl implements ConnectionService {
         props,
         originalUrl,
         this.targetDriverProtocol,
-        driverDialect);
+        driverDialect,
+        dbDialect
+    );
+
     this.pluginService = monitorPluginService;
     serviceContainer.setHostListProviderService(monitorPluginService);
     serviceContainer.setPluginService(monitorPluginService);

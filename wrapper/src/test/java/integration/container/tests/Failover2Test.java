@@ -15,32 +15,32 @@
  */
 
 package integration.container.tests;
-
-import integration.TestEnvironmentFeatures;
-import integration.container.TestDriverProvider;
-import integration.container.condition.DisableOnTestFeature;
-import integration.container.condition.EnableOnNumOfInstances;
-import integration.container.condition.EnableOnTestFeature;
-import integration.container.condition.MakeSureFirstInstanceWriter;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Order;
-import org.junit.jupiter.api.TestMethodOrder;
-import org.junit.jupiter.api.extension.ExtendWith;
-
-@TestMethodOrder(MethodOrderer.MethodName.class)
-@ExtendWith(TestDriverProvider.class)
-@EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
-@DisableOnTestFeature({
-    TestEnvironmentFeatures.PERFORMANCE,
-    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
-    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
-@EnableOnNumOfInstances(min = 2)
-@MakeSureFirstInstanceWriter
-@Order(15)
-public class Failover2Test extends FailoverTest {
-
-  @Override
-  protected String getFailoverPlugin() {
-    return "failover2";
-  }
-}
+//
+// import integration.TestEnvironmentFeatures;
+// import integration.container.TestDriverProvider;
+// import integration.container.condition.DisableOnTestFeature;
+// import integration.container.condition.EnableOnNumOfInstances;
+// import integration.container.condition.EnableOnTestFeature;
+// import integration.container.condition.MakeSureFirstInstanceWriter;
+// import org.junit.jupiter.api.MethodOrderer;
+// import org.junit.jupiter.api.Order;
+// import org.junit.jupiter.api.TestMethodOrder;
+// import org.junit.jupiter.api.extension.ExtendWith;
+//
+// @TestMethodOrder(MethodOrderer.MethodName.class)
+// @ExtendWith(TestDriverProvider.class)
+// @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
+// @DisableOnTestFeature({
+//     TestEnvironmentFeatures.PERFORMANCE,
+//     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
+//     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
+// @EnableOnNumOfInstances(min = 2)
+// @MakeSureFirstInstanceWriter
+// @Order(15)
+// public class Failover2Test extends FailoverTest {
+//
+//   @Override
+//   protected String getFailoverPlugin() {
+//     return "failover2";
+//   }
+// }

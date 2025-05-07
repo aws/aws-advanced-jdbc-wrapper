@@ -37,6 +37,7 @@ import software.amazon.jdbc.AllowedAndBlockedHosts;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.DriverConnectionProvider;
 import software.amazon.jdbc.TargetDriverHelper;
+import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostlistprovider.monitoring.ClusterTopologyMonitorImpl;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
@@ -202,9 +203,10 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       Object key,
       StorageService storageService,
       TelemetryFactory telemetryFactory,
-      TargetDriverDialect driverDialect,
-      String driverProtocol,
       String originalUrl,
+      String driverProtocol,
+      TargetDriverDialect driverDialect,
+      Dialect dbDialect,
       Properties props,
       MonitorInitializer initializer) throws SQLException {
     CacheContainer cacheContainer = monitorCaches.get(monitorClass);
@@ -228,9 +230,10 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
         this,
         telemetryFactory,
         defaultConnectionProvider,
-        driverDialect,
-        driverProtocol,
         originalUrl,
+        driverProtocol,
+        driverDialect,
+        dbDialect,
         props);
 
     Monitor monitor = cacheContainer.getCache().computeIfAbsent(key, k -> {

@@ -212,9 +212,10 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
         this.customEndpointHostSpec.getUrl(),
         this.storageService,
         this.pluginService.getTelemetryFactory(),
-        this.pluginService.getTargetDriverDialect(),
-        this.pluginService.getDriverProtocol(),
         this.pluginService.getOriginalUrl(),
+        this.pluginService.getDriverProtocol(),
+        this.pluginService.getTargetDriverDialect(),
+        this.pluginService.getDialect(),
         this.props,
         (connectionService, pluginService) -> new CustomEndpointMonitorImpl(
             this.monitorService,

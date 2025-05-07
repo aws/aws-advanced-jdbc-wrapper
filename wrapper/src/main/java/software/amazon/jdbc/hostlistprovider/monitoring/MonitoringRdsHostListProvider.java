@@ -88,9 +88,10 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
         this.clusterId,
         this.storageService,
         this.pluginService.getTelemetryFactory(),
-        this.pluginService.getTargetDriverDialect(),
-        this.pluginService.getDriverProtocol(),
         this.originalUrl,
+        this.pluginService.getDriverProtocol(),
+        this.pluginService.getTargetDriverDialect(),
+        this.pluginService.getDialect(),
         this.properties,
         (ConnectionService connectionService, PluginService monitorPluginService) -> new ClusterTopologyMonitorImpl(
             this.clusterId,
@@ -133,9 +134,10 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
           this.clusterId,
           this.storageService,
           this.pluginService.getTelemetryFactory(),
-          this.pluginService.getTargetDriverDialect(),
-          this.pluginService.getDriverProtocol(),
           this.originalUrl,
+          this.pluginService.getDriverProtocol(),
+          this.pluginService.getTargetDriverDialect(),
+          this.pluginService.getDialect(),
           this.properties,
           (connectionService, pluginService) -> existingMonitor);
       assert monitorService.get(ClusterTopologyMonitorImpl.class, this.clusterId) == existingMonitor;

@@ -37,9 +37,6 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.Dialect;
-import software.amazon.jdbc.dialect.DialectManager;
-import software.amazon.jdbc.dialect.DialectProvider;
-import software.amazon.jdbc.dialect.HostListProviderSupplier;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.hostavailability.HostAvailability;
@@ -56,8 +53,8 @@ import software.amazon.jdbc.util.storage.CacheMap;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
-public class MonitorPluginService implements PluginService, CanReleaseResources,
-    HostListProviderService, PluginManagerService {
+public class MonitorPluginService implements PluginService, CanReleaseResources, HostListProviderService,
+    PluginManagerService {
 
   private static final Logger LOGGER = Logger.getLogger(PluginServiceImpl.class.getName());
   protected static final long DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(5);
@@ -66,20 +63,19 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
   protected final ServiceContainer serviceContainer;
   protected final StorageService storageService;
   protected final ConnectionPluginManager pluginManager;
-  private final Properties props;
-  private final String originalUrl;
-  private final String driverProtocol;
+  protected final Properties props;
   protected volatile HostListProvider hostListProvider;
   protected List<HostSpec> allHosts = new ArrayList<>();
   protected Connection currentConnection;
   protected HostSpec currentHostSpec;
   protected HostSpec initialConnectionHostSpec;
-  private boolean isInTransaction;
-  private final ExceptionManager exceptionManager;
+  protected boolean isInTransaction;
+  protected final ExceptionManager exceptionManager;
   protected final @Nullable ExceptionHandler exceptionHandler;
-  protected final DialectProvider dialectProvider;
-  protected Dialect dbDialect;
+  protected final String originalUrl;
+  protected final String driverProtocol;
   protected TargetDriverDialect targetDriverDialect;
+  protected Dialect dbDialect;
   protected @Nullable final ConfigurationProfile configurationProfile;
   protected final ConnectionProviderManager connectionProviderManager;
 
@@ -92,15 +88,16 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
       @NonNull final String targetDriverProtocol,
-      @NonNull final TargetDriverDialect targetDriverDialect) throws SQLException {
+      @NonNull final TargetDriverDialect targetDriverDialect,
+      @NonNull final Dialect dbDialect) {
     this(
         serviceContainer,
         new ExceptionManager(),
         props,
         originalUrl,
         targetDriverProtocol,
-        null,
         targetDriverDialect,
+        dbDialect,
         null,
         null);
   }
@@ -111,15 +108,16 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
       @NonNull final String originalUrl,
       @NonNull final String targetDriverProtocol,
       @NonNull final TargetDriverDialect targetDriverDialect,
-      @Nullable final ConfigurationProfile configurationProfile) throws SQLException {
+      @NonNull final Dialect dbDialect,
+      @Nullable final ConfigurationProfile configurationProfile) {
     this(
         serviceContainer,
         new ExceptionManager(),
         props,
         originalUrl,
         targetDriverProtocol,
-        null,
         targetDriverDialect,
+        dbDialect,
         configurationProfile,
         null);
   }
@@ -130,20 +128,20 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
       @NonNull final String targetDriverProtocol,
-      @Nullable final DialectProvider dialectProvider,
       @NonNull final TargetDriverDialect targetDriverDialect,
+      @NonNull final Dialect dbDialect,
       @Nullable final ConfigurationProfile configurationProfile,
-      @Nullable final SessionStateService sessionStateService) throws SQLException {
+      @Nullable final SessionStateService sessionStateService) {
     this.serviceContainer = serviceContainer;
     this.storageService = serviceContainer.getStorageService();
     this.pluginManager = serviceContainer.getConnectionPluginManager();
     this.props = props;
     this.originalUrl = originalUrl;
     this.driverProtocol = targetDriverProtocol;
+    this.targetDriverDialect = targetDriverDialect;
+    this.dbDialect = dbDialect;
     this.configurationProfile = configurationProfile;
     this.exceptionManager = exceptionManager;
-    this.dialectProvider = dialectProvider != null ? dialectProvider : new DialectManager(this);
-    this.targetDriverDialect = targetDriverDialect;
     this.connectionProviderManager = new ConnectionProviderManager(
         this.pluginManager.getDefaultConnProvider(),
         this.pluginManager.getEffectiveConnProvider());
@@ -155,8 +153,6 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
     this.exceptionHandler = this.configurationProfile != null && this.configurationProfile.getExceptionHandler() != null
         ? this.configurationProfile.getExceptionHandler()
         : null;
-
-    this.dialectProvider.getDialect(this.driverProtocol, this.originalUrl, this.props);
   }
 
   @Override
@@ -210,7 +206,6 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
   public String getOriginalUrl() {
     return this.originalUrl;
   }
-
 
   @Override
   public ServiceContainer getServiceContainer() {
@@ -719,18 +714,10 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public void updateDialect(final @NonNull Connection connection) throws SQLException {
-    final Dialect originalDialect = this.dbDialect;
-    this.dbDialect = this.dialectProvider.getDialect(
-        this.originalUrl,
-        this.initialConnectionHostSpec,
-        connection);
-    if (originalDialect == this.dbDialect) {
-      return;
-    }
-
-    final HostListProviderSupplier supplier = this.dbDialect.getHostListProvider();
-    this.setHostListProvider(supplier.getProvider(this.props, this.originalUrl, this.serviceContainer));
+  public void updateDialect(final @NonNull Connection connection) {
+    // TODO: is it fine to just leave this empty? This method is called after connecting in DefaultConnectionPlugin but
+    //  the dialect passed to the constructor should already be up to date.
+    // do nothing.
   }
 
   @Override

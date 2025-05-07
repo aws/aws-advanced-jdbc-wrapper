@@ -20,6 +20,7 @@ import java.sql.SQLException;
 import java.util.Properties;
 import java.util.Set;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -51,9 +52,9 @@ public interface MonitorService {
    * Creates and starts the given monitor if it does not already exist and stores it under the given monitor type and
    * key. If the monitor already exists, its expiration time will be renewed, even if it was already expired.
    *
-   * @param monitorClass    the class of the monitor, eg `CustomEndpointMonitorImpl.class`.
-   * @param key             the key for the monitor, eg
-   *                        "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
+   * @param monitorClass the class of the monitor, eg `CustomEndpointMonitorImpl.class`.
+   * @param key          the key for the monitor, eg
+   *                     "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
    * @return the new or existing monitor.
    */
   // TODO: add docs for new parameters
@@ -62,9 +63,10 @@ public interface MonitorService {
       Object key,
       StorageService storageService,
       TelemetryFactory telemetryFactory,
-      TargetDriverDialect driverDialect,
-      String driverProtocol,
       String originalUrl,
+      String driverProtocol,
+      TargetDriverDialect driverDialect,
+      Dialect dbDialect,
       Properties props,
       MonitorInitializer initializer) throws SQLException;
 
