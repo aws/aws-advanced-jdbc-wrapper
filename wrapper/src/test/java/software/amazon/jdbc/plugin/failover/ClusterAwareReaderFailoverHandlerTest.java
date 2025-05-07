@@ -105,11 +105,11 @@ class ClusterAwareReaderFailoverHandlerTest {
     for (int i = 0; i < hosts.size(); i++) {
       if (i != successHostIndex) {
         final SQLException exception = new SQLException("exception", "08S01", null);
-        when(mockConnectionService.createAuxiliaryConnection(hosts.get(i), properties))
+        when(mockPluginService.forceConnect(hosts.get(i), properties))
             .thenThrow(exception);
         when(mockPluginService.isNetworkException(exception)).thenReturn(true);
       } else {
-        when(mockConnectionService.createAuxiliaryConnection(hosts.get(i), properties)).thenReturn(mockConnection);
+        when(mockPluginService.forceConnect(hosts.get(i), properties)).thenReturn(mockConnection);
       }
     }
 
@@ -145,7 +145,7 @@ class ClusterAwareReaderFailoverHandlerTest {
     final List<HostSpec> hosts = defaultHosts;
     final int currentHostIndex = 2;
     for (HostSpec host : hosts) {
-      when(mockConnectionService.createAuxiliaryConnection(host, properties))
+      when(mockPluginService.forceConnect(host, properties))
           .thenAnswer((Answer<Connection>) invocation -> {
             Thread.sleep(20000);
             return mockConnection;
@@ -205,14 +205,14 @@ class ClusterAwareReaderFailoverHandlerTest {
     final List<HostSpec> hosts = defaultHosts.subList(0, 3); // 2 connection attempts (writer not attempted)
     final HostSpec slowHost = hosts.get(1);
     final HostSpec fastHost = hosts.get(2);
-    when(mockConnectionService.createAuxiliaryConnection(slowHost, properties))
+    when(mockPluginService.forceConnect(slowHost, properties))
         .thenAnswer(
             (Answer<Connection>)
                 invocation -> {
                   Thread.sleep(20000);
                   return mockConnection;
                 });
-    when(mockConnectionService.createAuxiliaryConnection(eq(fastHost), eq(properties))).thenReturn(mockConnection);
+    when(mockPluginService.forceConnect(eq(fastHost), eq(properties))).thenReturn(mockConnection);
 
     Dialect mockDialect = Mockito.mock(Dialect.class);
     when(mockDialect.getFailoverRestrictions()).thenReturn(EnumSet.noneOf(FailoverRestriction.class));
@@ -239,8 +239,7 @@ class ClusterAwareReaderFailoverHandlerTest {
     // first connection attempt to return fails
     // expected test result: failure to get reader
     final List<HostSpec> hosts = defaultHosts.subList(0, 4); // 3 connection attempts (writer not attempted)
-    when(mockConnectionService.createAuxiliaryConnection(any(), eq(properties)))
-        .thenThrow(new SQLException("exception", "08S01", null));
+    when(mockPluginService.forceConnect(any(), eq(properties))).thenThrow(new SQLException("exception", "08S01", null));
 
     Dialect mockDialect = Mockito.mock(Dialect.class);
     when(mockDialect.getFailoverRestrictions()).thenReturn(EnumSet.noneOf(FailoverRestriction.class));
@@ -265,7 +264,7 @@ class ClusterAwareReaderFailoverHandlerTest {
     // first connection attempt to return times out
     // expected test result: failure to get reader
     final List<HostSpec> hosts = defaultHosts.subList(0, 3); // 2 connection attempts (writer not attempted)
-    when(mockConnectionService.createAuxiliaryConnection(any(), eq(properties)))
+    when(mockPluginService.forceConnect(any(), eq(properties)))
         .thenAnswer(
             (Answer<Connection>)
                 invocation -> {

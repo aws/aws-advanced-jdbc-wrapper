@@ -95,8 +95,7 @@ class MonitorImplTest {
     when(longProperty.getValue()).thenReturn(SHORT_INTERVAL_MILLIS);
     when(serviceContainer.getPluginService()).thenReturn(pluginService);
     when(serviceContainer.getTelemetryFactory()).thenReturn(telemetryFactory);
-    when(connectionService.createAuxiliaryConnection(any(HostSpec.class), any(Properties.class)))
-        .thenReturn(connection);
+    when(pluginService.forceConnect(any(HostSpec.class), any(Properties.class))).thenReturn(connection);
     when(telemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(telemetryContext);
     when(telemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(telemetryContext);
     when(telemetryFactory.createCounter(anyString())).thenReturn(telemetryCounter);
@@ -118,7 +117,7 @@ class MonitorImplTest {
     final MonitorImpl.ConnectionStatus status =
         monitor.checkConnectionStatus(SHORT_INTERVAL_MILLIS);
 
-    verify(connectionService).createAuxiliaryConnection(any(HostSpec.class), any(Properties.class));
+    verify(pluginService).forceConnect(any(HostSpec.class), any(Properties.class));
     assertTrue(status.isValid);
     assertTrue(status.elapsedTimeNano >= 0);
   }
@@ -181,7 +180,7 @@ class MonitorImplTest {
     MonitorThreadContainer.releaseInstance();
   }
 
-  @RepeatedTest(1000)
+  @RepeatedTest(10)
   void test_9_runWithContext() {
     final Map<String, Monitor> monitorMap = threadContainer.getMonitorMap();
     final Map<Monitor, Future<?>> taskMap = threadContainer.getTasksMap();

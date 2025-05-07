@@ -20,7 +20,6 @@ import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -29,7 +28,6 @@ public class ServiceContainerImpl implements ServiceContainer {
   private StorageService storageService;
   private MonitorService monitorService;
   private TelemetryFactory telemetryFactory;
-  private ConnectionService connectionService;
   private ConnectionPluginManager connectionPluginManager;
   private HostListProviderService hostListProviderService;
   private PluginService pluginService;
@@ -39,13 +37,11 @@ public class ServiceContainerImpl implements ServiceContainer {
       StorageService storageService,
       MonitorService monitorService,
       TelemetryFactory telemetryFactory,
-      ConnectionService connectionService,
       ConnectionPluginManager connectionPluginManager,
       HostListProviderService hostListProviderService,
       PluginService pluginService,
       PluginManagerService pluginManagerService) {
     this(storageService, monitorService, telemetryFactory);
-    this.connectionService = connectionService;
     this.connectionPluginManager = connectionPluginManager;
     this.hostListProviderService = hostListProviderService;
     this.pluginService = pluginService;
@@ -74,11 +70,6 @@ public class ServiceContainerImpl implements ServiceContainer {
   @Override
   public TelemetryFactory getTelemetryFactory() {
     return this.telemetryFactory;
-  }
-
-  @Override
-  public ConnectionService getConnectionService() {
-    return connectionService;
   }
 
   @Override
@@ -114,11 +105,6 @@ public class ServiceContainerImpl implements ServiceContainer {
   @Override
   public void setTelemetryFactory(TelemetryFactory telemetryFactory) {
     this.telemetryFactory = telemetryFactory;
-  }
-
-  @Override
-  public void setConnectionService(ConnectionService connectionService) {
-    this.connectionService = connectionService;
   }
 
   @Override

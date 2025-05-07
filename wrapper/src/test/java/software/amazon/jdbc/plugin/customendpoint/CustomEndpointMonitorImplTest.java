@@ -128,11 +128,11 @@ public class CustomEndpointMonitorImplTest {
     // Wait for 2 run cycles. The first will return an unexpected number of endpoints in the API response, the second
     // will return the expected number of endpoints (one).
     TimeUnit.MILLISECONDS.sleep(100);
-    assertEquals(expectedInfo, CustomEndpointMonitorImpl.customEndpointInfoCache.get(host.getHost()));
+    assertEquals(expectedInfo, CustomEndpointMonitorImpl.customEndpointInfoCache.get(host.getUrl()));
     monitor.stop();
 
     ArgumentCaptor<AllowedAndBlockedHosts> captor = ArgumentCaptor.forClass(AllowedAndBlockedHosts.class);
-    verify(mockStorageService).set(eq(host.getHost()), captor.capture());
+    verify(mockStorageService).set(eq(host.getUrl()), captor.capture());
     assertEquals(staticMembersSet, captor.getValue().getAllowedHostIds());
     assertNull(captor.getValue().getBlockedHostIds());
 

@@ -58,7 +58,6 @@ import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.connection.ConnectionService;
-import software.amazon.jdbc.util.connection.ConnectionServiceImpl;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -148,7 +147,6 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         storageService,
         monitorService,
         telemetryFactory,
-        connectionService,
         connectionPluginManager,
         hostListProviderService,
         pluginService,
@@ -182,17 +180,6 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.targetDriverProtocol, this.originalUrl, props, this.hostListProviderService);
 
     this.pluginService.refreshHostList();
-
-    ConnectionService connectionService = new ConnectionServiceImpl(
-        serviceContainer.getStorageService(),
-        serviceContainer.getMonitorService(),
-        serviceContainer.getTelemetryFactory(),
-        defaultConnectionProvider,
-        driverDialect,
-        this.targetDriverProtocol,
-        this.originalUrl,
-        props);
-    serviceContainer.setConnectionService(connectionService);
 
     if (this.pluginService.getCurrentConnection() == null) {
       final Connection conn =

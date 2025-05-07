@@ -49,7 +49,6 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
-import software.amazon.jdbc.util.storage.CacheMap;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
@@ -58,6 +57,7 @@ import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.storage.CacheMap;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.Topology;
 

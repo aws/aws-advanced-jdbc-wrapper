@@ -47,7 +47,8 @@ public class CacheItem<V> {
    * @param shouldDisposeFunc   a function defining whether an expired item should be disposed. If null, items will
    *                            always be disposed when expired.
    */
-  protected CacheItem(final @NonNull V item, final long expirationTimeNanos, final ShouldDisposeFunc<V> shouldDisposeFunc) {
+  protected CacheItem(
+      final @NonNull V item, final long expirationTimeNanos, @Nullable final ShouldDisposeFunc<V> shouldDisposeFunc) {
     this.item = item;
     this.expirationTimeNanos = expirationTimeNanos;
     this.shouldDisposeFunc = shouldDisposeFunc;
