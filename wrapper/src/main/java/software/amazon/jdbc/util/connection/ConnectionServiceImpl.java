@@ -23,6 +23,7 @@ import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.MonitorPluginService;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.ServiceContainerImpl;
@@ -33,6 +34,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 public class ConnectionServiceImpl implements ConnectionService {
   protected final String targetDriverProtocol;
   protected final ConnectionPluginManager pluginManager;
+  protected final PluginService pluginService;
 
   public ConnectionServiceImpl(
       StorageService storageService,
@@ -60,6 +62,7 @@ public class ConnectionServiceImpl implements ConnectionService {
         originalUrl,
         this.targetDriverProtocol,
         driverDialect);
+    this.pluginService = monitorPluginService;
     serviceContainer.setHostListProviderService(monitorPluginService);
     serviceContainer.setPluginService(monitorPluginService);
     serviceContainer.setPluginManagerService(monitorPluginService);
@@ -70,5 +73,10 @@ public class ConnectionServiceImpl implements ConnectionService {
   @Override
   public Connection createAuxiliaryConnection(HostSpec hostSpec, Properties props) throws SQLException {
     return this.pluginManager.forceConnect(this.targetDriverProtocol, hostSpec, props, true, null);
+  }
+
+  @Override
+  public PluginService getPluginService() {
+    return this.pluginService;
   }
 }

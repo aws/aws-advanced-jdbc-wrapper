@@ -30,6 +30,7 @@ import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
@@ -90,6 +91,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   }
 
   protected final ServiceContainer serviceContainer;
+  protected final PluginService pluginService;
   protected final StorageService storageService;
   protected final MonitorService monitorService;
   protected final TelemetryFactory telemetryFactory;
@@ -134,6 +136,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
       final Properties props,
       final BiFunction<HostSpec, Region, RdsClient> rdsClientFunc) {
     this.serviceContainer = serviceContainer;
+    this.pluginService = serviceContainer.getPluginService();
     this.storageService = serviceContainer.getStorageService();
     this.monitorService = serviceContainer.getMonitorService();
     this.telemetryFactory = serviceContainer.getTelemetryFactory();
@@ -203,13 +206,19 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
    * @param props The connection properties.
    * @return {@link CustomEndpointMonitor}
    */
-  protected CustomEndpointMonitor createMonitorIfAbsent(Properties props) {
+  protected CustomEndpointMonitor createMonitorIfAbsent(Properties props) throws SQLException {
     return this.serviceContainer.getMonitorService().runIfAbsent(
         CustomEndpointMonitorImpl.class,
-        this.customEndpointHostSpec.getHost(),
-        () -> new CustomEndpointMonitorImpl(
-            this.serviceContainer.getMonitorService(),
-            this.serviceContainer.getStorageService(),
+        this.customEndpointHostSpec.getUrl(),
+        this.storageService,
+        this.pluginService.getTelemetryFactory(),
+        this.pluginService.getTargetDriverDialect(),
+        this.pluginService.getDriverProtocol(),
+        this.pluginService.getOriginalUrl(),
+        this.props,
+        (connectionService, pluginService) -> new CustomEndpointMonitorImpl(
+            this.monitorService,
+            this.storageService,
             this.serviceContainer.getTelemetryFactory(),
             this.customEndpointHostSpec,
             this.customEndpointId,

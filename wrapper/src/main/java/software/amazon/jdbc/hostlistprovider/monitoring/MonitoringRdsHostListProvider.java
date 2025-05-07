@@ -31,6 +31,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.Topology;
 
@@ -81,18 +82,24 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
     super.init();
   }
 
-  protected ClusterTopologyMonitor initMonitor() {
+  protected ClusterTopologyMonitor initMonitor() throws SQLException {
     return monitorService.runIfAbsent(
         ClusterTopologyMonitorImpl.class,
         this.clusterId,
-        () -> new ClusterTopologyMonitorImpl(
+        this.storageService,
+        this.pluginService.getTelemetryFactory(),
+        this.pluginService.getTargetDriverDialect(),
+        this.pluginService.getDriverProtocol(),
+        this.originalUrl,
+        this.properties,
+        (ConnectionService connectionService, PluginService monitorPluginService) -> new ClusterTopologyMonitorImpl(
             this.clusterId,
-            this.serviceContainer.getStorageService(),
+            this.storageService,
             this.monitorService,
-            this.serviceContainer.getConnectionService(),
+            connectionService,
             this.initialHostSpec,
             this.properties,
-            this.pluginService,
+            monitorPluginService,
             this.serviceContainer.getHostListProviderService(),
             this.clusterInstanceTemplate,
             this.refreshRateNano,
@@ -117,11 +124,20 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
   }
 
   @Override
-  protected void clusterIdChanged(final String oldClusterId) {
+  protected void clusterIdChanged(final String oldClusterId) throws SQLException {
     final ClusterTopologyMonitorImpl existingMonitor =
         monitorService.get(ClusterTopologyMonitorImpl.class, oldClusterId);
     if (existingMonitor != null) {
-      monitorService.runIfAbsent(ClusterTopologyMonitorImpl.class, this.clusterId, () -> existingMonitor);
+      monitorService.runIfAbsent(
+          ClusterTopologyMonitorImpl.class,
+          this.clusterId,
+          this.storageService,
+          this.pluginService.getTelemetryFactory(),
+          this.pluginService.getTargetDriverDialect(),
+          this.pluginService.getDriverProtocol(),
+          this.originalUrl,
+          this.properties,
+          (connectionService, pluginService) -> existingMonitor);
       assert monitorService.get(ClusterTopologyMonitorImpl.class, this.clusterId) == existingMonitor;
       existingMonitor.setClusterId(this.clusterId);
       monitorService.remove(ClusterTopologyMonitorImpl.class, oldClusterId);

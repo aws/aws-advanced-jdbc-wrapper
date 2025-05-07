@@ -283,7 +283,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
     }
   }
 
-  protected void clusterIdChanged(final String oldClusterId) {
+  protected void clusterIdChanged(final String oldClusterId) throws SQLException {
     // do nothing
   }
 

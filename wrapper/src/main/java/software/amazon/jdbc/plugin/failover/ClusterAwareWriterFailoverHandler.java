@@ -258,7 +258,8 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
               conn.close();
             }
 
-            // TODO: replace with ConnectionService#createAuxiliaryConnection
+            // TODO: assess whether multi-threaded access to the plugin service is safe. The same plugin service is used
+            //  by both the ConnectionWrapper and this ReconnectToWriterHandler in separate threads.
             conn = pluginService.forceConnect(this.originalWriterHost, initialConnectionProps);
             pluginService.forceRefreshHostList(conn);
             latestTopology = pluginService.getAllHosts();
@@ -466,7 +467,8 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
                 new Object[] {writerCandidate.getUrl()}));
         try {
           // connect to the new writer
-          // TODO: replace with ConnectionService#createAuxiliaryConnection
+          // TODO: assess whether multi-threaded access to the plugin service is safe. The same plugin service is used
+          //  by both the ConnectionWrapper and this WaitForNewWriterHandler in separate threads.
           this.currentConnection = pluginService.forceConnect(writerCandidate, initialConnectionProps);
           pluginService.setAvailability(writerCandidate.asAliases(), HostAvailability.AVAILABLE);
           return true;

@@ -390,7 +390,8 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
         final Properties copy = new Properties();
         copy.putAll(initialConnectionProps);
 
-        // TODO: replace with ConnectionService#createAuxiliaryConnection
+        // TODO: assess whether multi-threaded access to the plugin service is safe. The same plugin service is used by
+        //  both the ConnectionWrapper and this ConnectionAttemptTask in separate threads.
         final Connection conn = pluginService.forceConnect(this.newHost, copy);
         pluginService.setAvailability(this.newHost.asAliases(), HostAvailability.AVAILABLE);
 

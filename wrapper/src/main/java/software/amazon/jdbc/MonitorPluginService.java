@@ -207,6 +207,12 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
+  public String getOriginalUrl() {
+    return this.originalUrl;
+  }
+
+
+  @Override
   public ServiceContainer getServiceContainer() {
     return this.serviceContainer;
   }
