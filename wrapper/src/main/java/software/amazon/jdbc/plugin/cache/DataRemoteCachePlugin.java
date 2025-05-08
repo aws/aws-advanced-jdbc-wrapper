@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin;
+package software.amazon.jdbc.plugin.cache;
 
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
@@ -27,41 +27,42 @@ import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
-import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.states.SessionStateService;
-import software.amazon.jdbc.util.CacheConnection;
-import software.amazon.jdbc.util.CachedResultSet;
+import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
-
-  private static long connectTime = 0L;
   private static final Logger LOGGER = Logger.getLogger(DataRemoteCachePlugin.class.getName());
-
   private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
       Arrays.asList("Statement.executeQuery", "Statement.execute",
           "PreparedStatement.execute", "PreparedStatement.executeQuery",
-          "CallableStatement.execute", "CallableStatement.executeQuery",
-          "connect", "forceConnect")));
+          "CallableStatement.execute", "CallableStatement.executeQuery")));
 
   static {
     PropertyDefinition.registerPluginProperties(DataRemoteCachePlugin.class);
   }
 
-  private final PluginService pluginService;
-  private final TelemetryFactory telemetryFactory;
-  private final TelemetryCounter hitCounter;
-  private final TelemetryCounter missCounter;
-  private final TelemetryCounter totalCallsCounter;
-  private final CacheConnection cacheConnection;
+  private PluginService pluginService;
+  private TelemetryFactory telemetryFactory;
+  private TelemetryCounter hitCounter;
+  private TelemetryCounter missCounter;
+  private TelemetryCounter totalCallsCounter;
+  private CacheConnection cacheConnection;
 
   public DataRemoteCachePlugin(final PluginService pluginService, final Properties properties) {
+    try {
+      Class.forName("io.lettuce.core.RedisClient"); // Lettuce dependency
+      Class.forName("org.apache.commons.pool2.impl.GenericObjectPool"); // Object pool dependency
+      Class.forName("com.fasterxml.jackson.databind.ObjectMapper"); // Jackson dependency
+      Class.forName("com.fasterxml.jackson.datatype.jsr310.JavaTimeModule"); // JSR310 dependency
+    } catch (final ClassNotFoundException e) {
+      throw new RuntimeException(Messages.get("DataRemoteCachePlugin.notInClassPath", new Object[] {e.getMessage()}));
+    }
     this.pluginService = pluginService;
     this.telemetryFactory = pluginService.getTelemetryFactory();
     this.hitCounter = telemetryFactory.createCounter("remoteCache.cache.hit");
@@ -70,38 +71,14 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     this.cacheConnection = new CacheConnection(properties);
   }
 
+  // Used for unit testing purposes only
+  protected void setCacheConnection(CacheConnection conn) {
+    this.cacheConnection = conn;
+  }
+
   @Override
   public Set<String> getSubscribedMethods() {
     return subscribedMethods;
-  }
-
-  private Connection connectHelper(JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
-    final long startTime = System.nanoTime();
-
-    final Connection result = connectFunc.call();
-
-    final long elapsedTimeNanos = System.nanoTime() - startTime;
-    connectTime += elapsedTimeNanos;
-    LOGGER.fine(
-        () -> Messages.get(
-            "DataRemoteCachePlugin.cacheConnectTime",
-            new Object[] {elapsedTimeNanos}));
-    return result;
-  }
-
-  @Override
-  public Connection connect(String driverProtocol, HostSpec hostSpec, Properties props,
-      boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
-    System.out.println("DataRemoteCachingPlugin.connect()...");
-    return this.connectHelper(connectFunc);
-  }
-
-  @Override
-  public Connection forceConnect(String driverProtocol, HostSpec hostSpec, Properties props,
-      boolean isInitialConnection, JdbcCallable<Connection, SQLException> forceConnectFunc)
-      throws SQLException {
-    System.out.println("DataRemoteCachingPlugin.forceConnect()...");
-    return this.connectHelper(forceConnectFunc);
   }
 
   private String getCacheQueryKey(String query) {
@@ -110,8 +87,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     try {
       Connection currentConn = pluginService.getCurrentConnection();
       DatabaseMetaData metadata = currentConn.getMetaData();
-      SessionStateService sessionStateService = pluginService.getSessionStateService();
-      System.out.println("DB driver protocol " + pluginService.getDriverProtocol()
+      LOGGER.finest("DB driver protocol " + pluginService.getDriverProtocol()
           + ", schema: " + currentConn.getSchema()
           + ", database product: " + metadata.getDatabaseProductName() + " " + metadata.getDatabaseProductVersion()
           + ", user: " + metadata.getUserName()
@@ -120,7 +96,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
       String[] words = {currentConn.getSchema(), metadata.getUserName(), query};
       return String.join("_", words);
     } catch (SQLException e) {
-      System.out.println("Error getting session state: " + e.getMessage());
+      LOGGER.warning("Error getting session state: " + e.getMessage());
       return null;
     }
   }
@@ -132,24 +108,60 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     if (cacheQueryKey == null) return null; // Treat this as a cache miss
     byte[] result = cacheConnection.readFromCache(cacheQueryKey);
     if (result == null) return null;
-
     // Convert result into ResultSet
     try {
       return CachedResultSet.deserializeFromJsonString(new String(result, StandardCharsets.UTF_8));
     } catch (Exception e) {
-      System.out.println("Error de-serializing cached result: " + e.getMessage());
+      LOGGER.warning("Error de-serializing cached result: " + e.getMessage());
       return null; // Treat this as a cache miss
     }
   }
 
-  private void cacheResultSet(String queryStr, ResultSet rs) throws SQLException {
-    System.out.println("Caching resultSet returned from postgres database ....... ");
-    String jsonValue = CachedResultSet.serializeIntoJsonString(rs);
-
+  /**
+   *  Cache the given ResultSet object.
+   *  The ResultSet object passed in would be consumed to create a CacheResultSet object. It is returned
+   *  for consumer consumption.
+   */
+  private ResultSet cacheResultSet(String queryStr, ResultSet rs, int expiry) throws SQLException {
     // Write the resultSet into the cache as a single key
     String cacheQueryKey = getCacheQueryKey(queryStr);
-    if (cacheQueryKey == null) return; // Treat this condition as un-cacheable
-    cacheConnection.writeToCache(cacheQueryKey, jsonValue.getBytes(StandardCharsets.UTF_8));
+    if (cacheQueryKey == null) return rs; // Treat this condition as un-cacheable
+    CachedResultSet crs = new CachedResultSet(rs);
+    String jsonValue = crs.serializeIntoJsonString();
+    cacheConnection.writeToCache(cacheQueryKey, jsonValue.getBytes(StandardCharsets.UTF_8), expiry);
+    crs.beforeFirst();
+    return crs;
+  }
+
+  /**
+   * Determine the TTL based on an input query
+   * @param queryHint string. e.g. "NO CACHE", or "cacheTTL=100s"
+   * @return TTL in seconds to cache the query.
+   *         null if the query is not cacheable.
+   */
+  protected Integer getTtlForQuery(String queryHint) {
+    // Empty query is not cacheable
+    if (StringUtils.isNullOrEmpty(queryHint)) return null;
+    // Query longer than 16K is not cacheable
+    String[] tokens = queryHint.toLowerCase().split("cache");
+    if (tokens.length >= 2) {
+      // Handle "no cache".
+      if (!StringUtils.isNullOrEmpty(tokens[0]) && "no".equals(tokens[0])) return null;
+      // Handle "cacheTTL=Xs"
+      if (!StringUtils.isNullOrEmpty(tokens[1]) && tokens[1].startsWith("ttl=")) {
+        int endIndex = tokens[1].indexOf('s');
+        if (endIndex > 0) {
+          try {
+            return Integer.parseInt(tokens[1].substring(4, endIndex));
+          } catch (Exception e) {
+            LOGGER.warning("Encountered exception when parsing Cache TTL: " + e.getMessage());
+          }
+        }
+      }
+    }
+
+    LOGGER.finest("Query hint " + queryHint + " indicates the query is not cacheable");
+    return null;
   }
 
   @Override
@@ -167,20 +179,31 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     boolean needToCache = false;
     final String sql = getQuery(jdbcMethodArgs);
 
-    // Try to fetch SELECT query from the cache
-    if (!StringUtils.isNullOrEmpty(sql) && sql.startsWith("select ")) {
-      result = fetchResultSetFromCache(sql);
+    // If the query is cacheable, we try to fetch the query result from the cache.
+    boolean isInTransaction = pluginService.isInTransaction();
+    // Get the query hint part in front of the query itself
+    String mainQuery = sql; // The main part of the query with the query hint prefix trimmed
+    int endOfQueryHint = 0;
+    Integer configuredQueryTtl = null;
+    if ((sql.length() < 16000) && sql.startsWith("/*")) {
+      endOfQueryHint = sql.indexOf("*/");
+      if (endOfQueryHint > 0) {
+        configuredQueryTtl = getTtlForQuery(sql.substring(2, endOfQueryHint).trim());
+        mainQuery = sql.substring(endOfQueryHint + 2).trim();
+      }
+    }
+
+    // Query result can be served from the cache if it has a configured TTL value, and it is
+    // not executed in a transaction as a transaction typically need to return consistent results.
+    if (!isInTransaction && (configuredQueryTtl != null)) {
+      result = fetchResultSetFromCache(mainQuery);
       if (result == null) {
-        System.out.println("We got a cache MISS.........");
         // Cache miss. Need to fetch result from the database
         needToCache = true;
         missCounter.inc();
-        LOGGER.finest(
-            () -> Messages.get(
-                "DataRemoteCachePlugin.queryResultsCached",
-                new Object[]{methodName, sql}));
+        LOGGER.finest("Got a cache miss for SQL: " + sql);
       } else {
-        System.out.println("We got a cache hit.........");
+        LOGGER.finest("Got a cache hit for SQL: " + sql);
         // Cache hit. Return the cached result
         hitCounter.inc();
         try {
@@ -199,11 +222,10 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
 
     if (needToCache) {
       try {
-        cacheResultSet(sql, result);
-        result.beforeFirst();
+        result = cacheResultSet(mainQuery, result, configuredQueryTtl);
       } catch (final SQLException ex) {
         // ignore exception
-        System.out.println("Encountered SQLException when caching results...");
+        LOGGER.warning("Encountered SQLException when caching results: " + ex.getMessage());
       }
     }
 
@@ -213,7 +235,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
   protected String getQuery(final Object[] jdbcMethodArgs) {
     // Get query from method argument
     if (jdbcMethodArgs != null && jdbcMethodArgs.length > 0 && jdbcMethodArgs[0] != null) {
-      return jdbcMethodArgs[0].toString();
+      return jdbcMethodArgs[0].toString().trim();
     }
     return null;
   }

@@ -1,6 +1,7 @@
-package software.amazon.jdbc.util;
+package software.amazon.jdbc.plugin.cache;
 
 import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisCommandExecutionException;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.codec.ByteArrayCodec;
@@ -9,18 +10,23 @@ import software.amazon.jdbc.AwsWrapperProperty;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.util.Properties;
+import java.util.logging.Logger;
 import io.lettuce.core.support.ConnectionPoolSupport;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
+import software.amazon.jdbc.util.StringUtils;
 
 // Abstraction layer on top of a connection to a remote cache server
 public class CacheConnection {
+  private static final Logger LOGGER = Logger.getLogger(CacheConnection.class.getName());
   // Adding support for read and write connection pools to the remote cache server
   private static volatile GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readConnectionPool;
   private static volatile GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writeConnectionPool;
   private static final GenericObjectPoolConfig<StatefulRedisConnection<byte[], byte[]>> poolConfig = createPoolConfig();
-  private final String cacheServerAddr;
+  private final String cacheRwServerAddr; // read-write cache server
+  private final String cacheRoServerAddr; // read-only cache server
   private MessageDigest msgHashDigest = null;
 
   private static final int DEFAULT_POOL_SIZE  = 10;
@@ -31,14 +37,21 @@ public class CacheConnection {
   private static final Object READ_LOCK = new Object();
   private static final Object WRITE_LOCK = new Object();
 
-  private static final AwsWrapperProperty CACHE_RW_ENDPOINT_ADDR =
+  protected static final AwsWrapperProperty CACHE_RW_ENDPOINT_ADDR =
       new AwsWrapperProperty(
           "cacheEndpointAddrRw",
           null,
-          "The cache server endpoint address.");
+          "The cache read-write server endpoint address.");
+
+  private static final AwsWrapperProperty CACHE_RO_ENDPOINT_ADDR =
+      new AwsWrapperProperty(
+          "cacheEndpointAddrRo",
+          null,
+          "The cache read-only server endpoint address.");
 
   public CacheConnection(final Properties properties) {
-    this.cacheServerAddr = CACHE_RW_ENDPOINT_ADDR.getString(properties);
+    this.cacheRwServerAddr = CACHE_RW_ENDPOINT_ADDR.getString(properties);
+    this.cacheRoServerAddr = CACHE_RO_ENDPOINT_ADDR.getString(properties);
   }
 
   /* Here we check if we need to initialise connection pool for read or write to cache.
@@ -47,7 +60,7 @@ public class CacheConnection {
   If isRead is false, we initialise connection pool for write.
    */
   private void initializeCacheConnectionIfNeeded(boolean isRead) {
-    if (StringUtils.isNullOrEmpty(cacheServerAddr)) return;
+    if (StringUtils.isNullOrEmpty(cacheRwServerAddr)) return;
     // Initialize the message digest
     if (msgHashDigest == null) {
       try {
@@ -59,9 +72,8 @@ public class CacheConnection {
 
     GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> cacheConnectionPool =
         isRead ? readConnectionPool : writeConnectionPool;
-    Object lock = isRead ? READ_LOCK : WRITE_LOCK;
-
     if (cacheConnectionPool == null) {
+      Object lock = isRead ? READ_LOCK : WRITE_LOCK;
       synchronized (lock) {
         if ((isRead && readConnectionPool == null) || (!isRead && writeConnectionPool == null)) {
           createConnectionPool(isRead);
@@ -73,13 +85,37 @@ public class CacheConnection {
   private void createConnectionPool(boolean isRead) {
     ClientResources resources = ClientResources.builder().build();
     try {
-      RedisURI redisUriCluster = RedisURI.Builder.redis(cacheServerAddr).
-          withPort(6379).withSsl(true).withVerifyPeer(false).build();
+      // cache server addr string is in the format "<server hostname>:<port>"
+      String serverAddr = cacheRwServerAddr;
+      // If read-only server is specified, use it for the read-only connections
+      if (isRead && !StringUtils.isNullOrEmpty(cacheRoServerAddr)) {
+        serverAddr = cacheRoServerAddr;
+      }
+      String[] hostnameAndPort = serverAddr.split(":");
+      RedisURI redisUriCluster = RedisURI.Builder.redis(hostnameAndPort[0])
+          .withPort(Integer.parseInt(hostnameAndPort[1]))
+          .withSsl(true).withVerifyPeer(false).build();
 
       RedisClient client = RedisClient.create(resources, redisUriCluster);
       GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> pool =
           ConnectionPoolSupport.createGenericObjectPool(
-              () -> client.connect(new ByteArrayCodec()),
+              () -> {
+                StatefulRedisConnection<byte[], byte[]> connection = client.connect(new ByteArrayCodec());
+                // In cluster mode, we need to send READONLY command to the server for reading from replica.
+                // Note: we gracefully ignore ERR reply to support non cluster mode.
+                if (isRead) {
+                  try {
+                    connection.sync().readOnly();
+                  } catch (RedisCommandExecutionException e) {
+                    if (e.getMessage().contains("ERR This instance has cluster support disabled")) {
+                      LOGGER.fine("------ Note: this cache cluster has cluster support disabled ------");
+                    } else {
+                      throw e;
+                    }
+                  }
+                }
+                return connection;
+              },
               poolConfig
           );
 
@@ -92,7 +128,7 @@ public class CacheConnection {
     } catch (Exception e) {
       String poolType = isRead ? "read" : "write";
       String errorMsg = String.format("Failed to create Cache %s connection pool", poolType);
-      System.err.println(errorMsg + ": " + e.getMessage());
+      LOGGER.warning(errorMsg + ": " + e.getMessage());
       throw new RuntimeException(errorMsg, e);
     }
   }
@@ -102,7 +138,7 @@ public class CacheConnection {
     poolConfig.setMaxTotal(DEFAULT_POOL_SIZE);
     poolConfig.setMaxIdle(DEFAULT_POOL_MAX_IDLE);
     poolConfig.setMinIdle(DEFAULT_POOL_MIN_IDLE);
-    poolConfig.setMaxWaitMillis(DEFAULT_MAX_BORROW_WAIT_MS);
+    poolConfig.setMaxWait(Duration.ofMillis(DEFAULT_MAX_BORROW_WAIT_MS));
     return poolConfig;
   }
 
@@ -115,47 +151,48 @@ public class CacheConnection {
   public byte[] readFromCache(String key) {
     boolean isBroken = false;
     StatefulRedisConnection<byte[], byte[]> conn = null;
-    initializeCacheConnectionIfNeeded(true);
     // get a connection from the read connection pool
     try {
+      initializeCacheConnectionIfNeeded(true);
       conn = readConnectionPool.borrowObject();
       return conn.sync().get(computeHashDigest(key.getBytes(StandardCharsets.UTF_8)));
     } catch (Exception e) {
       if (conn != null) {
         isBroken = true;
       }
-      System.err.println("Failed to read from cache: " + e.getMessage());
+      LOGGER.warning("Failed to read result from cache. Treating it as a cache miss: " + e.getMessage());
       return null;
     } finally {
       if (conn != null && readConnectionPool != null) {
         try {
           this.returnConnectionBackToPool(conn, isBroken, true);
         } catch (Exception ex) {
-          System.err.println("Error closing read connection: " + ex.getMessage());
+          LOGGER.warning("Error closing read connection: " + ex.getMessage());
         }
       }
     }
   }
 
-  public void writeToCache(String key, byte[] value) {
+  public void writeToCache(String key, byte[] value, int expiry) {
     boolean isBroken = false;
-    initializeCacheConnectionIfNeeded(false);
-    // get a connection from the write connection pool
     StatefulRedisConnection<byte[], byte[]> conn = null;
     try {
+      initializeCacheConnectionIfNeeded(false);
+      // get a connection from the write connection pool
       conn = writeConnectionPool.borrowObject();
-      conn.sync().setex(computeHashDigest(key.getBytes(StandardCharsets.UTF_8)), 300, value);
+      // TODO: make the write to the cache to be async.
+      conn.sync().setex(computeHashDigest(key.getBytes(StandardCharsets.UTF_8)), expiry, value);
     } catch (Exception e) {
       if (conn !=  null){
         isBroken = true;
       }
-      System.err.println("Failed to write to cache: " + e.getMessage());
+      LOGGER.warning("Failed to write to cache: " + e.getMessage());
     } finally {
       if (conn != null && writeConnectionPool != null) {
         try {
           this.returnConnectionBackToPool(conn, isBroken, false);
         } catch (Exception ex) {
-          System.err.println("Error closing write connection: " + ex.getMessage());
+          LOGGER.warning("Error closing write connection: " + ex.getMessage());
         }
       }
     }
