@@ -60,7 +60,7 @@ public class CacheItem<V> {
    * @return true if this item is expired, otherwise returns false.
    */
   protected boolean isExpired() {
-    return System.currentTimeMillis() > expirationTimeNanos;
+    return System.nanoTime() > expirationTimeNanos;
   }
 
   /**
