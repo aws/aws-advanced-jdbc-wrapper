@@ -47,7 +47,6 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.RoundRobinHostSelector;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
-import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.wrapper.HighestWeightHostSelector;
 
 public class LimitlessRouterServiceImplTest {

@@ -636,7 +636,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   @Override
   public void releaseResources() {
-    LOGGER.fine(() -> Messages.get("PluginServiceImpl.releaseResources"));
+    LOGGER.finest(() -> Messages.get("PluginServiceImpl.releaseResources"));
 
     try {
       if (this.currentConnection != null && !this.currentConnection.isClosed()) {
