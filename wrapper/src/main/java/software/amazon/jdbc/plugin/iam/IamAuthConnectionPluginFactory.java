@@ -20,9 +20,8 @@ import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.plugin.AuxiliaryPluginFactory;
 
-public class IamAuthConnectionPluginFactory implements ConnectionPluginFactory, AuxiliaryPluginFactory {
+public class IamAuthConnectionPluginFactory implements ConnectionPluginFactory {
   @Override
   public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
     return new IamAuthConnectionPlugin(pluginService);

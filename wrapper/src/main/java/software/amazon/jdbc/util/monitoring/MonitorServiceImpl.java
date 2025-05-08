@@ -42,6 +42,7 @@ import software.amazon.jdbc.hostlistprovider.monitoring.ClusterTopologyMonitorIm
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.connection.ConnectionServiceImpl;
 import software.amazon.jdbc.util.events.DataAccessEvent;
@@ -223,8 +224,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
     TargetDriverHelper helper = new TargetDriverHelper();
     java.sql.Driver driver = helper.getTargetDriver(originalUrl, props);
     final ConnectionProvider defaultConnectionProvider = new DriverConnectionProvider(driver);
-    // TODO either store new connection service instance or store the required parameters so that we can reboot the
-    //  monitor in the future. When you store Properties, store a copy of them.
+    final Properties propsCopy = PropertyUtils.copyProperties(props);
     final ConnectionServiceImpl connectionService = new ConnectionServiceImpl(
         storageService,
         this,
@@ -234,7 +234,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
         driverProtocol,
         driverDialect,
         dbDialect,
-        props);
+        propsCopy);
 
     Monitor monitor = cacheContainer.getCache().computeIfAbsent(key, k -> {
       MonitorItem monitorItem = new MonitorItem(() -> initializer.createMonitor(

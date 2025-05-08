@@ -21,10 +21,9 @@ import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.plugin.AuxiliaryPluginFactory;
 import software.amazon.jdbc.util.Messages;
 
-public class OktaAuthPluginFactory implements ConnectionPluginFactory, AuxiliaryPluginFactory {
+public class OktaAuthPluginFactory implements ConnectionPluginFactory {
 
   @Override
   public ConnectionPlugin getInstance(PluginService pluginService, Properties props) {
