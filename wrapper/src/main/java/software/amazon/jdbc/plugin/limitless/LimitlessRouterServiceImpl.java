@@ -159,10 +159,6 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       return;
     }
 
-    if (context.getConnection() != null) {
-      return;
-    }
-
     try {
       context.setConnection(this.pluginService.connect(selectedHostSpec, context.getProps(), context.getPlugin()));
     } catch (SQLException e) {
