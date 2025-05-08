@@ -21,7 +21,6 @@ import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -259,7 +258,7 @@ public class LimitlessRouterServiceImplTest {
     verify(mockQueryHelper, times(1))
         .queryForLimitlessRouters(inputContext.getConnection(), inputContext.getHostSpec().getPort());
     verify(mockConnectFuncLambda, times(1)).call();
-    verify(mockPluginService, never()).connect(eq(selectedRouter), eq(inputContext.getProps()), eq(null));
+    verify(mockPluginService, times(1)).connect(eq(selectedRouter), eq(inputContext.getProps()), eq(null));
   }
 
   @Test
