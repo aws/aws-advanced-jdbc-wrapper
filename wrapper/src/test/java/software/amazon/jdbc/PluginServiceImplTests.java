@@ -111,6 +111,7 @@ public class PluginServiceImplTests {
   @AfterEach
   void cleanUp() throws Exception {
     closeable.close();
+    storageService.clearAll();
     PluginServiceImpl.hostAvailabilityExpiringCache.clear();
   }
 
