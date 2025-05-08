@@ -39,8 +39,8 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.plugin.DataCacheConnectionPlugin;
-import software.amazon.jdbc.plugin.DataCacheConnectionPlugin.CachedResultSet;
+import software.amazon.jdbc.plugin.cache.CachedResultSet;
+import software.amazon.jdbc.plugin.cache.DataCacheConnectionPlugin;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
