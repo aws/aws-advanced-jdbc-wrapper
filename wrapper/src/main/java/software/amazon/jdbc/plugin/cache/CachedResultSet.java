@@ -1,10 +1,13 @@
-package software.amazon.jdbc.util;
+package software.amazon.jdbc.plugin.cache;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.InputStream;
 import java.io.Reader;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URL;
 import java.sql.Array;
 import java.sql.Blob;
@@ -21,11 +24,21 @@ import java.sql.SQLXML;
 import java.sql.Statement;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalTime;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.OffsetTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.HashMap;
 import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.TimeZone;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
 
 @SuppressWarnings({"RedundantThrows", "checkstyle:OverloadMethodsDeclarationOrder"})
 public class CachedResultSet implements ResultSet {
@@ -52,17 +65,20 @@ public class CachedResultSet implements ResultSet {
 
   protected ArrayList<CachedRow> rows;
   protected int currentRow;
+  protected ResultSetMetaData metadata;
+  protected static ObjectMapper mapper = new ObjectMapper();
+  protected static final TimeZone defaultTimeZone = TimeZone.getDefault();
+  private static final Calendar calendarWithUserTz = new GregorianCalendar();
 
   public CachedResultSet(final ResultSet resultSet) throws SQLException {
-
-    final ResultSetMetaData md = resultSet.getMetaData();
-    final int columns = md.getColumnCount();
+    metadata = resultSet.getMetaData();
+    final int columns = metadata.getColumnCount();
     rows = new ArrayList<>();
 
     while (resultSet.next()) {
       final CachedRow row = new CachedRow();
       for (int i = 1; i <= columns; ++i) {
-        row.put(i, md.getColumnName(i), resultSet.getObject(i));
+        row.put(i, metadata.getColumnName(i), resultSet.getObject(i));
       }
       rows.add(row);
     }
@@ -71,41 +87,51 @@ public class CachedResultSet implements ResultSet {
 
   public CachedResultSet(final List<Map<String, Object>> resultList) {
     rows = new ArrayList<>();
+    CachedResultSetMetaData.Field[] fields = new CachedResultSetMetaData.Field[resultList.get(0).size()];
+    boolean fieldsInitialized = false;
     for (Map<String, Object> rowMap : resultList) {
       final CachedRow row = new CachedRow();
-      int i = 1;
-      for (String columnName : rowMap.keySet()) {
-        row.put(i, columnName, rowMap.get(columnName));
+      int i = 0;
+      for (Map.Entry<String, Object> entry : rowMap.entrySet()) {
+        String columnName = entry.getKey();
+        if (!fieldsInitialized) {
+          fields[i] = new CachedResultSetMetaData.Field(columnName, columnName);
+        }
+        row.put(++i, columnName, entry.getValue());
       }
       rows.add(row);
+      fieldsInitialized = true;
     }
     currentRow = -1;
+    metadata = new CachedResultSetMetaData(fields);
   }
 
-  public static String serializeIntoJsonString(ResultSet rs) throws SQLException {
-    ObjectMapper mapper = new ObjectMapper();
+  public String serializeIntoJsonString() throws SQLException {
+    mapper.registerModule(new JavaTimeModule());
+    // Serialize Date/LocalDateTime etc. into standard string format (i.e. ISO)
+    mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
     List<Map<String, Object>> resultList = new ArrayList<>();
-    ResultSetMetaData metaData = rs.getMetaData();
+    ResultSetMetaData metaData = this.getMetaData();
     int columns = metaData.getColumnCount();
 
-    while (rs.next()) {
+    while (this.next()) {
       Map<String, Object> rowMap = new HashMap<>();
       for (int i = 1; i <= columns; i++) {
-        rowMap.put(metaData.getColumnName(i), rs.getObject(i));
+        rowMap.put(metaData.getColumnName(i), this.getObject(i));
       }
       resultList.add(rowMap);
     }
     try {
       return mapper.writeValueAsString(resultList);
     } catch (JsonProcessingException e) {
-      throw new SQLException("Error serializing ResultSet to JSON", e);
+      throw new SQLException("Error serializing ResultSet to JSON: " + e.getMessage(), e);
     }
   }
 
   public static ResultSet deserializeFromJsonString(String jsonString) throws SQLException {
     if (jsonString == null || jsonString.isEmpty()) { return null; }
     try {
-      ObjectMapper mapper = new ObjectMapper();
       List<Map<String, Object>> resultList = mapper.readValue(jsonString,
           mapper.getTypeFactory().constructCollectionType(List.class, Map.class));
       return new CachedResultSet(resultList);
@@ -116,7 +142,7 @@ public class CachedResultSet implements ResultSet {
 
   @Override
   public boolean next() throws SQLException {
-    if (rows.size() == 0 || isLast()) {
+    if (rows.isEmpty() || isLast()) {
       return false;
     }
     currentRow++;
@@ -136,48 +162,64 @@ public class CachedResultSet implements ResultSet {
   // TODO: implement all the getXXX APIs.
   @Override
   public String getString(final int columnIndex) throws SQLException {
-    throw new UnsupportedOperationException();
+    Object value = this.getObject(columnIndex);
+    if (value == null) return null;
+    return value.toString();
   }
 
   @Override
   public boolean getBoolean(final int columnIndex) throws SQLException {
-    throw new UnsupportedOperationException();
+    String value = this.getString(columnIndex);
+    if (value == null) return false;
+    return Boolean.parseBoolean(value);
   }
 
   @Override
   public byte getByte(final int columnIndex) throws SQLException {
-    throw new UnsupportedOperationException();
+    return (byte)this.getInt(columnIndex);
   }
 
   @Override
   public short getShort(final int columnIndex) throws SQLException {
-    throw new UnsupportedOperationException();
+    String value = this.getString(columnIndex);
+    if (value == null) throw new SQLException("Column index " + columnIndex + " doesn't exist");
+    return Short.parseShort(value);
   }
 
   @Override
   public int getInt(final int columnIndex) throws SQLException {
-    throw new UnsupportedOperationException();
+    String value = this.getString(columnIndex);
+    if (value == null) throw new SQLException("Column index " + columnIndex + " doesn't exist");
+    return Integer.parseInt(value);
   }
 
   @Override
   public long getLong(final int columnIndex) throws SQLException {
-    throw new UnsupportedOperationException();
+    String value = this.getString(columnIndex);
+    if (value == null) throw new SQLException("Column index " + columnIndex + " doesn't exist");
+    return Long.parseLong(value);
   }
 
   @Override
   public float getFloat(final int columnIndex) throws SQLException {
-    throw new UnsupportedOperationException();
+    String value = this.getString(columnIndex);
+    if (value == null) throw new SQLException("Column index " + columnIndex + " doesn't exist");
+    return Float.parseFloat(value);
   }
 
   @Override
   public double getDouble(final int columnIndex) throws SQLException {
-    throw new UnsupportedOperationException();
+    String value = this.getString(columnIndex);
+    if (value == null) throw new SQLException("Column index " + columnIndex + " doesn't exist");
+    return Double.parseDouble(value);
   }
 
   @Override
   @Deprecated
   public BigDecimal getBigDecimal(final int columnIndex, final int scale) throws SQLException {
-    throw new UnsupportedOperationException();
+    String value = this.getString(columnIndex);
+    if (value == null) return null;
+    return new BigDecimal(value).setScale(scale, RoundingMode.HALF_UP);
   }
 
   @Override
@@ -185,19 +227,137 @@ public class CachedResultSet implements ResultSet {
     throw new UnsupportedOperationException();
   }
 
+  private Timestamp convertLocalTimeToTimestamp(final LocalDateTime localTime, Calendar cal) {
+    long epochTimeInMillis;
+    if (cal != null) {
+      epochTimeInMillis = localTime.atZone(cal.getTimeZone().toZoneId()).toInstant().toEpochMilli();
+    } else {
+      epochTimeInMillis = localTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+    }
+    return new Timestamp(epochTimeInMillis);
+  }
+
+  private Timestamp parseIntoTimestamp(String timestampStr, Calendar cal) {
+    if (timestampStr.endsWith("Z")) { // ISO format timestamp in UTC like 2025-06-03T11:59:21.822364Z
+      return Timestamp.from(Instant.parse(timestampStr));
+    } else if (timestampStr.contains("+")  || timestampStr.contains("-")) { // Offset timestamp format like 2023-10-27T10:00:00+02:00
+      try {
+        OffsetDateTime offsetDateTime = OffsetDateTime.parse(timestampStr);
+        return Timestamp.from(offsetDateTime.toInstant());
+      } catch (DateTimeParseException e) {
+        // swallow this exception and move on with parsing
+      }
+    }
+
+    if (timestampStr.contains(":")) { // timestamp without time zone info with HH:MM:ss info
+      // The timestamp string doesn't contain time zone information (not recommended for storage). We need
+      // to use the specified calendar for timezone. If calendar is not specified, use the local time zone.
+      String ts = timestampStr;
+      if (timestampStr.contains(" ")) {
+        ts = timestampStr.replace(" ", "T");
+      }
+      // Obtains an instance of LocalDateTime from a text string that is in ISO_LOCAL_DATE_TIME format
+      return convertLocalTimeToTimestamp(LocalDateTime.parse(ts), cal);
+    } else { // timestamp without time zone info without HH:MM:ss info
+      return new Timestamp(Date.valueOf(timestampStr).getTime());
+    }
+  }
+
+  private Date convertToDate(Object dateObj, Calendar cal) {
+    if (dateObj == null) return null;
+    Timestamp timestamp;
+    if (dateObj instanceof Date) {
+      // Create and return a Timestamp from the milliseconds
+      return (Date)dateObj;
+    } else if (dateObj instanceof Timestamp) {
+      timestamp = (Timestamp) dateObj;
+    } else {
+      // Try to parse as Date with hour/minute/second.
+      // If Date parsing fails, try to parse it as Timestamp
+      try {
+        return Date.valueOf(dateObj.toString());
+      } catch (IllegalArgumentException e) {
+        // Failed to parse the string as Date object. Try parsing it as Timestamp instead
+        timestamp = parseIntoTimestamp(dateObj.toString(), cal);
+      }
+    }
+
+    // If the dateObj is not already the Date type, then the value cached is the
+    // epoch time in milliseconds. Here we need to de-serialize it as a long
+    if (cal == null) {
+      calendarWithUserTz.setTimeZone(defaultTimeZone);
+    } else {
+      calendarWithUserTz.setTimeZone(cal.getTimeZone());
+    }
+    calendarWithUserTz.setTimeInMillis(timestamp.getTime());
+    return new Date(calendarWithUserTz.getTimeInMillis());
+  }
+
   @Override
   public Date getDate(final int columnIndex) throws SQLException {
-    throw new UnsupportedOperationException();
+    // The value cached is the string representation of epoch time in milliseconds
+    return convertToDate(this.getObject(columnIndex), null);
+  }
+
+  private Time convertToTime(Object timeObj, Calendar cal) {
+    if (timeObj == null) return null;
+    Timestamp ts;
+    if (timeObj instanceof Time) {
+      return (Time) timeObj;
+    } else if (timeObj instanceof Timestamp) {
+      ts = (Timestamp) timeObj;
+    } else {
+      // Parse the time object from string. If it can't be parsed
+      // as a Time object, then try to parse it as Timestamp.
+      try {
+        String timeStr = timeObj.toString();
+        if (timeStr.contains("Z")) {
+          // TODO: fix getTime with a different time zone
+          DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ssX");
+          LocalTime localTime = LocalTime.parse(timeStr, formatter);
+          return Time.valueOf(localTime);
+        } else if (timeStr.contains("+") || timeStr.contains("-")) {
+          LocalTime localTime = OffsetTime.parse(timeStr).toLocalTime();
+          return Time.valueOf(localTime);
+        } else {
+          LocalTime localTime = LocalTime.parse(timeObj.toString());
+          return Time.valueOf(localTime);
+        }
+      } catch (DateTimeParseException e) {
+        ts = parseIntoTimestamp(timeObj.toString(), cal);
+      }
+    }
+    // use the timezone in the cal (if set) to indicate proper time for "1:00:00"
+    // e.g. 10:00:00 in EST is 07:00:00 in local time zone (PST)
+    if (cal == null) {
+      calendarWithUserTz.setTimeZone(defaultTimeZone);
+    } else {
+      calendarWithUserTz.setTimeZone(cal.getTimeZone());
+    }
+    calendarWithUserTz.setTimeInMillis(ts.getTime());
+    return new Time(calendarWithUserTz.getTimeInMillis());
   }
 
   @Override
   public Time getTime(final int columnIndex) throws SQLException {
-    throw new UnsupportedOperationException();
+    return convertToTime(this.getObject(columnIndex), null);
+  }
+
+  private Timestamp convertToTimestamp(Object timestampObj, Calendar calendar) {
+    if (timestampObj == null) return null;
+    if (timestampObj instanceof Timestamp) {
+      return (Timestamp) timestampObj;
+    } else if (timestampObj instanceof LocalDateTime) {
+      return convertLocalTimeToTimestamp((LocalDateTime) timestampObj, calendar);
+    } else {
+      // De-serialize it from string representation
+      return parseIntoTimestamp(timestampObj.toString(), calendar);
+    }
   }
 
   @Override
   public Timestamp getTimestamp(final int columnIndex) throws SQLException {
-    throw new UnsupportedOperationException();
+    return convertToTimestamp(this.getObject(columnIndex), null);
   }
 
   @Override
@@ -218,48 +378,64 @@ public class CachedResultSet implements ResultSet {
 
   @Override
   public String getString(final String columnLabel) throws SQLException {
-    throw new UnsupportedOperationException();
+    Object value = this.getObject(columnLabel);
+    if (value == null) return null;
+    return value.toString();
   }
 
   @Override
   public boolean getBoolean(final String columnLabel) throws SQLException {
-    throw new UnsupportedOperationException();
+    String value = this.getString(columnLabel);
+    if (value == null) return false;
+    return Boolean.parseBoolean(value);
   }
 
   @Override
   public byte getByte(final String columnLabel) throws SQLException {
-    throw new UnsupportedOperationException();
+    return (byte)this.getInt(columnLabel);
   }
 
   @Override
   public short getShort(final String columnLabel) throws SQLException {
-    throw new UnsupportedOperationException();
+    String value = this.getString(columnLabel);
+    if (value == null) throw new SQLException("Column " + columnLabel + " doesn't exist");
+    return Short.parseShort(value);
   }
 
   @Override
   public int getInt(final String columnLabel) throws SQLException {
-    throw new UnsupportedOperationException();
+    String value = this.getString(columnLabel);
+    if (value == null) throw new SQLException("Column " + columnLabel + " doesn't exist");
+    return Integer.parseInt(value);
   }
 
   @Override
   public long getLong(final String columnLabel) throws SQLException {
-    throw new UnsupportedOperationException();
+    String value = this.getString(columnLabel);
+    if (value == null) throw new SQLException("Column " + columnLabel + " doesn't exist");
+    return Long.parseLong(value);
   }
 
   @Override
   public float getFloat(final String columnLabel) throws SQLException {
-    throw new UnsupportedOperationException();
+    String value = this.getString(columnLabel);
+    if (value == null) throw new SQLException("Column " + columnLabel + " doesn't exist");
+    return Float.parseFloat(value);
   }
 
   @Override
   public double getDouble(final String columnLabel) throws SQLException {
-    throw new UnsupportedOperationException();
+    String value = this.getString(columnLabel);
+    if (value == null) throw new SQLException("Column " + columnLabel + " doesn't exist");
+    return Double.parseDouble(value);
   }
 
   @Override
   @Deprecated
   public BigDecimal getBigDecimal(final String columnLabel, final int scale) throws SQLException {
-    throw new UnsupportedOperationException();
+    String value = this.getString(columnLabel);
+    if (value == null) return null;
+    return new BigDecimal(value).setScale(scale, RoundingMode.HALF_UP);
   }
 
   @Override
@@ -269,17 +445,17 @@ public class CachedResultSet implements ResultSet {
 
   @Override
   public Date getDate(final String columnLabel) throws SQLException {
-    throw new UnsupportedOperationException();
+    return convertToDate(this.getObject(columnLabel), null);
   }
 
   @Override
   public Time getTime(final String columnLabel) throws SQLException {
-    throw new UnsupportedOperationException();
+    return convertToTime(this.getObject(columnLabel), null);
   }
 
   @Override
   public Timestamp getTimestamp(final String columnLabel) throws SQLException {
-    throw new UnsupportedOperationException();
+    return convertToTimestamp(this.getObject(columnLabel), null);
   }
 
   @Override
@@ -315,7 +491,7 @@ public class CachedResultSet implements ResultSet {
 
   @Override
   public ResultSetMetaData getMetaData() throws SQLException {
-    throw new UnsupportedOperationException();
+    return metadata;
   }
 
   @Override
@@ -359,12 +535,16 @@ public class CachedResultSet implements ResultSet {
 
   @Override
   public BigDecimal getBigDecimal(final int columnIndex) throws SQLException {
-    throw new UnsupportedOperationException();
+    String value = this.getString(columnIndex);
+    if (value == null) return null;
+    return new BigDecimal(value);
   }
 
   @Override
   public BigDecimal getBigDecimal(final String columnLabel) throws SQLException {
-    throw new UnsupportedOperationException();
+    String value = this.getString(columnLabel);
+    if (value == null) return null;
+    return new BigDecimal(value);
   }
 
   @Override
@@ -769,32 +949,32 @@ public class CachedResultSet implements ResultSet {
 
   @Override
   public Date getDate(final int columnIndex, final Calendar cal) throws SQLException {
-    throw new UnsupportedOperationException();
+    return convertToDate(this.getObject(columnIndex), cal);
   }
 
   @Override
   public Date getDate(final String columnLabel, final Calendar cal) throws SQLException {
-    throw new UnsupportedOperationException();
+    return convertToDate(this.getObject(columnLabel), cal);
   }
 
   @Override
   public Time getTime(final int columnIndex, final Calendar cal) throws SQLException {
-    throw new UnsupportedOperationException();
+    return convertToTime(this.getObject(columnIndex), null);
   }
 
   @Override
   public Time getTime(final String columnLabel, final Calendar cal) throws SQLException {
-    throw new UnsupportedOperationException();
+    return convertToTime(this.getObject(columnLabel), cal);
   }
 
   @Override
   public Timestamp getTimestamp(final int columnIndex, final Calendar cal) throws SQLException {
-    throw new UnsupportedOperationException();
+    return convertToTimestamp(this.getObject(columnIndex), cal);
   }
 
   @Override
   public Timestamp getTimestamp(final String columnLabel, final Calendar cal) throws SQLException {
-    throw new UnsupportedOperationException();
+    return convertToTimestamp(this.getObject(columnLabel), cal);
   }
 
   @Override

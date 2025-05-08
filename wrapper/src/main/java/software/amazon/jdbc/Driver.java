@@ -38,7 +38,7 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.plugin.AwsSecretsManagerCacheHolder;
-import software.amazon.jdbc.plugin.DataCacheConnectionPlugin;
+import software.amazon.jdbc.plugin.cache.DataCacheConnectionPlugin;
 import software.amazon.jdbc.plugin.OpenedConnectionTracker;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
 import software.amazon.jdbc.plugin.efm.HostMonitorThreadContainer;

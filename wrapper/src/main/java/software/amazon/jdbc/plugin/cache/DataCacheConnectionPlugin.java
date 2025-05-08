@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin;
+package software.amazon.jdbc.plugin.cache;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -31,7 +31,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.util.CachedResultSet;
+import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
