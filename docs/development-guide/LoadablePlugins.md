@@ -32,7 +32,7 @@ The `AbstractConnectionPlugin` class provides a simple implementation for all th
 as it calls the provided JDBC method without additional operations. This is helpful when the custom plugin only needs to override one (or a few) methods from the `ConnectionPlugin` interface.
 See the following classes for examples:
 
-- [IamAuthConnectionPlugin](../../wrapper/src/main/java/software/amazon/jdbc/plugin/IamAuthConnectionPlugin.java)
+- [IamAuthConnectionPlugin](../../wrapper/src/main/java/software/amazon/jdbc/plugin/iam/IamAuthConnectionPlugin.java)
     - The `IamAuthConnectionPlugin` class only overrides the `connect` method because the plugin is only concerned with creating
       database connections with IAM database credentials.
 
