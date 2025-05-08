@@ -29,6 +29,7 @@ import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.RoundRobinHostSelector;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
@@ -71,6 +72,10 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
           x -> {},
         CACHE_CLEANUP_NANO
       );
+
+  static {
+    PropertyDefinition.registerPluginProperties(LimitlessRouterServiceImpl.class);
+  }
 
   public LimitlessRouterServiceImpl(final @NonNull PluginService pluginService) {
     this(
@@ -154,6 +159,10 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       return;
     }
 
+    if (context.getConnection() != null) {
+      return;
+    }
+
     try {
       context.setConnection(this.pluginService.connect(selectedHostSpec, context.getProps(), context.getPlugin()));
     } catch (SQLException e) {
@@ -163,7 +172,8 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
             new Object[] {selectedHostSpec.getHost()}));
         selectedHostSpec.setAvailability(HostAvailability.NOT_AVAILABLE);
       }
-      // Retry connect prioritising healthiest router for best chance of connection over load-balancing with round-robin
+      // Retry connect prioritising the healthiest router for best chance of
+      // connection over load-balancing with round-robin.
       retryConnectWithLeastLoadedRouters(context);
     }
   }
