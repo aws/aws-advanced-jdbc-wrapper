@@ -671,7 +671,7 @@ public class FailoverTest {
   // Helper methods below
 
   protected String getFailoverPlugin() {
-    return "failover2";
+    return "failover";
   }
 
   protected Properties initDefaultProxiedProps() {
