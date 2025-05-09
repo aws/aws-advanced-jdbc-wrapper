@@ -97,7 +97,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected final AtomicReference<HostSpec> writerHostSpec = new AtomicReference<>(null);
   protected final AtomicReference<Connection> monitoringConnection = new AtomicReference<>(null);
   protected boolean isVerifiedWriterConnection = false;
-  protected final AtomicBoolean stop = new AtomicBoolean(false);
   protected long highRefreshRateEndTimeNano = 0;
   protected final Object topologyUpdated = new Object();
   protected final AtomicBoolean requestToUpdateTopology = new AtomicBoolean(false);

@@ -18,7 +18,6 @@ package software.amazon.jdbc.plugin.customendpoint;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
@@ -138,7 +137,6 @@ public class CustomEndpointMonitorImplTest {
 
     // Wait for monitor to close
     TimeUnit.MILLISECONDS.sleep(50);
-    assertTrue(monitor.stop.get());
     verify(mockRdsClient, atLeastOnce()).close();
   }
 }

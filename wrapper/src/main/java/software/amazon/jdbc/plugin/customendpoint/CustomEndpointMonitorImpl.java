@@ -20,7 +20,6 @@ import static software.amazon.jdbc.plugin.customendpoint.MemberListType.STATIC_L
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -52,7 +51,6 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
   protected static final CacheMap<String, CustomEndpointInfo> customEndpointInfoCache = new CacheMap<>();
   protected static final long CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(5);
 
-  protected final AtomicBoolean stop = new AtomicBoolean(false);
   protected final RdsClient rdsClient;
   protected final HostSpec customEndpointHostSpec;
   protected final String endpointIdentifier;
