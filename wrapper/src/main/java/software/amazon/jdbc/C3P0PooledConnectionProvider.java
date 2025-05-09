@@ -35,7 +35,7 @@ import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
-import software.amazon.jdbc.util.SlidingExpirationCache;
+import software.amazon.jdbc.util.storage.SlidingExpirationCache;
 import software.amazon.jdbc.wrapper.HighestWeightHostSelector;
 
 public class C3P0PooledConnectionProvider implements PooledConnectionProvider, CanReleaseResources {

@@ -32,6 +32,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -62,6 +63,7 @@ public class NodeResponseTimeMonitor implements AutoCloseable, Runnable {
 
   private Connection monitoringConn = null;
 
+  // TODO: remove threadPool and submit monitors to MonitorService instead
   private final ExecutorService threadPool = Executors.newFixedThreadPool(1, runnableTarget -> {
     final Thread monitoringThread = new Thread(runnableTarget);
     monitoringThread.setDaemon(true);
@@ -69,16 +71,16 @@ public class NodeResponseTimeMonitor implements AutoCloseable, Runnable {
   });
 
   public NodeResponseTimeMonitor(
-      final @NonNull PluginService pluginService,
+      final @NonNull ServiceContainer serviceContainer,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props,
       int intervalMs) {
 
-    this.pluginService = pluginService;
+    this.pluginService = serviceContainer.getPluginService();
     this.hostSpec = hostSpec;
     this.props = props;
     this.intervalMs = intervalMs;
-    this.telemetryFactory = this.pluginService.getTelemetryFactory();
+    this.telemetryFactory = serviceContainer.getTelemetryFactory();
 
     final String nodeId = StringUtils.isNullOrEmpty(this.hostSpec.getHostId())
         ? this.hostSpec.getHost()
@@ -215,6 +217,7 @@ public class NodeResponseTimeMonitor implements AutoCloseable, Runnable {
         LOGGER.finest(() -> Messages.get(
                 "NodeResponseTimeMonitor.openingConnection",
                 new Object[] {this.hostSpec.getUrl()}));
+        // TODO: replace with ConnectionService#createAuxiliaryConnection
         this.monitoringConn = this.pluginService.forceConnect(this.hostSpec, monitoringConnProperties);
         LOGGER.finest(() -> Messages.get(
             "NodeResponseTimeMonitor.openedConnection",

@@ -50,9 +50,11 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.util.ServiceContainer;
 
 class ClusterAwareWriterFailoverHandlerTest {
 
+  @Mock ServiceContainer mockServiceContainer;
   @Mock PluginService mockPluginService;
   @Mock Connection mockConnection;
   @Mock ReaderFailoverHandler mockReaderFailover;
@@ -78,6 +80,7 @@ class ClusterAwareWriterFailoverHandlerTest {
   @BeforeEach
   void setUp() {
     closeable = MockitoAnnotations.openMocks(this);
+    when(mockServiceContainer.getPluginService()).thenReturn(mockPluginService);
     writer.addAlias("writer-host");
     newWriterHost.addAlias("new-writer-host");
     readerA.addAlias("reader-a-host");
@@ -104,7 +107,7 @@ class ClusterAwareWriterFailoverHandlerTest {
 
     final ClusterAwareWriterFailoverHandler target =
         new ClusterAwareWriterFailoverHandler(
-            mockPluginService,
+            mockServiceContainer,
             mockReaderFailover,
             properties,
             5000,
@@ -148,7 +151,7 @@ class ClusterAwareWriterFailoverHandlerTest {
 
     final ClusterAwareWriterFailoverHandler target =
         new ClusterAwareWriterFailoverHandler(
-            mockPluginService,
+            mockServiceContainer,
             mockReaderFailover,
             properties,
             60000,
@@ -193,7 +196,7 @@ class ClusterAwareWriterFailoverHandlerTest {
 
     final ClusterAwareWriterFailoverHandler target =
         new ClusterAwareWriterFailoverHandler(
-            mockPluginService,
+            mockServiceContainer,
             mockReaderFailover,
             properties,
             60000,
@@ -241,7 +244,7 @@ class ClusterAwareWriterFailoverHandlerTest {
 
     final ClusterAwareWriterFailoverHandler target =
         new ClusterAwareWriterFailoverHandler(
-            mockPluginService,
+            mockServiceContainer,
             mockReaderFailover,
             properties,
             60000,
@@ -290,7 +293,7 @@ class ClusterAwareWriterFailoverHandlerTest {
 
     final ClusterAwareWriterFailoverHandler target =
         new ClusterAwareWriterFailoverHandler(
-            mockPluginService,
+            mockServiceContainer,
             mockReaderFailover,
             properties,
             60000,
@@ -344,7 +347,7 @@ class ClusterAwareWriterFailoverHandlerTest {
 
     final ClusterAwareWriterFailoverHandler target =
         new ClusterAwareWriterFailoverHandler(
-            mockPluginService,
+            mockServiceContainer,
             mockReaderFailover,
             properties,
             5000,
@@ -391,7 +394,7 @@ class ClusterAwareWriterFailoverHandlerTest {
 
     final ClusterAwareWriterFailoverHandler target =
         new ClusterAwareWriterFailoverHandler(
-            mockPluginService,
+            mockServiceContainer,
             mockReaderFailover,
             properties,
             5000,

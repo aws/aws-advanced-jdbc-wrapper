@@ -46,6 +46,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -65,6 +66,7 @@ class MonitorServiceImplTest {
   @Mock private Future<?> task;
   @Mock private HostSpec hostSpec;
   @Mock private JdbcConnection connection;
+  @Mock private ServiceContainer serviceContainer;
   @Mock private PluginService pluginService;
   @Mock private TelemetryFactory telemetryFactory;
   @Mock private TelemetryCounter telemetryCounter;
@@ -81,7 +83,8 @@ class MonitorServiceImplTest {
     closeable = MockitoAnnotations.openMocks(this);
     contextCaptor = ArgumentCaptor.forClass(MonitorConnectionContext.class);
 
-    when(pluginService.getTelemetryFactory()).thenReturn(telemetryFactory);
+    when(serviceContainer.getPluginService()).thenReturn(pluginService);
+    when(serviceContainer.getTelemetryFactory()).thenReturn(telemetryFactory);
     when(telemetryFactory.createCounter(anyString())).thenReturn(telemetryCounter);
     when(monitorInitializer.createMonitor(
             any(HostSpec.class), any(Properties.class), any(MonitorThreadContainer.class)))
@@ -92,7 +95,7 @@ class MonitorServiceImplTest {
     doReturn(task).when(executorService).submit(any(Monitor.class));
 
     threadContainer = MonitorThreadContainer.getInstance(executorServiceInitializer);
-    monitorService = new MonitorServiceImpl(pluginService, monitorInitializer, executorServiceInitializer);
+    monitorService = new MonitorServiceImpl(serviceContainer, monitorInitializer, executorServiceInitializer);
   }
 
   @AfterEach

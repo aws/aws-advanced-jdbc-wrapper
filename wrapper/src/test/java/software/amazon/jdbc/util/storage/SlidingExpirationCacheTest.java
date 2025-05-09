@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.util;
+package software.amazon.jdbc.util.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -34,8 +34,8 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 public class SlidingExpirationCacheTest {
-  @Mock SlidingExpirationCache.ItemDisposalFunc<String> mockDisposalFunc;
-  @Mock SlidingExpirationCache.ShouldDisposeFunc<String> mockShouldDisposeFunc;
+  @Mock ItemDisposalFunc<String> mockDisposalFunc;
+  @Mock ShouldDisposeFunc<String> mockShouldDisposeFunc;
   private AutoCloseable closeable;
 
   @BeforeEach

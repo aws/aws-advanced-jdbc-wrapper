@@ -25,6 +25,6 @@ public class FailoverConnectionPluginFactory implements ConnectionPluginFactory 
 
   @Override
   public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
-    return new FailoverConnectionPlugin(pluginService, props);
+    return new FailoverConnectionPlugin(pluginService.getServiceContainer(), props);
   }
 }

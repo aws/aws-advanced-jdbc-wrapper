@@ -44,7 +44,6 @@ import software.amazon.jdbc.plugin.AwsSecretsManagerCacheHolder;
 import software.amazon.jdbc.plugin.DataCacheConnectionPlugin;
 import software.amazon.jdbc.plugin.OpenedConnectionTracker;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
-import software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin;
 import software.amazon.jdbc.plugin.efm.MonitorThreadContainer;
 import software.amazon.jdbc.plugin.federatedauth.FederatedAuthCacheHolder;
 import software.amazon.jdbc.plugin.federatedauth.OktaAuthCacheHolder;
@@ -63,7 +62,15 @@ import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.ServiceContainerImpl;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.events.EventPublisher;
+import software.amazon.jdbc.util.events.PeriodicEventPublisher;
+import software.amazon.jdbc.util.monitoring.MonitorService;
+import software.amazon.jdbc.util.monitoring.MonitorServiceImpl;
+import software.amazon.jdbc.util.storage.StorageService;
+import software.amazon.jdbc.util.storage.StorageServiceImpl;
 import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -76,6 +83,10 @@ public class Driver implements java.sql.Driver {
   private static final Logger PARENT_LOGGER = Logger.getLogger("software.amazon.jdbc");
   private static final Logger LOGGER = Logger.getLogger("software.amazon.jdbc.Driver");
   private static @Nullable Driver registeredDriver;
+
+  private static final EventPublisher publisher = new PeriodicEventPublisher();
+  private static final StorageService storageService = new StorageServiceImpl(publisher);
+  private static final MonitorService monitorService = new MonitorServiceImpl(publisher);
 
   private static final AtomicReference<ResetSessionStateOnCloseCallable> resetSessionStateOnCloseCallable =
       new AtomicReference<>(null);
@@ -216,14 +227,16 @@ public class Driver implements java.sql.Driver {
         effectiveConnectionProvider = configurationProfile.getConnectionProvider();
       }
 
+      ServiceContainer serviceContainer = new ServiceContainerImpl(storageService, monitorService, telemetryFactory);
+
       return new ConnectionWrapper(
+          serviceContainer,
           props,
           driverUrl,
           defaultConnectionProvider,
           effectiveConnectionProvider,
           targetDriverDialect,
-          configurationProfile,
-          telemetryFactory);
+          configurationProfile);
 
     } catch (Exception ex) {
       context.setException(ex);
@@ -388,6 +401,7 @@ public class Driver implements java.sql.Driver {
   }
 
   public static void clearCaches() {
+    storageService.clearAll();
     RdsUtils.clearCache();
     RdsHostListProvider.clearAll();
     PluginServiceImpl.clearCache();
@@ -406,13 +420,12 @@ public class Driver implements java.sql.Driver {
   }
 
   public static void releaseResources() {
+    monitorService.stopAndRemoveAll();
     software.amazon.jdbc.plugin.efm2.MonitorServiceImpl.closeAllMonitors();
     MonitorThreadContainer.releaseInstance();
     ConnectionProviderManager.releaseResources();
-    CustomEndpointPlugin.closeMonitors();
     HikariPoolsHolder.closeAllPools();
     HostResponseTimeServiceImpl.closeAllMonitors();
-    MonitoringRdsHostListProvider.closeAllMonitors();
     clearCaches();
   }
 }

@@ -60,6 +60,7 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.util.RdsUrlType;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -78,6 +79,7 @@ class FailoverConnectionPluginTest {
       new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
           .host("reader1").port(1234).role(HostRole.READER).build());
 
+  @Mock ServiceContainer mockServiceContainer;
   @Mock PluginService mockPluginService;
   @Mock Connection mockConnection;
   @Mock HostSpec mockHostSpec;
@@ -107,7 +109,9 @@ class FailoverConnectionPluginTest {
   void init() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
 
+    when(mockServiceContainer.getPluginService()).thenReturn(mockPluginService);
     when(mockPluginService.getHostListProvider()).thenReturn(mockHostListProvider);
+    when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockHostListProvider.getRdsUrlType()).thenReturn(RdsUrlType.RDS_WRITER_CLUSTER);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.getCurrentHostSpec()).thenReturn(mockHostSpec);
@@ -429,7 +433,7 @@ class FailoverConnectionPluginTest {
   }
 
   private void initializePlugin() {
-    plugin = new FailoverConnectionPlugin(mockPluginService, properties);
+    plugin = new FailoverConnectionPlugin(mockServiceContainer, properties);
     plugin.setWriterFailoverHandler(mockWriterFailoverHandler);
     plugin.setReaderFailoverHandler(mockReaderFailoverHandler);
   }

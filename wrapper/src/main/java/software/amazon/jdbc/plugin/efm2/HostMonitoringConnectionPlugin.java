@@ -38,6 +38,7 @@ import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
 
 /**
@@ -92,30 +93,20 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
   /**
    * Initialize the node monitoring plugin.
    *
-   * @param pluginService A service allowing the plugin to retrieve the current active connection
-   *     and its connection settings.
+   * @param serviceContainer The service container for the services required by this class.
    * @param properties The property set used to initialize the active connection.
    */
   public HostMonitoringConnectionPlugin(
-      final @NonNull PluginService pluginService, final @NonNull Properties properties) {
-    this(pluginService, properties, () -> new MonitorServiceImpl(pluginService), new RdsUtils());
+      final @NonNull ServiceContainer serviceContainer, final @NonNull Properties properties) {
+    this(serviceContainer, properties, () -> new MonitorServiceImpl(serviceContainer), new RdsUtils());
   }
 
   HostMonitoringConnectionPlugin(
-      final @NonNull PluginService pluginService,
+      final @NonNull ServiceContainer serviceContainer,
       final @NonNull Properties properties,
       final @NonNull Supplier<MonitorService> monitorServiceSupplier,
       final RdsUtils rdsHelper) {
-    if (pluginService == null) {
-      throw new IllegalArgumentException("pluginService");
-    }
-    if (properties == null) {
-      throw new IllegalArgumentException("properties");
-    }
-    if (monitorServiceSupplier == null) {
-      throw new IllegalArgumentException("monitorServiceSupplier");
-    }
-    this.pluginService = pluginService;
+    this.pluginService = serviceContainer.getPluginService();
     this.properties = properties;
     this.monitorServiceSupplier = monitorServiceSupplier;
     this.rdsHelper = rdsHelper;

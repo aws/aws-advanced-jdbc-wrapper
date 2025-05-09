@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.util;
+package software.amazon.jdbc.util.storage;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -91,52 +91,6 @@ public class CacheMap<K, V> {
           }
         }
       });
-    }
-  }
-
-  static class CacheItem<V> {
-    final V item;
-    final long expirationTime;
-
-    public CacheItem(final V item, final long expirationTime) {
-      this.item = item;
-      this.expirationTime = expirationTime;
-    }
-
-    boolean isExpired() {
-      return System.nanoTime() > expirationTime;
-    }
-
-    @Override
-    public int hashCode() {
-      final int prime = 31;
-      int result = 1;
-      result = prime * result + ((item == null) ? 0 : item.hashCode());
-      return result;
-    }
-
-    @Override
-    public boolean equals(final Object obj) {
-      if (this == obj) {
-        return true;
-      }
-      if (obj == null) {
-        return false;
-      }
-      if (getClass() != obj.getClass()) {
-        return false;
-      }
-      final CacheItem<?> other = (CacheItem<?>) obj;
-      if (item == null) {
-        return other.item == null;
-      } else {
-        return item.equals(other.item);
-      }
-    }
-
-    @Override
-    public String toString() {
-      return "CacheItem [item=" + item + ", expirationTime=" + expirationTime + "]";
     }
   }
 }

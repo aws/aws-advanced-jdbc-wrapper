@@ -26,8 +26,8 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -45,7 +45,6 @@ public class MonitorServiceImpl implements MonitorService {
           "600000", // 10min
           "Interval in milliseconds for a monitor to be considered inactive and to be disposed.");
 
-  private final PluginService pluginService;
   private MonitorThreadContainer threadContainer;
 
   final MonitorInitializer monitorInitializer;
@@ -54,12 +53,12 @@ public class MonitorServiceImpl implements MonitorService {
   final TelemetryFactory telemetryFactory;
   final TelemetryCounter abortedConnectionsCounter;
 
-  public MonitorServiceImpl(final @NonNull PluginService pluginService) {
+  public MonitorServiceImpl(final @NonNull ServiceContainer serviceContainer) {
     this(
-        pluginService,
+        serviceContainer,
         (hostSpec, properties, monitorService) ->
             new MonitorImpl(
-                pluginService,
+                serviceContainer,
                 hostSpec,
                 properties,
                 MONITOR_DISPOSAL_TIME_MS.getLong(properties),
@@ -74,11 +73,10 @@ public class MonitorServiceImpl implements MonitorService {
   }
 
   MonitorServiceImpl(
-      final PluginService pluginService,
+      final ServiceContainer serviceContainer,
       final MonitorInitializer monitorInitializer,
       final ExecutorServiceInitializer executorServiceInitializer) {
-    this.pluginService = pluginService;
-    this.telemetryFactory = pluginService.getTelemetryFactory();
+    this.telemetryFactory = serviceContainer.getTelemetryFactory();
     this.abortedConnectionsCounter = telemetryFactory.createCounter("efm.connections.aborted");
     this.monitorInitializer = monitorInitializer;
     this.threadContainer = MonitorThreadContainer.getInstance(executorServiceInitializer);

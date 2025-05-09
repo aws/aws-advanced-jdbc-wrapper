@@ -32,6 +32,6 @@ public class CustomEndpointPluginFactory implements ConnectionPluginFactory {
       throw new RuntimeException(Messages.get("CustomEndpointPluginFactory.awsSdkNotInClasspath"));
     }
 
-    return new CustomEndpointPlugin(pluginService, props);
+    return new CustomEndpointPlugin(pluginService.getServiceContainer(), props);
   }
 }

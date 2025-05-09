@@ -74,6 +74,7 @@ import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 @Disabled
@@ -140,7 +141,7 @@ public class ConcurrencyTests {
         PluginService pluginService = new TestPluginService(hostSpec, connection);
 
         final HostMonitoringConnectionPlugin targetPlugin =
-            new HostMonitoringConnectionPlugin(pluginService, properties);
+            new HostMonitoringConnectionPlugin(pluginService.getServiceContainer(), properties);
 
         final Logger threadLogger = Logger.getLogger("software.amazon.jdbc.plugin.efm");
         threadLogger.setLevel(logLevel);
@@ -227,7 +228,7 @@ public class ConcurrencyTests {
     final PluginService pluginService = new TestPluginService(hostSpec, connection);
 
     final HostMonitoringConnectionPlugin targetPlugin =
-        new HostMonitoringConnectionPlugin(pluginService, properties);
+        new HostMonitoringConnectionPlugin(pluginService.getServiceContainer(), properties);
 
     for (int i = 0; i < 10; i++) {
       executor.submit(() -> {
@@ -493,6 +494,16 @@ public class ConcurrencyTests {
 
     @Override
     public HostSpec getInitialConnectionHostSpec() {
+      return null;
+    }
+
+    @Override
+    public String getOriginalUrl() {
+      return null;
+    }
+
+    @Override
+    public ServiceContainer getServiceContainer() {
       return null;
     }
 

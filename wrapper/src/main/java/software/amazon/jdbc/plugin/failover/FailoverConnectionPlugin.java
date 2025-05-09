@@ -47,6 +47,7 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
 import software.amazon.jdbc.util.Utils;
@@ -88,7 +89,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   static final String METHOD_CLOSE = "Connection.close";
   static final String METHOD_IS_CLOSED = "Connection.isClosed";
 
-  private final PluginService pluginService;
+  protected final ServiceContainer serviceContainer;
+  protected final PluginService pluginService;
   protected final Properties properties;
   protected boolean enableFailoverSetting;
   protected boolean enableConnectFailover;
@@ -182,15 +184,16 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     PropertyDefinition.registerPluginProperties(FailoverConnectionPlugin.class);
   }
 
-  public FailoverConnectionPlugin(final PluginService pluginService, final Properties properties) {
-    this(pluginService, properties, new RdsUtils());
+  public FailoverConnectionPlugin(final ServiceContainer serviceContainer, final Properties properties) {
+    this(serviceContainer, properties, new RdsUtils());
   }
 
   FailoverConnectionPlugin(
-      final PluginService pluginService,
+      final ServiceContainer serviceContainer,
       final Properties properties,
       final RdsUtils rdsHelper) {
-    this.pluginService = pluginService;
+    this.serviceContainer = serviceContainer;
+    this.pluginService = serviceContainer.getPluginService();
     this.properties = properties;
     this.rdsHelper = rdsHelper;
 
@@ -287,14 +290,14 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         initHostProviderFunc,
         () ->
             new ClusterAwareReaderFailoverHandler(
-                this.pluginService,
+                this.serviceContainer,
                 this.properties,
                 this.failoverTimeoutMsSetting,
                 this.failoverReaderConnectTimeoutMsSetting,
                 this.failoverMode == FailoverMode.STRICT_READER),
         () ->
             new ClusterAwareWriterFailoverHandler(
-                this.pluginService,
+                this.serviceContainer,
                 this.readerFailoverHandler,
                 this.properties,
                 this.failoverTimeoutMsSetting,

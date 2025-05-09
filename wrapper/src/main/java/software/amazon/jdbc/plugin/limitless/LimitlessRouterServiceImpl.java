@@ -33,8 +33,9 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.RoundRobinHostSelector;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.storage.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.wrapper.HighestWeightHostSelector;
 
 public class LimitlessRouterServiceImpl implements LimitlessRouterService {
@@ -77,22 +78,22 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
     PropertyDefinition.registerPluginProperties(LimitlessRouterServiceImpl.class);
   }
 
-  public LimitlessRouterServiceImpl(final @NonNull PluginService pluginService) {
+  public LimitlessRouterServiceImpl(final @NonNull ServiceContainer serviceContainer) {
     this(
-        pluginService,
+        serviceContainer.getPluginService(),
         (hostSpec,
             routerCache,
             routerCacheKey,
             props,
             intervalMs) ->
             new LimitlessRouterMonitor(
-                pluginService,
+                serviceContainer,
                 hostSpec,
                 routerCache,
                 routerCacheKey,
                 props,
                 intervalMs),
-        new LimitlessQueryHelper(pluginService));
+        new LimitlessQueryHelper(serviceContainer.getPluginService()));
   }
 
   public LimitlessRouterServiceImpl(
