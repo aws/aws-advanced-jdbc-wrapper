@@ -54,7 +54,6 @@ public class ConnectionServiceImpl implements ConnectionService {
         connectionProvider,
         null,
         null,
-        // TODO: is it okay to share the telemetry factory?
         telemetryFactory);
     serviceContainer.setConnectionPluginManager(this.pluginManager);
 
@@ -76,7 +75,7 @@ public class ConnectionServiceImpl implements ConnectionService {
   }
 
   @Override
-  public Connection createAuxiliaryConnection(HostSpec hostSpec, Properties props) throws SQLException {
+  public Connection open(HostSpec hostSpec, Properties props) throws SQLException {
     return this.pluginManager.forceConnect(this.targetDriverProtocol, hostSpec, props, true, null);
   }
 

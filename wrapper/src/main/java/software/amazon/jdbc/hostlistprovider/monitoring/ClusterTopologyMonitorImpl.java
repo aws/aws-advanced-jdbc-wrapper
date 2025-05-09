@@ -502,7 +502,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
       // open a new connection
       try {
-        conn = this.connectionService.createAuxiliaryConnection(this.initialHostSpec, this.monitoringProperties);
+        conn = this.connectionService.open(this.initialHostSpec, this.monitoringProperties);
       } catch (SQLException ex) {
         // can't connect
         return null;
@@ -828,7 +828,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
           if (connection == null) {
 
             try {
-              connection = this.monitor.connectionService.createAuxiliaryConnection(
+              connection = this.monitor.connectionService.open(
                   hostSpec, this.monitor.monitoringProperties);
               this.monitor.pluginService.setAvailability(
                   hostSpec.asAliases(), HostAvailability.AVAILABLE);

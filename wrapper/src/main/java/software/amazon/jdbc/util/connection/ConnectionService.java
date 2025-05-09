@@ -31,7 +31,7 @@ public interface ConnectionService {
    * @param props    the properties for the auxiliary connection.
    * @return a new connection to the given host using the given props.
    */
-  Connection createAuxiliaryConnection(HostSpec hostSpec, Properties props) throws SQLException;
+  Connection open(HostSpec hostSpec, Properties props) throws SQLException;
 
   PluginService getPluginService();
 }
