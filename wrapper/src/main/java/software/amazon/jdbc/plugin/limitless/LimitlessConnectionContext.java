@@ -63,6 +63,13 @@ public class LimitlessConnectionContext {
   }
 
   public void setConnection(final @NonNull Connection connection) {
+    if (this.connection != null && this.connection != connection) {
+      try {
+        this.connection.close();
+      } catch (SQLException ex) {
+        // ignore
+      }
+    }
     this.connection = connection;
   }
 
