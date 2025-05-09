@@ -79,7 +79,7 @@ public class RdsUtils {
           "^(?<instance>.+)\\."
               + "(?<dns>proxy-|cluster-|cluster-ro-|cluster-custom-|shardgrp-)?"
               + "(?<domain>[a-zA-Z0-9]+\\.(?<region>[a-zA-Z0-9\\-]+)"
-              + "\\.rds\\.amazonaws\\.com)$",
+              + "\\.rds\\.amazonaws\\.com\\.?)$",
           Pattern.CASE_INSENSITIVE);
 
   private static final Pattern AURORA_CLUSTER_PATTERN =
@@ -87,21 +87,21 @@ public class RdsUtils {
           "^(?<instance>.+)\\."
               + "(?<dns>cluster-|cluster-ro-)+"
               + "(?<domain>[a-zA-Z0-9]+\\.(?<region>[a-zA-Z0-9\\-]+)"
-              + "\\.rds\\.amazonaws\\.com)$",
+              + "\\.rds\\.amazonaws\\.com\\.?)$",
           Pattern.CASE_INSENSITIVE);
   private static final Pattern AURORA_LIMITLESS_CLUSTER_PATTERN =
       Pattern.compile(
           "(?<instance>.+)\\."
               + "(?<dns>shardgrp-)+"
               + "(?<domain>[a-zA-Z0-9]+\\.(?<region>[a-zA-Z0-9\\-]+)"
-              + "\\.rds\\.(amazonaws\\.com(\\.cn)?|sc2s\\.sgov\\.gov|c2s\\.ic\\.gov))$",
+              + "\\.rds\\.(amazonaws\\.com\\.?|amazonaws\\.com\\.cn\\.?|sc2s\\.sgov\\.gov\\.?|c2s\\.ic\\.gov\\.?))$",
           Pattern.CASE_INSENSITIVE);
   private static final Pattern AURORA_CHINA_DNS_PATTERN =
       Pattern.compile(
           "^(?<instance>.+)\\."
               + "(?<dns>proxy-|cluster-|cluster-ro-|cluster-custom-|shardgrp-)?"
               + "(?<domain>[a-zA-Z0-9]+\\.rds\\.(?<region>[a-zA-Z0-9\\-]+)"
-              + "\\.amazonaws\\.com\\.cn)$",
+              + "\\.amazonaws\\.com\\.cn\\.?)$",
           Pattern.CASE_INSENSITIVE);
 
   private static final Pattern AURORA_CHINA_CLUSTER_PATTERN =
@@ -109,7 +109,7 @@ public class RdsUtils {
           "^(?<instance>.+)\\."
               + "(?<dns>cluster-|cluster-ro-)+"
               + "(?<domain>[a-zA-Z0-9]+\\.rds\\.(?<region>[a-zA-Z0-9\\-]+)"
-              + "\\.amazonaws\\.com\\.cn)$",
+              + "\\.amazonaws\\.com\\.cn\\.?)$",
           Pattern.CASE_INSENSITIVE);
 
   private static final Pattern AURORA_OLD_CHINA_DNS_PATTERN =
@@ -117,7 +117,7 @@ public class RdsUtils {
           "^(?<instance>.+)\\."
               + "(?<dns>proxy-|cluster-|cluster-ro-|cluster-custom-|shardgrp-)?"
               + "(?<domain>[a-zA-Z0-9]+\\.(?<region>[a-zA-Z0-9\\-]+)"
-              + "\\.rds\\.amazonaws\\.com\\.cn)$",
+              + "\\.rds\\.amazonaws\\.com\\.cn\\.?)$",
           Pattern.CASE_INSENSITIVE);
 
   private static final Pattern AURORA_OLD_CHINA_CLUSTER_PATTERN =
@@ -125,7 +125,7 @@ public class RdsUtils {
           "^(?<instance>.+)\\."
               + "(?<dns>cluster-|cluster-ro-)+"
               + "(?<domain>[a-zA-Z0-9]+\\.(?<region>[a-zA-Z0-9\\-]+)"
-              + "\\.rds\\.amazonaws\\.com\\.cn)$",
+              + "\\.rds\\.amazonaws\\.com\\.cn\\.?)$",
           Pattern.CASE_INSENSITIVE);
 
   private static final Pattern AURORA_GOV_DNS_PATTERN =
@@ -133,7 +133,7 @@ public class RdsUtils {
           "^(?<instance>.+)\\."
               + "(?<dns>proxy-|cluster-|cluster-ro-|cluster-custom-|shardgrp-)?"
               + "(?<domain>[a-zA-Z0-9]+\\.rds\\.(?<region>[a-zA-Z0-9\\-]+)"
-              + "\\.(amazonaws\\.com|c2s\\.ic\\.gov|sc2s\\.sgov\\.gov))$",
+              + "\\.(amazonaws\\.com\\.?|c2s\\.ic\\.gov\\.?|sc2s\\.sgov\\.gov\\.?))$",
           Pattern.CASE_INSENSITIVE);
 
   private static final Pattern AURORA_GOV_CLUSTER_PATTERN =
@@ -141,13 +141,13 @@ public class RdsUtils {
           "^(?<instance>.+)\\."
               + "(?<dns>cluster-|cluster-ro-)+"
               + "(?<domain>[a-zA-Z0-9]+\\.rds\\.(?<region>[a-zA-Z0-9\\-]+)"
-              + "\\.(amazonaws\\.com|c2s\\.ic\\.gov|sc2s\\.sgov\\.gov))$",
+              + "\\.(amazonaws\\.com\\.?|c2s\\.ic\\.gov\\.?|sc2s\\.sgov\\.gov\\.?))$",
           Pattern.CASE_INSENSITIVE);
 
   private static final Pattern ELB_PATTERN =
       Pattern.compile(
           "^(?<instance>.+)\\.elb\\."
-              + "((?<region>[a-zA-Z0-9\\-]+)\\.amazonaws\\.com)$",
+              + "((?<region>[a-zA-Z0-9\\-]+)\\.amazonaws\\.com\\.?)$",
           Pattern.CASE_INSENSITIVE);
 
   private static final Pattern IP_V4 =
