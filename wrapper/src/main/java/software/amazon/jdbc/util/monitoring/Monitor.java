@@ -34,6 +34,11 @@ public interface Monitor {
   void stop();
 
   /**
+   * Closes all resources used by this monitor. This method will be called as part of {@link #stop()}.
+   */
+  void close();
+
+  /**
    * Gets the timestamp for the last action performed by this monitor, in nanoseconds.
    *
    * @return the timestamp for the last action performed by this monitor, in nanoseconds.

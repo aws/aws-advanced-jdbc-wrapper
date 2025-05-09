@@ -70,7 +70,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
    *                               custom endpoint info.
    * @param telemetryFactory       The telemetry factory
    * @param customEndpointHostSpec The host information for the custom endpoint to be monitored.
-   * @param endpointIdentifier An endpoint identifier.
+   * @param endpointIdentifier     An endpoint identifier.
    * @param region                 The region of the custom endpoint to be monitored.
    * @param refreshRateNano        Controls how often the custom endpoint information should be fetched and analyzed for
    *                               changes. The value specified should be in nanoseconds.
@@ -86,7 +86,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
       Region region,
       long refreshRateNano,
       BiFunction<HostSpec, Region, RdsClient> rdsClientFunc) {
-    super(monitorService);
+    super(monitorService, 30);
     this.storageService = storageService;
     this.customEndpointHostSpec = customEndpointHostSpec;
     this.endpointIdentifier = endpointIdentifier;
@@ -105,7 +105,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
     LOGGER.fine(
         Messages.get(
             "CustomEndpointMonitorImpl.startingMonitor",
-            new Object[] { this.customEndpointHostSpec.getUrl() }));
+            new Object[] {this.customEndpointHostSpec.getUrl()}));
 
     try {
       while (!this.stop.get() && !Thread.currentThread().isInterrupted()) {
@@ -175,14 +175,14 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
           LOGGER.log(Level.SEVERE,
               Messages.get(
                   "CustomEndpointMonitorImpl.exception",
-                  new Object[]{this.customEndpointHostSpec.getUrl()}), e);
+                  new Object[] {this.customEndpointHostSpec.getUrl()}), e);
         }
       }
     } catch (InterruptedException e) {
       LOGGER.fine(
           Messages.get(
               "CustomEndpointMonitorImpl.interrupted",
-              new Object[]{ this.customEndpointHostSpec.getUrl() }));
+              new Object[] {this.customEndpointHostSpec.getUrl()}));
       Thread.currentThread().interrupt();
     } finally {
       customEndpointInfoCache.remove(this.customEndpointHostSpec.getUrl());
@@ -190,7 +190,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
       LOGGER.fine(
           Messages.get(
               "CustomEndpointMonitorImpl.stoppedMonitor",
-              new Object[]{ this.customEndpointHostSpec.getUrl() }));
+              new Object[] {this.customEndpointHostSpec.getUrl()}));
     }
   }
 
@@ -198,40 +198,10 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
     return customEndpointInfoCache.get(this.customEndpointHostSpec.getUrl()) != null;
   }
 
-  /**
-   * Stops the custom endpoint monitor.
-   */
   @Override
-  public void stop() {
-    LOGGER.fine(
-        Messages.get(
-            "CustomEndpointMonitorImpl.stoppingMonitor",
-            new Object[]{ this.customEndpointHostSpec.getUrl() }));
-
-    this.stop.set(true);
-
-    try {
-      int terminationTimeoutSec = 5;
-      if (!this.monitorExecutor.awaitTermination(terminationTimeoutSec, TimeUnit.SECONDS)) {
-        LOGGER.info(
-            Messages.get(
-                "CustomEndpointMonitorImpl.monitorTerminationTimeout",
-                new Object[]{ terminationTimeoutSec, this.customEndpointHostSpec.getUrl() }));
-
-        this.monitorExecutor.shutdownNow();
-      }
-    } catch (InterruptedException e) {
-      LOGGER.info(
-          Messages.get(
-              "CustomEndpointMonitorImpl.interruptedWhileTerminating",
-              new Object[]{ this.customEndpointHostSpec.getUrl() }));
-
-      Thread.currentThread().interrupt();
-      this.monitorExecutor.shutdownNow();
-    } finally {
-      customEndpointInfoCache.remove(this.customEndpointHostSpec.getUrl());
-      this.rdsClient.close();
-    }
+  public void close() {
+    customEndpointInfoCache.remove(this.customEndpointHostSpec.getUrl());
+    this.rdsClient.close();
   }
 
   /**

@@ -18,6 +18,8 @@ package software.amazon.jdbc.util.monitoring;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
 import software.amazon.jdbc.util.Messages;
@@ -28,6 +30,8 @@ import software.amazon.jdbc.util.StringUtils;
  */
 public abstract class AbstractMonitor implements Monitor, Runnable {
   private static final Logger LOGGER = Logger.getLogger(AbstractMonitor.class.getName());
+  protected final AtomicBoolean stop = new AtomicBoolean(false);
+  protected final long terminationTimeoutSec;
   protected final MonitorService monitorService;
   protected final ExecutorService monitorExecutor = Executors.newSingleThreadExecutor(runnableTarget -> {
     final Thread monitoringThread = new Thread(runnableTarget);
@@ -41,8 +45,9 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
   protected long lastActivityTimestampNanos;
   protected MonitorState state;
 
-  protected AbstractMonitor(MonitorService monitorService) {
+  protected AbstractMonitor(MonitorService monitorService, long terminationTimeoutSec) {
     this.monitorService = monitorService;
+    this.terminationTimeoutSec = terminationTimeoutSec;
     this.lastActivityTimestampNanos = System.nanoTime();
   }
 
@@ -64,9 +69,29 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
       this.lastActivityTimestampNanos = System.nanoTime();
       monitor();
     } catch (Exception e) {
-      LOGGER.fine(Messages.get("AbstractMonitor.unexpectedError", new Object[]{this, e}));
+      LOGGER.fine(Messages.get("AbstractMonitor.unexpectedError", new Object[] {this, e}));
       this.state = MonitorState.ERROR;
       monitorService.reportMonitorError(this, e);
+    }
+  }
+
+  @Override
+  public void stop() {
+    LOGGER.fine(Messages.get("AbstractMonitor.stoppingMonitor", new Object[] {this}));
+    this.stop.set(true);
+
+    try {
+      if (!this.monitorExecutor.awaitTermination(this.terminationTimeoutSec, TimeUnit.SECONDS)) {
+        LOGGER.info(Messages.get(
+            "AbstractMonitor.monitorTerminationTimeout", new Object[] {terminationTimeoutSec, this}));
+        this.monitorExecutor.shutdownNow();
+      }
+    } catch (InterruptedException e) {
+      LOGGER.info(Messages.get("AbstractMonitor.interruptedWhileTerminating", new Object[] {this}));
+      Thread.currentThread().interrupt();
+      this.monitorExecutor.shutdownNow();
+    } finally {
+      close();
     }
   }
 

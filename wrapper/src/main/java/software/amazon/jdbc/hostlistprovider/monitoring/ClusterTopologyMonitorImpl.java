@@ -126,7 +126,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       final String topologyQuery,
       final String writerTopologyQuery,
       final String nodeIdQuery) {
-    super(monitorService);
+    super(monitorService, 30);
 
     this.clusterId = clusterId;
     this.storageService = storageService;
@@ -194,7 +194,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       final Connection monitoringConnection = this.monitoringConnection.get();
       this.monitoringConnection.set(null);
       this.isVerifiedWriterConnection = false;
-      this.closeConnection(monitoringConnection, true);
+      this.closeConnection(monitoringConnection);
     }
 
     return this.waitTillTopologyGetsUpdated(timeoutMs);
@@ -263,7 +263,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
   @Override
   public void stop() {
-    this.stop.set(true);
     this.nodeThreadsStop.set(true);
     this.shutdownNodeExecutorService();
 
@@ -273,21 +272,14 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       this.requestToUpdateTopology.notifyAll();
     }
 
-    // Waiting for 30s gives a thread enough time to exit monitoring loop and close database connection.
-    try {
-      long timeout = 30;
-      TimeUnit timeoutUnit = TimeUnit.SECONDS;
-      if (!this.monitorExecutor.awaitTermination(timeout, timeoutUnit)) {
-        LOGGER.fine(
-            Messages.get("ClusterTopologyMonitorImpl.awaitTerminationTimeout", new Object[]{timeout, timeoutUnit}));
-        this.monitorExecutor.shutdownNow();
-      }
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      LOGGER.fine(
-          Messages.get("ClusterTopologyMonitorImpl.interruptedWhileTerminating"));
-      this.monitorExecutor.shutdownNow();
-    }
+    super.stop();
+  }
+
+  @Override
+  public void close() {
+    this.closeConnection(this.monitoringConnection.get());
+    this.closeConnection(this.nodeThreadsWriterConnection.get());
+    this.closeConnection(this.nodeThreadsReaderConnection.get());
   }
 
   @Override
@@ -591,18 +583,12 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   }
 
   protected void closeConnection(final @Nullable Connection connection) {
-    this.closeConnection(connection, true);
-  }
-
-  protected void closeConnection(final @Nullable Connection connection, final boolean unstableConnection) {
     try {
       if (connection != null && !connection.isClosed()) {
-        if (unstableConnection) {
-          try {
-            connection.setNetworkTimeout(networkTimeoutExecutor, closeConnectionNetworkTimeoutMs);
-          } catch (SQLException ex) {
-            // do nothing
-          }
+        try {
+          connection.setNetworkTimeout(networkTimeoutExecutor, closeConnectionNetworkTimeoutMs);
+        } catch (SQLException ex) {
+          // do nothing
         }
         connection.close();
       }
