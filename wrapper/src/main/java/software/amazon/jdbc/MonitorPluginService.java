@@ -220,12 +220,12 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
 
   @Override
   public boolean acceptsStrategy(HostRole role, String strategy) throws SQLException {
-    return this.pluginManager.acceptsStrategy(role, strategy);
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public HostSpec getHostSpecByStrategy(HostRole role, String strategy) throws SQLException {
-    return this.pluginManager.getHostSpecByStrategy(role, strategy);
+    throw new UnsupportedOperationException();
   }
 
   @Override
@@ -476,7 +476,7 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
 
   @Override
   public boolean isInTransaction() {
-    return this.isInTransaction;
+    throw new UnsupportedOperationException();
   }
 
   @Override
@@ -603,7 +603,7 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
 
   @Override
   public Connection connect(final HostSpec hostSpec, final Properties props) throws SQLException {
-    return this.connect(hostSpec, props, null);
+    throw new UnsupportedOperationException();
   }
 
   @Override
@@ -612,8 +612,7 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
       final Properties props,
       final @Nullable ConnectionPlugin pluginToSkip)
       throws SQLException {
-    return this.pluginManager.connect(
-        this.driverProtocol, hostSpec, props, this.currentConnection == null, pluginToSkip);
+    throw new UnsupportedOperationException();
   }
 
   @Override
@@ -645,20 +644,7 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
 
   @Override
   public void releaseResources() {
-    LOGGER.fine(() -> Messages.get("PluginServiceImpl.releaseResources"));
-
-    try {
-      if (this.currentConnection != null && !this.currentConnection.isClosed()) {
-        this.currentConnection.close();
-      }
-    } catch (final SQLException e) {
-      // Ignore an exception
-    }
-
-    if (this.hostListProvider != null && this.hostListProvider instanceof CanReleaseResources) {
-      final CanReleaseResources canReleaseResourcesObject = (CanReleaseResources) this.hostListProvider;
-      canReleaseResourcesObject.releaseResources();
-    }
+    throw new UnsupportedOperationException();
   }
 
   @Override
@@ -777,7 +763,7 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
 
   @Override
   public @NonNull SessionStateService getSessionStateService() {
-    return this.sessionStateService;
+    throw new UnsupportedOperationException();
   }
 
   public <T> T getPlugin(final Class<T> pluginClazz) {
