@@ -208,7 +208,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       String driverProtocol,
       TargetDriverDialect driverDialect,
       Dialect dbDialect,
-      Properties props,
+      Properties originalProps,
       MonitorInitializer initializer) throws SQLException {
     CacheContainer cacheContainer = monitorCaches.get(monitorClass);
     if (cacheContainer == null) {
@@ -222,9 +222,9 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
     }
 
     TargetDriverHelper helper = new TargetDriverHelper();
-    java.sql.Driver driver = helper.getTargetDriver(originalUrl, props);
+    java.sql.Driver driver = helper.getTargetDriver(originalUrl, originalProps);
     final ConnectionProvider defaultConnectionProvider = new DriverConnectionProvider(driver);
-    final Properties propsCopy = PropertyUtils.copyProperties(props);
+    final Properties propsCopy = PropertyUtils.copyProperties(originalProps);
     final ConnectionServiceImpl connectionService = new ConnectionServiceImpl(
         storageService,
         this,

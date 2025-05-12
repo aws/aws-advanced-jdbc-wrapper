@@ -22,7 +22,7 @@ import java.util.Properties;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.MonitorPluginService;
+import software.amazon.jdbc.PartialPluginService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
@@ -57,7 +57,7 @@ public class ConnectionServiceImpl implements ConnectionService {
         telemetryFactory);
     serviceContainer.setConnectionPluginManager(this.pluginManager);
 
-    MonitorPluginService monitorPluginService = new MonitorPluginService(
+    PartialPluginService partialPluginService = new PartialPluginService(
         serviceContainer,
         props,
         originalUrl,
@@ -66,12 +66,12 @@ public class ConnectionServiceImpl implements ConnectionService {
         dbDialect
     );
 
-    this.pluginService = monitorPluginService;
-    serviceContainer.setHostListProviderService(monitorPluginService);
-    serviceContainer.setPluginService(monitorPluginService);
-    serviceContainer.setPluginManagerService(monitorPluginService);
+    this.pluginService = partialPluginService;
+    serviceContainer.setHostListProviderService(partialPluginService);
+    serviceContainer.setPluginService(partialPluginService);
+    serviceContainer.setPluginManagerService(partialPluginService);
 
-    this.pluginManager.init(monitorPluginService, props, monitorPluginService, null);
+    this.pluginManager.init(partialPluginService, props, partialPluginService, null);
   }
 
   @Override
