@@ -24,7 +24,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.monitoring.Monitor;
 
-public interface ClusterTopologyMonitor extends Monitor, Runnable {
+public interface ClusterTopologyMonitor extends Monitor {
 
   boolean canDispose();
 

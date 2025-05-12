@@ -37,7 +37,7 @@ import software.amazon.jdbc.util.Messages;
 public class ExpirationCache<K, V> {
   private static final Logger LOGGER = Logger.getLogger(ExpirationCache.class.getName());
   protected static final long DEFAULT_TIME_TO_LIVE_NANOS = TimeUnit.MINUTES.toNanos(5);
-  protected final Map<K, CacheItem> cache = new ConcurrentHashMap<>();
+  protected final Map<K, CacheItem<V>> cache = new ConcurrentHashMap<>();
   protected final boolean isRenewableExpiration;
   protected final long timeToLiveNanos;
   protected final ShouldDisposeFunc<V> shouldDisposeFunc;
@@ -82,8 +82,9 @@ public class ExpirationCache<K, V> {
   public @Nullable V put(
       final K key,
       final V value) {
-    final CacheItem cacheItem =
-        cache.put(key, new CacheItem(value, System.nanoTime() + this.timeToLiveNanos));
+    final CacheItem<V> cacheItem =
+        cache.put(key, new CacheItem<>(
+            value, System.nanoTime() + this.timeToLiveNanos, this.shouldDisposeFunc));
     if (cacheItem == null) {
       return null;
     }
@@ -112,27 +113,29 @@ public class ExpirationCache<K, V> {
     // to be final. This allows us to dispose of the item after it has been removed and the cache has been unlocked,
     // which is important because the disposal function may be long-running.
     final List<V> toDisposeList = new ArrayList<>(1);
-    final CacheItem cacheItem = cache.compute(
+    final CacheItem<V> cacheItem = cache.compute(
         key,
         (k, valueItem) -> {
           if (valueItem == null) {
             // The key is absent; compute and store the new value.
-            return new CacheItem(
+            return new CacheItem<>(
                 mappingFunction.apply(k),
-                System.nanoTime() + this.timeToLiveNanos);
+                System.nanoTime() + this.timeToLiveNanos,
+                this.shouldDisposeFunc);
           }
 
           if (valueItem.shouldCleanup() && !this.isRenewableExpiration) {
             // The existing value is expired and non-renewable. Mark it for disposal and store the new value.
             toDisposeList.add(valueItem.item);
-            return new CacheItem(
+            return new CacheItem<>(
                 mappingFunction.apply(k),
-                System.nanoTime() + this.timeToLiveNanos);
+                System.nanoTime() + this.timeToLiveNanos,
+                this.shouldDisposeFunc);
           }
 
           // The existing value is non-expired or renewable. Keep the existing value.
           if (this.isRenewableExpiration) {
-            valueItem.extendExpiration();
+            valueItem.extendExpiration(this.timeToLiveNanos);
           }
 
           return valueItem;
@@ -152,13 +155,13 @@ public class ExpirationCache<K, V> {
    * @return the value stored at the given key, or null if there is no existing value or the existing value is expired.
    */
   public @Nullable V get(final K key) {
-    final CacheItem cacheItem = cache.get(key);
+    final CacheItem<V> cacheItem = cache.get(key);
     if (cacheItem == null) {
       return null;
     }
 
     if (this.isRenewableExpiration) {
-      cacheItem.extendExpiration();
+      cacheItem.extendExpiration(this.timeToLiveNanos);
     } else if (cacheItem.shouldCleanup()) {
       return null;
     }
@@ -173,7 +176,7 @@ public class ExpirationCache<K, V> {
    * @return true if there is a non-expired value stored at the given key, otherwise returns false.
    */
   public boolean exists(final K key) {
-    final CacheItem cacheItem = cache.get(key);
+    final CacheItem<V> cacheItem = cache.get(key);
     return cacheItem != null && !cacheItem.shouldCleanup();
   }
 
@@ -189,7 +192,7 @@ public class ExpirationCache<K, V> {
   }
 
   protected @Nullable V removeAndDispose(K key) {
-    final CacheItem cacheItem = cache.remove(key);
+    final CacheItem<V> cacheItem = cache.remove(key);
     if (cacheItem == null) {
       return null;
     }
@@ -262,7 +265,7 @@ public class ExpirationCache<K, V> {
    */
   public Map<K, V> getEntries() {
     final Map<K, V> entries = new HashMap<>();
-    for (final Map.Entry<K, CacheItem> entry : this.cache.entrySet()) {
+    for (final Map.Entry<K, CacheItem<V>> entry : this.cache.entrySet()) {
       entries.put(entry.getKey(), entry.getValue().item);
     }
 
@@ -276,73 +279,5 @@ public class ExpirationCache<K, V> {
    */
   public int size() {
     return this.cache.size();
-  }
-
-  /**
-   * A container class that holds a cache value together with the time at which the value should be considered expired.
-   */
-  protected class CacheItem {
-    private final V item;
-    private long expirationTimeNanos;
-
-    /**
-     * Constructs a CacheItem.
-     *
-     * @param item                the item value.
-     * @param expirationTimeNanos the time at which a CacheItem should be considered expired.
-     */
-    protected CacheItem(final V item, final long expirationTimeNanos) {
-      this.item = item;
-      this.expirationTimeNanos = expirationTimeNanos;
-    }
-
-    /**
-     * Determines if a cache item should be cleaned up. An item should be cleaned up if it has past its expiration time
-     * and the {@link ShouldDisposeFunc} (if defined) indicates that it should be cleaned up.
-     *
-     * @return true if the cache item should be cleaned up. Otherwise, returns false.
-     */
-    protected boolean shouldCleanup() {
-      final boolean isExpired = this.expirationTimeNanos != 0 && System.nanoTime() > this.expirationTimeNanos;
-      if (shouldDisposeFunc != null) {
-        return isExpired && shouldDisposeFunc.shouldDispose(this.item);
-      }
-      return isExpired;
-    }
-
-    /**
-     * Renews a cache item's expiration time.
-     */
-    protected void extendExpiration() {
-      this.expirationTimeNanos = System.nanoTime() + timeToLiveNanos;
-    }
-
-    @Override
-    public int hashCode() {
-      final int prime = 31;
-      int result = 1;
-      result = prime * result + ((item == null) ? 0 : item.hashCode());
-      return result;
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public boolean equals(Object obj) {
-      if (this == obj) {
-        return true;
-      }
-
-      if (obj == null || getClass() != obj.getClass()) {
-        return false;
-      }
-
-      CacheItem other = (CacheItem) obj;
-      return this.item.equals(other.item) && this.expirationTimeNanos == other.expirationTimeNanos;
-    }
-
-    @Override
-    public String toString() {
-      return "CacheItem [item=" + item + ", expirationTime=" + expirationTimeNanos + "]";
-    }
   }
 }

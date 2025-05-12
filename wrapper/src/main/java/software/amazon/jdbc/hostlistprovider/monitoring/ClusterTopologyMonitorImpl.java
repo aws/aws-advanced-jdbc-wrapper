@@ -52,12 +52,12 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
+import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.Topology;
 
@@ -97,7 +97,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected final AtomicReference<HostSpec> writerHostSpec = new AtomicReference<>(null);
   protected final AtomicReference<Connection> monitoringConnection = new AtomicReference<>(null);
   protected boolean isVerifiedWriterConnection = false;
-  protected final AtomicBoolean stop = new AtomicBoolean(false);
   protected long highRefreshRateEndTimeNano = 0;
   protected final Object topologyUpdated = new Object();
   protected final AtomicBoolean requestToUpdateTopology = new AtomicBoolean(false);
@@ -112,23 +111,27 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected final AtomicReference<List<HostSpec>> nodeThreadsLatestTopology = new AtomicReference<>(null);
 
   public ClusterTopologyMonitorImpl(
-      final ServiceContainer serviceContainer,
       final String clusterId,
+      final StorageService storageService,
+      final MonitorService monitorService,
+      final ConnectionService connectionService,
       final HostSpec initialHostSpec,
       final Properties properties,
+      final PluginService pluginService,
+      final HostListProviderService hostListProviderService,
       final HostSpec clusterInstanceTemplate,
       final long refreshRateNano,
       final long highRefreshRateNano,
       final String topologyQuery,
       final String writerTopologyQuery,
       final String nodeIdQuery) {
-    super(serviceContainer.getMonitorService(), "ctmi");
+    super(monitorService, "ctmi", 30);
 
     this.clusterId = clusterId;
-    this.storageService = serviceContainer.getStorageService();
-    this.connectionService = serviceContainer.getConnectionService();
-    this.pluginService = serviceContainer.getPluginService();
-    this.hostListProviderService = serviceContainer.getHostListProviderService();
+    this.storageService = storageService;
+    this.connectionService = connectionService;
+    this.pluginService = pluginService;
+    this.hostListProviderService = hostListProviderService;
     this.initialHostSpec = initialHostSpec;
     this.clusterInstanceTemplate = clusterInstanceTemplate;
     this.properties = properties;
@@ -190,7 +193,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       final Connection monitoringConnection = this.monitoringConnection.get();
       this.monitoringConnection.set(null);
       this.isVerifiedWriterConnection = false;
-      this.closeConnection(monitoringConnection, true);
+      this.closeConnection(monitoringConnection);
     }
 
     return this.waitTillTopologyGetsUpdated(timeoutMs);
@@ -259,7 +262,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
   @Override
   public void stop() {
-    this.stop.set(true);
     this.nodeThreadsStop.set(true);
     this.shutdownNodeExecutorService();
 
@@ -269,21 +271,14 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       this.requestToUpdateTopology.notifyAll();
     }
 
-    // Waiting for 30s gives a thread enough time to exit monitoring loop and close database connection.
-    try {
-      long timeout = 30;
-      TimeUnit timeoutUnit = TimeUnit.SECONDS;
-      if (!this.monitorExecutor.awaitTermination(timeout, timeoutUnit)) {
-        LOGGER.fine(
-            Messages.get("ClusterTopologyMonitorImpl.awaitTerminationTimeout", new Object[]{timeout, timeoutUnit}));
-        this.monitorExecutor.shutdownNow();
-      }
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      LOGGER.fine(
-          Messages.get("ClusterTopologyMonitorImpl.interruptedWhileTerminating"));
-      this.monitorExecutor.shutdownNow();
-    }
+    super.stop();
+  }
+
+  @Override
+  public void close() {
+    this.closeConnection(this.monitoringConnection.get());
+    this.closeConnection(this.nodeThreadsWriterConnection.get());
+    this.closeConnection(this.nodeThreadsReaderConnection.get());
   }
 
   @Override
@@ -506,7 +501,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
       // open a new connection
       try {
-        conn = this.connectionService.createAuxiliaryConnection(this.initialHostSpec, this.monitoringProperties);
+        conn = this.connectionService.open(this.initialHostSpec, this.monitoringProperties);
       } catch (SQLException ex) {
         // can't connect
         return null;
@@ -587,18 +582,12 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   }
 
   protected void closeConnection(final @Nullable Connection connection) {
-    this.closeConnection(connection, true);
-  }
-
-  protected void closeConnection(final @Nullable Connection connection, final boolean unstableConnection) {
     try {
       if (connection != null && !connection.isClosed()) {
-        if (unstableConnection) {
-          try {
-            connection.setNetworkTimeout(networkTimeoutExecutor, closeConnectionNetworkTimeoutMs);
-          } catch (SQLException ex) {
-            // do nothing
-          }
+        try {
+          connection.setNetworkTimeout(networkTimeoutExecutor, closeConnectionNetworkTimeoutMs);
+        } catch (SQLException ex) {
+          // do nothing
         }
         connection.close();
       }
@@ -838,7 +827,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
           if (connection == null) {
 
             try {
-              connection = this.monitor.connectionService.createAuxiliaryConnection(
+              connection = this.monitor.connectionService.open(
                   hostSpec, this.monitor.monitoringProperties);
               this.monitor.pluginService.setAvailability(
                   hostSpec.asAliases(), HostAvailability.AVAILABLE);

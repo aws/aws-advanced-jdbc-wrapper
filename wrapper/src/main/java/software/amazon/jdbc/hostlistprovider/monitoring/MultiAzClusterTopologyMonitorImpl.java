@@ -24,9 +24,13 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Properties;
 import java.util.logging.Logger;
+import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.connection.ConnectionService;
+import software.amazon.jdbc.util.monitoring.MonitorService;
+import software.amazon.jdbc.util.storage.StorageService;
 
 public class MultiAzClusterTopologyMonitorImpl extends ClusterTopologyMonitorImpl {
 
@@ -36,10 +40,14 @@ public class MultiAzClusterTopologyMonitorImpl extends ClusterTopologyMonitorImp
   protected final String fetchWriterNodeColumnName;
 
   public MultiAzClusterTopologyMonitorImpl(
-      final ServiceContainer serviceContainer,
       final String clusterId,
+      final StorageService storageService,
+      final MonitorService monitorService,
+      final ConnectionService connectionService,
       final HostSpec initialHostSpec,
       final Properties properties,
+      final PluginService pluginService,
+      final HostListProviderService hostListProviderService,
       final HostSpec clusterInstanceTemplate,
       final long refreshRateNano,
       final long highRefreshRateNano,
@@ -48,8 +56,21 @@ public class MultiAzClusterTopologyMonitorImpl extends ClusterTopologyMonitorImp
       final String nodeIdQuery,
       final String fetchWriterNodeQuery,
       final String fetchWriterNodeColumnName) {
-    super(serviceContainer, clusterId, initialHostSpec, properties, clusterInstanceTemplate, refreshRateNano,
-        highRefreshRateNano, topologyQuery, writerTopologyQuery, nodeIdQuery);
+    super(
+        clusterId,
+        storageService,
+        monitorService,
+        connectionService,
+        initialHostSpec,
+        properties,
+        pluginService,
+        hostListProviderService,
+        clusterInstanceTemplate,
+        refreshRateNano,
+        highRefreshRateNano,
+        topologyQuery,
+        writerTopologyQuery,
+        nodeIdQuery);
     this.fetchWriterNodeQuery = fetchWriterNodeQuery;
     this.fetchWriterNodeColumnName = fetchWriterNodeColumnName;
   }

@@ -28,7 +28,7 @@ import java.util.function.Function;
 
 public class SlidingExpirationCache<K, V> {
 
-  protected final Map<K, CacheItem> cache = new ConcurrentHashMap<>();
+  protected final Map<K, CacheItem<V>> cache = new ConcurrentHashMap<>();
   protected long cleanupIntervalNanos = TimeUnit.MINUTES.toNanos(10);
   protected final AtomicLong cleanupTimeNanos = new AtomicLong(System.nanoTime() + cleanupIntervalNanos);
   protected final AtomicReference<ShouldDisposeFunc<V>> shouldDisposeFunc = new AtomicReference<>(null);
@@ -92,12 +92,14 @@ public class SlidingExpirationCache<K, V> {
       final long itemExpirationNano) {
 
     cleanUp();
-    final CacheItem cacheItem = cache.computeIfAbsent(
+    final CacheItem<V> cacheItem = cache.computeIfAbsent(
         key,
-        k -> new CacheItem(
+        k -> new CacheItem<>(
             mappingFunction.apply(k),
-            System.nanoTime() + itemExpirationNano));
-    return cacheItem.withExtendExpiration(itemExpirationNano).item;
+            System.nanoTime() + itemExpirationNano,
+            this.shouldDisposeFunc.get()));
+    cacheItem.extendExpiration(itemExpirationNano);
+    return cacheItem.item;
   }
 
   public V put(
@@ -105,17 +107,25 @@ public class SlidingExpirationCache<K, V> {
       final V value,
       final long itemExpirationNano) {
     cleanUp();
-    final CacheItem cacheItem = cache.put(key, new CacheItem(value, System.nanoTime() + itemExpirationNano));
+    final CacheItem<V> cacheItem = cache.put(
+        key, new CacheItem<>(value, System.nanoTime() + itemExpirationNano));
     if (cacheItem == null) {
       return null;
     }
-    return cacheItem.withExtendExpiration(itemExpirationNano).item;
+
+    cacheItem.extendExpiration(itemExpirationNano);
+    return cacheItem.item;
   }
 
   public V get(final K key, final long itemExpirationNano) {
     cleanUp();
-    final CacheItem cacheItem = cache.get(key);
-    return cacheItem == null ? null : cacheItem.withExtendExpiration(itemExpirationNano).item;
+    final CacheItem<V> cacheItem = cache.get(key);
+    if (cacheItem == null) {
+      return null;
+    }
+
+    cacheItem.extendExpiration(itemExpirationNano);
+    return cacheItem.item;
   }
 
   /**
@@ -130,7 +140,7 @@ public class SlidingExpirationCache<K, V> {
   }
 
   protected void removeAndDispose(K key) {
-    final CacheItem cacheItem = cache.remove(key);
+    final CacheItem<V> cacheItem = cache.remove(key);
     if (cacheItem != null && itemDisposalFunc != null) {
       itemDisposalFunc.dispose(cacheItem.item);
     }
@@ -178,7 +188,7 @@ public class SlidingExpirationCache<K, V> {
    */
   public Map<K, V> getEntries() {
     final Map<K, V> entries = new HashMap<>();
-    for (final Map.Entry<K, CacheItem> entry : this.cache.entrySet()) {
+    for (final Map.Entry<K, CacheItem<V>> entry : this.cache.entrySet()) {
       entries.put(entry.getKey(), entry.getValue().item);
     }
     return entries;
@@ -215,82 +225,7 @@ public class SlidingExpirationCache<K, V> {
   }
 
   // For testing purposes only
-  Map<K, CacheItem> getCache() {
+  Map<K, CacheItem<V>> getCache() {
     return cache;
-  }
-
-  class CacheItem {
-    private final V item;
-    private long expirationTimeNano;
-
-    /**
-     * CacheItem constructor.
-     *
-     * @param item               the item value
-     * @param expirationTimeNano the amount of time before a CacheItem should be marked as expired.
-     */
-    public CacheItem(final V item, final long expirationTimeNano) {
-      this.item = item;
-      this.expirationTimeNano = expirationTimeNano;
-    }
-
-    /**
-     * Determines if a cache item should be cleaned up. An item should be cleaned up if it has past
-     * its expiration time and {@link ShouldDisposeFunc} (if defined) indicates that it should be
-     * cleaned up.
-     *
-     * @return true if the cache item should be cleaned up at cleanup time. Otherwise, returns
-     *     false.
-     */
-    boolean shouldCleanup() {
-      final ShouldDisposeFunc<V> tempShouldDisposeFunc = shouldDisposeFunc.get();
-      if (tempShouldDisposeFunc != null) {
-        return System.nanoTime() > expirationTimeNano && tempShouldDisposeFunc.shouldDispose(this.item);
-      }
-      return System.nanoTime() > expirationTimeNano;
-    }
-
-    /**
-     * Renew a cache item's expiration time and return the value.
-     *
-     * @param itemExpirationNano the new expiration duration for the item
-     * @return the item value
-     */
-    public CacheItem withExtendExpiration(final long itemExpirationNano) {
-      this.expirationTimeNano = System.nanoTime() + itemExpirationNano;
-      return this;
-    }
-
-    @Override
-    public int hashCode() {
-      final int prime = 31;
-      int result = 1;
-      result = prime * result + ((item == null) ? 0 : item.hashCode());
-      return result;
-    }
-
-    @Override
-    public boolean equals(final Object obj) {
-      if (this == obj) {
-        return true;
-      }
-      if (obj == null) {
-        return false;
-      }
-      if (getClass() != obj.getClass()) {
-        return false;
-      }
-      final CacheItem other = (CacheItem) obj;
-      if (item == null) {
-        return other.item == null;
-      } else {
-        return item.equals(other.item);
-      }
-    }
-
-    @Override
-    public String toString() {
-      return "CacheItem [item=" + item + ", expirationTime=" + expirationTimeNano + "]";
-    }
   }
 }

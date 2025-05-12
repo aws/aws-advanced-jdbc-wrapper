@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.hostlistprovider.monitoring;
 
+import java.sql.SQLException;
 import java.util.Properties;
 import java.util.logging.Logger;
 import software.amazon.jdbc.util.ServiceContainer;
@@ -49,16 +50,28 @@ public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListP
   }
 
   @Override
-  protected ClusterTopologyMonitor initMonitor() {
+  protected ClusterTopologyMonitor initMonitor() throws SQLException {
     return monitorService.runIfAbsent(MultiAzClusterTopologyMonitorImpl.class,
         this.clusterId,
-        () -> new MultiAzClusterTopologyMonitorImpl(
-            this.serviceContainer,
+        this.storageService,
+        this.pluginService.getTelemetryFactory(),
+        this.originalUrl,
+        this.pluginService.getDriverProtocol(),
+        this.pluginService.getTargetDriverDialect(),
+        this.pluginService.getDialect(),
+        this.properties,
+        (connectionService, pluginService) -> new MultiAzClusterTopologyMonitorImpl(
             this.clusterId,
+            this.storageService,
+            this.monitorService,
+            connectionService,
             this.initialHostSpec,
             this.properties,
+            pluginService,
+            this.hostListProviderService,
             this.clusterInstanceTemplate,
-            this.refreshRateNano, this.highRefreshRateNano,
+            this.refreshRateNano,
+            this.highRefreshRateNano,
             this.topologyQuery,
             this.writerTopologyQuery,
             this.nodeIdQuery,

@@ -28,7 +28,6 @@ import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.plugin.AuroraConnectionTrackerPluginFactory;
 import software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPluginFactory;
-import software.amazon.jdbc.plugin.AuxiliaryPluginFactory;
 import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPluginFactory;
 import software.amazon.jdbc.plugin.ConnectTimeConnectionPluginFactory;
 import software.amazon.jdbc.plugin.DataCacheConnectionPluginFactory;
@@ -164,14 +163,6 @@ public class ConnectionPluginChainBuilder {
     }
 
     if (!pluginFactories.isEmpty()) {
-      if (PropertyDefinition.IS_AUXILIARY_CONNECTION.getBoolean(props)) {
-        // The requested connection is an auxiliary connection. Auxiliary connections should only use auxiliary plugins
-        // because non-auxiliary plugins can interfere with their intended purpose. For example, auxiliary EFM
-        // connections should not contain the failover plugin because they should always monitor the same instance.
-        pluginFactories = pluginFactories.stream()
-            .filter(AuxiliaryPluginFactory.class::isAssignableFrom)
-            .collect(Collectors.toList());
-      }
 
       if (PropertyDefinition.AUTO_SORT_PLUGIN_ORDER.getBoolean(props)) {
         pluginFactories = this.sortPluginFactories(pluginFactories);

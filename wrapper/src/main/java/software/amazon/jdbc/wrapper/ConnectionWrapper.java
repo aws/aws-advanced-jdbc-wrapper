@@ -58,7 +58,6 @@ import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.connection.ConnectionService;
-import software.amazon.jdbc.util.connection.ConnectionServiceImpl;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -87,7 +86,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       @NonNull final String url,
       @NonNull final ConnectionProvider defaultConnectionProvider,
       @Nullable final ConnectionProvider effectiveConnectionProvider,
-      @NonNull final TargetDriverDialect targetDriverDialect,
+      @NonNull final TargetDriverDialect driverDialect,
       @Nullable final ConfigurationProfile configurationProfile)
       throws SQLException {
 
@@ -111,20 +110,13 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         props,
         url,
         this.targetDriverProtocol,
-        targetDriverDialect,
+        driverDialect,
         this.configurationProfile);
     serviceContainer.setHostListProviderService(pluginService);
     serviceContainer.setPluginService(pluginService);
     serviceContainer.setPluginManagerService(pluginService);
 
-    ConnectionService connectionService = new ConnectionServiceImpl(
-        serviceContainer,
-        defaultConnectionProvider,
-        targetDriverDialect,
-        this.targetDriverProtocol);
-    serviceContainer.setConnectionService(connectionService);
-
-    init(props, serviceContainer);
+    init(props, serviceContainer, defaultConnectionProvider, driverDialect);
 
     if (PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(props)) {
       this.openConnectionStacktrace = new Throwable(Messages.get("ConnectionWrapper.unclosedConnectionInstantiated"));
@@ -135,6 +127,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   protected ConnectionWrapper(
       @NonNull final Properties props,
       @NonNull final String url,
+      @NonNull final ConnectionProvider defaultConnectionProvider,
+      @NonNull final TargetDriverDialect driverDialect,
       @NonNull final ConnectionPluginManager connectionPluginManager,
       @NonNull final TelemetryFactory telemetryFactory,
       @NonNull final PluginService pluginService,
@@ -153,19 +147,20 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         storageService,
         monitorService,
         telemetryFactory,
-        connectionService,
         connectionPluginManager,
         hostListProviderService,
         pluginService,
         pluginManagerService
     );
 
-    init(props, serviceContainer);
+    init(props, serviceContainer, defaultConnectionProvider, driverDialect);
   }
 
   protected void init(
       final Properties props,
-      final ServiceContainer serviceContainer) throws SQLException {
+      final ServiceContainer serviceContainer,
+      final ConnectionProvider defaultConnectionProvider,
+      final TargetDriverDialect driverDialect) throws SQLException {
     this.pluginManager = serviceContainer.getConnectionPluginManager();
     this.telemetryFactory = serviceContainer.getTelemetryFactory();
     this.pluginService = serviceContainer.getPluginService();

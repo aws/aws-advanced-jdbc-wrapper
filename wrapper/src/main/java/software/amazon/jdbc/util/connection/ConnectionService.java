@@ -20,6 +20,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PluginService;
 
 public interface ConnectionService {
   /**
@@ -30,5 +31,7 @@ public interface ConnectionService {
    * @param props    the properties for the auxiliary connection.
    * @return a new connection to the given host using the given props.
    */
-  Connection createAuxiliaryConnection(HostSpec hostSpec, Properties props) throws SQLException;
+  Connection open(HostSpec hostSpec, Properties props) throws SQLException;
+
+  PluginService getPluginService();
 }

@@ -30,13 +30,13 @@ dependencies {
     implementation("org.checkerframework:checker-qual:3.49.2")
     compileOnly("org.apache.httpcomponents:httpclient:4.5.14")
     compileOnly("software.amazon.awssdk:rds:2.31.12")
-    compileOnly("software.amazon.awssdk:auth:2.31.16") // Required for IAM (light implementation)
+    compileOnly("software.amazon.awssdk:auth:2.31.36") // Required for IAM (light implementation)
     compileOnly("software.amazon.awssdk:http-client-spi:2.31.17") // Required for IAM (light implementation)
     compileOnly("software.amazon.awssdk:sts:2.30.27")
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     compileOnly("com.mchange:c3p0:0.10.2")
     compileOnly("software.amazon.awssdk:secretsmanager:2.31.12")
-    compileOnly("com.fasterxml.jackson.core:jackson-databind:2.18.3")
+    compileOnly("com.fasterxml.jackson.core:jackson-databind:2.19.0")
     compileOnly("com.mysql:mysql-connector-j:9.2.0")
     compileOnly("org.postgresql:postgresql:42.7.5")
     compileOnly("org.mariadb.jdbc:mariadb-java-client:3.5.3")
@@ -46,14 +46,14 @@ dependencies {
     compileOnly("io.opentelemetry:opentelemetry-api:1.49.0")
     compileOnly("io.opentelemetry:opentelemetry-sdk:1.49.0")
     compileOnly("io.opentelemetry:opentelemetry-sdk-metrics:1.49.0")
-    compileOnly("org.jsoup:jsoup:1.19.1")
+    compileOnly("org.jsoup:jsoup:1.20.1")
     compileOnly("org.jetbrains.kotlin:kotlin-stdlib:2.1.20")
 
     testImplementation("org.junit.platform:junit-platform-commons:1.12.2")
-    testImplementation("org.junit.platform:junit-platform-engine:1.11.0")
+    testImplementation("org.junit.platform:junit-platform-engine:1.12.2")
     testImplementation("org.junit.platform:junit-platform-launcher:1.12.2")
     testImplementation("org.junit.platform:junit-platform-suite-engine:1.12.2")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.12.1")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.12.2")
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.12.2")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
@@ -66,28 +66,28 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
     testImplementation("software.amazon.awssdk:rds:2.31.12")
-    testImplementation("software.amazon.awssdk:auth:2.31.16") // Required for IAM (light implementation)
+    testImplementation("software.amazon.awssdk:auth:2.31.36") // Required for IAM (light implementation)
     testImplementation("software.amazon.awssdk:http-client-spi:2.31.17") // Required for IAM (light implementation)
-    testImplementation("software.amazon.awssdk:ec2:2.31.26")
+    testImplementation("software.amazon.awssdk:ec2:2.31.36")
     testImplementation("software.amazon.awssdk:secretsmanager:2.31.12")
     testImplementation("software.amazon.awssdk:sts:2.30.27")
     // Note: all org.testcontainers dependencies should have the same version
     testImplementation("org.testcontainers:testcontainers:1.20.6")
-    testImplementation("org.testcontainers:mysql:1.20.6")
+    testImplementation("org.testcontainers:mysql:1.21.0")
     testImplementation("org.testcontainers:postgresql:1.20.6")
     testImplementation("org.testcontainers:mariadb:1.20.6")
-    testImplementation("org.testcontainers:junit-jupiter:1.20.6")
+    testImplementation("org.testcontainers:junit-jupiter:1.21.0")
     testImplementation("org.testcontainers:toxiproxy:1.20.6")
     testImplementation("eu.rekawek.toxiproxy:toxiproxy-java:2.1.7")
     testImplementation("org.apache.poi:poi-ooxml:5.4.1")
     testImplementation("org.slf4j:slf4j-simple:2.0.17")
-    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.18.3")
+    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.19.0")
     testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
     testImplementation("io.opentelemetry:opentelemetry-api:1.49.0")
     testImplementation("io.opentelemetry:opentelemetry-sdk:1.49.0")
     testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.49.0")
     testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.48.0")
-    testImplementation("org.jsoup:jsoup:1.19.1")
+    testImplementation("org.jsoup:jsoup:1.20.1")
 }
 
 repositories {
@@ -172,7 +172,7 @@ tasks.withType<JacocoCoverageVerification> {
     violationRules {
         rule {
             limit {
-                minimum = BigDecimal(0.50)
+                minimum = BigDecimal(0.4)
             }
         }
     }

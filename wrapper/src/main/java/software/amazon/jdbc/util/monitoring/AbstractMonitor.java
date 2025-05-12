@@ -18,6 +18,8 @@ package software.amazon.jdbc.util.monitoring;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
@@ -27,26 +29,32 @@ import software.amazon.jdbc.util.StringUtils;
  */
 public abstract class AbstractMonitor implements Monitor, Runnable {
   private static final Logger LOGGER = Logger.getLogger(AbstractMonitor.class.getName());
+  protected final AtomicBoolean stop = new AtomicBoolean(false);
+  protected final long terminationTimeoutSec;
   protected final MonitorService monitorService;
   protected final ExecutorService monitorExecutor;
 
   protected long lastActivityTimestampNanos;
   protected MonitorState state;
 
-  protected AbstractMonitor(MonitorService monitorService, String threadNameSuffix) {
-    this(monitorService, Executors.newSingleThreadExecutor(runnableTarget -> {
-      final Thread monitoringThread = new Thread(runnableTarget);
-      monitoringThread.setDaemon(true);
-      if (!StringUtils.isNullOrEmpty(monitoringThread.getName())) {
-        monitoringThread.setName(monitoringThread.getName() + "-" + threadNameSuffix);
-      }
-      return monitoringThread;
-    }));
+  protected AbstractMonitor(MonitorService monitorService, long terminationTimeoutSec, String threadNameSuffix) {
+    this(
+        monitorService,
+        Executors.newSingleThreadExecutor(runnableTarget -> {
+          final Thread monitoringThread = new Thread(runnableTarget);
+          monitoringThread.setDaemon(true);
+          if (!StringUtils.isNullOrEmpty(monitoringThread.getName())) {
+            monitoringThread.setName(monitoringThread.getName() + "-" + threadNameSuffix);
+          }
+          return monitoringThread;
+        }),
+        terminationTimeoutSec);
   }
 
-  protected AbstractMonitor(MonitorService monitorService, ExecutorService monitorExecutor) {
+  protected AbstractMonitor(MonitorService monitorService, ExecutorService monitorExecutor, long terminationTimeoutSec) {
     this.monitorService = monitorService;
     this.monitorExecutor = monitorExecutor;
+    this.terminationTimeoutSec = terminationTimeoutSec;
     this.lastActivityTimestampNanos = System.nanoTime();
   }
 
@@ -68,9 +76,29 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
       this.lastActivityTimestampNanos = System.nanoTime();
       monitor();
     } catch (Exception e) {
-      LOGGER.fine(Messages.get("AbstractMonitor.unexpectedError", new Object[]{this, e}));
+      LOGGER.fine(Messages.get("AbstractMonitor.unexpectedError", new Object[] {this, e}));
       this.state = MonitorState.ERROR;
       monitorService.reportMonitorError(this, e);
+    }
+  }
+
+  @Override
+  public void stop() {
+    LOGGER.fine(Messages.get("AbstractMonitor.stoppingMonitor", new Object[] {this}));
+    this.stop.set(true);
+
+    try {
+      if (!this.monitorExecutor.awaitTermination(this.terminationTimeoutSec, TimeUnit.SECONDS)) {
+        LOGGER.info(Messages.get(
+            "AbstractMonitor.monitorTerminationTimeout", new Object[] {terminationTimeoutSec, this}));
+        this.monitorExecutor.shutdownNow();
+      }
+    } catch (InterruptedException e) {
+      LOGGER.info(Messages.get("AbstractMonitor.interruptedWhileTerminating", new Object[] {this}));
+      Thread.currentThread().interrupt();
+      this.monitorExecutor.shutdownNow();
+    } finally {
+      close();
     }
   }
 

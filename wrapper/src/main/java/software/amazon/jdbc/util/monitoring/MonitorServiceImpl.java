@@ -16,10 +16,12 @@
 
 package software.amazon.jdbc.util.monitoring;
 
+import java.sql.SQLException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -32,16 +34,25 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AllowedAndBlockedHosts;
+import software.amazon.jdbc.ConnectionProvider;
+import software.amazon.jdbc.DriverConnectionProvider;
+import software.amazon.jdbc.TargetDriverHelper;
+import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostlistprovider.monitoring.ClusterTopologyMonitorImpl;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.connection.ConnectionServiceImpl;
 import software.amazon.jdbc.util.events.DataAccessEvent;
 import software.amazon.jdbc.util.events.Event;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.events.EventSubscriber;
 import software.amazon.jdbc.util.storage.ExternallyManagedCache;
+import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.Topology;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   private static final Logger LOGGER = Logger.getLogger(MonitorServiceImpl.class.getName());
@@ -188,7 +199,17 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   }
 
   @Override
-  public <T extends Monitor> T runIfAbsent(Class<T> monitorClass, Object key, Supplier<T> monitorSupplier) {
+  public <T extends Monitor> T runIfAbsent(
+      Class<T> monitorClass,
+      Object key,
+      StorageService storageService,
+      TelemetryFactory telemetryFactory,
+      String originalUrl,
+      String driverProtocol,
+      TargetDriverDialect driverDialect,
+      Dialect dbDialect,
+      Properties props,
+      MonitorInitializer initializer) throws SQLException {
     CacheContainer cacheContainer = monitorCaches.get(monitorClass);
     if (cacheContainer == null) {
       Supplier<CacheContainer> supplier = defaultSuppliers.get(monitorClass);
@@ -200,8 +221,25 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       cacheContainer = monitorCaches.computeIfAbsent(monitorClass, k -> supplier.get());
     }
 
+    TargetDriverHelper helper = new TargetDriverHelper();
+    java.sql.Driver driver = helper.getTargetDriver(originalUrl, props);
+    final ConnectionProvider defaultConnectionProvider = new DriverConnectionProvider(driver);
+    final Properties propsCopy = PropertyUtils.copyProperties(props);
+    final ConnectionServiceImpl connectionService = new ConnectionServiceImpl(
+        storageService,
+        this,
+        telemetryFactory,
+        defaultConnectionProvider,
+        originalUrl,
+        driverProtocol,
+        driverDialect,
+        dbDialect,
+        propsCopy);
+
     Monitor monitor = cacheContainer.getCache().computeIfAbsent(key, k -> {
-      MonitorItem monitorItem = new MonitorItem(monitorSupplier);
+      MonitorItem monitorItem = new MonitorItem(() -> initializer.createMonitor(
+          connectionService,
+          connectionService.getPluginService()));
       monitorItem.getMonitor().start();
       return monitorItem;
     }).getMonitor();

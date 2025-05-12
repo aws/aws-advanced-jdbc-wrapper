@@ -53,7 +53,6 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.WrapperUtils;
-import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
@@ -119,7 +118,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
   public ConnectionPluginManager(
       final @NonNull ConnectionProvider defaultConnProvider,
       final @Nullable ConnectionProvider effectiveConnProvider,
-      final @NonNull ConnectionWrapper connectionWrapper,
+      final @Nullable ConnectionWrapper connectionWrapper,
       final @NonNull TelemetryFactory telemetryFactory) {
     this.defaultConnProvider = defaultConnProvider;
     this.effectiveConnProvider = effectiveConnProvider;
@@ -421,10 +420,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    * @return a {@link Connection} to the requested host
    * @throws SQLException if there was an error establishing a {@link Connection} to the requested
    *                      host
-   *
-   * @deprecated Use {@link ConnectionService#createAuxiliaryConnection(HostSpec, Properties)} instead.
    */
-  @Deprecated
   public Connection forceConnect(
       final String driverProtocol,
       final HostSpec hostSpec,
@@ -597,7 +593,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    * connection.
    */
   public void releaseResources() {
-    LOGGER.fine(() -> Messages.get("ConnectionPluginManager.releaseResources"));
+    LOGGER.finest(() -> Messages.get("ConnectionPluginManager.releaseResources"));
 
     // This step allows all connection plugins a chance to clean up any dangling resources or
     // perform any

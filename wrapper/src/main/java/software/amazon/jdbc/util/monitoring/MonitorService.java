@@ -16,9 +16,14 @@
 
 package software.amazon.jdbc.util.monitoring;
 
+import java.sql.SQLException;
+import java.util.Properties;
 import java.util.Set;
-import java.util.function.Supplier;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.storage.StorageService;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public interface MonitorService {
   /**
@@ -47,13 +52,23 @@ public interface MonitorService {
    * Creates and starts the given monitor if it does not already exist and stores it under the given monitor type and
    * key. If the monitor already exists, its expiration time will be renewed, even if it was already expired.
    *
-   * @param monitorClass    the class of the monitor, eg `CustomEndpointMonitorImpl.class`.
-   * @param key             the key for the monitor, eg
-   *                        "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
-   * @param monitorSupplier a supplier lambda that can be used to create the monitor if it is absent.
+   * @param monitorClass the class of the monitor, eg `CustomEndpointMonitorImpl.class`.
+   * @param key          the key for the monitor, eg
+   *                     "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
    * @return the new or existing monitor.
    */
-  <T extends Monitor> T runIfAbsent(Class<T> monitorClass, Object key, Supplier<T> monitorSupplier);
+  // TODO: add docs for new parameters
+  <T extends Monitor> T runIfAbsent(
+      Class<T> monitorClass,
+      Object key,
+      StorageService storageService,
+      TelemetryFactory telemetryFactory,
+      String originalUrl,
+      String driverProtocol,
+      TargetDriverDialect driverDialect,
+      Dialect dbDialect,
+      Properties props,
+      MonitorInitializer initializer) throws SQLException;
 
   /**
    * Gets the monitor stored at the given key.

@@ -19,58 +19,68 @@ package software.amazon.jdbc.util.connection;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
+import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.MonitorPluginService;
+import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.ServiceContainerImpl;
-import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
-import software.amazon.jdbc.wrapper.ConnectionWrapper;
+import software.amazon.jdbc.util.monitoring.MonitorService;
+import software.amazon.jdbc.util.storage.StorageService;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class ConnectionServiceImpl implements ConnectionService {
-  protected ServiceContainer serviceContainer;
-  protected ConnectionProvider connectionProvider;
-  protected TargetDriverDialect driverDialect;
-  protected String targetDriverProtocol;
+  protected final String targetDriverProtocol;
+  protected final ConnectionPluginManager pluginManager;
+  protected final PluginService pluginService;
 
   public ConnectionServiceImpl(
-      ServiceContainer serviceContainer,
+      StorageService storageService,
+      MonitorService monitorService,
+      TelemetryFactory telemetryFactory,
       ConnectionProvider connectionProvider,
+      String originalUrl,
+      String targetDriverProtocol,
       TargetDriverDialect driverDialect,
-      String targetDriverProtocol) {
-    this.serviceContainer = serviceContainer;
-    this.connectionProvider = connectionProvider;
-    this.driverDialect = driverDialect;
+      Dialect dbDialect,
+      Properties props) throws SQLException {
     this.targetDriverProtocol = targetDriverProtocol;
+
+    ServiceContainer serviceContainer = new ServiceContainerImpl(storageService, monitorService, telemetryFactory);
+    this.pluginManager = new ConnectionPluginManager(
+        connectionProvider,
+        null,
+        null,
+        telemetryFactory);
+    serviceContainer.setConnectionPluginManager(this.pluginManager);
+
+    MonitorPluginService monitorPluginService = new MonitorPluginService(
+        serviceContainer,
+        props,
+        originalUrl,
+        this.targetDriverProtocol,
+        driverDialect,
+        dbDialect
+    );
+
+    this.pluginService = monitorPluginService;
+    serviceContainer.setHostListProviderService(monitorPluginService);
+    serviceContainer.setPluginService(monitorPluginService);
+    serviceContainer.setPluginManagerService(monitorPluginService);
+
+    this.pluginManager.init(monitorPluginService, props, monitorPluginService, null);
   }
 
   @Override
-  public Connection createAuxiliaryConnection(HostSpec hostSpec, Properties props) throws SQLException {
-    final Properties auxiliaryProps = PropertyUtils.copyProperties(props);
-    final String databaseName = PropertyDefinition.DATABASE.getString(auxiliaryProps) != null
-        ? PropertyDefinition.DATABASE.getString(auxiliaryProps)
-        : "";
-    final String connString = this.targetDriverProtocol + hostSpec.getUrl() + databaseName;
-    PropertyDefinition.IS_AUXILIARY_CONNECTION.set(auxiliaryProps, "true");
+  public Connection open(HostSpec hostSpec, Properties props) throws SQLException {
+    return this.pluginManager.forceConnect(this.targetDriverProtocol, hostSpec, props, true, null);
+  }
 
-    // The auxiliary connection should have its own separate service container since the original container holds
-    // services that should not be shared between connections (for example, PluginService).
-    ServiceContainerImpl auxiliaryServiceContainer = new ServiceContainerImpl(
-        this.serviceContainer.getStorageService(),
-        this.serviceContainer.getMonitorService(),
-        new DefaultTelemetryFactory(auxiliaryProps));
-
-    // TODO: does the auxiliary connection need its own ConnectionProvider/TargetDriverDialect, or is it okay to share?
-    return new ConnectionWrapper(
-        auxiliaryServiceContainer,
-        auxiliaryProps,
-        connString,
-        this.connectionProvider,
-        null,
-        this.driverDialect,
-        null
-    );
+  @Override
+  public PluginService getPluginService() {
+    return this.pluginService;
   }
 }

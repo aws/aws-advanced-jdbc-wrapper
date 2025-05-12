@@ -31,6 +31,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.Topology;
 
@@ -44,9 +45,6 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
           "clusterTopologyHighRefreshRateMs",
           "100",
           "Cluster topology high refresh rate in millis.");
-
-  protected static final long CACHE_CLEANUP_NANO = TimeUnit.MINUTES.toNanos(1);
-  protected static final long MONITOR_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(15);
 
   static {
     PropertyDefinition.registerPluginProperties(MonitoringRdsHostListProvider.class);
@@ -84,15 +82,26 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
     super.init();
   }
 
-  protected ClusterTopologyMonitor initMonitor() {
+  protected ClusterTopologyMonitor initMonitor() throws SQLException {
     return monitorService.runIfAbsent(
         ClusterTopologyMonitorImpl.class,
         this.clusterId,
-        () -> new ClusterTopologyMonitorImpl(
-            this.serviceContainer,
+        this.storageService,
+        this.pluginService.getTelemetryFactory(),
+        this.originalUrl,
+        this.pluginService.getDriverProtocol(),
+        this.pluginService.getTargetDriverDialect(),
+        this.pluginService.getDialect(),
+        this.properties,
+        (ConnectionService connectionService, PluginService monitorPluginService) -> new ClusterTopologyMonitorImpl(
             this.clusterId,
+            this.storageService,
+            this.monitorService,
+            connectionService,
             this.initialHostSpec,
             this.properties,
+            monitorPluginService,
+            this.serviceContainer.getHostListProviderService(),
             this.clusterInstanceTemplate,
             this.refreshRateNano,
             this.highRefreshRateNano,
@@ -116,11 +125,21 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
   }
 
   @Override
-  protected void clusterIdChanged(final String oldClusterId) {
+  protected void clusterIdChanged(final String oldClusterId) throws SQLException {
     final ClusterTopologyMonitorImpl existingMonitor =
         monitorService.get(ClusterTopologyMonitorImpl.class, oldClusterId);
     if (existingMonitor != null) {
-      monitorService.runIfAbsent(ClusterTopologyMonitorImpl.class, this.clusterId, () -> existingMonitor);
+      monitorService.runIfAbsent(
+          ClusterTopologyMonitorImpl.class,
+          this.clusterId,
+          this.storageService,
+          this.pluginService.getTelemetryFactory(),
+          this.originalUrl,
+          this.pluginService.getDriverProtocol(),
+          this.pluginService.getTargetDriverDialect(),
+          this.pluginService.getDialect(),
+          this.properties,
+          (connectionService, pluginService) -> existingMonitor);
       assert monitorService.get(ClusterTopologyMonitorImpl.class, this.clusterId) == existingMonitor;
       existingMonitor.setClusterId(this.clusterId);
       monitorService.remove(ClusterTopologyMonitorImpl.class, oldClusterId);

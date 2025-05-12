@@ -18,7 +18,6 @@ package software.amazon.jdbc.plugin.customendpoint;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
@@ -49,14 +48,12 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
-import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class CustomEndpointMonitorImplTest {
-  @Mock private ServiceContainer mockServiceContainer;
   @Mock private MonitorService mockMonitorService;
   @Mock private StorageService mockStorageService;
   @Mock private BiFunction<HostSpec, Region, RdsClient> mockRdsClientFunc;
@@ -96,10 +93,6 @@ public class CustomEndpointMonitorImplTest {
     twoEndpointList = Arrays.asList(mockClusterEndpoint1, mockClusterEndpoint2);
     oneEndpointList = Collections.singletonList(mockClusterEndpoint1);
 
-    when(mockServiceContainer.getStorageService()).thenReturn(mockStorageService);
-    when(mockServiceContainer.getMonitorService()).thenReturn(mockMonitorService);
-    when(mockServiceContainer.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
-    when(mockTelemetryFactory.createCounter(any(String.class))).thenReturn(mockTelemetryCounter);
     when(mockTelemetryFactory.createCounter(any(String.class))).thenReturn(mockTelemetryCounter);
     when(mockRdsClientFunc.apply(any(HostSpec.class), any(Region.class))).thenReturn(mockRdsClient);
     when(mockRdsClient.describeDBClusterEndpoints(any(Consumer.class))).thenReturn(mockDescribeResponse);
@@ -121,7 +114,9 @@ public class CustomEndpointMonitorImplTest {
   @Test
   public void testRun() throws InterruptedException {
     CustomEndpointMonitorImpl monitor = new CustomEndpointMonitorImpl(
-        mockServiceContainer,
+        mockMonitorService,
+        mockStorageService,
+        mockTelemetryFactory,
         host,
         endpointId,
         Region.US_EAST_1,
@@ -142,7 +137,6 @@ public class CustomEndpointMonitorImplTest {
 
     // Wait for monitor to close
     TimeUnit.MILLISECONDS.sleep(50);
-    assertTrue(monitor.stop.get());
     verify(mockRdsClient, atLeastOnce()).close();
   }
 }

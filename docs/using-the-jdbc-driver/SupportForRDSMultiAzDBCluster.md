@@ -38,11 +38,11 @@ See feature announcement [here](https://aws.amazon.com/about-aws/whats-new/2023/
 
 During minor version upgrades of RDS Multi-AZ DB clusters, the `failover` plugin switches the connection from the current writer to a newly upgraded reader. If minimizing downtime during switchover is critical to your application, consider adjusting the `failoverClusterTopologyRefreshRateMs` to a lower value such as 100ms, from the default 2000ms. However, be aware that this can potentially increase the workload on the database during the switchover.
 
-For more details on the `failover` plugin configuration, refer to the [Failover Configuration Guide](/docs/using-the-jdbc-driver/FailoverConfigurationGuide.md).
+For more details on the `failover` plugin configuration, refer to the [Failover Configuration Guide](./FailoverConfigurationGuide.md).
 
 ## Examples
 
-We have created many examples in the [examples](/examples) folder demonstrating how to use the driver.
+We have created many examples in the 'examples' folder demonstrating how to use the driver.
 
 For additional information, you may also refer to [this AWS blog post](https://aws.amazon.com/blogs/database/achieve-one-second-or-less-downtime-with-the-advanced-jdbc-wrapper-driver-when-upgrading-amazon-rds-multi-az-db-clusters/).
 
@@ -50,9 +50,9 @@ For additional information, you may also refer to [this AWS blog post](https://a
 
 The following plugins have been tested and confirmed to work with Amazon RDS Multi-AZ DB Clusters:
 
-* [Aurora Connection Tracker Plugin](/docs/using-the-jdbc-driver/using-plugins/UsingTheAuroraConnectionTrackerPlugin.md)
-* [Failover Connection Plugin](/docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md)
-* [Host Monitoring Connection Plugin](/docs/using-the-jdbc-driver/using-plugins/UsingTheHostMonitoringPlugin.md)
+* [Aurora Connection Tracker Plugin](./using-plugins/UsingTheAuroraConnectionTrackerPlugin.md)
+* [Failover Connection Plugin](./using-plugins/UsingTheFailoverPlugin.md)
+* [Host Monitoring Connection Plugin](./using-plugins/UsingTheHostMonitoringPlugin.md)
 
 The compatibility of other plugins has not been tested at this time. They may function as expected or potentially result in unhandled behavior.
 Use at your own discretion.

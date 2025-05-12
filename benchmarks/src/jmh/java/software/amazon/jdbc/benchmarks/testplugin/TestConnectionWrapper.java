@@ -20,9 +20,11 @@ import java.sql.SQLException;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.ConnectionPluginManager;
+import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
@@ -33,18 +35,29 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 public class TestConnectionWrapper extends ConnectionWrapper {
 
   public TestConnectionWrapper(
-      @NonNull Properties props,
-      @NonNull String url,
-      @NonNull ConnectionPluginManager connectionPluginManager,
+      @NonNull final Properties props,
+      @NonNull final String url,
+      @NonNull final ConnectionProvider defaultConnectionProvider,
+      @NonNull final TargetDriverDialect driverDialect,
+      @NonNull final ConnectionPluginManager connectionPluginManager,
       @NonNull final TelemetryFactory telemetryFactory,
-      @NonNull PluginService pluginService,
-      @NonNull HostListProviderService hostListProviderService,
-      @NonNull PluginManagerService pluginManagerService,
-      @NonNull StorageService storageService,
-      @NonNull MonitorService monitorService,
-      @NonNull ConnectionService connectionService)
+      @NonNull final PluginService pluginService,
+      @NonNull final HostListProviderService hostListProviderService,
+      @NonNull final PluginManagerService pluginManagerService,
+      @NonNull final StorageService storageService,
+      @NonNull final MonitorService monitorService,
+      @NonNull final ConnectionService connectionService)
       throws SQLException {
-    super(props, url, connectionPluginManager, telemetryFactory, pluginService, hostListProviderService,
-        pluginManagerService, storageService, monitorService, connectionService);
+    super(
+        props,
+        url,
+        defaultConnectionProvider,
+        driverDialect,
+        connectionPluginManager,
+        telemetryFactory,
+        pluginService,
+        hostListProviderService,
+        pluginManagerService,
+        storageService, monitorService, connectionService);
   }
 }

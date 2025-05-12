@@ -86,7 +86,7 @@ public class CustomEndpointPluginTest {
     props.clear();
   }
 
-  private CustomEndpointPlugin getSpyPlugin() {
+  private CustomEndpointPlugin getSpyPlugin() throws SQLException {
     CustomEndpointPlugin plugin = new CustomEndpointPlugin(mockServiceContainer, props, mockRdsClientFunc);
     CustomEndpointPlugin spyPlugin = spy(plugin);
     doReturn(mockMonitor).when(spyPlugin).createMonitorIfAbsent(any(Properties.class));

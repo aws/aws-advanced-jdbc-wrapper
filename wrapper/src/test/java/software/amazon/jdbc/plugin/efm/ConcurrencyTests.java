@@ -498,6 +498,11 @@ public class ConcurrencyTests {
     }
 
     @Override
+    public String getOriginalUrl() {
+      return null;
+    }
+
+    @Override
     public ServiceContainer getServiceContainer() {
       return null;
     }

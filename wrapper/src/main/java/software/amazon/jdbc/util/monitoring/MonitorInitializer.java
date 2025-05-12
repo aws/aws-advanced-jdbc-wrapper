@@ -14,14 +14,12 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin;
+package software.amazon.jdbc.util.monitoring;
 
-import java.util.Properties;
-import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.connection.ConnectionService;
 
-/**
- * A marker interface for plugin factories that create plugins that should be included in auxiliary connections created
- * with {@link ConnectionService#createAuxiliaryConnection(HostSpec, Properties)}.
- */
-public interface AuxiliaryPluginFactory {}
+public interface MonitorInitializer {
+
+  Monitor createMonitor(ConnectionService connectionService, PluginService pluginService);
+}

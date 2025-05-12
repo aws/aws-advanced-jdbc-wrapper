@@ -39,7 +39,6 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.Utils;
-import software.amazon.jdbc.util.connection.ConnectionService;
 
 /**
  * An implementation of WriterFailoverHandler.
@@ -58,7 +57,6 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
   protected int reconnectWriterIntervalMs = 5000; // 5 sec
   protected Properties initialConnectionProps;
   protected PluginService pluginService;
-  protected ConnectionService connectionService;
   protected ReaderFailoverHandler readerFailoverHandler;
   private static final WriterFailoverResult DEFAULT_RESULT =
       new WriterFailoverResult(false, false, null, null, "None");
@@ -68,7 +66,6 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
       final ReaderFailoverHandler readerFailoverHandler,
       final Properties initialConnectionProps) {
     this.pluginService = serviceContainer.getPluginService();
-    this.connectionService = serviceContainer.getConnectionService();
     this.readerFailoverHandler = readerFailoverHandler;
     this.initialConnectionProps = initialConnectionProps;
   }
@@ -261,7 +258,9 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
               conn.close();
             }
 
-            conn = connectionService.createAuxiliaryConnection(this.originalWriterHost, initialConnectionProps);
+            // TODO: assess whether multi-threaded access to the plugin service is safe. The same plugin service is used
+            //  by both the ConnectionWrapper and this ReconnectToWriterHandler in separate threads.
+            conn = pluginService.forceConnect(this.originalWriterHost, initialConnectionProps);
             pluginService.forceRefreshHostList(conn);
             latestTopology = pluginService.getAllHosts();
 
@@ -468,7 +467,9 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
                 new Object[] {writerCandidate.getUrl()}));
         try {
           // connect to the new writer
-          this.currentConnection = connectionService.createAuxiliaryConnection(writerCandidate, initialConnectionProps);
+          // TODO: assess whether multi-threaded access to the plugin service is safe. The same plugin service is used
+          //  by both the ConnectionWrapper and this WaitForNewWriterHandler in separate threads.
+          this.currentConnection = pluginService.forceConnect(writerCandidate, initialConnectionProps);
           pluginService.setAvailability(writerCandidate.asAliases(), HostAvailability.AVAILABLE);
           return true;
         } catch (final SQLException exception) {
