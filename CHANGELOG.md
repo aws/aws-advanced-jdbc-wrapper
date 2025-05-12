@@ -138,7 +138,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Additional instructions to enable logging for Spring and Spring Boot. See [Logging](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#logging).
 
 ### :bug: Fixed
-- Connection identification and tracking in the host list provider (PR #943)[https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/943].
+- Connection identification and tracking in the host list provider (PR #943)[https://github.com/aws/aws-advanced-jdbc-wrapper/pull/943].
 - Green node endpoint replacement, allowing the AWS JDBC Driver to detect and connect to green nodes after Blue/Green switchover (PR# 948)(https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/948). Addresses [issue #678](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/678).
 - MariaDB Pool Datasource support. Addresses [issue #957](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/957).
 
@@ -367,7 +367,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### :magic_wand: Added
 - [Read / Write Splitting (Official Release)](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md).
 - [Internal connection pools for the R/W splitting plugin](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md#internal-connection-pooling) ([PR #359](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/359))
-- [Database dialects](/docs/using-the-jdbc-driver/DatabaseDialects.md) ([PR #372](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/372) addresses [Issue #341](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/341)), which allow users to specify the database type to connect to.
+- [Database dialects](./docs/using-the-jdbc-driver/DatabaseDialects.md) ([PR #372](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/372) addresses [Issue #341](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/341)), which allow users to specify the database type to connect to.
 
 ### :bug: Fixed
 - Fetched the instance endpoint and added it to the host aliases for connections established using custom domains ([Issue #386](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/386)).
@@ -384,7 +384,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [1.0.2] - 2023-03-31
 ### :magic_wand: Added
 - Default list of plugins added to the parameter `wrapperPlugins` ([PR #332](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/332)).
-- Read-write splitting plugin example using Spring JDBC template. See [Read-Write Splitting Spring JDBC Template Example](./examples/AWSDriverExample/src/main/java/software/amazon/ReadWriteSplittingSpringJdbcTemplateExample.java).
+- Read-write splitting plugin example using Spring JDBC template. See [Read-Write Splitting Spring JDBC Template Example](./examples/AWSDriverExample/src/main/java/software/amazon/ReadWriteSplittingSpringJdbcTemplatePostgresExample.java).
 - Read-write splitting plugin benchmark and performance results ([PR #340](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/340) & [PR #316](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/316)).
 - Aurora Connection Tracker plugin tracks all opened connections and closes all impacted connections after a failover ([PR #298](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/298)).
 - Driver Metadata plugin allows users to override the driver name ([PR #371](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/371) addresses [Issue #370](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/370)).

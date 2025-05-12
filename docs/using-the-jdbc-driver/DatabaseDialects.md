@@ -32,12 +32,12 @@ Dialect codes specify what kind of database any connections will be made to.
 ## Custom Dialects
 If you are interested in using the AWS JDBC Driver but your desired database type is not currently supported, it is possible to create a custom dialect.
 
-To create a custom dialect, implement the [`Dialect`](/wrapper/src/main/java/software/amazon/jdbc/dialect/Dialect.java) interface. For databases clusters that are aware of their topology, the [`TopologyAwareDatabaseCluster`](/wrapper/src/main/java/software/amazon/jdbc/dialect/TopologyAwareDatabaseCluster.java) interface should also be implemented. See the following classes for examples:
+To create a custom dialect, implement the [`Dialect`](../../wrapper/src/main/java/software/amazon/jdbc/dialect/Dialect.java) interface. For Aurora Limitless database engines, the [`AuroraLimitlessDialect`](../../wrapper/src/main/java/software/amazon/jdbc/dialect/AuroraLimitlessDialect.java) interface should also be implemented. See the following classes for examples:
 
-- [PgDialect](/wrapper/src/main/java/software/amazon/jdbc/dialect/PgDialect.java)
+- [PgDialect](../../wrapper/src/main/java/software/amazon/jdbc/dialect/PgDialect.java)
   - This is a generic dialect that should work with any PostgreSQL database.
-- [AuroraPgDialect](/wrapper/src/main/java/software/amazon/jdbc/dialect/AuroraPgDialect.java)
-  - This dialect is an extension of PgDialect, but also implements the `TopologyAwareDatabaseCluster` interface.
+- [AuroraPgDialect](../../wrapper/src/main/java/software/amazon/jdbc/dialect/AuroraPgDialect.java)
+  - This dialect is an extension of PgDialect, but also implements the `AuroraLimitlessDialect` interface.
 
 Once the custom dialect class has been created, tell the AWS JDBC Driver to use it with the `setCustomDialect` method in the `DialectManager` class. It is not necessary to set the `wrawpperDialect` parameter. See below for an example:
 
