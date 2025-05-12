@@ -571,11 +571,9 @@ public class RdsUtilsTests {
     assertEquals(chinaRegionClusterTrailingDot, target.getRdsClusterHostUrl(chinaRegionClusterTrailingDot + prefix));
     assertEquals(
         oldChinaRegionClusterTrailingDot, target.getRdsClusterHostUrl(oldChinaRegionClusterTrailingDot + prefix));
-    // TODO: the commented out line fails because "shardgrp-" is replaced with "cluster-". Need to verify whether this
-    //  is correct or not.
-    // assertEquals(
-    //     oldChinaRegionLimitlessDbShardGroupTrailingDot,
-    //     target.getRdsClusterHostUrl(oldChinaRegionLimitlessDbShardGroupTrailingDot + prefix));
+    assertEquals(
+        oldChinaRegionLimitlessDbShardGroupTrailingDot,
+        target.getRdsClusterHostUrl(oldChinaRegionLimitlessDbShardGroupTrailingDot + prefix));
     assertEquals(
         usIsoEastRegionClusterTrailingDot, target.getRdsClusterHostUrl(usIsoEastRegionClusterTrailingDot + prefix));
     assertEquals(

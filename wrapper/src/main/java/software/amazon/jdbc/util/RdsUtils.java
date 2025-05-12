@@ -308,7 +308,7 @@ public class RdsUtils {
     }
     final Matcher limitlessMatcher = AURORA_LIMITLESS_CLUSTER_PATTERN.matcher(preparedHost);
     if (limitlessMatcher.find()) {
-      return preparedHost.replaceAll(AURORA_LIMITLESS_CLUSTER_PATTERN.pattern(), "${instance}.cluster-${domain}");
+      return preparedHost.replaceAll(AURORA_LIMITLESS_CLUSTER_PATTERN.pattern(), "${instance}.shardgrp-${domain}");
     }
     return null;
   }
