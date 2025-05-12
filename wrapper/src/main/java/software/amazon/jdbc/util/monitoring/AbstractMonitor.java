@@ -51,7 +51,8 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
         terminationTimeoutSec);
   }
 
-  protected AbstractMonitor(MonitorService monitorService, ExecutorService monitorExecutor, long terminationTimeoutSec) {
+  protected AbstractMonitor(
+      MonitorService monitorService, ExecutorService monitorExecutor, long terminationTimeoutSec) {
     this.monitorService = monitorService;
     this.monitorExecutor = monitorExecutor;
     this.terminationTimeoutSec = terminationTimeoutSec;

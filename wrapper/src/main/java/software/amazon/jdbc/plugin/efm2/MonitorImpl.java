@@ -51,7 +51,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
  * This class uses a background thread to monitor a particular server with one or more active {@link
  * Connection}.
  */
-public class MonitorImpl extends AbstractMonitor, implements Monitor {
+public class MonitorImpl extends AbstractMonitor implements Monitor {
 
   private static final Logger LOGGER = Logger.getLogger(MonitorImpl.class.getName());
   private static final long THREAD_SLEEP_NANO = TimeUnit.MILLISECONDS.toNanos(100);
@@ -102,14 +102,17 @@ public class MonitorImpl extends AbstractMonitor, implements Monitor {
       final int failureDetectionIntervalMillis,
       final int failureDetectionCount,
       final TelemetryCounter abortedConnectionsCounter) {
-    super(serviceContainer.getMonitorService(), Executors.newFixedThreadPool(2, runnableTarget -> {
-      final Thread monitoringThread = new Thread(runnableTarget);
-      monitoringThread.setDaemon(true);
-      if (!StringUtils.isNullOrEmpty(monitoringThread.getName())) {
-        monitoringThread.setName(monitoringThread.getName() + "-efm");
-      }
-      return monitoringThread;
-    }));
+    super(
+        serviceContainer.getMonitorService(),
+        Executors.newFixedThreadPool(2, runnableTarget -> {
+          final Thread monitoringThread = new Thread(runnableTarget);
+          monitoringThread.setDaemon(true);
+          if (!StringUtils.isNullOrEmpty(monitoringThread.getName())) {
+            monitoringThread.setName(monitoringThread.getName() + "-efm");
+          }
+          return monitoringThread;
+        }),
+        30);
 
     this.pluginService = serviceContainer.getPluginService();
     this.telemetryFactory = serviceContainer.getTelemetryFactory();
@@ -150,28 +153,8 @@ public class MonitorImpl extends AbstractMonitor, implements Monitor {
   }
 
   @Override
-  public void stop() {
-    this.stopped.set(true);
-
-    // Waiting for 30s gives a thread enough time to exit monitoring loop and close database connection.
-    try {
-      long timeout = 30;
-      TimeUnit timeoutUnit = TimeUnit.SECONDS;
-      if (!this.monitorExecutor.awaitTermination(timeout, timeoutUnit)) {
-        LOGGER.fine(
-            Messages.get("MonitorImpl.awaitTerminationTimeout", new Object[]{timeout, timeoutUnit}));
-        this.monitorExecutor.shutdownNow();
-      }
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      LOGGER.fine(
-          Messages.get("MonitorImpl.interruptedWhileTerminating"));
-      this.monitorExecutor.shutdownNow();
-    }
-
-    LOGGER.finest(() -> Messages.get(
-        "MonitorImpl.stopped",
-        new Object[] {this.hostSpec.getHost()}));
+  public void close() {
+    // do nothing.
   }
 
   protected long getActiveContextSize() {
