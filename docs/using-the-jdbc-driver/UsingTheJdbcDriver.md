@@ -321,7 +321,7 @@ public static void main(String[] args) throws SQLException {
 
 The IAM Authentication Plugin in the AWS JDBC Driver has extra parameters to support custom endpoints. For more
 information,
-see [How do I use IAM with the AWS Advanced JDBC Driver?](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md#how-do-i-use-iam-with-the-aws-advanced-jdbc-driver)
+see [How do I use IAM with the AWS Advanced JDBC Driver?](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md#how-do-i-use-iam-with-the-aws-jdbc-driver)
 
 ### Secrets Manager Plugin
 
