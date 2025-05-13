@@ -27,27 +27,26 @@ import java.util.concurrent.TimeUnit;
 import software.amazon.jdbc.util.StringUtils;
 
 /**
- * An event publisher that periodically sends out all messages received during the latest interval of time. Messages are
- * recorded in a set so that messages of equivalent value are not duplicated in the same message batch.
+ * An event publisher that periodically publishes a batch of all unique events encountered during the latest time
+ * interval. Batches do not contain duplicate events; if the current batch receives a duplicate, it will not be
+ * added to the batch and the original event will only be published once, when the entire batch is published.
  */
-public class PeriodicEventPublisher implements EventPublisher {
+public class BatchingEventPublisher implements EventPublisher {
   protected static final long DEFAULT_MESSAGE_INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(30);
   protected final Map<Class<? extends Event>, Set<EventSubscriber>> subscribersMap = new ConcurrentHashMap<>();
   // ConcurrentHashMap.newKeySet() is the recommended way to get a concurrent set. A set is used to prevent duplicate
   // event messages from being sent in the same message batch.
-  // TODO: should duplicate events be allowed? Data access events may happen frequently so duplicates could result in
-  //  a lot of unnecessary repeated processing.
   protected final Set<Event> eventMessages = ConcurrentHashMap.newKeySet();
   protected static final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor((r -> {
     final Thread thread = new Thread(r);
     thread.setDaemon(true);
     if (!StringUtils.isNullOrEmpty(thread.getName())) {
-      thread.setName(thread.getName() + "-epi");
+      thread.setName(thread.getName() + "-bep");
     }
     return thread;
   }));
 
-  public PeriodicEventPublisher() {
+  public BatchingEventPublisher() {
     this(DEFAULT_MESSAGE_INTERVAL_NANOS);
   }
 
@@ -56,7 +55,7 @@ public class PeriodicEventPublisher implements EventPublisher {
    *
    * @param messageIntervalNanos the rate at which messages batches should be sent, in nanoseconds.
    */
-  public PeriodicEventPublisher(long messageIntervalNanos) {
+  public BatchingEventPublisher(long messageIntervalNanos) {
     cleanupExecutor.scheduleAtFixedRate(
         this::sendMessages, messageIntervalNanos, messageIntervalNanos, TimeUnit.NANOSECONDS);
   }

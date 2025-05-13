@@ -207,13 +207,13 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   @Override
   public boolean acceptsStrategy(HostRole role, String strategy) throws SQLException {
     throw new UnsupportedOperationException(
-        Messages.get("LimitedPluginService.unexpectedMethodCall", new Object[] {"acceptsStrategy"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"acceptsStrategy"}));
   }
 
   @Override
   public HostSpec getHostSpecByStrategy(HostRole role, String strategy) throws SQLException {
     throw new UnsupportedOperationException(
-        Messages.get("LimitedPluginService.unexpectedMethodCall", new Object[] {"getHostSpecByStrategy"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getHostSpecByStrategy"}));
   }
 
   @Override
@@ -465,7 +465,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   @Override
   public boolean isInTransaction() {
     throw new UnsupportedOperationException(
-        Messages.get("LimitedPluginService.unexpectedMethodCall", new Object[] {"isInTransaction"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"isInTransaction"}));
   }
 
   @Override
@@ -593,7 +593,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   @Override
   public Connection connect(final HostSpec hostSpec, final Properties props) throws SQLException {
     throw new UnsupportedOperationException(
-        Messages.get("LimitedPluginService.unexpectedMethodCall", new Object[] {"connect"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"connect"}));
   }
 
   @Override
@@ -603,7 +603,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
       final @Nullable ConnectionPlugin pluginToSkip)
       throws SQLException {
     throw new UnsupportedOperationException(
-        Messages.get("LimitedPluginService.unexpectedMethodCall", new Object[] {"connect"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"connect"}));
   }
 
   @Override
@@ -636,7 +636,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   @Override
   public void releaseResources() {
     throw new UnsupportedOperationException(
-        Messages.get("LimitedPluginService.unexpectedMethodCall", new Object[] {"releaseResources"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"releaseResources"}));
   }
 
   @Override
@@ -755,7 +755,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   @Override
   public @NonNull SessionStateService getSessionStateService() {
     throw new UnsupportedOperationException(
-        Messages.get("LimitedPluginService.unexpectedMethodCall", new Object[] {"getSessionStateService"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getSessionStateService"}));
   }
 
   public <T> T getPlugin(final Class<T> pluginClazz) {

@@ -81,7 +81,6 @@ public class StorageServiceImpl implements StorageService {
 
       cleanupExecutor.scheduleAtFixedRate(
           this::removeExpiredItems, cleanupIntervalNanos, cleanupIntervalNanos, TimeUnit.NANOSECONDS);
-      cleanupExecutor.shutdown();
       isInitialized.set(true);
     } finally {
       initLock.unlock();
@@ -112,6 +111,7 @@ public class StorageServiceImpl implements StorageService {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public <V> void set(Object key, V value) {
     ExpirationCache<Object, ?> cache = caches.get(value.getClass());
     if (cache == null) {
@@ -125,7 +125,6 @@ public class StorageServiceImpl implements StorageService {
     }
 
     try {
-      // TODO: is there a way to get rid of this unchecked cast warning? Is the try-catch necessary?
       ExpirationCache<Object, V> typedCache = (ExpirationCache<Object, V>) cache;
       typedCache.put(key, value);
     } catch (ClassCastException e) {
@@ -193,13 +192,13 @@ public class StorageServiceImpl implements StorageService {
   }
 
   @Override
-  public <K, V> @Nullable Map<K, V> getEntries(Class<?> itemClass) {
+  public <K, V> @Nullable Map<K, V> getEntries(Class<V> itemClass) {
     final ExpirationCache<?, ?> cache = caches.get(itemClass);
     if (cache == null) {
       return null;
     }
 
-    // TODO: fix this cast to be type safe and/or remove this method after removing the suggestedClusterId logic
+    // TODO: remove this method after removing the suggestedClusterId logic
     return (Map<K, V>) cache.getEntries();
   }
 

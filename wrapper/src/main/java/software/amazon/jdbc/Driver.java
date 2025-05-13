@@ -66,7 +66,7 @@ import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.ServiceContainerImpl;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.events.EventPublisher;
-import software.amazon.jdbc.util.events.PeriodicEventPublisher;
+import software.amazon.jdbc.util.events.BatchingEventPublisher;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.monitoring.MonitorServiceImpl;
 import software.amazon.jdbc.util.storage.StorageService;
@@ -84,7 +84,7 @@ public class Driver implements java.sql.Driver {
   private static final Logger LOGGER = Logger.getLogger("software.amazon.jdbc.Driver");
   private static @Nullable Driver registeredDriver;
 
-  private static final EventPublisher publisher = new PeriodicEventPublisher();
+  private static final EventPublisher publisher = new BatchingEventPublisher();
   private static final StorageService storageService = new StorageServiceImpl(publisher);
   private static final MonitorService monitorService = new MonitorServiceImpl(publisher);
 
@@ -420,7 +420,7 @@ public class Driver implements java.sql.Driver {
   }
 
   public static void releaseResources() {
-    monitorService.stopAndRemoveAll();
+    monitorService.releaseResources();
     software.amazon.jdbc.plugin.efm2.MonitorServiceImpl.closeAllMonitors();
     MonitorThreadContainer.releaseInstance();
     ConnectionProviderManager.releaseResources();

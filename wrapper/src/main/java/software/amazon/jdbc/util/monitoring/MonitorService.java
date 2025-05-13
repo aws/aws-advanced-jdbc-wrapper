@@ -88,15 +88,6 @@ public interface MonitorService {
   <T extends Monitor> T get(Class<T> monitorClass, Object key);
 
   /**
-   * Processes a monitor error. The monitor service will respond to the error based on the monitor error responses
-   * defined when the monitor type was registered.
-   *
-   * @param monitor   the monitor that encountered the unexpected exception.
-   * @param exception the unexpected exception that occurred.
-   */
-  void reportMonitorError(Monitor monitor, Exception exception);
-
-  /**
    * Removes the monitor stored at the given key. If the expected monitor class does not match the actual monitor class
    * no action will be performed.
    *
@@ -128,4 +119,10 @@ public interface MonitorService {
    * Stops all monitors and removes them from the monitor service.
    */
   void stopAndRemoveAll();
+
+  /**
+   * Releases any resources opened by the monitor service, stops all monitors, and removes all monitors from the monitor
+   * service.
+   */
+  void releaseResources();
 }

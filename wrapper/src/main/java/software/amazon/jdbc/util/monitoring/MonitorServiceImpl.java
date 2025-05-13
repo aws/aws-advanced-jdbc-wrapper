@@ -27,8 +27,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -57,11 +55,9 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   private static final Logger LOGGER = Logger.getLogger(MonitorServiceImpl.class.getName());
   protected static final long DEFAULT_CLEANUP_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(1);
-  protected static final Map<Class<? extends Monitor>, CacheContainer> monitorCaches = new ConcurrentHashMap<>();
   protected static final Map<Class<? extends Monitor>, Supplier<CacheContainer>> defaultSuppliers;
-  protected static final AtomicBoolean isInitialized = new AtomicBoolean(false);
-  protected static final ReentrantLock initLock = new ReentrantLock();
-  protected static final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor((r -> {
+  protected final Map<Class<? extends Monitor>, CacheContainer> monitorCaches = new ConcurrentHashMap<>();
+  protected final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor((r -> {
     final Thread thread = new Thread(r);
     thread.setDaemon(true);
     if (!StringUtils.isNullOrEmpty(thread.getName())) {
@@ -102,27 +98,8 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   public MonitorServiceImpl(long cleanupIntervalNanos, EventPublisher publisher) {
     this.publisher = publisher;
     this.publisher.subscribe(this, new HashSet<>(Collections.singletonList(DataAccessEvent.class)));
-    initCleanupThread(cleanupIntervalNanos);
-  }
-
-  protected void initCleanupThread(long cleanupIntervalNanos) {
-    if (isInitialized.get()) {
-      return;
-    }
-
-    initLock.lock();
-    try {
-      if (isInitialized.get()) {
-        return;
-      }
-
-      cleanupExecutor.scheduleAtFixedRate(
-          this::checkMonitors, cleanupIntervalNanos, cleanupIntervalNanos, TimeUnit.NANOSECONDS);
-      cleanupExecutor.shutdown();
-      isInitialized.set(true);
-    } finally {
-      initLock.unlock();
-    }
+    cleanupExecutor.scheduleAtFixedRate(
+        this::checkMonitors, cleanupIntervalNanos, cleanupIntervalNanos, TimeUnit.NANOSECONDS);
   }
 
   protected void checkMonitors() {
@@ -141,6 +118,8 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
         MonitorSettings monitorSettings = container.getSettings();
         removedItem = cache.removeIf(key, mi -> mi.getMonitor().getState() == MonitorState.ERROR);
         if (removedItem != null) {
+          LOGGER.finest(
+              Messages.get("MonitorServiceImpl.removedErrorMonitor", new Object[] {removedItem.getMonitor()}));
           handleMonitorError(container, key, removedItem);
           continue;
         }
@@ -195,7 +174,8 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
     monitorCaches.computeIfAbsent(
         monitorClass,
         mc -> new CacheContainer(
-            new MonitorSettings(expirationTimeoutNanos, heartbeatTimeoutNanos, errorResponses), producedDataClass));
+            new MonitorSettings(expirationTimeoutNanos, heartbeatTimeoutNanos, errorResponses),
+            producedDataClass));
   }
 
   @Override
@@ -277,27 +257,6 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   }
 
   @Override
-  public void reportMonitorError(Monitor monitor, Exception exception) {
-    CacheContainer cacheContainer = monitorCaches.get(monitor.getClass());
-    if (cacheContainer == null) {
-      LOGGER.fine(
-          Messages.get("MonitorServiceImpl.monitorErrorForUnregisteredType", new Object[] {monitor, exception}));
-      return;
-    }
-
-    ExternallyManagedCache<Object, MonitorItem> cache = cacheContainer.getCache();
-    for (Map.Entry<Object, MonitorItem> entry : cache.getEntries().entrySet()) {
-      MonitorItem monitorItem = cache.removeIf(entry.getKey(), mi -> mi.getMonitor() == monitor);
-      if (monitorItem != null) {
-        handleMonitorError(cacheContainer, entry.getKey(), monitorItem);
-        return;
-      }
-    }
-
-    LOGGER.finest(Messages.get("MonitorServiceImpl.monitorErrorForMissingMonitor", new Object[] {monitor, exception}));
-  }
-
-  @Override
   public <T extends Monitor> T remove(Class<T> monitorClass, Object key) {
     CacheContainer cacheContainer = monitorCaches.get(monitorClass);
     if (cacheContainer == null) {
@@ -349,6 +308,12 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
     for (Class<? extends Monitor> monitorClass : monitorCaches.keySet()) {
       stopAndRemoveMonitors(monitorClass);
     }
+  }
+
+  @Override
+  public void releaseResources() {
+    cleanupExecutor.shutdownNow();
+    stopAndRemoveAll();
   }
 
   @Override
