@@ -40,8 +40,7 @@ import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
 
-public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin implements
-    CanReleaseResources {
+public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
 
   private static final Logger LOGGER = Logger.getLogger(AuroraConnectionTrackerPlugin.class.getName());
 
@@ -193,11 +192,6 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin impl
         this.needUpdateCurrentWriter = true;
       }
     }
-  }
-
-  @Override
-  public void releaseResources() {
-    tracker.pruneNullConnections();
   }
 
   private HostSpec getWriter(final @NonNull List<HostSpec> hosts) {
