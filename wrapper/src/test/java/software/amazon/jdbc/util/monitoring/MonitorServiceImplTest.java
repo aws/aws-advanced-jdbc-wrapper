@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,12 +39,14 @@ import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 class MonitorServiceImplTest {
+  private static final Logger LOGGER = Logger.getLogger(MonitorServiceImplTest.class.getName());
+
   @Mock StorageService storageService;
   @Mock TelemetryFactory telemetryFactory;
   @Mock TargetDriverDialect targetDriverDialect;
   @Mock Dialect dbDialect;
   @Mock EventPublisher publisher;
-  final static long CLEANUP_INTERVAL_MS = 5000;
+  final static long CLEANUP_INTERVAL_MS = 1000;
   MonitorServiceImpl monitorService;
   private AutoCloseable closeable;
 
@@ -51,15 +54,15 @@ class MonitorServiceImplTest {
   void setUp() {
     closeable = MockitoAnnotations.openMocks(this);
     monitorService = new MonitorServiceImpl(TimeUnit.MILLISECONDS.toNanos(CLEANUP_INTERVAL_MS), publisher);
-    monitorService.stopAndRemoveAll();
   }
 
   @AfterEach
   void tearDown() throws Exception {
     closeable.close();
-    monitorService.stopAndRemoveAll();
+    monitorService.releaseResources();
   }
 
+  // @RepeatedTest(100)
   @Test
   public void testMonitorRecreation() throws SQLException, InterruptedException {
     monitorService.registerMonitorTypeIfAbsent(
@@ -81,21 +84,25 @@ class MonitorServiceImplTest {
         dbDialect,
         new Properties(),
         (connectionService, pluginService) -> new ExceptionThrowingMonitor(
-            monitorService, 30, 2500)
+            // We want to throw the test exception shortly before cleanup
+            monitorService, 30, CLEANUP_INTERVAL_MS  - 300)
     );
 
     MonitorServiceImpl.MonitorItem monitorItem =
-        MonitorServiceImpl.monitorCaches.get(ExceptionThrowingMonitor.class).getCache().get(key);
+        monitorService.monitorCaches.get(ExceptionThrowingMonitor.class).getCache().get(key);
     assertNotNull(monitorItem);
     assertEquals(monitor, monitorItem.getMonitor());
 
-    TimeUnit.MILLISECONDS.sleep(CLEANUP_INTERVAL_MS + 7500);
+    // Wait for monitor service cleanup thread to execute
+    TimeUnit.MILLISECONDS.sleep(CLEANUP_INTERVAL_MS + 200);
+    LOGGER.finest("Done sleeping, testing monitor state...");
     assertEquals(MonitorState.STOPPED, monitor.getState());
 
     MonitorServiceImpl.MonitorItem newMonitorItem =
-        MonitorServiceImpl.monitorCaches.get(ExceptionThrowingMonitor.class).getCache().get(key);
+        monitorService.monitorCaches.get(ExceptionThrowingMonitor.class).getCache().get(key);
     assertNotNull(newMonitorItem);
     assertNotEquals(monitor, newMonitorItem.getMonitor());
+    assertEquals(MonitorState.RUNNING, newMonitorItem.getMonitor().getState());
   }
 
   static class MonitorTestException extends RuntimeException {

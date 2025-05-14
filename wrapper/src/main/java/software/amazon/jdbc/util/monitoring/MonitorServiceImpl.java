@@ -56,15 +56,6 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   private static final Logger LOGGER = Logger.getLogger(MonitorServiceImpl.class.getName());
   protected static final long DEFAULT_CLEANUP_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(1);
   protected static final Map<Class<? extends Monitor>, Supplier<CacheContainer>> defaultSuppliers;
-  protected final Map<Class<? extends Monitor>, CacheContainer> monitorCaches = new ConcurrentHashMap<>();
-  protected final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor((r -> {
-    final Thread thread = new Thread(r);
-    thread.setDaemon(true);
-    if (!StringUtils.isNullOrEmpty(thread.getName())) {
-      thread.setName(thread.getName() + "-msi");
-    }
-    return thread;
-  }));
 
   static {
     Map<Class<? extends Monitor>, Supplier<CacheContainer>> suppliers = new HashMap<>();
@@ -82,6 +73,16 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   }
 
   protected final EventPublisher publisher;
+  protected final Map<Class<? extends Monitor>, CacheContainer> monitorCaches = new ConcurrentHashMap<>();
+  protected final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor((r -> {
+    final Thread thread = new Thread(r);
+    thread.setDaemon(true);
+    if (!StringUtils.isNullOrEmpty(thread.getName())) {
+      thread.setName(thread.getName() + "-msi");
+    }
+    return thread;
+  }));
+
 
   public MonitorServiceImpl(EventPublisher publisher) {
     this(DEFAULT_CLEANUP_INTERVAL_NANOS, publisher);
