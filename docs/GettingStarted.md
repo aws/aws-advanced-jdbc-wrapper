@@ -12,7 +12,7 @@ Before using the AWS Advanced JDBC Driver, you must install:
 
 If you are using the AWS JDBC Driver as part of a Gradle project, include the wrapper and underlying driver as dependencies.  For example, to include the AWS JDBC Driver and the PostgreSQL JDBC Driver as dependencies in a Gradle project, update the ```build.gradle``` file as follows:
 
-> **Note:** Depending on which features of the AWS JDBC Driver you use, you may have additional package requirements. Please refer to this [table](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#list-of-available-plugins) for more information.
+> **Note:** Depending on which features of the AWS JDBC Driver you use, you may have additional package requirements. Please refer to this [table](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#list-of-available-plugins) for more information.
 
 ```gradle
 dependencies {
