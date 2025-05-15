@@ -47,9 +47,9 @@ public class AuroraPgDialect extends PgDialect implements AuroraLimitlessDialect
           + "WHERE EXTRACT(EPOCH FROM(NOW() - LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' "
           + "OR LAST_UPDATE_TIMESTAMP IS NULL";
 
-  private static final String IS_WRITER_QUERY =
+  private static final String WRITER_ID_QUERY =
       "SELECT SERVER_ID FROM aurora_replica_status() "
-          + "WHERE SESSION_ID = 'MASTER_SESSION_ID' AND SERVER_ID = aurora_db_instance_identifier()";
+          + "WHERE SESSION_ID = 'MASTER_SESSION_ID'";
 
   private static final String NODE_ID_QUERY = "SELECT aurora_db_instance_identifier()";
   private static final String IS_READER_QUERY = "SELECT pg_is_in_recovery()";
@@ -139,7 +139,7 @@ public class AuroraPgDialect extends PgDialect implements AuroraLimitlessDialect
             TOPOLOGY_QUERY,
             NODE_ID_QUERY,
             IS_READER_QUERY,
-            IS_WRITER_QUERY,
+            WRITER_ID_QUERY,
             pluginService);
       }
       return new AuroraHostListProvider(
