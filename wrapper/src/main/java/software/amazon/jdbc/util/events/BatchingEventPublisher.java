@@ -38,14 +38,16 @@ public class BatchingEventPublisher implements EventPublisher {
   // ConcurrentHashMap.newKeySet() is the recommended way to get a concurrent set. A set is used to prevent duplicate
   // event messages from being sent in the same message batch.
   protected final Set<Event> eventMessages = ConcurrentHashMap.newKeySet();
-  protected static final ScheduledExecutorService publishingExecutor = Executors.newSingleThreadScheduledExecutor((r -> {
-    final Thread thread = new Thread(r);
-    thread.setDaemon(true);
-    if (!StringUtils.isNullOrEmpty(thread.getName())) {
-      thread.setName(thread.getName() + "-bep");
-    }
-    return thread;
-  }));
+  protected static final ScheduledExecutorService publishingExecutor = Executors.newSingleThreadScheduledExecutor(
+      (r -> {
+        final Thread thread = new Thread(r);
+        thread.setDaemon(true);
+        if (!StringUtils.isNullOrEmpty(thread.getName())) {
+          thread.setName(thread.getName() + "-bep");
+        }
+        return thread;
+      })
+  );
 
   public BatchingEventPublisher() {
     this(DEFAULT_MESSAGE_INTERVAL_NANOS);

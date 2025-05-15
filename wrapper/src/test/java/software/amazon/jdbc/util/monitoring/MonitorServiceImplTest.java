@@ -27,7 +27,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,8 +40,6 @@ import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 class MonitorServiceImplTest {
-  private static final Logger LOGGER = Logger.getLogger(MonitorServiceImplTest.class.getName());
-
   @Mock StorageService storageService;
   @Mock TelemetryFactory telemetryFactory;
   @Mock TargetDriverDialect targetDriverDialect;
@@ -76,7 +73,7 @@ class MonitorServiceImplTest {
         TimeUnit.MINUTES.toNanos(1),
         new HashSet<>(Collections.singletonList(MonitorErrorResponse.RECREATE)),
         null
-        );
+    );
     String key = "testMonitor";
     NoOpMonitor monitor = monitorService.runIfAbsent(
         NoOpMonitor.class,
@@ -198,22 +195,20 @@ class MonitorServiceImplTest {
 
   @Test
   public void testMonitorMismatch() {
-    assertThrows(IllegalStateException.class, () -> {
-      monitorService.runIfAbsent(
-          CustomEndpointMonitorImpl.class,
-          "testMonitor",
-          storageService,
-          telemetryFactory,
-          "jdbc:postgresql://somehost/somedb",
-          "someProtocol",
-          targetDriverDialect,
-          dbDialect,
-          new Properties(),
-          // indicated monitor class is CustomEndpointMonitorImpl, but actual monitor is NoOpMonitor. The monitor
-          // service should detect this and throw an exception.
-          (connectionService, pluginService) -> new NoOpMonitor(monitorService, 30)
-      );
-    });
+    assertThrows(IllegalStateException.class, () -> monitorService.runIfAbsent(
+        CustomEndpointMonitorImpl.class,
+        "testMonitor",
+        storageService,
+        telemetryFactory,
+        "jdbc:postgresql://somehost/somedb",
+        "someProtocol",
+        targetDriverDialect,
+        dbDialect,
+        new Properties(),
+        // indicated monitor class is CustomEndpointMonitorImpl, but actual monitor is NoOpMonitor. The monitor
+        // service should detect this and throw an exception.
+        (connectionService, pluginService) -> new NoOpMonitor(monitorService, 30)
+    ));
   }
 
   @Test
