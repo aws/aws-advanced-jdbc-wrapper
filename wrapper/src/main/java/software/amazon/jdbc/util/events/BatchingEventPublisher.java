@@ -17,6 +17,7 @@
 package software.amazon.jdbc.util.events;
 
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
@@ -37,7 +38,7 @@ public class BatchingEventPublisher implements EventPublisher {
   // ConcurrentHashMap.newKeySet() is the recommended way to get a concurrent set. A set is used to prevent duplicate
   // event messages from being sent in the same message batch.
   protected final Set<Event> eventMessages = ConcurrentHashMap.newKeySet();
-  protected static final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor((r -> {
+  protected static final ScheduledExecutorService publishingExecutor = Executors.newSingleThreadScheduledExecutor((r -> {
     final Thread thread = new Thread(r);
     thread.setDaemon(true);
     if (!StringUtils.isNullOrEmpty(thread.getName())) {
@@ -56,13 +57,25 @@ public class BatchingEventPublisher implements EventPublisher {
    * @param messageIntervalNanos the rate at which messages batches should be sent, in nanoseconds.
    */
   public BatchingEventPublisher(long messageIntervalNanos) {
-    cleanupExecutor.scheduleAtFixedRate(
+    initPublishingThread(messageIntervalNanos);
+  }
+
+  protected void initPublishingThread(long messageIntervalNanos) {
+    publishingExecutor.scheduleAtFixedRate(
         this::sendMessages, messageIntervalNanos, messageIntervalNanos, TimeUnit.NANOSECONDS);
   }
 
-  private void sendMessages() {
-    for (Event event : eventMessages) {
-      for (EventSubscriber subscriber : subscribersMap.get(event.getClass())) {
+  protected void sendMessages() {
+    Iterator<Event> iterator = eventMessages.iterator();
+    while (iterator.hasNext()) {
+      Event event = iterator.next();
+      iterator.remove();
+      Set<EventSubscriber> subscribers = subscribersMap.get(event.getClass());
+      if (subscribers == null) {
+        continue;
+      }
+
+      for (EventSubscriber subscriber : subscribers) {
         subscriber.processEvent(event);
       }
     }
@@ -72,7 +85,6 @@ public class BatchingEventPublisher implements EventPublisher {
   public void subscribe(EventSubscriber subscriber, Set<Class<? extends Event>> eventClasses) {
     for (Class<? extends Event> eventClass : eventClasses) {
       // The subscriber collection is a weakly referenced set so that we avoid garbage collection issues.
-      // TODO: do subscribers need to implement equals/hashcode?
       subscribersMap.computeIfAbsent(
           eventClass, (k) -> Collections.newSetFromMap(new WeakHashMap<>())).add(subscriber);
     }

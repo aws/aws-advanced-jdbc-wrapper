@@ -134,6 +134,7 @@ public class ExpirationCache<K, V> {
           }
 
           // The existing value is non-expired or renewable. Keep the existing value.
+
           if (this.isRenewableExpiration) {
             valueItem.extendExpiration(this.timeToLiveNanos);
           }

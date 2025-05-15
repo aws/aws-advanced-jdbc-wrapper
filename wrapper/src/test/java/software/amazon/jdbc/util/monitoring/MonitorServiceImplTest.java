@@ -19,7 +19,8 @@ package software.amazon.jdbc.util.monitoring;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.sql.SQLException;
 import java.util.Collections;
@@ -33,6 +34,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.storage.StorageService;
@@ -46,14 +48,18 @@ class MonitorServiceImplTest {
   @Mock TargetDriverDialect targetDriverDialect;
   @Mock Dialect dbDialect;
   @Mock EventPublisher publisher;
-  final static long CLEANUP_INTERVAL_MS = 1000;
   MonitorServiceImpl monitorService;
   private AutoCloseable closeable;
 
   @BeforeEach
   void setUp() {
     closeable = MockitoAnnotations.openMocks(this);
-    monitorService = new MonitorServiceImpl(TimeUnit.MILLISECONDS.toNanos(CLEANUP_INTERVAL_MS), publisher);
+    monitorService = new MonitorServiceImpl(publisher) {
+      @Override
+      protected void initCleanupThread(long cleanupIntervalNanos) {
+        // Do nothing
+      }
+    };
   }
 
   @AfterEach
@@ -62,20 +68,19 @@ class MonitorServiceImplTest {
     monitorService.releaseResources();
   }
 
-  // @RepeatedTest(100)
   @Test
-  public void testMonitorRecreation() throws SQLException, InterruptedException {
+  public void testMonitorError_monitorReCreated() throws SQLException, InterruptedException {
     monitorService.registerMonitorTypeIfAbsent(
-        ExceptionThrowingMonitor.class,
+        NoOpMonitor.class,
         TimeUnit.MINUTES.toNanos(1),
         TimeUnit.MINUTES.toNanos(1),
         new HashSet<>(Collections.singletonList(MonitorErrorResponse.RECREATE)),
         null
         );
     String key = "testMonitor";
-    Monitor monitor = monitorService.runIfAbsent(
-        ExceptionThrowingMonitor.class,
-        "testMonitor",
+    NoOpMonitor monitor = monitorService.runIfAbsent(
+        NoOpMonitor.class,
+        key,
         storageService,
         telemetryFactory,
         "jdbc:postgresql://somehost/somedb",
@@ -83,51 +88,212 @@ class MonitorServiceImplTest {
         targetDriverDialect,
         dbDialect,
         new Properties(),
-        (connectionService, pluginService) -> new ExceptionThrowingMonitor(
-            // We want to throw the test exception shortly before cleanup
-            monitorService, 30, CLEANUP_INTERVAL_MS  - 300)
+        (connectionService, pluginService) -> new NoOpMonitor(monitorService, 30)
     );
 
-    MonitorServiceImpl.MonitorItem monitorItem =
-        monitorService.monitorCaches.get(ExceptionThrowingMonitor.class).getCache().get(key);
-    assertNotNull(monitorItem);
-    assertEquals(monitor, monitorItem.getMonitor());
+    Monitor storedMonitor = monitorService.get(NoOpMonitor.class, key);
+    assertNotNull(storedMonitor);
+    assertEquals(monitor, storedMonitor);
+    // need to wait to give time for the monitor executor to start the monitor thread.
+    TimeUnit.MILLISECONDS.sleep(250);
+    assertEquals(MonitorState.RUNNING, monitor.getState());
 
-    // Wait for monitor service cleanup thread to execute
-    TimeUnit.MILLISECONDS.sleep(CLEANUP_INTERVAL_MS + 200);
-    LOGGER.finest("Done sleeping, testing monitor state...");
+    monitor.state = MonitorState.ERROR;
+    monitorService.checkMonitors();
+
     assertEquals(MonitorState.STOPPED, monitor.getState());
 
-    MonitorServiceImpl.MonitorItem newMonitorItem =
-        monitorService.monitorCaches.get(ExceptionThrowingMonitor.class).getCache().get(key);
-    assertNotNull(newMonitorItem);
-    assertNotEquals(monitor, newMonitorItem.getMonitor());
-    assertEquals(MonitorState.RUNNING, newMonitorItem.getMonitor().getState());
+    Monitor newMonitor = monitorService.get(NoOpMonitor.class, key);
+    assertNotNull(newMonitor);
+    assertNotEquals(monitor, newMonitor);
+    // need to wait to give time for the monitor executor to start the monitor thread.
+    TimeUnit.MILLISECONDS.sleep(250);
+    assertEquals(MonitorState.RUNNING, newMonitor.getState());
   }
 
-  static class MonitorTestException extends RuntimeException {
+  @Test
+  public void testMonitorStuck_monitorReCreated() throws SQLException, InterruptedException {
+    monitorService.registerMonitorTypeIfAbsent(
+        NoOpMonitor.class,
+        TimeUnit.MINUTES.toNanos(1),
+        1, // heartbeat times out immediately
+        new HashSet<>(Collections.singletonList(MonitorErrorResponse.RECREATE)),
+        null
+    );
+    String key = "testMonitor";
+    NoOpMonitor monitor = monitorService.runIfAbsent(
+        NoOpMonitor.class,
+        key,
+        storageService,
+        telemetryFactory,
+        "jdbc:postgresql://somehost/somedb",
+        "someProtocol",
+        targetDriverDialect,
+        dbDialect,
+        new Properties(),
+        (connectionService, pluginService) -> new NoOpMonitor(monitorService, 30)
+    );
 
+    Monitor storedMonitor = monitorService.get(NoOpMonitor.class, key);
+    assertNotNull(storedMonitor);
+    assertEquals(monitor, storedMonitor);
+    // need to wait to give time for the monitor executor to start the monitor thread.
+    TimeUnit.MILLISECONDS.sleep(250);
+    assertEquals(MonitorState.RUNNING, monitor.getState());
+
+    // checkMonitors() should detect the heartbeat/inactivity timeout, stop the monitor, and re-create a new one.
+    monitorService.checkMonitors();
+
+    assertEquals(MonitorState.STOPPED, monitor.getState());
+
+    Monitor newMonitor = monitorService.get(NoOpMonitor.class, key);
+    assertNotNull(newMonitor);
+    assertNotEquals(monitor, newMonitor);
+    // need to wait to give time for the monitor executor to start the monitor thread.
+    TimeUnit.MILLISECONDS.sleep(250);
+    assertEquals(MonitorState.RUNNING, newMonitor.getState());
   }
 
-  static class ExceptionThrowingMonitor extends AbstractMonitor {
-    final long exceptionDelayMs;
+  @Test
+  public void testMonitorExpired() throws SQLException, InterruptedException {
+    monitorService.registerMonitorTypeIfAbsent(
+        NoOpMonitor.class,
+        TimeUnit.MILLISECONDS.toNanos(200), // monitor expires after 200ms
+        TimeUnit.MINUTES.toNanos(1),
+        // even though we pass a re-create policy, we should not re-create it if the monitor is expired since this
+        // indicates it is not being used.
+        new HashSet<>(Collections.singletonList(MonitorErrorResponse.RECREATE)),
+        null
+    );
+    String key = "testMonitor";
+    NoOpMonitor monitor = monitorService.runIfAbsent(
+        NoOpMonitor.class,
+        key,
+        storageService,
+        telemetryFactory,
+        "jdbc:postgresql://somehost/somedb",
+        "someProtocol",
+        targetDriverDialect,
+        dbDialect,
+        new Properties(),
+        (connectionService, pluginService) -> new NoOpMonitor(monitorService, 30)
+    );
 
-    protected ExceptionThrowingMonitor(
+    Monitor storedMonitor = monitorService.get(NoOpMonitor.class, key);
+    assertNotNull(storedMonitor);
+    assertEquals(monitor, storedMonitor);
+    // need to wait to give time for the monitor executor to start the monitor thread.
+    TimeUnit.MILLISECONDS.sleep(250);
+    assertEquals(MonitorState.RUNNING, monitor.getState());
+
+    // checkMonitors() should detect the expiration timeout and stop/remove the monitor.
+    monitorService.checkMonitors();
+
+    assertEquals(MonitorState.STOPPED, monitor.getState());
+
+    Monitor newMonitor = monitorService.get(NoOpMonitor.class, key);
+    // monitor should have been removed when checkMonitors() was called.
+    assertNull(newMonitor);
+  }
+
+  @Test
+  public void testMonitorMismatch() {
+    assertThrows(IllegalStateException.class, () -> {
+      monitorService.runIfAbsent(
+          CustomEndpointMonitorImpl.class,
+          "testMonitor",
+          storageService,
+          telemetryFactory,
+          "jdbc:postgresql://somehost/somedb",
+          "someProtocol",
+          targetDriverDialect,
+          dbDialect,
+          new Properties(),
+          // indicated monitor class is CustomEndpointMonitorImpl, but actual monitor is NoOpMonitor. The monitor
+          // service should detect this and throw an exception.
+          (connectionService, pluginService) -> new NoOpMonitor(monitorService, 30)
+      );
+    });
+  }
+
+  @Test
+  public void testRemove() throws SQLException, InterruptedException {
+    monitorService.registerMonitorTypeIfAbsent(
+        NoOpMonitor.class,
+        TimeUnit.MINUTES.toNanos(1),
+        TimeUnit.MINUTES.toNanos(1),
+        // even though we pass a re-create policy, we should not re-create it if the monitor is expired since this
+        // indicates it is not being used.
+        new HashSet<>(Collections.singletonList(MonitorErrorResponse.RECREATE)),
+        null
+    );
+
+    String key = "testMonitor";
+    NoOpMonitor monitor = monitorService.runIfAbsent(
+        NoOpMonitor.class,
+        key,
+        storageService,
+        telemetryFactory,
+        "jdbc:postgresql://somehost/somedb",
+        "someProtocol",
+        targetDriverDialect,
+        dbDialect,
+        new Properties(),
+        (connectionService, pluginService) -> new NoOpMonitor(monitorService, 30)
+    );
+    assertNotNull(monitor);
+
+    // need to wait to give time for the monitor executor to start the monitor thread.
+    TimeUnit.MILLISECONDS.sleep(250);
+    Monitor removedMonitor = monitorService.remove(NoOpMonitor.class, key);
+    assertEquals(monitor, removedMonitor);
+    assertEquals(MonitorState.RUNNING, monitor.getState());
+  }
+
+  @Test
+  public void testStopAndRemove() throws SQLException, InterruptedException {
+    monitorService.registerMonitorTypeIfAbsent(
+        NoOpMonitor.class,
+        TimeUnit.MINUTES.toNanos(1),
+        TimeUnit.MINUTES.toNanos(1),
+        // even though we pass a re-create policy, we should not re-create it if the monitor is expired since this
+        // indicates it is not being used.
+        new HashSet<>(Collections.singletonList(MonitorErrorResponse.RECREATE)),
+        null
+    );
+
+    String key = "testMonitor";
+    NoOpMonitor monitor = monitorService.runIfAbsent(
+        NoOpMonitor.class,
+        key,
+        storageService,
+        telemetryFactory,
+        "jdbc:postgresql://somehost/somedb",
+        "someProtocol",
+        targetDriverDialect,
+        dbDialect,
+        new Properties(),
+        (connectionService, pluginService) -> new NoOpMonitor(monitorService, 30)
+    );
+    assertNotNull(monitor);
+
+    // need to wait to give time for the monitor executor to start the monitor thread.
+    TimeUnit.MILLISECONDS.sleep(250);
+    monitorService.stopAndRemove(NoOpMonitor.class, key);
+    assertNull(monitorService.get(NoOpMonitor.class, key));
+    assertEquals(MonitorState.STOPPED, monitor.getState());
+  }
+
+  static class NoOpMonitor extends AbstractMonitor {
+    protected NoOpMonitor(
         MonitorService monitorService,
-        long terminationTimeoutSec,
-        long exceptionDelayMs) {
+        long terminationTimeoutSec) {
       super(monitorService, terminationTimeoutSec);
-      this.exceptionDelayMs = exceptionDelayMs;
     }
 
     @Override
     public void monitor() {
-      try {
-        TimeUnit.MILLISECONDS.sleep(this.exceptionDelayMs);
-        throw new MonitorTestException();
-      } catch (InterruptedException e) {
-        fail("Unexpected InterruptedException in test monitor");
-      }
+      // do nothing.
     }
 
     @Override

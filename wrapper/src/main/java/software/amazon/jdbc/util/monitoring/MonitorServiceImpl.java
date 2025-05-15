@@ -99,6 +99,10 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   public MonitorServiceImpl(long cleanupIntervalNanos, EventPublisher publisher) {
     this.publisher = publisher;
     this.publisher.subscribe(this, new HashSet<>(Collections.singletonList(DataAccessEvent.class)));
+    initCleanupThread(cleanupIntervalNanos);
+  }
+
+  protected void initCleanupThread(long cleanupIntervalNanos) {
     cleanupExecutor.scheduleAtFixedRate(
         this::checkMonitors, cleanupIntervalNanos, cleanupIntervalNanos, TimeUnit.NANOSECONDS);
   }
