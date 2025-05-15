@@ -12,7 +12,7 @@ Before using the AWS Advanced JDBC Driver, you must install:
 
 If you are using the AWS JDBC Driver as part of a Gradle project, include the wrapper and underlying driver as dependencies.  For example, to include the AWS JDBC Driver and the PostgreSQL JDBC Driver as dependencies in a Gradle project, update the ```build.gradle``` file as follows:
 
-> **Note:** Depending on which features of the AWS JDBC Driver you use, you may have additional package requirements. Please refer to this [table](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#list-of-available-plugins) for more information.
+> **Note:** Depending on which features of the AWS JDBC Driver you use, you may have additional package requirements. Please refer to this [table](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#list-of-available-plugins) for more information.
 
 ```gradle
 dependencies {
@@ -25,12 +25,12 @@ dependencies {
 
 ### Direct Download and Installation
 
-You can use pre-compiled packages that can be downloaded directly from [GitHub Releases](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases) or [Maven Central](https://search.maven.org/search?q=g:software.amazon.jdbc) to install the AWS JDBC Driver. After downloading the AWS JDBC Driver, install it by including the .jar file in the application's CLASSPATH.
+You can use pre-compiled packages that can be downloaded directly from [GitHub Releases](https://github.com/aws/aws-advanced-jdbc-wrapper/releases) or [Maven Central](https://search.maven.org/search?q=g:software.amazon.jdbc) to install the AWS JDBC Driver. After downloading the AWS JDBC Driver, install it by including the .jar file in the application's CLASSPATH.
 
 For example, the following command uses wget to download the wrapper:
 
 ```bash
-wget https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/download/2.5.6/aws-advanced-jdbc-wrapper-2.5.6.jar
+wget https://github.com/aws/aws-advanced-jdbc-wrapper/releases/download/2.5.6/aws-advanced-jdbc-wrapper-2.5.6.jar
 ```
 
 Then, the following command adds the AWS JDBC Driver to the CLASSPATH:

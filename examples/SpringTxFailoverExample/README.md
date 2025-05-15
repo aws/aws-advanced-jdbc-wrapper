@@ -1,6 +1,6 @@
 # Tutorial: Getting started with Spring Boot and Failover
 
-In this tutorial, you will set up a Spring Boot application using the AWS JDBC Driver. This sample application will contain an example of how to retry transactions interrupted by failover. This tutorial is an extension of the [Spring Boot HikariCP example](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/examples/SpringBootHikariExample/README.md) and will contain similar elements.
+In this tutorial, you will set up a Spring Boot application using the AWS JDBC Driver. This sample application will contain an example of how to retry transactions interrupted by failover. This tutorial is an extension of the [Spring Boot HikariCP example](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/examples/SpringBootHikariExample/README.md) and will contain similar elements.
 
 > Note: this tutorial was written using the following technologies:
 >    - Spring Boot 2.7.0
@@ -131,7 +131,7 @@ spring:
         keepSessionStateOnFailover: true
 ```
 
-Please also note the use of the [`keepSessionStateOnFailover`](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md#failover-parameters) property. When failover occurs, the connection's auto commit value is reset to true. When the auto commit value is set to false or transactions are used, further operations such as a rollback or commit on the same connection will cause errors. This parameter is used when connections cannot be reconfigured manually as seen in this [example](https://github.com/awslabs/aws-advanced-jdbc-wrapper/tree/main/examples/AWSDriverExample/src/main/java/software/amazon/PgFailoverSample.java).
+Please also note the use of the [`keepSessionStateOnFailover`](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md#failover-parameters) property. When failover occurs, the connection's auto commit value is reset to true. When the auto commit value is set to false or transactions are used, further operations such as a rollback or commit on the same connection will cause errors. This parameter is used when connections cannot be reconfigured manually as seen in this [example](https://github.com/aws/aws-advanced-jdbc-wrapper/tree/main/examples/AWSDriverExample/src/main/java/software/amazon/PgFailoverSample.java).
 
 ## Step 4: Set up a data access object
 

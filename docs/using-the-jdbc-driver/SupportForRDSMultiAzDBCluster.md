@@ -1,6 +1,6 @@
 # Enhanced Support for Amazon RDS Multi-AZ DB Cluster
 
-As of [v2.3.0](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.3.0), the AWS JDBC Driver has expanded its support for Amazon RDS Multi-AZ DB Cluster Deployment. By leveraging the topology information within the RDS Multi-AZ DB Cluster, the driver is capable of switching over the connection to a new writer node in approximately 1 second or less, given there is no replica lag during minor version upgrades or OS maintenance upgrades.
+As of [v2.3.0](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/2.3.0), the AWS JDBC Driver has expanded its support for Amazon RDS Multi-AZ DB Cluster Deployment. By leveraging the topology information within the RDS Multi-AZ DB Cluster, the driver is capable of switching over the connection to a new writer node in approximately 1 second or less, given there is no replica lag during minor version upgrades or OS maintenance upgrades.
 
 ## General Usage
 

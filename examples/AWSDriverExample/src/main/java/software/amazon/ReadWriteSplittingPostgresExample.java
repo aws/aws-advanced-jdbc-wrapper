@@ -96,11 +96,11 @@ public class ReadWriteSplittingPostgresExample {
     } catch (FailoverFailedSQLException e) {
       // User application should open a new connection, check the results of the failed transaction and re-run it if
       // needed. See:
-      // https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md#08001---unable-to-establish-sql-connection
+      // https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md#08001---unable-to-establish-sql-connection
       throw e;
     } catch (TransactionStateUnknownSQLException e) {
       // User application should check the status of the failed transaction and restart it if needed. See:
-      // https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md#08007---transaction-resolution-unknown
+      // https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md#08007---transaction-resolution-unknown
       throw e;
     } catch (SQLException e) {
       // Unexpected exception unrelated to failover. This should be handled by the user application.

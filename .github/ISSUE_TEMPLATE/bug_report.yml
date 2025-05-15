@@ -31,10 +31,10 @@ body:
       label: Current Behavior
       description: |
         What actually happened?
-  
+
         Please include full errors, uncaught exceptions, stack traces, and relevant logs.
-        
-        To see how to enable driver logging see https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#logging.
+
+        To see how to enable driver logging see https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#logging.
     validations:
       required: true
   - type: textarea
@@ -44,7 +44,7 @@ body:
       description: |
         Provide a self-contained, concise snippet of code that can be used to reproduce the issue.
         For more complex issues provide a repo with the smallest sample that reproduces the bug.
-        
+
         Avoid including business logic or unrelated code, it makes diagnosis more difficult.
         The code sample should be an SSCCE. See http://sscce.org/ for details. In short, please provide a code sample that we can copy/paste, run and reproduce.
     validations:
