@@ -244,7 +244,7 @@ dependencies {
 
 ## AWS JDBC Driver for MySQL Migration Guide
 
-**[The Amazon Web Services (AWS) JDBC Driver for MySQL](https://github.com/aws/aws-mysql-jdbc)** allows an
+**[The Amazon Web Services (AWS) JDBC Driver for MySQL](https://github.com/awslabs/aws-mysql-jdbc)** allows an
 application to take advantage of the features of clustered MySQL databases. It is based on and can be used as a drop-in
 compatible for the [MySQL Connector/J driver](https://github.com/mysql/mysql-connector-j), and is compatible with all
 MySQL deployments.
