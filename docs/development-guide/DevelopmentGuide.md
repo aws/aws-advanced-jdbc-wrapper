@@ -6,7 +6,7 @@ Make sure you have Amazon Corretto 8+ or Java 8+ installed.
 Clone the AWS JDBC Driver repository:
 
 ```bash
-git clone https://github.com/awslabs/aws-advanced-jdbc-wrapper.git
+git clone https://github.com/aws/aws-advanced-jdbc-wrapper.git
 ```
 
 You can now make changes in the repository.

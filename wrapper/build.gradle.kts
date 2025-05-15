@@ -224,7 +224,7 @@ tasks.jar {
             -exportcontents: software.*
             -removeheaders: Created-By
             Bundle-Description: Amazon Web Services (AWS) Advanced JDBC Wrapper Driver
-            Bundle-DocURL: https://github.com/awslabs/aws-advanced-jdbc-wrapper
+            Bundle-DocURL: https://github.com/aws/aws-advanced-jdbc-wrapper
             Bundle-Vendor: Amazon Web Services (AWS)
             Import-Package: javax.sql, javax.transaction.xa, javax.naming, javax.security.sasl;resolution:=optional, *;resolution:=optional
             Bundle-Activator: software.amazon.jdbc.osgi.WrapperBundleActivator

@@ -257,7 +257,7 @@ section highlights the steps required to migrate from the AWS JDBC Driver for My
 1. Update the driver class name from `software.aws.rds.jdbc.mysql.Driver` to `software.amazon.jdbc.Driver`
 2. Update the URL JDBC protocol from `jdbc:mysql:aws:` to  `jdbc:aws-wrapper:mysql`
 3. Update the plugin configuration parameter from `connectionPluginFactories`
-   to  [wrapperPlugins](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#connection-plugin-manager-parameters).
+   to  [wrapperPlugins](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#connection-plugin-manager-parameters).
    See more details below.
 
 ### Plugins Configuration
@@ -275,10 +275,10 @@ In the AWS JDBC Driver, plugins are set by specifying the plugin codes:
 ```
 
 To see the list of available plugins and their associated plugin code, see
-the [documentation](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#list-of-available-plugins).
+the [documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#list-of-available-plugins).
 
 The AWS JDBC Driver also provides
-the [Read-Write Splitting plugin](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md#read-write-splitting-plugin),
+the [Read-Write Splitting plugin](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md#read-write-splitting-plugin),
 this plugin allows the application to switch the connections between writer and reader instances by calling
 the `Connection#setReadOnly` method.
 
