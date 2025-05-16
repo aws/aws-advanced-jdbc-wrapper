@@ -39,19 +39,19 @@ import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
-class MonitorServiceImplTest {
+class DefaultMonitorServiceTest {
   @Mock StorageService storageService;
   @Mock TelemetryFactory telemetryFactory;
   @Mock TargetDriverDialect targetDriverDialect;
   @Mock Dialect dbDialect;
   @Mock EventPublisher publisher;
-  MonitorServiceImpl monitorService;
+  DefaultMonitorService monitorService;
   private AutoCloseable closeable;
 
   @BeforeEach
   void setUp() {
     closeable = MockitoAnnotations.openMocks(this);
-    monitorService = new MonitorServiceImpl(publisher) {
+    monitorService = new DefaultMonitorService(publisher) {
       @Override
       protected void initCleanupThread(long cleanupIntervalNanos) {
         // Do nothing
