@@ -98,6 +98,11 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
   }
 
   @Override
+  public void close() {
+    // do nothing. Classes that extend this class should override this method if they open resources that need closing.
+  }
+
+  @Override
   public long getLastActivityTimestampNanos() {
     return this.lastActivityTimestampNanos;
   }

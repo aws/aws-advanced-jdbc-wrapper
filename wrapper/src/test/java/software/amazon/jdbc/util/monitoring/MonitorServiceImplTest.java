@@ -290,10 +290,5 @@ class MonitorServiceImplTest {
     public void monitor() {
       // do nothing.
     }
-
-    @Override
-    public void close() {
-      // do nothing.
-    }
   }
 }

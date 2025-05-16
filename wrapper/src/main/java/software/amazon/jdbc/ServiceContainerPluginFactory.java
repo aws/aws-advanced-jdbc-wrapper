@@ -16,8 +16,6 @@
 
 package software.amazon.jdbc;
 
-// TODO: fix docs
-
 import java.util.Properties;
 import software.amazon.jdbc.util.ServiceContainer;
 
