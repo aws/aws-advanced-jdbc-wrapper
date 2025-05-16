@@ -28,7 +28,7 @@ import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
+import software.amazon.jdbc.util.storage.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -48,7 +48,7 @@ public class MonitorServiceImpl implements MonitorService {
   protected static final long CACHE_CLEANUP_NANO = TimeUnit.MINUTES.toNanos(1);
 
   protected static final Executor ABORT_EXECUTOR = Executors.newSingleThreadExecutor();
-
+  // TODO: remove and submit monitors to MonitorService instead
   protected static final SlidingExpirationCacheWithCleanupThread<String, Monitor> monitors =
       new SlidingExpirationCacheWithCleanupThread<>(
           Monitor::canDispose,

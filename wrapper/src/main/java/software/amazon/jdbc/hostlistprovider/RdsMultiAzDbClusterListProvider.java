@@ -24,17 +24,15 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
-import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.ServiceContainer;
 
 public class RdsMultiAzDbClusterListProvider extends RdsHostListProvider {
   private final String fetchWriterNodeQuery;
@@ -44,7 +42,7 @@ public class RdsMultiAzDbClusterListProvider extends RdsHostListProvider {
   public RdsMultiAzDbClusterListProvider(
       final Properties properties,
       final String originalUrl,
-      final HostListProviderService hostListProviderService,
+      final ServiceContainer serviceContainer,
       final String topologyQuery,
       final String nodeIdQuery,
       final String isReaderQuery,
@@ -53,7 +51,7 @@ public class RdsMultiAzDbClusterListProvider extends RdsHostListProvider {
   ) {
     super(properties,
         originalUrl,
-        hostListProviderService,
+        serviceContainer,
         topologyQuery,
         nodeIdQuery,
         isReaderQuery);

@@ -67,6 +67,7 @@ public class MonitorImpl implements Monitor {
   private final HostSpec hostSpec;
   private final AtomicBoolean stopped = new AtomicBoolean(false);
   private Connection monitoringConn = null;
+  // TODO: remove and submit monitors to MonitorService instead
   private final ExecutorService threadPool = Executors.newFixedThreadPool(2, runnableTarget -> {
     final Thread monitoringThread = new Thread(runnableTarget);
     monitoringThread.setDaemon(true);
@@ -84,7 +85,7 @@ public class MonitorImpl implements Monitor {
 
   private final TelemetryGauge newContextsSizeGauge;
   private final TelemetryGauge activeContextsSizeGauge;
-  private final TelemetryGauge nodeHealtyGauge;
+  private final TelemetryGauge nodeHealthyGauge;
   private final TelemetryCounter abortedConnectionsCounter;
 
   /**
@@ -130,7 +131,7 @@ public class MonitorImpl implements Monitor {
         String.format("efm2.activeContexts.size.%s", hostId),
         () -> (long) this.activeContexts.size());
 
-    this.nodeHealtyGauge = telemetryFactory.createGauge(
+    this.nodeHealthyGauge = telemetryFactory.createGauge(
         String.format("efm2.nodeHealthy.%s", hostId),
         () -> this.nodeUnhealthy ? 0L : 1L);
 
@@ -196,7 +197,7 @@ public class MonitorImpl implements Monitor {
 
     LOGGER.finest(() -> Messages.get(
         "MonitorImpl.startMonitoringThreadNewContext",
-        new Object[]{this.hostSpec.getHost()}));
+        new Object[] {this.hostSpec.getHost()}));
 
     try {
       while (!this.stopped.get()) {
@@ -234,14 +235,14 @@ public class MonitorImpl implements Monitor {
             Level.FINEST,
             Messages.get(
                 "MonitorImpl.exceptionDuringMonitoringStop",
-                new Object[]{this.hostSpec.getHost()}),
+                new Object[] {this.hostSpec.getHost()}),
             ex); // We want to print full trace stack of the exception.
       }
     }
 
     LOGGER.finest(() -> Messages.get(
         "MonitorImpl.stopMonitoringThreadNewContext",
-        new Object[]{this.hostSpec.getHost()}));
+        new Object[] {this.hostSpec.getHost()}));
   }
 
   @Override
@@ -249,7 +250,7 @@ public class MonitorImpl implements Monitor {
 
     LOGGER.finest(() -> Messages.get(
         "MonitorImpl.startMonitoringThread",
-        new Object[]{this.hostSpec.getHost()}));
+        new Object[] {this.hostSpec.getHost()}));
 
     try {
       while (!this.stopped.get()) {
@@ -315,7 +316,7 @@ public class MonitorImpl implements Monitor {
             Level.FINEST,
             Messages.get(
                 "MonitorImpl.exceptionDuringMonitoringStop",
-                new Object[]{this.hostSpec.getHost()}),
+                new Object[] {this.hostSpec.getHost()}),
             ex); // We want to print full trace stack of the exception.
       }
     } finally {
@@ -331,7 +332,7 @@ public class MonitorImpl implements Monitor {
 
     LOGGER.finest(() -> Messages.get(
         "MonitorImpl.stopMonitoringThread",
-        new Object[]{this.hostSpec.getHost()}));
+        new Object[] {this.hostSpec.getHost()}));
   }
 
   /**
@@ -360,6 +361,7 @@ public class MonitorImpl implements Monitor {
                 });
 
         LOGGER.finest(() -> "Opening a monitoring connection to " + this.hostSpec.getUrl());
+        // TODO: replace with ConnectionService#createAuxiliaryConnection
         this.monitoringConn = this.pluginService.forceConnect(this.hostSpec, monitoringConnProperties);
         LOGGER.finest(() -> "Opened monitoring connection: " + this.monitoringConn);
         return true;

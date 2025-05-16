@@ -17,10 +17,14 @@
 package software.amazon.jdbc;
 
 import java.util.Properties;
+import software.amazon.jdbc.util.ServiceContainer;
 
 /**
  * Interface for connection plugin factories. This class implements ways to initialize a connection
  * plugin.
+ *
+ * @apiNote Consider using {@link ServiceContainerPluginFactory} for new implementations as it provides access to all
+ *     services in the {@link ServiceContainer}.
  */
 public interface ConnectionPluginFactory {
 

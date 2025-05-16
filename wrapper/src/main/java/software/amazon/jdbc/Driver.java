@@ -20,7 +20,6 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.DriverPropertyInfo;
 import java.sql.SQLException;
-import java.sql.SQLFeatureNotSupportedException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -44,7 +43,6 @@ import software.amazon.jdbc.plugin.AwsSecretsManagerCacheHolder;
 import software.amazon.jdbc.plugin.DataCacheConnectionPlugin;
 import software.amazon.jdbc.plugin.OpenedConnectionTracker;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
-import software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin;
 import software.amazon.jdbc.plugin.efm.MonitorThreadContainer;
 import software.amazon.jdbc.plugin.federatedauth.FederatedAuthCacheHolder;
 import software.amazon.jdbc.plugin.federatedauth.OktaAuthCacheHolder;
@@ -59,11 +57,16 @@ import software.amazon.jdbc.states.TransferSessionStateOnSwitchCallable;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectManager;
 import software.amazon.jdbc.util.ConnectionUrlParser;
+import software.amazon.jdbc.util.CoreServicesContainer;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.ServiceContainerImpl;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.monitoring.CoreMonitorService;
+import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -103,6 +106,18 @@ public class Driver implements java.sql.Driver {
     } catch (final SQLException e) {
       throw new ExceptionInInitializerError(e);
     }
+  }
+
+  private final StorageService storageService;
+  private final CoreMonitorService monitorService;
+
+  public Driver() {
+    this(CoreServicesContainer.getInstance());
+  }
+
+  public Driver(CoreServicesContainer coreServicesContainer) {
+    this.storageService = coreServicesContainer.getStorageService();
+    this.monitorService = coreServicesContainer.getMonitorService();
   }
 
   public static void register() throws SQLException {
@@ -216,14 +231,16 @@ public class Driver implements java.sql.Driver {
         effectiveConnectionProvider = configurationProfile.getConnectionProvider();
       }
 
+      ServiceContainer serviceContainer = new ServiceContainerImpl(storageService, monitorService, telemetryFactory);
+
       return new ConnectionWrapper(
+          serviceContainer,
           props,
           driverUrl,
           defaultConnectionProvider,
           effectiveConnectionProvider,
           targetDriverDialect,
-          configurationProfile,
-          telemetryFactory);
+          configurationProfile);
 
     } catch (Exception ex) {
       context.setException(ex);
@@ -244,7 +261,7 @@ public class Driver implements java.sql.Driver {
   }
 
   @Override
-  public DriverPropertyInfo[] getPropertyInfo(final String url, final Properties info) throws SQLException {
+  public DriverPropertyInfo[] getPropertyInfo(final String url, final Properties info) {
     final Properties copy = new Properties(info);
     final String databaseName = ConnectionUrlParser.parseDatabaseFromUrl(url);
     if (!StringUtils.isNullOrEmpty(databaseName)) {
@@ -278,7 +295,7 @@ public class Driver implements java.sql.Driver {
   }
 
   @Override
-  public Logger getParentLogger() throws SQLFeatureNotSupportedException {
+  public Logger getParentLogger() {
     return PARENT_LOGGER;
   }
 
@@ -388,6 +405,7 @@ public class Driver implements java.sql.Driver {
   }
 
   public static void clearCaches() {
+    CoreServicesContainer.getInstance().getStorageService().clearAll();
     RdsUtils.clearCache();
     RdsHostListProvider.clearAll();
     PluginServiceImpl.clearCache();
@@ -406,13 +424,12 @@ public class Driver implements java.sql.Driver {
   }
 
   public static void releaseResources() {
+    CoreServicesContainer.getInstance().getMonitorService().stopAndRemoveAll();
     software.amazon.jdbc.plugin.efm2.MonitorServiceImpl.closeAllMonitors();
     MonitorThreadContainer.releaseInstance();
     ConnectionProviderManager.releaseResources();
-    CustomEndpointPlugin.closeMonitors();
     HikariPoolsHolder.closeAllPools();
     HostResponseTimeServiceImpl.closeAllMonitors();
-    MonitoringRdsHostListProvider.closeAllMonitors();
     clearCaches();
   }
 }

@@ -276,9 +276,9 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     hostsByPriority.addAll(downHostList);
 
     final int numOfReaders = activeReaders.size() + downHostList.size();
-    if (writerHost != null && (numOfReaders == 0
-          || this.pluginService.getDialect().getFailoverRestrictions()
-                .contains(FailoverRestriction.ENABLE_WRITER_IN_TASK_B))) {
+    final boolean enableWriterInTaskB =
+        this.pluginService.getDialect().getFailoverRestrictions().contains(FailoverRestriction.ENABLE_WRITER_IN_TASK_B);
+    if (writerHost != null && (numOfReaders == 0 || enableWriterInTaskB)) {
       hostsByPriority.add(writerHost);
     }
 
@@ -389,6 +389,8 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
         final Properties copy = new Properties();
         copy.putAll(initialConnectionProps);
 
+        // TODO: assess whether multi-threaded access to the plugin service is safe. The same plugin service is used by
+        //  both the ConnectionWrapper and this ConnectionAttemptTask in separate threads.
         final Connection conn = pluginService.forceConnect(this.newHost, copy);
         pluginService.setAvailability(this.newHost.asAliases(), HostAvailability.AVAILABLE);
 

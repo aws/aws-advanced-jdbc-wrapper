@@ -106,15 +106,6 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       final @NonNull Properties properties,
       final @NonNull Supplier<MonitorService> monitorServiceSupplier,
       final RdsUtils rdsHelper) {
-    if (pluginService == null) {
-      throw new IllegalArgumentException("pluginService");
-    }
-    if (properties == null) {
-      throw new IllegalArgumentException("properties");
-    }
-    if (monitorServiceSupplier == null) {
-      throw new IllegalArgumentException("monitorServiceSupplier");
-    }
     this.pluginService = pluginService;
     this.properties = properties;
     this.monitorServiceSupplier = monitorServiceSupplier;

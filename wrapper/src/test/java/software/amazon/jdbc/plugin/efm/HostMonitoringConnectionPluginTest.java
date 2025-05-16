@@ -158,15 +158,6 @@ class HostMonitoringConnectionPluginTest {
     plugin = new HostMonitoringConnectionPlugin(pluginService, properties, supplier, rdsUtils);
   }
 
-  @ParameterizedTest
-  @MethodSource("generateNullArguments")
-  void test_initWithNullArguments(
-      final PluginService pluginService, final Properties properties) {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> new HostMonitoringConnectionPlugin(pluginService, properties));
-  }
-
   @Test
   void test_executeWithMonitoringDisabled() throws Exception {
     properties.put("failureDetectionEnabled", Boolean.FALSE.toString());

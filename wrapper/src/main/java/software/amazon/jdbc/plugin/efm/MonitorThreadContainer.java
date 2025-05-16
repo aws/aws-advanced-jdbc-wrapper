@@ -35,8 +35,9 @@ import software.amazon.jdbc.util.Messages;
 public class MonitorThreadContainer {
 
   private static MonitorThreadContainer singleton = null;
-  private final Map<String, Monitor> monitorMap = new ConcurrentHashMap<>();
   private final Map<Monitor, Future<?>> tasksMap = new ConcurrentHashMap<>();
+  // TODO: remove monitorMap and threadPool and submit monitors to MonitorService instead
+  private final Map<String, Monitor> monitorMap = new ConcurrentHashMap<>();
   private final ExecutorService threadPool;
   private static final ReentrantLock LOCK_OBJECT = new ReentrantLock();
   private static final ReentrantLock MONITOR_LOCK_OBJECT = new ReentrantLock();
