@@ -32,7 +32,7 @@ import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.connection.ConnectionService;
-import software.amazon.jdbc.util.monitoring.MonitorService;
+import software.amazon.jdbc.util.monitoring.CoreMonitorService;
 import software.amazon.jdbc.util.storage.Topology;
 
 public class MonitoringRdsHostListProvider extends RdsHostListProvider
@@ -51,7 +51,7 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
   }
 
   protected final ServiceContainer serviceContainer;
-  protected final MonitorService monitorService;
+  protected final CoreMonitorService monitorService;
   protected final PluginService pluginService;
   protected final long highRefreshRateNano;
   protected final String writerTopologyQuery;

@@ -28,7 +28,7 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.ServiceContainerImpl;
-import software.amazon.jdbc.util.monitoring.MonitorService;
+import software.amazon.jdbc.util.monitoring.CoreMonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -39,7 +39,7 @@ public class ConnectionServiceImpl implements ConnectionService {
 
   public ConnectionServiceImpl(
       StorageService storageService,
-      MonitorService monitorService,
+      CoreMonitorService monitorService,
       TelemetryFactory telemetryFactory,
       ConnectionProvider connectionProvider,
       String originalUrl,

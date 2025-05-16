@@ -20,13 +20,13 @@ import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.util.monitoring.MonitorService;
+import software.amazon.jdbc.util.monitoring.CoreMonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class ServiceContainerImpl implements ServiceContainer {
   private StorageService storageService;
-  private MonitorService monitorService;
+  private CoreMonitorService monitorService;
   private TelemetryFactory telemetryFactory;
   private ConnectionPluginManager connectionPluginManager;
   private HostListProviderService hostListProviderService;
@@ -35,7 +35,7 @@ public class ServiceContainerImpl implements ServiceContainer {
 
   public ServiceContainerImpl(
       StorageService storageService,
-      MonitorService monitorService,
+      CoreMonitorService monitorService,
       TelemetryFactory telemetryFactory,
       ConnectionPluginManager connectionPluginManager,
       HostListProviderService hostListProviderService,
@@ -50,7 +50,7 @@ public class ServiceContainerImpl implements ServiceContainer {
 
   public ServiceContainerImpl(
       StorageService storageService,
-      MonitorService monitorService,
+      CoreMonitorService monitorService,
       TelemetryFactory telemetryFactory) {
     this.storageService = storageService;
     this.monitorService = monitorService;
@@ -63,7 +63,7 @@ public class ServiceContainerImpl implements ServiceContainer {
   }
 
   @Override
-  public MonitorService getMonitorService() {
+  public CoreMonitorService getMonitorService() {
     return this.monitorService;
   }
 
@@ -93,7 +93,7 @@ public class ServiceContainerImpl implements ServiceContainer {
   }
 
   @Override
-  public void setMonitorService(MonitorService monitorService) {
+  public void setMonitorService(CoreMonitorService monitorService) {
     this.monitorService = monitorService;
   }
 

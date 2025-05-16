@@ -57,7 +57,7 @@ import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
-import software.amazon.jdbc.util.monitoring.MonitorService;
+import software.amazon.jdbc.util.monitoring.CoreMonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.Topology;
 
@@ -113,7 +113,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   public ClusterTopologyMonitorImpl(
       final String clusterId,
       final StorageService storageService,
-      final MonitorService monitorService,
+      final CoreMonitorService monitorService,
       final ConnectionService connectionService,
       final HostSpec initialHostSpec,
       final Properties properties,

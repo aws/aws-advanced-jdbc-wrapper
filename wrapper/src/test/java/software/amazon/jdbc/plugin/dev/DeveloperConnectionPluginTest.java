@@ -44,7 +44,7 @@ import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.ServiceContainerImpl;
-import software.amazon.jdbc.util.monitoring.MonitorService;
+import software.amazon.jdbc.util.monitoring.CoreMonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -54,7 +54,7 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 public class DeveloperConnectionPluginTest {
   private ServiceContainer serviceContainer;
   @Mock StorageService mockStorageService;
-  @Mock MonitorService mockMonitorService;
+  @Mock CoreMonitorService mockMonitorService;
   @Mock ConnectionProvider mockConnectionProvider;
   @Mock Connection mockConnection;
   @Mock ConnectionPluginManager mockConnectionPluginManager;

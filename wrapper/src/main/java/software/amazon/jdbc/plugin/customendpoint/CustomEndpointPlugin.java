@@ -41,7 +41,7 @@ import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
 import software.amazon.jdbc.util.WrapperUtils;
-import software.amazon.jdbc.util.monitoring.MonitorService;
+import software.amazon.jdbc.util.monitoring.CoreMonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -93,7 +93,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   protected final ServiceContainer serviceContainer;
   protected final PluginService pluginService;
   protected final StorageService storageService;
-  protected final MonitorService monitorService;
+  protected final CoreMonitorService monitorService;
   protected final TelemetryFactory telemetryFactory;
   protected final Properties props;
   protected final RdsUtils rdsUtils = new RdsUtils();
