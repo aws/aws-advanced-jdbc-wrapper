@@ -23,6 +23,7 @@ import java.sql.Statement;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
+import software.amazon.jdbc.util.DriverInfo;
 
 /**
  * Suitable for the following AWS PG configurations.
@@ -30,7 +31,7 @@ import java.util.logging.Logger;
  * - Multi-AZ DB Instance
  * - Single DB Instance
  */
-public class RdsPgDialect extends PgDialect {
+public class RdsPgDialect extends PgDialect implements SupportBlueGreen {
 
   private static final Logger LOGGER = Logger.getLogger(RdsPgDialect.class.getName());
 
@@ -42,6 +43,12 @@ public class RdsPgDialect extends PgDialect {
       + "(setting LIKE '%aurora_stat_utils%') AS aurora_stat_utils "
       + "FROM pg_settings "
       + "WHERE name='rds.extensions'";
+
+  private static final String BG_STATUS_QUERY =
+      "SELECT * FROM rds_tools.show_topology('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
+
+  private static final String TOPOLOGY_TABLE_EXIST_QUERY =
+      "SELECT 'rds_tools.show_topology'::regproc";
 
   @Override
   public boolean isDialect(final Connection connection) {
@@ -86,5 +93,22 @@ public class RdsPgDialect extends PgDialect {
   @Override
   public List<String> getDialectUpdateCandidates() {
     return dialectUpdateCandidates;
+  }
+
+  @Override
+  public String getBlueGreenStatusQuery() {
+    return BG_STATUS_QUERY;
+  }
+
+  @Override
+  public boolean isStatusAvailable(final Connection connection) {
+    try {
+      try (Statement statement = connection.createStatement();
+          ResultSet rs = statement.executeQuery(TOPOLOGY_TABLE_EXIST_QUERY)) {
+        return rs.next();
+      }
+    } catch (SQLException ex) {
+      return false;
+    }
   }
 }

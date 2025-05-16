@@ -26,7 +26,7 @@ public class TestEnvironmentInfo {
 
   private String region;
   private String rdsEndpoint;
-  private String auroraClusterName;
+  private String rdsDbName;
   private String iamUsername;
 
   private TestDatabaseInfo databaseInfo;
@@ -35,6 +35,11 @@ public class TestEnvironmentInfo {
   private String databaseEngineVersion;
   private TestTelemetryInfo tracesTelemetryInfo;
   private TestTelemetryInfo metricsTelemetryInfo;
+
+  private String blueGreenDeploymentId;
+
+  private String clusterParameterGroupName = null;
+  private String randomBase = null;
 
   public TestDatabaseInfo getDatabaseInfo() {
     return this.databaseInfo;
@@ -84,8 +89,8 @@ public class TestEnvironmentInfo {
     return this.rdsEndpoint;
   }
 
-  public String getAuroraClusterName() {
-    return this.auroraClusterName;
+  public String getRdsDbName() {
+    return this.rdsDbName;
   }
 
   public String getIamUsername() {
@@ -104,8 +109,8 @@ public class TestEnvironmentInfo {
     this.rdsEndpoint = rdsEndpoint;
   }
 
-  public void setAuroraClusterName(String auroraClusterName) {
-    this.auroraClusterName = auroraClusterName;
+  public void setRdsDbName(String auroraClusterName) {
+    this.rdsDbName = auroraClusterName;
   }
 
   public void setDatabaseInfo(TestDatabaseInfo databaseInfo) {
@@ -146,5 +151,29 @@ public class TestEnvironmentInfo {
 
   public void setIamUsername(String iamUsername) {
     this.iamUsername = iamUsername;
+  }
+
+  public String getBlueGreenDeploymentId() {
+    return this.blueGreenDeploymentId;
+  }
+
+  public void setBlueGreenDeploymentId(final String blueGreenDeploymentId) {
+    this.blueGreenDeploymentId = blueGreenDeploymentId;
+  }
+
+  public String getClusterParameterGroupName() {
+    return this.clusterParameterGroupName;
+  }
+
+  public void setClusterParameterGroupName(String clusterParameterGroupName) {
+    this.clusterParameterGroupName = clusterParameterGroupName;
+  }
+
+  public String getRandomBase() {
+    return this.randomBase;
+  }
+
+  public void setRandomBase(String randomBase) {
+    this.randomBase = randomBase;
   }
 }
