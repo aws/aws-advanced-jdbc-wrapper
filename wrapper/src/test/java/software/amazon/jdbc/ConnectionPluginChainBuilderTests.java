@@ -17,8 +17,8 @@
 package software.amazon.jdbc;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -64,7 +64,6 @@ public class ConnectionPluginChainBuilderTests {
     closeable = MockitoAnnotations.openMocks(this);
     when(mockServiceContainer.getPluginService()).thenReturn(mockPluginService);
     when(mockServiceContainer.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
-    when(mockPluginService.getServiceContainer()).thenReturn(mockServiceContainer);
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
     when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
@@ -77,7 +76,7 @@ public class ConnectionPluginChainBuilderTests {
     props.put(PropertyDefinition.PLUGINS.name, "iam,efm2,failover");
 
     List<ConnectionPlugin> result = builder.getPlugins(
-        mockPluginService,
+        mockServiceContainer,
         mockConnectionProvider,
         null,
         mockPluginManagerService,
@@ -86,10 +85,10 @@ public class ConnectionPluginChainBuilderTests {
 
     assertNotNull(result);
     assertEquals(4, result.size());
-    assertTrue(result.get(0) instanceof FailoverConnectionPlugin);
-    assertTrue(result.get(1) instanceof HostMonitoringConnectionPlugin);
-    assertTrue(result.get(2) instanceof IamAuthConnectionPlugin);
-    assertTrue(result.get(3) instanceof DefaultConnectionPlugin);
+    assertInstanceOf(FailoverConnectionPlugin.class, result.get(0));
+    assertInstanceOf(HostMonitoringConnectionPlugin.class, result.get(1));
+    assertInstanceOf(IamAuthConnectionPlugin.class, result.get(2));
+    assertInstanceOf(DefaultConnectionPlugin.class, result.get(3));
   }
 
   @Test
@@ -100,7 +99,7 @@ public class ConnectionPluginChainBuilderTests {
     props.put(PropertyDefinition.AUTO_SORT_PLUGIN_ORDER.name, "false");
 
     List<ConnectionPlugin> result = builder.getPlugins(
-        mockPluginService,
+        mockServiceContainer,
         mockConnectionProvider,
         null,
         mockPluginManagerService,
@@ -109,10 +108,10 @@ public class ConnectionPluginChainBuilderTests {
 
     assertNotNull(result);
     assertEquals(4, result.size());
-    assertTrue(result.get(0) instanceof IamAuthConnectionPlugin);
-    assertTrue(result.get(1) instanceof HostMonitoringConnectionPlugin);
-    assertTrue(result.get(2) instanceof FailoverConnectionPlugin);
-    assertTrue(result.get(3) instanceof DefaultConnectionPlugin);
+    assertInstanceOf(IamAuthConnectionPlugin.class, result.get(0));
+    assertInstanceOf(HostMonitoringConnectionPlugin.class, result.get(1));
+    assertInstanceOf(FailoverConnectionPlugin.class, result.get(2));
+    assertInstanceOf(DefaultConnectionPlugin.class, result.get(3));
   }
 
   @Test
@@ -122,7 +121,7 @@ public class ConnectionPluginChainBuilderTests {
     props.put(PropertyDefinition.PLUGINS.name, "dev,iam,executionTime,connectTime,efm2,failover");
 
     List<ConnectionPlugin> result = builder.getPlugins(
-        mockPluginService,
+        mockServiceContainer,
         mockConnectionProvider,
         null,
         mockPluginManagerService,
@@ -131,12 +130,12 @@ public class ConnectionPluginChainBuilderTests {
 
     assertNotNull(result);
     assertEquals(7, result.size());
-    assertTrue(result.get(0) instanceof DeveloperConnectionPlugin);
-    assertTrue(result.get(1) instanceof FailoverConnectionPlugin);
-    assertTrue(result.get(2) instanceof HostMonitoringConnectionPlugin);
-    assertTrue(result.get(3) instanceof IamAuthConnectionPlugin);
-    assertTrue(result.get(4) instanceof ExecutionTimeConnectionPlugin);
-    assertTrue(result.get(5) instanceof ConnectTimeConnectionPlugin);
-    assertTrue(result.get(6) instanceof DefaultConnectionPlugin);
+    assertInstanceOf(DeveloperConnectionPlugin.class, result.get(0));
+    assertInstanceOf(FailoverConnectionPlugin.class, result.get(1));
+    assertInstanceOf(HostMonitoringConnectionPlugin.class, result.get(2));
+    assertInstanceOf(IamAuthConnectionPlugin.class, result.get(3));
+    assertInstanceOf(ExecutionTimeConnectionPlugin.class, result.get(4));
+    assertInstanceOf(ConnectTimeConnectionPlugin.class, result.get(5));
+    assertInstanceOf(DefaultConnectionPlugin.class, result.get(6));
   }
 }

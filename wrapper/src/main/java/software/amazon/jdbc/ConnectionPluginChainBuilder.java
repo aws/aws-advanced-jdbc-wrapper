@@ -48,6 +48,7 @@ import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPluginFactory;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -133,7 +134,7 @@ public class ConnectionPluginChainBuilder {
   }
 
   public List<ConnectionPlugin> getPlugins(
-      final PluginService pluginService,
+      final ServiceContainer serviceContainer,
       final ConnectionProvider defaultConnProvider,
       final ConnectionProvider effectiveConnProvider,
       final PluginManagerService pluginManagerService,
@@ -188,7 +189,12 @@ public class ConnectionPluginChainBuilder {
         plugins = new ArrayList<>(factories.length + 1);
 
         for (final ConnectionPluginFactory factory : factories) {
-          plugins.add(factory.getInstance(pluginService, props));
+          if (factory instanceof ServiceContainerPluginFactory) {
+            ServiceContainerPluginFactory serviceContainerPluginFactory = (ServiceContainerPluginFactory) factory;
+            plugins.add(serviceContainerPluginFactory.getInstance(serviceContainer, props));
+          } else {
+            plugins.add(factory.getInstance(serviceContainer.getPluginService(), props));
+          }
         }
 
       } catch (final InstantiationException instEx) {
@@ -200,7 +206,7 @@ public class ConnectionPluginChainBuilder {
 
     // add default connection plugin to the tail
     final ConnectionPlugin defaultPlugin = new DefaultConnectionPlugin(
-        pluginService,
+        serviceContainer.getPluginService(),
         defaultConnProvider,
         effectiveConnProvider,
         pluginManagerService);

@@ -93,7 +93,6 @@ public class ConnectionPluginManagerTests {
   void init() {
     closeable = MockitoAnnotations.openMocks(this);
     when(mockServiceContainer.getPluginService()).thenReturn(mockPluginService);
-    when(mockPluginService.getServiceContainer()).thenReturn(mockServiceContainer);
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
     when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
@@ -613,7 +612,7 @@ public class ConnectionPluginManagerTests {
         null,
         mockConnectionWrapper,
         mockTelemetryFactory));
-    target.init(mockPluginService, testProperties, mockPluginManagerService, configurationProfile);
+    target.init(mockServiceContainer, testProperties, mockPluginManagerService, configurationProfile);
 
     assertEquals(4, target.plugins.size());
     assertEquals(AuroraConnectionTrackerPlugin.class, target.plugins.get(0).getClass());
@@ -632,7 +631,7 @@ public class ConnectionPluginManagerTests {
         null,
         mockConnectionWrapper,
         mockTelemetryFactory));
-    target.init(mockPluginService, testProperties, mockPluginManagerService, configurationProfile);
+    target.init(mockServiceContainer, testProperties, mockPluginManagerService, configurationProfile);
 
     assertEquals(1, target.plugins.size());
   }
@@ -647,7 +646,7 @@ public class ConnectionPluginManagerTests {
         null,
         mockConnectionWrapper,
         mockTelemetryFactory));
-    target.init(mockPluginService, testProperties, mockPluginManagerService, configurationProfile);
+    target.init(mockServiceContainer, testProperties, mockPluginManagerService, configurationProfile);
 
     assertEquals(2, target.plugins.size());
     assertEquals(LogQueryConnectionPlugin.class, target.plugins.get(0).getClass());
