@@ -69,7 +69,7 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.storage.StorageService;
-import software.amazon.jdbc.util.storage.StorageServiceImpl;
+import software.amazon.jdbc.util.storage.TestStorageServiceImpl;
 
 public class PluginServiceImplTests {
 
@@ -104,7 +104,7 @@ public class PluginServiceImplTests {
     when(statement.executeQuery(any())).thenReturn(resultSet);
     when(serviceContainer.getConnectionPluginManager()).thenReturn(pluginManager);
     when(serviceContainer.getStorageService()).thenReturn(storageService);
-    storageService = new StorageServiceImpl(mockEventPublisher);
+    storageService = new TestStorageServiceImpl(mockEventPublisher);
     PluginServiceImpl.hostAvailabilityExpiringCache.clear();
   }
 
