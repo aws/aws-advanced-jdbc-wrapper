@@ -25,7 +25,7 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
-public interface MonitorService {
+public interface CoreMonitorService {
   /**
    * Registers a new monitor type with the monitor service. This method needs to be called before adding new types of
    * monitors to the monitor service, so that the monitor service knows when to dispose of a monitor. Expected monitor

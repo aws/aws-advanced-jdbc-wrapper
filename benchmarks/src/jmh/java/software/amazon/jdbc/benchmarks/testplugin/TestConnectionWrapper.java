@@ -26,7 +26,7 @@ import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.connection.ConnectionService;
-import software.amazon.jdbc.util.monitoring.MonitorService;
+import software.amazon.jdbc.util.monitoring.CoreMonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
@@ -45,7 +45,7 @@ public class TestConnectionWrapper extends ConnectionWrapper {
       @NonNull final HostListProviderService hostListProviderService,
       @NonNull final PluginManagerService pluginManagerService,
       @NonNull final StorageService storageService,
-      @NonNull final MonitorService monitorService,
+      @NonNull final CoreMonitorService monitorService,
       @NonNull final ConnectionService connectionService)
       throws SQLException {
     super(

@@ -33,7 +33,7 @@ import software.amazon.jdbc.AllowedAndBlockedHosts;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
-import software.amazon.jdbc.util.monitoring.MonitorService;
+import software.amazon.jdbc.util.monitoring.CoreMonitorService;
 import software.amazon.jdbc.util.storage.CacheMap;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -76,7 +76,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
    *                               information.
    */
   public CustomEndpointMonitorImpl(
-      MonitorService monitorService,
+      CoreMonitorService monitorService,
       StorageService storageService,
       TelemetryFactory telemetryFactory,
       HostSpec customEndpointHostSpec,

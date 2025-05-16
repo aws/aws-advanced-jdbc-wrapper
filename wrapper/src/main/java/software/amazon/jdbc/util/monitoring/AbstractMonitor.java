@@ -32,7 +32,7 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
   private static final Logger LOGGER = Logger.getLogger(AbstractMonitor.class.getName());
   protected final AtomicBoolean stop = new AtomicBoolean(false);
   protected final long terminationTimeoutSec;
-  protected final MonitorService monitorService;
+  protected final CoreMonitorService monitorService;
   protected final ExecutorService monitorExecutor = Executors.newSingleThreadExecutor(runnableTarget -> {
     final Thread monitoringThread = new Thread(runnableTarget);
     monitoringThread.setDaemon(true);
@@ -45,7 +45,7 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
   protected long lastActivityTimestampNanos;
   protected MonitorState state;
 
-  protected AbstractMonitor(MonitorService monitorService, long terminationTimeoutSec) {
+  protected AbstractMonitor(CoreMonitorService monitorService, long terminationTimeoutSec) {
     this.monitorService = monitorService;
     this.terminationTimeoutSec = terminationTimeoutSec;
     this.lastActivityTimestampNanos = System.nanoTime();

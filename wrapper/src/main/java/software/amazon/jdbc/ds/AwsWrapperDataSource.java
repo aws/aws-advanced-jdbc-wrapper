@@ -55,7 +55,7 @@ import software.amazon.jdbc.util.ServiceContainerImpl;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
-import software.amazon.jdbc.util.monitoring.MonitorService;
+import software.amazon.jdbc.util.monitoring.CoreMonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -73,7 +73,7 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
   private static final String SERVER_PORT = "serverPort";
 
   private final StorageService storageService;
-  private final MonitorService monitorService;
+  private final CoreMonitorService monitorService;
 
   static {
     try {

@@ -63,7 +63,7 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.connection.ConnectionService;
-import software.amazon.jdbc.util.monitoring.MonitorService;
+import software.amazon.jdbc.util.monitoring.CoreMonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -92,7 +92,7 @@ public class PluginBenchmarks {
       .host(TEST_HOST).port(TEST_PORT).build();
 
   @Mock private StorageService mockStorageService;
-  @Mock private MonitorService mockMonitorService;
+  @Mock private CoreMonitorService mockMonitorService;
   @Mock private ConnectionService mockConnectionService;
   @Mock private PluginService mockPluginService;
   @Mock private TargetDriverDialect mockTargetDriverDialect;
