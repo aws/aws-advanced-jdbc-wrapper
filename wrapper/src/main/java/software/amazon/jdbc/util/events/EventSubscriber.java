@@ -20,7 +20,11 @@ import java.util.Set;
 
 /**
  * An event subscriber. Subscribers can subscribe to a publisher's events using
- * {@link EventPublisher#subscribe(EventSubscriber, Set)}.
+ * {@link EventPublisher#subscribe(EventSubscriber, Set)}. Subscribers will typically be stored in a
+ * {@link java.util.HashSet} to prevent duplicate subscriptions, so classes implementing this interface should consider
+ * whether they need to override {@link Object#equals(Object)} and {@link Object#hashCode()}.
+ *
+ * @see EventPublisher
  */
 public interface EventSubscriber {
   /**

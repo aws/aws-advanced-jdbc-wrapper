@@ -25,7 +25,7 @@ repositories {
 
 dependencies {
     implementation("org.apache.httpcomponents:httpclient:4.5.14")
-    implementation("software.amazon.awssdk:rds:2.31.12")
+    implementation("software.amazon.awssdk:rds:2.31.41")
     implementation("software.amazon.awssdk:sts:2.30.27")
     implementation(project(":aws-advanced-jdbc-wrapper"))
 }
@@ -57,7 +57,7 @@ tasks.jar {
             -exportcontents: software.*
             -removeheaders: Created-By
             Bundle-Description: Amazon Web Services (AWS) Advanced JDBC Wrapper Driver
-            Bundle-DocURL: https://github.com/awslabs/aws-advanced-jdbc-wrapper
+            Bundle-DocURL: https://github.com/aws/aws-advanced-jdbc-wrapper
             Bundle-Vendor: Amazon Web Services (AWS)
             Import-Package: javax.sql, javax.transaction.xa, javax.naming, javax.security.sasl;resolution:=optional, *;resolution:=optional
             Bundle-Activator: software.amazon.jdbc.osgi.WrapperBundleActivator

@@ -53,7 +53,13 @@ import software.amazon.jdbc.util.storage.CacheMap;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
-public class MonitorPluginService implements PluginService, CanReleaseResources, HostListProviderService,
+/**
+ * A {@link PluginService} containing some methods that are not intended to be called. This class is intended to be used
+ * by monitors, which require a {@link PluginService}, but are not expected to need or use some of the methods defined
+ * by the {@link PluginService} interface. The methods that are not expected to be called will log a warning or throw an
+ * {@link UnsupportedOperationException} when called.
+ */
+public class PartialPluginService implements PluginService, CanReleaseResources, HostListProviderService,
     PluginManagerService {
 
   private static final Logger LOGGER = Logger.getLogger(PluginServiceImpl.class.getName());
@@ -83,7 +89,7 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
 
   protected final ReentrantLock connectionSwitchLock = new ReentrantLock();
 
-  public MonitorPluginService(
+  public PartialPluginService(
       @NonNull final ServiceContainer serviceContainer,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
@@ -102,27 +108,7 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
         null);
   }
 
-  public MonitorPluginService(
-      @NonNull final ServiceContainer serviceContainer,
-      @NonNull final Properties props,
-      @NonNull final String originalUrl,
-      @NonNull final String targetDriverProtocol,
-      @NonNull final TargetDriverDialect targetDriverDialect,
-      @NonNull final Dialect dbDialect,
-      @Nullable final ConfigurationProfile configurationProfile) {
-    this(
-        serviceContainer,
-        new ExceptionManager(),
-        props,
-        originalUrl,
-        targetDriverProtocol,
-        targetDriverDialect,
-        dbDialect,
-        configurationProfile,
-        null);
-  }
-
-  public MonitorPluginService(
+  public PartialPluginService(
       @NonNull final ServiceContainer serviceContainer,
       @NonNull final ExceptionManager exceptionManager,
       @NonNull final Properties props,
@@ -208,11 +194,6 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public ServiceContainer getServiceContainer() {
-    return this.serviceContainer;
-  }
-
-  @Override
   @Deprecated
   public void setAllowedAndBlockedHosts(AllowedAndBlockedHosts allowedAndBlockedHosts) {
     this.storageService.set(this.initialConnectionHostSpec.getHost(), allowedAndBlockedHosts);
@@ -220,12 +201,14 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
 
   @Override
   public boolean acceptsStrategy(HostRole role, String strategy) throws SQLException {
-    throw new UnsupportedOperationException();
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"acceptsStrategy"}));
   }
 
   @Override
   public HostSpec getHostSpecByStrategy(HostRole role, String strategy) throws SQLException {
-    throw new UnsupportedOperationException();
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getHostSpecByStrategy"}));
   }
 
   @Override
@@ -476,7 +459,8 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
 
   @Override
   public boolean isInTransaction() {
-    throw new UnsupportedOperationException();
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"isInTransaction"}));
   }
 
   @Override
@@ -603,7 +587,8 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
 
   @Override
   public Connection connect(final HostSpec hostSpec, final Properties props) throws SQLException {
-    throw new UnsupportedOperationException();
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"connect"}));
   }
 
   @Override
@@ -612,7 +597,8 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
       final Properties props,
       final @Nullable ConnectionPlugin pluginToSkip)
       throws SQLException {
-    throw new UnsupportedOperationException();
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"connect"}));
   }
 
   @Override
@@ -644,7 +630,8 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
 
   @Override
   public void releaseResources() {
-    throw new UnsupportedOperationException();
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"releaseResources"}));
   }
 
   @Override
@@ -701,9 +688,8 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
 
   @Override
   public void updateDialect(final @NonNull Connection connection) {
-    // TODO: is it fine to just leave this empty? This method is called after connecting in DefaultConnectionPlugin but
-    //  the dialect passed to the constructor should already be up to date.
-    // do nothing.
+    // do nothing. This method is called after connecting in DefaultConnectionPlugin but the dialect passed to the
+    // constructor should already be updated and verified.
   }
 
   @Override
@@ -763,7 +749,8 @@ public class MonitorPluginService implements PluginService, CanReleaseResources,
 
   @Override
   public @NonNull SessionStateService getSessionStateService() {
-    throw new UnsupportedOperationException();
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getSessionStateService"}));
   }
 
   public <T> T getPlugin(final Class<T> pluginClazz) {

@@ -156,8 +156,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     init(props, serviceContainer, defaultConnectionProvider, driverDialect);
   }
 
-  protected void init(
-      final Properties props,
+  protected void init(final Properties props,
       final ServiceContainer serviceContainer,
       final ConnectionProvider defaultConnectionProvider,
       final TargetDriverDialect driverDialect) throws SQLException {
@@ -167,8 +166,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     this.hostListProviderService = serviceContainer.getHostListProviderService();
     this.pluginManagerService = serviceContainer.getPluginManagerService();
 
-    this.pluginManager.init(
-        this.pluginService, props, pluginManagerService, this.configurationProfile);
+    this.pluginManager.init(serviceContainer, props, pluginManagerService, this.configurationProfile);
 
     final HostListProviderSupplier supplier = this.pluginService.getDialect().getHostListProvider();
     if (supplier != null) {

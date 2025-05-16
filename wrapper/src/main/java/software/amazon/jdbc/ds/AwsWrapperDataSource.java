@@ -47,6 +47,7 @@ import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectManager;
 import software.amazon.jdbc.util.ConnectionUrlParser;
+import software.amazon.jdbc.util.CoreServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.ServiceContainer;
@@ -54,12 +55,8 @@ import software.amazon.jdbc.util.ServiceContainerImpl;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
-import software.amazon.jdbc.util.events.EventPublisher;
-import software.amazon.jdbc.util.events.PeriodicEventPublisher;
 import software.amazon.jdbc.util.monitoring.MonitorService;
-import software.amazon.jdbc.util.monitoring.MonitorServiceImpl;
 import software.amazon.jdbc.util.storage.StorageService;
-import software.amazon.jdbc.util.storage.StorageServiceImpl;
 import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -75,9 +72,8 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
   private static final String SERVER_NAME = "serverName";
   private static final String SERVER_PORT = "serverPort";
 
-  private static final EventPublisher publisher = new PeriodicEventPublisher();
-  private static final StorageService storageService = new StorageServiceImpl(publisher);
-  private static final MonitorService monitorService = new MonitorServiceImpl(publisher);
+  private final StorageService storageService;
+  private final MonitorService monitorService;
 
   static {
     try {
@@ -100,6 +96,15 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
   protected @Nullable String serverPort;
   protected @Nullable String database;
   private int loginTimeout = 0;
+
+  public AwsWrapperDataSource() {
+    this(CoreServicesContainer.getInstance());
+  }
+
+  public AwsWrapperDataSource(CoreServicesContainer coreServicesContainer) {
+    this.storageService = coreServicesContainer.getStorageService();
+    this.monitorService = coreServicesContainer.getMonitorService();
+  }
 
   @Override
   public Connection getConnection() throws SQLException {

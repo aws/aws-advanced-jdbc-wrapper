@@ -66,7 +66,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
    * @param monitorService         The monitorService used to submit this monitor.
    * @param storageService         The storage service used to store the set of allowed/blocked hosts according to the
    *                               custom endpoint info.
-   * @param telemetryFactory       The telemetry factory
+   * @param telemetryFactory       The telemetry factory used to create telemetry data.
    * @param customEndpointHostSpec The host information for the custom endpoint to be monitored.
    * @param endpointIdentifier     An endpoint identifier.
    * @param region                 The region of the custom endpoint to be monitored.

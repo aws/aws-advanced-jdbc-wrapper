@@ -29,6 +29,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jetbrains.annotations.NotNull;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.plugin.AuroraConnectionTrackerPlugin;
 import software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPlugin;
@@ -50,6 +51,7 @@ import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrat
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.util.AsynchronousMethodsHelper;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -109,6 +111,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
   protected final @NonNull ConnectionProvider defaultConnProvider;
   protected final @Nullable ConnectionProvider effectiveConnProvider;
   protected final ConnectionWrapper connectionWrapper;
+  protected ServiceContainer serviceContainer;
   protected PluginService pluginService;
   protected TelemetryFactory telemetryFactory;
 
@@ -179,26 +182,27 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    * <p>The {@link DefaultConnectionPlugin} will always be initialized and attached as the last
    * connection plugin in the chain.
    *
-   * @param pluginService        a reference to a plugin service that plugin can use
+   * @param serviceContainer     the service container for the services required by this class.
    * @param props                the configuration of the connection
    * @param pluginManagerService a reference to a plugin manager service
    * @param configurationProfile a profile configuration defined by the user
    * @throws SQLException if errors occurred during the execution
    */
   public void init(
-      final PluginService pluginService,
+      final ServiceContainer serviceContainer,
       final Properties props,
       final PluginManagerService pluginManagerService,
       @Nullable ConfigurationProfile configurationProfile)
       throws SQLException {
 
     this.props = props;
-    this.pluginService = pluginService;
-    this.telemetryFactory = pluginService.getTelemetryFactory();
+    this.serviceContainer = serviceContainer;
+    this.pluginService = serviceContainer.getPluginService();
+    this.telemetryFactory = serviceContainer.getTelemetryFactory();
 
     ConnectionPluginChainBuilder pluginChainBuilder = new ConnectionPluginChainBuilder();
     this.plugins = pluginChainBuilder.getPlugins(
-        this.pluginService,
+        this.serviceContainer,
         this.defaultConnProvider,
         this.effectiveConnProvider,
         pluginManagerService,
@@ -641,10 +645,12 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
     return false;
   }
 
+  @NotNull
   public ConnectionProvider getDefaultConnProvider() {
     return this.defaultConnProvider;
   }
 
+  @Nullable
   public ConnectionProvider getEffectiveConnProvider() {
     return this.effectiveConnProvider;
   }

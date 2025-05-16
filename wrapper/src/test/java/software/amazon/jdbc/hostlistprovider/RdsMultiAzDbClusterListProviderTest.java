@@ -61,7 +61,7 @@ import software.amazon.jdbc.hostlistprovider.RdsHostListProvider.FetchTopologyRe
 import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.storage.StorageService;
-import software.amazon.jdbc.util.storage.StorageServiceImpl;
+import software.amazon.jdbc.util.storage.TestStorageServiceImpl;
 import software.amazon.jdbc.util.storage.Topology;
 
 class RdsMultiAzDbClusterListProviderTest {
@@ -88,7 +88,7 @@ class RdsMultiAzDbClusterListProviderTest {
   @BeforeEach
   void setUp() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
-    storageService = new StorageServiceImpl(mockEventPublisher);
+    storageService = new TestStorageServiceImpl(mockEventPublisher);
     when(mockServiceContainer.getHostListProviderService()).thenReturn(mockHostListProviderService);
     when(mockServiceContainer.getStorageService()).thenReturn(storageService);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);

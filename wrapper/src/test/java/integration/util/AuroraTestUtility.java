@@ -114,8 +114,8 @@ public class AuroraTestUtility {
   private static final Logger LOGGER = Logger.getLogger(AuroraTestUtility.class.getName());
   private static final String DUPLICATE_IP_ERROR_CODE = "InvalidPermission.Duplicate";
   private static final String DEFAULT_SECURITY_GROUP = "default";
-  private static final String DEFAULT_STORAGE_TYPE = "io1";
-  private static final int DEFAULT_IOPS = 1000;
+  private static final String DEFAULT_STORAGE_TYPE = "gp3";
+  private static final int DEFAULT_IOPS = 64000;
   private static final int MULTI_AZ_SIZE = 3;
   private static final Random rand = new Random();
 
@@ -361,7 +361,7 @@ public class AuroraTestUtility {
             .tags(testRunnerTag);
 
     clusterBuilder =
-        clusterBuilder.allocatedStorage(100)
+        clusterBuilder.allocatedStorage(400)
             .dbClusterInstanceClass(instanceClass)
             .storageType(DEFAULT_STORAGE_TYPE)
             .iops(DEFAULT_IOPS);

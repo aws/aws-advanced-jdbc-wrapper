@@ -84,7 +84,7 @@ public class MonitorServiceImpl implements MonitorService {
   }
 
   public static void closeAllMonitors() {
-    monitorService.
+    // TODO: implement
   }
 
   @Override

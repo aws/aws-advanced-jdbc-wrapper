@@ -73,13 +73,14 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
   @Override
   public void run() {
     try {
+      LOGGER.finest(Messages.get("AbstractMonitor.startingMonitor", new Object[] {this}));
       this.state = MonitorState.RUNNING;
       this.lastActivityTimestampNanos = System.nanoTime();
       monitor();
     } catch (Exception e) {
       LOGGER.fine(Messages.get("AbstractMonitor.unexpectedError", new Object[] {this, e}));
       this.state = MonitorState.ERROR;
-      monitorService.reportMonitorError(this, e);
+      // monitorService.reportMonitorError(this, e);
     }
   }
 
@@ -100,7 +101,13 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
       this.monitorExecutor.shutdownNow();
     } finally {
       close();
+      this.state = MonitorState.STOPPED;
     }
+  }
+
+  @Override
+  public void close() {
+    // do nothing. Classes that extend this class should override this method if they open resources that need closing.
   }
 
   @Override

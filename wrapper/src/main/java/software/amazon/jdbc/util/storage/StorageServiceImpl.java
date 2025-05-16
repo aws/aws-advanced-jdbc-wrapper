@@ -23,8 +23,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -37,20 +35,7 @@ import software.amazon.jdbc.util.events.EventPublisher;
 public class StorageServiceImpl implements StorageService {
   private static final Logger LOGGER = Logger.getLogger(StorageServiceImpl.class.getName());
   protected static final long DEFAULT_CLEANUP_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
-  protected static final Map<Class<?>, ExpirationCache<Object, ?>> caches = new ConcurrentHashMap<>();
   protected static final Map<Class<?>, Supplier<ExpirationCache<Object, ?>>> defaultCacheSuppliers;
-  protected static final AtomicBoolean isInitialized = new AtomicBoolean(false);
-  protected static final ReentrantLock initLock = new ReentrantLock();
-  protected static final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor((r -> {
-    final Thread thread = new Thread(r);
-    thread.setDaemon(true);
-    if (!StringUtils.isNullOrEmpty(thread.getName())) {
-      thread.setName(thread.getName() + "-ssi");
-    }
-    return thread;
-  }));
-
-  protected final EventPublisher publisher;
 
   static {
     Map<Class<?>, Supplier<ExpirationCache<Object, ?>>> suppliers = new HashMap<>();
@@ -58,6 +43,17 @@ public class StorageServiceImpl implements StorageService {
     suppliers.put(AllowedAndBlockedHosts.class, ExpirationCache::new);
     defaultCacheSuppliers = Collections.unmodifiableMap(suppliers);
   }
+
+  protected final EventPublisher publisher;
+  protected final Map<Class<?>, ExpirationCache<Object, ?>> caches = new ConcurrentHashMap<>();
+  protected final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor((r -> {
+    final Thread thread = new Thread(r);
+    thread.setDaemon(true);
+    if (!StringUtils.isNullOrEmpty(thread.getName())) {
+      thread.setName(thread.getName() + "-ssi");
+    }
+    return thread;
+  }));
 
   public StorageServiceImpl(EventPublisher publisher) {
     this(DEFAULT_CLEANUP_INTERVAL_NANOS, publisher);
@@ -69,23 +65,8 @@ public class StorageServiceImpl implements StorageService {
   }
 
   protected void initCleanupThread(long cleanupIntervalNanos) {
-    if (isInitialized.get()) {
-      return;
-    }
-
-    initLock.lock();
-    try {
-      if (isInitialized.get()) {
-        return;
-      }
-
-      cleanupExecutor.scheduleAtFixedRate(
-          this::removeExpiredItems, cleanupIntervalNanos, cleanupIntervalNanos, TimeUnit.NANOSECONDS);
-      cleanupExecutor.shutdown();
-      isInitialized.set(true);
-    } finally {
-      initLock.unlock();
-    }
+    this.cleanupExecutor.scheduleAtFixedRate(
+        this::removeExpiredItems, cleanupIntervalNanos, cleanupIntervalNanos, TimeUnit.NANOSECONDS);
   }
 
   protected void removeExpiredItems() {
@@ -112,6 +93,7 @@ public class StorageServiceImpl implements StorageService {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public <V> void set(Object key, V value) {
     ExpirationCache<Object, ?> cache = caches.get(value.getClass());
     if (cache == null) {
@@ -125,7 +107,6 @@ public class StorageServiceImpl implements StorageService {
     }
 
     try {
-      // TODO: is there a way to get rid of this unchecked cast warning? Is the try-catch necessary?
       ExpirationCache<Object, V> typedCache = (ExpirationCache<Object, V>) cache;
       typedCache.put(key, value);
     } catch (ClassCastException e) {
@@ -193,13 +174,13 @@ public class StorageServiceImpl implements StorageService {
   }
 
   @Override
-  public <K, V> @Nullable Map<K, V> getEntries(Class<?> itemClass) {
+  public <K, V> @Nullable Map<K, V> getEntries(Class<V> itemClass) {
     final ExpirationCache<?, ?> cache = caches.get(itemClass);
     if (cache == null) {
       return null;
     }
 
-    // TODO: fix this cast to be type safe and/or remove this method after removing the suggestedClusterId logic
+    // TODO: remove this method after removing the suggestedClusterId logic
     return (Map<K, V>) cache.getEntries();
   }
 

@@ -217,11 +217,6 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public ServiceContainer getServiceContainer() {
-    return this.serviceContainer;
-  }
-
-  @Override
   @Deprecated
   public void setAllowedAndBlockedHosts(AllowedAndBlockedHosts allowedAndBlockedHosts) {
     this.storageService.set(this.initialConnectionHostSpec.getHost(), allowedAndBlockedHosts);

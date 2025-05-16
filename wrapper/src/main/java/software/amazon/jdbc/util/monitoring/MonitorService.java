@@ -52,12 +52,19 @@ public interface MonitorService {
    * Creates and starts the given monitor if it does not already exist and stores it under the given monitor type and
    * key. If the monitor already exists, its expiration time will be renewed, even if it was already expired.
    *
-   * @param monitorClass the class of the monitor, eg `CustomEndpointMonitorImpl.class`.
+   * @param monitorClass the concrete class of the monitor, eg `CustomEndpointMonitorImpl.class`.
    * @param key          the key for the monitor, eg
    *                     "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
+   * @param storageService the storage service for the monitor to use.
+   * @param telemetryFactory the telemetry factory for creating telemetry data.
+   * @param originalUrl the URL of the original database connection.
+   * @param driverProtocol the protocol for the underlying target driver.
+   * @param driverDialect the target driver dialect.
+   * @param dbDialect the database dialect.
+   * @param originalProps the properties of the original database connection.
+   * @param initializer an initializer function to use to create the monitor if it does not already exist.
    * @return the new or existing monitor.
    */
-  // TODO: add docs for new parameters
   <T extends Monitor> T runIfAbsent(
       Class<T> monitorClass,
       Object key,
@@ -67,7 +74,7 @@ public interface MonitorService {
       String driverProtocol,
       TargetDriverDialect driverDialect,
       Dialect dbDialect,
-      Properties props,
+      Properties originalProps,
       MonitorInitializer initializer) throws SQLException;
 
   /**
@@ -79,15 +86,6 @@ public interface MonitorService {
    */
   @Nullable
   <T extends Monitor> T get(Class<T> monitorClass, Object key);
-
-  /**
-   * Processes a monitor error. The monitor service will respond to the error based on the monitor error responses
-   * defined when the monitor type was registered.
-   *
-   * @param monitor   the monitor that encountered the unexpected exception.
-   * @param exception the unexpected exception that occurred.
-   */
-  void reportMonitorError(Monitor monitor, Exception exception);
 
   /**
    * Removes the monitor stored at the given key. If the expected monitor class does not match the actual monitor class
@@ -121,4 +119,10 @@ public interface MonitorService {
    * Stops all monitors and removes them from the monitor service.
    */
   void stopAndRemoveAll();
+
+  /**
+   * Releases any resources opened by the monitor service, stops all monitors, and removes all monitors from the monitor
+   * service.
+   */
+  void releaseResources();
 }
