@@ -85,7 +85,7 @@ public class MonitorImpl extends AbstractMonitor implements Monitor {
   /**
    * Store the monitoring configuration for a connection.
    *
-   * @param serviceContainer               The service container for the services required by this class.
+   * @param pluginService               The service container for the services required by this class.
    * @param hostSpec                       The {@link HostSpec} of the server this {@link MonitorImpl} instance is
    *                                       monitoring.
    * @param properties                     The {@link Properties} containing additional monitoring configuration.

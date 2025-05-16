@@ -29,7 +29,8 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ServiceContainer;
-import software.amazon.jdbc.util.storage.SlidingExpirationCacheWithCleanupThread;
+import software.amazon.jdbc.util.monitoring.CoreMonitorService;
+import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -50,8 +51,9 @@ public class MonitorServiceImpl implements MonitorService {
 
   protected static final Executor ABORT_EXECUTOR = Executors.newSingleThreadExecutor();
 
+  protected final ServiceContainer serviceContainer;
   protected final PluginService pluginService;
-  protected final MonitorInitializer monitorInitializer;
+  protected final CoreMonitorService coreMonitorService;
   protected final TelemetryFactory telemetryFactory;
   protected final TelemetryCounter abortedConnectionsCounter;
 
@@ -77,10 +79,11 @@ public class MonitorServiceImpl implements MonitorService {
   MonitorServiceImpl(
       final @NonNull ServiceContainer serviceContainer,
       final @NonNull MonitorInitializer monitorInitializer) {
+    this.serviceContainer = serviceContainer;
+    this.coreMonitorService = serviceContainer.getMonitorService();
     this.pluginService = serviceContainer.getPluginService();
     this.telemetryFactory = serviceContainer.getTelemetryFactory();
     this.abortedConnectionsCounter = telemetryFactory.createCounter("efm2.connections.aborted");
-    this.monitorInitializer = monitorInitializer;
   }
 
   public static void closeAllMonitors() {
@@ -163,9 +166,18 @@ public class MonitorServiceImpl implements MonitorService {
     final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(
         MONITOR_DISPOSAL_TIME_MS.getLong(properties));
 
-    return monitors.computeIfAbsent(
+    return this.coreMonitorService.runIfAbsent(
+        MonitorImpl.class,
         monitorKey,
-        (key) -> monitorInitializer.createMonitor(
+        this.serviceContainer.getStorageService(),
+        this.telemetryFactory,
+        this.pluginService.getOriginalUrl(),
+        this.pluginService.getDriverProtocol(),
+        this.pluginService.getTargetDriverDialect(),
+        this.pluginService.getDialect(),
+        this.pluginService.getProperties(),
+        (connectionService, pluginService) -> new MonitorImpl(
+            this.serviceContainer,
             hostSpec,
             properties,
             failureDetectionTimeMillis,
