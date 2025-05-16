@@ -96,7 +96,6 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
         (ConnectionService connectionService, PluginService monitorPluginService) -> new ClusterTopologyMonitorImpl(
             this.clusterId,
             this.storageService,
-            this.monitorService,
             connectionService,
             this.initialHostSpec,
             this.properties,

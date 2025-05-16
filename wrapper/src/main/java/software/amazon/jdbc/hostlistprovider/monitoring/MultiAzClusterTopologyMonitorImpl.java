@@ -59,7 +59,6 @@ public class MultiAzClusterTopologyMonitorImpl extends ClusterTopologyMonitorImp
     super(
         clusterId,
         storageService,
-        monitorService,
         connectionService,
         initialHostSpec,
         properties,

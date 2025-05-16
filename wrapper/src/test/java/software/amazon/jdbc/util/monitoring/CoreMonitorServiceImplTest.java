@@ -283,7 +283,7 @@ class CoreMonitorServiceImplTest {
     protected NoOpMonitor(
         CoreMonitorService monitorService,
         long terminationTimeoutSec) {
-      super(monitorService, terminationTimeoutSec);
+      super(terminationTimeoutSec);
     }
 
     @Override
