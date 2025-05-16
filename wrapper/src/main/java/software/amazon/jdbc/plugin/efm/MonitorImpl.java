@@ -29,7 +29,6 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
-import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -78,7 +77,7 @@ public class MonitorImpl implements Monitor {
   /**
    * Store the monitoring configuration for a connection.
    *
-   * @param serviceContainer          The service container for the services required by this class.
+   * @param pluginService             A service for creating new connections.
    * @param hostSpec                  The {@link HostSpec} of the server this {@link MonitorImpl}
    *                                  instance is monitoring.
    * @param properties                The {@link Properties} containing additional monitoring
@@ -90,13 +89,13 @@ public class MonitorImpl implements Monitor {
    *                                  that initialized this class.
    */
   public MonitorImpl(
-      final @NonNull ServiceContainer serviceContainer,
+      final @NonNull PluginService pluginService,
       @NonNull final HostSpec hostSpec,
       @NonNull final Properties properties,
       final long monitorDisposalTimeMillis,
       @NonNull final MonitorThreadContainer threadContainer) {
-    this.pluginService = serviceContainer.getPluginService();
-    this.telemetryFactory = serviceContainer.getTelemetryFactory();
+    this.pluginService = pluginService;
+    this.telemetryFactory = pluginService.getTelemetryFactory();
     this.hostSpec = hostSpec;
     this.properties = properties;
     this.monitorDisposalTimeMillis = monitorDisposalTimeMillis;

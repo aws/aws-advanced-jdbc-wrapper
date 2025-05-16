@@ -54,14 +54,10 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
-import software.amazon.jdbc.util.ServiceContainer;
-import software.amazon.jdbc.util.connection.ConnectionService;
 
 class ClusterAwareReaderFailoverHandlerTest {
 
-  @Mock ServiceContainer mockServiceContainer;
   @Mock PluginService mockPluginService;
-  @Mock ConnectionService mockConnectionService;
   @Mock Connection mockConnection;
 
   private AutoCloseable closeable;
@@ -84,7 +80,6 @@ class ClusterAwareReaderFailoverHandlerTest {
   @BeforeEach
   void setUp() {
     closeable = MockitoAnnotations.openMocks(this);
-    when(mockServiceContainer.getPluginService()).thenReturn(mockPluginService);
   }
 
   @AfterEach
@@ -118,7 +113,7 @@ class ClusterAwareReaderFailoverHandlerTest {
 
     final ReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockServiceContainer,
+            mockPluginService,
             properties);
     final ReaderFailoverResult result = target.failover(hosts, hosts.get(currentHostIndex));
 
@@ -157,7 +152,7 @@ class ClusterAwareReaderFailoverHandlerTest {
 
     final ReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockServiceContainer,
+            mockPluginService,
             properties,
             5000,
             30000,
@@ -180,7 +175,7 @@ class ClusterAwareReaderFailoverHandlerTest {
   public void testFailover_nullOrEmptyHostList() throws SQLException {
     final ClusterAwareReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockServiceContainer,
+            mockPluginService,
             properties);
     final HostSpec currentHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("writer")
         .port(1234).build();
@@ -220,7 +215,7 @@ class ClusterAwareReaderFailoverHandlerTest {
 
     final ReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockServiceContainer,
+            mockPluginService,
             properties);
     final ReaderFailoverResult result = target.getReaderConnection(hosts);
 
@@ -249,7 +244,7 @@ class ClusterAwareReaderFailoverHandlerTest {
 
     final ReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockServiceContainer,
+            mockPluginService,
             properties);
     final ReaderFailoverResult result = target.getReaderConnection(hosts);
 
@@ -282,7 +277,7 @@ class ClusterAwareReaderFailoverHandlerTest {
 
     final ClusterAwareReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockServiceContainer,
+            mockPluginService,
             properties,
             60000,
             1000,
@@ -303,7 +298,7 @@ class ClusterAwareReaderFailoverHandlerTest {
 
     final ClusterAwareReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockServiceContainer,
+            mockPluginService,
             properties);
     final List<HostSpec> hostsByPriority = target.getHostsByPriority(originalHosts);
 
@@ -345,7 +340,7 @@ class ClusterAwareReaderFailoverHandlerTest {
 
     final ClusterAwareReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockServiceContainer,
+            mockPluginService,
             properties);
     final List<HostSpec> hostsByPriority = target.getReaderHostsByPriority(originalHosts);
 
@@ -382,7 +377,7 @@ class ClusterAwareReaderFailoverHandlerTest {
     when(mockPluginService.getDialect()).thenReturn(mockDialect);
     final ClusterAwareReaderFailoverHandler target =
             new ClusterAwareReaderFailoverHandler(
-                    mockServiceContainer,
+                    mockPluginService,
                     properties,
                     DEFAULT_FAILOVER_TIMEOUT,
                     DEFAULT_READER_CONNECT_TIMEOUT,

@@ -39,7 +39,6 @@ import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
 
 /**
@@ -94,20 +93,21 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
   /**
    * Initialize the node monitoring plugin.
    *
-   * @param serviceContainer The service container for the services required by this class.
+   * @param pluginService A service allowing the plugin to retrieve the current active connection
+   *     and its connection settings.
    * @param properties The property set used to initialize the active connection.
    */
   public HostMonitoringConnectionPlugin(
-      final @NonNull ServiceContainer serviceContainer, final @NonNull Properties properties) {
-    this(serviceContainer, properties, () -> new MonitorServiceImpl(serviceContainer), new RdsUtils());
+      final @NonNull PluginService pluginService, final @NonNull Properties properties) {
+    this(pluginService, properties, () -> new MonitorServiceImpl(pluginService), new RdsUtils());
   }
 
   HostMonitoringConnectionPlugin(
-      final @NonNull ServiceContainer serviceContainer,
+      final @NonNull PluginService pluginService,
       final @NonNull Properties properties,
       final @NonNull Supplier<MonitorService> monitorServiceSupplier,
       final RdsUtils rdsHelper) {
-    this.pluginService = serviceContainer.getPluginService();
+    this.pluginService = pluginService;
     this.properties = properties;
     this.monitorServiceSupplier = monitorServiceSupplier;
     this.rdsHelper = rdsHelper;

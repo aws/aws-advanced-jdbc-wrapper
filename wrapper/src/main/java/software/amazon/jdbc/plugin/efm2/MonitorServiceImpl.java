@@ -28,7 +28,6 @@ import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.storage.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -49,7 +48,7 @@ public class MonitorServiceImpl implements MonitorService {
   protected static final long CACHE_CLEANUP_NANO = TimeUnit.MINUTES.toNanos(1);
 
   protected static final Executor ABORT_EXECUTOR = Executors.newSingleThreadExecutor();
-
+  // TODO: remove and submit monitors to MonitorService instead
   protected static final SlidingExpirationCacheWithCleanupThread<String, Monitor> monitors =
       new SlidingExpirationCacheWithCleanupThread<>(
           Monitor::canDispose,
@@ -67,9 +66,9 @@ public class MonitorServiceImpl implements MonitorService {
   protected final TelemetryFactory telemetryFactory;
   protected final TelemetryCounter abortedConnectionsCounter;
 
-  public MonitorServiceImpl(final @NonNull ServiceContainer serviceContainer) {
+  public MonitorServiceImpl(final @NonNull PluginService pluginService) {
     this(
-        serviceContainer,
+        pluginService,
         (hostSpec,
             properties,
             failureDetectionTimeMillis,
@@ -77,7 +76,7 @@ public class MonitorServiceImpl implements MonitorService {
             failureDetectionCount,
             abortedConnectionsCounter) ->
             new MonitorImpl(
-                serviceContainer,
+                pluginService,
                 hostSpec,
                 properties,
                 failureDetectionTimeMillis,
@@ -87,10 +86,10 @@ public class MonitorServiceImpl implements MonitorService {
   }
 
   MonitorServiceImpl(
-      final @NonNull ServiceContainer serviceContainer,
+      final @NonNull PluginService pluginService,
       final @NonNull MonitorInitializer monitorInitializer) {
-    this.pluginService = serviceContainer.getPluginService();
-    this.telemetryFactory = serviceContainer.getTelemetryFactory();
+    this.pluginService = pluginService;
+    this.telemetryFactory = pluginService.getTelemetryFactory();
     this.abortedConnectionsCounter = telemetryFactory.createCounter("efm2.connections.aborted");
     this.monitorInitializer = monitorInitializer;
   }

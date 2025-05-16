@@ -32,7 +32,6 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
-import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -63,7 +62,7 @@ public class NodeResponseTimeMonitor implements AutoCloseable, Runnable {
 
   private Connection monitoringConn = null;
 
-  // TODO: remove threadPool and submit monitors to MonitorService instead
+  // TODO: remove and submit monitors to MonitorService instead
   private final ExecutorService threadPool = Executors.newFixedThreadPool(1, runnableTarget -> {
     final Thread monitoringThread = new Thread(runnableTarget);
     monitoringThread.setDaemon(true);
@@ -71,16 +70,16 @@ public class NodeResponseTimeMonitor implements AutoCloseable, Runnable {
   });
 
   public NodeResponseTimeMonitor(
-      final @NonNull ServiceContainer serviceContainer,
+      final @NonNull PluginService pluginService,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props,
       int intervalMs) {
 
-    this.pluginService = serviceContainer.getPluginService();
+    this.pluginService = pluginService;
     this.hostSpec = hostSpec;
     this.props = props;
     this.intervalMs = intervalMs;
-    this.telemetryFactory = serviceContainer.getTelemetryFactory();
+    this.telemetryFactory = this.pluginService.getTelemetryFactory();
 
     final String nodeId = StringUtils.isNullOrEmpty(this.hostSpec.getHostId())
         ? this.hostSpec.getHost()

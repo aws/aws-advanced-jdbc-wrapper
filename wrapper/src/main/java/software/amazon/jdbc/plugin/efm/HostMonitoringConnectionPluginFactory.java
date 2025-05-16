@@ -18,22 +18,13 @@ package software.amazon.jdbc.plugin.efm;
 
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
+import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.ServiceContainerPluginFactory;
-import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.ServiceContainer;
 
 /** Class initializing a {@link HostMonitoringConnectionPlugin}. */
-public class HostMonitoringConnectionPluginFactory implements ServiceContainerPluginFactory {
+public class HostMonitoringConnectionPluginFactory implements ConnectionPluginFactory {
   @Override
   public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
-    throw new UnsupportedOperationException(
-        Messages.get(
-            "ServiceContainerPluginFactory.serviceContainerRequired", new Object[] {"HostMonitoringConnectionPlugin"}));
-  }
-
-  @Override
-  public ConnectionPlugin getInstance(final ServiceContainer serviceContainer, final Properties props) {
-    return new HostMonitoringConnectionPlugin(serviceContainer, props);
+    return new HostMonitoringConnectionPlugin(pluginService, props);
   }
 }

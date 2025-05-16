@@ -39,7 +39,6 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
-import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -68,6 +67,7 @@ public class MonitorImpl implements Monitor {
   private final HostSpec hostSpec;
   private final AtomicBoolean stopped = new AtomicBoolean(false);
   private Connection monitoringConn = null;
+  // TODO: remove and submit monitors to MonitorService instead
   private final ExecutorService threadPool = Executors.newFixedThreadPool(2, runnableTarget -> {
     final Thread monitoringThread = new Thread(runnableTarget);
     monitoringThread.setDaemon(true);
@@ -91,17 +91,18 @@ public class MonitorImpl implements Monitor {
   /**
    * Store the monitoring configuration for a connection.
    *
-   * @param serviceContainer               The service container for the services required by this class.
-   * @param hostSpec                       The {@link HostSpec} of the server this {@link MonitorImpl} instance is
-   *                                       monitoring.
-   * @param properties                     The {@link Properties} containing additional monitoring configuration.
-   * @param failureDetectionTimeMillis     A failure detection time in millis.
+   * @param pluginService             A service for creating new connections.
+   * @param hostSpec                  The {@link HostSpec} of the server this {@link MonitorImpl}
+   *                                  instance is monitoring.
+   * @param properties                The {@link Properties} containing additional monitoring
+   *                                  configuration.
+   * @param failureDetectionTimeMillis A failure detection time in millis.
    * @param failureDetectionIntervalMillis A failure detection interval in millis.
-   * @param failureDetectionCount          A failure detection count.
-   * @param abortedConnectionsCounter      Aborted connection telemetry counter.
+   * @param failureDetectionCount A failure detection count.
+   * @param abortedConnectionsCounter Aborted connection telemetry counter.
    */
   public MonitorImpl(
-      final @NonNull ServiceContainer serviceContainer,
+      final @NonNull PluginService pluginService,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties properties,
       final int failureDetectionTimeMillis,
@@ -109,8 +110,8 @@ public class MonitorImpl implements Monitor {
       final int failureDetectionCount,
       final TelemetryCounter abortedConnectionsCounter) {
 
-    this.pluginService = serviceContainer.getPluginService();
-    this.telemetryFactory = serviceContainer.getTelemetryFactory();
+    this.pluginService = pluginService;
+    this.telemetryFactory = pluginService.getTelemetryFactory();
     this.hostSpec = hostSpec;
     this.properties = properties;
     this.failureDetectionTimeNano = TimeUnit.MILLISECONDS.toNanos(failureDetectionTimeMillis);
