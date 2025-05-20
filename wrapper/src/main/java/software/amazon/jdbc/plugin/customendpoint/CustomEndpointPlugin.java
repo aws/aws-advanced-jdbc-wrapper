@@ -218,7 +218,6 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
         this.pluginService.getDialect(),
         this.props,
         (connectionService, pluginService) -> new CustomEndpointMonitorImpl(
-            this.monitorService,
             this.storageService,
             this.serviceContainer.getTelemetryFactory(),
             this.customEndpointHostSpec,

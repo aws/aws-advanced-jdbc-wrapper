@@ -114,7 +114,6 @@ public class CustomEndpointMonitorImplTest {
   @Test
   public void testRun() throws InterruptedException {
     CustomEndpointMonitorImpl monitor = new CustomEndpointMonitorImpl(
-        mockMonitorService,
         mockStorageService,
         mockTelemetryFactory,
         host,
