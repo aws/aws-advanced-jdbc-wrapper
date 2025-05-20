@@ -63,6 +63,7 @@ public class ExtendedFormatter extends SimpleFormatter {
     String source;
     if (record.getSourceClassName() != null) {
       source = record.getSourceClassName();
+      source.replace("software.amazon.jdbc", "s.a.j");
       if (record.getSourceMethodName() != null) {
         source += " " + record.getSourceMethodName();
       }

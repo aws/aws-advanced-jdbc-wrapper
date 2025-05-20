@@ -17,6 +17,7 @@
 package software.amazon.jdbc.plugin.failover2;
 
 import static software.amazon.jdbc.plugin.failover.FailoverMode.STRICT_READER;
+import static software.amazon.jdbc.plugin.failover.FailoverMode.STRICT_WRITER;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -143,7 +144,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   protected final TelemetryCounter failoverReaderSuccessCounter;
   protected final TelemetryCounter failoverReaderFailedCounter;
   protected final boolean skipFailoverOnInterruptedThread;
-
+  private HostSpec currentWriterHost;
 
   static {
     PropertyDefinition.registerPluginProperties(FailoverConnectionPlugin.class);
@@ -517,45 +518,61 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         TELEMETRY_WRITER_FAILOVER, TelemetryTraceLevel.NESTED);
     this.failoverWriterTriggeredCounter.inc();
 
+    // Check the cached topology to verify if the writer has changed while the connection is idle.
+    this.pluginService.refreshHostList();
+    HostSpec writerCandidate = this.pluginService.getHosts()
+        .stream()
+        .filter(x -> x.getRole() == HostRole.WRITER)
+        .findFirst()
+        .orElse(null);
+    if (writerCandidate == null) {
+      LOGGER.severe(() -> Messages.get("Failover.noWriterFound"));
+      throw new FailoverFailedSQLException(Messages.get("Failover.noWriterFound"));
+    }
+
+    final boolean shouldSkipTopologyRefresh =
+        this.currentWriterHost != null && !writerCandidate.getHost().equals(this.currentWriterHost.getHost());
     long failoverStartTimeNano = System.nanoTime();
 
     try {
       LOGGER.info(() -> Messages.get("Failover.startWriterFailover"));
 
-      // It's expected that this method synchronously returns when topology is stabilized,
-      // i.e. when cluster control plane has already chosen a new writer.
-      if (!this.pluginService.forceRefreshHostList(true, this.failoverTimeoutMsSetting)) {
-        this.failoverWriterFailedCounter.inc();
-        LOGGER.severe(Messages.get("Failover.unableToRefreshHostList"));
-        throw new FailoverFailedSQLException(Messages.get("Failover.unableToRefreshHostList"));
-      }
-
-      final List<HostSpec> updatedHosts = this.pluginService.getAllHosts();
-
       Connection writerCandidateConn;
-      final HostSpec writerCandidate = updatedHosts.stream()
-          .filter(x -> x.getRole() == HostRole.WRITER)
-          .findFirst()
-          .orElse(null);
 
-      if (writerCandidate == null) {
-        this.failoverWriterFailedCounter.inc();
-        String message = Utils.logTopology(updatedHosts, Messages.get("Failover.noWriterHost"));
-        LOGGER.severe(message);
-        throw new FailoverFailedSQLException(message);
+      if (!shouldSkipTopologyRefresh) {
+        // It's expected that this method synchronously returns when topology is stabilized,
+        // i.e. when cluster control plane has already chosen a new writer.
+        if (!this.pluginService.forceRefreshHostList(true, this.failoverTimeoutMsSetting)) {
+          this.failoverWriterFailedCounter.inc();
+          LOGGER.severe(Messages.get("Failover.unableToRefreshHostList"));
+          throw new FailoverFailedSQLException(Messages.get("Failover.unableToRefreshHostList"));
+        }
+
+        final List<HostSpec> updatedHosts = this.pluginService.getAllHosts();
+
+         writerCandidate = updatedHosts.stream()
+            .filter(x -> x.getRole() == HostRole.WRITER)
+            .findFirst()
+            .orElse(null);
+
+        if (writerCandidate == null) {
+          this.failoverWriterFailedCounter.inc();
+          String message = Utils.logTopology(updatedHosts, Messages.get("Failover.noWriterHost"));
+          LOGGER.severe(message);
+          throw new FailoverFailedSQLException(message);
+        }
+
+        final List<HostSpec> allowedHosts = this.pluginService.getHosts();
+        if (!Utils.containsUrl(allowedHosts, writerCandidate.getUrl())) {
+          this.failoverWriterFailedCounter.inc();
+          String topologyString = Utils.logTopology(allowedHosts, "");
+          LOGGER.severe(Messages.get("Failover.newWriterNotAllowed",
+              new Object[] {writerCandidate.getUrl(), topologyString}));
+          throw new FailoverFailedSQLException(
+              Messages.get("Failover.newWriterNotAllowed",
+                  new Object[] {writerCandidate.getUrl(), topologyString}));
+        }
       }
-
-      final List<HostSpec> allowedHosts = this.pluginService.getHosts();
-      if (!Utils.containsUrl(allowedHosts, writerCandidate.getUrl())) {
-        this.failoverWriterFailedCounter.inc();
-        String topologyString = Utils.logTopology(allowedHosts, "");
-        LOGGER.severe(Messages.get("Failover.newWriterNotAllowed",
-            new Object[] {writerCandidate.getUrl(), topologyString}));
-        throw new FailoverFailedSQLException(
-            Messages.get("Failover.newWriterNotAllowed",
-                new Object[] {writerCandidate.getUrl(), topologyString}));
-      }
-
       try {
         writerCandidateConn = this.pluginService.connect(writerCandidate, this.properties, this);
       } catch (SQLException ex) {
@@ -581,6 +598,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
 
       this.pluginService.setCurrentConnection(writerCandidateConn, writerCandidate);
+      this.currentWriterHost = writerCandidate;
 
       LOGGER.fine(
           () -> Messages.get(
@@ -710,8 +728,15 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     Connection conn = null;
 
     if (!ENABLE_CONNECT_FAILOVER.getBoolean(props)) {
-      return this.staleDnsHelper.getVerifiedConnection(isInitialConnection, this.hostListProviderService,
-            driverProtocol, hostSpec, props, connectFunc);
+      conn = this.staleDnsHelper.getVerifiedConnection(isInitialConnection,
+          this.hostListProviderService,
+          driverProtocol, hostSpec, props, connectFunc);
+      if (this.failoverMode == STRICT_WRITER) {
+        this.currentWriterHost = this.pluginService.getHosts().stream().filter(x -> x.getRole() == HostRole.WRITER)
+            .findFirst()
+            .orElse(null);
+      }
+      return conn;
     }
 
     final HostSpec hostSpecWithAvailability = this.pluginService.getHosts().stream()
@@ -756,6 +781,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       this.pluginService.refreshHostList(conn);
     }
 
+    if (this.failoverMode == STRICT_WRITER) {
+      this.currentWriterHost = this.pluginService.getHosts().stream().filter(x -> x.getRole() == HostRole.WRITER)
+          .findFirst()
+          .orElse(null);
+    }
     return conn;
   }
 }

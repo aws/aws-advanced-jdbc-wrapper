@@ -21,13 +21,16 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.hostlistprovider.monitoring.ClusterTopologyMonitorImpl;
 
 public class CacheMap<K, V> {
 
   protected final Map<K, CacheItem<V>> cache = new ConcurrentHashMap<>();
   protected final long cleanupIntervalNanos = TimeUnit.MINUTES.toNanos(10);
   protected final AtomicLong cleanupTimeNanos = new AtomicLong(System.nanoTime() + cleanupIntervalNanos);
+  private static final Logger LOGGER = Logger.getLogger(CacheMap.class.getName());
 
   public CacheMap() {
   }

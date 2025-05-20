@@ -24,6 +24,7 @@ import integration.TestInstanceInfo;
 import java.util.Properties;
 import java.util.Set;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.util.StringUtils;
 
 public class ConnectionStringHelper {
