@@ -84,7 +84,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
       Region region,
       long refreshRateNano,
       BiFunction<HostSpec, Region, RdsClient> rdsClientFunc) {
-    super(monitorService, 30, "cemi");
+    super(30);
     this.storageService = storageService;
     this.customEndpointHostSpec = customEndpointHostSpec;
     this.endpointIdentifier = endpointIdentifier;

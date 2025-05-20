@@ -18,10 +18,11 @@ package software.amazon.jdbc.util.monitoring;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
-import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
+import org.jetbrains.annotations.NotNull;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -32,21 +33,30 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
   private static final Logger LOGGER = Logger.getLogger(AbstractMonitor.class.getName());
   protected final AtomicBoolean stop = new AtomicBoolean(false);
   protected final long terminationTimeoutSec;
-  protected final CoreMonitorService monitorService;
-  protected final ExecutorService monitorExecutor = Executors.newSingleThreadExecutor(runnableTarget -> {
-    final Thread monitoringThread = new Thread(runnableTarget);
-    monitoringThread.setDaemon(true);
-    if (!StringUtils.isNullOrEmpty(monitoringThread.getName())) {
-      monitoringThread.setName(monitoringThread.getName() + "-" + getMonitorNameSuffix());
-    }
-    return monitoringThread;
-  });
+  protected final ExecutorService monitorExecutor;
 
   protected long lastActivityTimestampNanos;
   protected MonitorState state;
 
-  protected AbstractMonitor(CoreMonitorService monitorService, long terminationTimeoutSec) {
-    this.monitorService = monitorService;
+  protected AbstractMonitor(long terminationTimeoutSec) {
+    this(
+        Executors.newSingleThreadExecutor(new ThreadFactory() {
+          @Override
+          public Thread newThread(@NotNull Runnable runnableTarget) {
+            final Thread monitoringThread = new Thread(runnableTarget);
+            monitoringThread.setDaemon(true);
+            if (!StringUtils.isNullOrEmpty(monitoringThread.getName())) {
+              String monitorSuffix = getClass().getSimpleName().replaceAll("[a-z]", "").toLowerCase();
+              monitoringThread.setName(monitoringThread.getName() + "-" + monitorSuffix);
+            }
+            return monitoringThread;
+          }
+        }),
+        terminationTimeoutSec);
+  }
+
+  protected AbstractMonitor(ExecutorService executorService, long terminationTimeoutSec) {
+    this.monitorExecutor = executorService;
     this.terminationTimeoutSec = terminationTimeoutSec;
     this.lastActivityTimestampNanos = System.nanoTime();
   }
@@ -72,7 +82,6 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
     } catch (Exception e) {
       LOGGER.fine(Messages.get("AbstractMonitor.unexpectedError", new Object[] {this, e}));
       this.state = MonitorState.ERROR;
-      // monitorService.reportMonitorError(this, e);
     }
   }
 
@@ -115,15 +124,5 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
   @Override
   public boolean canDispose() {
     return true;
-  }
-
-  /**
-   * Forms the suffix for the monitor thread name by abbreviating the concrete class name. For example, a
-   * {@link CustomEndpointMonitorImpl} will have a suffix of "cemi".
-   *
-   * @return the suffix for the monitor thread name.
-   */
-  private String getMonitorNameSuffix() {
-    return this.getClass().getSimpleName().replaceAll("[a-z]", "").toLowerCase();
   }
 }

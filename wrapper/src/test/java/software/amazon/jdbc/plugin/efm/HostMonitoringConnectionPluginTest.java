@@ -64,7 +64,6 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.ServiceContainer;
 
 class HostMonitoringConnectionPluginTest {
 
@@ -75,7 +74,6 @@ class HostMonitoringConnectionPluginTest {
   static final int FAILURE_DETECTION_INTERVAL = 100;
   static final int FAILURE_DETECTION_COUNT = 5;
   private static final Object[] EMPTY_ARGS = {};
-  @Mock ServiceContainer mockServiceContainer;
   @Mock PluginService pluginService;
   @Mock Dialect mockDialect;
   @Mock Connection connection;
@@ -96,7 +94,7 @@ class HostMonitoringConnectionPluginTest {
 
   /**
    * Generate different sets of method arguments where one argument is null to ensure {@link
-   * software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin#HostMonitoringConnectionPlugin(ServiceContainer,
+   * software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin#HostMonitoringConnectionPlugin(PluginService,
    * Properties)} can handle null arguments correctly.
    *
    * @return different sets of arguments.
@@ -136,7 +134,6 @@ class HostMonitoringConnectionPluginTest {
         .thenReturn(context);
     when(context.getLock()).thenReturn(mockReentrantLock);
 
-    when(mockServiceContainer.getPluginService()).thenReturn(pluginService);
     when(pluginService.getCurrentConnection()).thenReturn(connection);
     when(pluginService.getCurrentHostSpec()).thenReturn(hostSpec);
     when(pluginService.getDialect()).thenReturn(mockDialect);
@@ -158,7 +155,7 @@ class HostMonitoringConnectionPluginTest {
   }
 
   private void initializePlugin() {
-    plugin = new HostMonitoringConnectionPlugin(mockServiceContainer, properties, supplier, rdsUtils);
+    plugin = new HostMonitoringConnectionPlugin(pluginService, properties, supplier, rdsUtils);
   }
 
   @Test

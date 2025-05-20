@@ -85,14 +85,14 @@ public class MonitorImpl extends AbstractMonitor implements Monitor {
   /**
    * Store the monitoring configuration for a connection.
    *
-   * @param pluginService               The service container for the services required by this class.
+   * @param serviceContainer               The service container for the services required by this class.
    * @param hostSpec                       The {@link HostSpec} of the server this {@link MonitorImpl} instance is
    *                                       monitoring.
    * @param properties                     The {@link Properties} containing additional monitoring configuration.
    * @param failureDetectionTimeMillis     A failure detection time in millis.
    * @param failureDetectionIntervalMillis A failure detection interval in millis.
-   * @param failureDetectionCount          A failure detection count.
-   * @param abortedConnectionsCounter      Aborted connection telemetry counter.
+   * @param failureDetectionCount A failure detection count.
+   * @param abortedConnectionsCounter Aborted connection telemetry counter.
    */
   public MonitorImpl(
       final @NonNull ServiceContainer serviceContainer,
@@ -103,7 +103,6 @@ public class MonitorImpl extends AbstractMonitor implements Monitor {
       final int failureDetectionCount,
       final TelemetryCounter abortedConnectionsCounter) {
     super(
-        serviceContainer.getMonitorService(),
         Executors.newFixedThreadPool(2, runnableTarget -> {
           final Thread monitoringThread = new Thread(runnableTarget);
           monitoringThread.setDaemon(true);
@@ -115,7 +114,7 @@ public class MonitorImpl extends AbstractMonitor implements Monitor {
         30);
 
     this.pluginService = serviceContainer.getPluginService();
-    this.telemetryFactory = serviceContainer.getTelemetryFactory();
+    this.telemetryFactory = pluginService.getTelemetryFactory();
     this.hostSpec = hostSpec;
     this.properties = properties;
     this.failureDetectionTimeNano = TimeUnit.MILLISECONDS.toNanos(failureDetectionTimeMillis);

@@ -39,7 +39,6 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.RandomHostSelector;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
-import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.storage.CacheMap;
 
 public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
@@ -81,21 +80,21 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
     PropertyDefinition.registerPluginProperties("frt-");
   }
 
-  public FastestResponseStrategyPlugin(final ServiceContainer serviceContainer, final @NonNull Properties properties) {
-    this(serviceContainer,
+  public FastestResponseStrategyPlugin(final PluginService pluginService, final @NonNull Properties properties) {
+    this(pluginService,
         properties,
         new HostResponseTimeServiceImpl(
-            serviceContainer,
+            pluginService,
             properties,
             RESPONSE_MEASUREMENT_INTERVAL_MILLIS.getInteger(properties)));
   }
 
   public FastestResponseStrategyPlugin(
-      final ServiceContainer serviceContainer,
+      final PluginService pluginService,
       final @NonNull Properties properties,
       final @NonNull HostResponseTimeService hostResponseTimeService) {
 
-    this.pluginService = serviceContainer.getPluginService();
+    this.pluginService = pluginService;
     this.properties = properties;
     this.hostResponseTimeService = hostResponseTimeService;
     this.cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(

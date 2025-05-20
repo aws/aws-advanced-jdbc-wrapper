@@ -40,6 +40,7 @@ import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
+import software.amazon.jdbc.util.WrapperUtils;
 
 /**
  * Monitor the server while the connection is executing methods for more sophisticated failure
@@ -94,11 +95,15 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
    * Initialize the node monitoring plugin.
    *
    * @param serviceContainer The service container for the services required by this class.
-   * @param properties The property set used to initialize the active connection.
+   * @param properties       The property set used to initialize the active connection.
    */
   public HostMonitoringConnectionPlugin(
       final @NonNull ServiceContainer serviceContainer, final @NonNull Properties properties) {
-    this(serviceContainer, properties, () -> new MonitorServiceImpl(serviceContainer), new RdsUtils());
+    this(
+        serviceContainer,
+        properties,
+        () -> new MonitorServiceImpl(serviceContainer),
+        new RdsUtils());
   }
 
   HostMonitoringConnectionPlugin(
@@ -156,14 +161,18 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
 
       final HostSpec monitoringHostSpec = this.getMonitoringHostSpec();
 
-      monitorContext =
-          this.monitorService.startMonitoring(
-              this.pluginService.getCurrentConnection(), // abort this connection if needed
-              monitoringHostSpec,
-              this.properties,
-              failureDetectionTimeMillis,
-              failureDetectionIntervalMillis,
-              failureDetectionCount);
+      try {
+        monitorContext =
+            this.monitorService.startMonitoring(
+                this.pluginService.getCurrentConnection(), // abort this connection if needed
+                monitoringHostSpec,
+                this.properties,
+                failureDetectionTimeMillis,
+                failureDetectionIntervalMillis,
+                failureDetectionCount);
+      } catch (SQLException e) {
+        throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
+      }
 
       result = jdbcMethodFunc.call();
 
@@ -187,7 +196,9 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     }
   }
 
-  /** Call this plugin's monitor service to release all resources associated with this plugin. */
+  /**
+   * Call this plugin's monitor service to release all resources associated with this plugin.
+   */
   @Override
   public void releaseResources() {
     if (this.monitorService != null) {

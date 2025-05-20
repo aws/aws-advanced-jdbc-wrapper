@@ -20,6 +20,7 @@ import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.ServiceContainerPluginFactory;
+import software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ServiceContainer;
 
@@ -29,11 +30,12 @@ public class HostMonitoringConnectionPluginFactory implements ServiceContainerPl
   public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
     throw new UnsupportedOperationException(
         Messages.get(
-            "ServiceContainerPluginFactory.serviceContainerRequired", new Object[] {"HostMonitoringConnectionPlugin"}));
+            "ServiceContainerPluginFactory.serviceContainerRequired",
+            new Object[] {"efm2.HostMonitoringConnectionPlugin"}));
   }
 
   @Override
   public ConnectionPlugin getInstance(final ServiceContainer serviceContainer, final Properties props) {
-    return new HostMonitoringConnectionPlugin(serviceContainer, props);
+    return new CustomEndpointPlugin(serviceContainer, props);
   }
 }

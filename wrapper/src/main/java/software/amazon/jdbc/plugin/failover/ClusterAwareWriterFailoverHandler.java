@@ -37,7 +37,6 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
-import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.Utils;
 
 /**
@@ -62,23 +61,23 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
       new WriterFailoverResult(false, false, null, null, "None");
 
   public ClusterAwareWriterFailoverHandler(
-      final ServiceContainer serviceContainer,
+      final PluginService pluginService,
       final ReaderFailoverHandler readerFailoverHandler,
       final Properties initialConnectionProps) {
-    this.pluginService = serviceContainer.getPluginService();
+    this.pluginService = pluginService;
     this.readerFailoverHandler = readerFailoverHandler;
     this.initialConnectionProps = initialConnectionProps;
   }
 
   public ClusterAwareWriterFailoverHandler(
-      final ServiceContainer serviceContainer,
+      final PluginService pluginService,
       final ReaderFailoverHandler readerFailoverHandler,
       final Properties initialConnectionProps,
       final int failoverTimeoutMs,
       final int readTopologyIntervalMs,
       final int reconnectWriterIntervalMs) {
     this(
-        serviceContainer,
+        pluginService,
         readerFailoverHandler,
         initialConnectionProps);
     this.maxFailoverTimeoutMs = failoverTimeoutMs;

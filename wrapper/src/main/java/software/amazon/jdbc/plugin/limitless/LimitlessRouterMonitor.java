@@ -31,7 +31,6 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
-import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.storage.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -49,11 +48,12 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
   protected final SlidingExpirationCacheWithCleanupThread<String, List<HostSpec>> limitlessRouterCache;
   protected final String limitlessRouterCacheKey;
   protected final @NonNull Properties props;
-  protected final PluginService pluginService;
+  protected final @NonNull PluginService pluginService;
   protected final LimitlessQueryHelper queryHelper;
   protected final TelemetryFactory telemetryFactory;
   protected Connection monitoringConn = null;
 
+  // TODO: remove and submit monitors to MonitorService instead
   private final ExecutorService threadPool = Executors.newFixedThreadPool(1, runnableTarget -> {
     final Thread monitoringThread = new Thread(runnableTarget);
     monitoringThread.setDaemon(true);
@@ -63,12 +63,13 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
   private final AtomicBoolean stopped = new AtomicBoolean(false);
 
   public LimitlessRouterMonitor(
-      final @NonNull ServiceContainer serviceContainer,
+      final @NonNull PluginService pluginService,
       final @NonNull HostSpec hostSpec,
       final @NonNull SlidingExpirationCacheWithCleanupThread<String, List<HostSpec>> limitlessRouterCache,
       final @NonNull String limitlessRouterCacheKey,
       final @NonNull Properties props,
       final int intervalMs) {
+    this.pluginService = pluginService;
     this.hostSpec = hostSpec;
     this.limitlessRouterCache = limitlessRouterCache;
     this.limitlessRouterCacheKey = limitlessRouterCacheKey;
@@ -85,8 +86,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
     this.props.setProperty(LimitlessConnectionPlugin.WAIT_FOR_ROUTER_INFO.name, "false");
 
     this.intervalMs = intervalMs;
-    this.pluginService = serviceContainer.getPluginService();
-    this.telemetryFactory = serviceContainer.getTelemetryFactory();
+    this.telemetryFactory = this.pluginService.getTelemetryFactory();
     this.queryHelper = new LimitlessQueryHelper(this.pluginService);
     this.threadPool.submit(this);
     this.threadPool.shutdown(); // No more task are accepted by pool.

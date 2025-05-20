@@ -26,19 +26,20 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.storage.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 
 public class HostResponseTimeServiceImpl implements HostResponseTimeService {
 
-  private static final Logger LOGGER = Logger.getLogger(HostResponseTimeServiceImpl.class.getName());
+  private static final Logger LOGGER =
+      Logger.getLogger(HostResponseTimeServiceImpl.class.getName());
 
   protected static final long CACHE_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(10);
   protected static final long CACHE_CLEANUP_NANO = TimeUnit.MINUTES.toNanos(1);
 
-  protected static final ReentrantLock cacheLock = new ReentrantLock();
+  // TODO: remove and submit monitors to MonitorService instead
   protected static final SlidingExpirationCacheWithCleanupThread<String, NodeResponseTimeMonitor> monitoringNodes
       = new SlidingExpirationCacheWithCleanupThread<>(
           (monitor) -> true,
@@ -50,24 +51,28 @@ public class HostResponseTimeServiceImpl implements HostResponseTimeService {
             }
           },
           CACHE_CLEANUP_NANO);
+  protected static final ReentrantLock cacheLock = new ReentrantLock();
 
+  protected int intervalMs;
 
-  protected final @NonNull ServiceContainer serviceContainer;
+  protected List<HostSpec> hosts = new ArrayList<>();
+
+  protected final @NonNull PluginService pluginService;
+
   protected final @NonNull Properties props;
+
   protected final TelemetryFactory telemetryFactory;
   private final TelemetryGauge nodeCountGauge;
 
-  protected List<HostSpec> hosts = new ArrayList<>();
-  protected int intervalMs;
-
   public HostResponseTimeServiceImpl(
-      final @NonNull ServiceContainer serviceContainer,
+      final @NonNull PluginService pluginService,
       final @NonNull Properties props,
       int intervalMs) {
-    this.serviceContainer = serviceContainer;
+
+    this.pluginService = pluginService;
     this.props = props;
     this.intervalMs = intervalMs;
-    this.telemetryFactory = serviceContainer.getTelemetryFactory();
+    this.telemetryFactory = this.pluginService.getTelemetryFactory();
     this.nodeCountGauge = telemetryFactory.createGauge("frt.nodes.count",
         () -> (long) monitoringNodes.size());
 
@@ -98,7 +103,7 @@ public class HostResponseTimeServiceImpl implements HostResponseTimeService {
           try {
             monitoringNodes.computeIfAbsent(
                 hostSpec.getUrl(),
-                (key) -> new NodeResponseTimeMonitor(this.serviceContainer, hostSpec, this.props, this.intervalMs),
+                (key) -> new NodeResponseTimeMonitor(this.pluginService, hostSpec, this.props, this.intervalMs),
                 CACHE_EXPIRATION_NANO);
           } finally {
             cacheLock.unlock();

@@ -30,7 +30,6 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.monitoring.CoreMonitorService;
-import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -97,7 +96,7 @@ public class MonitorServiceImpl implements MonitorService {
       final Properties properties,
       final int failureDetectionTimeMillis,
       final int failureDetectionIntervalMillis,
-      final int failureDetectionCount) {
+      final int failureDetectionCount) throws SQLException {
 
     final Monitor monitor = this.getMonitor(
         hostSpec,
@@ -155,7 +154,7 @@ public class MonitorServiceImpl implements MonitorService {
       final Properties properties,
       final int failureDetectionTimeMillis,
       final int failureDetectionIntervalMillis,
-      final int failureDetectionCount) {
+      final int failureDetectionCount) throws SQLException {
 
     final String monitorKey = String.format("%d:%d:%d:%s",
         failureDetectionTimeMillis,
@@ -183,7 +182,6 @@ public class MonitorServiceImpl implements MonitorService {
             failureDetectionTimeMillis,
             failureDetectionIntervalMillis,
             failureDetectionCount,
-            this.abortedConnectionsCounter),
-        cacheExpirationNano);
+            this.abortedConnectionsCounter));
   }
 }
