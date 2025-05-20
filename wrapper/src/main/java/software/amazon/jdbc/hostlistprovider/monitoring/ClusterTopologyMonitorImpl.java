@@ -67,6 +67,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected static final String MONITORING_PROPERTY_PREFIX = "topology-monitoring-";
   protected static final Executor networkTimeoutExecutor = new SynchronousExecutor();
   protected static final RdsUtils rdsHelper = new RdsUtils();
+  protected static final long monitorTerminationTimeoutSec = 30;
 
   protected static final int defaultTopologyQueryTimeoutMs = 1000;
   protected static final int closeConnectionNetworkTimeoutMs = 500;
@@ -123,7 +124,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       final String topologyQuery,
       final String writerTopologyQuery,
       final String nodeIdQuery) {
-    super(30);
+    super(monitorTerminationTimeoutSec);
 
     this.clusterId = clusterId;
     this.storageService = storageService;

@@ -49,6 +49,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
   // Keys are custom endpoint URLs, values are information objects for the associated custom endpoint.
   protected static final CacheMap<String, CustomEndpointInfo> customEndpointInfoCache = new CacheMap<>();
   protected static final long CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(5);
+  protected static final long MONITOR_TERMINATION_TIMEOUT_SEC = 30;
 
   protected final RdsClient rdsClient;
   protected final HostSpec customEndpointHostSpec;
@@ -81,7 +82,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
       Region region,
       long refreshRateNano,
       BiFunction<HostSpec, Region, RdsClient> rdsClientFunc) {
-    super(30);
+    super(MONITOR_TERMINATION_TIMEOUT_SEC);
     this.storageService = storageService;
     this.customEndpointHostSpec = customEndpointHostSpec;
     this.endpointIdentifier = endpointIdentifier;

@@ -194,9 +194,9 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
-  @Deprecated
   public void setAllowedAndBlockedHosts(AllowedAndBlockedHosts allowedAndBlockedHosts) {
-    this.storageService.set(this.initialConnectionHostSpec.getHost(), allowedAndBlockedHosts);
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"setAllowedAndBlockedHosts"}));
   }
 
   @Override
