@@ -312,7 +312,10 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
                 this.submittedNodes.computeIfAbsent(hostSpec.getHost(),
                     (key) -> {
                       this.nodeExecutorService.submit(
-                          this.getNodeMonitoringWorker(hostSpec, this.writerHostSpec.get()));
+                          this.getNodeMonitoringWorker(
+                              hostSpec,
+                              this.writerHostSpec.get(),
+                              hostSpec.getRole() == HostRole.WRITER));
                       return true;
                     });
               }
@@ -479,7 +482,14 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
   }
 
   protected Runnable getNodeMonitoringWorker(final HostSpec hostSpec, final @Nullable HostSpec writerHostSpec) {
-    return new NodeMonitoringWorker(this, hostSpec, writerHostSpec);
+    return getNodeMonitoringWorker(hostSpec, writerHostSpec, false);
+  }
+
+  protected Runnable getNodeMonitoringWorker(
+      final HostSpec hostSpec,
+      final @Nullable HostSpec writerHostSpec,
+      final boolean ignoreWriterVerification) {
+    return new NodeMonitoringWorker(this, hostSpec, writerHostSpec, ignoreWriterVerification);
   }
 
   protected List<HostSpec> openAnyConnectionAndUpdateTopology() {
@@ -799,15 +809,18 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
     protected final HostSpec hostSpec;
     protected final @Nullable HostSpec writerHostSpec;
     protected boolean writerChanged = false;
+    protected boolean ignoreWriterVerification;
 
     public NodeMonitoringWorker(
         final ClusterTopologyMonitorImpl monitor,
         final HostSpec hostSpec,
-        final @Nullable HostSpec writerHostSpec
+        final @Nullable HostSpec writerHostSpec,
+        final boolean ignoreWriterVerification
     ) {
       this.monitor = monitor;
       this.hostSpec = hostSpec;
       this.writerHostSpec = writerHostSpec;
+      this.ignoreWriterVerification = ignoreWriterVerification;
     }
 
     @Override
@@ -834,19 +847,20 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
           }
 
           if (connection != null) {
-
             String writerId = null;
-            try {
-              writerId = this.monitor.getWriterNodeId(connection);
+            if (!this.ignoreWriterVerification) {
+              try {
+                writerId = this.monitor.getWriterNodeId(connection);
 
-            } catch (SQLSyntaxErrorException ex) {
-              LOGGER.severe(() -> Messages.get("NodeMonitoringThread.invalidWriterQuery",
-                  new Object[] {ex.getMessage()}));
-              throw new RuntimeException(ex);
+              } catch (SQLSyntaxErrorException ex) {
+                LOGGER.severe(() -> Messages.get("NodeMonitoringThread.invalidWriterQuery",
+                    new Object[] {ex.getMessage()}));
+                throw new RuntimeException(ex);
 
-            } catch (SQLException ex) {
-              this.monitor.closeConnection(connection);
-              connection = null;
+              } catch (SQLException ex) {
+                this.monitor.closeConnection(connection);
+                connection = null;
+              }
             }
 
             if (!StringUtils.isNullOrEmpty(writerId)) {
