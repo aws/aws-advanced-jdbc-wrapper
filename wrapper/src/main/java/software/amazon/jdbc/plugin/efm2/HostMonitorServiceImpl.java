@@ -36,9 +36,9 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
  * This class handles the creation and clean up of monitoring threads to servers with one or more
  * active connections.
  */
-public class MonitorServiceImpl implements MonitorService {
+public class HostMonitorServiceImpl implements HostMonitorService {
 
-  private static final Logger LOGGER = Logger.getLogger(MonitorServiceImpl.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(HostMonitorServiceImpl.class.getName());
   public static final AwsWrapperProperty MONITOR_DISPOSAL_TIME_MS =
       new AwsWrapperProperty(
           "monitorDisposalTime",
@@ -49,9 +49,9 @@ public class MonitorServiceImpl implements MonitorService {
 
   protected static final Executor ABORT_EXECUTOR = Executors.newSingleThreadExecutor();
   // TODO: remove and submit monitors to MonitorService instead
-  protected static final SlidingExpirationCacheWithCleanupThread<String, Monitor> monitors =
+  protected static final SlidingExpirationCacheWithCleanupThread<String, HostMonitor> monitors =
       new SlidingExpirationCacheWithCleanupThread<>(
-          Monitor::canDispose,
+          HostMonitor::canDispose,
           (monitor) -> {
             try {
               monitor.close();
@@ -62,11 +62,11 @@ public class MonitorServiceImpl implements MonitorService {
           CACHE_CLEANUP_NANO);
 
   protected final PluginService pluginService;
-  protected final MonitorInitializer monitorInitializer;
+  protected final HostMonitorInitializer monitorInitializer;
   protected final TelemetryFactory telemetryFactory;
   protected final TelemetryCounter abortedConnectionsCounter;
 
-  public MonitorServiceImpl(final @NonNull PluginService pluginService) {
+  public HostMonitorServiceImpl(final @NonNull PluginService pluginService) {
     this(
         pluginService,
         (hostSpec,
@@ -75,7 +75,7 @@ public class MonitorServiceImpl implements MonitorService {
             failureDetectionIntervalMillis,
             failureDetectionCount,
             abortedConnectionsCounter) ->
-            new MonitorImpl(
+            new HostMonitorImpl(
                 pluginService,
                 hostSpec,
                 properties,
@@ -85,9 +85,9 @@ public class MonitorServiceImpl implements MonitorService {
                 abortedConnectionsCounter));
   }
 
-  MonitorServiceImpl(
+  HostMonitorServiceImpl(
       final @NonNull PluginService pluginService,
-      final @NonNull MonitorInitializer monitorInitializer) {
+      final @NonNull HostMonitorInitializer monitorInitializer) {
     this.pluginService = pluginService;
     this.telemetryFactory = pluginService.getTelemetryFactory();
     this.abortedConnectionsCounter = telemetryFactory.createCounter("efm2.connections.aborted");
@@ -106,7 +106,7 @@ public class MonitorServiceImpl implements MonitorService {
   }
 
   @Override
-  public MonitorConnectionContext startMonitoring(
+  public HostMonitorConnectionContext startMonitoring(
       final Connection connectionToAbort,
       final HostSpec hostSpec,
       final Properties properties,
@@ -114,14 +114,14 @@ public class MonitorServiceImpl implements MonitorService {
       final int failureDetectionIntervalMillis,
       final int failureDetectionCount) {
 
-    final Monitor monitor = this.getMonitor(
+    final HostMonitor monitor = this.getMonitor(
         hostSpec,
         properties,
         failureDetectionTimeMillis,
         failureDetectionIntervalMillis,
         failureDetectionCount);
 
-    final MonitorConnectionContext context = new MonitorConnectionContext(connectionToAbort);
+    final HostMonitorConnectionContext context = new HostMonitorConnectionContext(connectionToAbort);
     monitor.startMonitoring(context);
 
     return context;
@@ -129,7 +129,7 @@ public class MonitorServiceImpl implements MonitorService {
 
   @Override
   public void stopMonitoring(
-      @NonNull final MonitorConnectionContext context,
+      @NonNull final HostMonitorConnectionContext context,
       @NonNull Connection connectionToAbort) {
 
     if (context.shouldAbort()) {
@@ -156,16 +156,16 @@ public class MonitorServiceImpl implements MonitorService {
   }
 
   /**
-   * Get or create a {@link MonitorImpl} for a server.
+   * Get or create a {@link HostMonitorImpl} for a server.
    *
    * @param hostSpec Information such as hostname of the server.
    * @param properties The user configuration for the current connection.
    * @param failureDetectionTimeMillis A failure detection time in millis.
    * @param failureDetectionIntervalMillis A failure detection interval in millis.
    * @param failureDetectionCount A failure detection count.
-   * @return A {@link MonitorImpl} object associated with a specific server.
+   * @return A {@link HostMonitorImpl} object associated with a specific server.
    */
-  protected Monitor getMonitor(
+  protected HostMonitor getMonitor(
       final HostSpec hostSpec,
       final Properties properties,
       final int failureDetectionTimeMillis,

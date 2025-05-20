@@ -30,7 +30,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 @Disabled
-public class MultiThreadedMonitorThreadContainerTest {
+public class MultiThreadedHostMonitorThreadContainerTest {
 
   @Mock ExecutorServiceInitializer mockExecutorServiceInitializer;
   @Mock ExecutorService mockExecutorService;
@@ -46,17 +46,17 @@ public class MultiThreadedMonitorThreadContainerTest {
   @AfterEach
   void cleanup() throws Exception {
     closeable.close();
-    MonitorThreadContainer.releaseInstance();
+    HostMonitorThreadContainer.releaseInstance();
   }
 
   @RepeatedTest(value = 1000, name = "MonitorThreadContainer ThreadPoolExecutor is not closed prematurely")
   void testThreadPoolExecutorNotClosedPrematurely() throws InterruptedException {
-    MonitorThreadContainer.getInstance(mockExecutorServiceInitializer);
+    HostMonitorThreadContainer.getInstance(mockExecutorServiceInitializer);
 
     ExecutorService executorService = Executors.newCachedThreadPool();
-    executorService.execute(() -> MonitorThreadContainer.getInstance(mockExecutorServiceInitializer));
+    executorService.execute(() -> HostMonitorThreadContainer.getInstance(mockExecutorServiceInitializer));
     Thread.sleep(3);
-    executorService.execute(MonitorThreadContainer::releaseInstance);
+    executorService.execute(HostMonitorThreadContainer::releaseInstance);
     executorService.shutdown();
 
     verify(mockExecutorService, times(0)).shutdownNow();

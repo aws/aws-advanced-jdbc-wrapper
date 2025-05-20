@@ -20,10 +20,10 @@ import java.util.Properties;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 
-/** Interface for initialize a new {@link MonitorImpl}. */
+/** Interface for initialize a new {@link HostMonitorImpl}. */
 @FunctionalInterface
-public interface MonitorInitializer {
-  Monitor createMonitor(
+public interface HostMonitorInitializer {
+  HostMonitor createMonitor(
       HostSpec hostSpec,
       Properties properties,
       final int failureDetectionTimeMillis,

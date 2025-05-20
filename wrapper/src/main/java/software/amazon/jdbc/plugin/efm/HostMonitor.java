@@ -20,17 +20,17 @@ package software.amazon.jdbc.plugin.efm;
  * Interface for monitors. This class uses background threads to monitor servers with one or more
  * connections for more efficient failure detection during method execution.
  */
-public interface Monitor extends Runnable {
+public interface HostMonitor extends Runnable {
 
-  void startMonitoring(MonitorConnectionContext context);
+  void startMonitoring(HostMonitorConnectionContext context);
 
-  void stopMonitoring(MonitorConnectionContext context);
+  void stopMonitoring(HostMonitorConnectionContext context);
 
-  /** Clear all {@link MonitorConnectionContext} associated with this {@link Monitor} instance. */
+  /** Clear all {@link HostMonitorConnectionContext} associated with this {@link HostMonitor} instance. */
   void clearContexts();
 
   /**
-   * Whether this {@link Monitor} has stopped monitoring a particular server.
+   * Whether this {@link HostMonitor} has stopped monitoring a particular server.
    *
    * @return true if the monitoring has stopped; false otherwise.
    */

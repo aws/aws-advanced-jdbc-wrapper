@@ -35,9 +35,9 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
  * This class handles the creation and clean up of monitoring threads to servers with one or more
  * active connections.
  */
-public class MonitorServiceImpl implements MonitorService {
+public class HostMonitorServiceImpl implements HostMonitorService {
 
-  private static final Logger LOGGER = Logger.getLogger(MonitorServiceImpl.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(HostMonitorServiceImpl.class.getName());
 
   public static final AwsWrapperProperty MONITOR_DISPOSAL_TIME_MS =
       new AwsWrapperProperty(
@@ -46,19 +46,19 @@ public class MonitorServiceImpl implements MonitorService {
           "Interval in milliseconds for a monitor to be considered inactive and to be disposed.");
 
   private final PluginService pluginService;
-  private MonitorThreadContainer threadContainer;
+  private HostMonitorThreadContainer threadContainer;
 
-  final MonitorInitializer monitorInitializer;
+  final HostMonitorInitializer monitorInitializer;
   private Set<String> cachedMonitorNodeKeys = null;
-  private WeakReference<Monitor> cachedMonitor = null;
+  private WeakReference<HostMonitor> cachedMonitor = null;
   final TelemetryFactory telemetryFactory;
   final TelemetryCounter abortedConnectionsCounter;
 
-  public MonitorServiceImpl(final @NonNull PluginService pluginService) {
+  public HostMonitorServiceImpl(final @NonNull PluginService pluginService) {
     this(
         pluginService,
         (hostSpec, properties, monitorService) ->
-            new MonitorImpl(
+            new HostMonitorImpl(
                 pluginService,
                 hostSpec,
                 properties,
@@ -73,19 +73,19 @@ public class MonitorServiceImpl implements MonitorService {
                 }));
   }
 
-  MonitorServiceImpl(
+  HostMonitorServiceImpl(
       final PluginService pluginService,
-      final MonitorInitializer monitorInitializer,
+      final HostMonitorInitializer monitorInitializer,
       final ExecutorServiceInitializer executorServiceInitializer) {
     this.pluginService = pluginService;
     this.telemetryFactory = pluginService.getTelemetryFactory();
     this.abortedConnectionsCounter = telemetryFactory.createCounter("efm.connections.aborted");
     this.monitorInitializer = monitorInitializer;
-    this.threadContainer = MonitorThreadContainer.getInstance(executorServiceInitializer);
+    this.threadContainer = HostMonitorThreadContainer.getInstance(executorServiceInitializer);
   }
 
   @Override
-  public MonitorConnectionContext startMonitoring(
+  public HostMonitorConnectionContext startMonitoring(
       final Connection connectionToAbort,
       final Set<String> nodeKeys,
       final HostSpec hostSpec,
@@ -100,7 +100,7 @@ public class MonitorServiceImpl implements MonitorService {
           new Object[] {hostSpec}));
     }
 
-    Monitor monitor = this.cachedMonitor == null ? null : this.cachedMonitor.get();
+    HostMonitor monitor = this.cachedMonitor == null ? null : this.cachedMonitor.get();
     if (monitor == null
         || monitor.isStopped()
         || this.cachedMonitorNodeKeys == null
@@ -111,8 +111,8 @@ public class MonitorServiceImpl implements MonitorService {
       this.cachedMonitorNodeKeys = Collections.unmodifiableSet(nodeKeys);
     }
 
-    final MonitorConnectionContext context =
-        new MonitorConnectionContext(
+    final HostMonitorConnectionContext context =
+        new HostMonitorConnectionContext(
             monitor,
             connectionToAbort,
             failureDetectionTimeMillis,
@@ -126,14 +126,14 @@ public class MonitorServiceImpl implements MonitorService {
   }
 
   @Override
-  public void stopMonitoring(@NonNull final MonitorConnectionContext context) {
-    final Monitor monitor = context.getMonitor();
+  public void stopMonitoring(@NonNull final HostMonitorConnectionContext context) {
+    final HostMonitor monitor = context.getMonitor();
     monitor.stopMonitoring(context);
   }
 
   @Override
   public void stopMonitoringForAllConnections(@NonNull final Set<String> nodeKeys) {
-    Monitor monitor;
+    HostMonitor monitor;
     for (final String nodeKey : nodeKeys) {
       monitor = this.threadContainer.getMonitor(nodeKey);
       if (monitor != null) {
@@ -149,19 +149,19 @@ public class MonitorServiceImpl implements MonitorService {
   }
 
   /**
-   * Get or create a {@link MonitorImpl} for a server.
+   * Get or create a {@link HostMonitorImpl} for a server.
    *
    * @param nodeKeys All references to the server requiring monitoring.
    * @param hostSpec Information such as hostname of the server.
    * @param properties The user configuration for the current connection.
-   * @return A {@link MonitorImpl} object associated with a specific server.
+   * @return A {@link HostMonitorImpl} object associated with a specific server.
    */
-  protected Monitor getMonitor(final Set<String> nodeKeys, final HostSpec hostSpec, final Properties properties) {
+  protected HostMonitor getMonitor(final Set<String> nodeKeys, final HostSpec hostSpec, final Properties properties) {
     return this.threadContainer.getOrCreateMonitor(
         nodeKeys, () -> monitorInitializer.createMonitor(hostSpec, properties, this.threadContainer));
   }
 
-  MonitorThreadContainer getThreadContainer() {
+  HostMonitorThreadContainer getThreadContainer() {
     return this.threadContainer;
   }
 }

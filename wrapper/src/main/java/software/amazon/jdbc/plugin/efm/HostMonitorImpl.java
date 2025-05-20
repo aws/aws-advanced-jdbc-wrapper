@@ -40,7 +40,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
  * This class uses a background thread to monitor a particular server with one or more active {@link
  * Connection}.
  */
-public class MonitorImpl implements Monitor {
+public class HostMonitorImpl implements HostMonitor {
 
   static class ConnectionStatus {
 
@@ -53,18 +53,18 @@ public class MonitorImpl implements Monitor {
     }
   }
 
-  private static final Logger LOGGER = Logger.getLogger(MonitorImpl.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(HostMonitorImpl.class.getName());
   private static final long THREAD_SLEEP_WHEN_INACTIVE_MILLIS = 100;
   private static final long MIN_CONNECTION_CHECK_TIMEOUT_MILLIS = 100;
   private static final String MONITORING_PROPERTY_PREFIX = "monitoring-";
 
-  final Queue<MonitorConnectionContext> activeContexts = new ConcurrentLinkedQueue<>();
-  private final Queue<MonitorConnectionContext> newContexts = new ConcurrentLinkedQueue<>();
+  final Queue<HostMonitorConnectionContext> activeContexts = new ConcurrentLinkedQueue<>();
+  private final Queue<HostMonitorConnectionContext> newContexts = new ConcurrentLinkedQueue<>();
   private final PluginService pluginService;
   private final TelemetryFactory telemetryFactory;
   private final Properties properties;
   private final HostSpec hostSpec;
-  private final MonitorThreadContainer threadContainer;
+  private final HostMonitorThreadContainer threadContainer;
   private final long monitorDisposalTimeMillis;
   private volatile long contextLastUsedTimestampNano;
   private volatile boolean stopped = false;
@@ -78,22 +78,22 @@ public class MonitorImpl implements Monitor {
    * Store the monitoring configuration for a connection.
    *
    * @param pluginService             A service for creating new connections.
-   * @param hostSpec                  The {@link HostSpec} of the server this {@link MonitorImpl}
+   * @param hostSpec                  The {@link HostSpec} of the server this {@link HostMonitorImpl}
    *                                  instance is monitoring.
    * @param properties                The {@link Properties} containing additional monitoring
    *                                  configuration.
    * @param monitorDisposalTimeMillis Time in milliseconds before stopping the monitoring thread
    *                                  where there are no active connection to the server this
-   *                                  {@link MonitorImpl} instance is monitoring.
-   * @param threadContainer           A reference to the {@link MonitorThreadContainer} implementation
+   *                                  {@link HostMonitorImpl} instance is monitoring.
+   * @param threadContainer           A reference to the {@link HostMonitorThreadContainer} implementation
    *                                  that initialized this class.
    */
-  public MonitorImpl(
+  public HostMonitorImpl(
       final @NonNull PluginService pluginService,
       @NonNull final HostSpec hostSpec,
       @NonNull final Properties properties,
       final long monitorDisposalTimeMillis,
-      @NonNull final MonitorThreadContainer threadContainer) {
+      @NonNull final HostMonitorThreadContainer threadContainer) {
     this.pluginService = pluginService;
     this.telemetryFactory = pluginService.getTelemetryFactory();
     this.hostSpec = hostSpec;
@@ -112,7 +112,7 @@ public class MonitorImpl implements Monitor {
   }
 
   @Override
-  public void startMonitoring(final MonitorConnectionContext context) {
+  public void startMonitoring(final HostMonitorConnectionContext context) {
     if (this.stopped) {
       LOGGER.warning(() -> Messages.get("MonitorImpl.monitorIsStopped", new Object[] {this.hostSpec.getHost()}));
     }
@@ -123,7 +123,7 @@ public class MonitorImpl implements Monitor {
   }
 
   @Override
-  public void stopMonitoring(final MonitorConnectionContext context) {
+  public void stopMonitoring(final HostMonitorConnectionContext context) {
     if (context == null) {
       LOGGER.warning(() -> Messages.get("MonitorImpl.contextNullWarning"));
       return;
@@ -151,8 +151,8 @@ public class MonitorImpl implements Monitor {
         try {
 
           // process new contexts
-          MonitorConnectionContext newMonitorContext;
-          MonitorConnectionContext firstAddedNewMonitorContext = null;
+          HostMonitorConnectionContext newMonitorContext;
+          HostMonitorConnectionContext firstAddedNewMonitorContext = null;
           final long currentTimeNano = this.getCurrentTimeNano();
 
           while ((newMonitorContext = this.newContexts.poll()) != null) {
@@ -187,8 +187,8 @@ public class MonitorImpl implements Monitor {
             final ConnectionStatus status = checkConnectionStatus(this.nodeCheckTimeoutMillis);
 
             long delayMillis = -1;
-            MonitorConnectionContext monitorContext;
-            MonitorConnectionContext firstAddedMonitorContext = null;
+            HostMonitorConnectionContext monitorContext;
+            HostMonitorConnectionContext firstAddedMonitorContext = null;
 
             while ((monitorContext = this.activeContexts.poll()) != null) {
 

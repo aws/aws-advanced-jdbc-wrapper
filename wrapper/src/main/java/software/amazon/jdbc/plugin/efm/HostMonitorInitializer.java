@@ -19,8 +19,8 @@ package software.amazon.jdbc.plugin.efm;
 import java.util.Properties;
 import software.amazon.jdbc.HostSpec;
 
-/** Interface for initialize a new {@link MonitorImpl}. */
+/** Interface for initialize a new {@link HostMonitorImpl}. */
 @FunctionalInterface
-public interface MonitorInitializer {
-  Monitor createMonitor(HostSpec hostSpec, Properties properties, MonitorThreadContainer threadContainer);
+public interface HostMonitorInitializer {
+  HostMonitor createMonitor(HostSpec hostSpec, Properties properties, HostMonitorThreadContainer threadContainer);
 }

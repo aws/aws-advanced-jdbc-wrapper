@@ -14,22 +14,20 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.efm;
+package software.amazon.jdbc.plugin.efm2;
 
 import java.sql.Connection;
 import java.util.Properties;
-import java.util.Set;
 import software.amazon.jdbc.HostSpec;
 
 /**
  * Interface for monitor services. This class implements ways to start and stop monitoring servers
  * when connections are created.
  */
-public interface MonitorService {
+public interface HostMonitorService {
 
-  MonitorConnectionContext startMonitoring(
+  HostMonitorConnectionContext startMonitoring(
       Connection connectionToAbort,
-      Set<String> nodeKeys,
       HostSpec hostSpec,
       Properties properties,
       int failureDetectionTimeMillis,
@@ -37,19 +35,13 @@ public interface MonitorService {
       int failureDetectionCount);
 
   /**
-   * Stop monitoring for a connection represented by the given {@link MonitorConnectionContext}.
-   * Removes the context from the {@link MonitorImpl}.
+   * Stop monitoring for a connection represented by the given {@link HostMonitorConnectionContext}.
+   * Removes the context from the {@link HostMonitorImpl}.
    *
-   * @param context The {@link MonitorConnectionContext} representing a connection.
+   * @param context The {@link HostMonitorConnectionContext} representing a connection.
+   * @param connectionToAbort A connection to abort.
    */
-  void stopMonitoring(MonitorConnectionContext context);
-
-  /**
-   * Stop monitoring the node for all connections represented by the given set of node keys.
-   *
-   * @param nodeKeys All known references to a server.
-   */
-  void stopMonitoringForAllConnections(Set<String> nodeKeys);
+  void stopMonitoring(HostMonitorConnectionContext context, Connection connectionToAbort);
 
   void releaseResources();
 }

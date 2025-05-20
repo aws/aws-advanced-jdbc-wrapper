@@ -79,9 +79,9 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       Collections.unmodifiableSet(new HashSet<>(Collections.singletonList("*")));
 
   protected @NonNull Properties properties;
-  private final @NonNull Supplier<MonitorService> monitorServiceSupplier;
+  private final @NonNull Supplier<HostMonitorService> monitorServiceSupplier;
   private final @NonNull PluginService pluginService;
-  private MonitorService monitorService;
+  private HostMonitorService monitorService;
   private final RdsUtils rdsHelper;
   private HostSpec monitoringHostSpec;
 
@@ -99,13 +99,13 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
    */
   public HostMonitoringConnectionPlugin(
       final @NonNull PluginService pluginService, final @NonNull Properties properties) {
-    this(pluginService, properties, () -> new MonitorServiceImpl(pluginService), new RdsUtils());
+    this(pluginService, properties, () -> new HostMonitorServiceImpl(pluginService), new RdsUtils());
   }
 
   HostMonitoringConnectionPlugin(
       final @NonNull PluginService pluginService,
       final @NonNull Properties properties,
-      final @NonNull Supplier<MonitorService> monitorServiceSupplier,
+      final @NonNull Supplier<HostMonitorService> monitorServiceSupplier,
       final RdsUtils rdsHelper) {
     this.pluginService = pluginService;
     this.properties = properties;
@@ -119,7 +119,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
   }
 
   /**
-   * Executes the given SQL function with {@link MonitorImpl} if connection monitoring is enabled.
+   * Executes the given SQL function with {@link HostMonitorImpl} if connection monitoring is enabled.
    * Otherwise, executes the SQL function directly.
    */
   @Override
@@ -147,7 +147,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     initMonitorService();
 
     T result;
-    MonitorConnectionContext monitorContext = null;
+    HostMonitorConnectionContext monitorContext = null;
 
     try {
       LOGGER.finest(

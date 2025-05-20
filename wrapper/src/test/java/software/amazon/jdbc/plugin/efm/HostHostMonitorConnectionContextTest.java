@@ -35,24 +35,24 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 
-class MonitorConnectionContextTest {
+class HostHostMonitorConnectionContextTest {
   private static final long FAILURE_DETECTION_TIME_MILLIS = 10;
   private static final long FAILURE_DETECTION_INTERVAL_MILLIS = 100;
   private static final long FAILURE_DETECTION_COUNT = 3;
   private static final long VALIDATION_INTERVAL_MILLIS = 50;
 
-  private MonitorConnectionContext context;
+  private HostMonitorConnectionContext context;
   private AutoCloseable closeable;
 
   @Mock Connection connectionToAbort;
-  @Mock Monitor monitor;
+  @Mock HostMonitor monitor;
   @Mock TelemetryCounter abortedConnectionsCounter;
 
   @BeforeEach
   void init() {
     closeable = MockitoAnnotations.openMocks(this);
     context =
-        new MonitorConnectionContext(
+        new HostMonitorConnectionContext(
             monitor,
             null,
             FAILURE_DETECTION_TIME_MILLIS,
@@ -134,7 +134,7 @@ class MonitorConnectionContextTest {
     final long currentTime = System.nanoTime();
     final long statusCheckStartTime = System.nanoTime() - FAILURE_DETECTION_TIME_MILLIS;
 
-    final MonitorConnectionContext spyContext = spy(context);
+    final HostMonitorConnectionContext spyContext = spy(context);
 
     spyContext.updateConnectionStatus("test-node", statusCheckStartTime, currentTime, isValid);
 
@@ -148,7 +148,7 @@ class MonitorConnectionContextTest {
     final long statusCheckStartTime = System.nanoTime() - 1000;
     context.setInactive();
 
-    final MonitorConnectionContext spyContext = spy(context);
+    final HostMonitorConnectionContext spyContext = spy(context);
 
     spyContext.updateConnectionStatus("test-node", statusCheckStartTime, currentTime, true);
 
@@ -159,7 +159,7 @@ class MonitorConnectionContextTest {
   @Test
   void test_abortConnection_ignoresSqlException() throws SQLException {
     context =
-        new MonitorConnectionContext(
+        new HostMonitorConnectionContext(
             monitor,
             connectionToAbort,
             FAILURE_DETECTION_TIME_MILLIS,

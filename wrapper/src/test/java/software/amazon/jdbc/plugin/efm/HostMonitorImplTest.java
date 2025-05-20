@@ -53,20 +53,20 @@ import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
-class MonitorImplTest {
+class HostMonitorImplTest {
 
   @Mock PluginService pluginService;
   @Mock Connection connection;
   @Mock HostSpec hostSpec;
   @Mock Properties properties;
-  @Mock MonitorConnectionContext contextWithShortInterval;
-  @Mock MonitorConnectionContext contextWithLongInterval;
+  @Mock HostMonitorConnectionContext contextWithShortInterval;
+  @Mock HostMonitorConnectionContext contextWithLongInterval;
   @Mock BooleanProperty booleanProperty;
   @Mock LongProperty longProperty;
   @Mock ExecutorServiceInitializer executorServiceInitializer;
   @Mock ExecutorService executorService;
   @Mock Future<?> futureResult;
-  @Mock MonitorServiceImpl monitorService;
+  @Mock HostMonitorServiceImpl monitorService;
   @Mock TelemetryFactory telemetryFactory;
   @Mock TelemetryContext telemetryContext;
   @Mock TelemetryCounter telemetryCounter;
@@ -76,8 +76,8 @@ class MonitorImplTest {
   private static final long LONG_INTERVAL_MILLIS = 300;
 
   private AutoCloseable closeable;
-  private MonitorImpl monitor;
-  private MonitorThreadContainer threadContainer;
+  private HostMonitorImpl monitor;
+  private HostMonitorThreadContainer threadContainer;
 
   @BeforeEach
   void init() throws SQLException {
@@ -95,21 +95,21 @@ class MonitorImplTest {
     when(telemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(telemetryContext);
     when(telemetryFactory.createCounter(anyString())).thenReturn(telemetryCounter);
     when(executorServiceInitializer.createExecutorService()).thenReturn(executorService);
-    threadContainer = MonitorThreadContainer.getInstance(executorServiceInitializer);
+    threadContainer = HostMonitorThreadContainer.getInstance(executorServiceInitializer);
 
-    monitor = spy(new MonitorImpl(pluginService, hostSpec, properties, 0L, threadContainer));
+    monitor = spy(new HostMonitorImpl(pluginService, hostSpec, properties, 0L, threadContainer));
   }
 
   @AfterEach
   void cleanUp() throws Exception {
     monitorService.releaseResources();
-    MonitorThreadContainer.releaseInstance();
+    HostMonitorThreadContainer.releaseInstance();
     closeable.close();
   }
 
   @Test
   void test_5_isConnectionHealthyWithNoExistingConnection() throws SQLException {
-    final MonitorImpl.ConnectionStatus status =
+    final HostMonitorImpl.ConnectionStatus status =
         monitor.checkConnectionStatus(SHORT_INTERVAL_MILLIS);
 
     verify(pluginService).forceConnect(any(HostSpec.class), any(Properties.class));
@@ -125,11 +125,11 @@ class MonitorImplTest {
     // Start up a monitoring connection.
     monitor.checkConnectionStatus(SHORT_INTERVAL_MILLIS);
 
-    final MonitorImpl.ConnectionStatus status1 =
+    final HostMonitorImpl.ConnectionStatus status1 =
         monitor.checkConnectionStatus(SHORT_INTERVAL_MILLIS);
     assertTrue(status1.isValid);
 
-    final MonitorImpl.ConnectionStatus status2 =
+    final HostMonitorImpl.ConnectionStatus status2 =
         monitor.checkConnectionStatus(SHORT_INTERVAL_MILLIS);
     assertFalse(status2.isValid);
 
@@ -146,7 +146,7 @@ class MonitorImplTest {
 
     assertDoesNotThrow(
         () -> {
-          final MonitorImpl.ConnectionStatus status =
+          final HostMonitorImpl.ConnectionStatus status =
               monitor.checkConnectionStatus(SHORT_INTERVAL_MILLIS);
           assertFalse(status.isValid);
           assertTrue(status.elapsedTimeNano >= 0);
@@ -155,8 +155,8 @@ class MonitorImplTest {
 
   @Test
   void test_8_runWithoutContext() {
-    final Map<String, Monitor> monitorMap = threadContainer.getMonitorMap();
-    final Map<Monitor, Future<?>> taskMap = threadContainer.getTasksMap();
+    final Map<String, HostMonitor> monitorMap = threadContainer.getMonitorMap();
+    final Map<HostMonitor, Future<?>> taskMap = threadContainer.getTasksMap();
 
     // Put monitor into container map
     final String nodeKey = "monitorA";
@@ -172,13 +172,13 @@ class MonitorImplTest {
     assertNull(taskMap.get(monitor));
 
     // Clean-up
-    MonitorThreadContainer.releaseInstance();
+    HostMonitorThreadContainer.releaseInstance();
   }
 
   @RepeatedTest(1000)
   void test_9_runWithContext() {
-    final Map<String, Monitor> monitorMap = threadContainer.getMonitorMap();
-    final Map<Monitor, Future<?>> taskMap = threadContainer.getTasksMap();
+    final Map<String, HostMonitor> monitorMap = threadContainer.getMonitorMap();
+    final Map<HostMonitor, Future<?>> taskMap = threadContainer.getTasksMap();
 
     // Put monitor into container map
     final String nodeKey = "monitorA";
@@ -210,7 +210,7 @@ class MonitorImplTest {
     assertNull(taskMap.get(monitor));
 
     // Clean-up
-    MonitorThreadContainer.releaseInstance();
+    HostMonitorThreadContainer.releaseInstance();
   }
 
   @Test
@@ -219,8 +219,8 @@ class MonitorImplTest {
     when(contextWithShortInterval.getExpectedActiveMonitoringStartTimeNano()).thenReturn(999999999999999L);
     doThrow(new InterruptedException("Test")).when(monitor).sleep(anyLong());
     monitor.activeContexts.add(contextWithShortInterval);
-    final Map<String, Monitor> monitorMap = threadContainer.getMonitorMap();
-    final Map<Monitor, Future<?>> taskMap = threadContainer.getTasksMap();
+    final Map<String, HostMonitor> monitorMap = threadContainer.getMonitorMap();
+    final Map<HostMonitor, Future<?>> taskMap = threadContainer.getTasksMap();
 
     // Put monitor into container map
     final String nodeKey = "monitorA";
@@ -238,6 +238,6 @@ class MonitorImplTest {
     assertNull(taskMap.get(monitor));
 
     // Clean-up
-    MonitorThreadContainer.releaseInstance();
+    HostMonitorThreadContainer.releaseInstance();
   }
 }
