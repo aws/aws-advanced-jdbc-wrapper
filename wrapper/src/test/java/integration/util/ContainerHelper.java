@@ -27,6 +27,7 @@ import eu.rekawek.toxiproxy.ToxiproxyClient;
 import integration.TestInstanceInfo;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.testcontainers.DockerClientFactory;
@@ -130,7 +131,7 @@ public class ContainerHelper {
     execInContainer(container, consumer, "printenv", "TEST_ENV_DESCRIPTION");
     execInContainer(container, consumer, "java", "-version");
 
-    ArrayList<String> commands = new ArrayList<>();
+    List<String> commands = new ArrayList<>();
     commands.add("./gradlew");
     commands.add(task);
     commands.add("--debug-jvm");
