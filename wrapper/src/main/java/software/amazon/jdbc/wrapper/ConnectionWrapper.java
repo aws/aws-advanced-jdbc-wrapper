@@ -52,8 +52,8 @@ import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.ServiceContainer;
-import software.amazon.jdbc.util.ServiceContainerImpl;
+import software.amazon.jdbc.util.CompleteServicesContainer;
+import software.amazon.jdbc.util.CompleteServicesContainerImpl;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -81,7 +81,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   protected final ConnectionUrlParser connectionUrlParser = new ConnectionUrlParser();
 
   public ConnectionWrapper(
-      @NonNull final ServiceContainer serviceContainer,
+      @NonNull final CompleteServicesContainer servicesContainer,
       @NonNull final Properties props,
       @NonNull final String url,
       @NonNull final ConnectionProvider defaultConnectionProvider,
@@ -103,20 +103,20 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
             defaultConnectionProvider,
             effectiveConnectionProvider,
             this,
-            serviceContainer.getTelemetryFactory());
-    serviceContainer.setConnectionPluginManager(pluginManager);
+            servicesContainer.getTelemetryFactory());
+    servicesContainer.setConnectionPluginManager(pluginManager);
     final PluginServiceImpl pluginService = new PluginServiceImpl(
-        serviceContainer,
+        servicesContainer,
         props,
         url,
         this.targetDriverProtocol,
         driverDialect,
         this.configurationProfile);
-    serviceContainer.setHostListProviderService(pluginService);
-    serviceContainer.setPluginService(pluginService);
-    serviceContainer.setPluginManagerService(pluginService);
+    servicesContainer.setHostListProviderService(pluginService);
+    servicesContainer.setPluginService(pluginService);
+    servicesContainer.setPluginManagerService(pluginService);
 
-    init(props, serviceContainer, defaultConnectionProvider, driverDialect);
+    init(props, servicesContainer, defaultConnectionProvider, driverDialect);
 
     if (PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(props)) {
       this.openConnectionStacktrace = new Throwable(Messages.get("ConnectionWrapper.unclosedConnectionInstantiated"));
@@ -143,7 +143,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       throw new IllegalArgumentException("url");
     }
 
-    ServiceContainer serviceContainer = new ServiceContainerImpl(
+    CompleteServicesContainer servicesContainer = new CompleteServicesContainerImpl(
         storageService,
         monitorService,
         telemetryFactory,
@@ -153,24 +153,24 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         pluginManagerService
     );
 
-    init(props, serviceContainer, defaultConnectionProvider, driverDialect);
+    init(props, servicesContainer, defaultConnectionProvider, driverDialect);
   }
 
   protected void init(final Properties props,
-      final ServiceContainer serviceContainer,
+      final CompleteServicesContainer servicesContainer,
       final ConnectionProvider defaultConnectionProvider,
       final TargetDriverDialect driverDialect) throws SQLException {
-    this.pluginManager = serviceContainer.getConnectionPluginManager();
-    this.telemetryFactory = serviceContainer.getTelemetryFactory();
-    this.pluginService = serviceContainer.getPluginService();
-    this.hostListProviderService = serviceContainer.getHostListProviderService();
-    this.pluginManagerService = serviceContainer.getPluginManagerService();
+    this.pluginManager = servicesContainer.getConnectionPluginManager();
+    this.telemetryFactory = servicesContainer.getTelemetryFactory();
+    this.pluginService = servicesContainer.getPluginService();
+    this.hostListProviderService = servicesContainer.getHostListProviderService();
+    this.pluginManagerService = servicesContainer.getPluginManagerService();
 
-    this.pluginManager.init(serviceContainer, props, pluginManagerService, this.configurationProfile);
+    this.pluginManager.init(servicesContainer, props, pluginManagerService, this.configurationProfile);
 
     final HostListProviderSupplier supplier = this.pluginService.getDialect().getHostListProvider();
     if (supplier != null) {
-      final HostListProvider provider = supplier.getProvider(props, this.originalUrl, serviceContainer);
+      final HostListProvider provider = supplier.getProvider(props, this.originalUrl, servicesContainer);
       hostListProviderService.setHostListProvider(provider);
     }
 

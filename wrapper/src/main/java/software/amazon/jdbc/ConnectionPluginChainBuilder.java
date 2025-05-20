@@ -48,7 +48,7 @@ import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPluginFactory;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.CompleteServicesContainer;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -134,7 +134,7 @@ public class ConnectionPluginChainBuilder {
   }
 
   public List<ConnectionPlugin> getPlugins(
-      final ServiceContainer serviceContainer,
+      final CompleteServicesContainer servicesContainer,
       final ConnectionProvider defaultConnProvider,
       final ConnectionProvider effectiveConnProvider,
       final PluginManagerService pluginManagerService,
@@ -191,9 +191,9 @@ public class ConnectionPluginChainBuilder {
         for (final ConnectionPluginFactory factory : factories) {
           if (factory instanceof ServiceContainerPluginFactory) {
             ServiceContainerPluginFactory serviceContainerPluginFactory = (ServiceContainerPluginFactory) factory;
-            plugins.add(serviceContainerPluginFactory.getInstance(serviceContainer, props));
+            plugins.add(serviceContainerPluginFactory.getInstance(servicesContainer, props));
           } else {
-            plugins.add(factory.getInstance(serviceContainer.getPluginService(), props));
+            plugins.add(factory.getInstance(servicesContainer.getPluginService(), props));
           }
         }
 
@@ -206,7 +206,7 @@ public class ConnectionPluginChainBuilder {
 
     // add default connection plugin to the tail
     final ConnectionPlugin defaultPlugin = new DefaultConnectionPlugin(
-        serviceContainer.getPluginService(),
+        servicesContainer.getPluginService(),
         defaultConnProvider,
         effectiveConnProvider,
         pluginManagerService);

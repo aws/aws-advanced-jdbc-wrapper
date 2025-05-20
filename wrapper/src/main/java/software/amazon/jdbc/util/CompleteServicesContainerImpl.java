@@ -24,7 +24,7 @@ import software.amazon.jdbc.util.monitoring.CoreMonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
-public class ServiceContainerImpl implements ServiceContainer {
+public class CompleteServicesContainerImpl implements CompleteServicesContainer {
   private StorageService storageService;
   private CoreMonitorService monitorService;
   private TelemetryFactory telemetryFactory;
@@ -33,7 +33,7 @@ public class ServiceContainerImpl implements ServiceContainer {
   private PluginService pluginService;
   private PluginManagerService pluginManagerService;
 
-  public ServiceContainerImpl(
+  public CompleteServicesContainerImpl(
       StorageService storageService,
       CoreMonitorService monitorService,
       TelemetryFactory telemetryFactory,
@@ -48,7 +48,7 @@ public class ServiceContainerImpl implements ServiceContainer {
     this.pluginManagerService = pluginManagerService;
   }
 
-  public ServiceContainerImpl(
+  public CompleteServicesContainerImpl(
       StorageService storageService,
       CoreMonitorService monitorService,
       TelemetryFactory telemetryFactory) {

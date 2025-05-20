@@ -53,7 +53,7 @@ import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.CompleteServicesContainer;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
@@ -129,12 +129,12 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   public RdsHostListProvider(
       final Properties properties,
       final String originalUrl,
-      final ServiceContainer serviceContainer,
+      final CompleteServicesContainer servicesContainer,
       final String topologyQuery,
       final String nodeIdQuery,
       final String isReaderQuery) {
-    this.hostListProviderService = serviceContainer.getHostListProviderService();
-    this.storageService = serviceContainer.getStorageService();
+    this.hostListProviderService = servicesContainer.getHostListProviderService();
+    this.storageService = servicesContainer.getStorageService();
     this.properties = properties;
     this.originalUrl = originalUrl;
     this.topologyQuery = topologyQuery;

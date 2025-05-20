@@ -37,7 +37,7 @@ import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.RegionUtils;
-import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.CompleteServicesContainer;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -90,7 +90,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     PropertyDefinition.registerPluginProperties(CustomEndpointPlugin.class);
   }
 
-  protected final ServiceContainer serviceContainer;
+  protected final CompleteServicesContainer servicesContainer;
   protected final PluginService pluginService;
   protected final StorageService storageService;
   protected final CoreMonitorService monitorService;
@@ -110,12 +110,12 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   /**
    * Constructs a new CustomEndpointPlugin instance.
    *
-   * @param serviceContainer The service container for the services required by this class.
+   * @param servicesContainer The service container for the services required by this class.
    * @param props            The properties that the custom endpoint plugin should use.
    */
-  public CustomEndpointPlugin(final ServiceContainer serviceContainer, final Properties props) {
+  public CustomEndpointPlugin(final CompleteServicesContainer servicesContainer, final Properties props) {
     this(
-        serviceContainer,
+        servicesContainer,
         props,
         (hostSpec, region) ->
             RdsClient.builder()
@@ -127,19 +127,19 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   /**
    * Constructs a new CustomEndpointPlugin instance.
    *
-   * @param serviceContainer The service container for the services required by this class.
+   * @param servicesContainer The service container for the services required by this class.
    * @param props            The properties that the custom endpoint plugin should use.
    * @param rdsClientFunc    The function to call to obtain an {@link RdsClient} instance.
    */
   public CustomEndpointPlugin(
-      final ServiceContainer serviceContainer,
+      final CompleteServicesContainer servicesContainer,
       final Properties props,
       final BiFunction<HostSpec, Region, RdsClient> rdsClientFunc) {
-    this.serviceContainer = serviceContainer;
-    this.pluginService = serviceContainer.getPluginService();
-    this.storageService = serviceContainer.getStorageService();
-    this.monitorService = serviceContainer.getMonitorService();
-    this.telemetryFactory = serviceContainer.getTelemetryFactory();
+    this.servicesContainer = servicesContainer;
+    this.pluginService = servicesContainer.getPluginService();
+    this.storageService = servicesContainer.getStorageService();
+    this.monitorService = servicesContainer.getMonitorService();
+    this.telemetryFactory = servicesContainer.getTelemetryFactory();
 
     this.props = props;
     this.rdsClientFunc = rdsClientFunc;
@@ -148,7 +148,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     this.waitOnCachedInfoDurationMs = WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS.getInteger(this.props);
     this.idleMonitorExpirationMs = CUSTOM_ENDPOINT_MONITOR_IDLE_EXPIRATION_MS.getInteger(this.props);
 
-    TelemetryFactory telemetryFactory = serviceContainer.getTelemetryFactory();
+    TelemetryFactory telemetryFactory = servicesContainer.getTelemetryFactory();
     this.waitForInfoCounter = telemetryFactory.createCounter(TELEMETRY_WAIT_FOR_INFO_COUNTER);
   }
 
@@ -207,7 +207,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
    * @return {@link CustomEndpointMonitor}
    */
   protected CustomEndpointMonitor createMonitorIfAbsent(Properties props) throws SQLException {
-    return this.serviceContainer.getMonitorService().runIfAbsent(
+    return this.servicesContainer.getMonitorService().runIfAbsent(
         CustomEndpointMonitorImpl.class,
         this.customEndpointHostSpec.getUrl(),
         this.storageService,
@@ -219,7 +219,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
         this.props,
         (connectionService, pluginService) -> new CustomEndpointMonitorImpl(
             this.storageService,
-            this.serviceContainer.getTelemetryFactory(),
+            this.servicesContainer.getTelemetryFactory(),
             this.customEndpointHostSpec,
             this.customEndpointId,
             this.region,

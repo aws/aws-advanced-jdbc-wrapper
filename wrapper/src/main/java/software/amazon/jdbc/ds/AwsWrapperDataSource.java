@@ -50,8 +50,8 @@ import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.CoreServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
-import software.amazon.jdbc.util.ServiceContainer;
-import software.amazon.jdbc.util.ServiceContainerImpl;
+import software.amazon.jdbc.util.CompleteServicesContainer;
+import software.amazon.jdbc.util.CompleteServicesContainerImpl;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -269,9 +269,10 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
       final @NonNull TargetDriverDialect targetDriverDialect,
       final @Nullable ConfigurationProfile configurationProfile,
       final TelemetryFactory telemetryFactory) throws SQLException {
-    ServiceContainer serviceContainer = new ServiceContainerImpl(storageService, monitorService, telemetryFactory);
+    CompleteServicesContainer
+        servicesContainer = new CompleteServicesContainerImpl(storageService, monitorService, telemetryFactory);
     return new ConnectionWrapper(
-        serviceContainer,
+        servicesContainer,
         props,
         url,
         defaultProvider,

@@ -30,7 +30,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
-import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.CompleteServicesContainer;
 import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.monitoring.CoreMonitorService;
 import software.amazon.jdbc.util.storage.Topology;
@@ -50,7 +50,7 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
     PropertyDefinition.registerPluginProperties(MonitoringRdsHostListProvider.class);
   }
 
-  protected final ServiceContainer serviceContainer;
+  protected final CompleteServicesContainer servicesContainer;
   protected final CoreMonitorService monitorService;
   protected final PluginService pluginService;
   protected final long highRefreshRateNano;
@@ -59,15 +59,15 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
   public MonitoringRdsHostListProvider(
       final Properties properties,
       final String originalUrl,
-      final ServiceContainer serviceContainer,
+      final CompleteServicesContainer servicesContainer,
       final String topologyQuery,
       final String nodeIdQuery,
       final String isReaderQuery,
       final String writerTopologyQuery) {
-    super(properties, originalUrl, serviceContainer, topologyQuery, nodeIdQuery, isReaderQuery);
-    this.serviceContainer = serviceContainer;
-    this.monitorService = serviceContainer.getMonitorService();
-    this.pluginService = serviceContainer.getPluginService();
+    super(properties, originalUrl, servicesContainer, topologyQuery, nodeIdQuery, isReaderQuery);
+    this.servicesContainer = servicesContainer;
+    this.monitorService = servicesContainer.getMonitorService();
+    this.pluginService = servicesContainer.getPluginService();
     this.writerTopologyQuery = writerTopologyQuery;
     this.highRefreshRateNano = TimeUnit.MILLISECONDS.toNanos(
         CLUSTER_TOPOLOGY_HIGH_REFRESH_RATE_MS.getLong(this.properties));
@@ -100,7 +100,7 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
             this.initialHostSpec,
             this.properties,
             monitorPluginService,
-            this.serviceContainer.getHostListProviderService(),
+            this.servicesContainer.getHostListProviderService(),
             this.clusterInstanceTemplate,
             this.refreshRateNano,
             this.highRefreshRateNano,

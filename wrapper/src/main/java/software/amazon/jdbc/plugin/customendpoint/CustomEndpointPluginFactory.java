@@ -22,7 +22,7 @@ import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.ServiceContainerPluginFactory;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.CompleteServicesContainer;
 
 public class CustomEndpointPluginFactory implements ServiceContainerPluginFactory {
   @Override
@@ -33,13 +33,13 @@ public class CustomEndpointPluginFactory implements ServiceContainerPluginFactor
   }
 
   @Override
-  public ConnectionPlugin getInstance(final ServiceContainer serviceContainer, final Properties props) {
+  public ConnectionPlugin getInstance(final CompleteServicesContainer servicesContainer, final Properties props) {
     try {
       Class.forName("software.amazon.awssdk.services.rds.RdsClient");
     } catch (final ClassNotFoundException e) {
       throw new RuntimeException(Messages.get("CustomEndpointPluginFactory.awsSdkNotInClasspath"));
     }
 
-    return new CustomEndpointPlugin(serviceContainer, props);
+    return new CustomEndpointPlugin(servicesContainer, props);
   }
 }

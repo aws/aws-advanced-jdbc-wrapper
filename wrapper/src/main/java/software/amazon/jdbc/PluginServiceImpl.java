@@ -51,7 +51,7 @@ import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.states.SessionStateServiceImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.CompleteServicesContainer;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.storage.CacheMap;
 import software.amazon.jdbc.util.storage.StorageService;
@@ -64,7 +64,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected static final long DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(5);
 
   protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache = new CacheMap<>();
-  protected final ServiceContainer serviceContainer;
+  protected final CompleteServicesContainer servicesContainer;
   protected final StorageService storageService;
   protected final ConnectionPluginManager pluginManager;
   private final Properties props;
@@ -89,7 +89,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected final ReentrantLock connectionSwitchLock = new ReentrantLock();
 
   public PluginServiceImpl(
-      @NonNull final ServiceContainer serviceContainer,
+      @NonNull final CompleteServicesContainer servicesContainer,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
       @NonNull final String targetDriverProtocol,
@@ -97,7 +97,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       throws SQLException {
 
     this(
-        serviceContainer,
+        servicesContainer,
         new ExceptionManager(),
         props,
         originalUrl,
@@ -109,14 +109,14 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   public PluginServiceImpl(
-      @NonNull final ServiceContainer serviceContainer,
+      @NonNull final CompleteServicesContainer servicesContainer,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
       @NonNull final String targetDriverProtocol,
       @NonNull final TargetDriverDialect targetDriverDialect,
       @Nullable final ConfigurationProfile configurationProfile) throws SQLException {
     this(
-        serviceContainer,
+        servicesContainer,
         new ExceptionManager(),
         props,
         originalUrl,
@@ -128,7 +128,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   public PluginServiceImpl(
-      @NonNull final ServiceContainer serviceContainer,
+      @NonNull final CompleteServicesContainer servicesContainer,
       @NonNull final ExceptionManager exceptionManager,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
@@ -137,9 +137,9 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       @NonNull final TargetDriverDialect targetDriverDialect,
       @Nullable final ConfigurationProfile configurationProfile,
       @Nullable final SessionStateService sessionStateService) throws SQLException {
-    this.serviceContainer = serviceContainer;
-    this.storageService = serviceContainer.getStorageService();
-    this.pluginManager = serviceContainer.getConnectionPluginManager();
+    this.servicesContainer = servicesContainer;
+    this.storageService = servicesContainer.getStorageService();
+    this.pluginManager = servicesContainer.getConnectionPluginManager();
     this.props = props;
     this.originalUrl = originalUrl;
     this.driverProtocol = targetDriverProtocol;
@@ -728,7 +728,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     }
 
     final HostListProviderSupplier supplier = this.dialect.getHostListProvider();
-    this.setHostListProvider(supplier.getProvider(this.props, this.originalUrl, this.serviceContainer));
+    this.setHostListProvider(supplier.getProvider(this.props, this.originalUrl, this.servicesContainer));
   }
 
   @Override

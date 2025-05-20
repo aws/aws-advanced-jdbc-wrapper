@@ -51,7 +51,7 @@ import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrat
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.util.AsynchronousMethodsHelper;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.CompleteServicesContainer;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -111,7 +111,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
   protected final @NonNull ConnectionProvider defaultConnProvider;
   protected final @Nullable ConnectionProvider effectiveConnProvider;
   protected final ConnectionWrapper connectionWrapper;
-  protected ServiceContainer serviceContainer;
+  protected CompleteServicesContainer servicesContainer;
   protected PluginService pluginService;
   protected TelemetryFactory telemetryFactory;
 
@@ -182,27 +182,27 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    * <p>The {@link DefaultConnectionPlugin} will always be initialized and attached as the last
    * connection plugin in the chain.
    *
-   * @param serviceContainer     the service container for the services required by this class.
+   * @param servicesContainer     the service container for the services required by this class.
    * @param props                the configuration of the connection
    * @param pluginManagerService a reference to a plugin manager service
    * @param configurationProfile a profile configuration defined by the user
    * @throws SQLException if errors occurred during the execution
    */
   public void init(
-      final ServiceContainer serviceContainer,
+      final CompleteServicesContainer servicesContainer,
       final Properties props,
       final PluginManagerService pluginManagerService,
       @Nullable ConfigurationProfile configurationProfile)
       throws SQLException {
 
     this.props = props;
-    this.serviceContainer = serviceContainer;
-    this.pluginService = serviceContainer.getPluginService();
-    this.telemetryFactory = serviceContainer.getTelemetryFactory();
+    this.servicesContainer = servicesContainer;
+    this.pluginService = servicesContainer.getPluginService();
+    this.telemetryFactory = servicesContainer.getTelemetryFactory();
 
     ConnectionPluginChainBuilder pluginChainBuilder = new ConnectionPluginChainBuilder();
     this.plugins = pluginChainBuilder.getPlugins(
-        this.serviceContainer,
+        this.servicesContainer,
         this.defaultConnProvider,
         this.effectiveConnProvider,
         pluginManagerService,
