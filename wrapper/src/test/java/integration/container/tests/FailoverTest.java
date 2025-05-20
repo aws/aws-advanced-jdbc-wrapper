@@ -65,6 +65,7 @@ import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.plugin.failover.TransactionStateUnknownSQLException;
+import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.SqlState;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
@@ -160,38 +161,6 @@ public class FailoverTest {
       auroraUtil.assertFirstQueryThrows(stmt, FailoverSuccessSQLException.class);
 
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
-      assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
-    }
-  }
-
-  /**
-   * Current reader dies, no other reader instance, failover to writer.
-   */
-  @TestTemplate
-  @EnableOnNumOfInstances(min = 2, max = 2)
-  public void test_failFromReaderToWriter() throws SQLException {
-    // Connect to the only available reader instance
-    final TestInstanceInfo instanceInfo =
-        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances().get(1);
-    final String instanceId = instanceInfo.getInstanceId();
-    final Properties props = initDefaultProxiedProps();
-
-    try (final Connection conn =
-        DriverManager.getConnection(
-            ConnectionStringHelper.getWrapperUrl(
-                instanceInfo.getHost(),
-                instanceInfo.getPort(),
-                TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
-            props)) {
-
-      ProxyHelper.disableConnectivity(instanceId);
-
-      auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
-
-      // Assert that we are currently connected to the writer instance.
-      final String writerId = this.currentWriter;
-      String currentConnectionId = auroraUtil.queryInstanceId(conn);
-      assertEquals(writerId, currentConnectionId);
       assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
     }
   }
@@ -565,32 +534,36 @@ public class FailoverTest {
   }
 
   @TestTemplate
-  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
-  // Multi-AZ tests already simulate this in other tests instead of sending server failover requests.
+  @EnableOnNumOfInstances(min = 3)
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
-  public void test_writerFailover_writerReelected() throws SQLException {
-    final String initialWriterId = this.currentWriter;
-    TestInstanceInfo initialWriterInstanceInfo =
-        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstance(initialWriterId);
-    final Properties props = initDefaultProxiedProps();
+  public void test_writerFailover_currentReaderPromotedToWriter() throws SQLException, InterruptedException {
+    final TestInstanceInfo reader = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(1);
+    final Properties props = ConnectionStringHelper.getDefaultProperties();
+    props.setProperty(PropertyDefinition.PLUGINS.name, this.getFailoverPlugin());
+    props.setProperty(FailoverConnectionPlugin.FAILOVER_MODE.name, "strict-writer");
 
+    // Connect to a reader instance.
     try (final Connection conn =
              DriverManager.getConnection(
                  ConnectionStringHelper.getWrapperUrl(
-                     initialWriterInstanceInfo.getHost(),
-                     initialWriterInstanceInfo.getPort(),
+                     reader.getHost(),
+                     reader.getPort(),
                      TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
                  props)) {
-      // Failover usually changes the writer instance, but we want to test re-election of the same writer, so we will
-      // simulate this by temporarily disabling connectivity to the writer.
-      auroraUtil.simulateTemporaryFailure(executor, initialWriterId);
 
+      // Assert current connection is to a reader instance.
+      String currentConnectionId = auroraUtil.queryInstanceId(conn);
+      assertFalse(auroraUtil.isDBInstanceWriter(currentConnectionId));
+
+      // Trigger failover, ensure the current reader instance is the new promoted writer.
+      auroraUtil.failoverClusterToATargetAndWaitUntilWriterChanged(this.currentWriter, reader.getInstanceId());
       auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
+      currentConnectionId = auroraUtil.queryInstanceId(conn);
       // Assert that we are connected to the writer after failover happens.
-      final String currentConnectionId = auroraUtil.queryInstanceId(conn);
       assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
-      assertEquals(currentConnectionId, initialWriterId);
+      // Assert the reader has been promoted to a writer.
+      assertEquals(reader.getInstanceId(), currentConnectionId);
     }
   }
 

@@ -16,13 +16,13 @@
 
 package integration.container;
 
+import java.util.Properties;
+import java.util.Set;
 import integration.DatabaseEngine;
 import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
 import integration.TestEnvironmentInfo;
 import integration.TestInstanceInfo;
-import java.util.Properties;
-import java.util.Set;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.StringUtils;
 
