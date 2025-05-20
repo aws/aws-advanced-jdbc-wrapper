@@ -32,7 +32,7 @@ dependencies {
     compileOnly("software.amazon.awssdk:rds:2.31.46")
     compileOnly("software.amazon.awssdk:auth:2.31.45") // Required for IAM (light implementation)
     compileOnly("software.amazon.awssdk:http-client-spi:2.31.17") // Required for IAM (light implementation)
-    compileOnly("software.amazon.awssdk:sts:2.30.27")
+    compileOnly("software.amazon.awssdk:sts:2.31.46")
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     compileOnly("com.mchange:c3p0:0.11.0")
     compileOnly("software.amazon.awssdk:secretsmanager:2.31.12")
@@ -70,7 +70,7 @@ dependencies {
     testImplementation("software.amazon.awssdk:http-client-spi:2.31.17") // Required for IAM (light implementation)
     testImplementation("software.amazon.awssdk:ec2:2.31.36")
     testImplementation("software.amazon.awssdk:secretsmanager:2.31.12")
-    testImplementation("software.amazon.awssdk:sts:2.30.27")
+    testImplementation("software.amazon.awssdk:sts:2.31.46")
     // Note: all org.testcontainers dependencies should have the same version
     testImplementation("org.testcontainers:testcontainers:1.21.0")
     testImplementation("org.testcontainers:mysql:1.21.0")
