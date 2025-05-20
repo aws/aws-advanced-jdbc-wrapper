@@ -27,7 +27,6 @@ import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -36,6 +35,7 @@ import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.Utils;
@@ -131,7 +131,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       return FAILED_READER_FAILOVER_RESULT;
     }
 
-    final ExecutorService executor = Executors.newSingleThreadExecutor();
+    final ExecutorService executor = ExecutorFactory.newSingleThreadExecutor("ClusterAwareReaderFailoverHandler#executor");
     final Future<ReaderFailoverResult> future = submitInternalFailoverTask(hosts, currentHost, executor);
     return getInternalFailoverResult(executor, future);
   }
@@ -287,7 +287,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
 
   private ReaderFailoverResult getConnectionFromHostGroup(final List<HostSpec> hosts)
       throws SQLException {
-    final ExecutorService executor = Executors.newFixedThreadPool(2);
+    final ExecutorService executor = ExecutorFactory.newFixedThreadPool(2, "ClusterAwareReaderFailoverHandler#executor");
     final CompletionService<ReaderFailoverResult> completionService = new ExecutorCompletionService<>(executor);
 
     try {
