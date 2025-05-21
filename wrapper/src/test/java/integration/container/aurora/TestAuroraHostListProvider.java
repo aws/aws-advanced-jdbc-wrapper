@@ -22,7 +22,8 @@ import software.amazon.jdbc.util.CompleteServicesContainer;
 
 public class TestAuroraHostListProvider extends AuroraHostListProvider {
 
-  public TestAuroraHostListProvider(CompleteServicesContainer servicesContainer, Properties properties, String originalUrl) {
+  public TestAuroraHostListProvider(
+      CompleteServicesContainer servicesContainer, Properties properties, String originalUrl) {
     super(properties, originalUrl, servicesContainer, "", "", "");
   }
 

@@ -23,15 +23,15 @@ import software.amazon.jdbc.util.CompleteServicesContainer;
  * A factory for plugins that utilizes a ServiceContainer. This interface extends {@link ConnectionPluginFactory} to
  * provide additional flexibility in plugin instantiation while maintaining backward compatibility.
  *
- * <p>Implementations of this interface can access all services in the {@link CompleteServicesContainer} when creating connection
- * plugins, rather than being limited to just the {@link PluginService}</p>
+ * <p>Implementations of this interface can access all services in the {@link CompleteServicesContainer} when creating
+ * connection plugins, rather than being limited to just the {@link PluginService}</p>
  */
 public interface ServiceContainerPluginFactory extends ConnectionPluginFactory {
   /**
    * Get an instance of a {@link ConnectionPlugin}.
    *
    * @param servicesContainer the service container containing the services to be used by the {@link ConnectionPlugin}.
-   * @param props            to be used by the {@link ConnectionPlugin}.
+   * @param props             to be used by the {@link ConnectionPlugin}.
    * @return an instance of a {@link ConnectionPlugin}.
    */
   ConnectionPlugin getInstance(CompleteServicesContainer servicesContainer, Properties props);

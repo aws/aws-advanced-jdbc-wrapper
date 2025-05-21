@@ -31,8 +31,8 @@ import java.util.logging.Logger;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.hostavailability.HostAvailability;
-import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.CompleteServicesContainer;
+import software.amazon.jdbc.util.Messages;
 
 public class RdsMultiAzDbClusterListProvider extends RdsHostListProvider {
   private final String fetchWriterNodeQuery;

@@ -47,8 +47,8 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPluginFa
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPluginFactory;
 import software.amazon.jdbc.profile.ConfigurationProfile;
-import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.CompleteServicesContainer;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;

@@ -21,8 +21,8 @@ import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.ServiceContainerPluginFactory;
-import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.CompleteServicesContainer;
+import software.amazon.jdbc.util.Messages;
 
 public class CustomEndpointPluginFactory implements ServiceContainerPluginFactory {
   @Override
