@@ -66,7 +66,7 @@ import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.CompleteServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.TestStorageServiceImpl;
@@ -79,7 +79,7 @@ public class PluginServiceImplTests {
   private StorageService storageService;
   private AutoCloseable closeable;
 
-  @Mock CompleteServicesContainer servicesContainer;
+  @Mock FullServicesContainer servicesContainer;
   @Mock EventPublisher mockEventPublisher;
   @Mock ConnectionPluginManager pluginManager;
   @Mock Connection newConnection;

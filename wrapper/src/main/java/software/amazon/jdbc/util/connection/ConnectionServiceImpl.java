@@ -26,8 +26,8 @@ import software.amazon.jdbc.PartialPluginService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.CompleteServicesContainer;
-import software.amazon.jdbc.util.CompleteServicesContainerImpl;
+import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainerImpl;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -49,8 +49,8 @@ public class ConnectionServiceImpl implements ConnectionService {
       Properties props) throws SQLException {
     this.targetDriverProtocol = targetDriverProtocol;
 
-    CompleteServicesContainer
-        servicesContainer = new CompleteServicesContainerImpl(storageService, monitorService, telemetryFactory);
+    FullServicesContainer
+        servicesContainer = new FullServicesContainerImpl(storageService, monitorService, telemetryFactory);
     this.pluginManager = new ConnectionPluginManager(
         connectionProvider,
         null,

@@ -64,7 +64,7 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider.FetchTopologyResult;
-import software.amazon.jdbc.util.CompleteServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.TestStorageServiceImpl;
@@ -77,7 +77,7 @@ class RdsHostListProviderTest {
   @Mock private Connection mockConnection;
   @Mock private Statement mockStatement;
   @Mock private ResultSet mockResultSet;
-  @Mock private CompleteServicesContainer mockServicesContainer;
+  @Mock private FullServicesContainer mockServicesContainer;
   @Mock private PluginService mockPluginService;
   @Mock private HostListProviderService mockHostListProviderService;
   @Mock private EventPublisher mockEventPublisher;

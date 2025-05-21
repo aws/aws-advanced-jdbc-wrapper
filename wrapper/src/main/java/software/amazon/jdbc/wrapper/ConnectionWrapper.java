@@ -50,9 +50,9 @@ import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.HostListProviderSupplier;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.CompleteServicesContainer;
-import software.amazon.jdbc.util.CompleteServicesContainerImpl;
 import software.amazon.jdbc.util.ConnectionUrlParser;
+import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainerImpl;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
@@ -81,7 +81,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   protected final ConnectionUrlParser connectionUrlParser = new ConnectionUrlParser();
 
   public ConnectionWrapper(
-      @NonNull final CompleteServicesContainer servicesContainer,
+      @NonNull final FullServicesContainer servicesContainer,
       @NonNull final Properties props,
       @NonNull final String url,
       @NonNull final ConnectionProvider defaultConnectionProvider,
@@ -143,7 +143,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       throw new IllegalArgumentException("url");
     }
 
-    CompleteServicesContainer servicesContainer = new CompleteServicesContainerImpl(
+    FullServicesContainer servicesContainer = new FullServicesContainerImpl(
         storageService,
         monitorService,
         telemetryFactory,
@@ -157,7 +157,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   protected void init(final Properties props,
-      final CompleteServicesContainer servicesContainer,
+      final FullServicesContainer servicesContainer,
       final ConnectionProvider defaultConnectionProvider,
       final TargetDriverDialect driverDialect) throws SQLException {
     this.pluginManager = servicesContainer.getConnectionPluginManager();

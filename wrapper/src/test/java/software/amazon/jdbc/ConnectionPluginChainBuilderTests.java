@@ -39,14 +39,14 @@ import software.amazon.jdbc.plugin.dev.DeveloperConnectionPlugin;
 import software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
-import software.amazon.jdbc.util.CompleteServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class ConnectionPluginChainBuilderTests {
 
   @Mock ConnectionProvider mockConnectionProvider;
-  @Mock CompleteServicesContainer mockServicesContainer;
+  @Mock FullServicesContainer mockServicesContainer;
   @Mock PluginService mockPluginService;
   @Mock PluginManagerService mockPluginManagerService;
   @Mock TelemetryFactory mockTelemetryFactory;

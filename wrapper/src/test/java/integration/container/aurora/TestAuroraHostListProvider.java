@@ -18,12 +18,12 @@ package integration.container.aurora;
 
 import java.util.Properties;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
-import software.amazon.jdbc.util.CompleteServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 
 public class TestAuroraHostListProvider extends AuroraHostListProvider {
 
   public TestAuroraHostListProvider(
-      CompleteServicesContainer servicesContainer, Properties properties, String originalUrl) {
+      FullServicesContainer servicesContainer, Properties properties, String originalUrl) {
     super(properties, originalUrl, servicesContainer, "", "", "");
   }
 

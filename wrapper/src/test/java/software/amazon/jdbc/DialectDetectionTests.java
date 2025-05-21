@@ -51,7 +51,7 @@ import software.amazon.jdbc.dialect.RdsMysqlDialect;
 import software.amazon.jdbc.dialect.RdsPgDialect;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.CompleteServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 
 public class DialectDetectionTests {
   private static final String LOCALHOST = "localhost";
@@ -63,7 +63,7 @@ public class DialectDetectionTests {
   private final DialectManager dialectManager = new DialectManager(null);
   private final Properties props = new Properties();
   private AutoCloseable closeable;
-  @Mock private CompleteServicesContainer mockServicesContainer;
+  @Mock private FullServicesContainer mockServicesContainer;
   @Mock private HostListProvider mockHostListProvider;
   @Mock private Connection mockConnection;
   @Mock private Statement mockStatement;

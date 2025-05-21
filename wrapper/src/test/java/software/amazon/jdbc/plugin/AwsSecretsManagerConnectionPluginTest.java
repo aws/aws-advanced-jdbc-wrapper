@@ -70,7 +70,7 @@ import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.CompleteServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
@@ -109,7 +109,7 @@ public class AwsSecretsManagerConnectionPluginTest {
 
   private AutoCloseable closeable;
 
-  @Mock CompleteServicesContainer mockServicesContainer;
+  @Mock FullServicesContainer mockServicesContainer;
   @Mock SecretsManagerClient mockSecretsManagerClient;
   @Mock GetSecretValueRequest mockGetValueRequest;
   @Mock JdbcCallable<Connection, SQLException> connectFunc;

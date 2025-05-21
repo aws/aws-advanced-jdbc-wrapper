@@ -19,13 +19,13 @@ package software.amazon.jdbc.plugin.efm2;
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.ServiceContainerPluginFactory;
+import software.amazon.jdbc.ServicesContainerPluginFactory;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin;
-import software.amazon.jdbc.util.CompleteServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 
 /** Class initializing a {@link HostMonitoringConnectionPlugin}. */
-public class HostMonitoringConnectionPluginFactory implements ServiceContainerPluginFactory {
+public class HostMonitoringConnectionPluginFactory implements ServicesContainerPluginFactory {
   @Override
   public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
     throw new UnsupportedOperationException(
@@ -35,7 +35,7 @@ public class HostMonitoringConnectionPluginFactory implements ServiceContainerPl
   }
 
   @Override
-  public ConnectionPlugin getInstance(final CompleteServicesContainer serviceContainer, final Properties props) {
-    return new CustomEndpointPlugin(serviceContainer, props);
+  public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
+    return new CustomEndpointPlugin(servicesContainer, props);
   }
 }

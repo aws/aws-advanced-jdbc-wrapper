@@ -50,7 +50,7 @@ import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.states.SessionStateServiceImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.CompleteServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.storage.CacheMap;
@@ -63,7 +63,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected static final long DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(5);
 
   protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache = new CacheMap<>();
-  protected final CompleteServicesContainer servicesContainer;
+  protected final FullServicesContainer servicesContainer;
   protected final ConnectionPluginManager pluginManager;
   private final Properties props;
   private final String originalUrl;
@@ -87,7 +87,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected final ReentrantLock connectionSwitchLock = new ReentrantLock();
 
   public PluginServiceImpl(
-      @NonNull final CompleteServicesContainer servicesContainer,
+      @NonNull final FullServicesContainer servicesContainer,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
       @NonNull final String targetDriverProtocol,
@@ -107,7 +107,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   public PluginServiceImpl(
-      @NonNull final CompleteServicesContainer servicesContainer,
+      @NonNull final FullServicesContainer servicesContainer,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
       @NonNull final String targetDriverProtocol,
@@ -126,7 +126,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   public PluginServiceImpl(
-      @NonNull final CompleteServicesContainer servicesContainer,
+      @NonNull final FullServicesContainer servicesContainer,
       @NonNull final ExceptionManager exceptionManager,
       @NonNull final Properties props,
       @NonNull final String originalUrl,

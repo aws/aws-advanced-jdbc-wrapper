@@ -27,7 +27,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.util.CompleteServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -50,13 +50,13 @@ public class HostMonitorServiceImpl implements HostMonitorService {
 
   protected static final Executor ABORT_EXECUTOR = Executors.newSingleThreadExecutor();
 
-  protected final CompleteServicesContainer serviceContainer;
+  protected final FullServicesContainer serviceContainer;
   protected final PluginService pluginService;
   protected final MonitorService coreMonitorService;
   protected final TelemetryFactory telemetryFactory;
   protected final TelemetryCounter abortedConnectionsCounter;
 
-  public HostMonitorServiceImpl(final @NonNull CompleteServicesContainer serviceContainer) {
+  public HostMonitorServiceImpl(final @NonNull FullServicesContainer serviceContainer) {
     this(
         serviceContainer,
         (hostSpec,
@@ -76,7 +76,7 @@ public class HostMonitorServiceImpl implements HostMonitorService {
   }
 
   HostMonitorServiceImpl(
-      final @NonNull CompleteServicesContainer serviceContainer,
+      final @NonNull FullServicesContainer serviceContainer,
       final @NonNull HostMonitorInitializer monitorInitializer) {
     this.serviceContainer = serviceContainer;
     this.coreMonitorService = serviceContainer.getMonitorService();
@@ -161,9 +161,6 @@ public class HostMonitorServiceImpl implements HostMonitorService {
         failureDetectionIntervalMillis,
         failureDetectionCount,
         hostSpec.getUrl());
-
-    final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(
-        MONITOR_DISPOSAL_TIME_MS.getLong(properties));
 
     return this.coreMonitorService.runIfAbsent(
         HostMonitorImpl.class,

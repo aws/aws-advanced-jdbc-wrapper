@@ -30,7 +30,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
-import software.amazon.jdbc.util.CompleteServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
@@ -51,7 +51,7 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
     PropertyDefinition.registerPluginProperties(MonitoringRdsHostListProvider.class);
   }
 
-  protected final CompleteServicesContainer servicesContainer;
+  protected final FullServicesContainer servicesContainer;
   protected final PluginService pluginService;
   protected final long highRefreshRateNano;
   protected final String writerTopologyQuery;
@@ -59,7 +59,7 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
   public MonitoringRdsHostListProvider(
       final Properties properties,
       final String originalUrl,
-      final CompleteServicesContainer servicesContainer,
+      final FullServicesContainer servicesContainer,
       final String topologyQuery,
       final String nodeIdQuery,
       final String isReaderQuery,

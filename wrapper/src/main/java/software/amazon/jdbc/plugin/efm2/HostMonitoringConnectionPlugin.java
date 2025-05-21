@@ -35,13 +35,12 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.CompleteServicesContainer;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
 import software.amazon.jdbc.util.WrapperUtils;
-import software.amazon.jdbc.util.monitoring.MonitorServiceImpl;
 
 /**
  * Monitor the server while the connection is executing methods for more sophisticated failure
@@ -95,20 +94,20 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
   /**
    * Initialize the node monitoring plugin.
    *
-   * @param serviceContainer The service container for the services required by this class.
-   * @param properties       The property set used to initialize the active connection.
+   * @param servicesContainer The service container for the services required by this class.
+   * @param properties        The property set used to initialize the active connection.
    */
   public HostMonitoringConnectionPlugin(
-      final @NonNull CompleteServicesContainer serviceContainer, final @NonNull Properties properties) {
+      final @NonNull FullServicesContainer servicesContainer, final @NonNull Properties properties) {
     this(
-        serviceContainer,
+        servicesContainer,
         properties,
-        () -> new HostMonitorServiceImpl(serviceContainer),
+        () -> new HostMonitorServiceImpl(servicesContainer),
         new RdsUtils());
   }
 
   HostMonitoringConnectionPlugin(
-      final @NonNull CompleteServicesContainer serviceContainer,
+      final @NonNull FullServicesContainer serviceContainer,
       final @NonNull Properties properties,
       final @NonNull Supplier<HostMonitorService> monitorServiceSupplier,
       final RdsUtils rdsHelper) {

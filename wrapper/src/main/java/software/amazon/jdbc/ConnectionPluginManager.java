@@ -50,7 +50,7 @@ import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPlugin;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPlugin;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.util.AsynchronousMethodsHelper;
-import software.amazon.jdbc.util.CompleteServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.Utils;
@@ -111,7 +111,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
   protected final @NonNull ConnectionProvider defaultConnProvider;
   protected final @Nullable ConnectionProvider effectiveConnProvider;
   protected final ConnectionWrapper connectionWrapper;
-  protected CompleteServicesContainer servicesContainer;
+  protected FullServicesContainer servicesContainer;
   protected PluginService pluginService;
   protected TelemetryFactory telemetryFactory;
 
@@ -189,7 +189,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    * @throws SQLException if errors occurred during the execution
    */
   public void init(
-      final CompleteServicesContainer servicesContainer,
+      final FullServicesContainer servicesContainer,
       final Properties props,
       final PluginManagerService pluginManagerService,
       @Nullable ConfigurationProfile configurationProfile)

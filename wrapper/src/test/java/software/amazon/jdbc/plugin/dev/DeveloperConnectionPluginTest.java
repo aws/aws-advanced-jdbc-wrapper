@@ -42,8 +42,8 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.DialectCodes;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.CompleteServicesContainer;
-import software.amazon.jdbc.util.CompleteServicesContainerImpl;
+import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainerImpl;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -52,7 +52,7 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 @SuppressWarnings({"resource"})
 public class DeveloperConnectionPluginTest {
-  private CompleteServicesContainer servicesContainer;
+  private FullServicesContainer servicesContainer;
   @Mock StorageService mockStorageService;
   @Mock MonitorService mockMonitorService;
   @Mock ConnectionProvider mockConnectionProvider;
@@ -73,7 +73,7 @@ public class DeveloperConnectionPluginTest {
   @BeforeEach
   void init() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
-    servicesContainer = new CompleteServicesContainerImpl(mockStorageService, mockMonitorService, mockTelemetryFactory);
+    servicesContainer = new FullServicesContainerImpl(mockStorageService, mockMonitorService, mockTelemetryFactory);
 
     when(mockConnectionProvider.connect(any(), any(), any(), any(), any())).thenReturn(mockConnection);
     when(mockConnectCallback.getExceptionToRaise(any(), any(), any(), anyBoolean())).thenReturn(null);
