@@ -47,7 +47,7 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPluginFa
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPluginFactory;
 import software.amazon.jdbc.profile.ConfigurationProfile;
-import software.amazon.jdbc.util.CompleteServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
@@ -134,7 +134,7 @@ public class ConnectionPluginChainBuilder {
   }
 
   public List<ConnectionPlugin> getPlugins(
-      final CompleteServicesContainer servicesContainer,
+      final FullServicesContainer servicesContainer,
       final ConnectionProvider defaultConnProvider,
       final ConnectionProvider effectiveConnProvider,
       final PluginManagerService pluginManagerService,
@@ -189,9 +189,9 @@ public class ConnectionPluginChainBuilder {
         plugins = new ArrayList<>(factories.length + 1);
 
         for (final ConnectionPluginFactory factory : factories) {
-          if (factory instanceof ServiceContainerPluginFactory) {
-            ServiceContainerPluginFactory serviceContainerPluginFactory = (ServiceContainerPluginFactory) factory;
-            plugins.add(serviceContainerPluginFactory.getInstance(servicesContainer, props));
+          if (factory instanceof ServicesContainerPluginFactory) {
+            ServicesContainerPluginFactory servicesContainerPluginFactory = (ServicesContainerPluginFactory) factory;
+            plugins.add(servicesContainerPluginFactory.getInstance(servicesContainer, props));
           } else {
             plugins.add(factory.getInstance(servicesContainer.getPluginService(), props));
           }

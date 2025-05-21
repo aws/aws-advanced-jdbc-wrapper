@@ -46,8 +46,8 @@ import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectManager;
-import software.amazon.jdbc.util.CompleteServicesContainer;
-import software.amazon.jdbc.util.CompleteServicesContainerImpl;
+import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainerImpl;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.CoreServicesContainer;
 import software.amazon.jdbc.util.Messages;
@@ -269,8 +269,8 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
       final @NonNull TargetDriverDialect targetDriverDialect,
       final @Nullable ConfigurationProfile configurationProfile,
       final TelemetryFactory telemetryFactory) throws SQLException {
-    CompleteServicesContainer
-        servicesContainer = new CompleteServicesContainerImpl(storageService, monitorService, telemetryFactory);
+    FullServicesContainer
+        servicesContainer = new FullServicesContainerImpl(storageService, monitorService, telemetryFactory);
     return new ConnectionWrapper(
         servicesContainer,
         props,

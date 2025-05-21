@@ -21,12 +21,12 @@ import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.CompleteServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 
 public class TestPluginServiceImpl extends PluginServiceImpl {
 
   public TestPluginServiceImpl(
-      @NonNull CompleteServicesContainer servicesContainer,
+      @NonNull FullServicesContainer servicesContainer,
       @NonNull Properties props,
       @NonNull String originalUrl,
       String targetDriverProtocol,

@@ -31,7 +31,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
  *
  * @see CoreServicesContainer
  */
-public interface CompleteServicesContainer {
+public interface FullServicesContainer {
   StorageService getStorageService();
 
   MonitorService getMonitorService();

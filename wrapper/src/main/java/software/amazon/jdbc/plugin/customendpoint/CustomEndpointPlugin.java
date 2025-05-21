@@ -34,7 +34,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
-import software.amazon.jdbc.util.CompleteServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.RegionUtils;
@@ -88,7 +88,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     PropertyDefinition.registerPluginProperties(CustomEndpointPlugin.class);
   }
 
-  protected final CompleteServicesContainer servicesContainer;
+  protected final FullServicesContainer servicesContainer;
   protected final PluginService pluginService;
   protected final TelemetryFactory telemetryFactory;
   protected final Properties props;
@@ -109,7 +109,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
    * @param servicesContainer The service container for the services required by this class.
    * @param props            The properties that the custom endpoint plugin should use.
    */
-  public CustomEndpointPlugin(final CompleteServicesContainer servicesContainer, final Properties props) {
+  public CustomEndpointPlugin(final FullServicesContainer servicesContainer, final Properties props) {
     this(
         servicesContainer,
         props,
@@ -128,7 +128,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
    * @param rdsClientFunc    The function to call to obtain an {@link RdsClient} instance.
    */
   public CustomEndpointPlugin(
-      final CompleteServicesContainer servicesContainer,
+      final FullServicesContainer servicesContainer,
       final Properties props,
       final BiFunction<HostSpec, Region, RdsClient> rdsClientFunc) {
     this.servicesContainer = servicesContainer;

@@ -19,7 +19,7 @@ package software.amazon.jdbc.hostlistprovider.monitoring;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.logging.Logger;
-import software.amazon.jdbc.util.CompleteServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 
 public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListProvider {
 
@@ -31,7 +31,7 @@ public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListP
   public MonitoringRdsMultiAzHostListProvider(
       final Properties properties,
       final String originalUrl,
-      final CompleteServicesContainer servicesContainer,
+      final FullServicesContainer servicesContainer,
       final String topologyQuery,
       final String nodeIdQuery,
       final String isReaderQuery,

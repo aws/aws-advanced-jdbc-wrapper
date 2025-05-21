@@ -45,7 +45,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
-import software.amazon.jdbc.util.CompleteServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -60,7 +60,7 @@ public class CustomEndpointPluginTest {
   private final HostSpec writerClusterHost = hostSpecBuilder.host(writerClusterUrl).build();
   private final HostSpec host = hostSpecBuilder.host(customEndpointUrl).build();
 
-  @Mock private CompleteServicesContainer mockServicesContainer;
+  @Mock private FullServicesContainer mockServicesContainer;
   @Mock private PluginService mockPluginService;
   @Mock private BiFunction<HostSpec, Region, RdsClient> mockRdsClientFunc;
   @Mock private TelemetryFactory mockTelemetryFactory;

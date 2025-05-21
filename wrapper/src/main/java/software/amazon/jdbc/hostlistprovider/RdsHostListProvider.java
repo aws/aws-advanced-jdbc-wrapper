@@ -49,7 +49,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
-import software.amazon.jdbc.util.CompleteServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
@@ -95,7 +95,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   protected static final CacheMap<String, String> suggestedPrimaryClusterIdCache = new CacheMap<>();
   protected static final CacheMap<String, Boolean> primaryClusterIdCache = new CacheMap<>();
 
-  protected final CompleteServicesContainer servicesContainer;
+  protected final FullServicesContainer servicesContainer;
   protected final HostListProviderService hostListProviderService;
   protected final String originalUrl;
   protected final String topologyQuery;
@@ -128,7 +128,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   public RdsHostListProvider(
       final Properties properties,
       final String originalUrl,
-      final CompleteServicesContainer servicesContainer,
+      final FullServicesContainer servicesContainer,
       final String topologyQuery,
       final String nodeIdQuery,
       final String isReaderQuery) {
