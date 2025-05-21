@@ -16,11 +16,15 @@
 
 package software.amazon.jdbc.util;
 
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class ExecutorFactory {
+  private static final ConcurrentHashMap<String, ThreadFactory> THREAD_FACTORY_MAP = new ConcurrentHashMap<>();
+
   public static ExecutorService newSingleThreadExecutor(String threadName) {
     return Executors.newSingleThreadExecutor(getThreadFactory(threadName));
   }
@@ -34,8 +38,13 @@ public class ExecutorFactory {
   }
 
   private static ThreadFactory getThreadFactory(String threadName) {
+    return THREAD_FACTORY_MAP.computeIfAbsent(threadName, ExecutorFactory::createThreadFactory);
+  }
+
+  private static ThreadFactory createThreadFactory(String threadName) {
+    AtomicLong threadCounter = new AtomicLong();
     return runnable -> {
-      Thread thread = new Thread(runnable, String.format("%s %s", "AWS JDBC wrapper", threadName));
+      Thread thread = new Thread(runnable, String.format("%s %s-%d", "AWS JDBC wrapper", threadName, threadCounter.incrementAndGet()));
       thread.setDaemon(true);
       return thread;
     };

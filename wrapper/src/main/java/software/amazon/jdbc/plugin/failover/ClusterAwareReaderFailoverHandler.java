@@ -131,7 +131,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       return FAILED_READER_FAILOVER_RESULT;
     }
 
-    final ExecutorService executor = ExecutorFactory.newSingleThreadExecutor("ClusterAwareReaderFailoverHandler#executor");
+    final ExecutorService executor = ExecutorFactory.newSingleThreadExecutor("ClusterAwareReaderFailoverHandler.failover#executor");
     final Future<ReaderFailoverResult> future = submitInternalFailoverTask(hosts, currentHost, executor);
     return getInternalFailoverResult(executor, future);
   }
@@ -287,7 +287,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
 
   private ReaderFailoverResult getConnectionFromHostGroup(final List<HostSpec> hosts)
       throws SQLException {
-    final ExecutorService executor = ExecutorFactory.newFixedThreadPool(2, "ClusterAwareReaderFailoverHandler#executor");
+    final ExecutorService executor = ExecutorFactory.newFixedThreadPool(2, "ClusterAwareReaderFailoverHandler.getConnectionFromHostGroup#executor");
     final CompletionService<ReaderFailoverResult> completionService = new ExecutorCompletionService<>(executor);
 
     try {
