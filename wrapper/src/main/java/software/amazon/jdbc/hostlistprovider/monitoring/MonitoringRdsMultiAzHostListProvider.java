@@ -51,9 +51,9 @@ public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListP
 
   @Override
   protected ClusterTopologyMonitor initMonitor() throws SQLException {
-    return monitorService.runIfAbsent(MultiAzClusterTopologyMonitorImpl.class,
+    return this.servicesContainer.getMonitorService().runIfAbsent(MultiAzClusterTopologyMonitorImpl.class,
         this.clusterId,
-        this.storageService,
+        this.servicesContainer.getStorageService(),
         this.pluginService.getTelemetryFactory(),
         this.originalUrl,
         this.pluginService.getDriverProtocol(),
@@ -62,8 +62,8 @@ public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListP
         this.properties,
         (connectionService, pluginService) -> new MultiAzClusterTopologyMonitorImpl(
             this.clusterId,
-            this.storageService,
-            this.monitorService,
+            this.servicesContainer.getStorageService(),
+            this.servicesContainer.getMonitorService(),
             connectionService,
             this.initialHostSpec,
             this.properties,

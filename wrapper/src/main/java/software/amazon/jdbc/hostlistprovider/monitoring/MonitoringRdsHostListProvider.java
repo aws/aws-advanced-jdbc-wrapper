@@ -33,6 +33,7 @@ import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.util.CompleteServicesContainer;
 import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.monitoring.CoreMonitorService;
+import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.Topology;
 
 public class MonitoringRdsHostListProvider extends RdsHostListProvider
@@ -51,7 +52,6 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
   }
 
   protected final CompleteServicesContainer servicesContainer;
-  protected final CoreMonitorService monitorService;
   protected final PluginService pluginService;
   protected final long highRefreshRateNano;
   protected final String writerTopologyQuery;
@@ -66,7 +66,6 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
       final String writerTopologyQuery) {
     super(properties, originalUrl, servicesContainer, topologyQuery, nodeIdQuery, isReaderQuery);
     this.servicesContainer = servicesContainer;
-    this.monitorService = servicesContainer.getMonitorService();
     this.pluginService = servicesContainer.getPluginService();
     this.writerTopologyQuery = writerTopologyQuery;
     this.highRefreshRateNano = TimeUnit.MILLISECONDS.toNanos(
@@ -83,10 +82,10 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
   }
 
   protected ClusterTopologyMonitor initMonitor() throws SQLException {
-    return monitorService.runIfAbsent(
+    return this.servicesContainer.getMonitorService().runIfAbsent(
         ClusterTopologyMonitorImpl.class,
         this.clusterId,
-        this.storageService,
+        this.servicesContainer.getStorageService(),
         this.pluginService.getTelemetryFactory(),
         this.originalUrl,
         this.pluginService.getDriverProtocol(),
@@ -95,7 +94,7 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
         this.properties,
         (ConnectionService connectionService, PluginService monitorPluginService) -> new ClusterTopologyMonitorImpl(
             this.clusterId,
-            this.storageService,
+            this.servicesContainer.getStorageService(),
             connectionService,
             this.initialHostSpec,
             this.properties,
@@ -111,7 +110,8 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
 
   @Override
   protected List<HostSpec> queryForTopology(final Connection conn) throws SQLException {
-    ClusterTopologyMonitor monitor = monitorService.get(ClusterTopologyMonitorImpl.class, this.clusterId);
+    ClusterTopologyMonitor monitor = this.servicesContainer.getMonitorService()
+        .get(ClusterTopologyMonitorImpl.class, this.clusterId);
     if (monitor == null) {
       monitor = this.initMonitor();
     }
@@ -125,13 +125,14 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
 
   @Override
   protected void clusterIdChanged(final String oldClusterId) throws SQLException {
+    CoreMonitorService monitorService = this.servicesContainer.getMonitorService();
     final ClusterTopologyMonitorImpl existingMonitor =
         monitorService.get(ClusterTopologyMonitorImpl.class, oldClusterId);
     if (existingMonitor != null) {
-      monitorService.runIfAbsent(
+      this.servicesContainer.getMonitorService().runIfAbsent(
           ClusterTopologyMonitorImpl.class,
           this.clusterId,
-          this.storageService,
+          this.servicesContainer.getStorageService(),
           this.pluginService.getTelemetryFactory(),
           this.originalUrl,
           this.pluginService.getDriverProtocol(),
@@ -144,6 +145,7 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
       monitorService.remove(ClusterTopologyMonitorImpl.class, oldClusterId);
     }
 
+    final StorageService storageService = this.servicesContainer.getStorageService();
     final Topology existingTopology = storageService.get(Topology.class, oldClusterId);
     final List<HostSpec> existingHosts = existingTopology == null ? null : existingTopology.getHosts();
     if (existingHosts != null) {
@@ -155,7 +157,8 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
   public List<HostSpec> forceRefresh(final boolean shouldVerifyWriter, final long timeoutMs)
       throws SQLException, TimeoutException {
 
-    ClusterTopologyMonitor monitor = monitorService.get(ClusterTopologyMonitorImpl.class, this.clusterId);
+    ClusterTopologyMonitor monitor =
+        this.servicesContainer.getMonitorService().get(ClusterTopologyMonitorImpl.class, this.clusterId);
     if (monitor == null) {
       monitor = this.initMonitor();
     }

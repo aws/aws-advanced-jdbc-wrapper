@@ -34,15 +34,13 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
+import software.amazon.jdbc.util.CompleteServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.RegionUtils;
-import software.amazon.jdbc.util.CompleteServicesContainer;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
 import software.amazon.jdbc.util.WrapperUtils;
-import software.amazon.jdbc.util.monitoring.CoreMonitorService;
-import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -92,8 +90,6 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
 
   protected final CompleteServicesContainer servicesContainer;
   protected final PluginService pluginService;
-  protected final StorageService storageService;
-  protected final CoreMonitorService monitorService;
   protected final TelemetryFactory telemetryFactory;
   protected final Properties props;
   protected final RdsUtils rdsUtils = new RdsUtils();
@@ -137,8 +133,6 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
       final BiFunction<HostSpec, Region, RdsClient> rdsClientFunc) {
     this.servicesContainer = servicesContainer;
     this.pluginService = servicesContainer.getPluginService();
-    this.storageService = servicesContainer.getStorageService();
-    this.monitorService = servicesContainer.getMonitorService();
     this.telemetryFactory = servicesContainer.getTelemetryFactory();
 
     this.props = props;
@@ -210,7 +204,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     return this.servicesContainer.getMonitorService().runIfAbsent(
         CustomEndpointMonitorImpl.class,
         this.customEndpointHostSpec.getUrl(),
-        this.storageService,
+        this.servicesContainer.getStorageService(),
         this.pluginService.getTelemetryFactory(),
         this.pluginService.getOriginalUrl(),
         this.pluginService.getDriverProtocol(),
@@ -218,7 +212,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
         this.pluginService.getDialect(),
         this.props,
         (connectionService, pluginService) -> new CustomEndpointMonitorImpl(
-            this.storageService,
+            this.servicesContainer.getStorageService(),
             this.servicesContainer.getTelemetryFactory(),
             this.customEndpointHostSpec,
             this.customEndpointId,
