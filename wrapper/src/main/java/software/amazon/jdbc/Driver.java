@@ -66,7 +66,7 @@ import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.CompleteServicesContainer;
 import software.amazon.jdbc.util.CompleteServicesContainerImpl;
 import software.amazon.jdbc.util.StringUtils;
-import software.amazon.jdbc.util.monitoring.CoreMonitorService;
+import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -110,7 +110,7 @@ public class Driver implements java.sql.Driver {
   }
 
   private final StorageService storageService;
-  private final CoreMonitorService monitorService;
+  private final MonitorService monitorService;
 
   public Driver() {
     this(CoreServicesContainer.getInstance());

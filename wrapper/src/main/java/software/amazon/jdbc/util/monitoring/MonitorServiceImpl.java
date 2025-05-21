@@ -52,8 +52,8 @@ import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.Topology;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
-public class CoreMonitorServiceImpl implements CoreMonitorService, EventSubscriber {
-  private static final Logger LOGGER = Logger.getLogger(CoreMonitorServiceImpl.class.getName());
+public class MonitorServiceImpl implements MonitorService, EventSubscriber {
+  private static final Logger LOGGER = Logger.getLogger(MonitorServiceImpl.class.getName());
   protected static final long DEFAULT_CLEANUP_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(1);
   protected static final Map<Class<? extends Monitor>, Supplier<CacheContainer>> defaultSuppliers;
 
@@ -84,7 +84,7 @@ public class CoreMonitorServiceImpl implements CoreMonitorService, EventSubscrib
   }));
 
 
-  public CoreMonitorServiceImpl(EventPublisher publisher) {
+  public MonitorServiceImpl(EventPublisher publisher) {
     this(DEFAULT_CLEANUP_INTERVAL_NANOS, publisher);
   }
 
@@ -96,7 +96,7 @@ public class CoreMonitorServiceImpl implements CoreMonitorService, EventSubscrib
    *                             nanoseconds.
    * @param publisher            the publisher to subscribe to for data access events.
    */
-  public CoreMonitorServiceImpl(long cleanupIntervalNanos, EventPublisher publisher) {
+  public MonitorServiceImpl(long cleanupIntervalNanos, EventPublisher publisher) {
     this.publisher = publisher;
     this.publisher.subscribe(this, new HashSet<>(Collections.singletonList(DataAccessEvent.class)));
     initCleanupThread(cleanupIntervalNanos);

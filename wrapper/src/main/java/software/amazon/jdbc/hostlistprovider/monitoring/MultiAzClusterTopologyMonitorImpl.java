@@ -29,7 +29,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.connection.ConnectionService;
-import software.amazon.jdbc.util.monitoring.CoreMonitorService;
+import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 
 public class MultiAzClusterTopologyMonitorImpl extends ClusterTopologyMonitorImpl {
@@ -42,7 +42,7 @@ public class MultiAzClusterTopologyMonitorImpl extends ClusterTopologyMonitorImp
   public MultiAzClusterTopologyMonitorImpl(
       final String clusterId,
       final StorageService storageService,
-      final CoreMonitorService monitorService,
+      final MonitorService monitorService,
       final ConnectionService connectionService,
       final HostSpec initialHostSpec,
       final Properties properties,

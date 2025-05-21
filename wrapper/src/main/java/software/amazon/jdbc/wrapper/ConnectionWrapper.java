@@ -58,7 +58,7 @@ import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.connection.ConnectionService;
-import software.amazon.jdbc.util.monitoring.CoreMonitorService;
+import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -135,7 +135,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       @NonNull final HostListProviderService hostListProviderService,
       @NonNull final PluginManagerService pluginManagerService,
       @NonNull final StorageService storageService,
-      @NonNull final CoreMonitorService monitorService,
+      @NonNull final MonitorService monitorService,
       @NonNull final ConnectionService connectionService)
       throws SQLException {
 

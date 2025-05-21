@@ -18,8 +18,8 @@ package software.amazon.jdbc.util;
 
 import software.amazon.jdbc.util.events.BatchingEventPublisher;
 import software.amazon.jdbc.util.events.EventPublisher;
-import software.amazon.jdbc.util.monitoring.CoreMonitorService;
-import software.amazon.jdbc.util.monitoring.CoreMonitorServiceImpl;
+import software.amazon.jdbc.util.monitoring.MonitorService;
+import software.amazon.jdbc.util.monitoring.MonitorServiceImpl;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.StorageServiceImpl;
 
@@ -34,12 +34,12 @@ public class CoreServicesContainer {
   private static final CoreServicesContainer INSTANCE = new CoreServicesContainer();
 
   private final StorageService storageService;
-  private final CoreMonitorService monitorService;
+  private final MonitorService monitorService;
 
   private CoreServicesContainer() {
     EventPublisher eventPublisher = new BatchingEventPublisher();
     this.storageService = new StorageServiceImpl(eventPublisher);
-    this.monitorService = new CoreMonitorServiceImpl(eventPublisher);
+    this.monitorService = new MonitorServiceImpl(eventPublisher);
   }
 
   public static CoreServicesContainer getInstance() {
@@ -50,7 +50,7 @@ public class CoreServicesContainer {
     return storageService;
   }
 
-  public CoreMonitorService getMonitorService() {
+  public MonitorService getMonitorService() {
     return monitorService;
   }
 }
