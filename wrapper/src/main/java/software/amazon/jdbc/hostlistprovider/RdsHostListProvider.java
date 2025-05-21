@@ -49,16 +49,15 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.util.CompleteServicesContainer;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.storage.CacheMap;
-import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.Topology;
 
 public class RdsHostListProvider implements DynamicHostListProvider {
@@ -96,7 +95,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   protected static final CacheMap<String, String> suggestedPrimaryClusterIdCache = new CacheMap<>();
   protected static final CacheMap<String, Boolean> primaryClusterIdCache = new CacheMap<>();
 
-  protected final StorageService storageService;
+  protected final CompleteServicesContainer servicesContainer;
   protected final HostListProviderService hostListProviderService;
   protected final String originalUrl;
   protected final String topologyQuery;
@@ -129,14 +128,14 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   public RdsHostListProvider(
       final Properties properties,
       final String originalUrl,
-      final ServiceContainer serviceContainer,
+      final CompleteServicesContainer servicesContainer,
       final String topologyQuery,
       final String nodeIdQuery,
       final String isReaderQuery) {
-    this.hostListProviderService = serviceContainer.getHostListProviderService();
-    this.storageService = serviceContainer.getStorageService();
     this.properties = properties;
     this.originalUrl = originalUrl;
+    this.servicesContainer = servicesContainer;
+    this.hostListProviderService = servicesContainer.getHostListProviderService();
     this.topologyQuery = topologyQuery;
     this.nodeIdQuery = nodeIdQuery;
     this.isReaderQuery = isReaderQuery;
@@ -267,7 +266,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       final List<HostSpec> hosts = queryForTopology(conn);
 
       if (!Utils.isNullOrEmpty(hosts)) {
-        storageService.set(this.clusterId, new Topology(hosts));
+        this.servicesContainer.getStorageService().set(this.clusterId, new Topology(hosts));
         if (needToSuggest) {
           this.suggestPrimaryCluster(hosts);
         }
@@ -288,7 +287,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   }
 
   protected ClusterSuggestedResult getSuggestedClusterId(final String url) {
-    Map<String, Topology> entries = storageService.getEntries(Topology.class);
+    Map<String, Topology> entries = this.servicesContainer.getStorageService().getEntries(Topology.class);
     if (entries == null) {
       return null;
     }
@@ -325,7 +324,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       primaryClusterHostUrls.add(hostSpec.getUrl());
     }
 
-    Map<String, Topology> entries = storageService.getEntries(Topology.class);
+    Map<String, Topology> entries = this.servicesContainer.getStorageService().getEntries(Topology.class);
     if (entries == null) {
       return;
     }
@@ -508,7 +507,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
    *     cached topology is outdated, it returns null.
    */
   public @Nullable List<HostSpec> getStoredTopology() {
-    Topology topology = storageService.get(Topology.class, this.clusterId);
+    Topology topology = this.servicesContainer.getStorageService().get(Topology.class, this.clusterId);
     return topology == null ? null : topology.getHosts();
   }
 
@@ -524,7 +523,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
    * Clear topology cache for the current cluster.
    */
   public void clear() {
-    storageService.remove(Topology.class, this.clusterId);
+    this.servicesContainer.getStorageService().remove(Topology.class, this.clusterId);
   }
 
   @Override

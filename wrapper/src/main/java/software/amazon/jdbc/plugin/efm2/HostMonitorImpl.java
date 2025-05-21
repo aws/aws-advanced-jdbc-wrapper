@@ -38,7 +38,6 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
-import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -51,16 +50,16 @@ import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
  * This class uses a background thread to monitor a particular server with one or more active {@link
  * Connection}.
  */
-public class MonitorImpl extends AbstractMonitor implements Monitor {
+public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
 
-  private static final Logger LOGGER = Logger.getLogger(MonitorImpl.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(HostMonitorImpl.class.getName());
   private static final long THREAD_SLEEP_NANO = TimeUnit.MILLISECONDS.toNanos(100);
   private static final String MONITORING_PROPERTY_PREFIX = "monitoring-";
 
   protected static final Executor ABORT_EXECUTOR = Executors.newSingleThreadExecutor();
 
-  private final Queue<WeakReference<MonitorConnectionContext>> activeContexts = new ConcurrentLinkedQueue<>();
-  private final Map<Long, Queue<WeakReference<MonitorConnectionContext>>> newContexts =
+  private final Queue<WeakReference<HostMonitorConnectionContext>> activeContexts = new ConcurrentLinkedQueue<>();
+  private final Map<Long, Queue<WeakReference<HostMonitorConnectionContext>>> newContexts =
       new ConcurrentHashMap<>();
   private final PluginService pluginService;
   private final TelemetryFactory telemetryFactory;
@@ -85,17 +84,18 @@ public class MonitorImpl extends AbstractMonitor implements Monitor {
   /**
    * Store the monitoring configuration for a connection.
    *
-   * @param serviceContainer               The service container for the services required by this class.
-   * @param hostSpec                       The {@link HostSpec} of the server this {@link MonitorImpl} instance is
-   *                                       monitoring.
-   * @param properties                     The {@link Properties} containing additional monitoring configuration.
-   * @param failureDetectionTimeMillis     A failure detection time in millis.
+   * @param pluginService             A service for creating new connections.
+   * @param hostSpec                  The {@link HostSpec} of the server this {@link HostMonitorImpl}
+   *                                  instance is monitoring.
+   * @param properties                The {@link Properties} containing additional monitoring
+   *                                  configuration.
+   * @param failureDetectionTimeMillis A failure detection time in millis.
    * @param failureDetectionIntervalMillis A failure detection interval in millis.
    * @param failureDetectionCount A failure detection count.
    * @param abortedConnectionsCounter Aborted connection telemetry counter.
    */
-  public MonitorImpl(
-      final @NonNull ServiceContainer serviceContainer,
+  public HostMonitorImpl(
+      final @NonNull PluginService pluginService,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties properties,
       final int failureDetectionTimeMillis,
@@ -113,7 +113,7 @@ public class MonitorImpl extends AbstractMonitor implements Monitor {
         }),
         30);
 
-    this.pluginService = serviceContainer.getPluginService();
+    this.pluginService = pluginService;
     this.telemetryFactory = pluginService.getTelemetryFactory();
     this.hostSpec = hostSpec;
     this.properties = properties;
@@ -161,7 +161,7 @@ public class MonitorImpl extends AbstractMonitor implements Monitor {
   }
 
   @Override
-  public void startMonitoring(final MonitorConnectionContext context) {
+  public void startMonitoring(final HostMonitorConnectionContext context) {
     if (this.stopped.get()) {
       LOGGER.warning(() -> Messages.get("MonitorImpl.monitorIsStopped", new Object[] {this.hostSpec.getHost()}));
     }
@@ -170,7 +170,7 @@ public class MonitorImpl extends AbstractMonitor implements Monitor {
     long startMonitoringTimeNano = this.truncateNanoToSeconds(
         currentTimeNano + this.failureDetectionTimeNano);
 
-    Queue<WeakReference<MonitorConnectionContext>> queue =
+    Queue<WeakReference<HostMonitorConnectionContext>> queue =
         this.newContexts.computeIfAbsent(
             startMonitoringTimeNano,
             (key) -> new ConcurrentLinkedQueue<>());
@@ -207,14 +207,14 @@ public class MonitorImpl extends AbstractMonitor implements Monitor {
             // Get entries with key (that is a time in nanos) less or equal than current time.
             .filter(entry -> entry.getKey() < currentTimeNano)
             .forEach(entry -> {
-              final Queue<WeakReference<MonitorConnectionContext>> queue = entry.getValue();
+              final Queue<WeakReference<HostMonitorConnectionContext>> queue = entry.getValue();
               processedKeys.add(entry.getKey());
               // Each value of found entry is a queue of monitoring contexts awaiting active monitoring.
               // Add all contexts to an active monitoring contexts queue.
               // Ignore disposed contexts.
-              WeakReference<MonitorConnectionContext> contextWeakRef;
+              WeakReference<HostMonitorConnectionContext> contextWeakRef;
               while ((contextWeakRef = queue.poll()) != null) {
-                MonitorConnectionContext context = contextWeakRef.get();
+                HostMonitorConnectionContext context = contextWeakRef.get();
                 if (context != null && context.isActive()) {
                   this.activeContexts.add(contextWeakRef);
                 }
@@ -268,15 +268,15 @@ public class MonitorImpl extends AbstractMonitor implements Monitor {
           this.pluginService.setAvailability(this.hostSpec.asAliases(), HostAvailability.NOT_AVAILABLE);
         }
 
-        final List<WeakReference<MonitorConnectionContext>> tmpActiveContexts = new ArrayList<>();
-        WeakReference<MonitorConnectionContext> monitorContextWeakRef;
+        final List<WeakReference<HostMonitorConnectionContext>> tmpActiveContexts = new ArrayList<>();
+        WeakReference<HostMonitorConnectionContext> monitorContextWeakRef;
 
         while ((monitorContextWeakRef = this.activeContexts.poll()) != null) {
           if (this.stopped.get()) {
             break;
           }
 
-          MonitorConnectionContext monitorContext = monitorContextWeakRef.get();
+          HostMonitorConnectionContext monitorContext = monitorContextWeakRef.get();
           if (monitorContext == null) {
             continue;
           }

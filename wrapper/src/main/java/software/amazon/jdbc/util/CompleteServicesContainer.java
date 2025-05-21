@@ -20,14 +20,21 @@ import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.util.monitoring.CoreMonitorService;
+import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
-public interface ServiceContainer {
+/**
+ * A container object used to hold and access the various services required by the driver. This class provides access to
+ * both connection-specific services required by plugins and monitors as well as core universal services such
+ * as {@link MonitorService} and {@link StorageService}.
+ *
+ * @see CoreServicesContainer
+ */
+public interface CompleteServicesContainer {
   StorageService getStorageService();
 
-  CoreMonitorService getMonitorService();
+  MonitorService getMonitorService();
 
   TelemetryFactory getTelemetryFactory();
 
@@ -39,7 +46,7 @@ public interface ServiceContainer {
 
   PluginManagerService getPluginManagerService();
 
-  void setMonitorService(CoreMonitorService monitorService);
+  void setMonitorService(MonitorService monitorService);
 
   void setStorageService(StorageService storageService);
 

@@ -16,18 +16,13 @@
 
 package software.amazon.jdbc.plugin.efm2;
 
-import java.util.Properties;
-import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.util.telemetry.TelemetryCounter;
+/**
+ * Interface for monitors. This class uses background threads to monitor servers with one or more
+ * connections for more efficient failure detection during method execution.
+ */
+public interface HostMonitor extends Runnable {
 
-/** Interface for initialize a new {@link MonitorImpl}. */
-@FunctionalInterface
-public interface MonitorInitializer {
-  software.amazon.jdbc.util.monitoring.Monitor createMonitor(
-      HostSpec hostSpec,
-      Properties properties,
-      final int failureDetectionTimeMillis,
-      final int failureDetectionIntervalMillis,
-      final int failureDetectionCount,
-      final TelemetryCounter abortedConnectionsCounter);
+  void startMonitoring(HostMonitorConnectionContext context);
+
+  boolean canDispose();
 }

@@ -38,9 +38,10 @@ import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.CompleteServicesContainer;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.monitoring.MonitorServiceImpl;
 
 /**
  * Monitor the server while the connection is executing methods for more sophisticated failure
@@ -80,9 +81,9 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       Collections.unmodifiableSet(new HashSet<>(Collections.singletonList("*")));
 
   protected @NonNull Properties properties;
-  private final @NonNull Supplier<MonitorService> monitorServiceSupplier;
+  private final @NonNull Supplier<HostMonitorService> monitorServiceSupplier;
   private final @NonNull PluginService pluginService;
-  private MonitorService monitorService;
+  private HostMonitorService monitorService;
   private final RdsUtils rdsHelper;
   private HostSpec monitoringHostSpec;
 
@@ -98,18 +99,18 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
    * @param properties       The property set used to initialize the active connection.
    */
   public HostMonitoringConnectionPlugin(
-      final @NonNull ServiceContainer serviceContainer, final @NonNull Properties properties) {
+      final @NonNull CompleteServicesContainer serviceContainer, final @NonNull Properties properties) {
     this(
         serviceContainer,
         properties,
-        () -> new MonitorServiceImpl(serviceContainer),
+        () -> new HostMonitorServiceImpl(serviceContainer),
         new RdsUtils());
   }
 
   HostMonitoringConnectionPlugin(
-      final @NonNull ServiceContainer serviceContainer,
+      final @NonNull CompleteServicesContainer serviceContainer,
       final @NonNull Properties properties,
-      final @NonNull Supplier<MonitorService> monitorServiceSupplier,
+      final @NonNull Supplier<HostMonitorService> monitorServiceSupplier,
       final RdsUtils rdsHelper) {
     this.pluginService = serviceContainer.getPluginService();
     this.properties = properties;
@@ -123,7 +124,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
   }
 
   /**
-   * Executes the given SQL function with {@link MonitorImpl} if connection monitoring is enabled.
+   * Executes the given SQL function with {@link HostMonitorImpl} if connection monitoring is enabled.
    * Otherwise, executes the SQL function directly.
    */
   @Override
@@ -151,7 +152,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     initMonitorService();
 
     T result;
-    MonitorConnectionContext monitorContext = null;
+    HostMonitorConnectionContext monitorContext = null;
 
     try {
       LOGGER.finest(

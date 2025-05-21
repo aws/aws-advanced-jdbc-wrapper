@@ -276,9 +276,14 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     hostsByPriority.addAll(downHostList);
 
     final int numOfReaders = activeReaders.size() + downHostList.size();
-    final boolean enableWriterInTaskB =
-        this.pluginService.getDialect().getFailoverRestrictions().contains(FailoverRestriction.ENABLE_WRITER_IN_TASK_B);
-    if (writerHost != null && (numOfReaders == 0 || enableWriterInTaskB)) {
+    if (writerHost == null) {
+      return hostsByPriority;
+    }
+
+    boolean shouldIncludeWriter = numOfReaders == 0
+        || this.pluginService.getDialect().getFailoverRestrictions()
+            .contains(FailoverRestriction.ENABLE_WRITER_IN_TASK_B);
+    if (shouldIncludeWriter) {
       hostsByPriority.add(writerHost);
     }
 
@@ -402,7 +407,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
               LOGGER.fine(
                   Messages.get(
                       "ClusterAwareReaderFailoverHandler.readerRequired",
-                      new Object[]{ this.newHost.getUrl(), role }));
+                      new Object[] {this.newHost.getUrl(), role}));
 
               try {
                 conn.close();
@@ -413,7 +418,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
               return FAILED_READER_FAILOVER_RESULT;
             }
           } catch (SQLException e) {
-            LOGGER.fine(Messages.get("ClusterAwareReaderFailoverHandler.errorGettingHostRole", new Object[]{e}));
+            LOGGER.fine(Messages.get("ClusterAwareReaderFailoverHandler.errorGettingHostRole", new Object[] {e}));
 
             try {
               conn.close();

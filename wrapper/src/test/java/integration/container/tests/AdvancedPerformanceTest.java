@@ -65,8 +65,8 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.provider.Arguments;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.plugin.efm.MonitorThreadContainer;
-import software.amazon.jdbc.plugin.efm2.MonitorServiceImpl;
+import software.amazon.jdbc.plugin.efm.HostMonitorThreadContainer;
+import software.amazon.jdbc.plugin.efm2.HostMonitorServiceImpl;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -687,8 +687,8 @@ public class AdvancedPerformanceTest {
 
     TestAuroraHostListProvider.clearCache();
     TestPluginServiceImpl.clearHostAvailabilityCache();
-    MonitorThreadContainer.releaseInstance();
-    MonitorServiceImpl.closeAllMonitors();
+    HostMonitorThreadContainer.releaseInstance();
+    HostMonitorServiceImpl.closeAllMonitors();
   }
 
   private static Stream<Arguments> generateParams() {

@@ -18,41 +18,39 @@ package software.amazon.jdbc.util;
 
 import software.amazon.jdbc.util.events.BatchingEventPublisher;
 import software.amazon.jdbc.util.events.EventPublisher;
-import software.amazon.jdbc.util.monitoring.CoreMonitorService;
-import software.amazon.jdbc.util.monitoring.CoreMonitorServiceImpl;
+import software.amazon.jdbc.util.monitoring.MonitorService;
+import software.amazon.jdbc.util.monitoring.MonitorServiceImpl;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.StorageServiceImpl;
 
 /**
- * A singleton container object used to instantiate core services. This class should be used instead of directly
- * instantiating core services so that only one instance of each service is instantiated.
+ * A singleton container object used to instantiate and access core universal services. This class should be used
+ * instead of directly instantiating core services so that only one instance of each service is instantiated.
+ *
+ * @see CompleteServicesContainer for a container that holds both connection-specific services and core universal
+ *     services.
  */
 public class CoreServicesContainer {
   private static final CoreServicesContainer INSTANCE = new CoreServicesContainer();
 
-  private final EventPublisher eventPublisher;
   private final StorageService storageService;
-  private final CoreMonitorService monitorService;
+  private final MonitorService monitorService;
 
   private CoreServicesContainer() {
-    this.eventPublisher = new BatchingEventPublisher();
+    EventPublisher eventPublisher = new BatchingEventPublisher();
     this.storageService = new StorageServiceImpl(eventPublisher);
-    this.monitorService = new CoreMonitorServiceImpl(eventPublisher);
+    this.monitorService = new MonitorServiceImpl(eventPublisher);
   }
 
   public static CoreServicesContainer getInstance() {
     return INSTANCE;
   }
 
-  public EventPublisher getEventPublisher() {
-    return eventPublisher;
-  }
-
   public StorageService getStorageService() {
     return storageService;
   }
 
-  public CoreMonitorService getMonitorService() {
+  public MonitorService getMonitorService() {
     return monitorService;
   }
 }

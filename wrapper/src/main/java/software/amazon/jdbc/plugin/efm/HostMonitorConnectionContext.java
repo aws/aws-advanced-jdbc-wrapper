@@ -30,9 +30,9 @@ import software.amazon.jdbc.util.telemetry.TelemetryCounter;
  * Monitoring context for each connection. This contains each connection's criteria for whether a
  * server should be considered unhealthy. The context is shared between the main thread and the monitor thread.
  */
-public class MonitorConnectionContext {
+public class HostMonitorConnectionContext {
 
-  private static final Logger LOGGER = Logger.getLogger(MonitorConnectionContext.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(HostMonitorConnectionContext.class.getName());
   private static final Executor ABORT_EXECUTOR = Executors.newSingleThreadExecutor();
 
   private final TelemetryCounter abortedConnectionsCounter;
@@ -41,7 +41,7 @@ public class MonitorConnectionContext {
   private final long failureDetectionTimeMillis;
   private final long failureDetectionCount;
   private final Connection connectionToAbort;
-  private final Monitor monitor;
+  private final HostMonitor monitor;
 
   private volatile boolean activeContext = true;
   private volatile boolean nodeUnhealthy = false;
@@ -64,8 +64,8 @@ public class MonitorConnectionContext {
    *                                       node as unhealthy.
    * @param abortedConnectionsCounter Aborted connection telemetry counter.
    */
-  public MonitorConnectionContext(
-      final Monitor monitor,
+  public HostMonitorConnectionContext(
+      final HostMonitor monitor,
       final Connection connectionToAbort,
       final long failureDetectionTimeMillis,
       final long failureDetectionIntervalMillis,
@@ -101,7 +101,7 @@ public class MonitorConnectionContext {
     return this.expectedActiveMonitoringStartTimeNano;
   }
 
-  public Monitor getMonitor() {
+  public HostMonitor getMonitor() {
     return this.monitor;
   }
 

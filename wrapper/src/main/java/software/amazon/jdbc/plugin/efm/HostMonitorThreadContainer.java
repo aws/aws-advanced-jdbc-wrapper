@@ -32,27 +32,27 @@ import software.amazon.jdbc.util.Messages;
  * This singleton class keeps track of all the monitoring threads and handles the creation and clean
  * up of each monitoring thread.
  */
-public class MonitorThreadContainer {
+public class HostMonitorThreadContainer {
 
-  private static MonitorThreadContainer singleton = null;
-  private final Map<Monitor, Future<?>> tasksMap = new ConcurrentHashMap<>();
+  private static HostMonitorThreadContainer singleton = null;
+  private final Map<HostMonitor, Future<?>> tasksMap = new ConcurrentHashMap<>();
   // TODO: remove monitorMap and threadPool and submit monitors to MonitorService instead
-  private final Map<String, Monitor> monitorMap = new ConcurrentHashMap<>();
+  private final Map<String, HostMonitor> monitorMap = new ConcurrentHashMap<>();
   private final ExecutorService threadPool;
   private static final ReentrantLock LOCK_OBJECT = new ReentrantLock();
   private static final ReentrantLock MONITOR_LOCK_OBJECT = new ReentrantLock();
 
   /**
-   * Create an instance of the {@link MonitorThreadContainer}.
+   * Create an instance of the {@link HostMonitorThreadContainer}.
    *
-   * @return a singleton instance of the {@link MonitorThreadContainer}.
+   * @return a singleton instance of the {@link HostMonitorThreadContainer}.
    */
-  public static MonitorThreadContainer getInstance() {
+  public static HostMonitorThreadContainer getInstance() {
     return getInstance(Executors::newCachedThreadPool);
   }
 
-  static MonitorThreadContainer getInstance(final ExecutorServiceInitializer executorServiceInitializer) {
-    MonitorThreadContainer singletonToReturn = singleton;
+  static HostMonitorThreadContainer getInstance(final ExecutorServiceInitializer executorServiceInitializer) {
+    HostMonitorThreadContainer singletonToReturn = singleton;
 
     if (singletonToReturn != null) {
       return singletonToReturn;
@@ -61,7 +61,7 @@ public class MonitorThreadContainer {
     LOCK_OBJECT.lock();
     try {
       if (singleton == null) {
-        singleton = new MonitorThreadContainer(executorServiceInitializer);
+        singleton = new HostMonitorThreadContainer(executorServiceInitializer);
       }
       singletonToReturn = singleton;
     } finally {
@@ -71,7 +71,7 @@ public class MonitorThreadContainer {
   }
 
   /**
-   * Release resources held in the {@link MonitorThreadContainer} and clear references to the
+   * Release resources held in the {@link HostMonitorThreadContainer} and clear references to the
    * container.
    */
   public static void releaseInstance() {
@@ -89,23 +89,23 @@ public class MonitorThreadContainer {
     }
   }
 
-  private MonitorThreadContainer(final ExecutorServiceInitializer executorServiceInitializer) {
+  private HostMonitorThreadContainer(final ExecutorServiceInitializer executorServiceInitializer) {
     this.threadPool = executorServiceInitializer.createExecutorService();
   }
 
-  public Map<String, Monitor> getMonitorMap() {
+  public Map<String, HostMonitor> getMonitorMap() {
     return monitorMap;
   }
 
-  public Map<Monitor, Future<?>> getTasksMap() {
+  public Map<HostMonitor, Future<?>> getTasksMap() {
     return tasksMap;
   }
 
-  Monitor getMonitor(final String node) {
+  HostMonitor getMonitor(final String node) {
     return monitorMap.get(node);
   }
 
-  Monitor getOrCreateMonitor(final Set<String> nodeKeys, final Supplier<Monitor> monitorSupplier) {
+  HostMonitor getOrCreateMonitor(final Set<String> nodeKeys, final Supplier<HostMonitor> monitorSupplier) {
     if (nodeKeys.isEmpty()) {
       throw new IllegalArgumentException(Messages.get("MonitorThreadContainer.emptyNodeKeys"));
     }
@@ -113,7 +113,7 @@ public class MonitorThreadContainer {
     MONITOR_LOCK_OBJECT.lock();
     try {
 
-      Monitor monitor = null;
+      HostMonitor monitor = null;
       String anyNodeKey = null;
       for (final String nodeKey : nodeKeys) {
         monitor = monitorMap.get(nodeKey);
@@ -127,7 +127,7 @@ public class MonitorThreadContainer {
         monitor = monitorMap.computeIfAbsent(
             anyNodeKey,
             k -> {
-              final Monitor newMonitor = monitorSupplier.get();
+              final HostMonitor newMonitor = monitorSupplier.get();
               addTask(newMonitor);
               return newMonitor;
             });
@@ -140,28 +140,28 @@ public class MonitorThreadContainer {
     }
   }
 
-  private void populateMonitorMap(final Set<String> nodeKeys, final Monitor monitor) {
+  private void populateMonitorMap(final Set<String> nodeKeys, final HostMonitor monitor) {
     for (final String nodeKey : nodeKeys) {
       monitorMap.putIfAbsent(nodeKey, monitor);
     }
   }
 
-  void addTask(final Monitor monitor) {
+  void addTask(final HostMonitor monitor) {
     tasksMap.computeIfAbsent(monitor, k -> threadPool.submit(monitor));
   }
 
   /**
-   * Remove references to the given {@link MonitorImpl} object and stop the background monitoring
+   * Remove references to the given {@link HostMonitorImpl} object and stop the background monitoring
    * thread.
    *
-   * @param monitor The {@link MonitorImpl} representing a monitoring thread.
+   * @param monitor The {@link HostMonitorImpl} representing a monitoring thread.
    */
-  public void releaseResource(final Monitor monitor) {
+  public void releaseResource(final HostMonitor monitor) {
     if (monitor == null) {
       return;
     }
 
-    final List<Monitor> monitorList = Collections.singletonList(monitor);
+    final List<HostMonitor> monitorList = Collections.singletonList(monitor);
 
     MONITOR_LOCK_OBJECT.lock();
     try {

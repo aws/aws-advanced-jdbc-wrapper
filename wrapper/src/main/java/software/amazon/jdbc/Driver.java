@@ -43,7 +43,8 @@ import software.amazon.jdbc.plugin.AwsSecretsManagerCacheHolder;
 import software.amazon.jdbc.plugin.DataCacheConnectionPlugin;
 import software.amazon.jdbc.plugin.OpenedConnectionTracker;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
-import software.amazon.jdbc.plugin.efm.MonitorThreadContainer;
+import software.amazon.jdbc.plugin.efm.HostMonitorThreadContainer;
+import software.amazon.jdbc.plugin.efm2.HostMonitorServiceImpl;
 import software.amazon.jdbc.plugin.federatedauth.FederatedAuthCacheHolder;
 import software.amazon.jdbc.plugin.federatedauth.OktaAuthCacheHolder;
 import software.amazon.jdbc.plugin.iam.IamAuthCacheHolder;
@@ -56,16 +57,16 @@ import software.amazon.jdbc.states.ResetSessionStateOnCloseCallable;
 import software.amazon.jdbc.states.TransferSessionStateOnSwitchCallable;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectManager;
+import software.amazon.jdbc.util.CompleteServicesContainer;
+import software.amazon.jdbc.util.CompleteServicesContainerImpl;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.CoreServicesContainer;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.ServiceContainer;
-import software.amazon.jdbc.util.ServiceContainerImpl;
 import software.amazon.jdbc.util.StringUtils;
-import software.amazon.jdbc.util.monitoring.CoreMonitorService;
+import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -109,7 +110,7 @@ public class Driver implements java.sql.Driver {
   }
 
   private final StorageService storageService;
-  private final CoreMonitorService monitorService;
+  private final MonitorService monitorService;
 
   public Driver() {
     this(CoreServicesContainer.getInstance());
@@ -231,10 +232,11 @@ public class Driver implements java.sql.Driver {
         effectiveConnectionProvider = configurationProfile.getConnectionProvider();
       }
 
-      ServiceContainer serviceContainer = new ServiceContainerImpl(storageService, monitorService, telemetryFactory);
+      CompleteServicesContainer
+          servicesContainer = new CompleteServicesContainerImpl(storageService, monitorService, telemetryFactory);
 
       return new ConnectionWrapper(
-          serviceContainer,
+          servicesContainer,
           props,
           driverUrl,
           defaultConnectionProvider,
@@ -425,8 +427,8 @@ public class Driver implements java.sql.Driver {
 
   public static void releaseResources() {
     CoreServicesContainer.getInstance().getMonitorService().stopAndRemoveAll();
-    software.amazon.jdbc.plugin.efm2.MonitorServiceImpl.closeAllMonitors();
-    MonitorThreadContainer.releaseInstance();
+    HostMonitorServiceImpl.closeAllMonitors();
+    HostMonitorThreadContainer.releaseInstance();
     ConnectionProviderManager.releaseResources();
     HikariPoolsHolder.closeAllPools();
     HostResponseTimeServiceImpl.closeAllMonitors();

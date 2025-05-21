@@ -33,7 +33,6 @@ import software.amazon.jdbc.AllowedAndBlockedHosts;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
-import software.amazon.jdbc.util.monitoring.CoreMonitorService;
 import software.amazon.jdbc.util.storage.CacheMap;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -50,6 +49,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
   // Keys are custom endpoint URLs, values are information objects for the associated custom endpoint.
   protected static final CacheMap<String, CustomEndpointInfo> customEndpointInfoCache = new CacheMap<>();
   protected static final long CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(5);
+  protected static final long MONITOR_TERMINATION_TIMEOUT_SEC = 30;
 
   protected final RdsClient rdsClient;
   protected final HostSpec customEndpointHostSpec;
@@ -63,7 +63,6 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
   /**
    * Constructs a CustomEndpointMonitorImpl instance for the host specified by {@code customEndpointHostSpec}.
    *
-   * @param monitorService         The monitorService used to submit this monitor.
    * @param storageService         The storage service used to store the set of allowed/blocked hosts according to the
    *                               custom endpoint info.
    * @param telemetryFactory       The telemetry factory used to create telemetry data.
@@ -76,7 +75,6 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
    *                               information.
    */
   public CustomEndpointMonitorImpl(
-      CoreMonitorService monitorService,
       StorageService storageService,
       TelemetryFactory telemetryFactory,
       HostSpec customEndpointHostSpec,
@@ -84,7 +82,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
       Region region,
       long refreshRateNano,
       BiFunction<HostSpec, Region, RdsClient> rdsClientFunc) {
-    super(30);
+    super(MONITOR_TERMINATION_TIMEOUT_SEC);
     this.storageService = storageService;
     this.customEndpointHostSpec = customEndpointHostSpec;
     this.endpointIdentifier = endpointIdentifier;

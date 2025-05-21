@@ -21,8 +21,8 @@ import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.ServiceContainerPluginFactory;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin;
+import software.amazon.jdbc.util.CompleteServicesContainer;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.ServiceContainer;
 
 /** Class initializing a {@link HostMonitoringConnectionPlugin}. */
 public class HostMonitoringConnectionPluginFactory implements ServiceContainerPluginFactory {
@@ -35,7 +35,7 @@ public class HostMonitoringConnectionPluginFactory implements ServiceContainerPl
   }
 
   @Override
-  public ConnectionPlugin getInstance(final ServiceContainer serviceContainer, final Properties props) {
+  public ConnectionPlugin getInstance(final CompleteServicesContainer serviceContainer, final Properties props) {
     return new CustomEndpointPlugin(serviceContainer, props);
   }
 }

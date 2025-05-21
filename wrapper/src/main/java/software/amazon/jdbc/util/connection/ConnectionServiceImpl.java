@@ -26,9 +26,9 @@ import software.amazon.jdbc.PartialPluginService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.ServiceContainer;
-import software.amazon.jdbc.util.ServiceContainerImpl;
-import software.amazon.jdbc.util.monitoring.CoreMonitorService;
+import software.amazon.jdbc.util.CompleteServicesContainer;
+import software.amazon.jdbc.util.CompleteServicesContainerImpl;
+import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -39,7 +39,7 @@ public class ConnectionServiceImpl implements ConnectionService {
 
   public ConnectionServiceImpl(
       StorageService storageService,
-      CoreMonitorService monitorService,
+      MonitorService monitorService,
       TelemetryFactory telemetryFactory,
       ConnectionProvider connectionProvider,
       String originalUrl,
@@ -49,16 +49,17 @@ public class ConnectionServiceImpl implements ConnectionService {
       Properties props) throws SQLException {
     this.targetDriverProtocol = targetDriverProtocol;
 
-    ServiceContainer serviceContainer = new ServiceContainerImpl(storageService, monitorService, telemetryFactory);
+    CompleteServicesContainer
+        servicesContainer = new CompleteServicesContainerImpl(storageService, monitorService, telemetryFactory);
     this.pluginManager = new ConnectionPluginManager(
         connectionProvider,
         null,
         null,
         telemetryFactory);
-    serviceContainer.setConnectionPluginManager(this.pluginManager);
+    servicesContainer.setConnectionPluginManager(this.pluginManager);
 
     PartialPluginService partialPluginService = new PartialPluginService(
-        serviceContainer,
+        servicesContainer,
         props,
         originalUrl,
         this.targetDriverProtocol,
@@ -67,11 +68,11 @@ public class ConnectionServiceImpl implements ConnectionService {
     );
 
     this.pluginService = partialPluginService;
-    serviceContainer.setHostListProviderService(partialPluginService);
-    serviceContainer.setPluginService(partialPluginService);
-    serviceContainer.setPluginManagerService(partialPluginService);
+    servicesContainer.setHostListProviderService(partialPluginService);
+    servicesContainer.setPluginService(partialPluginService);
+    servicesContainer.setPluginManagerService(partialPluginService);
 
-    this.pluginManager.init(serviceContainer, props, partialPluginService, null);
+    this.pluginManager.init(servicesContainer, props, partialPluginService, null);
   }
 
   @Override

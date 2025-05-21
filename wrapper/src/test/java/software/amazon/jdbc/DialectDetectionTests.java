@@ -51,7 +51,7 @@ import software.amazon.jdbc.dialect.RdsMysqlDialect;
 import software.amazon.jdbc.dialect.RdsPgDialect;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.CompleteServicesContainer;
 
 public class DialectDetectionTests {
   private static final String LOCALHOST = "localhost";
@@ -63,7 +63,7 @@ public class DialectDetectionTests {
   private final DialectManager dialectManager = new DialectManager(null);
   private final Properties props = new Properties();
   private AutoCloseable closeable;
-  @Mock private ServiceContainer mockServiceContainer;
+  @Mock private CompleteServicesContainer mockServicesContainer;
   @Mock private HostListProvider mockHostListProvider;
   @Mock private Connection mockConnection;
   @Mock private Statement mockStatement;
@@ -77,7 +77,7 @@ public class DialectDetectionTests {
   @BeforeEach
   void setUp() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
-    when(this.mockServiceContainer.getConnectionPluginManager()).thenReturn(mockPluginManager);
+    when(this.mockServicesContainer.getConnectionPluginManager()).thenReturn(mockPluginManager);
     when(this.mockConnection.createStatement()).thenReturn(this.mockStatement);
     when(this.mockHost.getUrl()).thenReturn("url");
     when(this.mockFailResultSet.next()).thenReturn(false);
@@ -93,7 +93,7 @@ public class DialectDetectionTests {
   PluginServiceImpl getPluginService(String protocol) throws SQLException {
     return spy(
         new PluginServiceImpl(
-            mockServiceContainer,
+            mockServicesContainer,
             new ExceptionManager(),
             props,
             protocol + DialectDetectionTests.LOCALHOST,
@@ -169,7 +169,7 @@ public class DialectDetectionTests {
     when(mockStatement.executeQuery("SHOW VARIABLES LIKE 'aurora_version'")).thenReturn(mockSuccessResultSet);
     when(mockSuccessResultSet.next()).thenReturn(true, false);
     final PluginServiceImpl target = getPluginService(MYSQL_PROTOCOL);
-    when(mockServiceContainer.getPluginService()).thenReturn(target);
+    when(mockServicesContainer.getPluginService()).thenReturn(target);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
     assertEquals(AuroraMysqlDialect.class, target.dialect.getClass());
@@ -272,7 +272,7 @@ public class DialectDetectionTests {
     when(mockStatement.executeQuery("SHOW VARIABLES LIKE 'aurora_version'")).thenReturn(mockSuccessResultSet);
     when(mockSuccessResultSet.next()).thenReturn(true, false);
     final PluginServiceImpl target = getPluginService(MARIA_PROTOCOL);
-    when(mockServiceContainer.getPluginService()).thenReturn(target);
+    when(mockServicesContainer.getPluginService()).thenReturn(target);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
     assertEquals(AuroraMysqlDialect.class, target.dialect.getClass());

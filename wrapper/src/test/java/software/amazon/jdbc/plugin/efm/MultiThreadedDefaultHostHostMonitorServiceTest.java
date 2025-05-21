@@ -60,17 +60,17 @@ import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
- * Multithreaded tests for {@link MultiThreadedDefaultMonitorServiceTest}. Repeats each testcase
+ * Multithreaded tests for {@link MultiThreadedDefaultHostHostMonitorServiceTest}. Repeats each testcase
  * multiple times. Use a cyclic barrier to ensure threads start at the same time.
  */
-class MultiThreadedDefaultMonitorServiceTest {
+class MultiThreadedDefaultHostHostMonitorServiceTest {
 
-  @Mock MonitorInitializer monitorInitializer;
+  @Mock HostMonitorInitializer monitorInitializer;
   @Mock ExecutorServiceInitializer executorServiceInitializer;
   @Mock ExecutorService service;
   @Mock Future<?> taskA;
   @Mock HostSpec hostSpec;
-  @Mock Monitor monitor;
+  @Mock HostMonitor monitor;
   @Mock Properties properties;
   @Mock JdbcConnection connection;
   @Mock PluginService pluginService;
@@ -90,24 +90,24 @@ class MultiThreadedDefaultMonitorServiceTest {
       "Test thread interrupted due to an unexpected exception.";
 
   private AutoCloseable closeable;
-  private ArgumentCaptor<MonitorConnectionContext> startMonitoringCaptor;
-  private ArgumentCaptor<MonitorConnectionContext> stopMonitoringCaptor;
-  private MonitorThreadContainer monitorThreadContainer;
+  private ArgumentCaptor<HostMonitorConnectionContext> startMonitoringCaptor;
+  private ArgumentCaptor<HostMonitorConnectionContext> stopMonitoringCaptor;
+  private HostMonitorThreadContainer monitorThreadContainer;
 
   @BeforeEach
   void init(TestInfo testInfo) {
     closeable = MockitoAnnotations.openMocks(this);
-    startMonitoringCaptor = ArgumentCaptor.forClass(MonitorConnectionContext.class);
-    stopMonitoringCaptor = ArgumentCaptor.forClass(MonitorConnectionContext.class);
-    monitorThreadContainer = MonitorThreadContainer.getInstance();
+    startMonitoringCaptor = ArgumentCaptor.forClass(HostMonitorConnectionContext.class);
+    stopMonitoringCaptor = ArgumentCaptor.forClass(HostMonitorConnectionContext.class);
+    monitorThreadContainer = HostMonitorThreadContainer.getInstance();
 
     CONCURRENT_TEST_MAP.computeIfAbsent(testInfo.getDisplayName(), k -> new AtomicBoolean(false));
 
     when(monitorInitializer.createMonitor(
-            any(HostSpec.class), any(Properties.class), any(MonitorThreadContainer.class)))
+            any(HostSpec.class), any(Properties.class), any(HostMonitorThreadContainer.class)))
         .thenReturn(monitor);
     when(executorServiceInitializer.createExecutorService()).thenReturn(service);
-    doReturn(taskA).when(service).submit(any(Monitor.class));
+    doReturn(taskA).when(service).submit(any(HostMonitor.class));
     doNothing().when(monitor).startMonitoring(startMonitoringCaptor.capture());
     doNothing().when(monitor).stopMonitoring(stopMonitoringCaptor.capture());
     when(properties.getProperty(any(String.class)))
@@ -126,7 +126,7 @@ class MultiThreadedDefaultMonitorServiceTest {
 
     concurrentCounter.set(0);
     closeable.close();
-    MonitorThreadContainer.releaseInstance();
+    HostMonitorThreadContainer.releaseInstance();
   }
 
   /** Ensure each test case was executed concurrently at least once. */
@@ -144,13 +144,13 @@ class MultiThreadedDefaultMonitorServiceTest {
       throws ExecutionException, InterruptedException {
     final int numConnections = 10;
     final List<Set<String>> nodeKeyList = generateNodeKeys(numConnections, true);
-    final List<MonitorServiceImpl> services = generateServices(numConnections);
+    final List<HostMonitorServiceImpl> services = generateServices(numConnections);
 
     try {
-      final List<MonitorConnectionContext> contexts =
+      final List<HostMonitorConnectionContext> contexts =
           runStartMonitor(numConnections, services, nodeKeyList);
 
-      final List<MonitorConnectionContext> capturedContexts = startMonitoringCaptor.getAllValues();
+      final List<HostMonitorConnectionContext> capturedContexts = startMonitoringCaptor.getAllValues();
 
       assertEquals(numConnections, services.get(0).getThreadContainer().getMonitorMap().size());
       assertTrue(
@@ -158,7 +158,7 @@ class MultiThreadedDefaultMonitorServiceTest {
               && contexts.containsAll(capturedContexts)
               && capturedContexts.containsAll(contexts));
       verify(monitorInitializer, times(numConnections))
-          .createMonitor(eq(hostSpec), eq(properties), any(MonitorThreadContainer.class));
+          .createMonitor(eq(hostSpec), eq(properties), any(HostMonitorThreadContainer.class));
     } finally {
       releaseResources(services);
     }
@@ -169,13 +169,13 @@ class MultiThreadedDefaultMonitorServiceTest {
       throws InterruptedException, ExecutionException {
     final int numConnections = 10;
     final List<Set<String>> nodeKeyList = generateNodeKeys(numConnections, false);
-    final List<MonitorServiceImpl> services = generateServices(numConnections);
+    final List<HostMonitorServiceImpl> services = generateServices(numConnections);
 
     try {
-      final List<MonitorConnectionContext> contexts =
+      final List<HostMonitorConnectionContext> contexts =
           runStartMonitor(numConnections, services, nodeKeyList);
 
-      final List<MonitorConnectionContext> capturedContexts = startMonitoringCaptor.getAllValues();
+      final List<HostMonitorConnectionContext> capturedContexts = startMonitoringCaptor.getAllValues();
 
       assertEquals(1, services.get(0).getThreadContainer().getMonitorMap().size());
       assertTrue(
@@ -184,7 +184,7 @@ class MultiThreadedDefaultMonitorServiceTest {
               && capturedContexts.containsAll(contexts));
 
       verify(monitorInitializer)
-          .createMonitor(eq(hostSpec), eq(properties), any(MonitorThreadContainer.class));
+          .createMonitor(eq(hostSpec), eq(properties), any(HostMonitorThreadContainer.class));
     } finally {
       releaseResources(services);
     }
@@ -194,13 +194,13 @@ class MultiThreadedDefaultMonitorServiceTest {
   void test_3_stopMonitoring_multipleConnectionsToDifferentNodes()
       throws ExecutionException, InterruptedException {
     final int numConnections = 10;
-    final List<MonitorConnectionContext> contexts = generateContexts(numConnections, true);
-    final List<MonitorServiceImpl> services = generateServices(numConnections);
+    final List<HostMonitorConnectionContext> contexts = generateContexts(numConnections, true);
+    final List<HostMonitorServiceImpl> services = generateServices(numConnections);
 
     try {
       runStopMonitor(numConnections, services, contexts);
 
-      final List<MonitorConnectionContext> capturedContexts = stopMonitoringCaptor.getAllValues();
+      final List<HostMonitorConnectionContext> capturedContexts = stopMonitoringCaptor.getAllValues();
       assertTrue(
           (contexts.size() == capturedContexts.size())
               && contexts.containsAll(capturedContexts)
@@ -214,13 +214,13 @@ class MultiThreadedDefaultMonitorServiceTest {
   void test_4_stopMonitoring_multipleConnectionsToTheSameNode()
       throws ExecutionException, InterruptedException {
     final int numConnections = 10;
-    final List<MonitorConnectionContext> contexts = generateContexts(numConnections, false);
-    final List<MonitorServiceImpl> services = generateServices(numConnections);
+    final List<HostMonitorConnectionContext> contexts = generateContexts(numConnections, false);
+    final List<HostMonitorServiceImpl> services = generateServices(numConnections);
 
     try {
       runStopMonitor(numConnections, services, contexts);
 
-      final List<MonitorConnectionContext> capturedContexts = stopMonitoringCaptor.getAllValues();
+      final List<HostMonitorConnectionContext> capturedContexts = stopMonitoringCaptor.getAllValues();
       assertTrue(
           (contexts.size() == capturedContexts.size())
               && contexts.containsAll(capturedContexts)
@@ -231,7 +231,7 @@ class MultiThreadedDefaultMonitorServiceTest {
   }
 
   /**
-   * Run {@link MonitorServiceImpl#startMonitoring(Connection, Set, HostSpec, Properties, int, int,
+   * Run {@link HostMonitorServiceImpl#startMonitoring(Connection, Set, HostSpec, Properties, int, int,
    * int)} concurrently in multiple threads. A {@link CountDownLatch} is used to ensure all threads
    * start at the same time.
    *
@@ -242,16 +242,16 @@ class MultiThreadedDefaultMonitorServiceTest {
    * @throws InterruptedException if a thread has been interrupted.
    * @throws ExecutionException if an exception occurred within a thread.
    */
-  private List<MonitorConnectionContext> runStartMonitor(
+  private List<HostMonitorConnectionContext> runStartMonitor(
       final int numThreads,
-      final List<MonitorServiceImpl> services,
+      final List<HostMonitorServiceImpl> services,
       final List<Set<String>> nodeKeysList)
       throws InterruptedException, ExecutionException {
     final CountDownLatch latch = new CountDownLatch(1);
-    final List<CompletableFuture<MonitorConnectionContext>> threads = new ArrayList<>();
+    final List<CompletableFuture<HostMonitorConnectionContext>> threads = new ArrayList<>();
 
     for (int i = 0; i < numThreads; i++) {
-      final MonitorServiceImpl service = services.get(i);
+      final HostMonitorServiceImpl service = services.get(i);
       final Set<String> nodeKeys = nodeKeysList.get(i);
 
       threads.add(
@@ -270,7 +270,7 @@ class MultiThreadedDefaultMonitorServiceTest {
                   concurrentCounter.getAndIncrement();
                 }
 
-                final MonitorConnectionContext context =
+                final HostMonitorConnectionContext context =
                     service.startMonitoring(
                         connection,
                         nodeKeys,
@@ -288,8 +288,8 @@ class MultiThreadedDefaultMonitorServiceTest {
     // Start all threads.
     latch.countDown();
 
-    final List<MonitorConnectionContext> contexts = new ArrayList<>();
-    for (final CompletableFuture<MonitorConnectionContext> thread : threads) {
+    final List<HostMonitorConnectionContext> contexts = new ArrayList<>();
+    for (final CompletableFuture<HostMonitorConnectionContext> thread : threads) {
       contexts.add(thread.get());
     }
 
@@ -297,7 +297,7 @@ class MultiThreadedDefaultMonitorServiceTest {
   }
 
   /**
-   * Run {@link MonitorServiceImpl#stopMonitoring(MonitorConnectionContext)} concurrently in
+   * Run {@link HostMonitorServiceImpl#stopMonitoring(HostMonitorConnectionContext)} concurrently in
    * multiple threads. A {@link CountDownLatch} is used to ensure all threads start at the same
    * time.
    *
@@ -309,15 +309,15 @@ class MultiThreadedDefaultMonitorServiceTest {
    */
   private void runStopMonitor(
       final int numThreads,
-      final List<MonitorServiceImpl> services,
-      final List<MonitorConnectionContext> contexts)
+      final List<HostMonitorServiceImpl> services,
+      final List<HostMonitorConnectionContext> contexts)
       throws ExecutionException, InterruptedException {
     final CountDownLatch latch = new CountDownLatch(1);
     final List<CompletableFuture<Void>> threads = new ArrayList<>();
 
     for (int i = 0; i < numThreads; i++) {
-      final MonitorServiceImpl service = services.get(i);
-      final MonitorConnectionContext context = contexts.get(i);
+      final HostMonitorServiceImpl service = services.get(i);
+      final HostMonitorConnectionContext context = contexts.get(i);
 
       threads.add(
           CompletableFuture.runAsync(
@@ -380,16 +380,16 @@ class MultiThreadedDefaultMonitorServiceTest {
    *     node keys.
    * @return the generated contexts.
    */
-  private List<MonitorConnectionContext> generateContexts(
+  private List<HostMonitorConnectionContext> generateContexts(
       final int numContexts, final boolean diffContext) {
     final List<Set<String>> nodeKeysList = generateNodeKeys(numContexts, diffContext);
-    final List<MonitorConnectionContext> contexts = new ArrayList<>();
+    final List<HostMonitorConnectionContext> contexts = new ArrayList<>();
 
     nodeKeysList.forEach(
         nodeKeys -> {
           monitorThreadContainer.getOrCreateMonitor(nodeKeys, () -> monitor);
           contexts.add(
-              new MonitorConnectionContext(
+              new HostMonitorConnectionContext(
                   monitor,
                   null,
                   FAILURE_DETECTION_TIME,
@@ -402,15 +402,15 @@ class MultiThreadedDefaultMonitorServiceTest {
   }
 
   /**
-   * Create multiple {@link MonitorServiceImpl} objects.
+   * Create multiple {@link HostMonitorServiceImpl} objects.
    *
    * @param numServices The number of monitor services to create.
    * @return a list of monitor services.
    */
-  private List<MonitorServiceImpl> generateServices(final int numServices) {
-    final List<MonitorServiceImpl> services = new ArrayList<>();
+  private List<HostMonitorServiceImpl> generateServices(final int numServices) {
+    final List<HostMonitorServiceImpl> services = new ArrayList<>();
     for (int i = 0; i < numServices; i++) {
-      services.add(new MonitorServiceImpl(pluginService, monitorInitializer, executorServiceInitializer));
+      services.add(new HostMonitorServiceImpl(pluginService, monitorInitializer, executorServiceInitializer));
     }
     return services;
   }
@@ -418,10 +418,10 @@ class MultiThreadedDefaultMonitorServiceTest {
   /**
    * Release any resources used by the given services.
    *
-   * @param services The {@link MonitorServiceImpl} services to clean.
+   * @param services The {@link HostMonitorServiceImpl} services to clean.
    */
-  private void releaseResources(final List<MonitorServiceImpl> services) {
-    for (final MonitorServiceImpl defaultMonitorService : services) {
+  private void releaseResources(final List<HostMonitorServiceImpl> services) {
+    for (final HostMonitorServiceImpl defaultMonitorService : services) {
       defaultMonitorService.releaseResources();
     }
   }

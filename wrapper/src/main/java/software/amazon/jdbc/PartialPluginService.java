@@ -46,11 +46,10 @@ import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.states.SessionStateServiceImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.CompleteServicesContainer;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.storage.CacheMap;
-import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
@@ -66,8 +65,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   protected static final long DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(5);
 
   protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache = new CacheMap<>();
-  protected final ServiceContainer serviceContainer;
-  protected final StorageService storageService;
+  protected final CompleteServicesContainer servicesContainer;
   protected final ConnectionPluginManager pluginManager;
   protected final Properties props;
   protected volatile HostListProvider hostListProvider;
@@ -90,14 +88,14 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   protected final ReentrantLock connectionSwitchLock = new ReentrantLock();
 
   public PartialPluginService(
-      @NonNull final ServiceContainer serviceContainer,
+      @NonNull final CompleteServicesContainer servicesContainer,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
       @NonNull final String targetDriverProtocol,
       @NonNull final TargetDriverDialect targetDriverDialect,
       @NonNull final Dialect dbDialect) {
     this(
-        serviceContainer,
+        servicesContainer,
         new ExceptionManager(),
         props,
         originalUrl,
@@ -109,7 +107,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   public PartialPluginService(
-      @NonNull final ServiceContainer serviceContainer,
+      @NonNull final CompleteServicesContainer servicesContainer,
       @NonNull final ExceptionManager exceptionManager,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
@@ -118,9 +116,8 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
       @NonNull final Dialect dbDialect,
       @Nullable final ConfigurationProfile configurationProfile,
       @Nullable final SessionStateService sessionStateService) {
-    this.serviceContainer = serviceContainer;
-    this.storageService = serviceContainer.getStorageService();
-    this.pluginManager = serviceContainer.getConnectionPluginManager();
+    this.servicesContainer = servicesContainer;
+    this.pluginManager = servicesContainer.getConnectionPluginManager();
     this.props = props;
     this.originalUrl = originalUrl;
     this.driverProtocol = targetDriverProtocol;
@@ -194,9 +191,9 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
-  @Deprecated
   public void setAllowedAndBlockedHosts(AllowedAndBlockedHosts allowedAndBlockedHosts) {
-    this.storageService.set(this.initialConnectionHostSpec.getHost(), allowedAndBlockedHosts);
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"setAllowedAndBlockedHosts"}));
   }
 
   @Override
@@ -392,7 +389,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
 
   @Override
   public List<HostSpec> getHosts() {
-    AllowedAndBlockedHosts hostPermissions = this.storageService.get(
+    AllowedAndBlockedHosts hostPermissions = this.servicesContainer.getStorageService().get(
         AllowedAndBlockedHosts.class, this.initialConnectionHostSpec.getUrl());
     if (hostPermissions == null) {
       return this.allHosts;

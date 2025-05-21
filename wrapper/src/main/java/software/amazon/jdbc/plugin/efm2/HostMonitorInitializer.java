@@ -14,15 +14,20 @@
  * limitations under the License.
  */
 
-plugins {
-    id("org.springframework.boot") version "2.7.0"
-    id("io.spring.dependency-management") version "1.1.7"
-}
+package software.amazon.jdbc.plugin.efm2;
 
-dependencies {
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-    implementation("org.springframework.retry:spring-retry")
-    implementation("org.postgresql:postgresql:42.7.5")
-    implementation("software.amazon.awssdk:rds:2.31.46")
-    implementation(project(":aws-advanced-jdbc-wrapper"))
+import java.util.Properties;
+import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.util.telemetry.TelemetryCounter;
+
+/** Interface for initialize a new {@link HostMonitorImpl}. */
+@FunctionalInterface
+public interface HostMonitorInitializer {
+  HostMonitor createMonitor(
+      HostSpec hostSpec,
+      Properties properties,
+      final int failureDetectionTimeMillis,
+      final int failureDetectionIntervalMillis,
+      final int failureDetectionCount,
+      final TelemetryCounter abortedConnectionsCounter);
 }

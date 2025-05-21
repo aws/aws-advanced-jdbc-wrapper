@@ -31,8 +31,8 @@ import java.util.logging.Logger;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.util.CompleteServicesContainer;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.ServiceContainer;
 
 public class RdsMultiAzDbClusterListProvider extends RdsHostListProvider {
   private final String fetchWriterNodeQuery;
@@ -42,7 +42,7 @@ public class RdsMultiAzDbClusterListProvider extends RdsHostListProvider {
   public RdsMultiAzDbClusterListProvider(
       final Properties properties,
       final String originalUrl,
-      final ServiceContainer serviceContainer,
+      final CompleteServicesContainer servicesContainer,
       final String topologyQuery,
       final String nodeIdQuery,
       final String isReaderQuery,
@@ -51,7 +51,7 @@ public class RdsMultiAzDbClusterListProvider extends RdsHostListProvider {
   ) {
     super(properties,
         originalUrl,
-        serviceContainer,
+        servicesContainer,
         topologyQuery,
         nodeIdQuery,
         isReaderQuery);

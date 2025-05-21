@@ -20,22 +20,22 @@ import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.util.monitoring.CoreMonitorService;
+import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
-public class ServiceContainerImpl implements ServiceContainer {
+public class CompleteServicesContainerImpl implements CompleteServicesContainer {
   private StorageService storageService;
-  private CoreMonitorService monitorService;
+  private MonitorService monitorService;
   private TelemetryFactory telemetryFactory;
   private ConnectionPluginManager connectionPluginManager;
   private HostListProviderService hostListProviderService;
   private PluginService pluginService;
   private PluginManagerService pluginManagerService;
 
-  public ServiceContainerImpl(
+  public CompleteServicesContainerImpl(
       StorageService storageService,
-      CoreMonitorService monitorService,
+      MonitorService monitorService,
       TelemetryFactory telemetryFactory,
       ConnectionPluginManager connectionPluginManager,
       HostListProviderService hostListProviderService,
@@ -48,9 +48,9 @@ public class ServiceContainerImpl implements ServiceContainer {
     this.pluginManagerService = pluginManagerService;
   }
 
-  public ServiceContainerImpl(
+  public CompleteServicesContainerImpl(
       StorageService storageService,
-      CoreMonitorService monitorService,
+      MonitorService monitorService,
       TelemetryFactory telemetryFactory) {
     this.storageService = storageService;
     this.monitorService = monitorService;
@@ -63,7 +63,7 @@ public class ServiceContainerImpl implements ServiceContainer {
   }
 
   @Override
-  public CoreMonitorService getMonitorService() {
+  public MonitorService getMonitorService() {
     return this.monitorService;
   }
 
@@ -93,7 +93,7 @@ public class ServiceContainerImpl implements ServiceContainer {
   }
 
   @Override
-  public void setMonitorService(CoreMonitorService monitorService) {
+  public void setMonitorService(MonitorService monitorService) {
     this.monitorService = monitorService;
   }
 

@@ -49,7 +49,7 @@ import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
-class MonitorServiceImplTest {
+class HostHostMonitorServiceImplTest {
 
   private static final Set<String> NODE_KEYS =
       new HashSet<>(Collections.singletonList("any.node.domain"));
@@ -57,10 +57,10 @@ class MonitorServiceImplTest {
   private static final int FAILURE_DETECTION_INTERVAL_MILLIS = 100;
   private static final int FAILURE_DETECTION_COUNT = 3;
 
-  @Mock private MonitorInitializer monitorInitializer;
+  @Mock private HostMonitorInitializer monitorInitializer;
   @Mock private ExecutorServiceInitializer executorServiceInitializer;
-  @Mock private Monitor monitorA;
-  @Mock private Monitor monitorB;
+  @Mock private HostMonitor monitorA;
+  @Mock private HostMonitor monitorB;
   @Mock private ExecutorService executorService;
   @Mock private Future<?> task;
   @Mock private HostSpec hostSpec;
@@ -71,28 +71,28 @@ class MonitorServiceImplTest {
 
   private Properties properties;
   private AutoCloseable closeable;
-  private MonitorServiceImpl monitorService;
-  private MonitorThreadContainer threadContainer;
-  private ArgumentCaptor<MonitorConnectionContext> contextCaptor;
+  private HostMonitorServiceImpl monitorService;
+  private HostMonitorThreadContainer threadContainer;
+  private ArgumentCaptor<HostMonitorConnectionContext> contextCaptor;
 
   @BeforeEach
   void init() {
     properties = new Properties();
     closeable = MockitoAnnotations.openMocks(this);
-    contextCaptor = ArgumentCaptor.forClass(MonitorConnectionContext.class);
+    contextCaptor = ArgumentCaptor.forClass(HostMonitorConnectionContext.class);
 
     when(pluginService.getTelemetryFactory()).thenReturn(telemetryFactory);
     when(telemetryFactory.createCounter(anyString())).thenReturn(telemetryCounter);
     when(monitorInitializer.createMonitor(
-            any(HostSpec.class), any(Properties.class), any(MonitorThreadContainer.class)))
+            any(HostSpec.class), any(Properties.class), any(HostMonitorThreadContainer.class)))
         .thenReturn(monitorA, monitorB);
 
     when(executorServiceInitializer.createExecutorService()).thenReturn(executorService);
 
-    doReturn(task).when(executorService).submit(any(Monitor.class));
+    doReturn(task).when(executorService).submit(any(HostMonitor.class));
 
-    threadContainer = MonitorThreadContainer.getInstance(executorServiceInitializer);
-    monitorService = new MonitorServiceImpl(pluginService, monitorInitializer, executorServiceInitializer);
+    threadContainer = HostMonitorThreadContainer.getInstance(executorServiceInitializer);
+    monitorService = new HostMonitorServiceImpl(pluginService, monitorInitializer, executorServiceInitializer);
   }
 
   @AfterEach
@@ -142,7 +142,7 @@ class MonitorServiceImplTest {
   void test_stopMonitoringWithInterruptedThread() {
     doNothing().when(monitorA).stopMonitoring(contextCaptor.capture());
 
-    final MonitorConnectionContext context =
+    final HostMonitorConnectionContext context =
         monitorService.startMonitoring(
             connection,
             NODE_KEYS,
@@ -162,7 +162,7 @@ class MonitorServiceImplTest {
   void test_stopMonitoringCalledTwice() {
     doNothing().when(monitorA).stopMonitoring(contextCaptor.capture());
 
-    final MonitorConnectionContext context =
+    final HostMonitorConnectionContext context =
         monitorService.startMonitoring(
             connection,
             NODE_KEYS,
@@ -213,11 +213,11 @@ class MonitorServiceImplTest {
     final Set<String> nodeKeysTwo = new HashSet<>();
     nodeKeysTwo.add("nodeTwo.domain");
 
-    final Monitor monitorOne = monitorService.getMonitor(nodeKeys, hostSpec, properties);
+    final HostMonitor monitorOne = monitorService.getMonitor(nodeKeys, hostSpec, properties);
     assertNotNull(monitorOne);
 
     // Should get the same monitor as before as contain the same key "nodeTwo.domain"
-    final Monitor monitorOneSame = monitorService.getMonitor(nodeKeysTwo, hostSpec, properties);
+    final HostMonitor monitorOneSame = monitorService.getMonitor(nodeKeysTwo, hostSpec, properties);
     assertNotNull(monitorOneSame);
     assertEquals(monitorOne, monitorOneSame);
 
@@ -230,16 +230,16 @@ class MonitorServiceImplTest {
     final Set<String> nodeKeys = new HashSet<>();
     nodeKeys.add("nodeNEW.domain");
 
-    final Monitor monitorOne = monitorService.getMonitor(nodeKeys, hostSpec, properties);
+    final HostMonitor monitorOne = monitorService.getMonitor(nodeKeys, hostSpec, properties);
     assertNotNull(monitorOne);
 
     // Ensuring monitor is the same one and not creating a new one
-    final Monitor monitorOneDupe = monitorService.getMonitor(nodeKeys, hostSpec, properties);
+    final HostMonitor monitorOneDupe = monitorService.getMonitor(nodeKeys, hostSpec, properties);
     assertEquals(monitorOne, monitorOneDupe);
 
     // Ensuring monitors are not the same as they have different keys
     // "any.node.domain" compared to "nodeNEW.domain"
-    final Monitor monitorTwo = monitorService.getMonitor(NODE_KEYS, hostSpec, properties);
+    final HostMonitor monitorTwo = monitorService.getMonitor(NODE_KEYS, hostSpec, properties);
     assertNotNull(monitorTwo);
     assertNotEquals(monitorOne, monitorTwo);
   }
@@ -256,16 +256,16 @@ class MonitorServiceImplTest {
     final Set<String> nodeKeysThree = new HashSet<>();
     nodeKeysThree.add("nodeB");
 
-    final Monitor monitorOne = monitorService.getMonitor(nodeKeys, hostSpec, properties);
+    final HostMonitor monitorOne = monitorService.getMonitor(nodeKeys, hostSpec, properties);
     assertNotNull(monitorOne);
 
     // Add a new key using the same monitor
     // Adding "nodeB" as a new key using the same monitor as "nodeA"
-    final Monitor monitorOneDupe = monitorService.getMonitor(nodeKeysTwo, hostSpec, properties);
+    final HostMonitor monitorOneDupe = monitorService.getMonitor(nodeKeysTwo, hostSpec, properties);
     assertEquals(monitorOne, monitorOneDupe);
 
     // Using new keyset but same node, "nodeB" should return same monitor
-    final Monitor monitorOneDupeAgain =
+    final HostMonitor monitorOneDupeAgain =
         monitorService.getMonitor(nodeKeysThree, hostSpec, properties);
     assertEquals(monitorOne, monitorOneDupeAgain);
 

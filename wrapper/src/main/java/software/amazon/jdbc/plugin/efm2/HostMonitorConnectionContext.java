@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * Monitoring context for each connection. This contains each connection's criteria for whether a
  * server should be considered unhealthy. The context is shared between the main thread and the monitor thread.
  */
-public class MonitorConnectionContext {
+public class HostMonitorConnectionContext {
 
   private final AtomicReference<WeakReference<Connection>> connectionToAbortRef;
   private final AtomicBoolean nodeUnhealthy = new AtomicBoolean(false);
@@ -35,7 +35,7 @@ public class MonitorConnectionContext {
    *
    * @param connectionToAbort A reference to the connection associated with this context that will be aborted.
    */
-  public MonitorConnectionContext(final Connection connectionToAbort) {
+  public HostMonitorConnectionContext(final Connection connectionToAbort) {
     this.connectionToAbortRef = new AtomicReference<>(new WeakReference<>(connectionToAbort));
   }
 
