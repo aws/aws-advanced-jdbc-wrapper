@@ -17,7 +17,7 @@
 package software.amazon.jdbc.plugin.customendpoint;
 
 /**
- * Enum representing the member list type of a custom endpoint. This information can be used together with a member list
+ * Enum representing the member list type of custom endpoint. This information can be used together with a member list
  * to determine which instances are included or excluded from a custom endpoint.
  */
 public enum MemberListType {

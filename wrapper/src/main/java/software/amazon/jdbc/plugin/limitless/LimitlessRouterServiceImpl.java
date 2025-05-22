@@ -33,8 +33,8 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.RoundRobinHostSelector;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.storage.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.wrapper.HighestWeightHostSelector;
 
 public class LimitlessRouterServiceImpl implements LimitlessRouterService {
@@ -50,7 +50,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
   protected final PluginService pluginService;
   protected final LimitlessQueryHelper queryHelper;
   protected final LimitlessRouterMonitorInitializer limitlessRouterMonitorInitializer;
-
+  // TODO: remove and submit monitors to MonitorService instead
   protected static final SlidingExpirationCacheWithCleanupThread<String, LimitlessRouterMonitor>
       limitlessRouterMonitors = new SlidingExpirationCacheWithCleanupThread<>(
           limitlessRouterMonitor -> true,

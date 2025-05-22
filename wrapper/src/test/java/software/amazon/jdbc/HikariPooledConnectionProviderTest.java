@@ -50,7 +50,7 @@ import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Pair;
-import software.amazon.jdbc.util.SlidingExpirationCache;
+import software.amazon.jdbc.util.storage.SlidingExpirationCache;
 
 class HikariPooledConnectionProviderTest {
   @Mock Connection mockConnection;

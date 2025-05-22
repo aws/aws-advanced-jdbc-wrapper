@@ -22,7 +22,6 @@ import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.StringUtils;
 
 public class OktaAuthPluginFactory implements ConnectionPluginFactory {
 
