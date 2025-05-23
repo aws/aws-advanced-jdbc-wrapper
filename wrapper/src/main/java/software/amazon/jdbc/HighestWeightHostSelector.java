@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.wrapper;
+package software.amazon.jdbc;
 
 import java.sql.SQLException;
 import java.util.Comparator;
@@ -23,9 +23,6 @@ import java.util.Properties;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.jdbc.HostRole;
-import software.amazon.jdbc.HostSelector;
-import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 

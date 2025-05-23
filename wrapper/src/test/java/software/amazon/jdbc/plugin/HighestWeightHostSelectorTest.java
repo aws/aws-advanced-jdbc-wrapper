@@ -26,11 +26,11 @@ import java.util.List;
 import java.util.Properties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import software.amazon.jdbc.HighestWeightHostSelector;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
-import software.amazon.jdbc.wrapper.HighestWeightHostSelector;
 
 public class HighestWeightHostSelectorTest {
 
