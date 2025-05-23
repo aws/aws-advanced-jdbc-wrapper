@@ -248,5 +248,5 @@ public interface PluginService extends ExceptionHandler {
 
   @NonNull SessionStateService getSessionStateService();
 
-  <T> T getPlugin(final Class<T> pluginClazz);
+  <T> boolean hasPlugin(final Class<T> pluginClazz);
 }

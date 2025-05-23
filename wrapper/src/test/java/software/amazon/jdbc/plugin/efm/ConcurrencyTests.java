@@ -594,8 +594,8 @@ public class ConcurrencyTests {
     }
 
     @Override
-    public <T> T getPlugin(Class<T> pluginClazz) {
-      return null;
+    public <T> boolean hasPlugin(Class<T> pluginClazz) {
+      return false;
     }
 
     @Override

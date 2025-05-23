@@ -778,14 +778,15 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     return this.sessionStateService;
   }
 
-  public <T> T getPlugin(final Class<T> pluginClazz) {
+  public <T> boolean hasPlugin(final Class<T> pluginClazz) {
     for (ConnectionPlugin p : this.pluginManager.plugins) {
       if (pluginClazz.isAssignableFrom(p.getClass())) {
-        return pluginClazz.cast(p);
+        return true;
       }
     }
-    return null;
+    return false;
   }
+
 
   public static void clearCache() {
     hostAvailabilityExpiringCache.clear();
