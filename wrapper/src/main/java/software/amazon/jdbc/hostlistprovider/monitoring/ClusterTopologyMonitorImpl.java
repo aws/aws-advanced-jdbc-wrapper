@@ -214,6 +214,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
 
     if (this.isVerifiedWriterConnection) {
       // Push monitoring thread to refresh topology with a verified connection
+      LOGGER.finest("Push monitoring thread to refresh topology with a verified connection");
       return this.waitTillTopologyGetsUpdated(timeoutMs);
     }
 
@@ -257,11 +258,20 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
     }
 
     if (System.nanoTime() >= end) {
+      LOGGER.severe(Messages.get(
+          "ClusterTopologyMonitorImpl.topologyNotUpdated",
+          new Object[]{timeoutMs}));
       throw new TimeoutException(Messages.get(
           "ClusterTopologyMonitorImpl.topologyNotUpdated",
           new Object[]{timeoutMs}));
     }
 
+    if (latestHosts != null && !latestHosts.isEmpty()) {
+      Utils.logTopology(latestHosts, "Topology refreshed, returning latest hosts");
+    } else {
+      LOGGER.finest("No hosts in the latest topology for cluster ID: " + this.clusterId);
+      Utils.logTopology(currentHosts, "Current topology: ");
+    }
     return latestHosts;
   }
 
