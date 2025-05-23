@@ -24,6 +24,7 @@ import integration.TestInstanceInfo;
 import java.util.Properties;
 import java.util.Set;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.util.StringUtils;
 
 public class ConnectionStringHelper {
@@ -220,6 +221,7 @@ public class ConnectionStringHelper {
         features.contains(TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED) ? "otlp" : "none");
 
     props.setProperty(PropertyDefinition.TCP_KEEP_ALIVE.name, "false");
+    props.setProperty(RdsHostListProvider.CLUSTER_TOPOLOGY_REFRESH_RATE_MS.name, "600000");
 
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB) {
       // This property is sometimes required when using the mariadb driver against multi-az mysql version 8.4, or you

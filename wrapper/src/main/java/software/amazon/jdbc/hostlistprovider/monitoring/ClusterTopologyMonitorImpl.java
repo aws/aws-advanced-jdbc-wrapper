@@ -207,7 +207,6 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
       throws SQLException, TimeoutException {
 
     if (this.isVerifiedWriterConnection) {
-      // Push monitoring thread to refresh topology with a verified connection
       return this.waitTillTopologyGetsUpdated(timeoutMs);
     }
 
