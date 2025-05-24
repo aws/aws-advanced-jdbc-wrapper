@@ -21,12 +21,12 @@ import java.sql.Connection;
 import java.util.Collections;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -65,12 +65,7 @@ public class MonitorServiceImpl implements MonitorService {
                 MONITOR_DISPOSAL_TIME_MS.getLong(properties),
                 monitorService),
         () ->
-            Executors.newCachedThreadPool(
-                r -> {
-                  final Thread monitoringThread = new Thread(r);
-                  monitoringThread.setDaemon(true);
-                  return monitoringThread;
-                }));
+            ExecutorFactory.newCachedThreadPool("MonitorServiceImpl#executorServiceInitializer"));
   }
 
   MonitorServiceImpl(

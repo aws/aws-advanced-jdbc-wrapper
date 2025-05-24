@@ -28,7 +28,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
@@ -37,6 +36,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.StringUtils;
@@ -56,7 +56,7 @@ public class MonitorImpl implements Monitor {
   private static final long THREAD_SLEEP_NANO = TimeUnit.MILLISECONDS.toNanos(100);
   private static final String MONITORING_PROPERTY_PREFIX = "monitoring-";
 
-  protected static final Executor ABORT_EXECUTOR = Executors.newSingleThreadExecutor();
+  protected static final Executor ABORT_EXECUTOR = ExecutorFactory.newSingleThreadExecutor("MonitorImpl#ABORT_EXECUTOR");
 
   private final Queue<WeakReference<MonitorConnectionContext>> activeContexts = new ConcurrentLinkedQueue<>();
   private final Map<Long, Queue<WeakReference<MonitorConnectionContext>>> newContexts =
@@ -67,11 +67,7 @@ public class MonitorImpl implements Monitor {
   private final HostSpec hostSpec;
   private final AtomicBoolean stopped = new AtomicBoolean(false);
   private Connection monitoringConn = null;
-  private final ExecutorService threadPool = Executors.newFixedThreadPool(2, runnableTarget -> {
-    final Thread monitoringThread = new Thread(runnableTarget);
-    monitoringThread.setDaemon(true);
-    return monitoringThread;
-  });
+  private final ExecutorService threadPool = ExecutorFactory.newFixedThreadPool(2, "MonitorImpl#threadPool");
 
   private final long failureDetectionTimeNano;
   private final long failureDetectionIntervalNano;

@@ -31,7 +31,6 @@ import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -55,6 +54,7 @@ import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
+import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Utils;
 
 public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
@@ -109,14 +109,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
   protected final AtomicReference<List<HostSpec>> nodeThreadsLatestTopology = new AtomicReference<>(null);
 
 
-  protected final ExecutorService monitorExecutor = Executors.newSingleThreadExecutor(runnableTarget -> {
-    final Thread monitoringThread = new Thread(runnableTarget);
-    monitoringThread.setDaemon(true);
-    if (!StringUtils.isNullOrEmpty(monitoringThread.getName())) {
-      monitoringThread.setName(monitoringThread.getName() + "-m");
-    }
-    return monitoringThread;
-  });
+  protected final ExecutorService monitorExecutor = ExecutorFactory.newSingleThreadExecutor("ClusterTopologyMonitorImpl#monitorExecutor");
 
   public ClusterTopologyMonitorImpl(
       final String clusterId,
@@ -473,14 +466,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
   protected void createNodeExecutorService() {
     this.nodeExecutorLock.lock();
     try {
-      this.nodeExecutorService = Executors.newCachedThreadPool(runnableTarget -> {
-        final Thread monitoringThread = new Thread(runnableTarget);
-        monitoringThread.setDaemon(true);
-        if (!StringUtils.isNullOrEmpty(monitoringThread.getName())) {
-          monitoringThread.setName(monitoringThread.getName() + "-nm");
-        }
-        return monitoringThread;
-      });
+      this.nodeExecutorService = ExecutorFactory.newCachedThreadPool("ClusterTopologyMonitorImpl#nodeExecutorService");
     } finally {
       this.nodeExecutorLock.unlock();
     }

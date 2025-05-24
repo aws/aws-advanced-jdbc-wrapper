@@ -19,10 +19,10 @@ package software.amazon.jdbc.plugin.efm;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
+import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 
@@ -33,7 +33,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 public class MonitorConnectionContext {
 
   private static final Logger LOGGER = Logger.getLogger(MonitorConnectionContext.class.getName());
-  private static final Executor ABORT_EXECUTOR = Executors.newSingleThreadExecutor();
+  private static final Executor ABORT_EXECUTOR = ExecutorFactory.newSingleThreadExecutor("MonitorConnectionContext#ABORT_EXECUTOR");
 
   private final TelemetryCounter abortedConnectionsCounter;
 
