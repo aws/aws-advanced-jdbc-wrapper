@@ -1684,7 +1684,7 @@ public class AuroraTestUtility {
       }
     }
 
-    String expectedHostIpAddress = rdsUtils.isIPv4(expectedHostIpOrName) || rdsUtils.isIPv6(expectedHostIpOrName)
+    String expectedHostIpAddress = rdsUtils.isIP(expectedHostIpOrName)
         ? expectedHostIpOrName
         : this.hostToIP(expectedHostIpOrName);
 
@@ -1729,7 +1729,7 @@ public class AuroraTestUtility {
     }
 
     String expectedHostIpAddress =
-        rdsUtils.isIPv4(expectedNotToBeHostIpOrName) || rdsUtils.isIPv6(expectedNotToBeHostIpOrName)
+        rdsUtils.isIP(expectedNotToBeHostIpOrName)
           ? expectedNotToBeHostIpOrName
           : this.hostToIP(expectedNotToBeHostIpOrName);
 
