@@ -61,7 +61,7 @@ public class SubstituteConnectRouting extends BaseConnectRouting {
   public Connection apply(ConnectionPlugin plugin, HostSpec hostSpec, Properties props, boolean isInitialConnection,
       JdbcCallable<Connection, SQLException> connectFunc, PluginService pluginService) throws SQLException {
 
-    if (RDS_UTILS.isIPv4(this.substituteHostSpec.getHost()) || RDS_UTILS.isIPv6(this.substituteHostSpec.getHost())) {
+    if (RDS_UTILS.isIP(this.substituteHostSpec.getHost())) {
       boolean iamInUse = pluginService.isPluginInUse(IamAuthConnectionPlugin.class);
 
       if (iamInUse && (this.iamHosts == null || this.iamHosts.isEmpty())) {

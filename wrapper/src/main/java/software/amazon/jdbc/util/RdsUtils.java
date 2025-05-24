@@ -328,6 +328,10 @@ public class RdsUtils {
     return null;
   }
 
+  public boolean isIP(final String ip) {
+   return isIPv4(ip) || isIPv6(ip);
+  }
+
   public boolean isIPv4(final String ip) {
     return !StringUtils.isNullOrEmpty(ip) && IP_V4.matcher(ip).matches();
   }
@@ -346,7 +350,7 @@ public class RdsUtils {
       return RdsUrlType.OTHER;
     }
 
-    if (isIPv4(host) || isIPv6(host)) {
+    if (isIP(host)) {
       return RdsUrlType.IP_ADDRESS;
     } else if (isWriterClusterDns(host)) {
       return RdsUrlType.RDS_WRITER_CLUSTER;
