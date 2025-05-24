@@ -96,8 +96,11 @@ import software.amazon.awssdk.services.rds.model.DescribeDbClustersResponse;
 import software.amazon.awssdk.services.rds.model.DescribeDbEngineVersionsRequest;
 import software.amazon.awssdk.services.rds.model.DescribeDbEngineVersionsResponse;
 import software.amazon.awssdk.services.rds.model.DescribeDbInstancesResponse;
+import software.amazon.awssdk.services.rds.model.DescribeOrderableDbInstanceOptionsResponse;
 import software.amazon.awssdk.services.rds.model.FailoverDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.Filter;
+import software.amazon.awssdk.services.rds.model.OrderableDBInstanceOption;
+import software.amazon.awssdk.services.rds.model.RdsException;
 import software.amazon.awssdk.services.rds.model.RebootDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.RebootDbInstanceResponse;
 import software.amazon.awssdk.services.rds.model.Tag;
@@ -114,8 +117,6 @@ public class AuroraTestUtility {
   private static final Logger LOGGER = Logger.getLogger(AuroraTestUtility.class.getName());
   private static final String DUPLICATE_IP_ERROR_CODE = "InvalidPermission.Duplicate";
   private static final String DEFAULT_SECURITY_GROUP = "default";
-  private static final String DEFAULT_STORAGE_TYPE = "gp3";
-  private static final int DEFAULT_IOPS = 64000;
   private static final int MULTI_AZ_SIZE = 3;
   private static final Random rand = new Random();
 
@@ -234,7 +235,7 @@ public class AuroraTestUtility {
         }
 
         createMultiAzCluster(
-            username, password, dbName, identifier, region, engine, instanceClass, version);
+            username, password, dbName, identifier, region, engine, version);
         break;
       default:
         throw new UnsupportedOperationException(deployment.toString());
@@ -330,8 +331,6 @@ public class AuroraTestUtility {
    * @param region        the region that the cluster should be created in
    * @param engine        the engine to use, refer to
    *                      <a href="https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/services/rds/model/CreateDbClusterRequest.Builder.html#engine(java.lang.String)">CreateDbClusterRequest.engine</a>
-   * @param instanceClass the instance class, refer to
-   *                      <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.Support.html">Supported instance classes</a>
    * @param version       the database engine's version
    * @throws InterruptedException when clusters have not started after 30 minutes
    */
@@ -341,9 +340,10 @@ public class AuroraTestUtility {
       String identifier,
       String region,
       String engine,
-      String instanceClass,
       String version)
       throws InterruptedException {
+
+    final List<OrderableDBInstanceOption> options = getAvailableDBInstances(engine, version);
     final Tag testRunnerTag = Tag.builder().key("env").value("test-runner").build();
     CreateDbClusterRequest.Builder clusterBuilder =
         CreateDbClusterRequest.builder()
@@ -360,13 +360,27 @@ public class AuroraTestUtility {
             .storageEncrypted(true)
             .tags(testRunnerTag);
 
-    clusterBuilder =
-        clusterBuilder.allocatedStorage(400)
-            .dbClusterInstanceClass(instanceClass)
-            .storageType(DEFAULT_STORAGE_TYPE)
-            .iops(DEFAULT_IOPS);
+    boolean buildSuccess = false;
+    for (OrderableDBInstanceOption option : options) {
+      try {
+        clusterBuilder =
+            clusterBuilder.allocatedStorage(option.maxStorageSize())
+                .dbClusterInstanceClass(option.dbInstanceClass())
+                .storageType(option.storageType());
 
-    rdsClient.createDBCluster(clusterBuilder.build());
+        rdsClient.createDBCluster(clusterBuilder.build());
+        buildSuccess = true;
+        break;
+      } catch (RdsException e) {
+        LOGGER.finest("Multi-AZ DB Cluster creation process failed: " + e.getMessage());
+        // RDS exception will get thrown if the instance class doesn't Multi-AZ DB clusters.
+      }
+    }
+
+    if (!buildSuccess) {
+      throw new InterruptedException(
+          "Unable to find compatible instance classes for the specified MultiAZ cluster engine that has at least 3 availabile zones.");
+    }
 
     // For multi-AZ deployments, the cluster instances are created automatically. Wait for all instances to be up.
     final RdsWaiter waiter = rdsClient.waiter();
@@ -382,6 +396,15 @@ public class AuroraTestUtility {
       throw new InterruptedException(
           "Unable to start AWS RDS Cluster & Instances after waiting for 30 minutes");
     }
+  }
+
+  private List<OrderableDBInstanceOption> getAvailableDBInstances(String engine, String version) {
+    return rdsClient
+        .describeOrderableDBInstanceOptions((builder) -> builder.engineVersion(version).engine(engine))
+        .orderableDBInstanceOptions()
+        .stream()
+        .filter(o -> !o.supportsIops() && o.availabilityZones().size() >= 3)
+        .collect(Collectors.toList());
   }
 
   /**
