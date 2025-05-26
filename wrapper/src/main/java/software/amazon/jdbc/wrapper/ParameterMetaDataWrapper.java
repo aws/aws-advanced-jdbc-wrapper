@@ -20,6 +20,7 @@ import java.sql.ParameterMetaData;
 import java.sql.SQLException;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.ConnectionPluginManager;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.util.WrapperUtils;
 
 public class ParameterMetaDataWrapper implements ParameterMetaData {
@@ -36,111 +37,147 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
 
   @Override
   public int getParameterCount() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.parameterMetaData,
-        "ParameterMetaData.getParameterCount",
-        () -> this.parameterMetaData.getParameterCount());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PARAMETERMETADATA_GETPARAMETERCOUNT)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.parameterMetaData,
+          JdbcMethod.PARAMETERMETADATA_GETPARAMETERCOUNT,
+          () -> this.parameterMetaData.getParameterCount());
+    } else {
+      return this.parameterMetaData.getParameterCount();
+    }
   }
 
   @SuppressWarnings("MagicConstant")
   @Override
   public int isNullable(int param) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.parameterMetaData,
-        "ParameterMetaData.isNullable",
-        () -> this.parameterMetaData.isNullable(param),
-        param);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PARAMETERMETADATA_ISNULLABLE)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.parameterMetaData,
+          JdbcMethod.PARAMETERMETADATA_ISNULLABLE,
+          () -> this.parameterMetaData.isNullable(param),
+          param);
+    } else {
+      return this.parameterMetaData.isNullable(param);
+    }
   }
 
   @Override
   public boolean isSigned(int param) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
-        SQLException.class,
-        this.pluginManager,
-        this.parameterMetaData,
-        "ParameterMetaData.isSigned",
-        () -> this.parameterMetaData.isSigned(param),
-        param);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PARAMETERMETADATA_ISSIGNED)) {
+      return WrapperUtils.executeWithPlugins(
+          boolean.class,
+          SQLException.class,
+          this.pluginManager,
+          this.parameterMetaData,
+          JdbcMethod.PARAMETERMETADATA_ISSIGNED,
+          () -> this.parameterMetaData.isSigned(param),
+          param);
+    } else {
+      return this.parameterMetaData.isSigned(param);
+    }
   }
 
   @Override
   public int getPrecision(int param) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.parameterMetaData,
-        "ParameterMetaData.getPrecision",
-        () -> this.parameterMetaData.getPrecision(param),
-        param);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PARAMETERMETADATA_GETPRECISION)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.parameterMetaData,
+          JdbcMethod.PARAMETERMETADATA_GETPRECISION,
+          () -> this.parameterMetaData.getPrecision(param),
+          param);
+    } else {
+      return this.parameterMetaData.getPrecision(param);
+    }
   }
 
   @Override
   public int getScale(int param) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.parameterMetaData,
-        "ParameterMetaData.getScale",
-        () -> this.parameterMetaData.getScale(param),
-        param);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PARAMETERMETADATA_GETSCALE)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.parameterMetaData,
+          JdbcMethod.PARAMETERMETADATA_GETSCALE,
+          () -> this.parameterMetaData.getScale(param),
+          param);
+    } else {
+      return this.parameterMetaData.getScale(param);
+    }
   }
 
   @Override
   public int getParameterType(int param) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.parameterMetaData,
-        "ParameterMetaData.getParameterType",
-        () -> this.parameterMetaData.getParameterType(param),
-        param);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PARAMETERMETADATA_GETPARAMETERTYPE)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.parameterMetaData,
+          JdbcMethod.PARAMETERMETADATA_GETPARAMETERTYPE,
+          () -> this.parameterMetaData.getParameterType(param),
+          param);
+    } else {
+      return this.parameterMetaData.getParameterType(param);
+    }
   }
 
   @Override
   public String getParameterTypeName(int param) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        SQLException.class,
-        this.pluginManager,
-        this.parameterMetaData,
-        "ParameterMetaData.getParameterTypeName",
-        () -> this.parameterMetaData.getParameterTypeName(param),
-        param);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PARAMETERMETADATA_GETPARAMETERTYPENAME)) {
+      return WrapperUtils.executeWithPlugins(
+          String.class,
+          SQLException.class,
+          this.pluginManager,
+          this.parameterMetaData,
+          JdbcMethod.PARAMETERMETADATA_GETPARAMETERTYPENAME,
+          () -> this.parameterMetaData.getParameterTypeName(param),
+          param);
+    } else {
+      return this.parameterMetaData.getParameterTypeName(param);
+    }
   }
 
   @Override
   public String getParameterClassName(int param) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        SQLException.class,
-        this.pluginManager,
-        this.parameterMetaData,
-        "ParameterMetaData.getParameterClassName",
-        () -> this.parameterMetaData.getParameterClassName(param),
-        param);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PARAMETERMETADATA_GETPARAMETERCLASSNAME)) {
+      return WrapperUtils.executeWithPlugins(
+          String.class,
+          SQLException.class,
+          this.pluginManager,
+          this.parameterMetaData,
+          JdbcMethod.PARAMETERMETADATA_GETPARAMETERCLASSNAME,
+          () -> this.parameterMetaData.getParameterClassName(param),
+          param);
+    } else {
+      return this.parameterMetaData.getParameterClassName(param);
+    }
   }
 
   @SuppressWarnings("MagicConstant")
   @Override
   public int getParameterMode(int param) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.parameterMetaData,
-        "ParameterMetaData.getParameterMode",
-        () -> this.parameterMetaData.getParameterMode(param),
-        param);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PARAMETERMETADATA_GETPARAMETERMODE)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.parameterMetaData,
+          JdbcMethod.PARAMETERMETADATA_GETPARAMETERMODE,
+          () -> this.parameterMetaData.getParameterMode(param),
+          param);
+    } else {
+      return this.parameterMetaData.getParameterMode(param);
+    }
   }
 
   @Override

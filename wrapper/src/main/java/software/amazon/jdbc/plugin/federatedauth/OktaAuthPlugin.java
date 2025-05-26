@@ -116,9 +116,9 @@ public class OktaAuthPlugin extends AbstractConnectionPlugin {
     this.samlUtils = new SamlUtils(this.rdsUtils);
     this.iamTokenUtility = tokenUtils;
     this.telemetryFactory = pluginService.getTelemetryFactory();
-    this.cacheSizeGauge = telemetryFactory.createGauge("oktaAuth.tokenCache.size",
+    this.cacheSizeGauge = this.telemetryFactory.createGauge("oktaAuth.tokenCache.size",
         () -> (long) OktaAuthCacheHolder.tokenCache.size());
-    this.fetchTokenCounter = telemetryFactory.createCounter("oktaAuth.fetchToken.count");
+    this.fetchTokenCounter = this.telemetryFactory.createCounter("oktaAuth.fetchToken.count");
   }
 
   @Override

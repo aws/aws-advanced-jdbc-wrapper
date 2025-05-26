@@ -35,6 +35,7 @@ import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
@@ -50,7 +51,6 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SqlState;
-import software.amazon.jdbc.util.SubscribedMethodHelper;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -103,23 +103,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           "skipFailoverOnInterruptedThread", "false",
           "Enable to skip failover if the current thread is interrupted.");
 
-  private static final Set<String> subscribedMethods =
-      Collections.unmodifiableSet(new HashSet<String>() {
-        {
-          addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
-
-          /* Hikari need to clear warnings on a connection before returning it back to a pool. And a current
-          connection might be closed since recent failover so failover plugin needs to handle it. */
-          add("Connection.clearWarnings");
-
-          add("connect");
-          add("initHostProvider");
-        }
-      });
-
-  protected static final String METHOD_ABORT = "Connection.abort";
-  protected static final String METHOD_CLOSE = "Connection.close";
-  protected static final String METHOD_IS_CLOSED = "Connection.isClosed";
+  private final Set<String> subscribedMethods;
 
   protected final PluginService pluginService;
   protected final Properties properties;
@@ -181,6 +165,17 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     this.failoverReaderTriggeredCounter = telemetryFactory.createCounter("readerFailover.triggered.count");
     this.failoverReaderSuccessCounter = telemetryFactory.createCounter("readerFailover.completed.success.count");
     this.failoverReaderFailedCounter = telemetryFactory.createCounter("readerFailover.completed.failed.count");
+
+    final HashSet<String> methods = new HashSet<>();
+
+    /* Hikari need to clear warnings on a connection before returning it back to a pool. And a current
+    connection might be closed since recent failover so failover plugin needs to handle it. */
+    methods.add(JdbcMethod.CONNECTION_CLEARWARNINGS.methodName);
+
+    methods.add(JdbcMethod.INITHOSTPROVIDER.methodName);
+    methods.add(JdbcMethod.CONNECT.methodName);
+    methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.properties));
+    this.subscribedMethods = Collections.unmodifiableSet(methods);
   }
 
   @Override
@@ -372,21 +367,27 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       throwFailoverSuccessException();
     } catch (FailoverSuccessSQLException ex) {
       this.failoverReaderSuccessCounter.inc();
-      telemetryContext.setSuccess(true);
-      telemetryContext.setException(ex);
+      if (telemetryContext != null) {
+        telemetryContext.setSuccess(true);
+        telemetryContext.setException(ex);
+      }
       throw ex;
     } catch (Exception ex) {
-      telemetryContext.setSuccess(false);
-      telemetryContext.setException(ex);
+      if (telemetryContext != null) {
+        telemetryContext.setSuccess(false);
+        telemetryContext.setException(ex);
+      }
       this.failoverReaderFailedCounter.inc();
       throw ex;
     } finally {
       LOGGER.finest(() -> Messages.get(
               "Failover.readerFailoverElapsed",
               new Object[]{TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - failoverStartNano)}));
-      telemetryContext.closeContext();
-      if (this.telemetryFailoverAdditionalTopTraceSetting) {
-        telemetryFactory.postCopy(telemetryContext, TelemetryTraceLevel.FORCE_TOP_LEVEL);
+      if (telemetryContext != null) {
+        telemetryContext.closeContext();
+        if (this.telemetryFailoverAdditionalTopTraceSetting) {
+          telemetryFactory.postCopy(telemetryContext, TelemetryTraceLevel.FORCE_TOP_LEVEL);
+        }
       }
     }
   }
@@ -589,21 +590,27 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       throwFailoverSuccessException();
     } catch (FailoverSuccessSQLException ex) {
       this.failoverWriterSuccessCounter.inc();
-      telemetryContext.setSuccess(true);
-      telemetryContext.setException(ex);
+      if (telemetryContext != null) {
+        telemetryContext.setSuccess(true);
+        telemetryContext.setException(ex);
+      }
       throw ex;
     } catch (Exception ex) {
-      telemetryContext.setSuccess(false);
-      telemetryContext.setException(ex);
+      if (telemetryContext != null) {
+        telemetryContext.setSuccess(false);
+        telemetryContext.setException(ex);
+      }
       this.failoverWriterFailedCounter.inc();
       throw ex;
     } finally {
       LOGGER.finest(() -> Messages.get(
           "Failover.writerFailoverElapsed",
           new Object[]{TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - failoverStartTimeNano)}));
-      telemetryContext.closeContext();
-      if (this.telemetryFailoverAdditionalTopTraceSetting) {
-        telemetryFactory.postCopy(telemetryContext, TelemetryTraceLevel.FORCE_TOP_LEVEL);
+      if (telemetryContext != null) {
+        telemetryContext.closeContext();
+        if (this.telemetryFailoverAdditionalTopTraceSetting) {
+          telemetryFactory.postCopy(telemetryContext, TelemetryTraceLevel.FORCE_TOP_LEVEL);
+        }
       }
     }
   }
@@ -672,9 +679,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @return true if the method can be executed directly; false otherwise.
    */
   protected boolean canDirectExecute(final String methodName) {
-    return (methodName.equals(METHOD_CLOSE)
-        || methodName.equals(METHOD_IS_CLOSED)
-        || methodName.equals(METHOD_ABORT));
+    return (methodName.equals(JdbcMethod.CONNECTION_CLOSE.methodName)
+        || methodName.equals(JdbcMethod.CONNECTION_ISCLOSED.methodName)
+        || methodName.equals(JdbcMethod.CONNECTION_ABORT.methodName));
   }
 
   protected void initFailoverMode() {

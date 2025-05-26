@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.PropertyUtils;
 
@@ -41,6 +42,48 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
       SIMPLE_DS_CLASS_NAME,
       POOLING_DS_CLASS_NAME,
       CP_DS_CLASS_NAME));
+
+  private static final Set<String> PG_ALLOWED_ON_CLOSED_METHOD_NAMES = Collections.unmodifiableSet(
+      new HashSet<String>() {
+        {
+          addAll(ALLOWED_ON_CLOSED_METHODS);
+          add(JdbcMethod.STATEMENT_CLEARWARNINGS.methodName);
+          add(JdbcMethod.STATEMENT_GETFETCHSIZE.methodName);
+          add(JdbcMethod.STATEMENT_GETMAXFIELDSIZE.methodName);
+          add(JdbcMethod.STATEMENT_GETRESULTSETTYPE.methodName);
+          add(JdbcMethod.STATEMENT_ISCLOSEONCOMPLETION.methodName);
+          add(JdbcMethod.STATEMENT_CLEARBATCH.methodName);
+          add(JdbcMethod.STATEMENT_CLOSEONCOMPLETION.methodName);
+          add(JdbcMethod.STATEMENT_GETGENERATEDKEYS.methodName);
+          add(JdbcMethod.STATEMENT_GETMAXROWS.methodName);
+          add(JdbcMethod.STATEMENT_GETMORERESULTS.methodName);
+          add(JdbcMethod.STATEMENT_GETQUERYTIMEOUT.methodName);
+          add(JdbcMethod.STATEMENT_GETRESULTSET.methodName);
+          add(JdbcMethod.STATEMENT_GETRESULTSETCONCURRENCY.methodName);
+          add(JdbcMethod.STATEMENT_GETUPDATECOUNT.methodName);
+          add(JdbcMethod.STATEMENT_GETWARNINGS.methodName);
+          add(JdbcMethod.STATEMENT_ADDBATCH.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETARRAY.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETBIGDECIMAL.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETBOOLEAN.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETBYTE.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETBYTES.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETDATE.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETDOUBLE.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETFLOAT.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETINT.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETLONG.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETOBJECT.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETSHORT.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETSQLXML.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETTIME.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETSTRING.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETTIMESTAMP.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_WASNULL.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_ADDBATCH.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_CLEARPARAMETERS.methodName);
+        }
+      });
 
   @Override
   public boolean isDialect(Driver driver) {
@@ -120,45 +163,6 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
 
   @Override
   public Set<String> getAllowedOnConnectionMethodNames() {
-    return Collections.unmodifiableSet(new HashSet<String>() {
-      {
-        addAll(ALLOWED_ON_CLOSED_METHODS);
-        add(STATEMENT_CLEAR_WARNINGS);
-        add(STATEMENT_GET_FETCH_SIZE);
-        add(STATEMENT_GET_MAX_FIELD_SIZE);
-        add(STATEMENT_GET_RESULT_SET_TYPE);
-        add(STATEMENT_IS_CLOSE_ON_COMPLETION);
-        add(STATEMENT_CLEAR_BATCH);
-        add(STATEMENT_CLOSE_ON_COMPLETION);
-        add(STATEMENT_GET_GENERATED_KEYS);
-        add(STATEMENT_GET_MAX_ROWS);
-        add(STATEMENT_GET_MORE_RESULTS);
-        add(STATEMENT_GET_QUERY_TIMEOUT);
-        add(STATEMENT_GET_RESULT_SET);
-        add(STATEMENT_GET_RESULT_SET_CONCURRENCY);
-        add(STATEMENT_GET_UPDATE_COUNT);
-        add(STATEMENT_GET_WARNINGS);
-        add(STATEMENT_ADD_BATCH);
-        add(CALL_GET_ARRAY);
-        add(CALL_GET_BIG_DECIMAL);
-        add(CALL_GET_BOOLEAN);
-        add(CALL_GET_BYTE);
-        add(CALL_GET_BYTES);
-        add(CALL_GET_DATE);
-        add(CALL_GET_DOUBLE);
-        add(CALL_GET_FLOAT);
-        add(CALL_GET_INT);
-        add(CALL_GET_LONG);
-        add(CALL_GET_OBJECT);
-        add(CALL_GET_SHORT);
-        add(CALL_GET_SQLXML);
-        add(CALL_GET_TIME);
-        add(CALL_GET_STRING);
-        add(CALL_GET_TIMESTAMP);
-        add(CALL_WAS_NULL);
-        add(PREP_ADD_BATCH);
-        add(PREP_CLEAR_PARAMS);
-      }
-    });
+    return PG_ALLOWED_ON_CLOSED_METHOD_NAMES;
   }
 }

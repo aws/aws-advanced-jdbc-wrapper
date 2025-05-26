@@ -96,11 +96,15 @@ public class IamAuthUtils {
     try {
       return tokenUtils.generateAuthenticationToken(awsCredentialsProvider, region, hostname, port, user);
     } catch (final Exception e) {
-      telemetryContext.setSuccess(false);
-      telemetryContext.setException(e);
+      if (telemetryContext != null) {
+        telemetryContext.setSuccess(false);
+        telemetryContext.setException(e);
+      }
       throw e;
     } finally {
-      telemetryContext.closeContext();
+      if (telemetryContext != null) {
+        telemetryContext.closeContext();
+      }
     }
   }
 }

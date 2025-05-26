@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.Properties;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 
 public class TestPluginThree extends TestPluginOne {
 
@@ -33,7 +34,8 @@ public class TestPluginThree extends TestPluginOne {
     super();
     this.calls = calls;
 
-    this.subscribedMethods = new HashSet<>(Arrays.asList("testJdbcCall_A", "connect", "forceConnect"));
+    this.subscribedMethods = new HashSet<>(Arrays.asList(
+        JdbcMethod.BLOB_LENGTH.methodName, JdbcMethod.CONNECT.methodName, JdbcMethod.FORCECONNECT.methodName));
   }
 
   public TestPluginThree(ArrayList<String> calls, Connection connection) {

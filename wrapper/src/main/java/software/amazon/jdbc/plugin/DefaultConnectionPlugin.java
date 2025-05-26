@@ -127,7 +127,9 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     try {
       result = jdbcMethodFunc.call();
     } finally {
-      telemetryContext.closeContext();
+      if (telemetryContext != null) {
+        telemetryContext.closeContext();
+      }
     }
 
     final Connection currentConn = this.pluginService.getCurrentConnection();
@@ -199,7 +201,9 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
           hostSpec,
           props);
     } finally {
-      telemetryContext.closeContext();
+      if (telemetryContext != null) {
+        telemetryContext.closeContext();
+      }
     }
 
     this.connProviderManager.initConnection(conn, driverProtocol, hostSpec, props);

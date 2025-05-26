@@ -21,11 +21,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -61,9 +59,9 @@ import software.amazon.jdbc.plugin.AuroraConnectionTrackerPlugin;
 import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
 import software.amazon.jdbc.plugin.LogQueryConnectionPlugin;
 import software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin;
-import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -80,6 +78,8 @@ public class ConnectionPluginManagerTests {
   @Mock TelemetryContext mockTelemetryContext;
   @Mock PluginService mockPluginService;
   @Mock PluginManagerService mockPluginManagerService;
+  @Mock TargetDriverDialect mockTargetDriverDialect;
+
   ConfigurationProfile configurationProfile = ConfigurationProfileBuilder.get().withName("test").build();
 
   private AutoCloseable closeable;
@@ -95,6 +95,8 @@ public class ConnectionPluginManagerTests {
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
     when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(mockTargetDriverDialect);
+    when(mockTargetDriverDialect.getNetworkBoundMethodNames(any())).thenReturn(new HashSet<>());
   }
 
   @Test
@@ -120,7 +122,7 @@ public class ConnectionPluginManagerTests {
             String.class,
             Exception.class,
             Connection.class,
-            "testJdbcCall_A",
+            JdbcMethod.BLOB_LENGTH,
             () -> {
               calls.add("targetCall");
               return "resulTestValue";
@@ -162,7 +164,7 @@ public class ConnectionPluginManagerTests {
             String.class,
             Exception.class,
             Connection.class,
-            "testJdbcCall_B",
+            JdbcMethod.BLOB_POSITION,
             () -> {
               calls.add("targetCall");
               return "resulTestValue";
@@ -202,7 +204,7 @@ public class ConnectionPluginManagerTests {
             String.class,
             Exception.class,
             Connection.class,
-            "testJdbcCall_C",
+            JdbcMethod.BLOB_GETBYTES,
             () -> {
               calls.add("targetCall");
               return "resulTestValue";
@@ -448,7 +450,7 @@ public class ConnectionPluginManagerTests {
             String.class,
             Exception.class,
             Connection.class,
-            "testJdbcCall_A",
+            JdbcMethod.BLOB_LENGTH,
             () -> {
               calls.add("targetCall");
               return "resulTestValue";
@@ -458,7 +460,7 @@ public class ConnectionPluginManagerTests {
     assertEquals("resulTestValue", result);
 
     // The method has been called just once to generate a final lambda and cache it.
-    verify(target, times(1)).makePluginChainFunc(eq("testJdbcCall_A"));
+    verify(target, times(1)).makePluginChainFunc(eq(JdbcMethod.BLOB_LENGTH.methodName));
 
     assertEquals(7, calls.size());
     assertEquals("TestPluginOne:before", calls.get(0));
@@ -476,7 +478,7 @@ public class ConnectionPluginManagerTests {
             String.class,
             Exception.class,
             Connection.class,
-            "testJdbcCall_A",
+            JdbcMethod.BLOB_LENGTH,
             () -> {
               calls.add("targetCall");
               return "anotherResulTestValue";
@@ -486,7 +488,7 @@ public class ConnectionPluginManagerTests {
     assertEquals("anotherResulTestValue", result);
 
     // No additional calls to this method occurred. It's still been called once.
-    verify(target, times(1)).makePluginChainFunc(eq("testJdbcCall_A"));
+    verify(target, times(1)).makePluginChainFunc(eq(JdbcMethod.BLOB_LENGTH.methodName));
 
     assertEquals(7, calls.size());
     assertEquals("TestPluginOne:before", calls.get(0));
@@ -582,23 +584,30 @@ public class ConnectionPluginManagerTests {
             mockPluginService, mockTelemetryFactory);
 
     assertThrows(SQLException.class,
-        () -> target.execute(String.class, Exception.class, mockOldConnection, "testJdbcCall_A", () -> "result", null));
+        () -> target.execute(String.class, Exception.class, mockOldConnection,
+            JdbcMethod.CALLABLESTATEMENT_GETCONNECTION, () -> "result", null));
     assertThrows(SQLException.class,
-        () -> target.execute(String.class, Exception.class, mockOldStatement, "testJdbcCall_A", () -> "result", null));
+        () -> target.execute(String.class, Exception.class, mockOldStatement,
+            JdbcMethod.CALLABLESTATEMENT_GETMORERESULTS, () -> "result", null));
     assertThrows(SQLException.class,
-        () -> target.execute(String.class, Exception.class, mockOldResultSet, "testJdbcCall_A", () -> "result", null));
+        () -> target.execute(String.class, Exception.class, mockOldResultSet,
+            JdbcMethod.RESULTSET_GETSTATEMENT, () -> "result", null));
 
     assertDoesNotThrow(
-        () -> target.execute(Void.class, SQLException.class, mockOldConnection, "Connection.close", mockSqlFunction,
+        () -> target.execute(Void.class, SQLException.class, mockOldConnection,
+            JdbcMethod.CONNECTION_CLOSE, mockSqlFunction,
             null));
     assertDoesNotThrow(
-        () -> target.execute(Void.class, SQLException.class, mockOldConnection, "Connection.abort", mockSqlFunction,
+        () -> target.execute(Void.class, SQLException.class, mockOldConnection,
+            JdbcMethod.CONNECTION_ABORT, mockSqlFunction,
             null));
     assertDoesNotThrow(
-        () -> target.execute(Void.class, SQLException.class, mockOldStatement, "Statement.close", mockSqlFunction,
+        () -> target.execute(Void.class, SQLException.class, mockOldStatement,
+            JdbcMethod.STATEMENT_CLOSE, mockSqlFunction,
             null));
     assertDoesNotThrow(
-        () -> target.execute(Void.class, SQLException.class, mockOldResultSet, "ResultSet.close", mockSqlFunction,
+        () -> target.execute(Void.class, SQLException.class, mockOldResultSet,
+            JdbcMethod.RESULTSET_CLOSE, mockSqlFunction,
             null));
   }
 
@@ -706,7 +715,7 @@ public class ConnectionPluginManagerTests {
               Integer.class,
               pluginManager1,
               object1,
-              "lock-db-resource-from-thread-1",
+              JdbcMethod.BLOB_POSITION, // any JdbcMethod that locks connection
               () -> {
                 dbResourceLock.lock();
                 waitForDbResourceLocked.countDown();
@@ -726,7 +735,7 @@ public class ConnectionPluginManagerTests {
               Integer.class,
               pluginManager1,
               object1,
-              "release-db-resource-from-thread-1",
+              JdbcMethod.BLOB_TRUNCATE, // any JdbcMethod that locks connection
               () -> {
                 dbResourceLock.unlock();
                 dbResourceReleased.set(true);
@@ -752,7 +761,7 @@ public class ConnectionPluginManagerTests {
               Integer.class,
               pluginManager2,
               object2,
-              "lock-db-resource-from-thread-2",
+              JdbcMethod.BLOB_LENGTH, // any JdbcMethod that locks connection
               () -> {
                 waitForReleaseDbResourceToProceed.countDown();
                 LOGGER.info("thread-2: try to acquire a lock");
@@ -777,7 +786,7 @@ public class ConnectionPluginManagerTests {
     when(mockPlugin.getSubscribedMethods()).thenReturn(Collections.emptySet());
     when(mockPlugin.getHostSpecByStrategy(any(), any())).thenThrow(new UnsupportedOperationException());
 
-    final List<ConnectionPlugin> testPlugins = Arrays.asList(mockPlugin);
+    final List<ConnectionPlugin> testPlugins = Collections.singletonList(mockPlugin);
 
     final Properties testProperties = new Properties();
     final ConnectionPluginManager connectionPluginManager = new ConnectionPluginManager(mockConnectionProvider,
@@ -796,10 +805,10 @@ public class ConnectionPluginManagerTests {
   public void testGetHostSpecByStrategy_givenPluginWithDiffSubscription_thenThrowsSqlException() throws SQLException {
     final ConnectionPlugin mockPlugin = mock(ConnectionPlugin.class);
     when(mockPlugin.getSubscribedMethods())
-        .thenReturn(new HashSet<>(Arrays.asList(ConnectionPluginManager.CONNECT_METHOD)));
+        .thenReturn(new HashSet<>(Collections.singletonList(JdbcMethod.CONNECT.methodName)));
     when(mockPlugin.getHostSpecByStrategy(any(), any())).thenThrow(new UnsupportedOperationException());
 
-    final List<ConnectionPlugin> testPlugins = Arrays.asList(mockPlugin);
+    final List<ConnectionPlugin> testPlugins = Collections.singletonList(mockPlugin);
 
     final Properties testProperties = new Properties();
     final ConnectionPluginManager connectionPluginManager = new ConnectionPluginManager(mockConnectionProvider,
@@ -818,10 +827,10 @@ public class ConnectionPluginManagerTests {
   public void testGetHostSpecByStrategy_givenUnsupportedPlugin_thenThrowsSqlException() throws SQLException {
     final ConnectionPlugin mockPlugin = mock(ConnectionPlugin.class);
     when(mockPlugin.getSubscribedMethods())
-        .thenReturn(new HashSet<>(Arrays.asList(ConnectionPluginManager.ALL_METHODS)));
+        .thenReturn(new HashSet<>(Collections.singletonList(JdbcMethod.ALL.methodName)));
     when(mockPlugin.getHostSpecByStrategy(any(), any())).thenThrow(new UnsupportedOperationException());
 
-    final List<ConnectionPlugin> testPlugins = Arrays.asList(mockPlugin);
+    final List<ConnectionPlugin> testPlugins = Collections.singletonList(mockPlugin);
 
     final Properties testProperties = new Properties();
     final ConnectionPluginManager connectionPluginManager = new ConnectionPluginManager(mockConnectionProvider,
@@ -841,13 +850,13 @@ public class ConnectionPluginManagerTests {
     final ConnectionPlugin mockPlugin = mock(ConnectionPlugin.class);
 
     when(mockPlugin.getSubscribedMethods())
-        .thenReturn(new HashSet<>(Arrays.asList(ConnectionPluginManager.ALL_METHODS)));
+        .thenReturn(new HashSet<>(Collections.singletonList(JdbcMethod.ALL.methodName)));
 
     final HostSpec expectedHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("expected-instance").build();
     when(mockPlugin.getHostSpecByStrategy(any(), any())).thenReturn(expectedHostSpec);
 
-    final List<ConnectionPlugin> testPlugins = Arrays.asList(mockPlugin);
+    final List<ConnectionPlugin> testPlugins = Collections.singletonList(mockPlugin);
 
     final Properties testProperties = new Properties();
     final ConnectionPluginManager connectionPluginManager = new ConnectionPluginManager(mockConnectionProvider,
@@ -875,13 +884,13 @@ public class ConnectionPluginManagerTests {
 
     when(unsubscribedPlugin0.getSubscribedMethods()).thenReturn(Collections.emptySet());
     when(unsubscribedPlugin1.getSubscribedMethods())
-        .thenReturn(new HashSet<>(Arrays.asList(ConnectionPluginManager.CONNECT_METHOD)));
+        .thenReturn(new HashSet<>(Collections.singletonList(JdbcMethod.CONNECT.methodName)));
     when(unsupportedSubscribedPlugin0.getSubscribedMethods())
-        .thenReturn(new HashSet<>(Arrays.asList(ConnectionPluginManager.ALL_METHODS)));
+        .thenReturn(new HashSet<>(Collections.singletonList(JdbcMethod.ALL.methodName)));
     when(unsupportedSubscribedPlugin1.getSubscribedMethods())
-        .thenReturn(new HashSet<>(Arrays.asList(ConnectionPluginManager.GET_HOST_SPEC_BY_STRATEGY_METHOD)));
+        .thenReturn(new HashSet<>(Collections.singletonList(JdbcMethod.GETHOSTSPECBYSTRATEGY.methodName)));
     when(supportedSubscribedPlugin.getSubscribedMethods())
-        .thenReturn(new HashSet<>(Arrays.asList(ConnectionPluginManager.GET_HOST_SPEC_BY_STRATEGY_METHOD)));
+        .thenReturn(new HashSet<>(Collections.singletonList(JdbcMethod.GETHOSTSPECBYSTRATEGY.methodName)));
 
     when(unsubscribedPlugin0.getHostSpecByStrategy(any(), any())).thenThrow(new UnsupportedOperationException());
     when(unsubscribedPlugin1.getHostSpecByStrategy(any(), any())).thenThrow(new UnsupportedOperationException());
@@ -920,13 +929,13 @@ public class ConnectionPluginManagerTests {
 
     when(unsubscribedPlugin0.getSubscribedMethods()).thenReturn(Collections.emptySet());
     when(unsubscribedPlugin1.getSubscribedMethods())
-        .thenReturn(new HashSet<>(Arrays.asList(ConnectionPluginManager.CONNECT_METHOD)));
+        .thenReturn(new HashSet<>(Collections.singletonList(JdbcMethod.CONNECT.methodName)));
     when(unsupportedSubscribedPlugin0.getSubscribedMethods())
-        .thenReturn(new HashSet<>(Arrays.asList(ConnectionPluginManager.ALL_METHODS)));
+        .thenReturn(new HashSet<>(Collections.singletonList(JdbcMethod.ALL.methodName)));
     when(unsupportedSubscribedPlugin1.getSubscribedMethods())
-        .thenReturn(new HashSet<>(Arrays.asList(ConnectionPluginManager.GET_HOST_SPEC_BY_STRATEGY_METHOD)));
+        .thenReturn(new HashSet<>(Collections.singletonList(JdbcMethod.GETHOSTSPECBYSTRATEGY.methodName)));
     when(supportedSubscribedPlugin.getSubscribedMethods())
-        .thenReturn(new HashSet<>(Arrays.asList(ConnectionPluginManager.GET_HOST_SPEC_BY_STRATEGY_METHOD)));
+        .thenReturn(new HashSet<>(Collections.singletonList(JdbcMethod.GETHOSTSPECBYSTRATEGY.methodName)));
 
     when(unsubscribedPlugin0.getHostSpecByStrategy(any(), any(), any())).thenThrow(new UnsupportedOperationException());
     when(unsubscribedPlugin1.getHostSpecByStrategy(any(), any(), any())).thenThrow(new UnsupportedOperationException());
@@ -944,8 +953,8 @@ public class ConnectionPluginManagerTests {
         null, testProperties, testPlugins, mockConnectionWrapper,
         mockPluginService, mockTelemetryFactory);
 
-    final List<HostSpec> inputHosts =
-        Arrays.asList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("expected-instance").build());
+    final List<HostSpec> inputHosts = Collections.singletonList(
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("expected-instance").build());
     final HostRole inputHostRole = HostRole.WRITER;
     final String inputStrategy = "someStrategy";
     final HostSpec actualHostSpec =

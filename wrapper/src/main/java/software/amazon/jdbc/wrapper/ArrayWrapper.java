@@ -22,6 +22,7 @@ import java.sql.SQLException;
 import java.util.Map;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.ConnectionPluginManager;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.util.WrapperUtils;
 
 public class ArrayWrapper implements Array {
@@ -36,74 +37,98 @@ public class ArrayWrapper implements Array {
 
   @Override
   public String getBaseTypeName() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        SQLException.class,
-        this.pluginManager,
-        this.array,
-        "Array.getBaseTypeName",
-        () -> this.array.getBaseTypeName());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.ARRAY_GETBASETYPENAME)) {
+      return WrapperUtils.executeWithPlugins(
+          String.class,
+          SQLException.class,
+          this.pluginManager,
+          this.array,
+          JdbcMethod.ARRAY_GETBASETYPENAME,
+          () -> this.array.getBaseTypeName());
+    } else {
+      return this.array.getBaseTypeName();
+    }
   }
 
   @Override
   public int getBaseType() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.array,
-        "Array.getBaseType",
-        () -> this.array.getBaseType());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.ARRAY_GETBASETYPE)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.array,
+          JdbcMethod.ARRAY_GETBASETYPE,
+          () -> this.array.getBaseType());
+    } else {
+      return this.array.getBaseType();
+    }
   }
 
   @Override
   public Object getArray() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        Object.class,
-        SQLException.class,
-        this.pluginManager,
-        this.array,
-        "Array.getArray",
-        () -> this.array.getArray());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.ARRAY_GETARRAY)) {
+      return WrapperUtils.executeWithPlugins(
+          Object.class,
+          SQLException.class,
+          this.pluginManager,
+          this.array,
+          JdbcMethod.ARRAY_GETARRAY,
+          () -> this.array.getArray());
+    } else {
+      return this.array.getArray();
+    }
   }
 
   @Override
   public Object getArray(Map<String, Class<?>> map) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        Object.class,
-        SQLException.class,
-        this.pluginManager,
-        this.array,
-        "Array.getArray",
-        () -> this.array.getArray(map),
-        map);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.ARRAY_GETARRAY)) {
+      return WrapperUtils.executeWithPlugins(
+          Object.class,
+          SQLException.class,
+          this.pluginManager,
+          this.array,
+          JdbcMethod.ARRAY_GETARRAY,
+          () -> this.array.getArray(map),
+          map);
+    } else {
+      return this.array.getArray(map);
+    }
   }
 
   @Override
   public Object getArray(long index, int count) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        Object.class,
-        SQLException.class,
-        this.pluginManager,
-        this.array,
-        "Array.getArray",
-        () -> this.array.getArray(index, count),
-        index,
-        count);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.ARRAY_GETARRAY)) {
+      return WrapperUtils.executeWithPlugins(
+          Object.class,
+          SQLException.class,
+          this.pluginManager,
+          this.array,
+          JdbcMethod.ARRAY_GETARRAY,
+          () -> this.array.getArray(index, count),
+          index,
+          count);
+    } else {
+      return this.array.getArray(index, count);
+    }
   }
 
   @Override
   public Object getArray(long index, int count, Map<String, Class<?>> map) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        Object.class,
-        SQLException.class,
-        this.pluginManager,
-        this.array,
-        "Array.getArray",
-        () -> this.array.getArray(index, count, map),
-        index,
-        count,
-        map);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.ARRAY_GETARRAY)) {
+      return WrapperUtils.executeWithPlugins(
+          Object.class,
+          SQLException.class,
+          this.pluginManager,
+          this.array,
+          JdbcMethod.ARRAY_GETARRAY,
+          () -> this.array.getArray(index, count, map),
+          index,
+          count,
+          map);
+    } else {
+      return this.array.getArray(index, count, map);
+    }
   }
 
   @Override
@@ -113,7 +138,7 @@ public class ArrayWrapper implements Array {
         SQLException.class,
         this.pluginManager,
         this.array,
-        "Array.getResultSet",
+        JdbcMethod.ARRAY_GETRESULTSET,
         () -> this.array.getResultSet());
   }
 
@@ -124,7 +149,7 @@ public class ArrayWrapper implements Array {
         SQLException.class,
         this.pluginManager,
         this.array,
-        "Array.getResultSet",
+        JdbcMethod.ARRAY_GETRESULTSET,
         () -> this.array.getResultSet(map),
         map);
   }
@@ -136,7 +161,7 @@ public class ArrayWrapper implements Array {
         SQLException.class,
         this.pluginManager,
         this.array,
-        "Array.getResultSet",
+        JdbcMethod.ARRAY_GETRESULTSET,
         () -> this.array.getResultSet(index, count),
         index,
         count);
@@ -150,7 +175,7 @@ public class ArrayWrapper implements Array {
         SQLException.class,
         this.pluginManager,
         this.array,
-        "Array.getResultSet",
+        JdbcMethod.ARRAY_GETRESULTSET,
         () -> this.array.getResultSet(index, count, map),
         index,
         count,
@@ -159,8 +184,16 @@ public class ArrayWrapper implements Array {
 
   @Override
   public void free() throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class, this.pluginManager, this.array, "Array.free", () -> this.array.free());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.ARRAY_FREE)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.array,
+          JdbcMethod.ARRAY_FREE,
+          () -> this.array.free());
+    } else {
+      this.array.free();
+    }
   }
 
   @Override

@@ -94,9 +94,9 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
     this.iamTokenUtility = utility;
     this.pluginService = pluginService;
     this.telemetryFactory = pluginService.getTelemetryFactory();
-    this.cacheSizeGauge = telemetryFactory.createGauge("iam.tokenCache.size",
+    this.cacheSizeGauge = this.telemetryFactory.createGauge("iam.tokenCache.size",
         () -> (long) IamAuthCacheHolder.tokenCache.size());
-    this.fetchTokenCounter = telemetryFactory.createCounter("iam.fetchToken.count");
+    this.fetchTokenCounter = this.telemetryFactory.createCounter("iam.fetchToken.count");
   }
 
   @Override

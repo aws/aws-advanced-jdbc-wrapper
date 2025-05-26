@@ -299,11 +299,15 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       }
       return fetched;
     } catch (Exception ex) {
-      telemetryContext.setSuccess(false);
-      telemetryContext.setException(ex);
+      if (telemetryContext != null) {
+        telemetryContext.setSuccess(false);
+        telemetryContext.setException(ex);
+      }
       throw ex;
     } finally {
-      telemetryContext.closeContext();
+      if (telemetryContext != null) {
+        telemetryContext.closeContext();
+      }
     }
   }
 
