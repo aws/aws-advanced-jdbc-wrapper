@@ -312,7 +312,10 @@ public class MonitorImpl implements Monitor {
   ConnectionStatus checkConnectionStatus(final long shortestFailureDetectionIntervalMillis) {
     TelemetryContext connectContext = telemetryFactory.openTelemetryContext(
         "connection status check", TelemetryTraceLevel.FORCE_TOP_LEVEL);
-    connectContext.setAttribute("url", hostSpec.getHost());
+
+    if (connectContext != null) {
+      connectContext.setAttribute("url", hostSpec.getHost());
+    }
 
     long startNano = this.getCurrentTimeNano();
     try {
@@ -343,16 +346,22 @@ public class MonitorImpl implements Monitor {
       final boolean isValid = this.monitoringConn.isValid(
           (int) TimeUnit.MILLISECONDS.toSeconds(shortestFailureDetectionIntervalMillis) / 2);
       if (!isValid) {
-        this.nodeInvalidCounter.inc();
+        if (this.nodeInvalidCounter != null) {
+          this.nodeInvalidCounter.inc();
+        }
       }
       return new ConnectionStatus(isValid, this.getCurrentTimeNano() - startNano);
 
     } catch (final SQLException sqlEx) {
-      this.nodeInvalidCounter.inc();
+      if (this.nodeInvalidCounter != null) {
+        this.nodeInvalidCounter.inc();
+      }
       return new ConnectionStatus(false, this.getCurrentTimeNano() - startNano);
 
     } finally {
-      connectContext.closeContext();
+      if (connectContext != null) {
+        connectContext.closeContext();
+      }
     }
   }
 

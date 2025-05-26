@@ -48,6 +48,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.Messages;
@@ -61,9 +62,14 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(DataCacheConnectionPlugin.class.getName());
 
   private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
-      Arrays.asList("Statement.executeQuery", "Statement.execute",
-          "PreparedStatement.execute", "PreparedStatement.executeQuery",
-          "CallableStatement.execute", "CallableStatement.executeQuery")));
+      Arrays.asList(
+          JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
+          JdbcMethod.STATEMENT_EXECUTE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName
+      )));
 
   public static final AwsWrapperProperty DATA_CACHE_TRIGGER_CONDITION = new AwsWrapperProperty(
       "dataCacheTriggerCondition", "false",
@@ -116,7 +122,9 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
       return jdbcMethodFunc.call();
     }
 
-    totalCallsCounter.inc();
+    if (this.totalCallsCounter != null) {
+      this.totalCallsCounter.inc();
+    }
 
     ResultSet result;
     boolean needToCache = false;
@@ -126,13 +134,17 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
       result = dataCache.get(sql);
       if (result == null) {
         needToCache = true;
-        missCounter.inc();
+        if (this.missCounter != null) {
+          this.missCounter.inc();
+        }
         LOGGER.finest(
             () -> Messages.get(
                 "DataCacheConnectionPlugin.queryResultsCached",
                 new Object[]{methodName, sql}));
       } else {
-        hitCounter.inc();
+        if (this.hitCounter != null) {
+          this.hitCounter.inc();
+        }
         try {
           result.beforeFirst();
         } catch (final SQLException ex) {

@@ -32,6 +32,7 @@ import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
@@ -58,8 +59,8 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
           add(METHOD_CLEAR_WARNINGS);
         }
       });
-  static final String METHOD_SET_READ_ONLY = "Connection.setReadOnly";
-  static final String METHOD_CLEAR_WARNINGS = "Connection.clearWarnings";
+  static final String METHOD_SET_READ_ONLY = JdbcMethod.CONNECTION_SETREADONLY.methodName;
+  static final String METHOD_CLEAR_WARNINGS = JdbcMethod.CONNECTION_CLEARWARNINGS.methodName;
 
   private final PluginService pluginService;
   private final Properties properties;

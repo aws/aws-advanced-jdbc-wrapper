@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
@@ -44,42 +45,45 @@ public class LogQueryConnectionPlugin extends AbstractConnectionPlugin {
       Collections.unmodifiableSet(
           new HashSet<>(
               Arrays.asList(
-                  "Statement.executeQuery",
-                  "Statement.executeUpdate",
-                  "Statement.execute",
-                  "PreparedStatement.execute",
-                  "PreparedStatement.executeQuery",
-                  "PreparedStatement.executeUpdate",
-                  "PreparedStatement.executeLargeUpdate",
-                  "CallableStatement.execute",
-                  "CallableStatement.executeQuery",
-                  "CallableStatement.executeUpdate",
-                  "CallableStatement.executeLargeUpdate")));
+                  JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
+                  JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName,
+                  JdbcMethod.STATEMENT_EXECUTE.methodName,
+                  JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName,
+                  JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName,
+                  JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName,
+                  JdbcMethod.PREPAREDSTATEMENT_EXECUTELARGEUPDATE.methodName,
+                  JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
+                  JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName,
+                  JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName,
+                  JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE.methodName
+              )));
 
   private static final Set<String> methodWithQueryArg =
       new HashSet<>(
           Arrays.asList(
-              "Statement.execute",
-              "Statement.executeQuery",
-              "Statement.executeUpdate",
-              "PreparedStatement.execute",
-              "PreparedStatement.executeQuery",
-              "PreparedStatement.executeUpdate",
-              "CallableStatement.execute",
-              "CallableStatement.executeQuery",
-              "CallableStatement.executeUpdate"));
+              JdbcMethod.STATEMENT_EXECUTE.methodName,
+              JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
+              JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName,
+              JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName,
+              JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName,
+              JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName,
+              JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
+              JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName,
+              JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName
+          ));
 
   private static final Set<String> methodWithNoArg =
       new HashSet<>(
           Arrays.asList(
-              "PreparedStatement.execute",
-              "PreparedStatement.executeQuery",
-              "PreparedStatement.executeUpdate",
-              "PreparedStatement.executeLargeUpdate",
-              "CallableStatement.execute",
-              "CallableStatement.executeQuery",
-              "CallableStatement.executeUpdate",
-              "CallableStatement.executeLargeUpdate"));
+              JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName,
+              JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName,
+              JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName,
+              JdbcMethod.PREPAREDSTATEMENT_EXECUTELARGEUPDATE.methodName,
+              JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
+              JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName,
+              JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName,
+              JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE.methodName
+          ));
 
   private final Map<String, String> queryAccessorByClassName =
       new HashMap<String, String>() {

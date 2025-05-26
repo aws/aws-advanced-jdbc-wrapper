@@ -246,7 +246,9 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
         TELEMETRY_UPDATE_SECRETS, TelemetryTraceLevel.NESTED);
-    this.fetchCredentialsCounter.inc();
+    if (this.fetchCredentialsCounter != null) {
+      this.fetchCredentialsCounter.inc();
+    }
 
     try {
       boolean fetched = false;
@@ -299,11 +301,15 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       }
       return fetched;
     } catch (Exception ex) {
-      telemetryContext.setSuccess(false);
-      telemetryContext.setException(ex);
+      if (telemetryContext != null) {
+        telemetryContext.setSuccess(false);
+        telemetryContext.setException(ex);
+      }
       throw ex;
     } finally {
-      telemetryContext.closeContext();
+      if (telemetryContext != null) {
+        telemetryContext.closeContext();
+      }
     }
   }
 

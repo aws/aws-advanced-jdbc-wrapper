@@ -94,9 +94,9 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
     this.iamTokenUtility = utility;
     this.pluginService = pluginService;
     this.telemetryFactory = pluginService.getTelemetryFactory();
-    this.cacheSizeGauge = telemetryFactory.createGauge("iam.tokenCache.size",
+    this.cacheSizeGauge = this.telemetryFactory.createGauge("iam.tokenCache.size",
         () -> (long) IamAuthCacheHolder.tokenCache.size());
-    this.fetchTokenCounter = telemetryFactory.createCounter("iam.fetchToken.count");
+    this.fetchTokenCounter = this.telemetryFactory.createCounter("iam.fetchToken.count");
   }
 
   @Override
@@ -152,7 +152,9 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       PropertyDefinition.PASSWORD.set(props, tokenInfo.getToken());
     } else {
       final Instant tokenExpiry = Instant.now().plus(tokenExpirationSec, ChronoUnit.SECONDS);
-      this.fetchTokenCounter.inc();
+      if (this.fetchTokenCounter != null) {
+        this.fetchTokenCounter.inc();
+      }
       final String token = IamAuthUtils.generateAuthenticationToken(
           iamTokenUtility,
           pluginService,
@@ -189,7 +191,9 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       // Try to generate a new token and try to connect again
 
       final Instant tokenExpiry = Instant.now().plus(tokenExpirationSec, ChronoUnit.SECONDS);
-      this.fetchTokenCounter.inc();
+      if (this.fetchTokenCounter != null) {
+        this.fetchTokenCounter.inc();
+      }
       final String token = IamAuthUtils.generateAuthenticationToken(
           iamTokenUtility,
           pluginService,

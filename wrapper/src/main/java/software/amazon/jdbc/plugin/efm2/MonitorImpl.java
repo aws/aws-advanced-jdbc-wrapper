@@ -287,7 +287,9 @@ public class MonitorImpl implements Monitor {
             monitorContext.setInactive();
             if (connectionToAbort != null) {
               this.abortConnection(connectionToAbort);
-              this.abortedConnectionsCounter.inc();
+              if (this.abortedConnectionsCounter != null) {
+                this.abortedConnectionsCounter.inc();
+              }
             }
           } else if (monitorContext.isActive()) {
             tmpActiveContexts.add(monitorContextWeakRef);
@@ -340,7 +342,10 @@ public class MonitorImpl implements Monitor {
   boolean checkConnectionStatus() {
     TelemetryContext connectContext = telemetryFactory.openTelemetryContext(
         "connection status check", TelemetryTraceLevel.FORCE_TOP_LEVEL);
-    connectContext.setAttribute("url", this.hostSpec.getHost());
+
+    if (connectContext != null) {
+      connectContext.setAttribute("url", this.hostSpec.getHost());
+    }
 
     try {
       if (this.monitoringConn == null || this.monitoringConn.isClosed()) {
@@ -373,7 +378,9 @@ public class MonitorImpl implements Monitor {
       return false;
 
     } finally {
-      connectContext.closeContext();
+      if (connectContext != null) {
+        connectContext.closeContext();
+      }
     }
   }
 

@@ -14,15 +14,16 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.util;
+package software.amazon.jdbc.wrapper;
 
-import java.util.Arrays;
-import java.util.List;
+import java.sql.NClob;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.ConnectionPluginManager;
 
-public class AsynchronousMethodsHelper {
-  public static final List<String> ASYNCHRONOUS_METHODS = Arrays.asList(
-      "Statement.cancel",
-      "PreparedStatement.cancel",
-      "Connection.abort"
-  );
+public class NClobWrapperFactory implements WrapperFactory {
+
+  @Override
+  public Object getInstance(@NonNull Object targetObj, @NonNull ConnectionPluginManager pluginManager) {
+    return new NClobWrapper((NClob) targetObj, pluginManager);
+  }
 }

@@ -33,6 +33,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
@@ -40,7 +41,6 @@ import software.amazon.jdbc.plugin.bluegreen.routing.ConnectRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.ExecuteRouting;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.SubscribedMethodHelper;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
@@ -59,25 +59,13 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
   private static final Set<String> CLOSING_METHOD_NAMES = Collections.unmodifiableSet(
       new HashSet<>(Arrays.asList(
-          "Connection.close",
-          "Connection.abort",
-          "Statement.close",
-          "CallableStatement.close",
-          "PreparedStatement.close",
-          "ResultSet.close"
+          JdbcMethod.CONNECTION_CLOSE.methodName,
+          JdbcMethod.CONNECTION_ABORT.methodName,
+          JdbcMethod.STATEMENT_CLOSE.methodName,
+          JdbcMethod.CALLABLESTATEMENT_CLOSE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_CLOSE.methodName,
+          JdbcMethod.RESULTSET_CLOSE.methodName
       )));
-
-  protected static final Set<String> subscribedMethods =
-      Collections.unmodifiableSet(new HashSet<String>() {
-        {
-          /*
-           We should NOT subscribe to "forceConnect" pipeline since it's used by
-           BG monitoring, and we don't want to intercept/block those monitoring connections.
-          */
-          add("connect");
-          addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
-        }
-      });
 
   static {
     PropertyDefinition.registerPluginProperties(BlueGreenConnectionPlugin.class);
@@ -98,6 +86,8 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
   protected final AtomicLong startTimeNano = new AtomicLong(0);
   protected final AtomicLong endTimeNano = new AtomicLong(0);
 
+  protected final Set<String> subscribedMethods;
+
   public BlueGreenConnectionPlugin(
       final @NonNull PluginService pluginService,
       final @NonNull Properties props) {
@@ -114,11 +104,18 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
     this.telemetryFactory = pluginService.getTelemetryFactory();
     this.providerSupplier = providerSupplier;
     this.bgdId = Objects.requireNonNull(BGD_ID.getString(this.props)).trim().toLowerCase();
+
+    final HashSet<String> methods = new HashSet<>();
+    // We should NOT subscribe to "forceConnect" pipeline since it's used by
+    // BG monitoring, and we don't want to intercept/block those monitoring connections.
+    methods.add(JdbcMethod.CONNECT.methodName);
+    methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.props));
+    this.subscribedMethods = Collections.unmodifiableSet(methods);
   }
 
   @Override
   public Set<String> getSubscribedMethods() {
-    return subscribedMethods;
+    return this.subscribedMethods;
   }
 
   @Override

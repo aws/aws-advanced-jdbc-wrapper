@@ -29,6 +29,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
@@ -39,7 +40,6 @@ import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.SubscribedMethodHelper;
 
 /**
  * Monitor the server while the connection is executing methods for more sophisticated failure
@@ -75,8 +75,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
           "3",
           "Number of failed connection checks before considering database node unhealthy.");
 
-  private static final Set<String> subscribedMethods =
-      Collections.unmodifiableSet(new HashSet<>(Collections.singletonList("*")));
+  protected final Set<String> subscribedMethods;
 
   protected @NonNull Properties properties;
   private final @NonNull Supplier<MonitorService> monitorServiceSupplier;
@@ -84,6 +83,11 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
   private MonitorService monitorService;
   private final RdsUtils rdsHelper;
   private HostSpec monitoringHostSpec;
+
+  protected final boolean isEnabled;
+  protected final int failureDetectionTimeMillis;
+  protected final int failureDetectionIntervalMillis;
+  protected final int failureDetectionCount;
 
   static {
     PropertyDefinition.registerPluginProperties(HostMonitoringConnectionPlugin.class);
@@ -120,6 +124,18 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     this.properties = properties;
     this.monitorServiceSupplier = monitorServiceSupplier;
     this.rdsHelper = rdsHelper;
+    this.isEnabled = FAILURE_DETECTION_ENABLED.getBoolean(this.properties);
+    this.failureDetectionTimeMillis = FAILURE_DETECTION_TIME.getInteger(this.properties);
+    this.failureDetectionIntervalMillis =
+        FAILURE_DETECTION_INTERVAL.getInteger(this.properties);
+    this.failureDetectionCount = FAILURE_DETECTION_COUNT.getInteger(this.properties);
+
+    final HashSet<String> methods = new HashSet<>();
+    if (this.isEnabled) {
+      methods.add(JdbcMethod.CONNECT.methodName);
+      methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.properties));
+    }
+    this.subscribedMethods = Collections.unmodifiableSet(methods);
   }
 
   @Override
@@ -141,17 +157,9 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       final Object[] jdbcMethodArgs)
       throws E {
 
-    // update config settings since they may change
-    final boolean isEnabled = FAILURE_DETECTION_ENABLED.getBoolean(this.properties);
-
-    if (!isEnabled || !SubscribedMethodHelper.NETWORK_BOUND_METHODS.contains(methodName)) {
+    if (!this.isEnabled || !this.subscribedMethods.contains(methodName)) {
       return jdbcMethodFunc.call();
     }
-
-    final int failureDetectionTimeMillis = FAILURE_DETECTION_TIME.getInteger(this.properties);
-    final int failureDetectionIntervalMillis =
-        FAILURE_DETECTION_INTERVAL.getInteger(this.properties);
-    final int failureDetectionCount = FAILURE_DETECTION_COUNT.getInteger(this.properties);
 
     initMonitorService();
 

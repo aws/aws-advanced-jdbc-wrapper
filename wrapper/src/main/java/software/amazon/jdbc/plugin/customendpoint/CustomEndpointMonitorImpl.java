@@ -164,7 +164,9 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
           this.pluginService.setAllowedAndBlockedHosts(allowedAndBlockedHosts);
           customEndpointInfoCache.put(
               this.customEndpointHostSpec.getHost(), endpointInfo, CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO);
-          this.infoChangedCounter.inc();
+          if (this.infoChangedCounter != null) {
+            this.infoChangedCounter.inc();
+          }
 
           long elapsedTime = System.nanoTime() - start;
           long sleepDuration = Math.max(0, this.refreshRateNano - elapsedTime);
