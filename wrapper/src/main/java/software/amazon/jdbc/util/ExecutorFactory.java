@@ -33,8 +33,8 @@ public class ExecutorFactory {
     return Executors.newCachedThreadPool(getThreadFactory(threadName));
   }
 
-  public static ExecutorService newFixedThreadPool(int nThreads, String threadName) {
-    return Executors.newFixedThreadPool(nThreads, getThreadFactory(threadName));
+  public static ExecutorService newFixedThreadPool(int threadCount, String threadName) {
+    return Executors.newFixedThreadPool(threadCount, getThreadFactory(threadName));
   }
 
   private static ThreadFactory getThreadFactory(String threadName) {
@@ -44,7 +44,9 @@ public class ExecutorFactory {
   private static ThreadFactory createThreadFactory(String threadName) {
     AtomicLong threadCounter = new AtomicLong();
     return runnable -> {
-      Thread thread = new Thread(runnable, String.format("%s %s-%d", "AWS JDBC wrapper", threadName, threadCounter.incrementAndGet()));
+      String formattedThreadName = String.format("%s %s-%d", "AWS JDBC wrapper",
+          threadName, threadCounter.incrementAndGet());
+      Thread thread = new Thread(runnable, formattedThreadName);
       thread.setDaemon(true);
       return thread;
     };

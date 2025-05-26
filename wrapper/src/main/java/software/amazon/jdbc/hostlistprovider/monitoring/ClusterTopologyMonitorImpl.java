@@ -49,12 +49,12 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.CacheMap;
+import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
-import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Utils;
 
 public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
@@ -109,7 +109,8 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
   protected final AtomicReference<List<HostSpec>> nodeThreadsLatestTopology = new AtomicReference<>(null);
 
 
-  protected final ExecutorService monitorExecutor = ExecutorFactory.newSingleThreadExecutor("ClusterTopologyMonitorImpl#monitorExecutor");
+  protected final ExecutorService monitorExecutor =
+      ExecutorFactory.newSingleThreadExecutor("ClusterTopologyMonitorImpl#monitorExecutor");
 
   public ClusterTopologyMonitorImpl(
       final String clusterId,

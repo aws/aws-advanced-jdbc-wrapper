@@ -33,7 +33,8 @@ import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 public class MonitorConnectionContext {
 
   private static final Logger LOGGER = Logger.getLogger(MonitorConnectionContext.class.getName());
-  private static final Executor ABORT_EXECUTOR = ExecutorFactory.newSingleThreadExecutor("MonitorConnectionContext#ABORT_EXECUTOR");
+  private static final Executor ABORT_EXECUTOR =
+      ExecutorFactory.newSingleThreadExecutor("MonitorConnectionContext#ABORT_EXECUTOR");
 
   private final TelemetryCounter abortedConnectionsCounter;
 

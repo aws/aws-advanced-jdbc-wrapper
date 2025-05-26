@@ -33,11 +33,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
-import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
@@ -46,8 +46,10 @@ public class OpenedConnectionTracker {
 
   static final Map<String, Queue<WeakReference<Connection>>> openedConnections = new ConcurrentHashMap<>();
   private static final String TELEMETRY_INVALIDATE_CONNECTIONS = "invalidate connections";
-  private static final ExecutorService pruneConnectionsExecutorService = ExecutorFactory.newSingleThreadExecutor("OpenedConnectionTracker#pruneConnectionsExecutorService");
-  private static final ExecutorService invalidateConnectionsExecutorService = ExecutorFactory.newCachedThreadPool("OpenedConnectionTracker#invalidateConnectionsExecutorService");
+  private static final ExecutorService pruneConnectionsExecutorService =
+      ExecutorFactory.newSingleThreadExecutor("OpenedConnectionTracker#pruneConnectionsExecutorService");
+  private static final ExecutorService invalidateConnectionsExecutorService =
+      ExecutorFactory.newCachedThreadPool("OpenedConnectionTracker#invalidateConnectionsExecutorService");
   private static final Executor abortConnectionExecutor = new SynchronousExecutor();
 
   private static final Logger LOGGER = Logger.getLogger(OpenedConnectionTracker.class.getName());

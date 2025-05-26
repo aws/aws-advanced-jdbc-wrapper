@@ -60,7 +60,8 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
   protected final long refreshRateNano;
 
   protected final PluginService pluginService;
-  protected final ExecutorService monitorExecutor = ExecutorFactory.newSingleThreadExecutor("CustomEndpointMonitorImpl#monitorExecutor");
+  protected final ExecutorService monitorExecutor =
+      ExecutorFactory.newSingleThreadExecutor("CustomEndpointMonitorImpl#monitorExecutor");
 
   private final TelemetryCounter infoChangedCounter;
 
