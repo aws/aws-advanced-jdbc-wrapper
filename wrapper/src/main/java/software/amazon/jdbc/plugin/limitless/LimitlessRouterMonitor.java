@@ -21,7 +21,6 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
@@ -29,6 +28,7 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
@@ -53,11 +53,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
   protected final TelemetryFactory telemetryFactory;
   protected Connection monitoringConn = null;
 
-  private final ExecutorService threadPool = Executors.newFixedThreadPool(1, runnableTarget -> {
-    final Thread monitoringThread = new Thread(runnableTarget);
-    monitoringThread.setDaemon(true);
-    return monitoringThread;
-  });
+  private final ExecutorService threadPool = ExecutorFactory.newFixedThreadPool(1, "threadPool");
 
   private final AtomicBoolean stopped = new AtomicBoolean(false);
 
