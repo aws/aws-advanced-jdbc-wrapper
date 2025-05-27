@@ -20,13 +20,13 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.storage.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -47,7 +47,8 @@ public class HostMonitorServiceImpl implements HostMonitorService {
 
   protected static final long CACHE_CLEANUP_NANO = TimeUnit.MINUTES.toNanos(1);
 
-  protected static final Executor ABORT_EXECUTOR = Executors.newSingleThreadExecutor();
+  protected static final Executor ABORT_EXECUTOR =
+      ExecutorFactory.newSingleThreadExecutor("abort");
   // TODO: remove and submit monitors to MonitorService instead
   protected static final SlidingExpirationCacheWithCleanupThread<String, HostMonitor> monitors =
       new SlidingExpirationCacheWithCleanupThread<>(

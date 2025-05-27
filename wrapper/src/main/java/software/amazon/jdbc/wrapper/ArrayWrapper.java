@@ -75,7 +75,8 @@ public class ArrayWrapper implements Array {
         this.pluginManager,
         this.array,
         "Array.getArray",
-        () -> this.array.getArray());
+        () -> this.array.getArray(map),
+        map);
   }
 
   @Override
@@ -86,7 +87,9 @@ public class ArrayWrapper implements Array {
         this.pluginManager,
         this.array,
         "Array.getArray",
-        () -> this.array.getArray());
+        () -> this.array.getArray(index, count),
+        index,
+        count);
   }
 
   @Override
@@ -97,7 +100,10 @@ public class ArrayWrapper implements Array {
         this.pluginManager,
         this.array,
         "Array.getArray",
-        () -> this.array.getArray());
+        () -> this.array.getArray(index, count, map),
+        index,
+        count,
+        map);
   }
 
   @Override
@@ -119,7 +125,8 @@ public class ArrayWrapper implements Array {
         this.pluginManager,
         this.array,
         "Array.getResultSet",
-        () -> this.array.getResultSet());
+        () -> this.array.getResultSet(map),
+        map);
   }
 
   @Override
@@ -130,7 +137,9 @@ public class ArrayWrapper implements Array {
         this.pluginManager,
         this.array,
         "Array.getResultSet",
-        () -> this.array.getResultSet());
+        () -> this.array.getResultSet(index, count),
+        index,
+        count);
   }
 
   @Override

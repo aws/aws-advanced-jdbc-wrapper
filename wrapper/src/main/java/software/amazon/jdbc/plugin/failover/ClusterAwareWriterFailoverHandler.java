@@ -26,7 +26,6 @@ import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -35,6 +34,7 @@ import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.Utils;
@@ -102,7 +102,8 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     final boolean singleTask =
         this.pluginService.getDialect().getFailoverRestrictions().contains(FailoverRestriction.DISABLE_TASK_A);
 
-    final ExecutorService executorService = Executors.newFixedThreadPool(2);
+    final ExecutorService executorService =
+        ExecutorFactory.newFixedThreadPool(2, "failover");
     final CompletionService<WriterFailoverResult> completionService = new ExecutorCompletionService<>(executorService);
     submitTasks(currentTopology, executorService, completionService, singleTask);
 

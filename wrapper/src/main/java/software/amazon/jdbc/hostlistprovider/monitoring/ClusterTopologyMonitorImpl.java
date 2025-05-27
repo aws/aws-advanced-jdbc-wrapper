@@ -31,7 +31,6 @@ import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -470,14 +469,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected void createNodeExecutorService() {
     this.nodeExecutorLock.lock();
     try {
-      this.nodeExecutorService = Executors.newCachedThreadPool(runnableTarget -> {
-        final Thread monitoringThread = new Thread(runnableTarget);
-        monitoringThread.setDaemon(true);
-        if (!StringUtils.isNullOrEmpty(monitoringThread.getName())) {
-          monitoringThread.setName(monitoringThread.getName() + "-nm");
-        }
-        return monitoringThread;
-      });
+      this.nodeExecutorService = ExecutorFactory.newCachedThreadPool("node");
     } finally {
       this.nodeExecutorLock.unlock();
     }

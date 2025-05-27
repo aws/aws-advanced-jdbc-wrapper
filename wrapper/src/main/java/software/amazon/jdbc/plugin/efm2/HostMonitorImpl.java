@@ -28,7 +28,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
@@ -37,6 +36,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.StringUtils;
@@ -56,7 +56,8 @@ public class HostMonitorImpl implements HostMonitor {
   private static final long THREAD_SLEEP_NANO = TimeUnit.MILLISECONDS.toNanos(100);
   private static final String MONITORING_PROPERTY_PREFIX = "monitoring-";
 
-  protected static final Executor ABORT_EXECUTOR = Executors.newSingleThreadExecutor();
+  protected static final Executor ABORT_EXECUTOR =
+      ExecutorFactory.newSingleThreadExecutor("abort");
 
   private final Queue<WeakReference<HostMonitorConnectionContext>> activeContexts = new ConcurrentLinkedQueue<>();
   private final Map<Long, Queue<WeakReference<HostMonitorConnectionContext>>> newContexts =
@@ -68,11 +69,8 @@ public class HostMonitorImpl implements HostMonitor {
   private final AtomicBoolean stopped = new AtomicBoolean(false);
   private Connection monitoringConn = null;
   // TODO: remove and submit monitors to MonitorService instead
-  private final ExecutorService threadPool = Executors.newFixedThreadPool(2, runnableTarget -> {
-    final Thread monitoringThread = new Thread(runnableTarget);
-    monitoringThread.setDaemon(true);
-    return monitoringThread;
-  });
+  private final ExecutorService threadPool =
+      ExecutorFactory.newFixedThreadPool(2, "threadPool");
 
   private final long failureDetectionTimeNano;
   private final long failureDetectionIntervalNano;
