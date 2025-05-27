@@ -51,9 +51,18 @@ public class CacheConnection {
           null,
           "The cache read-only server endpoint address.");
 
+  protected static final AwsWrapperProperty CACHE_USE_SSL =
+      new AwsWrapperProperty(
+          "cacheUseSSL",
+          "true",
+          "Whether to use SSL for cache connections.");
+
+  private final boolean useSSL;
+
   public CacheConnection(final Properties properties) {
     this.cacheRwServerAddr = CACHE_RW_ENDPOINT_ADDR.getString(properties);
     this.cacheRoServerAddr = CACHE_RO_ENDPOINT_ADDR.getString(properties);
+    this.useSSL = Boolean.parseBoolean(CACHE_USE_SSL.getString(properties));
   }
 
   /* Here we check if we need to initialise connection pool for read or write to cache.
@@ -96,7 +105,7 @@ public class CacheConnection {
       String[] hostnameAndPort = serverAddr.split(":");
       RedisURI redisUriCluster = RedisURI.Builder.redis(hostnameAndPort[0])
           .withPort(Integer.parseInt(hostnameAndPort[1]))
-          .withSsl(true).withVerifyPeer(false).build();
+          .withSsl(useSSL).withVerifyPeer(false).build();
 
       RedisClient client = RedisClient.create(resources, redisUriCluster);
       GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> pool =
