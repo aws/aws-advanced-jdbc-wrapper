@@ -27,17 +27,17 @@ plugins {
 }
 
 dependencies {
-    implementation("org.checkerframework:checker-qual:3.49.2")
+    implementation("org.checkerframework:checker-qual:3.49.3")
     compileOnly("org.apache.httpcomponents:httpclient:4.5.14")
-    compileOnly("software.amazon.awssdk:rds:2.31.46")
+    compileOnly("software.amazon.awssdk:rds:2.31.50")
     compileOnly("software.amazon.awssdk:auth:2.31.45") // Required for IAM (light implementation)
     compileOnly("software.amazon.awssdk:http-client-spi:2.31.17") // Required for IAM (light implementation)
-    compileOnly("software.amazon.awssdk:sts:2.31.46")
+    compileOnly("software.amazon.awssdk:sts:2.31.50")
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     compileOnly("com.mchange:c3p0:0.11.0")
     compileOnly("software.amazon.awssdk:secretsmanager:2.31.12")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.19.0")
-    compileOnly("com.mysql:mysql-connector-j:9.2.0")
+    compileOnly("com.mysql:mysql-connector-j:9.3.0")
     compileOnly("org.postgresql:postgresql:42.7.5")
     compileOnly("org.mariadb.jdbc:mariadb-java-client:3.5.3")
     compileOnly("org.osgi:org.osgi.core:6.0.0")
@@ -59,18 +59,18 @@ dependencies {
 
     testImplementation("org.apache.commons:commons-dbcp2:2.13.0")
     testImplementation("org.postgresql:postgresql:42.7.5")
-    testImplementation("com.mysql:mysql-connector-j:9.2.0")
+    testImplementation("com.mysql:mysql-connector-j:9.3.0")
     testImplementation("org.mariadb.jdbc:mariadb-java-client:3.5.3")
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     testImplementation("com.mchange:c3p0:0.11.0")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
-    testImplementation("software.amazon.awssdk:rds:2.31.46")
+    testImplementation("software.amazon.awssdk:rds:2.31.50")
     testImplementation("software.amazon.awssdk:auth:2.31.45") // Required for IAM (light implementation)
     testImplementation("software.amazon.awssdk:http-client-spi:2.31.17") // Required for IAM (light implementation)
     testImplementation("software.amazon.awssdk:ec2:2.31.36")
     testImplementation("software.amazon.awssdk:secretsmanager:2.31.12")
-    testImplementation("software.amazon.awssdk:sts:2.31.46")
+    testImplementation("software.amazon.awssdk:sts:2.31.50")
     // Note: all org.testcontainers dependencies should have the same version
     testImplementation("org.testcontainers:testcontainers:1.21.0")
     testImplementation("org.testcontainers:mysql:1.21.0")

@@ -615,7 +615,8 @@ public class ConnectionPluginManagerTests {
 
     assertEquals(4, target.plugins.size());
     assertEquals(AuroraConnectionTrackerPlugin.class, target.plugins.get(0).getClass());
-    assertEquals(FailoverConnectionPlugin.class, target.plugins.get(1).getClass());
+    assertEquals(software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin.class,
+        target.plugins.get(1).getClass());
     assertEquals(HostMonitoringConnectionPlugin.class, target.plugins.get(2).getClass());
     assertEquals(DefaultConnectionPlugin.class, target.plugins.get(3).getClass());
   }
