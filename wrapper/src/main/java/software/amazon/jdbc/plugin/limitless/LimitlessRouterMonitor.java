@@ -53,7 +53,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
   protected final TelemetryFactory telemetryFactory;
   protected Connection monitoringConn = null;
 
-  private final ExecutorService threadPool = ExecutorFactory.newFixedThreadPool(1, "LimitlessRouterMonitor#threadPool");
+  private final ExecutorService threadPool = ExecutorFactory.newFixedThreadPool(1, "threadPool");
 
   private final AtomicBoolean stopped = new AtomicBoolean(false);
 

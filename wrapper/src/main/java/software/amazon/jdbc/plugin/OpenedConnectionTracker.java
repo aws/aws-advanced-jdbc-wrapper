@@ -47,9 +47,9 @@ public class OpenedConnectionTracker {
   static final Map<String, Queue<WeakReference<Connection>>> openedConnections = new ConcurrentHashMap<>();
   private static final String TELEMETRY_INVALIDATE_CONNECTIONS = "invalidate connections";
   private static final ExecutorService pruneConnectionsExecutorService =
-      ExecutorFactory.newSingleThreadExecutor("OpenedConnectionTracker#pruneConnectionsExecutorService");
+      ExecutorFactory.newSingleThreadExecutor("pruneConnection");
   private static final ExecutorService invalidateConnectionsExecutorService =
-      ExecutorFactory.newCachedThreadPool("OpenedConnectionTracker#invalidateConnectionsExecutorService");
+      ExecutorFactory.newCachedThreadPool("invalidateConnection");
   private static final Executor abortConnectionExecutor = new SynchronousExecutor();
 
   private static final Logger LOGGER = Logger.getLogger(OpenedConnectionTracker.class.getName());

@@ -110,7 +110,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
 
 
   protected final ExecutorService monitorExecutor =
-      ExecutorFactory.newSingleThreadExecutor("ClusterTopologyMonitorImpl#monitorExecutor");
+      ExecutorFactory.newSingleThreadExecutor("monitor");
 
   public ClusterTopologyMonitorImpl(
       final String clusterId,
@@ -467,7 +467,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
   protected void createNodeExecutorService() {
     this.nodeExecutorLock.lock();
     try {
-      this.nodeExecutorService = ExecutorFactory.newCachedThreadPool("ClusterTopologyMonitorImpl#nodeExecutorService");
+      this.nodeExecutorService = ExecutorFactory.newCachedThreadPool("node");
     } finally {
       this.nodeExecutorLock.unlock();
     }

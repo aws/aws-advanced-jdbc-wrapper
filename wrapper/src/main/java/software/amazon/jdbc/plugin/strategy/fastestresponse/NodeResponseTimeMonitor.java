@@ -64,7 +64,7 @@ public class NodeResponseTimeMonitor implements AutoCloseable, Runnable {
   private Connection monitoringConn = null;
 
   private final ExecutorService threadPool =
-      ExecutorFactory.newFixedThreadPool(1, "NodeResponseTimeMonitor#threadPool");
+      ExecutorFactory.newFixedThreadPool(1, "threadPool");
 
   public NodeResponseTimeMonitor(
       final @NonNull PluginService pluginService,

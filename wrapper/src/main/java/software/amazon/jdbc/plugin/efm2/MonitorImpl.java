@@ -57,7 +57,7 @@ public class MonitorImpl implements Monitor {
   private static final String MONITORING_PROPERTY_PREFIX = "monitoring-";
 
   protected static final Executor ABORT_EXECUTOR =
-      ExecutorFactory.newSingleThreadExecutor("MonitorImpl#ABORT_EXECUTOR");
+      ExecutorFactory.newSingleThreadExecutor("abort");
 
   private final Queue<WeakReference<MonitorConnectionContext>> activeContexts = new ConcurrentLinkedQueue<>();
   private final Map<Long, Queue<WeakReference<MonitorConnectionContext>>> newContexts =
@@ -69,7 +69,7 @@ public class MonitorImpl implements Monitor {
   private final AtomicBoolean stopped = new AtomicBoolean(false);
   private Connection monitoringConn = null;
   private final ExecutorService threadPool =
-      ExecutorFactory.newFixedThreadPool(2, "MonitorImpl#threadPool");
+      ExecutorFactory.newFixedThreadPool(2, "threadPool");
 
   private final long failureDetectionTimeNano;
   private final long failureDetectionIntervalNano;

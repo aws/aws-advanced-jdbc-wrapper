@@ -457,7 +457,7 @@ public class SessionStateServiceImpl implements SessionStateService {
       this.sessionState.networkTimeout.resetPristineValue();
       this.setupPristineNetworkTimeout();
       final ExecutorService executorService =
-          ExecutorFactory.newSingleThreadExecutor("SessionStateServiceImpl.applyCurrentSessionState#executorService");
+          ExecutorFactory.newSingleThreadExecutor("session");
       newConnection.setNetworkTimeout(executorService, this.sessionState.networkTimeout.getValue().get());
       executorService.shutdown();
     }
@@ -545,9 +545,7 @@ public class SessionStateServiceImpl implements SessionStateService {
     if (this.copySessionState.networkTimeout.canRestorePristine()) {
       try {
         final ExecutorService executorService =
-            ExecutorFactory.newSingleThreadExecutor(
-                "SessionStateServiceImpl.applyPristineSessionState#executorService"
-            );
+            ExecutorFactory.newSingleThreadExecutor("session");
         //noinspection OptionalGetWithoutIsPresent
         connection.setNetworkTimeout(executorService,
             this.copySessionState.networkTimeout.getPristineValue().get());

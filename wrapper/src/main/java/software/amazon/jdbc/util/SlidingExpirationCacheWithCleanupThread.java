@@ -28,7 +28,7 @@ public class SlidingExpirationCacheWithCleanupThread<K, V> extends SlidingExpira
       Logger.getLogger(SlidingExpirationCacheWithCleanupThread.class.getName());
 
   protected final ExecutorService cleanupThreadPool =
-      ExecutorFactory.newFixedThreadPool(1, "SlidingExpirationCacheWithCleanupThread#cleanupThreadPool");
+      ExecutorFactory.newFixedThreadPool(1, "threadPool");
   protected final ReentrantLock initLock = new ReentrantLock();
   protected boolean isInitialized = false;
 

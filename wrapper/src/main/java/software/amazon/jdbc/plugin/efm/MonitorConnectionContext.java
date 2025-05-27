@@ -34,7 +34,7 @@ public class MonitorConnectionContext {
 
   private static final Logger LOGGER = Logger.getLogger(MonitorConnectionContext.class.getName());
   private static final Executor ABORT_EXECUTOR =
-      ExecutorFactory.newSingleThreadExecutor("MonitorConnectionContext#ABORT_EXECUTOR");
+      ExecutorFactory.newSingleThreadExecutor("abort");
 
   private final TelemetryCounter abortedConnectionsCounter;
 

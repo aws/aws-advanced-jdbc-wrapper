@@ -61,7 +61,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
 
   protected final PluginService pluginService;
   protected final ExecutorService monitorExecutor =
-      ExecutorFactory.newSingleThreadExecutor("CustomEndpointMonitorImpl#monitorExecutor");
+      ExecutorFactory.newSingleThreadExecutor("monitor");
 
   private final TelemetryCounter infoChangedCounter;
 

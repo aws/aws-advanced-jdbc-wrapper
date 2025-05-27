@@ -65,7 +65,7 @@ public class MonitorServiceImpl implements MonitorService {
                 MONITOR_DISPOSAL_TIME_MS.getLong(properties),
                 monitorService),
         () ->
-            ExecutorFactory.newCachedThreadPool("MonitorServiceImpl#executorServiceInitializer"));
+            ExecutorFactory.newCachedThreadPool("monitor"));
   }
 
   MonitorServiceImpl(

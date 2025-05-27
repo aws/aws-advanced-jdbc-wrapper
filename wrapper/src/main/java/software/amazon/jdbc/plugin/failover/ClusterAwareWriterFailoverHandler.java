@@ -103,7 +103,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
         this.pluginService.getDialect().getFailoverRestrictions().contains(FailoverRestriction.DISABLE_TASK_A);
 
     final ExecutorService executorService =
-        ExecutorFactory.newFixedThreadPool(2, "ClusterAwareWriterFailoverHandler#executorService");
+        ExecutorFactory.newFixedThreadPool(2, "failover");
     final CompletionService<WriterFailoverResult> completionService = new ExecutorCompletionService<>(executorService);
     submitTasks(currentTopology, executorService, completionService, singleTask);
 

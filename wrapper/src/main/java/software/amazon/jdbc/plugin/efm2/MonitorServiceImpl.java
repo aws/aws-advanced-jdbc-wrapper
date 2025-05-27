@@ -48,7 +48,7 @@ public class MonitorServiceImpl implements MonitorService {
   protected static final long CACHE_CLEANUP_NANO = TimeUnit.MINUTES.toNanos(1);
 
   protected static final Executor ABORT_EXECUTOR =
-      ExecutorFactory.newSingleThreadExecutor("MonitorServiceImpl#ABORT_EXECUTOR");
+      ExecutorFactory.newSingleThreadExecutor("abort");
 
   protected static final SlidingExpirationCacheWithCleanupThread<String, Monitor> monitors =
       new SlidingExpirationCacheWithCleanupThread<>(
