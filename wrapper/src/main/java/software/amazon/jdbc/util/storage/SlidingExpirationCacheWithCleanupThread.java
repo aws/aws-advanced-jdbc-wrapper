@@ -17,10 +17,10 @@
 package software.amazon.jdbc.util.storage;
 
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
+import software.amazon.jdbc.util.ExecutorFactory;
 
 public class SlidingExpirationCacheWithCleanupThread<K, V> extends SlidingExpirationCache<K, V> {
 
