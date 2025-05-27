@@ -65,6 +65,7 @@ import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.plugin.failover.TransactionStateUnknownSQLException;
+import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.SqlState;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
@@ -590,6 +591,41 @@ public class FailoverTest {
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
       assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
       assertEquals(currentConnectionId, initialWriterId);
+    }
+  }
+
+  @TestTemplate
+  @EnableOnNumOfInstances(min = 3)
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
+  public void test_writerFailover_currentReaderPromotedToWriter() throws SQLException, InterruptedException {
+    final String initialWriterId = this.currentWriter;
+    final TestInstanceInfo reader = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(1);
+    final Properties props = ConnectionStringHelper.getDefaultProperties();
+    props.setProperty(PropertyDefinition.PLUGINS.name, this.getFailoverPlugin());
+    props.setProperty(FailoverConnectionPlugin.FAILOVER_MODE.name, "strict-writer");
+
+    // Connect to a reader instance.
+    try (final Connection conn =
+             DriverManager.getConnection(
+                 ConnectionStringHelper.getWrapperUrl(
+                     reader.getHost(),
+                     reader.getPort(),
+                     TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
+                 props)) {
+
+      // Assert current connection is to a reader instance.
+      String currentConnectionId = auroraUtil.queryInstanceId(conn);
+      assertFalse(auroraUtil.isDBInstanceWriter(currentConnectionId));
+
+      // Trigger failover, ensure the current reader instance is the new promoted writer.
+      auroraUtil.failoverClusterToATargetAndWaitUntilWriterChanged(this.currentWriter, reader.getInstanceId());
+      auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
+
+      currentConnectionId = auroraUtil.queryInstanceId(conn);
+      // Assert that we are connected to the writer after failover happens.
+      assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
+      // Assert the reader has been promoted to a writer.
+      assertEquals(reader.getInstanceId(), currentConnectionId);
     }
   }
 
