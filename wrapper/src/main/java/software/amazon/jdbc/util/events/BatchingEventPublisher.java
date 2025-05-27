@@ -22,10 +22,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.ExecutorFactory;
 
 /**
  * An event publisher that periodically publishes a batch of all unique events encountered during the latest time
@@ -38,16 +37,8 @@ public class BatchingEventPublisher implements EventPublisher {
   // ConcurrentHashMap.newKeySet() is the recommended way to get a concurrent set. A set is used to prevent duplicate
   // event messages from being sent in the same message batch.
   protected final Set<Event> eventMessages = ConcurrentHashMap.newKeySet();
-  protected static final ScheduledExecutorService publishingExecutor = Executors.newSingleThreadScheduledExecutor(
-      (r -> {
-        final Thread thread = new Thread(r);
-        thread.setDaemon(true);
-        if (!StringUtils.isNullOrEmpty(thread.getName())) {
-          thread.setName(thread.getName() + "-bep");
-        }
-        return thread;
-      })
-  );
+  protected static final ScheduledExecutorService publishingExecutor =
+      ExecutorFactory.newSingleThreadScheduledThreadExecutor("bep");
 
   public BatchingEventPublisher() {
     this(DEFAULT_MESSAGE_INTERVAL_NANOS);

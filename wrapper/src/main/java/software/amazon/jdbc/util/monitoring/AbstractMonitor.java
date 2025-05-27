@@ -17,13 +17,12 @@
 package software.amazon.jdbc.util.monitoring;
 
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
+import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.StringUtils;
 
 /**
  * An AbstractMonitor that implements common monitor logic.
@@ -32,14 +31,7 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
   private static final Logger LOGGER = Logger.getLogger(AbstractMonitor.class.getName());
   protected final AtomicBoolean stop = new AtomicBoolean(false);
   protected final long terminationTimeoutSec;
-  protected final ExecutorService monitorExecutor = Executors.newSingleThreadExecutor(runnableTarget -> {
-    final Thread monitoringThread = new Thread(runnableTarget);
-    monitoringThread.setDaemon(true);
-    if (!StringUtils.isNullOrEmpty(monitoringThread.getName())) {
-      monitoringThread.setName(monitoringThread.getName() + "-" + getMonitorNameSuffix());
-    }
-    return monitoringThread;
-  });
+  protected final ExecutorService monitorExecutor = ExecutorFactory.newSingleThreadExecutor(getMonitorNameSuffix());
 
   protected long lastActivityTimestampNanos;
   protected MonitorState state;

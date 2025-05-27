@@ -20,15 +20,14 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AllowedAndBlockedHosts;
+import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.events.DataAccessEvent;
 import software.amazon.jdbc.util.events.EventPublisher;
 
@@ -46,14 +45,8 @@ public class StorageServiceImpl implements StorageService {
 
   protected final EventPublisher publisher;
   protected final Map<Class<?>, ExpirationCache<Object, ?>> caches = new ConcurrentHashMap<>();
-  protected final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor((r -> {
-    final Thread thread = new Thread(r);
-    thread.setDaemon(true);
-    if (!StringUtils.isNullOrEmpty(thread.getName())) {
-      thread.setName(thread.getName() + "-ssi");
-    }
-    return thread;
-  }));
+  protected final ScheduledExecutorService cleanupExecutor =
+      ExecutorFactory.newSingleThreadScheduledThreadExecutor("ssi");
 
   public StorageServiceImpl(EventPublisher publisher) {
     this(DEFAULT_CLEANUP_INTERVAL_NANOS, publisher);

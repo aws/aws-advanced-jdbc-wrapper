@@ -24,7 +24,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -39,9 +38,9 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostlistprovider.monitoring.ClusterTopologyMonitorImpl;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
-import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.connection.ConnectionServiceImpl;
 import software.amazon.jdbc.util.events.DataAccessEvent;
 import software.amazon.jdbc.util.events.Event;
@@ -74,14 +73,8 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
 
   protected final EventPublisher publisher;
   protected final Map<Class<? extends Monitor>, CacheContainer> monitorCaches = new ConcurrentHashMap<>();
-  protected final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor((r -> {
-    final Thread thread = new Thread(r);
-    thread.setDaemon(true);
-    if (!StringUtils.isNullOrEmpty(thread.getName())) {
-      thread.setName(thread.getName() + "-msi");
-    }
-    return thread;
-  }));
+  protected final ScheduledExecutorService cleanupExecutor =
+      ExecutorFactory.newSingleThreadScheduledThreadExecutor("msi");
 
 
   public MonitorServiceImpl(EventPublisher publisher) {
