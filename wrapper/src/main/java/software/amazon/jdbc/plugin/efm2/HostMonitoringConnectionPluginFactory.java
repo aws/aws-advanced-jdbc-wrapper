@@ -20,7 +20,6 @@ import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.ServicesContainerPluginFactory;
-import software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 

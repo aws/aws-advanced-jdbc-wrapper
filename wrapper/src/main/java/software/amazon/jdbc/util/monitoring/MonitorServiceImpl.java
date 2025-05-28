@@ -37,6 +37,7 @@ import software.amazon.jdbc.TargetDriverHelper;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostlistprovider.monitoring.ClusterTopologyMonitorImpl;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
+import software.amazon.jdbc.plugin.efm2.HostMonitorImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
@@ -68,6 +69,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
     MonitorSettings topologySettings =
         new MonitorSettings(TimeUnit.MINUTES.toNanos(5), TimeUnit.MINUTES.toNanos(3), recreateOnError);
     suppliers.put(ClusterTopologyMonitorImpl.class, () -> new CacheContainer(topologySettings, Topology.class));
+    suppliers.put(HostMonitorImpl.class, () -> new CacheContainer(defaultSettings, null));
     defaultSuppliers = Collections.unmodifiableMap(suppliers);
   }
 
