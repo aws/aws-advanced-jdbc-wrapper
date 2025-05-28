@@ -30,6 +30,7 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.StringUtils;
@@ -63,11 +64,8 @@ public class NodeResponseTimeMonitor implements AutoCloseable, Runnable {
   private Connection monitoringConn = null;
 
   // TODO: remove and submit monitors to MonitorService instead
-  private final ExecutorService threadPool = Executors.newFixedThreadPool(1, runnableTarget -> {
-    final Thread monitoringThread = new Thread(runnableTarget);
-    monitoringThread.setDaemon(true);
-    return monitoringThread;
-  });
+  private final ExecutorService threadPool =
+      ExecutorFactory.newFixedThreadPool(1, "threadPool");
 
   public NodeResponseTimeMonitor(
       final @NonNull PluginService pluginService,

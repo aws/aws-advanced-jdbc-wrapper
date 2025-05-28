@@ -17,21 +17,18 @@
 package software.amazon.jdbc.util.storage;
 
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
+import software.amazon.jdbc.util.ExecutorFactory;
 
 public class SlidingExpirationCacheWithCleanupThread<K, V> extends SlidingExpirationCache<K, V> {
 
   private static final Logger LOGGER =
       Logger.getLogger(SlidingExpirationCacheWithCleanupThread.class.getName());
 
-  protected final ExecutorService cleanupThreadPool = Executors.newFixedThreadPool(1, runnableTarget -> {
-    final Thread monitoringThread = new Thread(runnableTarget);
-    monitoringThread.setDaemon(true);
-    return monitoringThread;
-  });
+  protected final ExecutorService cleanupThreadPool =
+      ExecutorFactory.newFixedThreadPool(1, "threadPool");
   protected final ReentrantLock initLock = new ReentrantLock();
   protected boolean isInitialized = false;
 

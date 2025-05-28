@@ -31,7 +31,6 @@ import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -46,9 +45,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
@@ -83,7 +82,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected final long highRefreshRateNano;
   protected final Properties properties;
   protected final Properties monitoringProperties;
-  protected final PluginService pluginService;
   protected final HostSpec initialHostSpec;
   protected final StorageService storageService;
   protected final ConnectionService connectionService;
@@ -116,7 +114,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       final ConnectionService connectionService,
       final HostSpec initialHostSpec,
       final Properties properties,
-      final PluginService pluginService,
       final HostListProviderService hostListProviderService,
       final HostSpec clusterInstanceTemplate,
       final long refreshRateNano,
@@ -129,7 +126,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     this.clusterId = clusterId;
     this.storageService = storageService;
     this.connectionService = connectionService;
-    this.pluginService = pluginService;
     this.hostListProviderService = hostListProviderService;
     this.initialHostSpec = initialHostSpec;
     this.clusterInstanceTemplate = clusterInstanceTemplate;
@@ -470,14 +466,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected void createNodeExecutorService() {
     this.nodeExecutorLock.lock();
     try {
-      this.nodeExecutorService = Executors.newCachedThreadPool(runnableTarget -> {
-        final Thread monitoringThread = new Thread(runnableTarget);
-        monitoringThread.setDaemon(true);
-        if (!StringUtils.isNullOrEmpty(monitoringThread.getName())) {
-          monitoringThread.setName(monitoringThread.getName() + "-nm");
-        }
-        return monitoringThread;
-      });
+      this.nodeExecutorService = ExecutorFactory.newCachedThreadPool("node");
     } finally {
       this.nodeExecutorLock.unlock();
     }
@@ -828,12 +817,10 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
             try {
               connection = this.monitor.connectionService.open(
                   hostSpec, this.monitor.monitoringProperties);
-              this.monitor.pluginService.setAvailability(
-                  hostSpec.asAliases(), HostAvailability.AVAILABLE);
             } catch (SQLException ex) {
-              // connect issues
-              this.monitor.pluginService.setAvailability(
-                  hostSpec.asAliases(), HostAvailability.NOT_AVAILABLE);
+              // A problem occurred while connecting. We will try again on the next iteration.
+              TimeUnit.MILLISECONDS.sleep(100);
+              continue;
             }
           }
 

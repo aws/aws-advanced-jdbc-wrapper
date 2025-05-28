@@ -17,14 +17,12 @@
 package software.amazon.jdbc.util.monitoring;
 
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
-import org.jetbrains.annotations.NotNull;
+import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
+import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.StringUtils;
 
 /**
  * An AbstractMonitor that implements common monitor logic.
@@ -39,25 +37,14 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
   protected MonitorState state;
 
   protected AbstractMonitor(long terminationTimeoutSec) {
-    this(
-        Executors.newSingleThreadExecutor(new ThreadFactory() {
-          @Override
-          public Thread newThread(@NotNull Runnable runnableTarget) {
-            final Thread monitoringThread = new Thread(runnableTarget);
-            monitoringThread.setDaemon(true);
-            if (!StringUtils.isNullOrEmpty(monitoringThread.getName())) {
-              String monitorSuffix = getClass().getSimpleName().replaceAll("[a-z]", "").toLowerCase();
-              monitoringThread.setName(monitoringThread.getName() + "-" + monitorSuffix);
-            }
-            return monitoringThread;
-          }
-        }),
-        terminationTimeoutSec);
+    this.terminationTimeoutSec = terminationTimeoutSec;
+    this.monitorExecutor = ExecutorFactory.newSingleThreadExecutor(getMonitorNameSuffix());
+    this.lastActivityTimestampNanos = System.nanoTime();
   }
 
-  protected AbstractMonitor(ExecutorService executorService, long terminationTimeoutSec) {
-    this.monitorExecutor = executorService;
+  protected AbstractMonitor(long terminationTimeoutSec, ExecutorService monitorExecutor) {
     this.terminationTimeoutSec = terminationTimeoutSec;
+    this.monitorExecutor = monitorExecutor;
     this.lastActivityTimestampNanos = System.nanoTime();
   }
 
@@ -124,5 +111,15 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
   @Override
   public boolean canDispose() {
     return true;
+  }
+
+  /**
+   * Forms the suffix for the monitor thread name by abbreviating the concrete class name. For example, a
+   * {@link CustomEndpointMonitorImpl} will have a suffix of "cemi".
+   *
+   * @return the suffix for the monitor thread name.
+   */
+  private String getMonitorNameSuffix() {
+    return this.getClass().getSimpleName().replaceAll("[a-z]", "").toLowerCase();
   }
 }

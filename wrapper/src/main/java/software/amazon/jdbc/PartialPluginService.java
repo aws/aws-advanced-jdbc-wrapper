@@ -30,7 +30,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -44,7 +43,6 @@ import software.amazon.jdbc.hostavailability.HostAvailabilityStrategyFactory;
 import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.states.SessionStateService;
-import software.amazon.jdbc.states.SessionStateServiceImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
@@ -70,7 +68,6 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   protected final Properties props;
   protected volatile HostListProvider hostListProvider;
   protected List<HostSpec> allHosts = new ArrayList<>();
-  protected Connection currentConnection;
   protected HostSpec currentHostSpec;
   protected HostSpec initialConnectionHostSpec;
   protected boolean isInTransaction;
@@ -82,10 +79,6 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   protected Dialect dbDialect;
   protected @Nullable final ConfigurationProfile configurationProfile;
   protected final ConnectionProviderManager connectionProviderManager;
-
-  protected final SessionStateService sessionStateService;
-
-  protected final ReentrantLock connectionSwitchLock = new ReentrantLock();
 
   public PartialPluginService(
       @NonNull final FullServicesContainer servicesContainer,
@@ -102,7 +95,6 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
         targetDriverProtocol,
         targetDriverDialect,
         dbDialect,
-        null,
         null);
   }
 
@@ -114,8 +106,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
       @NonNull final String targetDriverProtocol,
       @NonNull final TargetDriverDialect targetDriverDialect,
       @NonNull final Dialect dbDialect,
-      @Nullable final ConfigurationProfile configurationProfile,
-      @Nullable final SessionStateService sessionStateService) {
+      @Nullable final ConfigurationProfile configurationProfile) {
     this.servicesContainer = servicesContainer;
     this.pluginManager = servicesContainer.getConnectionPluginManager();
     this.props = props;
@@ -129,10 +120,6 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
         this.pluginManager.getDefaultConnProvider(),
         this.pluginManager.getEffectiveConnProvider());
 
-    this.sessionStateService = sessionStateService != null
-        ? sessionStateService
-        : new SessionStateServiceImpl(this, this.props);
-
     this.exceptionHandler = this.configurationProfile != null && this.configurationProfile.getExceptionHandler() != null
         ? this.configurationProfile.getExceptionHandler()
         : null;
@@ -140,7 +127,8 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
 
   @Override
   public Connection getCurrentConnection() {
-    return this.currentConnection;
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getCurrentConnection"}));
   }
 
   @Override
@@ -210,7 +198,8 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
 
   @Override
   public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy) throws SQLException {
-    return this.pluginManager.getHostSpecByStrategy(hosts, role, strategy);
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getHostSpecByStrategy"}));
   }
 
   @Override
@@ -247,8 +236,8 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   @Override
   public void setCurrentConnection(
       final @NonNull Connection connection, final @NonNull HostSpec hostSpec) throws SQLException {
-
-    setCurrentConnection(connection, hostSpec, null);
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"setCurrentConnection"}));
   }
 
   @Override
@@ -257,95 +246,8 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
       final @NonNull HostSpec hostSpec,
       @Nullable final ConnectionPlugin skipNotificationForThisPlugin)
       throws SQLException {
-
-    connectionSwitchLock.lock();
-    try {
-
-      if (this.currentConnection == null) {
-        // setting up an initial connection
-
-        this.currentConnection = connection;
-        this.currentHostSpec = hostSpec;
-        this.sessionStateService.reset();
-
-        final EnumSet<NodeChangeOptions> changes = EnumSet.of(NodeChangeOptions.INITIAL_CONNECTION);
-        this.pluginManager.notifyConnectionChanged(changes, skipNotificationForThisPlugin);
-
-        return changes;
-
-      } else {
-        // update an existing connection
-
-        final EnumSet<NodeChangeOptions> changes = compare(this.currentConnection, this.currentHostSpec,
-            connection, hostSpec);
-
-        if (!changes.isEmpty()) {
-
-          final Connection oldConnection = this.currentConnection;
-          final boolean isInTransaction = this.isInTransaction;
-          this.sessionStateService.begin();
-
-          try {
-            this.currentConnection = connection;
-            this.currentHostSpec = hostSpec;
-
-            this.sessionStateService.applyCurrentSessionState(connection);
-            this.setInTransaction(false);
-
-            if (isInTransaction && PropertyDefinition.ROLLBACK_ON_SWITCH.getBoolean(this.props)) {
-              try {
-                oldConnection.rollback();
-              } catch (final SQLException e) {
-                // Ignore any exception
-              }
-            }
-
-            final EnumSet<OldConnectionSuggestedAction> pluginOpinions = this.pluginManager.notifyConnectionChanged(
-                changes, skipNotificationForThisPlugin);
-
-            final boolean shouldCloseConnection =
-                changes.contains(NodeChangeOptions.CONNECTION_OBJECT_CHANGED)
-                    && !oldConnection.isClosed()
-                    && !pluginOpinions.contains(OldConnectionSuggestedAction.PRESERVE);
-
-            if (shouldCloseConnection) {
-              try {
-                this.sessionStateService.applyPristineSessionState(oldConnection);
-              } catch (final SQLException e) {
-                // Ignore any exception
-              }
-
-              try {
-                oldConnection.close();
-              } catch (final SQLException e) {
-                // Ignore any exception
-              }
-            }
-          } finally {
-            this.sessionStateService.complete();
-          }
-        }
-        return changes;
-      }
-    } finally {
-      connectionSwitchLock.unlock();
-    }
-  }
-
-  protected EnumSet<NodeChangeOptions> compare(
-      final @NonNull Connection connA,
-      final @NonNull HostSpec hostSpecA,
-      final @NonNull Connection connB,
-      final @NonNull HostSpec hostSpecB) {
-
-    final EnumSet<NodeChangeOptions> changes = EnumSet.noneOf(NodeChangeOptions.class);
-
-    if (connA != connB) {
-      changes.add(NodeChangeOptions.CONNECTION_OBJECT_CHANGED);
-    }
-
-    changes.addAll(compare(hostSpecA, hostSpecB));
-    return changes;
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"setCurrentConnection"}));
   }
 
   protected EnumSet<NodeChangeOptions> compare(
@@ -603,7 +505,8 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
       final HostSpec hostSpec,
       final Properties props)
       throws SQLException {
-    return this.forceConnect(hostSpec, props, null);
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"forceConnect"}));
   }
 
   @Override
@@ -612,8 +515,8 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
       final Properties props,
       final @Nullable ConnectionPlugin pluginToSkip)
       throws SQLException {
-    return this.pluginManager.forceConnect(
-        this.driverProtocol, hostSpec, props, this.currentConnection == null, pluginToSkip);
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"forceConnect"}));
   }
 
   private void updateHostAvailability(final List<HostSpec> hosts) {

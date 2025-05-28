@@ -26,6 +26,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
+import software.amazon.jdbc.HighestWeightHostSelector;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
@@ -35,7 +36,6 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.storage.SlidingExpirationCacheWithCleanupThread;
-import software.amazon.jdbc.wrapper.HighestWeightHostSelector;
 
 public class LimitlessRouterServiceImpl implements LimitlessRouterService {
   private static final Logger LOGGER =
