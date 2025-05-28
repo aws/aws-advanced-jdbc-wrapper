@@ -154,7 +154,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
     monitor.stop();
 
     Set<MonitorErrorResponse> errorResponses = cacheContainer.getSettings().getErrorResponses();
-    if (errorResponses.contains(MonitorErrorResponse.RECREATE)) {
+    if (errorResponses != null && errorResponses.contains(MonitorErrorResponse.RECREATE)) {
       cacheContainer.getCache().computeIfAbsent(key, k -> {
         LOGGER.fine(Messages.get("MonitorServiceImpl.recreatingMonitor", new Object[] {monitor}));
         MonitorItem newMonitorItem = new MonitorItem(errorMonitorItem.getMonitorSupplier());
