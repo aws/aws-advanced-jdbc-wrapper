@@ -36,6 +36,6 @@ public class HostMonitoringConnectionPluginFactory implements ServicesContainerP
 
   @Override
   public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
-    return new CustomEndpointPlugin(servicesContainer, props);
+    return new HostMonitoringConnectionPlugin(servicesContainer, props);
   }
 }

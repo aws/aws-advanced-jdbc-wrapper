@@ -27,8 +27,8 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
@@ -103,7 +103,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
       final int failureDetectionIntervalMillis,
       final int failureDetectionCount,
       final TelemetryCounter abortedConnectionsCounter) {
-    super(
+    super(30,
         Executors.newFixedThreadPool(2, runnableTarget -> {
           final Thread monitoringThread = new Thread(runnableTarget);
           monitoringThread.setDaemon(true);
@@ -111,8 +111,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
             monitoringThread.setName(monitoringThread.getName() + "-efm");
           }
           return monitoringThread;
-        }),
-        30);
+        }));
 
     this.pluginService = pluginService;
     this.telemetryFactory = pluginService.getTelemetryFactory();
