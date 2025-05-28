@@ -45,7 +45,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
@@ -55,7 +54,6 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.SqlState;
@@ -96,7 +94,6 @@ public class ReadWriteSplittingPluginTest {
   @Mock private JdbcCallable<Connection, SQLException> mockConnectFunc;
   @Mock private JdbcCallable<ResultSet, SQLException> mockSqlFunction;
   @Mock private PluginService mockPluginService;
-  @Mock private Dialect mockDialect;
   @Mock private HostListProviderService mockHostListProviderService;
   @Mock private Connection mockWriterConn;
   @Mock private Connection mockNewWriterConn;
@@ -354,6 +351,35 @@ public class ReadWriteSplittingPluginTest {
     verify(mockPluginService, times(0))
         .setCurrentConnection(any(Connection.class), any(HostSpec.class));
     assertNull(plugin.getReaderConnection());
+  }
+
+  @Test
+  public void testSetReadOnly_readerExpires() throws SQLException, InterruptedException {
+    when(this.mockPluginService.connect(eq(readerHostSpec1), any(Properties.class), any()))
+        .thenReturn(mockReaderConn1)
+        .thenReturn(mockReaderConn2);
+
+    final Properties propsWithExpirationTime = new Properties();
+    propsWithExpirationTime.put("cachedReaderKeepAliveTimeoutMs", "5000");
+
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+        mockPluginService,
+        propsWithExpirationTime);
+
+    plugin.switchConnectionIfRequired(true);
+    assertEquals(mockReaderConn1, plugin.getReaderConnection());
+
+    Thread.sleep(1000);
+
+    plugin.switchConnectionIfRequired(true);
+    // Ensure the cached reader connection hasn't changed yet since it hasn't expired.
+    assertEquals(mockReaderConn1, plugin.getReaderConnection());
+
+    Thread.sleep(6000);
+    plugin.switchConnectionIfRequired(true);
+
+    // Ensure the cached reader connection has expired and updated.
+    assertEquals(mockReaderConn2, plugin.getReaderConnection());
   }
 
   @Test
