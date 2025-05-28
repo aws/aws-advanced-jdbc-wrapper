@@ -31,13 +31,20 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
   private static final Logger LOGGER = Logger.getLogger(AbstractMonitor.class.getName());
   protected final AtomicBoolean stop = new AtomicBoolean(false);
   protected final long terminationTimeoutSec;
-  protected final ExecutorService monitorExecutor = ExecutorFactory.newSingleThreadExecutor(getMonitorNameSuffix());
+  protected final ExecutorService monitorExecutor;
 
   protected long lastActivityTimestampNanos;
   protected MonitorState state;
 
   protected AbstractMonitor(long terminationTimeoutSec) {
     this.terminationTimeoutSec = terminationTimeoutSec;
+    this.monitorExecutor = ExecutorFactory.newSingleThreadExecutor(getMonitorNameSuffix());
+    this.lastActivityTimestampNanos = System.nanoTime();
+  }
+
+  protected AbstractMonitor(long terminationTimeoutSec, ExecutorService monitorExecutor) {
+    this.terminationTimeoutSec = terminationTimeoutSec;
+    this.monitorExecutor = monitorExecutor;
     this.lastActivityTimestampNanos = System.nanoTime();
   }
 
