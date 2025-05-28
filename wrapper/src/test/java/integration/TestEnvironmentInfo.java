@@ -39,6 +39,8 @@ public class TestEnvironmentInfo {
   private String blueGreenDeploymentId;
 
   private String clusterParameterGroupName = null;
+
+  // Random alphanumeric combination that is used to form a test cluster name or an instance name.
   private String randomBase = null;
 
   public TestDatabaseInfo getDatabaseInfo() {

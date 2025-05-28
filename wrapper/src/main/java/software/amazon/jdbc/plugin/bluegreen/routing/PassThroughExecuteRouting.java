@@ -16,30 +16,37 @@
 
 package software.amazon.jdbc.plugin.bluegreen.routing;
 
-import java.sql.Connection;
-import java.sql.SQLException;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenRole;
 
-public class RegularConnectRouting extends BaseConnectRouting {
+// Normally execute JDBC call.
+public class PassThroughExecuteRouting extends BaseExecuteRouting {
 
-  private static final Logger LOGGER = Logger.getLogger(RegularConnectRouting.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(PassThroughExecuteRouting.class.getName());
 
-  public RegularConnectRouting(@Nullable String hostAndPort, @Nullable BlueGreenRole role) {
+  public PassThroughExecuteRouting(@Nullable String hostAndPort, @Nullable BlueGreenRole role) {
     super(hostAndPort, role);
   }
 
   @Override
-  public Connection apply(ConnectionPlugin plugin, HostSpec hostSpec, Properties props, boolean isInitialConnection,
-      JdbcCallable<Connection, SQLException> connectFunc, PluginService pluginService)
-      throws SQLException {
+  public <T, E extends Exception> @NonNull Optional<T> apply(
+      final ConnectionPlugin plugin,
+      final Class<T> resultClass,
+      final Class<E> exceptionClass,
+      final Object methodInvokeOn,
+      final String methodName,
+      final JdbcCallable<T, E> jdbcMethodFunc,
+      final Object[] jdbcMethodArgs,
+      final PluginService pluginService,
+      final Properties props) throws E {
 
-    return connectFunc.call();
+    return Optional.of(jdbcMethodFunc.call());
   }
 }

@@ -16,29 +16,8 @@
 
 package software.amazon.jdbc.plugin.bluegreen;
 
-public enum BlueGreenPhases {
-  NOT_CREATED(0, false),
-  CREATED(1, false),
-  PREPARATION(2, true), // nodes are accessible
-  IN_PROGRESS(3, true), // active phase; nodes are not accessible
-
-  POST(4, true), // nodes are accessible; some change are still in progress
-  COMPLETED(5, true); // all changes are completed
-
-  private final int value;
-  private final boolean activeSwitchover;
-
-  BlueGreenPhases(final int newValue, final boolean activeSwitchover) {
-
-    this.value = newValue;
-    this.activeSwitchover = activeSwitchover;
-  }
-
-  public int getValue() {
-    return this.value;
-  }
-
-  public boolean isActiveSwitchover() {
-    return this.activeSwitchover;
-  }
+public enum BlueGreenIntervalRate {
+  BASELINE,
+  INCREASED,
+  HIGH
 }

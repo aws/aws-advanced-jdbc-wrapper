@@ -815,7 +815,7 @@ public class TestEnvironment implements AutoCloseable {
         env.runnerIP, ipAddressUsageRefCount.get()));
   }
 
-  private static void deAuthorizedIP(TestEnvironment env) {
+  private static void deAuthorizeIP(TestEnvironment env) {
     if (ipAddressUsageRefCount.decrementAndGet() == 0) {
       if (env.runnerIP == null) {
         try {
@@ -1378,11 +1378,11 @@ public class TestEnvironment implements AutoCloseable {
         } else {
           deleteDbCluster(false);
         }
-        deAuthorizedIP(this);
+        deAuthorizeIP(this);
         break;
       case RDS_MULTI_AZ_CLUSTER:
         deleteDbCluster(false);
-        deAuthorizedIP(this);
+        deAuthorizeIP(this);
         break;
       case RDS_MULTI_AZ_INSTANCE:
         if (this.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)
@@ -1390,7 +1390,7 @@ public class TestEnvironment implements AutoCloseable {
           deleteBlueGreenDeployment();
         }
         deleteMultiAzInstance();
-        deAuthorizedIP(this);
+        deAuthorizeIP(this);
         break;
       case RDS:
         // not in use at the moment
@@ -1423,86 +1423,89 @@ public class TestEnvironment implements AutoCloseable {
 
   private void deleteBlueGreenDeployment() throws InterruptedException {
 
+    BlueGreenDeployment blueGreenDeployment;
+
     switch (this.info.getRequest().getDatabaseEngineDeployment()) {
       case AURORA:
-        if (!this.reuseDb) {
-          BlueGreenDeployment blueGreenDeployment =
-              auroraUtil.getBlueGreenDeployment(this.info.getBlueGreenDeploymentId());
+        if (this.reuseDb) {
+          break;
+        }
 
-          if (blueGreenDeployment == null) {
-            return;
+        blueGreenDeployment = auroraUtil.getBlueGreenDeployment(this.info.getBlueGreenDeploymentId());
+
+        if (blueGreenDeployment == null) {
+          return;
+        }
+
+        auroraUtil.deleteBlueGreenDeployment(this.info.getBlueGreenDeploymentId(), true);
+
+        // Remove extra DB cluster
+
+        // For BGD in AVAILABLE status: source = blue, target = green
+        // For BGD in SWITCHOVER_COMPLETED: source = old1, target = blue
+        LOGGER.finest("BG source: " + blueGreenDeployment.source());
+        LOGGER.finest("BG target: " + blueGreenDeployment.target());
+
+        if ("SWITCHOVER_COMPLETED".equals(blueGreenDeployment.status())) {
+          // Delete old1 cluster
+          DBCluster old1ClusterInfo = auroraUtil.getClusterByArn(blueGreenDeployment.source());
+          if (old1ClusterInfo != null) {
+            auroraUtil.waitUntilClusterHasRightState(old1ClusterInfo.dbClusterIdentifier(), "available");
+            LOGGER.finest("Deleting Aurora cluster " + old1ClusterInfo.dbClusterIdentifier());
+            auroraUtil.deleteCluster(
+                old1ClusterInfo.dbClusterIdentifier(),
+                this.info.getRequest().getDatabaseEngineDeployment(),
+                true);
+            LOGGER.finest("Deleted Aurora cluster " + old1ClusterInfo.dbClusterIdentifier());
           }
-
-          auroraUtil.deleteBlueGreenDeployment(this.info.getBlueGreenDeploymentId(), true);
-
-          // Remove extra DB cluster
-
-          // For BGD in AVAILABLE status: source = blue, target = green
-          // For BGD in SWITCHOVER_COMPLETED: source = old1, target = blue
-          LOGGER.finest("BG source: " + blueGreenDeployment.source());
-          LOGGER.finest("BG target: " + blueGreenDeployment.target());
-
-          if ("SWITCHOVER_COMPLETED".equals(blueGreenDeployment.status())) {
-            // Delete old1 cluster
-            DBCluster old1ClusterInfo = auroraUtil.getClusterByArn(blueGreenDeployment.source());
-            if (old1ClusterInfo != null) {
-              auroraUtil.waitUntilClusterHasRightState(old1ClusterInfo.dbClusterIdentifier(), "available");
-              LOGGER.finest("Deleting Aurora cluster " + old1ClusterInfo.dbClusterIdentifier());
-              auroraUtil.deleteCluster(
-                  old1ClusterInfo.dbClusterIdentifier(),
-                  this.info.getRequest().getDatabaseEngineDeployment(),
-                  true);
-              LOGGER.finest("Deleted Aurora cluster " + old1ClusterInfo.dbClusterIdentifier());
-            }
-          } else {
-            // Delete green cluster
-            DBCluster greenClusterInfo = auroraUtil.getClusterByArn(blueGreenDeployment.target());
-            if (greenClusterInfo != null) {
-              auroraUtil.promoteClusterToStandalone(blueGreenDeployment.target());
-              LOGGER.finest("Deleting Aurora cluster " + greenClusterInfo.dbClusterIdentifier());
-              auroraUtil.deleteCluster(
-                  greenClusterInfo.dbClusterIdentifier(),
-                  this.info.getRequest().getDatabaseEngineDeployment(),
-                  true);
-              LOGGER.finest("Deleted Aurora cluster " + greenClusterInfo.dbClusterIdentifier());
-            }
+        } else {
+          // Delete green cluster
+          DBCluster greenClusterInfo = auroraUtil.getClusterByArn(blueGreenDeployment.target());
+          if (greenClusterInfo != null) {
+            auroraUtil.promoteClusterToStandalone(blueGreenDeployment.target());
+            LOGGER.finest("Deleting Aurora cluster " + greenClusterInfo.dbClusterIdentifier());
+            auroraUtil.deleteCluster(
+                greenClusterInfo.dbClusterIdentifier(),
+                this.info.getRequest().getDatabaseEngineDeployment(),
+                true);
+            LOGGER.finest("Deleted Aurora cluster " + greenClusterInfo.dbClusterIdentifier());
           }
         }
         break;
       case RDS_MULTI_AZ_INSTANCE:
-        if (!this.reuseDb) {
+        if (this.reuseDb) {
+          break;
+        }
 
-          BlueGreenDeployment blueGreenDeployment =
-              auroraUtil.getBlueGreenDeployment(this.info.getBlueGreenDeploymentId());
+        blueGreenDeployment = auroraUtil.getBlueGreenDeployment(this.info.getBlueGreenDeploymentId());
 
-          if (blueGreenDeployment == null) {
-            return;
+        if (blueGreenDeployment == null) {
+          return;
+        }
+
+        auroraUtil.deleteBlueGreenDeployment(this.info.getBlueGreenDeploymentId(), true);
+
+        // For BGD in AVAILABLE status: source = blue, target = green
+        // For BGD in SWITCHOVER_COMPLETED: source = old1, target = blue
+        LOGGER.finest("BG source: " + blueGreenDeployment.source());
+        LOGGER.finest("BG target: " + blueGreenDeployment.target());
+
+        if ("SWITCHOVER_COMPLETED".equals(blueGreenDeployment.status())) {
+          // Delete old1 cluster
+          DBInstance old1InstanceInfo = auroraUtil.getRdsInstanceInfoByArn(blueGreenDeployment.source());
+          if (old1InstanceInfo != null) {
+            LOGGER.finest("Deleting MultiAz Instance " + old1InstanceInfo.dbInstanceIdentifier());
+            auroraUtil.deleteMultiAzInstance(old1InstanceInfo.dbInstanceIdentifier(), true);
+            LOGGER.finest("Deleted MultiAz Instance " + old1InstanceInfo.dbInstanceIdentifier());
           }
-
-          auroraUtil.deleteBlueGreenDeployment(this.info.getBlueGreenDeploymentId(), true);
-
-          // For BGD in AVAILABLE status: source = blue, target = green
-          // For BGD in SWITCHOVER_COMPLETED: source = old1, target = blue
-          LOGGER.finest("BG source: " + blueGreenDeployment.source());
-          LOGGER.finest("BG target: " + blueGreenDeployment.target());
-
-          if ("SWITCHOVER_COMPLETED".equals(blueGreenDeployment.status())) {
-            // Delete old1 cluster
-            DBInstance old1InstanceInfo = auroraUtil.getRdsInstanceInfoByArn(blueGreenDeployment.source());
-            if (old1InstanceInfo != null) {
-              LOGGER.finest("Deleting MultiAz Instance " + old1InstanceInfo.dbInstanceIdentifier());
-              auroraUtil.deleteMultiAzInstance(old1InstanceInfo.dbInstanceIdentifier(), true);
-              LOGGER.finest("Deleted MultiAz Instance " + old1InstanceInfo.dbInstanceIdentifier());
-            }
-          } else {
-            // Delete green cluster
-            DBInstance greenInstanceInfo = auroraUtil.getRdsInstanceInfoByArn(blueGreenDeployment.target());
-            if (greenInstanceInfo != null) {
-              auroraUtil.promoteInstanceToStandalone(blueGreenDeployment.target());
-              LOGGER.finest("Deleting MultiAz Instance " + greenInstanceInfo.dbInstanceIdentifier());
-              auroraUtil.deleteMultiAzInstance(greenInstanceInfo.dbInstanceIdentifier(), true);
-              LOGGER.finest("Deleted MultiAz Instance " + greenInstanceInfo.dbInstanceIdentifier());
-            }
+        } else {
+          // Delete green cluster
+          DBInstance greenInstanceInfo = auroraUtil.getRdsInstanceInfoByArn(blueGreenDeployment.target());
+          if (greenInstanceInfo != null) {
+            auroraUtil.promoteInstanceToStandalone(blueGreenDeployment.target());
+            LOGGER.finest("Deleting MultiAz Instance " + greenInstanceInfo.dbInstanceIdentifier());
+            auroraUtil.deleteMultiAzInstance(greenInstanceInfo.dbInstanceIdentifier(), true);
+            LOGGER.finest("Deleted MultiAz Instance " + greenInstanceInfo.dbInstanceIdentifier());
           }
         }
         break;

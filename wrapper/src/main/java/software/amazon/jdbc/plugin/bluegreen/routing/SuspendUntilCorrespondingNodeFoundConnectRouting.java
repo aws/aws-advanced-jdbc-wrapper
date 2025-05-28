@@ -29,24 +29,28 @@ import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.plugin.bluegreen.BlueGreenPhases;
+import software.amazon.jdbc.plugin.bluegreen.BlueGreenPhase;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenRole;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenStatus;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
-// Hold new connection opening till BG is completed.
-public class HoldConnectRouting extends BaseConnectRouting {
+// Suspend new connection opening till a corresponding node is found or till BG is completed.
+public class SuspendUntilCorrespondingNodeFoundConnectRouting extends BaseConnectRouting {
 
-  private static final Logger LOGGER = Logger.getLogger(HoldConnectRouting.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(
+      SuspendUntilCorrespondingNodeFoundConnectRouting.class.getName());
 
   private static final String TELEMETRY_SWITCHOVER = "Blue/Green switchover";
+  private static final long SLEEP_TIME_MS = 100L;
 
   protected String bgdId;
 
-  public HoldConnectRouting(@Nullable String hostAndPort, @Nullable BlueGreenRole role, final String bgdId) {
+  public SuspendUntilCorrespondingNodeFoundConnectRouting(
+      @Nullable String hostAndPort, @Nullable BlueGreenRole role, final String bgdId) {
     super(hostAndPort, role);
     this.bgdId = bgdId;
   }
@@ -61,44 +65,57 @@ public class HoldConnectRouting extends BaseConnectRouting {
       PluginService pluginService)
       throws SQLException {
 
-    LOGGER.finest(() -> Messages.get("bgd.inProgressHoldConnect"));
+    LOGGER.finest(() -> Messages.get("bgd.waitConnectUntilCorrespondingNodeFound",
+        new Object[] {hostSpec.getHost()}));
 
     TelemetryFactory telemetryFactory = pluginService.getTelemetryFactory();
-
-    long timeoutNano = TimeUnit.MILLISECONDS.toNanos(BG_CONNECT_TIMEOUT.getLong(props));
-    long holdStartTime = this.getNanoTime();
-    long holdEndTime;
-
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(TELEMETRY_SWITCHOVER,
         TelemetryTraceLevel.NESTED);
 
     BlueGreenStatus bgStatus = pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
+    Pair<HostSpec, HostSpec> correspondingPair = bgStatus == null
+        ? null
+        : bgStatus.getCorrespondingNodes().get(hostSpec.getHost());
+
+    long timeoutNano = TimeUnit.MILLISECONDS.toNanos(BG_CONNECT_TIMEOUT.getLong(props));
+    long holdStartTime = this.getNanoTime();
+    long endTime = this.getNanoTime() + timeoutNano;
 
     try {
-      long endTime = this.getNanoTime() + timeoutNano;
-
+      // Wait until a corresponding node is found, or until switchover is completed.
       while (this.getNanoTime() <= endTime
           && bgStatus != null
-          && bgStatus.getCurrentPhase() == BlueGreenPhases.IN_PROGRESS) {
+          && bgStatus.getCurrentPhase() != BlueGreenPhase.COMPLETED
+          && (correspondingPair == null || correspondingPair.getValue2() == null)) {
 
         try {
-          this.delay(100, bgStatus, pluginService, this.bgdId);
+          this.delay(SLEEP_TIME_MS, bgStatus, pluginService, this.bgdId);
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           throw new RuntimeException(e);
         }
 
         bgStatus = pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
+        correspondingPair = bgStatus == null
+            ? null
+            : bgStatus.getCorrespondingNodes().get(hostSpec.getHost());
       }
 
-      holdEndTime = this.getNanoTime();
+      if (bgStatus == null || bgStatus.getCurrentPhase() == BlueGreenPhase.COMPLETED) {
+        LOGGER.finest(Messages.get("bgd.completedContinueWithConnect",
+            new Object[]{TimeUnit.NANOSECONDS.toMillis(this.getNanoTime() - holdStartTime)}));
+        return null;
 
-      if (bgStatus != null && bgStatus.getCurrentPhase() == BlueGreenPhases.IN_PROGRESS) {
+      } else if (this.getNanoTime() > endTime) {
         throw new SQLTimeoutException(
-                Messages.get("bgd.inProgressTryConnectLater", new Object[] {BG_CONNECT_TIMEOUT.getLong(props)}));
+            Messages.get("bgd.correspondingNodeNotFoundTryConnectLater",
+                new Object[] {hostSpec.getHost(), BG_CONNECT_TIMEOUT.getLong(props)}));
       }
-      LOGGER.finest(Messages.get("bgd.switchoverCompleteContinueWithConnect",
-              new Object[] {TimeUnit.NANOSECONDS.toMillis(holdEndTime - holdStartTime)}));
+
+      LOGGER.finest(Messages.get("bgd.correspondingNodeFoundContinueWithConnect",
+          new Object[]{
+              hostSpec.getHost(),
+              TimeUnit.NANOSECONDS.toMillis(this.getNanoTime() - holdStartTime)}));
 
     } finally {
       if (telemetryContext != null) {

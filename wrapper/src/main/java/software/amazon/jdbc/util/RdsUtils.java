@@ -176,11 +176,6 @@ public class RdsUtils {
           ".*(?<prefix>-old1)\\..*",
           Pattern.CASE_INSENSITIVE);
 
-  private static final Pattern BG_PREFIX_HOST_PATTERN =
-      Pattern.compile(
-          ".*(?<prefix>-(green-[0-9a-z]{6}|old1))\\..*",
-          Pattern.CASE_INSENSITIVE);
-
   private static final Map<String, Matcher> cachedPatterns = new ConcurrentHashMap<>();
   private static final Map<String, String> cachedDnsPatterns = new ConcurrentHashMap<>();
 
@@ -329,7 +324,7 @@ public class RdsUtils {
   }
 
   public boolean isIP(final String ip) {
-   return isIPv4(ip) || isIPv6(ip);
+    return isIPv4(ip) || isIPv6(ip);
   }
 
   public boolean isIPv4(final String ip) {
@@ -391,9 +386,17 @@ public class RdsUtils {
     return !StringUtils.isNullOrEmpty(preparedHost) && BG_OLD_HOST_PATTERN.matcher(preparedHost).matches();
   }
 
-  public boolean isNoPrefixInstance(final String host) {
+  public boolean isNotOldInstance(final String host) {
     final String preparedHost = getPreparedHost(host);
-    return !StringUtils.isNullOrEmpty(preparedHost) && !BG_GREEN_HOST_PATTERN.matcher(preparedHost).matches();
+    return StringUtils.isNullOrEmpty(preparedHost) || !BG_OLD_HOST_PATTERN.matcher(preparedHost).matches();
+  }
+
+  // Verify that provided host is a blue host name and contains neither green prefix nor old prefix.
+  public boolean isNotGreenAndOldPrefixInstance(final String host) {
+    final String preparedHost = getPreparedHost(host);
+    return !StringUtils.isNullOrEmpty(preparedHost)
+        && !BG_GREEN_HOST_PATTERN.matcher(preparedHost).matches()
+        && !BG_OLD_HOST_PATTERN.matcher(preparedHost).matches();
   }
 
   public String removeGreenInstancePrefix(final String host) {

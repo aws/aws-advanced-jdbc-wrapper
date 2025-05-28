@@ -32,7 +32,7 @@ public abstract class BaseConnectRouting extends BaseRouting implements ConnectR
 
   private static final Logger LOGGER = Logger.getLogger(BaseConnectRouting.class.getName());
 
-  protected final String hostAndPort;
+  protected final String hostAndPort; // if value is provided then host is mandatory and port is optional.
   protected final BlueGreenRole role;
 
   public BaseConnectRouting(@Nullable String hostAndPort, @Nullable BlueGreenRole role) {

@@ -22,6 +22,8 @@ import software.amazon.jdbc.plugin.bluegreen.BlueGreenStatus;
 
 public abstract class BaseRouting {
 
+  protected static final long SLEEP_CHUNK = 50L;
+
   protected long getNanoTime() {
     return System.nanoTime();
   }
@@ -32,12 +34,12 @@ public abstract class BaseRouting {
 
     long start = System.nanoTime();
     long end = start + TimeUnit.MILLISECONDS.toNanos(delayMs);
-    long minDelay = Math.min(delayMs, 50);
+    long minDelay = Math.min(delayMs, SLEEP_CHUNK);
 
     if (bgStatus == null) {
       TimeUnit.MILLISECONDS.sleep(delayMs);
     } else {
-      // Check whether intervalType or stop flag change, or until waited specified delay time.
+      // Check whether bgStatus change, or until waited specified delay time.
       do {
         synchronized (bgStatus) {
           bgStatus.wait(minDelay);

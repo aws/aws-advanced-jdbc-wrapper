@@ -203,7 +203,13 @@ public class BlueGreenDeploymentTests {
 
       this.results.put(hostId, new BlueGreenResults());
 
-      if (rdsUtil.isNoPrefixInstance(host)) {
+      if (rdsUtil.isNotGreenAndOldPrefixInstance(host)) {
+        threads.add(getDirectTopologyMonitoringThread(
+            hostId, host, testInstance.getPort(), dbName, startLatchAtomic, stop, finishLatchAtomic,
+            results.get(hostId)));
+        threadCount++;
+        threadFinishCount++;
+
         threads.add(getDirectBlueConnectivityMonitoringThread(
             hostId, host, testInstance.getPort(), dbName, startLatchAtomic, stop, finishLatchAtomic,
             results.get(hostId)));
@@ -240,7 +246,7 @@ public class BlueGreenDeploymentTests {
       }
 
       if (rdsUtil.isGreenInstance(host)) {
-        threads.add(getDirectGreenTopologyMonitoringThread(
+        threads.add(getDirectTopologyMonitoringThread(
             hostId, host, testInstance.getPort(), dbName, startLatchAtomic, stop, finishLatchAtomic,
             results.get(hostId)));
         threadCount++;
@@ -282,7 +288,7 @@ public class BlueGreenDeploymentTests {
     }
 
     threads.add(getBlueGreenSwitchoverTriggerThread(
-        info.getBlueGreenDeploymentId(), startLatchAtomic, stop, finishLatchAtomic, results));
+        info.getBlueGreenDeploymentId(), startLatchAtomic, finishLatchAtomic, results));
     threadCount++;
     threadFinishCount++;
 
@@ -614,8 +620,6 @@ public class BlueGreenDeploymentTests {
       BlueGreenConnectionPlugin bgPlugin = null;
       try {
         final Properties props = this.getWrapperConnectionProperties();
-        //PropertyDefinition.LOGIN_TIMEOUT.set(props, "10000");
-        //PropertyDefinition.SOCKET_TIMEOUT.set(props, "10000");
 
         Thread.sleep(1000);
 
@@ -787,10 +791,9 @@ public class BlueGreenDeploymentTests {
     });
   }
 
-  // Green node
   // Monitor BG status changes
   // Can terminate for itself
-  private Thread getDirectGreenTopologyMonitoringThread(
+  private Thread getDirectTopologyMonitoringThread(
       final String hostId,
       final String url,
       final int port,
@@ -832,7 +835,7 @@ public class BlueGreenDeploymentTests {
         conn = openConnectionWithRetry(
             ConnectionStringHelper.getUrl(url, port, dbName),
             props);
-        LOGGER.finest(String.format("[DirectGreenTopology @ %s] connection opened", hostId));
+        LOGGER.finest(String.format("[DirectTopology @ %s] connection opened", hostId));
 
         Thread.sleep(1000);
 
@@ -842,7 +845,7 @@ public class BlueGreenDeploymentTests {
         // wait for another threads to be ready to start the test
         startLatch.get().await(5, TimeUnit.MINUTES);
 
-        LOGGER.finest(String.format("[DirectGreenTopology @ %s] Starting BG statuses monitoring.", hostId));
+        LOGGER.finest(String.format("[DirectTopology @ %s] Starting BG statuses monitoring.", hostId));
 
         long endTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(15);
 
@@ -851,7 +854,7 @@ public class BlueGreenDeploymentTests {
             conn = openConnectionWithRetry(
                 ConnectionStringHelper.getUrl(url, port, dbName),
                 props);
-            LOGGER.finest(String.format("[DirectGreenTopology @ %s] connection re-opened", hostId));
+            LOGGER.finest(String.format("[DirectTopology @ %s] connection re-opened", hostId));
           }
 
           try {
@@ -866,13 +869,13 @@ public class BlueGreenDeploymentTests {
               if (isGreen) {
                 results.greenStatusTime.computeIfAbsent(queryNewStatus, (key) -> {
                   LOGGER.finest(() -> String.format(
-                      "[DirectGreenTopology @ %s] status changed to: %s", hostId, queryNewStatus));
+                      "[DirectTopology @ %s] status changed to: %s", hostId, queryNewStatus));
                   return System.nanoTime();
                 });
               } else {
                 results.blueStatusTime.computeIfAbsent(queryNewStatus, (key) -> {
                   LOGGER.finest(() -> String.format(
-                      "[DirectGreenTopology @ %s] status changed to: %s", hostId, queryNewStatus));
+                      "[DirectTopology @ %s] status changed to: %s", hostId, queryNewStatus));
                   return System.nanoTime();
                 });
               }
@@ -882,7 +885,7 @@ public class BlueGreenDeploymentTests {
           } catch (SQLException throwable) {
             LOGGER.log(
                 Level.FINEST,
-                String.format("[DirectGreenTopology @ %s] thread exception: %s", hostId, throwable),
+                String.format("[DirectTopology @ %s] thread exception: %s", hostId, throwable),
                 throwable);
             this.closeConnection(conn);
             conn = null;
@@ -894,13 +897,13 @@ public class BlueGreenDeploymentTests {
         Thread.currentThread().interrupt();
       } catch (Exception exception) {
         LOGGER.log(Level.FINEST,
-            String.format("[DirectGreenTopology @ %s] thread unhandled exception: ", hostId),
+            String.format("[DirectTopology @ %s] thread unhandled exception: ", hostId),
             exception);
         this.unhandledExceptions.add(exception);
       } finally {
         this.closeConnection(conn);
         finishLatch.get().countDown();
-        LOGGER.finest(String.format("[DirectGreenTopology @ %s] thread is completed.", hostId));
+        LOGGER.finest(String.format("[DirectTopology @ %s] thread is completed.", hostId));
       }
     });
   }
@@ -990,7 +993,7 @@ public class BlueGreenDeploymentTests {
 
   // Green node
   // Check: connectivity (opening a new connection) with IAM when using node IP address
-  // Expect: loose connectivity after green node changes its name (green prefix to no-prefix)
+  // Expect: lose connectivity after green node changes its name (green prefix to no-prefix)
   // Can terminate for itself
   private Thread getGreenIamConnectivityMonitoringThread(
       final String hostId,
@@ -1105,7 +1108,6 @@ public class BlueGreenDeploymentTests {
   private Thread getBlueGreenSwitchoverTriggerThread(
       final String blueGreenId,
       final AtomicReference<CountDownLatch> startLatch,
-      final AtomicBoolean stop,
       final AtomicReference<CountDownLatch> finishLatch,
       final Map<String, BlueGreenResults> results) {
 
@@ -1121,7 +1123,6 @@ public class BlueGreenDeploymentTests {
 
         TimeUnit.SECONDS.sleep(30);
         auroraUtil.switchoverBlueGreenDeployment(blueGreenId);
-        //LOGGER.finest("Dry run: switchoverBlueGreenDeployment");
 
         final long nanoTime2 = System.nanoTime();
         results.forEach((key, value) -> value.bgTriggerTime.set(nanoTime2));
@@ -1220,8 +1221,6 @@ public class BlueGreenDeploymentTests {
           endpoints.add(greenCluster.endpoint());
         }
 
-        String instancePattern = rdsUtil.getRdsInstanceHostPattern(greenCluster.endpoint());
-
         List<String> instanceIds = auroraUtil.getAuroraInstanceIds(
             TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
             TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
@@ -1235,6 +1234,8 @@ public class BlueGreenDeploymentTests {
         if (instanceIds.isEmpty()) {
           throw new RuntimeException("Can't find green cluster instances.");
         }
+
+        String instancePattern = rdsUtil.getRdsInstanceHostPattern(greenCluster.endpoint());
         if (INCLUDE_WRITER_AND_READER_ONLY) {
           endpoints.add(instancePattern.replace("?", instanceIds.get(0))); // writer
           if (instanceIds.size() > 1) {

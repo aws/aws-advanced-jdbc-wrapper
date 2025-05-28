@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.plugin.bluegreen;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -26,27 +27,27 @@ import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.Utils;
 
 public class BlueGreenInterimStatus {
-  public BlueGreenPhases blueGreenPhase;
+  public BlueGreenPhase blueGreenPhase;
   public String version;
   public int port;
   public List<HostSpec> startTopology;
   public List<HostSpec> currentTopology;
   public Map<String, Optional<String>> startIpAddressesByHostMap;
   public Map<String, Optional<String>> currentIpAddressesByHostMap;
-  public Set<String> endpoints; // all known endpoints; just host, no port
+  public Set<String> hostNames; // all known host names; just host, no port
   public boolean allStartTopologyIpChanged;
   public boolean allStartTopologyEndpointsRemoved;
   public boolean allTopologyChanged;
 
   public BlueGreenInterimStatus(
-      final BlueGreenPhases blueGreenPhase,
+      final BlueGreenPhase blueGreenPhase,
       final String version,
       final int port,
       final List<HostSpec> startTopology,
       final List<HostSpec> currentTopology,
       final Map<String, Optional<String>> startIpAddressesByHostMap,
       final Map<String, Optional<String>> currentIpAddressesByHostMap,
-      final Set<String> endpoints,
+      final Set<String> hostNames,
       boolean allStartTopologyIpChanged,
       boolean allStartTopologyEndpointsRemoved,
       boolean allTopologyChanged) {
@@ -58,7 +59,7 @@ public class BlueGreenInterimStatus {
     this.currentTopology = currentTopology;
     this.startIpAddressesByHostMap = startIpAddressesByHostMap;
     this.currentIpAddressesByHostMap = currentIpAddressesByHostMap;
-    this.endpoints = endpoints;
+    this.hostNames = hostNames;
     this.allStartTopologyIpChanged = allStartTopologyIpChanged;
     this.allStartTopologyEndpointsRemoved = allStartTopologyEndpointsRemoved;
     this.allTopologyChanged = allTopologyChanged;
@@ -72,14 +73,14 @@ public class BlueGreenInterimStatus {
     String startIpMap = this.startIpAddressesByHostMap.entrySet().stream()
         .map(x -> String.format("%s -> %s", x.getKey(), x.getValue()))
         .collect(Collectors.joining("\n   "));
-    String endpointStr = String.join("\n   ", this.endpoints);
+    String allHostNamesStr = String.join("\n   ", this.hostNames);
     String startTopologyStr = Utils.logTopology(this.startTopology);
     String currentTopologyStr = Utils.logTopology(this.currentTopology);
     return String.format("%s [\n"
             + " phase %s, \n"
             + " version '%s', \n"
             + " port %d, \n"
-            + " endpoints:\n"
+            + " hostNames:\n"
             + "   %s \n"
             + " Start %s \n"
             + " start IP map:\n"
@@ -95,7 +96,7 @@ public class BlueGreenInterimStatus {
         this.blueGreenPhase == null ? "<null>" : this.blueGreenPhase,
         this.version,
         this.port,
-        StringUtils.isNullOrEmpty(endpointStr) ? "-" : endpointStr,
+        StringUtils.isNullOrEmpty(allHostNamesStr) ? "-" : allHostNamesStr,
         StringUtils.isNullOrEmpty(startTopologyStr) ? "-" : startTopologyStr,
         StringUtils.isNullOrEmpty(startIpMap) ? "-" : startIpMap,
         StringUtils.isNullOrEmpty(currentTopologyStr) ? "-" : currentTopologyStr,
@@ -104,4 +105,57 @@ public class BlueGreenInterimStatus {
         this.allStartTopologyEndpointsRemoved,
         this.allTopologyChanged);
   }
+
+  public int getCustomHashCode() {
+
+    int result = this.getValueHash(1,
+        this.blueGreenPhase == null ? "" : this.blueGreenPhase.toString());
+    result = this.getValueHash(result,
+        this.version == null ? "" : this.version);
+    result = this.getValueHash(result, String.valueOf(this.port));
+    result = this.getValueHash(result, String.valueOf(this.allStartTopologyIpChanged));
+    result = this.getValueHash(result, String.valueOf(this.allStartTopologyEndpointsRemoved));
+    result = this.getValueHash(result, String.valueOf(this.allTopologyChanged));
+
+    result = this.getValueHash(result,
+        this.hostNames == null
+            ? ""
+            : this.hostNames.stream()
+                .sorted()
+                .collect(Collectors.joining(",")));
+    result = this.getValueHash(result,
+        this.startTopology == null
+            ? ""
+            : this.startTopology.stream()
+                .map(x -> x.getHostAndPort() + x.getRole())
+                .sorted(Comparator.comparing(x -> x))
+                .collect(Collectors.joining(",")));
+    result = this.getValueHash(result,
+        this.currentTopology == null
+            ? ""
+            : this.currentTopology.stream()
+                .map(x -> x.getHostAndPort() + x.getRole())
+                .sorted(Comparator.comparing(x -> x))
+                .collect(Collectors.joining(",")));
+    result = this.getValueHash(result,
+        this.startIpAddressesByHostMap == null
+            ? ""
+            : this.startIpAddressesByHostMap.entrySet().stream()
+                .map(x -> x.getKey() + x.getValue())
+                .sorted(Comparator.comparing(x -> x))
+                .collect(Collectors.joining(",")));
+    result = this.getValueHash(result,
+        this.currentIpAddressesByHostMap == null
+            ? ""
+            : this.currentIpAddressesByHostMap.entrySet().stream()
+                .map(x -> x.getKey() + x.getValue())
+                .sorted(Comparator.comparing(x -> x))
+                .collect(Collectors.joining(",")));
+    return result;
+  }
+
+  protected int getValueHash(int currentHash, String val) {
+    return currentHash * 31 + val.hashCode();
+  }
+
 }

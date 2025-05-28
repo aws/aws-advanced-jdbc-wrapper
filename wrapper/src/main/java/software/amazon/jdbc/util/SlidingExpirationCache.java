@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -282,10 +283,7 @@ public class SlidingExpirationCache<K, V> {
 
     @Override
     public int hashCode() {
-      final int prime = 31;
-      int result = 1;
-      result = prime * result + ((item == null) ? 0 : item.hashCode());
-      return result;
+      return Objects.hashCode(item);
     }
 
     @Override
@@ -302,11 +300,7 @@ public class SlidingExpirationCache<K, V> {
 
       @SuppressWarnings({"unchecked", "noinspection"})
       final CacheItem other = (CacheItem) obj;
-      if (item == null) {
-        return other.item == null;
-      } else {
-        return item.equals(other.item);
-      }
+      return Objects.equals(item, other.item);
     }
 
     @Override

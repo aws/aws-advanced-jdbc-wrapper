@@ -16,8 +16,6 @@
 
 package software.amazon.jdbc.plugin.bluegreen;
 
-public enum IntervalType {
-  BASELINE,
-  INCREASED,
-  HIGH
+public interface OnBlueGreenStatusChange {
+  void onBlueGreenStatusChanged(BlueGreenRole role, BlueGreenInterimStatus interimStatus);
 }

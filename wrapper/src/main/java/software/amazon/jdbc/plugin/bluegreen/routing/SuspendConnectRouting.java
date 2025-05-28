@@ -18,73 +18,69 @@ package software.amazon.jdbc.plugin.bluegreen.routing;
 
 import static software.amazon.jdbc.plugin.bluegreen.BlueGreenConnectionPlugin.BG_CONNECT_TIMEOUT;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.sql.SQLTimeoutException;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPlugin;
+import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.plugin.bluegreen.BlueGreenPhases;
+import software.amazon.jdbc.plugin.bluegreen.BlueGreenPhase;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenRole;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenStatus;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
-// Hold JDBC call execution till BG is completed.
-public class HoldExecuteRouting extends BaseExecuteRouting {
+// Suspend new connection opening till BG is completed.
+public class SuspendConnectRouting extends BaseConnectRouting {
 
-  private static final Logger LOGGER = Logger.getLogger(HoldExecuteRouting.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(SuspendConnectRouting.class.getName());
 
-  protected static final String TELEMETRY_SWITCHOVER = "Blue/Green switchover";
+  private static final String TELEMETRY_SWITCHOVER = "Blue/Green switchover";
+  private static final long SLEEP_TIME_MS = 100L;
 
   protected String bgdId;
 
-  public HoldExecuteRouting(@Nullable String hostAndPort, @Nullable BlueGreenRole role, final String bgdId) {
+  public SuspendConnectRouting(@Nullable String hostAndPort, @Nullable BlueGreenRole role, final String bgdId) {
     super(hostAndPort, role);
     this.bgdId = bgdId;
   }
 
   @Override
-  public <T, E extends Exception> @NonNull Optional<T> apply(
-      final ConnectionPlugin plugin,
-      final Class<T> resultClass,
-      final Class<E> exceptionClass,
-      final Object methodInvokeOn,
-      final String methodName,
-      final JdbcCallable<T, E> jdbcMethodFunc,
-      final Object[] jdbcMethodArgs,
-      final PluginService pluginService,
-      final Properties props) throws E {
+  public Connection apply(
+      ConnectionPlugin plugin,
+      HostSpec hostSpec,
+      Properties props,
+      boolean isInitialConnection,
+      JdbcCallable<Connection, SQLException> connectFunc,
+      PluginService pluginService)
+      throws SQLException {
 
-    LOGGER.finest(Messages.get("bgd.inProgressHoldMethod", new Object[] {methodName}));
+    LOGGER.finest(() -> Messages.get("bgd.inProgressHoldConnect"));
 
     TelemetryFactory telemetryFactory = pluginService.getTelemetryFactory();
-
-    long timeoutNano = TimeUnit.MILLISECONDS.toNanos(BG_CONNECT_TIMEOUT.getLong(props));
-    long holdStartTime = this.getNanoTime();
-    long holdEndTime;
-
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(TELEMETRY_SWITCHOVER,
         TelemetryTraceLevel.NESTED);
 
     BlueGreenStatus bgStatus = pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
 
-    try {
-      long endTime = this.getNanoTime() + timeoutNano;
+    long timeoutNano = TimeUnit.MILLISECONDS.toNanos(BG_CONNECT_TIMEOUT.getLong(props));
+    long holdStartTime = this.getNanoTime();
+    long endTime = this.getNanoTime() + timeoutNano;
 
+    try {
       while (this.getNanoTime() <= endTime
           && bgStatus != null
-          && bgStatus.getCurrentPhase() == BlueGreenPhases.IN_PROGRESS) {
+          && bgStatus.getCurrentPhase() == BlueGreenPhase.IN_PROGRESS) {
 
         try {
-          this.delay(100, bgStatus, pluginService, this.bgdId);
+          this.delay(SLEEP_TIME_MS, bgStatus, pluginService, this.bgdId);
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           throw new RuntimeException(e);
@@ -93,16 +89,12 @@ public class HoldExecuteRouting extends BaseExecuteRouting {
         bgStatus = pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
       }
 
-      holdEndTime = this.getNanoTime();
-
-      if (bgStatus != null && bgStatus.getCurrentPhase() == BlueGreenPhases.IN_PROGRESS) {
-        throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass,
-            new SQLTimeoutException(Messages.get("bgd.stillInProgressTryMethodLater",
-                new Object[] {BG_CONNECT_TIMEOUT.getLong(props), methodName})));
+      if (bgStatus != null && bgStatus.getCurrentPhase() == BlueGreenPhase.IN_PROGRESS) {
+        throw new SQLTimeoutException(
+                Messages.get("bgd.inProgressTryConnectLater", new Object[] {BG_CONNECT_TIMEOUT.getLong(props)}));
       }
-      LOGGER.finest(() -> Messages.get("bgd.switchoverCompletedContinueWithMethod", new Object[] {
-          methodName,
-          TimeUnit.NANOSECONDS.toMillis(holdEndTime - holdStartTime)}));
+      LOGGER.finest(Messages.get("bgd.switchoverCompleteContinueWithConnect",
+              new Object[] {TimeUnit.NANOSECONDS.toMillis(this.getNanoTime() - holdStartTime)}));
 
     } finally {
       if (telemetryContext != null) {
@@ -110,7 +102,7 @@ public class HoldExecuteRouting extends BaseExecuteRouting {
       }
     }
 
-    // returning no results so the next routing can handle it
-    return Optional.empty();
+    // returning no connection so the next routing can handle it
+    return null;
   }
 }

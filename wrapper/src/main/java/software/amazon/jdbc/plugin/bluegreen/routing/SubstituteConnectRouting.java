@@ -34,6 +34,7 @@ import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.Utils;
 
 /**
  * Open a new connection to a provided substitute host.
@@ -61,54 +62,57 @@ public class SubstituteConnectRouting extends BaseConnectRouting {
   public Connection apply(ConnectionPlugin plugin, HostSpec hostSpec, Properties props, boolean isInitialConnection,
       JdbcCallable<Connection, SQLException> connectFunc, PluginService pluginService) throws SQLException {
 
-    if (RDS_UTILS.isIP(this.substituteHostSpec.getHost())) {
-      boolean iamInUse = pluginService.isPluginInUse(IamAuthConnectionPlugin.class);
+    if (!RDS_UTILS.isIP(this.substituteHostSpec.getHost())) {
+      return pluginService.connect(this.substituteHostSpec, props, plugin);
+    }
 
-      if (iamInUse && (this.iamHosts == null || this.iamHosts.isEmpty())) {
-        throw new SQLException(Messages.get("bgd.requireIamHost"));
+    boolean iamInUse = pluginService.isPluginInUse(IamAuthConnectionPlugin.class);
+
+    if (!iamInUse) {
+      return pluginService.connect(this.substituteHostSpec, props, plugin);
+    }
+
+    if (Utils.isNullOrEmpty(this.iamHosts)) {
+      throw new SQLException(Messages.get("bgd.requireIamHost"));
+    }
+
+    for (HostSpec iamHost : this.iamHosts) {
+      HostSpec reroutedHostSpec = pluginService.getHostSpecBuilder().copyFrom(this.substituteHostSpec)
+          .hostId(iamHost.getHostId())
+          .availability(HostAvailability.AVAILABLE)
+          .build();
+      reroutedHostSpec.addAlias(iamHost.getHost());
+
+      final Properties rerouteProperties = PropertyUtils.copyProperties(props);
+      IamAuthConnectionPlugin.IAM_HOST.set(rerouteProperties, iamHost.getHost());
+      if (iamHost.isPortSpecified()) {
+        IamAuthConnectionPlugin.IAM_DEFAULT_PORT.set(rerouteProperties, String.valueOf(iamHost.getPort()));
       }
 
-      if (iamInUse) {
-        for (HostSpec iamHost : this.iamHosts) {
-          HostSpec reroutedHostSpec = pluginService.getHostSpecBuilder().copyFrom(this.substituteHostSpec)
-              .hostId(iamHost.getHost())
-              .availability(HostAvailability.AVAILABLE)
-              .build();
-          reroutedHostSpec.addAlias(iamHost.getHost());
+      try {
+        Connection conn = pluginService.connect(reroutedHostSpec, rerouteProperties);
 
-          final Properties rerouteProperties = PropertyUtils.copyProperties(props);
-          IamAuthConnectionPlugin.IAM_HOST.set(rerouteProperties, iamHost.getHost());
-          if (iamHost.isPortSpecified()) {
-            IamAuthConnectionPlugin.IAM_DEFAULT_PORT.set(rerouteProperties, String.valueOf(iamHost.getPort()));
-          }
-
+        if (this.iamSuccessfulConnectNotify != null) {
           try {
-            Connection conn = pluginService.connect(reroutedHostSpec, rerouteProperties);
-
-            if (this.iamSuccessfulConnectNotify != null) {
-              try {
-                this.iamSuccessfulConnectNotify.notify(iamHost.getHost());
-              } catch (Exception ex) {
-                // do nothing
-              }
-            }
-
-            return conn;
-
-          } catch (SQLException sqlException) {
-            if (!pluginService.isLoginException(sqlException, pluginService.getTargetDriverDialect())) {
-              throw sqlException;
-            }
+            this.iamSuccessfulConnectNotify.notify(iamHost.getHost());
+          } catch (Exception ex) {
             // do nothing
-            // try with another IAM host
           }
         }
 
-        throw new SQLException(Messages.get("bgd.inProgressCantOpenConnection",
-            new Object[] {this.substituteHostSpec.getHostAndPort()}));
+        return conn;
+
+      } catch (SQLException sqlException) {
+        if (!pluginService.isLoginException(sqlException, pluginService.getTargetDriverDialect())) {
+          throw sqlException;
+        }
+        // do nothing
+        // try with another IAM host
       }
     }
-    return pluginService.connect(this.substituteHostSpec, props, plugin);
+
+    throw new SQLException(Messages.get("bgd.inProgressCantOpenConnection",
+        new Object[] {this.substituteHostSpec.getHostAndPort()}));
   }
 
   @Override

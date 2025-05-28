@@ -31,7 +31,7 @@ import software.amazon.jdbc.util.DriverInfo;
  * - Multi-AZ DB Instance
  * - Single DB Instance
  */
-public class RdsPgDialect extends PgDialect implements SupportBlueGreen {
+public class RdsPgDialect extends PgDialect implements BlueGreenDialect {
 
   private static final Logger LOGGER = Logger.getLogger(RdsPgDialect.class.getName());
 
@@ -101,7 +101,7 @@ public class RdsPgDialect extends PgDialect implements SupportBlueGreen {
   }
 
   @Override
-  public boolean isStatusAvailable(final Connection connection) {
+  public boolean isBlueGreenStatusAvailable(final Connection connection) {
     try {
       try (Statement statement = connection.createStatement();
           ResultSet rs = statement.executeQuery(TOPOLOGY_TABLE_EXIST_QUERY)) {

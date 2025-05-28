@@ -26,7 +26,7 @@ import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 
-public class AuroraMysqlDialect extends MysqlDialect implements SupportBlueGreen {
+public class AuroraMysqlDialect extends MysqlDialect implements BlueGreenDialect {
 
   private static final String TOPOLOGY_QUERY =
       "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
@@ -117,7 +117,7 @@ public class AuroraMysqlDialect extends MysqlDialect implements SupportBlueGreen
   }
 
   @Override
-  public boolean isStatusAvailable(final Connection connection) {
+  public boolean isBlueGreenStatusAvailable(final Connection connection) {
     try {
       try (Statement statement = connection.createStatement();
           ResultSet rs = statement.executeQuery(TOPOLOGY_TABLE_EXIST_QUERY)) {

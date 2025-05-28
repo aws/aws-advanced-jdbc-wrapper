@@ -28,6 +28,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.plugin.bluegreen.routing.ConnectRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.ExecuteRouting;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.StringUtils;
 
 // It should be immutable
@@ -36,32 +37,37 @@ public class BlueGreenStatus {
   private static final Logger LOGGER = Logger.getLogger(BlueGreenStatus.class.getName());
 
   private final String bgdId;
-  private final BlueGreenPhases currentPhase;
+  private final BlueGreenPhase currentPhase;
   private final List<ConnectRouting> unmodifiableConnectRouting;
   private final List<ExecuteRouting> unmodifiableExecuteRouting;
 
-  // all known endpoints; host and port
-  private final Map<String, BlueGreenRole> roleByEndpoint = new ConcurrentHashMap<>();
+  // all known host names; host with no port
+  private final Map<String, BlueGreenRole> roleByHost = new ConcurrentHashMap<>();
 
-  public BlueGreenStatus(final String bgdId, final BlueGreenPhases phase) {
-    this(bgdId, phase, new ArrayList<>(), new ArrayList<>(), new HashMap<>());
+  private final Map<String, Pair<HostSpec, HostSpec>> correspondingNodes = new ConcurrentHashMap<>();
+
+
+  public BlueGreenStatus(final String bgdId, final BlueGreenPhase phase) {
+    this(bgdId, phase, new ArrayList<>(), new ArrayList<>(), new HashMap<>(), new HashMap<>());
   }
 
   public BlueGreenStatus(
       final String bgdId,
-      final BlueGreenPhases phase,
+      final BlueGreenPhase phase,
       final List<ConnectRouting> connectRouting,
       final List<ExecuteRouting> executeRouting,
-      final Map<String, BlueGreenRole> roleByEndpoint) {
+      final Map<String, BlueGreenRole> roleByHost,
+      final Map<String, Pair<HostSpec, HostSpec>> correspondingNodes) {
 
     this.bgdId = bgdId;
     this.currentPhase = phase;
     this.unmodifiableConnectRouting = Collections.unmodifiableList(new ArrayList<>(connectRouting));
     this.unmodifiableExecuteRouting = Collections.unmodifiableList(new ArrayList<>(executeRouting));
-    this.roleByEndpoint.putAll(roleByEndpoint);
+    this.roleByHost.putAll(roleByHost);
+    this.correspondingNodes.putAll(correspondingNodes);
   }
 
-  public @NonNull BlueGreenPhases getCurrentPhase() {
+  public @NonNull BlueGreenPhase getCurrentPhase() {
     return this.currentPhase;
   }
 
@@ -73,17 +79,21 @@ public class BlueGreenStatus {
     return this.unmodifiableExecuteRouting;
   }
 
-  public Map<String, BlueGreenRole> getRoleByEndpoint() {
-    return this.roleByEndpoint;
+  public Map<String, BlueGreenRole> getRoleByHost() {
+    return this.roleByHost;
+  }
+
+  public Map<String, Pair<HostSpec, HostSpec>> getCorrespondingNodes() {
+    return this.correspondingNodes;
   }
 
   public BlueGreenRole getRole(HostSpec hostSpec) {
-    return this.roleByEndpoint.get(hostSpec.getHost().toLowerCase());
+    return this.roleByHost.get(hostSpec.getHost().toLowerCase());
   }
 
   @Override
   public String toString() {
-    String roleByEndpointMap = this.roleByEndpoint.entrySet().stream()
+    String roleByHostMap = this.roleByHost.entrySet().stream()
         .map(x -> String.format("%s -> %s", x.getKey(), x.getValue()))
         .collect(Collectors.joining("\n   "));
     String connectRoutingStr = this.unmodifiableConnectRouting.stream().map(Object::toString)
@@ -98,7 +108,7 @@ public class BlueGreenStatus {
             + "   %s \n"
             + " Execute routing: \n"
             + "   %s \n"
-            + " roleByEndpoint: \n"
+            + " roleByHost: \n"
             + "   %s \n"
             + "]",
         super.toString(),
@@ -106,6 +116,6 @@ public class BlueGreenStatus {
         this.currentPhase,
         StringUtils.isNullOrEmpty(connectRoutingStr) ? "-" : connectRoutingStr,
         StringUtils.isNullOrEmpty(executeRoutingStr) ? "-" : executeRoutingStr,
-        StringUtils.isNullOrEmpty(roleByEndpointMap) ? "-" : roleByEndpointMap);
+        StringUtils.isNullOrEmpty(roleByHostMap) ? "-" : roleByHostMap);
   }
 }

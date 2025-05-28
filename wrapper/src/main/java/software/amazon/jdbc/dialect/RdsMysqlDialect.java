@@ -24,7 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import software.amazon.jdbc.util.StringUtils;
 
-public class RdsMysqlDialect extends MysqlDialect implements SupportBlueGreen {
+public class RdsMysqlDialect extends MysqlDialect implements BlueGreenDialect {
 
   private static final String BG_STATUS_QUERY =
       "SELECT * FROM mysql.rds_topology";
@@ -41,15 +41,19 @@ public class RdsMysqlDialect extends MysqlDialect implements SupportBlueGreen {
   public boolean isDialect(final Connection connection) {
     if (super.isDialect(connection)) {
       // MysqlDialect and RdsMysqlDialect use the same server version query to determine the dialect.
-      // The `SHOW VARIABLES LIKE 'version_comment'` either outputs
+      //
+      // For community Mysql:
+      // SHOW VARIABLES LIKE 'version_comment'
       // | Variable_name   | value                                            |
       // |-----------------|--------------------------------------------------|
-      // | version_comment | MySQL Community Server (GPL) for community Mysql |
-      // or
+      // | version_comment | MySQL Community Server (GPL) |
+      //
+      // For RDS MySQL:
+      // SHOW VARIABLES LIKE 'version_comment'
       // | Variable_name   | value               |
       // |-----------------|---------------------|
       // | version_comment | Source distribution |
-      // for RDS MySQL. If super.idDialect returns true there is no need to check for RdsMysqlDialect.
+      // If super.idDialect returns true there is no need to check for RdsMysqlDialect.
       return false;
     }
     Statement stmt = null;
@@ -62,7 +66,7 @@ public class RdsMysqlDialect extends MysqlDialect implements SupportBlueGreen {
         return false;
       }
       final String columnValue = rs.getString(2);
-      if ("Source distribution".equalsIgnoreCase(columnValue)) {
+      if (!"Source distribution".equalsIgnoreCase(columnValue)) {
         return false;
       }
 
@@ -106,7 +110,7 @@ public class RdsMysqlDialect extends MysqlDialect implements SupportBlueGreen {
   }
 
   @Override
-  public boolean isStatusAvailable(final Connection connection) {
+  public boolean isBlueGreenStatusAvailable(final Connection connection) {
     try {
       try (Statement statement = connection.createStatement();
           ResultSet rs = statement.executeQuery(TOPOLOGY_TABLE_EXIST_QUERY)) {

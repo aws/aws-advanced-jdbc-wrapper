@@ -136,11 +136,11 @@ public class DialectDetectionTests {
     when(mockStatement.executeQuery(any())).thenReturn(failResultSet);
     when(mockStatement.executeQuery("SHOW VARIABLES LIKE 'version_comment'")).thenReturn(successResultSet);
     when(mockStatement.executeQuery("SHOW VARIABLES LIKE 'report_host'")).thenReturn(successResultSet);
-    when(successResultSet.getString(1)).thenReturn("Source distribution");
+    when(successResultSet.getString(2)).thenReturn(
+        "Source distribution", "Source distribution", "");
     when(successResultSet.next()).thenReturn(true, false, true, true);
     when(successResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
     when(failResultSet.next()).thenReturn(false);
-    when(mockResultSetMetaData.getColumnCount()).thenReturn(1);
     final PluginServiceImpl target = getPluginService(LOCALHOST, MYSQL_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
@@ -240,11 +240,11 @@ public class DialectDetectionTests {
     when(mockStatement.executeQuery(any())).thenReturn(failResultSet);
     when(mockStatement.executeQuery("SHOW VARIABLES LIKE 'version_comment'")).thenReturn(successResultSet);
     when(mockStatement.executeQuery("SHOW VARIABLES LIKE 'report_host'")).thenReturn(successResultSet);
-    when(successResultSet.getString(1)).thenReturn("Source distribution");
+    when(successResultSet.getString(2)).thenReturn(
+        "Source distribution", "Source distribution", "");
     when(successResultSet.next()).thenReturn(true, false, true, true);
     when(successResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
     when(failResultSet.next()).thenReturn(false);
-    when(mockResultSetMetaData.getColumnCount()).thenReturn(1);
     final PluginServiceImpl target = getPluginService(LOCALHOST, MARIA_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);

@@ -470,17 +470,17 @@ public class RdsUtilsTests {
 
   @Test
   public void testNoPrefixInstanceHostName() {
-    assertTrue(target.isNoPrefixInstance("test-instance"));
-    assertTrue(target.isNoPrefixInstance("test-instance.domain.com"));
-    assertTrue(target.isNoPrefixInstance("test-instance-green.domain.com"));
-    assertTrue(target.isNoPrefixInstance("test-instance-green-1.domain.com"));
-    assertTrue(target.isNoPrefixInstance("test-instance-green-12345.domain.com"));
-    assertFalse(target.isNoPrefixInstance("test-instance-green-abcdef.domain.com"));
-    assertTrue(target.isNoPrefixInstance("test-instance-green-abcdef-.domain.com"));
-    assertTrue(target.isNoPrefixInstance("test-instance-green-abcdef-12345.domain.com"));
-    assertTrue(target.isNoPrefixInstance("test-instance-green-abcdef-12345-green.domain.com"));
-    assertTrue(target.isNoPrefixInstance("test-instance-green-abcdef-12345-green-00000.domain.com"));
-    assertFalse(target.isNoPrefixInstance("test-instance-green-abcdef-12345-green-000000.domain.com"));
+    assertTrue(target.isNotGreenAndOldPrefixInstance("test-instance"));
+    assertTrue(target.isNotGreenAndOldPrefixInstance("test-instance.domain.com"));
+    assertTrue(target.isNotGreenAndOldPrefixInstance("test-instance-green.domain.com"));
+    assertTrue(target.isNotGreenAndOldPrefixInstance("test-instance-green-1.domain.com"));
+    assertTrue(target.isNotGreenAndOldPrefixInstance("test-instance-green-12345.domain.com"));
+    assertFalse(target.isNotGreenAndOldPrefixInstance("test-instance-green-abcdef.domain.com"));
+    assertTrue(target.isNotGreenAndOldPrefixInstance("test-instance-green-abcdef-.domain.com"));
+    assertTrue(target.isNotGreenAndOldPrefixInstance("test-instance-green-abcdef-12345.domain.com"));
+    assertTrue(target.isNotGreenAndOldPrefixInstance("test-instance-green-abcdef-12345-green.domain.com"));
+    assertTrue(target.isNotGreenAndOldPrefixInstance("test-instance-green-abcdef-12345-green-00000.domain.com"));
+    assertFalse(target.isNotGreenAndOldPrefixInstance("test-instance-green-abcdef-12345-green-000000.domain.com"));
   }
 
   @Test

@@ -46,8 +46,9 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
   private static final Logger LOGGER = Logger.getLogger(BlueGreenConnectionPlugin.class.getName());
+
   public static final AwsWrapperProperty BG_CONNECT_TIMEOUT = new AwsWrapperProperty(
-      "bgConnectTimeout", "30000",
+      "bgConnectTimeoutMs", "30000",
       "Connect timeout (in msec) during Blue/Green Deployment switchover.");
 
   public static final AwsWrapperProperty BGD_ID = new AwsWrapperProperty(
@@ -66,13 +67,24 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
           "ResultSet.close"
       )));
 
+  protected static final Set<String> subscribedMethods =
+      Collections.unmodifiableSet(new HashSet<String>() {
+        {
+          /*
+           We should NOT subscribe to "forceConnect" pipeline since it's used by
+           BG monitoring, and we don't want to intercept/block those monitoring connections.
+          */
+          add("connect");
+          addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
+        }
+      });
+
   static {
     PropertyDefinition.registerPluginProperties(BlueGreenConnectionPlugin.class);
   }
 
   protected final PluginService pluginService;
   protected final Properties props;
-  protected final Set<String> subscribedMethods;
   protected BlueGreenProviderSupplier providerSupplier;
 
   protected final TelemetryFactory telemetryFactory;
@@ -102,20 +114,11 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
     this.telemetryFactory = pluginService.getTelemetryFactory();
     this.providerSupplier = providerSupplier;
     this.bgdId = Objects.requireNonNull(BGD_ID.getString(this.props)).trim().toLowerCase();
-
-    final Set<String> methods = new HashSet<>();
-    /*
-     We should NOT to subscribe to "forceConnect" pipeline since it's used by
-     BG monitoring, and we don't want to intercept/block those monitoring connections.
-    */
-    methods.add("connect");
-    methods.addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
-    this.subscribedMethods = Collections.unmodifiableSet(methods);
   }
 
   @Override
   public Set<String> getSubscribedMethods() {
-    return this.subscribedMethods;
+    return subscribedMethods;
   }
 
   @Override
@@ -127,7 +130,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
-    this.resetHoldTimeNano();
+    this.resetRoutingTimeNano();
 
     try {
 
@@ -154,9 +157,11 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
           .findFirst()
           .orElse(null);
 
-      if (routing != null) {
-        this.startTimeNano.set(this.getNanoTime());
+      if (routing == null) {
+        return regularOpenConnection(connectFunc, isInitialConnection);
       }
+
+      this.startTimeNano.set(this.getNanoTime());
 
       while (routing != null && conn == null) {
         conn = routing.apply(
@@ -166,8 +171,6 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
             isInitialConnection,
             connectFunc,
             this.pluginService);
-
-        this.endTimeNano.set(this.getNanoTime());
 
         if (conn == null) {
 
@@ -180,8 +183,9 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
         }
       }
 
+      this.endTimeNano.set(this.getNanoTime());
+
       if (conn == null) {
-        this.endTimeNano.set(this.getNanoTime());
         conn = connectFunc.call();
       }
 
@@ -223,7 +227,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
       final Object[] jdbcMethodArgs)
       throws E {
 
-    this.resetHoldTimeNano();
+    this.resetRoutingTimeNano();
 
     try {
       this.initProvider();
@@ -252,9 +256,11 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
           .findFirst()
           .orElse(null);
 
-      if (routing != null) {
-        this.startTimeNano.set(this.getNanoTime());
+      if (routing == null) {
+        return jdbcMethodFunc.call();
       }
+
+      this.startTimeNano.set(this.getNanoTime());
 
       while (routing != null && !result.isPresent()) {
         result = routing.apply(
@@ -267,8 +273,6 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
             jdbcMethodArgs,
             this.pluginService,
             this.props);
-
-        this.endTimeNano.set(this.getNanoTime());
 
         if (!result.isPresent()) {
 
@@ -314,7 +318,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
             : (this.endTimeNano.get() - this.startTimeNano.get()));
   }
 
-  public void resetHoldTimeNano() {
+  public void resetRoutingTimeNano() {
     this.startTimeNano.set(0);
     this.endTimeNano.set(0);
   }
