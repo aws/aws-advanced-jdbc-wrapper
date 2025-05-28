@@ -18,10 +18,13 @@ package software.amazon.jdbc.plugin.efm2;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.HashSet;
 import java.util.Properties;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.ExecutorFactory;
@@ -38,6 +41,11 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 public class HostMonitorServiceImpl implements HostMonitorService {
 
   private static final Logger LOGGER = Logger.getLogger(HostMonitorServiceImpl.class.getName());
+  public static final AwsWrapperProperty MONITOR_DISPOSAL_TIME_MS =
+      new AwsWrapperProperty(
+          "monitorDisposalTime",
+          "600000", // 10min
+          "Interval in milliseconds for a monitor to be considered inactive and to be disposed.");
   protected static final Executor ABORT_EXECUTOR =
       ExecutorFactory.newSingleThreadExecutor("abort");
 
@@ -47,33 +55,19 @@ public class HostMonitorServiceImpl implements HostMonitorService {
   protected final TelemetryFactory telemetryFactory;
   protected final TelemetryCounter abortedConnectionsCounter;
 
-  public HostMonitorServiceImpl(final @NonNull FullServicesContainer serviceContainer) {
-    this(
-        serviceContainer,
-        (hostSpec,
-            properties,
-            failureDetectionTimeMillis,
-            failureDetectionIntervalMillis,
-            failureDetectionCount,
-            abortedConnectionsCounter) ->
-            new HostMonitorImpl(
-                serviceContainer.getPluginService(),
-                hostSpec,
-                properties,
-                failureDetectionTimeMillis,
-                failureDetectionIntervalMillis,
-                failureDetectionCount,
-                abortedConnectionsCounter));
-  }
-
-  HostMonitorServiceImpl(
-      final @NonNull FullServicesContainer serviceContainer,
-      final @NonNull HostMonitorInitializer monitorInitializer) {
+  public HostMonitorServiceImpl(final @NonNull FullServicesContainer serviceContainer, Properties props) {
     this.serviceContainer = serviceContainer;
     this.coreMonitorService = serviceContainer.getMonitorService();
     this.pluginService = serviceContainer.getPluginService();
     this.telemetryFactory = serviceContainer.getTelemetryFactory();
     this.abortedConnectionsCounter = telemetryFactory.createCounter("efm2.connections.aborted");
+
+    this.coreMonitorService.registerMonitorTypeIfAbsent(
+        HostMonitorImpl.class,
+        TimeUnit.MILLISECONDS.toNanos(MONITOR_DISPOSAL_TIME_MS.getLong(props)),
+        TimeUnit.MINUTES.toNanos(1),
+        new HashSet<>(),
+        null);
   }
 
   public static void closeAllMonitors() {

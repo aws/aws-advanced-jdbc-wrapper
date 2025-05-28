@@ -102,7 +102,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     this(
         servicesContainer,
         properties,
-        () -> new HostMonitorServiceImpl(servicesContainer),
+        () -> new HostMonitorServiceImpl(servicesContainer, properties),
         new RdsUtils());
   }
 
