@@ -16,7 +16,7 @@
 
 package software.amazon.jdbc.plugin.bluegreen;
 
-public enum IntervalType {
+public enum BlueGreenIntervalRate {
   BASELINE,
   INCREASED,
   HIGH

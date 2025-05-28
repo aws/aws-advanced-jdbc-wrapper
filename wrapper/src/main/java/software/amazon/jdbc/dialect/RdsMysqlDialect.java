@@ -24,7 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import software.amazon.jdbc.util.StringUtils;
 
-public class RdsMysqlDialect extends MysqlDialect implements SupportBlueGreen {
+public class RdsMysqlDialect extends MysqlDialect implements BlueGreenDialect {
 
   private static final String BG_STATUS_QUERY =
       "SELECT * FROM mysql.rds_topology";
@@ -106,7 +106,7 @@ public class RdsMysqlDialect extends MysqlDialect implements SupportBlueGreen {
   }
 
   @Override
-  public boolean isStatusAvailable(final Connection connection) {
+  public boolean isBlueGreenStatusAvailable(final Connection connection) {
     try {
       try (Statement statement = connection.createStatement();
           ResultSet rs = statement.executeQuery(TOPOLOGY_TABLE_EXIST_QUERY)) {

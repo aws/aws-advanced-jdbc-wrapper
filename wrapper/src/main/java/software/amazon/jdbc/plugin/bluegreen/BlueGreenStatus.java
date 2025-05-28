@@ -36,20 +36,20 @@ public class BlueGreenStatus {
   private static final Logger LOGGER = Logger.getLogger(BlueGreenStatus.class.getName());
 
   private final String bgdId;
-  private final BlueGreenPhases currentPhase;
+  private final BlueGreenPhase currentPhase;
   private final List<ConnectRouting> unmodifiableConnectRouting;
   private final List<ExecuteRouting> unmodifiableExecuteRouting;
 
-  // all known endpoints; host and port
+  // all known endpoints; host with no port
   private final Map<String, BlueGreenRole> roleByEndpoint = new ConcurrentHashMap<>();
 
-  public BlueGreenStatus(final String bgdId, final BlueGreenPhases phase) {
+  public BlueGreenStatus(final String bgdId, final BlueGreenPhase phase) {
     this(bgdId, phase, new ArrayList<>(), new ArrayList<>(), new HashMap<>());
   }
 
   public BlueGreenStatus(
       final String bgdId,
-      final BlueGreenPhases phase,
+      final BlueGreenPhase phase,
       final List<ConnectRouting> connectRouting,
       final List<ExecuteRouting> executeRouting,
       final Map<String, BlueGreenRole> roleByEndpoint) {
@@ -61,7 +61,7 @@ public class BlueGreenStatus {
     this.roleByEndpoint.putAll(roleByEndpoint);
   }
 
-  public @NonNull BlueGreenPhases getCurrentPhase() {
+  public @NonNull BlueGreenPhase getCurrentPhase() {
     return this.currentPhase;
   }
 

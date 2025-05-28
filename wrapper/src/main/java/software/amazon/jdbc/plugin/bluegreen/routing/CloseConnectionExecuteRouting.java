@@ -55,7 +55,7 @@ public class CloseConnectionExecuteRouting extends BaseExecuteRouting {
         pluginService.getCurrentConnection().close();
       }
 
-      throw new SQLException(Messages.get("bgd.inProgress"), "08001");
+      throw new SQLException(Messages.get("bgd.inProgressConnectionClosed"), "08001");
 
     } catch (SQLException ex) {
       throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, ex);

@@ -18,8 +18,8 @@ package software.amazon.jdbc.dialect;
 
 import java.sql.Connection;
 
-public interface SupportBlueGreen {
+public interface BlueGreenDialect {
   String getBlueGreenStatusQuery();
 
-  boolean isStatusAvailable(final Connection connection);
+  boolean isBlueGreenStatusAvailable(final Connection connection);
 }

@@ -42,15 +42,15 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.dialect.BlueGreenDialect;
 import software.amazon.jdbc.dialect.Dialect;
-import software.amazon.jdbc.dialect.SupportBlueGreen;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.plugin.bluegreen.routing.ConnectRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.ExecuteRouting;
-import software.amazon.jdbc.plugin.bluegreen.routing.HoldConnectRouting;
-import software.amazon.jdbc.plugin.bluegreen.routing.HoldExecuteRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.RejectConnectRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.SubstituteConnectRouting;
+import software.amazon.jdbc.plugin.bluegreen.routing.SuspendConnectRouting;
+import software.amazon.jdbc.plugin.bluegreen.routing.SuspendExecuteRouting;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
@@ -61,16 +61,17 @@ import software.amazon.jdbc.util.Utils;
 public class BlueGreenStatusProvider {
 
   private static final Logger LOGGER = Logger.getLogger(BlueGreenStatusProvider.class.getName());
-  public static final AwsWrapperProperty BG_INTERVAL_BASELINE = new AwsWrapperProperty(
-      "bgBaseline", "60000",
+
+  public static final AwsWrapperProperty BG_INTERVAL_BASELINE_MS = new AwsWrapperProperty(
+      "bgBaselineMs", "60000",
       "Baseline Blue/Green Deployment status checking interval (in msec).");
 
-  public static final AwsWrapperProperty BG_INTERVAL_INCREASED = new AwsWrapperProperty(
-      "bgIncreased", "1000",
+  public static final AwsWrapperProperty BG_INTERVAL_INCREASED_MS = new AwsWrapperProperty(
+      "bgIncreasedMs", "1000",
       "Increased Blue/Green Deployment status checking interval (in msec).");
 
-  public static final AwsWrapperProperty BG_INTERVAL_HIGH = new AwsWrapperProperty(
-      "bgHigh", "100",
+  public static final AwsWrapperProperty BG_INTERVAL_HIGH_MS = new AwsWrapperProperty(
+      "bgHighMs", "100",
       "High Blue/Green Deployment status checking interval (in msec).");
 
   private static final String MONITORING_PROPERTY_PREFIX = "blue-green-monitoring-";
@@ -78,11 +79,11 @@ public class BlueGreenStatusProvider {
   private static final String DEFAULT_SOCKET_TIMEOUT_MS = String.valueOf(TimeUnit.SECONDS.toMillis(10));
 
   public static final AwsWrapperProperty BG_SWITCHOVER_TIMEOUT = new AwsWrapperProperty(
-      "bgSwitchoverTimeout", "180000", // 3min
+      "bgSwitchoverTimeoutMs", "180000", // 3min
       "Blue/Green Deployment switchover timeout (in msec).");
 
-  public static final AwsWrapperProperty BG_HOLD_NEW_BLUE_CONNECTIONS = new AwsWrapperProperty(
-      "bgHoldNewBlueConnections", "false",
+  public static final AwsWrapperProperty BG_SUSPEND_NEW_BLUE_CONNECTIONS = new AwsWrapperProperty(
+      "bgSuspendNewBlueConnections", "false",
       "Enables Blue/Green Deployment switchover to suspend new blue connection requests"
           + " while the switchover process is in progress.");
 
@@ -100,7 +101,7 @@ public class BlueGreenStatusProvider {
   protected final Map<String, Set<String>> iamHostSuccessfulConnects = new ConcurrentHashMap<>();
   protected final Map<String, Instant> greenNodeChangeNameTimes = new ConcurrentHashMap<>();
   protected BlueGreenStatus summaryStatus = null;
-  protected BlueGreenPhases latestStatusPhase = BlueGreenPhases.NOT_CREATED;
+  protected BlueGreenPhase latestStatusPhase = BlueGreenPhase.NOT_CREATED;
 
   protected boolean rollback = false;
   protected boolean blueDnsUpdateCompleted = false;
@@ -108,11 +109,12 @@ public class BlueGreenStatusProvider {
   protected boolean greenTopologyChanged = false;
   protected final AtomicBoolean allGreenNodesChangedName = new AtomicBoolean(false);
   protected long postStatusEndTimeNano = 0;
-  protected final ReentrantLock monitorInitLock = new ReentrantLock();
   protected final ReentrantLock processStatusLock = new ReentrantLock();
-  protected final Map<IntervalType, Long> checkIntervalMap = new HashMap<>();
+
+  // Status check interval time in millis for each BlueGreenIntervalRate.
+  protected final Map<BlueGreenIntervalRate, Long> statusCheckIntervalMap = new HashMap<>();
   protected final long switchoverTimeoutNano;
-  protected final boolean holdNewBlueConnectionsWhenInProgress;
+  protected final boolean suspendNewBlueConnectionsWhenInProgress;
 
   protected final PluginService pluginService;
   protected final Properties props;
@@ -129,15 +131,15 @@ public class BlueGreenStatusProvider {
     this.props = props;
     this.bgdId = bgdId;
 
-    this.checkIntervalMap.put(IntervalType.BASELINE, BG_INTERVAL_BASELINE.getLong(props));
-    this.checkIntervalMap.put(IntervalType.INCREASED, BG_INTERVAL_INCREASED.getLong(props));
-    this.checkIntervalMap.put(IntervalType.HIGH, BG_INTERVAL_HIGH.getLong(props));
+    this.statusCheckIntervalMap.put(BlueGreenIntervalRate.BASELINE, BG_INTERVAL_BASELINE_MS.getLong(props));
+    this.statusCheckIntervalMap.put(BlueGreenIntervalRate.INCREASED, BG_INTERVAL_INCREASED_MS.getLong(props));
+    this.statusCheckIntervalMap.put(BlueGreenIntervalRate.HIGH, BG_INTERVAL_HIGH_MS.getLong(props));
 
     this.switchoverTimeoutNano = TimeUnit.MILLISECONDS.toNanos(BG_SWITCHOVER_TIMEOUT.getLong(props));
-    this.holdNewBlueConnectionsWhenInProgress = BG_HOLD_NEW_BLUE_CONNECTIONS.getBoolean(props);
+    this.suspendNewBlueConnectionsWhenInProgress = BG_SUSPEND_NEW_BLUE_CONNECTIONS.getBoolean(props);
 
     final Dialect dialect = this.pluginService.getDialect();
-    if (dialect instanceof SupportBlueGreen) {
+    if (dialect instanceof BlueGreenDialect) {
       this.initMonitoring();
     } else {
       LOGGER.warning(() -> Messages.get("bgd.unsupportedDialect",
@@ -146,35 +148,24 @@ public class BlueGreenStatusProvider {
   }
 
   protected void initMonitoring() {
-    if (monitors[BlueGreenRole.SOURCE.getValue()] == null || monitors[BlueGreenRole.TARGET.getValue()] == null) {
-      monitorInitLock.lock();
-      try {
-        if (monitors[BlueGreenRole.SOURCE.getValue()] == null) {
-          monitors[BlueGreenRole.SOURCE.getValue()] =
-              new BlueGreenStatusMonitor(
-                  BlueGreenRole.SOURCE,
-                  this.bgdId,
-                  this.pluginService.getCurrentHostSpec(),
-                  this.pluginService,
-                  this.getMonitoringProperties(),
-                  checkIntervalMap,
-                  this::prepareStatus);
-        }
-        if (monitors[BlueGreenRole.TARGET.getValue()] == null) {
-          monitors[BlueGreenRole.TARGET.getValue()] =
-              new BlueGreenStatusMonitor(
-                  BlueGreenRole.TARGET,
-                  this.bgdId,
-                  this.pluginService.getCurrentHostSpec(),
-                  this.pluginService,
-                  this.getMonitoringProperties(),
-                  checkIntervalMap,
-                  this::prepareStatus);
-        }
-      } finally {
-        monitorInitLock.unlock();
-      }
-    }
+    monitors[BlueGreenRole.SOURCE.getValue()] =
+        new BlueGreenStatusMonitor(
+            BlueGreenRole.SOURCE,
+            this.bgdId,
+            this.pluginService.getCurrentHostSpec(),
+            this.pluginService,
+            this.getMonitoringProperties(),
+            statusCheckIntervalMap,
+            this::prepareStatus);
+    monitors[BlueGreenRole.TARGET.getValue()] =
+        new BlueGreenStatusMonitor(
+            BlueGreenRole.TARGET,
+            this.bgdId,
+            this.pluginService.getCurrentHostSpec(),
+            this.pluginService,
+            this.getMonitoringProperties(),
+            statusCheckIntervalMap,
+            this::prepareStatus);
   }
 
   protected Properties getMonitoringProperties() {
@@ -203,7 +194,7 @@ public class BlueGreenStatusProvider {
     try {
 
       // Detect changes
-      int statusHash = this.getInterimStatusHash(interimStatus);
+      int statusHash = interimStatus == null ? 0 : interimStatus.getCustomHashCode();
       int contextHash = this.getContextHash();
       if (this.interimStatusHashes[role.getValue()] == statusHash
           && this.lastContextHash == contextHash) {
@@ -247,8 +238,8 @@ public class BlueGreenStatusProvider {
 
   protected void updatePhase(BlueGreenRole role, BlueGreenInterimStatus interimStatus) {
 
-    BlueGreenPhases latestInterimPhase = this.interimStatuses[role.getValue()] == null
-        ? BlueGreenPhases.NOT_CREATED
+    BlueGreenPhase latestInterimPhase = this.interimStatuses[role.getValue()] == null
+        ? BlueGreenPhase.NOT_CREATED
         : this.interimStatuses[role.getValue()].blueGreenPhase;
 
     if (latestInterimPhase != null
@@ -258,16 +249,18 @@ public class BlueGreenStatusProvider {
       LOGGER.finest(() -> Messages.get("bgd.rollback", new Object[] {this.bgdId}));
     }
 
+    if (interimStatus.blueGreenPhase == null) {
+      return;
+    }
+
     // Do not allow status moves backward (unless it's rollback).
     // That could be caused by updating blue/green nodes delays.
     if (!this.rollback) {
-      if (interimStatus.blueGreenPhase != null
-          && interimStatus.blueGreenPhase.getValue() >= this.latestStatusPhase.getValue()) {
+      if (interimStatus.blueGreenPhase.getValue() >= this.latestStatusPhase.getValue()) {
         this.latestStatusPhase = interimStatus.blueGreenPhase;
       }
     } else {
-      if (interimStatus.blueGreenPhase != null
-          && interimStatus.blueGreenPhase.getValue() < this.latestStatusPhase.getValue()) {
+      if (interimStatus.blueGreenPhase.getValue() < this.latestStatusPhase.getValue()) {
         this.latestStatusPhase = interimStatus.blueGreenPhase;
       }
     }
@@ -278,7 +271,7 @@ public class BlueGreenStatusProvider {
     this.pluginService.setStatus(BlueGreenStatus.class, this.summaryStatus, this.bgdId);
     this.storePhaseTime(this.summaryStatus.getCurrentPhase());
 
-    // Notify all waiting threads that status is changed.
+    // Notify all waiting threads that status is updated.
     // Those waiting threads are waiting on an existing status so we need to notify on it.
     if (latestStatus != null) {
       //noinspection SynchronizationOnLocalVariableOrMethodParameter
@@ -301,29 +294,10 @@ public class BlueGreenStatusProvider {
         && this.interimStatuses[BlueGreenRole.TARGET.getValue()] != null
         && !Utils.isNullOrEmpty(this.interimStatuses[BlueGreenRole.TARGET.getValue()].startTopology)) {
 
-      HostSpec blueWriterHostSpec =
-          this.interimStatuses[BlueGreenRole.SOURCE.getValue()].startTopology.stream()
-              .filter(x -> x.getRole() == HostRole.WRITER)
-              .findFirst()
-              .orElse(null);
-
-      HostSpec greenWriterHostSpec =
-          this.interimStatuses[BlueGreenRole.TARGET.getValue()].startTopology.stream()
-              .filter(x -> x.getRole() == HostRole.WRITER)
-              .findFirst()
-              .orElse(null);
-
-      List<HostSpec> sortedBlueReaderHostSpecs =
-          this.interimStatuses[BlueGreenRole.SOURCE.getValue()].startTopology.stream()
-              .filter(x -> x.getRole() != HostRole.WRITER)
-              .sorted(Comparator.comparing(HostSpec::getHost))
-              .collect(Collectors.toList());
-
-      List<HostSpec> sortedGreenReaderHostSpecs =
-          this.interimStatuses[BlueGreenRole.TARGET.getValue()].startTopology.stream()
-              .filter(x -> x.getRole() != HostRole.WRITER)
-              .sorted(Comparator.comparing(HostSpec::getHost))
-              .collect(Collectors.toList());
+      HostSpec blueWriterHostSpec = getWriterHost(BlueGreenRole.SOURCE);
+      HostSpec greenWriterHostSpec = getWriterHost(BlueGreenRole.TARGET);
+      List<HostSpec> sortedBlueReaderHostSpecs = getReaderHosts(BlueGreenRole.SOURCE);
+      List<HostSpec> sortedGreenReaderHostSpecs = getReaderHosts(BlueGreenRole.TARGET);
 
       if (blueWriterHostSpec != null) {
         if (greenWriterHostSpec != null) {
@@ -337,11 +311,19 @@ public class BlueGreenStatusProvider {
         }
       }
 
-      int greenIndex = 0;
-      for (HostSpec blueHostSpec : sortedBlueReaderHostSpecs) {
-        this.correspondingNodes.put(
-            blueHostSpec.getHost(), Pair.create(blueHostSpec, sortedGreenReaderHostSpecs.get(greenIndex++)));
-        greenIndex %= sortedGreenReaderHostSpecs.size();
+      if (!sortedGreenReaderHostSpecs.isEmpty()) {
+        int greenIndex = 0;
+        for (HostSpec blueHostSpec : sortedBlueReaderHostSpecs) {
+          this.correspondingNodes.put(
+              blueHostSpec.getHost(), Pair.create(blueHostSpec, sortedGreenReaderHostSpecs.get(greenIndex++)));
+          greenIndex %= sortedGreenReaderHostSpecs.size();
+        }
+      } else {
+        // There's no green reader nodes. We have to map all blue reader nodes to a green writer.
+        for (HostSpec blueHostSpec : sortedBlueReaderHostSpecs) {
+          this.correspondingNodes.put(
+              blueHostSpec.getHost(), Pair.create(blueHostSpec, greenWriterHostSpec));
+        }
       }
     }
 
@@ -389,7 +371,8 @@ public class BlueGreenStatusProvider {
         if (customClusterName != null) {
           greenEndpoints.stream()
               .filter(x -> this.rdsUtils.isRdsCustomClusterDns(x)
-                  && x.startsWith(customClusterName))
+                  && customClusterName.equals(
+                      this.rdsUtils.removeGreenInstancePrefix(this.rdsUtils.getRdsClusterId(x))))
               .findFirst()
               .ifPresent(y -> this.correspondingNodes.putIfAbsent(blueEndpoint,
                   Pair.create(
@@ -400,10 +383,24 @@ public class BlueGreenStatusProvider {
     }
   }
 
+  protected HostSpec getWriterHost(final BlueGreenRole role) {
+    return this.interimStatuses[role.getValue()].startTopology.stream()
+        .filter(x -> x.getRole() == HostRole.WRITER)
+        .findFirst()
+        .orElse(null);
+  }
+
+  protected List<HostSpec> getReaderHosts(final BlueGreenRole role) {
+    return this.interimStatuses[role.getValue()].startTopology.stream()
+        .filter(x -> x.getRole() != HostRole.WRITER)
+        .sorted(Comparator.comparing(HostSpec::getHost))
+        .collect(Collectors.toList());
+  }
+
   protected void updateSummaryStatus(BlueGreenRole role, BlueGreenInterimStatus interimStatus) {
     switch (this.latestStatusPhase) {
       case NOT_CREATED:
-        this.summaryStatus = new BlueGreenStatus(this.bgdId, BlueGreenPhases.NOT_CREATED);
+        this.summaryStatus = new BlueGreenStatus(this.bgdId, BlueGreenPhase.NOT_CREATED);
         break;
       case CREATED:
         this.updateDnsFlags(role, interimStatus);
@@ -436,7 +433,7 @@ public class BlueGreenStatusProvider {
     switch (this.summaryStatus.getCurrentPhase()) {
       case NOT_CREATED:
         Arrays.stream(this.monitors).forEach(x -> {
-          x.setIntervalType(IntervalType.BASELINE);
+          x.setIntervalRate(BlueGreenIntervalRate.BASELINE);
           x.setCollectIpAddresses(false);
           x.setCollectTopology(false);
           x.setUseIpAddress(false);
@@ -444,7 +441,7 @@ public class BlueGreenStatusProvider {
         break;
       case CREATED:
         Arrays.stream(this.monitors).forEach(x -> {
-          x.setIntervalType(IntervalType.INCREASED);
+          x.setIntervalRate(BlueGreenIntervalRate.INCREASED);
           x.setCollectIpAddresses(true);
           x.setCollectTopology(true);
           x.setUseIpAddress(false);
@@ -457,7 +454,7 @@ public class BlueGreenStatusProvider {
       case IN_PROGRESS:
       case POST:
         Arrays.stream(this.monitors).forEach(x -> {
-          x.setIntervalType(IntervalType.HIGH);
+          x.setIntervalRate(BlueGreenIntervalRate.HIGH);
           x.setCollectIpAddresses(false);
           x.setCollectTopology(false);
           x.setUseIpAddress(true);
@@ -465,7 +462,7 @@ public class BlueGreenStatusProvider {
         break;
       case COMPLETED:
         Arrays.stream(this.monitors).forEach(x -> {
-          x.setIntervalType(IntervalType.BASELINE);
+          x.setIntervalRate(BlueGreenIntervalRate.BASELINE);
           x.setCollectIpAddresses(false);
           x.setCollectTopology(false);
           x.setUseIpAddress(false);
@@ -574,7 +571,7 @@ public class BlueGreenStatusProvider {
   protected BlueGreenStatus getStatusOfCreated() {
     return new BlueGreenStatus(
         this.bgdId,
-        BlueGreenPhases.CREATED,
+        BlueGreenPhase.CREATED,
         new ArrayList<>(),
         new ArrayList<>(),
         this.roleByEndpoint);
@@ -598,10 +595,20 @@ public class BlueGreenStatusProvider {
       return this.getStatusOfCompleted();
     }
 
-    List<ConnectRouting> connectRouting = new ArrayList<>();
+    List<ConnectRouting> connectRouting = this.addSubstituteBlueWithIpAddressConnectRouting();
 
+    return new BlueGreenStatus(
+        this.bgdId,
+        BlueGreenPhase.PREPARATION,
+        connectRouting,
+        new ArrayList<>(),
+        this.roleByEndpoint);
+  }
+
+  protected List<ConnectRouting> addSubstituteBlueWithIpAddressConnectRouting() {
+    List<ConnectRouting> connectRouting = new ArrayList<>();
     this.roleByEndpoint.entrySet().stream()
-        .filter(x -> this.correspondingNodes.containsKey(x.getKey()))
+        .filter(x -> x.getValue() == BlueGreenRole.SOURCE && this.correspondingNodes.containsKey(x.getKey()))
         .forEach(x -> {
           HostSpec hostSpec = this.correspondingNodes.get(x.getKey()).getValue1();
           Optional<String> blueIp = this.hostIpAddresses.get(hostSpec.getHost());
@@ -625,21 +632,15 @@ public class BlueGreenStatusProvider {
               Collections.singletonList(hostSpec),
               null));
         });
-
-    return new BlueGreenStatus(
-        this.bgdId,
-        BlueGreenPhases.PREPARATION,
-        connectRouting,
-        new ArrayList<>(),
-        this.roleByEndpoint);
+    return connectRouting;
   }
 
   /**
-   * New connect requests to blue: route to corresponding IP address.
-   * New connect requests to green: route to corresponding IP address
-   * New connect requests with IP address: default behaviour; no routing
+   * New connect requests to blue: suspend or route to corresponding IP address (depending on settings).
+   * New connect requests to green: suspend
+   * New connect requests with IP address: suspend
    * Existing connections: default behaviour; no action
-   * Execute JDBC calls: default behaviour; no action
+   * Execute JDBC calls: suspend
    */
   protected BlueGreenStatus getStatusOfInProgress() {
 
@@ -652,44 +653,20 @@ public class BlueGreenStatusProvider {
       return this.getStatusOfCompleted();
     }
 
-    // All blue and green connect calls should be on hold.
-    List<ConnectRouting> connectRouting = new ArrayList<>();
+    List<ConnectRouting> connectRouting;
 
-    if (this.holdNewBlueConnectionsWhenInProgress) {
-      connectRouting.add(new HoldConnectRouting(null, BlueGreenRole.SOURCE, this.bgdId));
+    if (this.suspendNewBlueConnectionsWhenInProgress) {
+      // All blue and green connect calls should be suspended.
+      connectRouting = new ArrayList<>();
+      connectRouting.add(new SuspendConnectRouting(null, BlueGreenRole.SOURCE, this.bgdId));
     } else {
-      // If we're not suspending new connections then at least we need to use IP addresses.
-      this.roleByEndpoint.entrySet().stream()
-          .filter(x -> x.getValue() == BlueGreenRole.SOURCE
-              && this.correspondingNodes.containsKey(x.getKey()))
-          .forEach(x -> {
-            HostSpec hostSpec = this.correspondingNodes.get(x.getKey()).getValue1();
-            Optional<String> blueIp = this.hostIpAddresses.get(hostSpec.getHost());
-            HostSpec substituteHostSpecWithIp = blueIp == null || !blueIp.isPresent()
-                ? hostSpec
-                : this.hostSpecBuilder.copyFrom(hostSpec).host(blueIp.get()).build();
-
-            connectRouting.add(new SubstituteConnectRouting(
-                x.getKey(),
-                x.getValue(),
-                substituteHostSpecWithIp,
-                Collections.singletonList(hostSpec),
-                null));
-
-            connectRouting.add(new SubstituteConnectRouting(
-                this.getHostAndPort(
-                    x.getKey(),
-                    this.interimStatuses[x.getValue().getValue()].port),
-                x.getValue(),
-                substituteHostSpecWithIp,
-                Collections.singletonList(hostSpec),
-                null));
-          });
+      // If we're not suspending new connections then, at least, we need to use IP addresses.
+      connectRouting = this.addSubstituteBlueWithIpAddressConnectRouting();
     }
 
-    connectRouting.add(new HoldConnectRouting(null, BlueGreenRole.TARGET, this.bgdId));
+    connectRouting.add(new SuspendConnectRouting(null, BlueGreenRole.TARGET, this.bgdId));
 
-    // All connect calls with IP address that belongs to blue or green node should be on hold.
+    // All connect calls with IP address that belongs to blue or green node should be suspended.
     this.hostIpAddresses.values().stream()
         .filter(Optional::isPresent)
         .map(Optional::get)
@@ -698,8 +675,8 @@ public class BlueGreenStatusProvider {
 
           BlueGreenInterimStatus interimStatus;
 
-          if (this.holdNewBlueConnectionsWhenInProgress) {
-            // Try to confirm tht ipAddress belongs to one of the blue nodes
+          if (this.suspendNewBlueConnectionsWhenInProgress) {
+            // Try to confirm that the ipAddress belongs to one of the blue nodes
             interimStatus = this.interimStatuses[BlueGreenRole.SOURCE.getValue()];
             if (interimStatus != null) {
               if (interimStatus.startIpAddressesByHostMap.values().stream()
@@ -708,8 +685,8 @@ public class BlueGreenStatusProvider {
                   .findFirst()
                   .orElse(false)) {
 
-                connectRouting.add(new HoldConnectRouting(ipAddress, null, this.bgdId));
-                connectRouting.add(new HoldConnectRouting(
+                connectRouting.add(new SuspendConnectRouting(ipAddress, null, this.bgdId));
+                connectRouting.add(new SuspendConnectRouting(
                     this.getHostAndPort(ipAddress, interimStatus.port),
                     null,
                     this.bgdId));
@@ -719,7 +696,7 @@ public class BlueGreenStatusProvider {
             }
           }
 
-          // Try to confirm tht ipAddress belongs to one of the green nodes
+          // Try to confirm that the ipAddress belongs to one of the green nodes
           interimStatus = this.interimStatuses[BlueGreenRole.TARGET.getValue()];
           if (interimStatus != null) {
             if (interimStatus.startIpAddressesByHostMap.values().stream()
@@ -728,8 +705,8 @@ public class BlueGreenStatusProvider {
                 .findFirst()
                 .orElse(false)) {
 
-              connectRouting.add(new HoldConnectRouting(ipAddress, null, this.bgdId));
-              connectRouting.add(new HoldConnectRouting(
+              connectRouting.add(new SuspendConnectRouting(ipAddress, null, this.bgdId));
+              connectRouting.add(new SuspendConnectRouting(
                   this.getHostAndPort(ipAddress, interimStatus.port),
                   null,
                   this.bgdId));
@@ -737,14 +714,12 @@ public class BlueGreenStatusProvider {
               return;
             }
           }
-
-          connectRouting.add(new HoldConnectRouting(ipAddress, null, this.bgdId));
         });
 
     // All blue and green traffic should be on hold.
     List<ExecuteRouting> executeRouting = new ArrayList<>();
-    executeRouting.add(new HoldExecuteRouting(null, BlueGreenRole.SOURCE, this.bgdId));
-    executeRouting.add(new HoldExecuteRouting(null, BlueGreenRole.TARGET, this.bgdId));
+    executeRouting.add(new SuspendExecuteRouting(null, BlueGreenRole.SOURCE, this.bgdId));
+    executeRouting.add(new SuspendExecuteRouting(null, BlueGreenRole.TARGET, this.bgdId));
 
     // All traffic through connections with IP addresses that belong to blue or green nodes should be on hold.
     this.hostIpAddresses.values().stream()
@@ -753,7 +728,7 @@ public class BlueGreenStatusProvider {
         .distinct()
         .forEach(ipAddress -> {
 
-          // Try to confirm tht ipAddress belongs to one of the blue nodes
+          // Try to confirm that the ipAddress belongs to one of the blue nodes
           BlueGreenInterimStatus interimStatus = this.interimStatuses[BlueGreenRole.SOURCE.getValue()];
           if (interimStatus != null) {
             if (interimStatus.startIpAddressesByHostMap.values().stream()
@@ -762,8 +737,8 @@ public class BlueGreenStatusProvider {
                 .findFirst()
                 .orElse(false)) {
 
-              executeRouting.add(new HoldExecuteRouting(ipAddress, null, this.bgdId));
-              executeRouting.add(new HoldExecuteRouting(
+              executeRouting.add(new SuspendExecuteRouting(ipAddress, null, this.bgdId));
+              executeRouting.add(new SuspendExecuteRouting(
                   this.getHostAndPort(ipAddress, interimStatus.port),
                   null,
                   this.bgdId));
@@ -772,7 +747,7 @@ public class BlueGreenStatusProvider {
             }
           }
 
-          // Try to confirm tht ipAddress belongs to one of the green nodes
+          // Try to confirm that the ipAddress belongs to one of the green nodes
           interimStatus = this.interimStatuses[BlueGreenRole.TARGET.getValue()];
           if (interimStatus != null) {
             if (interimStatus.startIpAddressesByHostMap.values().stream()
@@ -781,8 +756,8 @@ public class BlueGreenStatusProvider {
                 .findFirst()
                 .orElse(false)) {
 
-              executeRouting.add(new HoldExecuteRouting(ipAddress, null, this.bgdId));
-              executeRouting.add(new HoldExecuteRouting(
+              executeRouting.add(new SuspendExecuteRouting(ipAddress, null, this.bgdId));
+              executeRouting.add(new SuspendExecuteRouting(
                   this.getHostAndPort(ipAddress, interimStatus.port),
                   null,
                   this.bgdId));
@@ -791,12 +766,12 @@ public class BlueGreenStatusProvider {
             }
           }
 
-          executeRouting.add(new HoldExecuteRouting(ipAddress, null, this.bgdId));
+          executeRouting.add(new SuspendExecuteRouting(ipAddress, null, this.bgdId));
         });
 
     return new BlueGreenStatus(
         this.bgdId,
-        BlueGreenPhases.IN_PROGRESS,
+        BlueGreenPhase.IN_PROGRESS,
         connectRouting,
         executeRouting,
         this.roleByEndpoint);
@@ -815,19 +790,17 @@ public class BlueGreenStatusProvider {
 
     List<ConnectRouting> connectRouting = new ArrayList<>();
     List<ExecuteRouting> executeRouting = new ArrayList<>();
-    this.createPostRouting(connectRouting, executeRouting);
+    this.createPostRouting(connectRouting);
 
     return new BlueGreenStatus(
         this.bgdId,
-        BlueGreenPhases.POST,
+        BlueGreenPhase.POST,
         connectRouting,
         executeRouting,
         this.roleByEndpoint);
   }
 
-  protected void createPostRouting(
-      List<ConnectRouting> connectRouting,
-      List<ExecuteRouting> executeRouting) {
+  protected void createPostRouting(List<ConnectRouting> connectRouting) {
 
     if (!this.blueDnsUpdateCompleted || !this.allGreenNodesChangedName.get()) {
       // New connect calls to blue nodes should be routed to green nodes.
@@ -847,7 +820,7 @@ public class BlueGreenStatusProvider {
 
             // Check whether green host is already been connected with blue (no-prefixes) IAM host name.
             List<HostSpec> iamHosts = this.isAlreadySuccessfullyConnected(greenHost, blueHost)
-                // Green node has already changed its name and not it's a new blue node (no prefixes).
+                // Green node has already changed its name, and it's not a new blue node (no prefixes).
                 ? Collections.singletonList(blueHostSpec)
                 // Green node isn't yet changed its name, so we need to try both possible IAM host options.
                 : Arrays.asList(greenHostSpec, blueHostSpec);
@@ -887,7 +860,7 @@ public class BlueGreenStatusProvider {
 
       return new BlueGreenStatus(
           this.bgdId,
-          BlueGreenPhases.COMPLETED,
+          BlueGreenPhase.COMPLETED,
           new ArrayList<>(),
           new ArrayList<>(),
           this.roleByEndpoint);
@@ -901,7 +874,7 @@ public class BlueGreenStatusProvider {
 
     return new BlueGreenStatus(
         this.bgdId,
-        BlueGreenPhases.COMPLETED,
+        BlueGreenPhase.COMPLETED,
         new ArrayList<>(),
         new ArrayList<>(),
         this.roleByEndpoint);
@@ -951,7 +924,7 @@ public class BlueGreenStatusProvider {
     return System.nanoTime();
   }
 
-  protected void storePhaseTime(BlueGreenPhases phase) {
+  protected void storePhaseTime(BlueGreenPhase phase) {
     if (phase == null) {
       return;
     }
@@ -986,19 +959,19 @@ public class BlueGreenStatusProvider {
 
   protected void logSwitchoverFinalSummary() {
     final boolean switchoverCompleted =
-        (!this.rollback && this.summaryStatus.getCurrentPhase() == BlueGreenPhases.COMPLETED)
-        || (this.rollback && this.summaryStatus.getCurrentPhase() == BlueGreenPhases.CREATED);
+        (!this.rollback && this.summaryStatus.getCurrentPhase() == BlueGreenPhase.COMPLETED)
+        || (this.rollback && this.summaryStatus.getCurrentPhase() == BlueGreenPhase.CREATED);
 
     final boolean hasActiveSwitchoverPhases = this.phaseTimeNano.entrySet().stream()
-        .anyMatch(x -> x.getValue().phase != null && x.getValue().phase.isActiveSwitchover());
+        .anyMatch(x -> x.getValue().phase != null && x.getValue().phase.isActiveSwitchoverOrCompleted());
 
     if (!switchoverCompleted || !hasActiveSwitchoverPhases) {
       return;
     }
 
     PhaseTimeInfo timeZero = this.rollback
-        ? this.phaseTimeNano.get(BlueGreenPhases.PREPARATION.name())
-        : this.phaseTimeNano.get(BlueGreenPhases.IN_PROGRESS.name());
+        ? this.phaseTimeNano.get(BlueGreenPhase.PREPARATION.name())
+        : this.phaseTimeNano.get(BlueGreenPhase.IN_PROGRESS.name());
     String divider = "----------------------------------------------------------------------------------\n";
 
     String logMessage =
@@ -1022,17 +995,17 @@ public class BlueGreenStatusProvider {
 
   protected void resetContextWhenCompleted() {
     final boolean switchoverCompleted =
-        (!this.rollback && this.summaryStatus.getCurrentPhase() == BlueGreenPhases.COMPLETED)
-        || (this.rollback && this.summaryStatus.getCurrentPhase() == BlueGreenPhases.CREATED);
+        (!this.rollback && this.summaryStatus.getCurrentPhase() == BlueGreenPhase.COMPLETED)
+        || (this.rollback && this.summaryStatus.getCurrentPhase() == BlueGreenPhase.CREATED);
 
     final boolean hasActiveSwitchoverPhases = this.phaseTimeNano.entrySet().stream()
-        .anyMatch(x -> x.getValue().phase != null && x.getValue().phase.isActiveSwitchover());
+        .anyMatch(x -> x.getValue().phase != null && x.getValue().phase.isActiveSwitchoverOrCompleted());
 
     if (switchoverCompleted && hasActiveSwitchoverPhases) {
       LOGGER.finest(Messages.get("bgd.resetContext"));
       this.rollback = false;
       this.summaryStatus = null;
-      this.latestStatusPhase = BlueGreenPhases.NOT_CREATED;
+      this.latestStatusPhase = BlueGreenPhase.NOT_CREATED;
       this.phaseTimeNano.clear();
       this.blueDnsUpdateCompleted = false;
       this.greenDnsRemoved = false;
@@ -1113,9 +1086,9 @@ public class BlueGreenStatusProvider {
   public static class PhaseTimeInfo {
     public final Instant timestamp;
     public final long timestampNano;
-    public final @Nullable BlueGreenPhases phase;
+    public final @Nullable BlueGreenPhase phase;
 
-    public PhaseTimeInfo(final Instant timestamp, final long timestampNano, final @Nullable BlueGreenPhases phase) {
+    public PhaseTimeInfo(final Instant timestamp, final long timestampNano, final @Nullable BlueGreenPhase phase) {
       this.timestamp = timestamp;
       this.timestampNano = timestampNano;
       this.phase = phase;

@@ -17,6 +17,7 @@
 package software.amazon.jdbc.plugin.bluegreen;
 
 import java.util.HashMap;
+import java.util.Map;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -25,7 +26,7 @@ public enum BlueGreenRole {
   TARGET(1);
 
   // ver 1.0 mapping
-  protected static final HashMap<String, BlueGreenRole> blueGreenRoleMapping_1_0 =
+  private static final Map<String, BlueGreenRole> blueGreenRoleMapping_1_0 =
       new HashMap<String, BlueGreenRole>() {
         {
           put("BLUE_GREEN_DEPLOYMENT_SOURCE", BlueGreenRole.SOURCE);
@@ -35,8 +36,8 @@ public enum BlueGreenRole {
 
   private final int value;
 
-  BlueGreenRole(final int newValue) {
-    value = newValue;
+  BlueGreenRole(final int value) {
+    this.value = value;
   }
 
   public int getValue() {

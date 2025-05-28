@@ -30,7 +30,7 @@ import software.amazon.jdbc.util.DriverInfo;
  * Suitable for the following AWS PG configurations.
  * - Regional Cluster
  */
-public class AuroraPgDialect extends PgDialect implements AuroraLimitlessDialect, SupportBlueGreen {
+public class AuroraPgDialect extends PgDialect implements AuroraLimitlessDialect, BlueGreenDialect {
   private static final Logger LOGGER = Logger.getLogger(AuroraPgDialect.class.getName());
 
   private static final String extensionsSql =
@@ -168,7 +168,7 @@ public class AuroraPgDialect extends PgDialect implements AuroraLimitlessDialect
   }
 
   @Override
-  public boolean isStatusAvailable(final Connection connection) {
+  public boolean isBlueGreenStatusAvailable(final Connection connection) {
     try {
       try (Statement statement = connection.createStatement();
           ResultSet rs = statement.executeQuery(TOPOLOGY_TABLE_EXIST_QUERY)) {

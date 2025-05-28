@@ -934,39 +934,6 @@ public class AuroraTestUtility {
     }
   }
 
-  public void deleteClusterUntilDeleted(String clusterArn, DatabaseEngineDeployment deployment) {
-    if (StringUtils.isNullOrEmpty(clusterArn)) {
-      return;
-    }
-
-    DBCluster clusterInfo = getClusterByArn(clusterArn);
-    if (clusterInfo == null) {
-      return;
-    }
-
-    LOGGER.finest("Deleting Aurora cluster " + clusterArn);
-
-    long endTimeNano = System.nanoTime() + TimeUnit.MINUTES.toNanos(30);
-    while (endTimeNano > System.nanoTime()) {
-      try {
-        deleteCluster(clusterInfo.dbClusterIdentifier(), deployment, true);
-
-        // No errors. It seems that the cluster is deleted.
-        LOGGER.finest("Deleted Aurora cluster " + clusterArn);
-        return;
-
-      } catch (Exception ex) {
-        // There's an error deleting cluster. Keep trying.
-        try {
-          TimeUnit.MINUTES.sleep(1);
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          return;
-        }
-      }
-    }
-  }
-
   public boolean doesClusterExist(final String clusterId) {
     final DescribeDbClustersRequest request =
         DescribeDbClustersRequest.builder().dbClusterIdentifier(clusterId).build();

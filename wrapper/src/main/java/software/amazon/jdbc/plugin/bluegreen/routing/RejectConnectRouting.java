@@ -28,6 +28,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenRole;
 import software.amazon.jdbc.util.Messages;
 
+// Reject an attempt to open a new connection.
 public class RejectConnectRouting extends BaseConnectRouting {
 
   private static final Logger LOGGER = Logger.getLogger(RejectConnectRouting.class.getName());
