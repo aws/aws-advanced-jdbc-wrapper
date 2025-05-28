@@ -172,8 +172,7 @@ public class BlueGreenDeploymentTests {
 
   @TestTemplate
   @ExtendWith(TestDriverProvider.class)
-  //@Disabled
-  public void test_Switchover(TestDriver testDriver) throws SQLException, InterruptedException {
+  public void testSwitchover(TestDriver testDriver) throws SQLException, InterruptedException {
 
     this.results.clear();
     this.unhandledExceptions.clear();

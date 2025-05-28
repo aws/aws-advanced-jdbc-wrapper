@@ -106,7 +106,7 @@ public class HoldConnectRouting extends BaseConnectRouting {
       }
     }
 
-    // returning no connection so a next routing can handle it
+    // returning no connection so the next routing can handle it
     return null;
   }
 }

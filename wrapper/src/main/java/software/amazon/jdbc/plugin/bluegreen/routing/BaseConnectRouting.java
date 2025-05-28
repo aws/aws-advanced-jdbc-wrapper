@@ -30,7 +30,7 @@ import software.amazon.jdbc.plugin.bluegreen.BlueGreenRole;
 
 public abstract class BaseConnectRouting extends BaseRouting implements ConnectRouting {
 
-  private static final Logger LOGGER = Logger.getLogger(BlueGreenConnectionPlugin.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(BaseConnectRouting.class.getName());
 
   protected final String hostAndPort;
   protected final BlueGreenRole role;

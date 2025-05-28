@@ -4,7 +4,7 @@
 
 The [Blue/Green Deployment](https://docs.aws.amazon.com/whitepapers/latest/blue-green-deployments/introduction.html) technique enables organizations to release applications by seamlessly shifting traffic between two identical environments running different versions of the application. This strategy effectively mitigates common risks associated with software deployment, such as downtime and limited rollback capability.
 
-The AWS Advanced JDBC Driver leverages the Blue/Green Deployment approach by intelligently managing traffic distribution between blue and green nodes, minimizing the impact of stale DNS data and connectivity disruptions on user applications.
+The AWS JDBC Driver leverages the Blue/Green Deployment approach by intelligently managing traffic distribution between blue and green nodes, minimizing the impact of stale DNS data and connectivity disruptions on user applications.
 
 
 ## Prerequisites
@@ -25,7 +25,7 @@ The AWS Advanced JDBC Driver leverages the Blue/Green Deployment approach by int
 
 ## What Blue/Green Deployment Plugin does? Is it worth to use it?
 
-During a Blue/Green switchover, several significant changes occur to your database configuration:
+During a [Blue/Green switchover](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/blue-green-deployments-switching.html), several significant changes occur to your database configuration:
 - Connections to blue nodes terminate at a specific point during the transition
 - Node connectivity may be temporarily impacted due to reconfigurations and potential node restarts
 - Cluster and instance endpoints are redirected to different database nodes
@@ -33,7 +33,7 @@ During a Blue/Green switchover, several significant changes occur to your databa
 - Internal security certificates are regenerated to accommodate the new node names
 
 
-All factors mentioned above may cause application disruption. The AWS Advanced JDBC Driver aims to minimize the impact of these changes and provide a seamless Blue/Green switchover experience. Specifically, the driver performs the following actions:
+All factors mentioned above may cause application disruption. The AWS Advanced JDBC Driver aims to minimize the application disruption during Blue/Green switchover by performing the following actions:
 - Actively monitors Blue/Green switchover status and implements appropriate measures to hold, pass-through, or re-route database traffic
 - Prior to Blue/Green switchover initiation, compiles a comprehensive inventory of cluster and instance endpoints for both blue and green nodes along with their corresponding IP addresses
 - During the active switchover phase, temporarily suspends execution of JDBC calls to blue nodes, which helps unload database nodes and reduces transaction lag for green nodes, thereby enhancing overall switchover performance
@@ -50,7 +50,7 @@ The Blue/Green Deployment Plugin supports the following configuration parameters
 
 | Parameter                  |  Value  | Required | Description                                                                                                                                                                                                                                                                                                                                                                                                                                             | Example Value            |
 |----------------------------|:-------:|:--------:|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------|
-| `bgdId`                    | String  |    No    | This parameter is optional and defaults to `1`. When supporting multiple Blue/Green Deployments (BGDs), this parameter becomes mandatory. Each connection string must include the `bgdId` parameter with a value that can be any number or string. However, all connection strings associated with the same Blue/Green Deployment must use identical `bgdId` values, while connection strings belonging to different BGDs must specify distinct values. | `1234`, `abc-1`, `abc-2` |
+| `bgdId`                    | String  |    If using multiple Blue/Green Deployments, yes; otherwise, no    | This parameter is optional and defaults to `1`. When supporting multiple Blue/Green Deployments (BGDs), this parameter becomes mandatory. Each connection string must include the `bgdId` parameter with a value that can be any number or string. However, all connection strings associated with the same Blue/Green Deployment must use identical `bgdId` values, while connection strings belonging to different BGDs must specify distinct values. | `1234`, `abc-1`, `abc-2` |
 | `bgConnectTimeout`         | Integer |    No    | Maximum waiting time (in milliseconds) for establishing new connections during a Blue/Green switchover when blue and green traffic is temporarily suspended.                                                                                                                                                                                                                                                                                            | `30000`                  |
 | `bgBaseline`               | Integer |    No    | The baseline interval (ms) for checking Blue/Green Deployment status.                                                                                                                                                                                                                                                                                                                                                                                   | `60000`                  |
 | `bgIncreased`              | Integer |    No    | The increased interval (ms) for checking Blue/Green Deployment status.                                                                                                                                                                                                                                                                                                                                                                                  | `1000`                   |
@@ -66,8 +66,8 @@ final Properties properties = new Properties();
 properties.setProperty("connectTimeout", "30000");
 properties.setProperty("socketTimeout", "30000");
 // Configure different timeout values for the Blue/Green monitoring connections.
-properties.setProperty("monitoring-connectTimeout", "10000");
-properties.setProperty("monitoring-socketTimeout", "10000");
+properties.setProperty("blue-green-monitoring-connectTimeout", "10000");
+properties.setProperty("blue-green-monitoring-socketTimeout", "10000");
 ```
 
 > [!WARNING]\
@@ -77,7 +77,7 @@ properties.setProperty("monitoring-socketTimeout", "10000");
 
 ## Plan your Blue/Green switchover in advance
 
-To optimize Blue/Green switchover support with the AWS Advanced JDBC Driver, advance planning is essential. Please follow these recommended steps:
+To optimize Blue/Green switchover support with the AWS JDBC Driver, advance planning is essential. Please follow these recommended steps:
 
 1. Create a Blue/Green Deployment for your database.
 2. Configure your application by incorporating the `bg` plugin along with any additional parameters of your choice, then deploy your application to the corresponding environment.

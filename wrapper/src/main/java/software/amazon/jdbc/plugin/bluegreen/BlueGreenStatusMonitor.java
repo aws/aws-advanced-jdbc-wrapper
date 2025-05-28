@@ -163,8 +163,7 @@ public class BlueGreenStatusMonitor {
           this.collectHostIpAddresses();
           this.updateIpAddressFlags();
 
-          if ((oldPhase == null && this.currentPhase != null)
-              || (this.currentPhase != null && oldPhase != this.currentPhase)) {
+          if (this.currentPhase != null && (oldPhase == null || oldPhase != this.currentPhase)) {
             LOGGER.finest(() -> Messages.get("bgd.statusChanged", new Object[] {this.role, this.currentPhase}));
           }
 
@@ -282,12 +281,15 @@ public class BlueGreenStatusMonitor {
         // All hosts in startTopology should resolve to different IP address.
         this.allStartTopologyIpChanged = !this.startTopology.isEmpty()
             && this.startTopology.stream()
-            .allMatch(x -> this.startIpAddressesByHostMap.get(x.getHost()) != null
-                && this.startIpAddressesByHostMap.get(x.getHost()).isPresent()
-                && this.currentIpAddressesByHostMap.get(x.getHost()) != null
-                && this.currentIpAddressesByHostMap.get(x.getHost()).isPresent()
-                && !this.startIpAddressesByHostMap.get(x.getHost()).get()
-                .equals(this.currentIpAddressesByHostMap.get(x.getHost()).get()));
+            .allMatch(x -> {
+              final String host = x.getHost();
+              final Optional<String> startIp = this.startIpAddressesByHostMap.get(host);
+              final Optional<String> currentIp = this.currentIpAddressesByHostMap.get(host);
+
+              return startIp != null && startIp.isPresent()
+                  && currentIp != null && currentIp.isPresent()
+                  && !startIp.get().equals(currentIp.get());
+            });
       }
 
       // All hosts in startTopology should have no IP address. That means that host endpoint
