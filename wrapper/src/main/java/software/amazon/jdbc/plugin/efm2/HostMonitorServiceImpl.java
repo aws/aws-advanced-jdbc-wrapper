@@ -18,7 +18,6 @@ package software.amazon.jdbc.plugin.efm2;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.HashSet;
 import java.util.Properties;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -66,7 +65,7 @@ public class HostMonitorServiceImpl implements HostMonitorService {
         HostMonitorImpl.class,
         TimeUnit.MILLISECONDS.toNanos(MONITOR_DISPOSAL_TIME_MS.getLong(props)),
         TimeUnit.MINUTES.toNanos(1),
-        new HashSet<>(),
+        null,
         null);
   }
 

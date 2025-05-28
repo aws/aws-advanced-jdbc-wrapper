@@ -173,8 +173,8 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
 
     try {
       while (!this.stopped.get()) {
-
         final long currentTimeNano = this.getCurrentTimeNano();
+        this.lastActivityTimestampNanos.set(currentTimeNano);
 
         final ArrayList<Long> processedKeys = new ArrayList<>();
         this.newContexts.entrySet().stream()
