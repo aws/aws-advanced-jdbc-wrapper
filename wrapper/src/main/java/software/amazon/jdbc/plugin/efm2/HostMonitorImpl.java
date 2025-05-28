@@ -35,15 +35,12 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
-import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
-import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
 /**
@@ -80,10 +77,6 @@ public class HostMonitorImpl implements HostMonitor {
   private long failureCount;
   private boolean nodeUnhealthy = false;
 
-
-  private final TelemetryGauge newContextsSizeGauge;
-  private final TelemetryGauge activeContextsSizeGauge;
-  private final TelemetryGauge nodeHealthyGauge;
   private final TelemetryCounter abortedConnectionsCounter;
 
   /**
@@ -117,22 +110,6 @@ public class HostMonitorImpl implements HostMonitor {
     this.failureDetectionCount = failureDetectionCount;
     this.abortedConnectionsCounter = abortedConnectionsCounter;
 
-    final String hostId = StringUtils.isNullOrEmpty(this.hostSpec.getHostId())
-        ? this.hostSpec.getHost()
-        : this.hostSpec.getHostId();
-
-    this.newContextsSizeGauge = telemetryFactory.createGauge(
-        String.format("efm2.newContexts.size.%s", hostId),
-        this::getActiveContextSize);
-
-    this.activeContextsSizeGauge = telemetryFactory.createGauge(
-        String.format("efm2.activeContexts.size.%s", hostId),
-        () -> (long) this.activeContexts.size());
-
-    this.nodeHealthyGauge = telemetryFactory.createGauge(
-        String.format("efm2.nodeHealthy.%s", hostId),
-        () -> this.nodeUnhealthy ? 0L : 1L);
-
     this.threadPool.submit(this::newContextRun); // task to handle new contexts
     this.threadPool.submit(this); // task to handle active monitoring contexts
     this.threadPool.shutdown(); // No more tasks are accepted by pool.
@@ -156,10 +133,6 @@ public class HostMonitorImpl implements HostMonitor {
         new Object[] {this.hostSpec.getHost()}));
   }
 
-  protected long getActiveContextSize() {
-    return this.newContexts.values().stream().mapToLong(java.util.Collection::size).sum();
-  }
-
   @Override
   public void startMonitoring(final HostMonitorConnectionContext context) {
     if (this.stopped.get()) {
@@ -179,11 +152,6 @@ public class HostMonitorImpl implements HostMonitor {
 
   private long truncateNanoToSeconds(final long timeNano) {
     return TimeUnit.SECONDS.toNanos(TimeUnit.NANOSECONDS.toSeconds(timeNano));
-  }
-
-  public void clearContexts() {
-    this.newContexts.clear();
-    this.activeContexts.clear();
   }
 
   // This method helps to organize unit tests.
@@ -263,10 +231,6 @@ public class HostMonitorImpl implements HostMonitor {
         final long statusCheckEndTimeNano = this.getCurrentTimeNano();
 
         this.updateNodeHealthStatus(isValid, statusCheckStartTimeNano, statusCheckEndTimeNano);
-
-        if (this.nodeUnhealthy) {
-          this.pluginService.setAvailability(this.hostSpec.asAliases(), HostAvailability.NOT_AVAILABLE);
-        }
 
         final List<WeakReference<HostMonitorConnectionContext>> tmpActiveContexts = new ArrayList<>();
         WeakReference<HostMonitorConnectionContext> monitorContextWeakRef;
@@ -368,12 +332,9 @@ public class HostMonitorImpl implements HostMonitor {
       // Some drivers, like MySQL Connector/J, execute isValid() in a double of specified timeout time.
       final int validTimeout = (int) TimeUnit.NANOSECONDS.toSeconds(
           this.failureDetectionIntervalNano - THREAD_SLEEP_NANO) / 2;
-      final boolean isValid = this.monitoringConn.isValid(validTimeout);
-      return isValid;
-
+      return this.monitoringConn.isValid(validTimeout);
     } catch (final SQLException sqlEx) {
       return false;
-
     } finally {
       connectContext.closeContext();
     }

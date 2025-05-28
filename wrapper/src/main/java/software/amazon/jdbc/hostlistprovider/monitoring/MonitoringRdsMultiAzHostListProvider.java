@@ -63,11 +63,9 @@ public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListP
         (connectionService, pluginService) -> new MultiAzClusterTopologyMonitorImpl(
             this.clusterId,
             this.servicesContainer.getStorageService(),
-            this.servicesContainer.getMonitorService(),
             connectionService,
             this.initialHostSpec,
             this.properties,
-            pluginService,
             this.hostListProviderService,
             this.clusterInstanceTemplate,
             this.refreshRateNano,

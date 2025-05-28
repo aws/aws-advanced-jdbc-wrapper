@@ -98,7 +98,6 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
             connectionService,
             this.initialHostSpec,
             this.properties,
-            monitorPluginService,
             this.servicesContainer.getHostListProviderService(),
             this.clusterInstanceTemplate,
             this.refreshRateNano,
