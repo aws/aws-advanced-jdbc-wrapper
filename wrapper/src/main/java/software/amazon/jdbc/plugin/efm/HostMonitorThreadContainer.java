@@ -107,7 +107,7 @@ public class HostMonitorThreadContainer {
 
   HostMonitor getOrCreateMonitor(final Set<String> nodeKeys, final Supplier<HostMonitor> monitorSupplier) {
     if (nodeKeys.isEmpty()) {
-      throw new IllegalArgumentException(Messages.get("MonitorThreadContainer.emptyNodeKeys"));
+      throw new IllegalArgumentException(Messages.get("HostMonitorThreadContainer.emptyNodeKeys"));
     }
 
     MONITOR_LOCK_OBJECT.lock();
