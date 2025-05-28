@@ -284,7 +284,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
           new Object[]{this.initialHostSpec.getHost()}));
 
       while (!this.stop.get() && !Thread.currentThread().isInterrupted()) {
-        this.lastActivityTimestampNanos = System.nanoTime();
+        this.lastActivityTimestampNanos.set(System.nanoTime());
 
         if (this.isInPanicMode()) {
 
