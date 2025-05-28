@@ -95,7 +95,7 @@ class MonitorServiceImplTest {
     TimeUnit.MILLISECONDS.sleep(250);
     assertEquals(MonitorState.RUNNING, monitor.getState());
 
-    monitor.state = MonitorState.ERROR;
+    monitor.state.set(MonitorState.ERROR);
     monitorService.checkMonitors();
 
     assertEquals(MonitorState.STOPPED, monitor.getState());

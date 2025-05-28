@@ -19,6 +19,8 @@ package software.amazon.jdbc.util.monitoring;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
 import software.amazon.jdbc.util.ExecutorFactory;
@@ -30,22 +32,22 @@ import software.amazon.jdbc.util.Messages;
 public abstract class AbstractMonitor implements Monitor, Runnable {
   private static final Logger LOGGER = Logger.getLogger(AbstractMonitor.class.getName());
   protected final AtomicBoolean stop = new AtomicBoolean(false);
-  protected final long terminationTimeoutSec;
   protected final ExecutorService monitorExecutor;
+  protected final AtomicLong terminationTimeoutSec = new AtomicLong();
+  protected final AtomicLong lastActivityTimestampNanos = new AtomicLong();
+  protected final AtomicReference<MonitorState> state = new AtomicReference<>();
 
-  protected long lastActivityTimestampNanos;
-  protected MonitorState state;
 
   protected AbstractMonitor(long terminationTimeoutSec) {
-    this.terminationTimeoutSec = terminationTimeoutSec;
+    this.terminationTimeoutSec.set(terminationTimeoutSec);
     this.monitorExecutor = ExecutorFactory.newSingleThreadExecutor(getMonitorNameSuffix());
-    this.lastActivityTimestampNanos = System.nanoTime();
+    this.lastActivityTimestampNanos.set(System.nanoTime());
   }
 
   protected AbstractMonitor(long terminationTimeoutSec, ExecutorService monitorExecutor) {
-    this.terminationTimeoutSec = terminationTimeoutSec;
+    this.terminationTimeoutSec.set(terminationTimeoutSec);
     this.monitorExecutor = monitorExecutor;
-    this.lastActivityTimestampNanos = System.nanoTime();
+    this.lastActivityTimestampNanos.set(System.nanoTime());
   }
 
   @Override
@@ -63,12 +65,12 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
   public void run() {
     try {
       LOGGER.finest(Messages.get("AbstractMonitor.startingMonitor", new Object[] {this}));
-      this.state = MonitorState.RUNNING;
-      this.lastActivityTimestampNanos = System.nanoTime();
+      this.state.set(MonitorState.RUNNING);
+      this.lastActivityTimestampNanos.set(System.nanoTime());
       monitor();
     } catch (Exception e) {
       LOGGER.fine(Messages.get("AbstractMonitor.unexpectedError", new Object[] {this, e}));
-      this.state = MonitorState.ERROR;
+      this.state.set(MonitorState.ERROR);
     }
   }
 
@@ -78,7 +80,7 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
     this.stop.set(true);
 
     try {
-      if (!this.monitorExecutor.awaitTermination(this.terminationTimeoutSec, TimeUnit.SECONDS)) {
+      if (!this.monitorExecutor.awaitTermination(this.terminationTimeoutSec.get(), TimeUnit.SECONDS)) {
         LOGGER.info(Messages.get(
             "AbstractMonitor.monitorTerminationTimeout", new Object[] {terminationTimeoutSec, this}));
         this.monitorExecutor.shutdownNow();
@@ -89,7 +91,7 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
       this.monitorExecutor.shutdownNow();
     } finally {
       close();
-      this.state = MonitorState.STOPPED;
+      this.state.set(MonitorState.STOPPED);
     }
   }
 
@@ -100,12 +102,12 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
 
   @Override
   public long getLastActivityTimestampNanos() {
-    return this.lastActivityTimestampNanos;
+    return this.lastActivityTimestampNanos.get();
   }
 
   @Override
   public MonitorState getState() {
-    return this.state;
+    return this.state.get();
   }
 
   @Override
