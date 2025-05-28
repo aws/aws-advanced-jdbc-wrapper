@@ -189,12 +189,8 @@ public class BlueGreenStatusProvider {
               monitoringConnProperties.remove(p);
             });
 
-    if (!monitoringConnProperties.containsKey(PropertyDefinition.CONNECT_TIMEOUT)) {
-      monitoringConnProperties.setProperty(PropertyDefinition.CONNECT_TIMEOUT.name, DEFAULT_CONNECT_TIMEOUT_MS);
-    }
-    if (!monitoringConnProperties.containsKey(PropertyDefinition.SOCKET_TIMEOUT)) {
-      monitoringConnProperties.setProperty(PropertyDefinition.SOCKET_TIMEOUT.name, DEFAULT_SOCKET_TIMEOUT_MS);
-    }
+    monitoringConnProperties.putIfAbsent(PropertyDefinition.CONNECT_TIMEOUT.name, DEFAULT_CONNECT_TIMEOUT_MS);
+    monitoringConnProperties.putIfAbsent(PropertyDefinition.SOCKET_TIMEOUT.name, DEFAULT_SOCKET_TIMEOUT_MS);
 
     return monitoringConnProperties;
   }
@@ -345,7 +341,7 @@ public class BlueGreenStatusProvider {
       for (HostSpec blueHostSpec : sortedBlueReaderHostSpecs) {
         this.correspondingNodes.put(
             blueHostSpec.getHost(), Pair.create(blueHostSpec, sortedGreenReaderHostSpecs.get(greenIndex++)));
-        greenIndex = greenIndex % sortedGreenReaderHostSpecs.size();
+        greenIndex %= sortedGreenReaderHostSpecs.size();
       }
     }
 

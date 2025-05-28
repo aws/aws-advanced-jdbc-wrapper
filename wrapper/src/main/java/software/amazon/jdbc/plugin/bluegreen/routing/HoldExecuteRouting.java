@@ -110,7 +110,7 @@ public class HoldExecuteRouting extends BaseExecuteRouting {
       }
     }
 
-    // returning no results so a next routing can handle it
+    // returning no results so the next routing can handle it
     return Optional.empty();
   }
 }
