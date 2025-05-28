@@ -203,7 +203,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
         if (this.writerConnection != null && !this.writerConnection.isClosed()) {
           this.writerConnection.clearWarnings();
         }
-        if (isConnectionUsable(this.readerConnection)) {
+        if (isConnectionUsable(this.readerConnection.get())) {
           this.readerConnection.get().clearWarnings();
         }
       } catch (final SQLException e) {
@@ -274,7 +274,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
             new Object[] {
                 writerHostSpec.getUrl()}));
   }
-  
+
   private void setReaderConnection(final Connection conn, final HostSpec host) {
     this.readerConnection = new CacheItem<>(conn, this.getKeepAliveTimeout(host));
     this.readerHostSpec = host;
@@ -381,17 +381,11 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     }
 
     if (this.isReaderConnFromInternalPool) {
-      this.closeConnectionIfIdle(this.readerConnection);
+      this.closeConnectionIfIdle(this.readerConnection.get());
     }
 
     LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.switchedFromReaderToWriter",
         new Object[] {writerHost.getUrl()}));
-  }
-
-  private void switchCurrentConnectionTo(
-      final CacheItem<Connection> cachedReaderConnection,
-      final HostSpec newConnectionHost) throws SQLException {
-    this.switchCurrentConnectionTo(cachedReaderConnection.get(), newConnectionHost);
   }
 
   private void switchCurrentConnectionTo(
@@ -420,15 +414,15 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
 
     if (this.readerHostSpec != null && !hosts.contains(this.readerHostSpec)) {
       // The old reader cannot be used anymore because it is no longer in the list of allowed hosts.
-      closeConnectionIfIdle(this.readerConnection);
+      closeConnectionIfIdle(this.readerConnection.get());
     }
 
     this.inReadWriteSplit = true;
-    if (!isConnectionUsable(this.readerConnection)) {
+    if (!isConnectionUsable(this.readerConnection.get())) {
       initializeReaderConnection(hosts);
     } else {
       try {
-        switchCurrentConnectionTo(this.readerConnection, this.readerHostSpec);
+        switchCurrentConnectionTo(this.readerConnection.get(), this.readerHostSpec);
         LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.switchedFromWriterToReader",
             new Object[] {this.readerHostSpec.getUrl()}));
       } catch (SQLException e) {
@@ -442,8 +436,12 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
         }
 
         Connection conn = this.readerConnection.get(true);
-        if (conn != null) {
-          conn.close();
+        if (isConnectionUsable(conn)) {
+          try {
+            conn.close();
+          } catch (SQLException ex) {
+            // Do nothing
+          }
         }
         this.readerConnection = null;
         this.readerHostSpec = null;
@@ -519,11 +517,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
         () -> Messages.get("ReadWriteSplittingPlugin.successfullyConnectedToReader",
             new Object[] {finalReaderHost.getUrl()}));
     setReaderConnection(conn, readerHost);
-    switchCurrentConnectionTo(this.readerConnection, this.readerHostSpec);
-  }
-
-  private boolean isConnectionUsable(final CacheItem<Connection> cachedConnection) throws SQLException {
-    return cachedConnection != null && !cachedConnection.isExpired() && isConnectionUsable(cachedConnection.get());
+    switchCurrentConnectionTo(this.readerConnection.get(), this.readerHostSpec);
   }
 
   private boolean isConnectionUsable(final Connection connection) throws SQLException {
@@ -535,7 +529,8 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       // Let the connection pool handle the lifetime of the reader connection.
       return 0;
     }
-    return System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(CACHED_READER_KEEP_ALIVE_TIMEOUT.getLong(properties));
+    final long keepAliveMs = CACHED_READER_KEEP_ALIVE_TIMEOUT.getLong(properties);
+    return keepAliveMs > 0 ? System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(keepAliveMs) : 0;
   }
 
   @Override
@@ -545,12 +540,8 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
 
   private void closeIdleConnections() {
     LOGGER.finest(() -> Messages.get("ReadWriteSplittingPlugin.closingInternalConnections"));
-    closeConnectionIfIdle(this.readerConnection);
+    closeConnectionIfIdle(this.readerConnection.get());
     closeConnectionIfIdle(this.writerConnection);
-  }
-
-  void closeConnectionIfIdle(final CacheItem<Connection> cachedConnection) {
-    closeConnectionIfIdle(cachedConnection.get());
   }
 
   void closeConnectionIfIdle(final Connection internalConnection) {

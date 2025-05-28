@@ -41,7 +41,7 @@ public class CacheItem<V> {
   }
 
   public V get(final boolean returnExpired) {
-    return this.isExpired() && !returnExpired ? null : item;
+    return (this.isExpired() && !returnExpired) ? null : item;
   }
 
   @Override
