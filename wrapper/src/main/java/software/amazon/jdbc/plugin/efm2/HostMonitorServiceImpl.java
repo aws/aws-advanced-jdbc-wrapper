@@ -117,7 +117,7 @@ public class HostMonitorServiceImpl implements HostMonitorService {
         // ignore
         LOGGER.finest(
             () -> Messages.get(
-                "MonitorConnectionContext.exceptionAbortingConnection",
+                "HostMonitorConnectionContext.exceptionAbortingConnection",
                 new Object[] {sqlEx.getMessage()}));
       }
     } else {

@@ -155,7 +155,7 @@ public class HostMonitorConnectionContext {
       // ignore
       LOGGER.finest(
           () -> Messages.get(
-              "MonitorConnectionContext.exceptionAbortingConnection",
+              "HostMonitorConnectionContext.exceptionAbortingConnection",
               new Object[] {sqlEx.getMessage()}));
     }
   }
@@ -222,7 +222,7 @@ public class HostMonitorConnectionContext {
               * Math.max(0, this.getFailureDetectionCount());
 
       if (invalidNodeDurationNano >= TimeUnit.MILLISECONDS.toNanos(maxInvalidNodeDurationMillis)) {
-        LOGGER.fine(() -> Messages.get("MonitorConnectionContext.hostDead", new Object[] {hostName}));
+        LOGGER.fine(() -> Messages.get("HostMonitorConnectionContext.hostDead", new Object[] {hostName}));
         this.setNodeUnhealthy(true);
         this.abortConnection();
         return;
@@ -230,7 +230,7 @@ public class HostMonitorConnectionContext {
 
       LOGGER.finest(
           () -> Messages.get(
-              "MonitorConnectionContext.hostNotResponding",
+              "HostMonitorConnectionContext.hostNotResponding",
               new Object[] {hostName, this.getFailureCount()}));
       return;
     }
@@ -240,7 +240,7 @@ public class HostMonitorConnectionContext {
     this.setNodeUnhealthy(false);
 
     LOGGER.finest(
-        () -> Messages.get("MonitorConnectionContext.hostAlive",
+        () -> Messages.get("HostMonitorConnectionContext.hostAlive",
             new Object[] {hostName}));
   }
 

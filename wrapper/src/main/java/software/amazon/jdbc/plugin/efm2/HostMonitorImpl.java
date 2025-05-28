@@ -140,14 +140,9 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
   }
 
   @Override
-  public void close() {
-    // do nothing.
-  }
-
-  @Override
   public void startMonitoring(final HostMonitorConnectionContext context) {
     if (this.stopped.get()) {
-      LOGGER.warning(() -> Messages.get("MonitorImpl.monitorIsStopped", new Object[] {this.hostSpec.getHost()}));
+      LOGGER.warning(() -> Messages.get("HostMonitorImpl.monitorIsStopped", new Object[] {this.hostSpec.getHost()}));
     }
 
     final long currentTimeNano = this.getCurrentTimeNano();
@@ -173,7 +168,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
   public void newContextRun() {
 
     LOGGER.finest(() -> Messages.get(
-        "MonitorImpl.startMonitoringThreadNewContext",
+        "HostMonitorImpl.startMonitoringThreadNewContext",
         new Object[] {this.hostSpec.getHost()}));
 
     try {
@@ -211,14 +206,14 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
         LOGGER.log(
             Level.FINEST,
             Messages.get(
-                "MonitorImpl.exceptionDuringMonitoringStop",
+                "HostMonitorImpl.exceptionDuringMonitoringStop",
                 new Object[] {this.hostSpec.getHost()}),
             ex); // We want to print full trace stack of the exception.
       }
     }
 
     LOGGER.finest(() -> Messages.get(
-        "MonitorImpl.stopMonitoringThreadNewContext",
+        "HostMonitorImpl.stopMonitoringThreadNewContext",
         new Object[] {this.hostSpec.getHost()}));
   }
 
@@ -226,7 +221,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
   public void monitor() {
 
     LOGGER.finest(() -> Messages.get(
-        "MonitorImpl.startMonitoringThread",
+        "HostMonitorImpl.startMonitoringThread",
         new Object[] {this.hostSpec.getHost()}));
 
     try {
@@ -288,7 +283,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
         LOGGER.log(
             Level.FINEST,
             Messages.get(
-                "MonitorImpl.exceptionDuringMonitoringStop",
+                "HostMonitorImpl.exceptionDuringMonitoringStop",
                 new Object[] {this.hostSpec.getHost()}),
             ex); // We want to print full trace stack of the exception.
       }
@@ -304,7 +299,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
     }
 
     LOGGER.finest(() -> Messages.get(
-        "MonitorImpl.stopMonitoringThread",
+        "HostMonitorImpl.stopMonitoringThread",
         new Object[] {this.hostSpec.getHost()}));
   }
 
@@ -368,14 +363,15 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
           this.failureDetectionIntervalNano * Math.max(0, this.failureDetectionCount - 1);
 
       if (invalidNodeDurationNano >= maxInvalidNodeDurationNano) {
-        LOGGER.fine(() -> Messages.get("MonitorConnectionContext.hostDead", new Object[] {this.hostSpec.getHost()}));
+        LOGGER.fine(() ->
+            Messages.get("HostMonitorConnectionContext.hostDead", new Object[] {this.hostSpec.getHost()}));
         this.nodeUnhealthy = true;
         return;
       }
 
       LOGGER.finest(
           () -> Messages.get(
-              "MonitorConnectionContext.hostNotResponding",
+              "HostMonitorConnectionContext.hostNotResponding",
               new Object[] {this.hostSpec.getHost(), this.failureCount}));
       return;
     }
@@ -383,7 +379,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
     if (this.failureCount > 0) {
       // Node is back alive
       LOGGER.finest(
-          () -> Messages.get("MonitorConnectionContext.hostAlive",
+          () -> Messages.get("HostMonitorConnectionContext.hostAlive",
               new Object[] {this.hostSpec.getHost()}));
     }
 
@@ -400,7 +396,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
       // ignore
       LOGGER.finest(
           () -> Messages.get(
-              "MonitorConnectionContext.exceptionAbortingConnection",
+              "HostMonitorConnectionContext.exceptionAbortingConnection",
               new Object[] {sqlEx.getMessage()}));
     }
   }

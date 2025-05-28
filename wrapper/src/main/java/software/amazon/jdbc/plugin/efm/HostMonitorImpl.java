@@ -114,7 +114,7 @@ public class HostMonitorImpl implements HostMonitor {
   @Override
   public void startMonitoring(final HostMonitorConnectionContext context) {
     if (this.stopped) {
-      LOGGER.warning(() -> Messages.get("MonitorImpl.monitorIsStopped", new Object[] {this.hostSpec.getHost()}));
+      LOGGER.warning(() -> Messages.get("HostMonitorImpl.monitorIsStopped", new Object[] {this.hostSpec.getHost()}));
     }
     final long currentTimeNano = this.getCurrentTimeNano();
     context.setStartMonitorTimeNano(currentTimeNano);
@@ -125,7 +125,7 @@ public class HostMonitorImpl implements HostMonitor {
   @Override
   public void stopMonitoring(final HostMonitorConnectionContext context) {
     if (context == null) {
-      LOGGER.warning(() -> Messages.get("MonitorImpl.contextNullWarning"));
+      LOGGER.warning(() -> Messages.get("HostMonitorImpl.contextNullWarning"));
       return;
     }
 
@@ -142,7 +142,7 @@ public class HostMonitorImpl implements HostMonitor {
   public void run() {
 
     LOGGER.finest(() -> Messages.get(
-        "MonitorImpl.startMonitoringThread",
+        "HostMonitorImpl.startMonitoringThread",
         new Object[]{this.hostSpec.getHost()}));
 
     try {
@@ -261,7 +261,7 @@ public class HostMonitorImpl implements HostMonitor {
             LOGGER.log(
                 Level.FINEST,
                 Messages.get(
-                   "MonitorImpl.exceptionDuringMonitoringContinue",
+                    "HostMonitorImpl.exceptionDuringMonitoringContinue",
                     new Object[]{this.hostSpec.getHost()}),
                 ex); // We want to print full trace stack of the exception.
           }
@@ -271,7 +271,7 @@ public class HostMonitorImpl implements HostMonitor {
       // exit thread
       LOGGER.warning(
           () -> Messages.get(
-              "MonitorImpl.interruptedExceptionDuringMonitoring",
+              "HostMonitorImpl.interruptedExceptionDuringMonitoring",
               new Object[] {this.hostSpec.getHost()}));
     } catch (final Exception ex) {
       // this should not be reached; log and exit thread
@@ -279,7 +279,7 @@ public class HostMonitorImpl implements HostMonitor {
         LOGGER.log(
             Level.FINEST,
             Messages.get(
-                "MonitorImpl.exceptionDuringMonitoringStop",
+                "HostMonitorImpl.exceptionDuringMonitoringStop",
                 new Object[]{this.hostSpec.getHost()}),
             ex); // We want to print full trace stack of the exception.
       }
@@ -296,7 +296,7 @@ public class HostMonitorImpl implements HostMonitor {
     }
 
     LOGGER.finest(() -> Messages.get(
-        "MonitorImpl.stopMonitoringThread",
+        "HostMonitorImpl.stopMonitoringThread",
         new Object[]{this.hostSpec.getHost()}));
   }
 

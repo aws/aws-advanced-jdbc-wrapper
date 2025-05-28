@@ -91,7 +91,7 @@ public class HostMonitorServiceImpl implements HostMonitorService {
 
     if (nodeKeys.isEmpty()) {
       throw new IllegalArgumentException(Messages.get(
-          "MonitorServiceImpl.emptyAliasSet",
+          "HostMonitorServiceImpl.emptyAliasSet",
           new Object[] {hostSpec}));
     }
 
