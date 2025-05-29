@@ -34,7 +34,7 @@ import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
-import software.amazon.jdbc.util.storage.Topology;
+import software.amazon.jdbc.hostlistprovider.Topology;
 
 public class MonitoringRdsHostListProvider extends RdsHostListProvider
     implements BlockingHostListProvider, CanReleaseResources {

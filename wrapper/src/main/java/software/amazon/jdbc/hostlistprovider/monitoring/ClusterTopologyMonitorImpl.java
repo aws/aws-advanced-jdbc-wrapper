@@ -57,7 +57,7 @@ import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
 import software.amazon.jdbc.util.storage.StorageService;
-import software.amazon.jdbc.util.storage.Topology;
+import software.amazon.jdbc.hostlistprovider.Topology;
 
 public class ClusterTopologyMonitorImpl extends AbstractMonitor implements ClusterTopologyMonitor {
 
