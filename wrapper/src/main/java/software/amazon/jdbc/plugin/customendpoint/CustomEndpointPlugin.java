@@ -41,6 +41,7 @@ import software.amazon.jdbc.util.RegionUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.monitoring.MonitorErrorResponse;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -50,9 +51,11 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
  */
 public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointPlugin.class.getName());
-  private static final String TELEMETRY_WAIT_FOR_INFO_COUNTER = "customEndpoint.waitForInfo.counter";
+  protected static final String TELEMETRY_WAIT_FOR_INFO_COUNTER = "customEndpoint.waitForInfo.counter";
   protected static final RegionUtils regionUtils = new RegionUtils();
-  private static final Set<String> subscribedMethods =
+  protected static final Set<MonitorErrorResponse> monitorErrorResponses =
+      new HashSet<>(Collections.singletonList(MonitorErrorResponse.RECREATE));
+  protected static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {
           addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
@@ -144,6 +147,14 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
 
     TelemetryFactory telemetryFactory = servicesContainer.getTelemetryFactory();
     this.waitForInfoCounter = telemetryFactory.createCounter(TELEMETRY_WAIT_FOR_INFO_COUNTER);
+
+    this.servicesContainer.getMonitorService().registerMonitorTypeIfAbsent(
+        CustomEndpointMonitorImpl.class,
+        TimeUnit.MILLISECONDS.toNanos(this.idleMonitorExpirationMs),
+        TimeUnit.MINUTES.toNanos(1),
+        monitorErrorResponses,
+        CustomEndpointInfo.class
+    );
   }
 
   @Override

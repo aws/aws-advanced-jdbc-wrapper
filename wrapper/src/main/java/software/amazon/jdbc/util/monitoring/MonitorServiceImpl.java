@@ -30,13 +30,12 @@ import java.util.function.Supplier;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.jdbc.AllowedAndBlockedHosts;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.DriverConnectionProvider;
 import software.amazon.jdbc.TargetDriverHelper;
 import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.hostlistprovider.monitoring.ClusterTopologyMonitorImpl;
-import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
@@ -48,7 +47,6 @@ import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.events.EventSubscriber;
 import software.amazon.jdbc.util.storage.ExternallyManagedCache;
 import software.amazon.jdbc.util.storage.StorageService;
-import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class MonitorServiceImpl implements MonitorService, EventSubscriber {
@@ -61,10 +59,8 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
     Set<MonitorErrorResponse> recreateOnError =
         new HashSet<>(Collections.singletonList(MonitorErrorResponse.RECREATE));
     MonitorSettings defaultSettings = new MonitorSettings(
-        TimeUnit.MINUTES.toNanos(5), TimeUnit.MINUTES.toNanos(3), recreateOnError);
+        TimeUnit.MINUTES.toNanos(15), TimeUnit.MINUTES.toNanos(3), recreateOnError);
 
-    suppliers.put(
-        CustomEndpointMonitorImpl.class, () -> new CacheContainer(defaultSettings, AllowedAndBlockedHosts.class));
     suppliers.put(ClusterTopologyMonitorImpl.class, () -> new CacheContainer(defaultSettings, Topology.class));
     defaultSuppliers = Collections.unmodifiableMap(suppliers);
   }
