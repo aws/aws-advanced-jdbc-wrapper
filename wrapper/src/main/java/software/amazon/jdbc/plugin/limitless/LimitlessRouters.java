@@ -19,7 +19,7 @@ package software.amazon.jdbc.plugin.limitless;
 import java.util.List;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.util.storage.Topology;
+import software.amazon.jdbc.hostlistprovider.Topology;
 
 public class LimitlessRouters extends Topology {
   public LimitlessRouters(@NonNull List<HostSpec> hosts) {

@@ -35,9 +35,9 @@ import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.DriverConnectionProvider;
 import software.amazon.jdbc.TargetDriverHelper;
 import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.hostlistprovider.monitoring.ClusterTopologyMonitorImpl;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
-import software.amazon.jdbc.plugin.efm2.HostMonitorImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
@@ -49,7 +49,6 @@ import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.events.EventSubscriber;
 import software.amazon.jdbc.util.storage.ExternallyManagedCache;
 import software.amazon.jdbc.util.storage.StorageService;
-import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class MonitorServiceImpl implements MonitorService, EventSubscriber {
@@ -67,7 +66,6 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
     suppliers.put(
         CustomEndpointMonitorImpl.class, () -> new CacheContainer(defaultSettings, AllowedAndBlockedHosts.class));
     suppliers.put(ClusterTopologyMonitorImpl.class, () -> new CacheContainer(defaultSettings, Topology.class));
-    suppliers.put(HostMonitorImpl.class, () -> new CacheContainer(defaultSettings, null));
     defaultSuppliers = Collections.unmodifiableMap(suppliers);
   }
 

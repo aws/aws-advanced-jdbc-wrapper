@@ -64,7 +64,7 @@ public class HostMonitorServiceImpl implements HostMonitorService {
     this.coreMonitorService.registerMonitorTypeIfAbsent(
         HostMonitorImpl.class,
         TimeUnit.MILLISECONDS.toNanos(MONITOR_DISPOSAL_TIME_MS.getLong(props)),
-        TimeUnit.MINUTES.toNanos(1),
+        TimeUnit.MINUTES.toNanos(3),
         null,
         null);
   }

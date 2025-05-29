@@ -85,7 +85,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
     this.servicesContainer.getMonitorService().registerMonitorTypeIfAbsent(
         LimitlessRouterMonitor.class,
         TimeUnit.MILLISECONDS.toNanos(MONITOR_DISPOSAL_TIME_MS.getLong(props)),
-        TimeUnit.MINUTES.toNanos(1),
+        TimeUnit.MINUTES.toNanos(3),
         monitorErrorResponses,
         LimitlessRouters.class
     );
