@@ -16,8 +16,8 @@
 
 package software.amazon.jdbc.plugin.limitless;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -31,8 +31,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
-import org.junit.Ignore;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -48,20 +47,31 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.RoundRobinHostSelector;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainerImpl;
+import software.amazon.jdbc.util.events.EventPublisher;
+import software.amazon.jdbc.util.monitoring.MonitorService;
+import software.amazon.jdbc.util.storage.StorageService;
+import software.amazon.jdbc.util.storage.StorageServiceImpl;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
-public class LimitlessRouterServiceImplTest {
+@SuppressWarnings("resource")
+class LimitlessRouterServiceImplTest {
 
   private static final String CLUSTER_ID = "someClusterId";
+  @Mock private EventPublisher mockEventPublisher;
+  @Mock private MonitorService mockMonitorService;
+  @Mock private TelemetryFactory mockTelemetryFactory;
   @Mock private PluginService mockPluginService;
   @Mock private HostListProvider mockHostListProvider;
-  @Mock private LimitlessRouterMonitor mockLimitlessRouterMonitor;
   @Mock private LimitlessQueryHelper mockQueryHelper;
   @Mock JdbcCallable<Connection, SQLException> mockConnectFuncLambda;
   @Mock private Connection mockConnection;
   private static final HostSpec hostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
       .host("some-instance").role(HostRole.WRITER).build();
-  private static final long someExpirationNano = TimeUnit.MILLISECONDS.toNanos(60000);
   private static Properties props;
+  private FullServicesContainer servicesContainer;
+  private StorageService storageService;
   private AutoCloseable closeable;
 
   @BeforeEach
@@ -72,12 +82,16 @@ public class LimitlessRouterServiceImplTest {
     when(mockPluginService.getHostListProvider()).thenReturn(mockHostListProvider);
     when(mockPluginService.getProperties()).thenReturn(props);
     when(mockHostListProvider.getClusterId()).thenReturn(CLUSTER_ID);
+
+    this.storageService = new StorageServiceImpl(mockEventPublisher);
+    servicesContainer = new FullServicesContainerImpl(this.storageService, mockMonitorService, mockTelemetryFactory);
+    servicesContainer.setPluginService(mockPluginService);
   }
 
   @AfterEach
   public void cleanup() throws Exception {
     closeable.close();
-    LimitlessRouterServiceImpl.limitlessRouterCache.clear();
+    this.storageService.clearAll();
   }
 
   @Test
@@ -93,9 +107,7 @@ public class LimitlessRouterServiceImplTest {
         null
     );
     final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        mockPluginService,
-        (a, b, c, d, e) -> mockLimitlessRouterMonitor,
-        mockQueryHelper);
+        this.servicesContainer, mockQueryHelper, props);
 
     assertThrows(SQLException.class, () -> limitlessRouterService.establishConnection(inputContext));
   }
@@ -112,9 +124,7 @@ public class LimitlessRouterServiceImplTest {
         null
     );
     final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        mockPluginService,
-        (a, b, c, d, e) -> mockLimitlessRouterMonitor,
-        mockQueryHelper);
+        this.servicesContainer, mockQueryHelper, props);
 
     limitlessRouterService.establishConnection(inputContext);
 
@@ -131,7 +141,10 @@ public class LimitlessRouterServiceImplTest {
             .build(),
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3").role(HostRole.WRITER).weight(100)
             .build());
-    LimitlessRouterServiceImpl.limitlessRouterCache.put(CLUSTER_ID, routerList, someExpirationNano);
+    final LimitlessRouters routers = new LimitlessRouters(routerList);
+    final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
+        this.servicesContainer, mockQueryHelper, props);
+    this.storageService.set(CLUSTER_ID, routers);
 
     final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
         routerList.get(1),
@@ -141,10 +154,6 @@ public class LimitlessRouterServiceImplTest {
         null,
         null
     );
-    final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        mockPluginService,
-        (a, b, c, d, e) -> mockLimitlessRouterMonitor,
-        mockQueryHelper);
 
     limitlessRouterService.establishConnection(inputContext);
 
@@ -174,14 +183,13 @@ public class LimitlessRouterServiceImplTest {
         null
     );
     final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        mockPluginService,
-        (a, b, c, d, e) -> mockLimitlessRouterMonitor,
-        mockQueryHelper);
+        this.servicesContainer, mockQueryHelper, props);
 
     limitlessRouterService.establishConnection(inputContext);
 
     assertEquals(mockConnection, inputContext.getConnection());
-    assertEquals(routerList, LimitlessRouterServiceImpl.limitlessRouterCache.get(CLUSTER_ID, someExpirationNano));
+    final LimitlessRouters routers = new LimitlessRouters(routerList);
+    assertEquals(routers, this.storageService.get(LimitlessRouters.class, CLUSTER_ID));
     verify(mockQueryHelper, times(1))
         .queryForLimitlessRouters(inputContext.getConnection(), inputContext.getHostSpec().getPort());
     verify(mockConnectFuncLambda, times(1)).call();
@@ -197,7 +205,10 @@ public class LimitlessRouterServiceImplTest {
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3").role(HostRole.WRITER).weight(100)
             .build());
     final HostSpec selectedRouter = routerList.get(2);
-    LimitlessRouterServiceImpl.limitlessRouterCache.put(CLUSTER_ID, routerList, someExpirationNano);
+    final LimitlessRouters routers = new LimitlessRouters(routerList);
+    final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
+        this.servicesContainer, mockQueryHelper, props);
+    this.storageService.set(CLUSTER_ID, routers);
 
     when(mockPluginService.getHostSpecByStrategy(any(), any(), any())).thenReturn(selectedRouter);
     when(mockPluginService.connect(any(), any(), any())).thenReturn(mockConnection);
@@ -210,10 +221,6 @@ public class LimitlessRouterServiceImplTest {
         null,
         null
     );
-    final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        mockPluginService,
-        (a, b, c, d, e) -> mockLimitlessRouterMonitor,
-        mockQueryHelper);
 
     limitlessRouterService.establishConnection(inputContext);
 
@@ -247,14 +254,13 @@ public class LimitlessRouterServiceImplTest {
         null
     );
     final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        mockPluginService,
-        (a, b, c, d, e) -> mockLimitlessRouterMonitor,
-        mockQueryHelper);
+        this.servicesContainer, mockQueryHelper, props);
 
     limitlessRouterService.establishConnection(inputContext);
 
     assertEquals(mockConnection, inputContext.getConnection());
-    assertEquals(routerList, LimitlessRouterServiceImpl.limitlessRouterCache.get(CLUSTER_ID, someExpirationNano));
+    final LimitlessRouters routers = new LimitlessRouters(routerList);
+    assertEquals(routers, this.storageService.get(LimitlessRouters.class, CLUSTER_ID));
     verify(mockQueryHelper, times(1))
         .queryForLimitlessRouters(inputContext.getConnection(), inputContext.getHostSpec().getPort());
     verify(mockConnectFuncLambda, times(1)).call();
@@ -270,7 +276,10 @@ public class LimitlessRouterServiceImplTest {
             .availability(HostAvailability.AVAILABLE).build(),
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3").role(HostRole.WRITER).weight(100)
             .availability(HostAvailability.AVAILABLE).build());
-    LimitlessRouterServiceImpl.limitlessRouterCache.put(CLUSTER_ID, routerList, someExpirationNano);
+    final LimitlessRouters routers = new LimitlessRouters(routerList);
+    final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
+        this.servicesContainer, mockQueryHelper, props);
+    this.storageService.set(CLUSTER_ID, routers);
     final HostSpec selectedRouter = routerList.get(2);
     final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
         routerList.get(1),
@@ -285,22 +294,17 @@ public class LimitlessRouterServiceImplTest {
     when(mockPluginService.getHostSpecByStrategy(any(), any(), any())).thenReturn(selectedRouter);
     when(mockPluginService.connect(any(), any(), any())).thenReturn(mockConnection);
 
-    final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        mockPluginService,
-        (a, b, c, d, e) -> mockLimitlessRouterMonitor,
-        mockQueryHelper);
-
     limitlessRouterService.establishConnection(inputContext);
 
     assertEquals(mockConnection, inputContext.getConnection());
-    assertEquals(routerList, LimitlessRouterServiceImpl.limitlessRouterCache.get(CLUSTER_ID, someExpirationNano));
+    assertEquals(routers, this.storageService.get(LimitlessRouters.class, CLUSTER_ID));
     verify(mockPluginService, times(1))
         .getHostSpecByStrategy(routerList, HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
     verify(mockPluginService, times(1)).connect(selectedRouter, inputContext.getProps(), null);
     verify(mockConnectFuncLambda, times(1)).call();
   }
 
-  @Ignore
+  @Disabled
   @Test
   void testEstablishConnection_GivenSelectsHostThrows_ThenRetry() throws SQLException {
     final List<HostSpec> routerList = Arrays.asList(
@@ -311,7 +315,8 @@ public class LimitlessRouterServiceImplTest {
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("some-instance-3").role(HostRole.WRITER)
             .build());
     final HostSpec selectedRouter = routerList.get(2);
-    LimitlessRouterServiceImpl.limitlessRouterCache.put(CLUSTER_ID, routerList, someExpirationNano);
+    final LimitlessRouters routers = new LimitlessRouters(routerList);
+    this.storageService.set(CLUSTER_ID, routers);
     when(mockPluginService.getHostSpecByStrategy(any(), any(), any()))
         .thenThrow(new SQLException())
         .thenReturn(selectedRouter);
@@ -326,14 +331,12 @@ public class LimitlessRouterServiceImplTest {
         null
     );
     final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        mockPluginService,
-        (a, b, c, d, e) -> mockLimitlessRouterMonitor,
-        mockQueryHelper);
+        this.servicesContainer, mockQueryHelper, props);
 
     limitlessRouterService.establishConnection(inputContext);
 
     assertEquals(mockConnection, inputContext.getConnection());
-    assertEquals(routerList, LimitlessRouterServiceImpl.limitlessRouterCache.get(CLUSTER_ID, someExpirationNano));
+    assertEquals(routers, this.storageService.get(LimitlessRouters.class, CLUSTER_ID));
     verify(mockPluginService, times(2)).getHostSpecByStrategy(any(), any(), any());
     verify(mockPluginService, times(1))
         .getHostSpecByStrategy(routerList, HostRole.WRITER, RoundRobinHostSelector.STRATEGY_ROUND_ROBIN);
@@ -351,10 +354,12 @@ public class LimitlessRouterServiceImplTest {
             .build(),
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("some-instance-3").role(HostRole.WRITER)
             .build());
+    final LimitlessRouters routers = new LimitlessRouters(routerList);
+    final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
+        this.servicesContainer, mockQueryHelper, props);
+    this.storageService.set(CLUSTER_ID, routers);
     final HostSpec selectedRouter = routerList.get(2);
-    LimitlessRouterServiceImpl.limitlessRouterCache.put(CLUSTER_ID, routerList, someExpirationNano);
-    when(mockPluginService.getHostSpecByStrategy(any(), any(), any()))
-        .thenReturn(null, selectedRouter);
+    when(mockPluginService.getHostSpecByStrategy(any(), any(), any())).thenReturn(null, selectedRouter);
     when(mockPluginService.connect(any(), any(), any())).thenReturn(mockConnection);
 
     final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
@@ -365,15 +370,11 @@ public class LimitlessRouterServiceImplTest {
         null,
         null
     );
-    final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        mockPluginService,
-        (a, b, c, d, e) -> mockLimitlessRouterMonitor,
-        mockQueryHelper);
 
     limitlessRouterService.establishConnection(inputContext);
 
     assertEquals(mockConnection, inputContext.getConnection());
-    assertEquals(routerList, LimitlessRouterServiceImpl.limitlessRouterCache.get(CLUSTER_ID, someExpirationNano));
+    assertEquals(routers, this.storageService.get(LimitlessRouters.class, CLUSTER_ID));
     verify(mockPluginService, times(2)).getHostSpecByStrategy(any(), any(), any());
     verify(mockPluginService, times(1))
         .getHostSpecByStrategy(routerList, HostRole.WRITER, RoundRobinHostSelector.STRATEGY_ROUND_ROBIN);
@@ -391,9 +392,12 @@ public class LimitlessRouterServiceImplTest {
             .build(),
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("some-instance-3").role(HostRole.WRITER)
             .build());
+    final LimitlessRouters routers = new LimitlessRouters(routerList);
+    final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
+        this.servicesContainer, mockQueryHelper, props);
+    this.storageService.set(CLUSTER_ID, routers);
     final HostSpec selectedRouter = routerList.get(1);
     final HostSpec selectedRouterForRetry = routerList.get(2);
-    LimitlessRouterServiceImpl.limitlessRouterCache.put(CLUSTER_ID, routerList, someExpirationNano);
     when(mockPluginService.getHostSpecByStrategy(any(), any(), any()))
         .thenReturn(selectedRouter, selectedRouterForRetry);
     when(mockPluginService.connect(any(), any(), any()))
@@ -408,15 +412,11 @@ public class LimitlessRouterServiceImplTest {
         null,
         null
     );
-    final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        mockPluginService,
-        (a, b, c, d, e) -> mockLimitlessRouterMonitor,
-        mockQueryHelper);
 
     limitlessRouterService.establishConnection(inputContext);
 
     assertEquals(mockConnection, inputContext.getConnection());
-    assertEquals(routerList, LimitlessRouterServiceImpl.limitlessRouterCache.get(CLUSTER_ID, someExpirationNano));
+    assertEquals(routers, this.storageService.get(LimitlessRouters.class, CLUSTER_ID));
     verify(mockPluginService, times(2)).getHostSpecByStrategy(any(), any(), any());
     verify(mockPluginService, times(1))
         .getHostSpecByStrategy(routerList, HostRole.WRITER, RoundRobinHostSelector.STRATEGY_ROUND_ROBIN);
@@ -436,7 +436,10 @@ public class LimitlessRouterServiceImplTest {
             .availability(HostAvailability.AVAILABLE).build(),
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3").role(HostRole.WRITER).weight(100)
             .availability(HostAvailability.AVAILABLE).build());
-    LimitlessRouterServiceImpl.limitlessRouterCache.put(CLUSTER_ID, routerList, someExpirationNano);
+    final LimitlessRouters routers = new LimitlessRouters(routerList);
+    final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
+        this.servicesContainer, mockQueryHelper, props);
+    this.storageService.set(CLUSTER_ID, routers);
 
     final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
         routerList.get(0),
@@ -450,11 +453,6 @@ public class LimitlessRouterServiceImplTest {
     when(mockConnectFuncLambda.call()).thenThrow(new SQLException());
     when(mockPluginService.getHostSpecByStrategy(any(), any(), any())).thenReturn(routerList.get(0));
     when(mockPluginService.connect(any(), any(), any())).thenThrow(new SQLException());
-
-    final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        mockPluginService,
-        (a, b, c, d, e) -> mockLimitlessRouterMonitor,
-        mockQueryHelper);
 
     assertThrows(SQLException.class, () -> limitlessRouterService.establishConnection(inputContext));
 

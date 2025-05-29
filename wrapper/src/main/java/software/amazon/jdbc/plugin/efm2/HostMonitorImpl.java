@@ -50,6 +50,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
 
   private static final Logger LOGGER = Logger.getLogger(HostMonitorImpl.class.getName());
   private static final long THREAD_SLEEP_NANO = TimeUnit.MILLISECONDS.toNanos(100);
+  private static final long TERMINATION_TIMEOUT_SEC = 30;
   private static final String MONITORING_PROPERTY_PREFIX = "monitoring-";
 
   protected static final Executor ABORT_EXECUTOR =
@@ -97,7 +98,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
       final int failureDetectionIntervalMillis,
       final int failureDetectionCount,
       final TelemetryCounter abortedConnectionsCounter) {
-    super(30, ExecutorFactory.newFixedThreadPool(2, "efm2-monitor"));
+    super(TERMINATION_TIMEOUT_SEC, ExecutorFactory.newFixedThreadPool(2, "efm2-monitor"));
 
     this.connectionService = connectionService;
     this.telemetryFactory = telemetryFactory;

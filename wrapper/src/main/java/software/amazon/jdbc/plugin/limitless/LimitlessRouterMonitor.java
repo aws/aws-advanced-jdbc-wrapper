@@ -20,54 +20,53 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.Utils;
-import software.amazon.jdbc.util.storage.SlidingExpirationCacheWithCleanupThread;
+import software.amazon.jdbc.util.connection.ConnectionService;
+import software.amazon.jdbc.util.monitoring.AbstractMonitor;
+import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
-public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
+public class LimitlessRouterMonitor extends AbstractMonitor {
 
   private static final Logger LOGGER =
       Logger.getLogger(LimitlessRouterMonitor.class.getName());
 
   protected static final String MONITORING_PROPERTY_PREFIX = "limitless-router-monitor-";
+  protected static final long TERMINATION_TIMEOUT_SEC = 5;
   protected final int intervalMs;
   protected final @NonNull HostSpec hostSpec;
-  protected final SlidingExpirationCacheWithCleanupThread<String, List<HostSpec>> limitlessRouterCache;
-  protected final String limitlessRouterCacheKey;
+  protected final @NonNull StorageService storageService;
+  protected final @NonNull String limitlessRouterCacheKey;
   protected final @NonNull Properties props;
-  protected final @NonNull PluginService pluginService;
-  protected final LimitlessQueryHelper queryHelper;
-  protected final TelemetryFactory telemetryFactory;
+  protected final @NonNull ConnectionService connectionService;
+  protected final @NonNull LimitlessQueryHelper queryHelper;
+  protected final @NonNull TelemetryFactory telemetryFactory;
   protected Connection monitoringConn = null;
-
-  // TODO: remove and submit monitors to MonitorService instead
-  private final ExecutorService threadPool = ExecutorFactory.newFixedThreadPool(1, "threadPool");
-
-  private final AtomicBoolean stopped = new AtomicBoolean(false);
 
   public LimitlessRouterMonitor(
       final @NonNull PluginService pluginService,
+      final @NonNull ConnectionService connectionService,
+      final @NonNull TelemetryFactory telemetryFactory,
       final @NonNull HostSpec hostSpec,
-      final @NonNull SlidingExpirationCacheWithCleanupThread<String, List<HostSpec>> limitlessRouterCache,
+      final @NonNull StorageService storageService,
       final @NonNull String limitlessRouterCacheKey,
       final @NonNull Properties props,
       final int intervalMs) {
-    this.pluginService = pluginService;
+    super(TERMINATION_TIMEOUT_SEC);
+    this.connectionService = connectionService;
+    this.storageService = storageService;
+    this.telemetryFactory = telemetryFactory;
     this.hostSpec = hostSpec;
-    this.limitlessRouterCache = limitlessRouterCache;
     this.limitlessRouterCacheKey = limitlessRouterCacheKey;
     this.props = PropertyUtils.copyProperties(props);
     props.stringPropertyNames().stream()
@@ -82,24 +81,11 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
     this.props.setProperty(LimitlessConnectionPlugin.WAIT_FOR_ROUTER_INFO.name, "false");
 
     this.intervalMs = intervalMs;
-    this.telemetryFactory = this.pluginService.getTelemetryFactory();
-    this.queryHelper = new LimitlessQueryHelper(this.pluginService);
-    this.threadPool.submit(this);
-    this.threadPool.shutdown(); // No more task are accepted by pool.
-  }
-
-  public List<HostSpec> getLimitlessRouters() {
-    return this.limitlessRouterCache.get(this.limitlessRouterCacheKey,
-        TimeUnit.MILLISECONDS.toNanos(LimitlessRouterServiceImpl.MONITOR_DISPOSAL_TIME_MS.getLong(props)));
-  }
-
-  public AtomicBoolean isStopped() {
-    return this.stopped;
+    this.queryHelper = new LimitlessQueryHelper(pluginService);
   }
 
   @Override
-  public void close() throws Exception {
-    this.stopped.set(true);
+  public void close() {
     try {
       if (this.monitoringConn != null && !this.monitoringConn.isClosed()) {
         this.monitoringConn.close();
@@ -109,40 +95,29 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
     }
 
     this.monitoringConn = null;
-
-    // Waiting for 5s gives a thread enough time to exit monitoring loop and close database connection.
-    if (!this.threadPool.awaitTermination(5, TimeUnit.SECONDS)) {
-      this.threadPool.shutdownNow();
-    }
-    LOGGER.finest(() -> Messages.get(
-        "LimitlessRouterMonitor.stopped",
-        new Object[] {this.hostSpec.getHost()}));
   }
 
   @Override
-  public void run() {
+  public void monitor() {
     LOGGER.finest(() -> Messages.get(
         "LimitlessRouterMonitor.running",
         new Object[] {this.hostSpec.getHost()}));
 
     try {
-      while (!this.stopped.get()) {
+      while (!this.stop.get()) {
         TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
             "limitless router monitor thread", TelemetryTraceLevel.TOP_LEVEL);
         telemetryContext.setAttribute("url", hostSpec.getUrl());
+
         try {
           this.openConnection();
           if (this.monitoringConn == null || this.monitoringConn.isClosed()) {
             continue;
           }
-          List<HostSpec> newLimitlessRouters = queryHelper.queryForLimitlessRouters(this.monitoringConn,
-              this.hostSpec.getPort());
 
-          limitlessRouterCache.put(
-              this.limitlessRouterCacheKey,
-              newLimitlessRouters,
-              TimeUnit.MILLISECONDS.toNanos(LimitlessRouterServiceImpl.MONITOR_DISPOSAL_TIME_MS.getLong(props)));
-
+          List<HostSpec> newLimitlessRouters =
+              queryHelper.queryForLimitlessRouters(this.monitoringConn, this.hostSpec.getPort());
+          this.storageService.set(this.limitlessRouterCacheKey, new LimitlessRouters(newLimitlessRouters));
           LOGGER.finest(Utils.logTopology(newLimitlessRouters, "[limitlessRouterMonitor] Topology:"));
           TimeUnit.MILLISECONDS.sleep(this.intervalMs); // do not include this in the telemetry
         } catch (final Exception ex) {
@@ -173,7 +148,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
             ex); // We want to print full trace stack of the exception.
       }
     } finally {
-      this.stopped.set(true);
+      this.stop.set(true);
       try {
         if (this.monitoringConn != null && !this.monitoringConn.isClosed()) {
           this.monitoringConn.close();
@@ -193,8 +168,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
         LOGGER.finest(() -> Messages.get(
             "LimitlessRouterMonitor.openingConnection",
             new Object[] {this.hostSpec.getUrl()}));
-        // TODO: replace with ConnectionService#createAuxiliaryConnection
-        this.monitoringConn = this.pluginService.forceConnect(this.hostSpec, this.props);
+        this.monitoringConn = this.connectionService.open(this.hostSpec, this.props);
         LOGGER.finest(() -> Messages.get(
             "LimitlessRouterMonitor.openedConnection",
             new Object[] {this.monitoringConn}));
