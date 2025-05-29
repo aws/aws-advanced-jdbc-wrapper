@@ -36,6 +36,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.stream.Stream;
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -69,6 +70,7 @@ import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
@@ -77,6 +79,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 
+@SuppressWarnings("resource")
 public class AwsSecretsManagerConnectionPluginTest {
 
   private static final String TEST_PG_PROTOCOL = "jdbc:aws-wrapper:postgresql:";
@@ -106,6 +109,7 @@ public class AwsSecretsManagerConnectionPluginTest {
 
   private AutoCloseable closeable;
 
+  @Mock FullServicesContainer mockServicesContainer;
   @Mock SecretsManagerClient mockSecretsManagerClient;
   @Mock GetSecretValueRequest mockGetValueRequest;
   @Mock JdbcCallable<Connection, SQLException> connectFunc;
@@ -132,6 +136,7 @@ public class AwsSecretsManagerConnectionPluginTest {
     when(mockDialectManager.getDialect(anyString(), anyString(), any(Properties.class)))
         .thenReturn(mockTopologyAwareDialect);
 
+    when(mockServicesContainer.getConnectionPluginManager()).thenReturn(mockConnectionPluginManager);
     when(mockService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockConnectionPluginManager.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
@@ -241,16 +246,7 @@ public class AwsSecretsManagerConnectionPluginTest {
       String protocol,
       ExceptionHandler exceptionHandler) throws SQLException {
     this.plugin = new AwsSecretsManagerConnectionPlugin(
-        new PluginServiceImpl(
-            mockConnectionPluginManager,
-            new ExceptionManager(),
-            TEST_PROPS,
-            "url",
-            protocol,
-            mockDialectManager,
-            mockTargetDriverDialect,
-            configurationProfile,
-            mockSessionStateService),
+        getPluginService(protocol),
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
@@ -280,6 +276,19 @@ public class AwsSecretsManagerConnectionPluginTest {
     verify(connectFunc, times(2)).call();
     assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
     assertEquals(TEST_PASSWORD, TEST_PROPS.get(PropertyDefinition.PASSWORD.name));
+  }
+
+  private @NotNull PluginServiceImpl getPluginService(String protocol) throws SQLException {
+    return new PluginServiceImpl(
+        mockServicesContainer,
+        new ExceptionManager(),
+        TEST_PROPS,
+        "url",
+        protocol,
+        mockDialectManager,
+        mockTargetDriverDialect,
+        configurationProfile,
+        mockSessionStateService);
   }
 
   /**
@@ -341,16 +350,7 @@ public class AwsSecretsManagerConnectionPluginTest {
   @ValueSource(strings = {"28000", "28P01"})
   public void testFailedInitialConnectionWithWrappedGenericError(final String accessError) throws SQLException {
     this.plugin = new AwsSecretsManagerConnectionPlugin(
-        new PluginServiceImpl(
-            mockConnectionPluginManager,
-            new ExceptionManager(),
-            TEST_PROPS,
-            "url",
-            TEST_PG_PROTOCOL,
-            mockDialectManager,
-            mockTargetDriverDialect,
-            configurationProfile,
-            mockSessionStateService),
+        getPluginService(TEST_PG_PROTOCOL),
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
@@ -383,16 +383,7 @@ public class AwsSecretsManagerConnectionPluginTest {
   @Test
   public void testConnectWithWrappedMySQLException() throws SQLException {
     this.plugin = new AwsSecretsManagerConnectionPlugin(
-        new PluginServiceImpl(
-            mockConnectionPluginManager,
-            new ExceptionManager(),
-            TEST_PROPS,
-            "url",
-            TEST_MYSQL_PROTOCOL,
-            mockDialectManager,
-            mockTargetDriverDialect,
-            configurationProfile,
-            mockSessionStateService),
+        getPluginService(TEST_MYSQL_PROTOCOL),
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
@@ -424,16 +415,7 @@ public class AwsSecretsManagerConnectionPluginTest {
   @Test
   public void testConnectWithWrappedPostgreSQLException() throws SQLException {
     this.plugin = new AwsSecretsManagerConnectionPlugin(
-        new PluginServiceImpl(
-            mockConnectionPluginManager,
-            new ExceptionManager(),
-            TEST_PROPS,
-            "url",
-            TEST_PG_PROTOCOL,
-            mockDialectManager,
-            mockTargetDriverDialect,
-            configurationProfile,
-            mockSessionStateService),
+        getPluginService(TEST_PG_PROTOCOL),
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
@@ -471,7 +453,7 @@ public class AwsSecretsManagerConnectionPluginTest {
     SECRET_ID_PROPERTY.set(props, arn);
 
     this.plugin = spy(new AwsSecretsManagerConnectionPlugin(
-        new PluginServiceImpl(mockConnectionPluginManager, props, "url", TEST_PG_PROTOCOL, mockTargetDriverDialect),
+        new PluginServiceImpl(mockServicesContainer, props, "url", TEST_PG_PROTOCOL, mockTargetDriverDialect),
         props,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest));
@@ -491,7 +473,7 @@ public class AwsSecretsManagerConnectionPluginTest {
     REGION_PROPERTY.set(props, expectedRegion.toString());
 
     this.plugin = spy(new AwsSecretsManagerConnectionPlugin(
-        new PluginServiceImpl(mockConnectionPluginManager, props, "url", TEST_PG_PROTOCOL, mockTargetDriverDialect),
+        new PluginServiceImpl(mockServicesContainer, props, "url", TEST_PG_PROTOCOL, mockTargetDriverDialect),
         props,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest));
