@@ -30,11 +30,11 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
+import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
-import software.amazon.jdbc.hostlistprovider.Topology;
 
 public class MonitoringRdsHostListProvider extends RdsHostListProvider
     implements BlockingHostListProvider, CanReleaseResources {

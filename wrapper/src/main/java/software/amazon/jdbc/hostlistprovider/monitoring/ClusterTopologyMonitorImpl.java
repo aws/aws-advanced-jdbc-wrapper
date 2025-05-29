@@ -47,6 +47,7 @@ import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
@@ -57,7 +58,6 @@ import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
 import software.amazon.jdbc.util.storage.StorageService;
-import software.amazon.jdbc.hostlistprovider.Topology;
 
 public class ClusterTopologyMonitorImpl extends AbstractMonitor implements ClusterTopologyMonitor {
 
