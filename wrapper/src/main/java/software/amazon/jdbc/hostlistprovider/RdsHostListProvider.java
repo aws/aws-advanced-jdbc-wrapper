@@ -435,8 +435,8 @@ public class RdsHostListProvider implements DynamicHostListProvider {
     // should contain 4 columns: node ID, 1/0 (writer/reader), CPU utilization, node lag in time.
     String hostName = resultSet.getString(1);
     final boolean isWriter = resultSet.getBoolean(2);
-    final float cpuUtilization = resultSet.getFloat(3);
-    final float nodeLag = resultSet.getFloat(4);
+    final double cpuUtilization = resultSet.getDouble(3);
+    final double nodeLag = resultSet.getFloat(4);
     Timestamp lastUpdateTime;
     try {
       lastUpdateTime = resultSet.getTimestamp(5);
