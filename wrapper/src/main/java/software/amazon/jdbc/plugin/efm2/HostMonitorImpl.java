@@ -27,19 +27,15 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
-import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -62,15 +58,11 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
   private final Queue<WeakReference<HostMonitorConnectionContext>> activeContexts = new ConcurrentLinkedQueue<>();
   private final Map<Long, Queue<WeakReference<HostMonitorConnectionContext>>> newContexts =
       new ConcurrentHashMap<>();
-  private final PluginService pluginService;
+  private final ConnectionService connectionService;
   private final TelemetryFactory telemetryFactory;
   private final Properties properties;
   private final HostSpec hostSpec;
-  private final AtomicBoolean stopped = new AtomicBoolean(false);
   private Connection monitoringConn = null;
-  // TODO: remove and submit monitors to MonitorService instead
-  private final ExecutorService threadPool =
-      ExecutorFactory.newFixedThreadPool(2, "threadPool");
 
   private final long failureDetectionTimeNano;
   private final long failureDetectionIntervalNano;
@@ -85,7 +77,8 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
   /**
    * Store the monitoring configuration for a connection.
    *
-   * @param pluginService             A service for creating new connections.
+   * @param connectionService         The service to use to create the monitoring connection.
+   * @param telemetryFactory          The telemetry factory to use to create telemetry data.
    * @param hostSpec                  The {@link HostSpec} of the server this {@link HostMonitorImpl}
    *                                  instance is monitoring.
    * @param properties                The {@link Properties} containing additional monitoring
@@ -96,35 +89,24 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
    * @param abortedConnectionsCounter Aborted connection telemetry counter.
    */
   public HostMonitorImpl(
-      final @NonNull PluginService pluginService,
+      final @NonNull ConnectionService connectionService,
+      final @NonNull TelemetryFactory telemetryFactory,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties properties,
       final int failureDetectionTimeMillis,
       final int failureDetectionIntervalMillis,
       final int failureDetectionCount,
       final TelemetryCounter abortedConnectionsCounter) {
-    super(30,
-        Executors.newFixedThreadPool(2, runnableTarget -> {
-          final Thread monitoringThread = new Thread(runnableTarget);
-          monitoringThread.setDaemon(true);
-          if (!StringUtils.isNullOrEmpty(monitoringThread.getName())) {
-            monitoringThread.setName(monitoringThread.getName() + "-efm");
-          }
-          return monitoringThread;
-        }));
+    super(30, ExecutorFactory.newFixedThreadPool(2, "efm2-monitor"));
 
-    this.pluginService = pluginService;
-    this.telemetryFactory = pluginService.getTelemetryFactory();
+    this.connectionService = connectionService;
+    this.telemetryFactory = telemetryFactory;
     this.hostSpec = hostSpec;
     this.properties = properties;
     this.failureDetectionTimeNano = TimeUnit.MILLISECONDS.toNanos(failureDetectionTimeMillis);
     this.failureDetectionIntervalNano = TimeUnit.MILLISECONDS.toNanos(failureDetectionIntervalMillis);
     this.failureDetectionCount = failureDetectionCount;
     this.abortedConnectionsCounter = abortedConnectionsCounter;
-
-    this.threadPool.submit(this::newContextRun); // task to handle new contexts
-    this.threadPool.submit(this); // task to handle active monitoring contexts
-    this.threadPool.shutdown(); // No more tasks are accepted by pool.
   }
 
   @Override
@@ -141,7 +123,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
 
   @Override
   public void startMonitoring(final HostMonitorConnectionContext context) {
-    if (this.stopped.get()) {
+    if (this.stop.get()) {
       LOGGER.warning(() -> Messages.get("HostMonitorImpl.monitorIsStopped", new Object[] {this.hostSpec.getHost()}));
     }
 
@@ -172,7 +154,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
         new Object[] {this.hostSpec.getHost()}));
 
     try {
-      while (!this.stopped.get()) {
+      while (!this.stop.get()) {
         final long currentTimeNano = this.getCurrentTimeNano();
         this.lastActivityTimestampNanos.set(currentTimeNano);
 
@@ -225,7 +207,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
         new Object[] {this.hostSpec.getHost()}));
 
     try {
-      while (!this.stopped.get()) {
+      while (!this.stop.get()) {
 
         if (this.activeContexts.isEmpty() && !this.nodeUnhealthy) {
           TimeUnit.NANOSECONDS.sleep(THREAD_SLEEP_NANO);
@@ -242,7 +224,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
         WeakReference<HostMonitorConnectionContext> monitorContextWeakRef;
 
         while ((monitorContextWeakRef = this.activeContexts.poll()) != null) {
-          if (this.stopped.get()) {
+          if (this.stop.get()) {
             break;
           }
 
@@ -288,7 +270,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
             ex); // We want to print full trace stack of the exception.
       }
     } finally {
-      this.stopped.set(true);
+      this.stop.set(true);
       if (this.monitoringConn != null) {
         try {
           this.monitoringConn.close();
@@ -329,8 +311,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
                 });
 
         LOGGER.finest(() -> "Opening a monitoring connection to " + this.hostSpec.getUrl());
-        // TODO: replace with ConnectionService#createAuxiliaryConnection
-        this.monitoringConn = this.pluginService.forceConnect(this.hostSpec, monitoringConnProperties);
+        this.monitoringConn = this.connectionService.open(this.hostSpec, monitoringConnProperties);
         LOGGER.finest(() -> "Opened monitoring connection: " + this.monitoringConn);
         return true;
       }

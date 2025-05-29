@@ -157,7 +157,8 @@ public class HostMonitorServiceImpl implements HostMonitorService {
         this.pluginService.getDialect(),
         this.pluginService.getProperties(),
         (connectionService, pluginService) -> new HostMonitorImpl(
-            pluginService,
+            connectionService,
+            pluginService.getTelemetryFactory(),
             hostSpec,
             properties,
             failureDetectionTimeMillis,
