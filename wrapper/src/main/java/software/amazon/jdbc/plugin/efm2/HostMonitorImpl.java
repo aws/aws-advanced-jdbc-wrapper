@@ -323,7 +323,7 @@ public class HostMonitorImpl implements HostMonitor {
                 });
 
         LOGGER.finest(() -> "Opening a monitoring connection to " + this.hostSpec.getUrl());
-        // TODO: replace with ConnectionService#createAuxiliaryConnection
+        // TODO: replace with ConnectionService#open
         this.monitoringConn = this.pluginService.forceConnect(this.hostSpec, monitoringConnProperties);
         LOGGER.finest(() -> "Opened monitoring connection: " + this.monitoringConn);
         return true;

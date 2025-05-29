@@ -214,7 +214,7 @@ public class NodeResponseTimeMonitor implements AutoCloseable, Runnable {
         LOGGER.finest(() -> Messages.get(
                 "NodeResponseTimeMonitor.openingConnection",
                 new Object[] {this.hostSpec.getUrl()}));
-        // TODO: replace with ConnectionService#createAuxiliaryConnection
+        // TODO: replace with ConnectionService#open
         this.monitoringConn = this.pluginService.forceConnect(this.hostSpec, monitoringConnProperties);
         LOGGER.finest(() -> Messages.get(
             "NodeResponseTimeMonitor.openedConnection",

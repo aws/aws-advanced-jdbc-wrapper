@@ -193,7 +193,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
         LOGGER.finest(() -> Messages.get(
             "LimitlessRouterMonitor.openingConnection",
             new Object[] {this.hostSpec.getUrl()}));
-        // TODO: replace with ConnectionService#createAuxiliaryConnection
+        // TODO: replace with ConnectionService#open
         this.monitoringConn = this.pluginService.forceConnect(this.hostSpec, this.props);
         LOGGER.finest(() -> Messages.get(
             "LimitlessRouterMonitor.openedConnection",
