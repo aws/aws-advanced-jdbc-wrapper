@@ -68,7 +68,6 @@ import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.TestStorageServiceImpl;
-import software.amazon.jdbc.util.storage.Topology;
 
 class RdsHostListProviderTest {
   private StorageService storageService;

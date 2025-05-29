@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.util.storage;
+package software.amazon.jdbc.hostlistprovider;
 
 import java.util.List;
+import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 
@@ -29,5 +30,24 @@ public class Topology {
 
   public @NonNull List<HostSpec> getHosts() {
     return hosts;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(hosts);
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) {
+      return true;
+    }
+
+    if (obj == null || getClass() != obj.getClass()) {
+      return false;
+    }
+
+    Topology other = (Topology) obj;
+    return Objects.equals(hosts, other.hosts);
   }
 }

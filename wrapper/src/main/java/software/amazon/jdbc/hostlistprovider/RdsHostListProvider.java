@@ -58,7 +58,6 @@ import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.storage.CacheMap;
-import software.amazon.jdbc.util.storage.Topology;
 
 public class RdsHostListProvider implements DynamicHostListProvider {
 

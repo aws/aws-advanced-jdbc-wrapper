@@ -49,7 +49,7 @@ import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.events.EventSubscriber;
 import software.amazon.jdbc.util.storage.ExternallyManagedCache;
 import software.amazon.jdbc.util.storage.StorageService;
-import software.amazon.jdbc.util.storage.Topology;
+import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class MonitorServiceImpl implements MonitorService, EventSubscriber {
@@ -62,13 +62,11 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
     Set<MonitorErrorResponse> recreateOnError =
         new HashSet<>(Collections.singletonList(MonitorErrorResponse.RECREATE));
     MonitorSettings defaultSettings = new MonitorSettings(
-        TimeUnit.MINUTES.toNanos(5), TimeUnit.MINUTES.toNanos(1), recreateOnError);
+        TimeUnit.MINUTES.toNanos(5), TimeUnit.MINUTES.toNanos(3), recreateOnError);
 
     suppliers.put(
         CustomEndpointMonitorImpl.class, () -> new CacheContainer(defaultSettings, AllowedAndBlockedHosts.class));
-    MonitorSettings topologySettings =
-        new MonitorSettings(TimeUnit.MINUTES.toNanos(5), TimeUnit.MINUTES.toNanos(3), recreateOnError);
-    suppliers.put(ClusterTopologyMonitorImpl.class, () -> new CacheContainer(topologySettings, Topology.class));
+    suppliers.put(ClusterTopologyMonitorImpl.class, () -> new CacheContainer(defaultSettings, Topology.class));
     suppliers.put(HostMonitorImpl.class, () -> new CacheContainer(defaultSettings, null));
     defaultSuppliers = Collections.unmodifiableMap(suppliers);
   }
