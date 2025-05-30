@@ -436,7 +436,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
     String hostName = resultSet.getString(1);
     final boolean isWriter = resultSet.getBoolean(2);
     final double cpuUtilization = resultSet.getDouble(3);
-    final double nodeLag = resultSet.getFloat(4);
+    final double nodeLag = resultSet.getDouble(4);
     Timestamp lastUpdateTime;
     try {
       lastUpdateTime = resultSet.getTimestamp(5);
