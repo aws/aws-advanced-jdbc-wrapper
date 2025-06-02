@@ -16,72 +16,46 @@
 
 package software.amazon.jdbc.plugin.strategy.fastestresponse;
 
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.util.storage.SlidingExpirationCacheWithCleanupThread;
-import software.amazon.jdbc.util.telemetry.TelemetryFactory;
-import software.amazon.jdbc.util.telemetry.TelemetryGauge;
+import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.Messages;
 
 public class HostResponseTimeServiceImpl implements HostResponseTimeService {
 
   private static final Logger LOGGER =
       Logger.getLogger(HostResponseTimeServiceImpl.class.getName());
 
-  protected static final long CACHE_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(10);
-  protected static final long CACHE_CLEANUP_NANO = TimeUnit.MINUTES.toNanos(1);
-
-  // TODO: remove and submit monitors to MonitorService instead
-  protected static final SlidingExpirationCacheWithCleanupThread<String, NodeResponseTimeMonitor> monitoringNodes
-      = new SlidingExpirationCacheWithCleanupThread<>(
-          (monitor) -> true,
-          (monitor) -> {
-            try {
-              monitor.close();
-            } catch (Exception ex) {
-              // ignore
-            }
-          },
-          CACHE_CLEANUP_NANO);
-  protected static final ReentrantLock cacheLock = new ReentrantLock();
-
   protected int intervalMs;
-
   protected List<HostSpec> hosts = new ArrayList<>();
 
+  protected final @NonNull FullServicesContainer servicesContainer;
   protected final @NonNull PluginService pluginService;
 
   protected final @NonNull Properties props;
 
-  protected final TelemetryFactory telemetryFactory;
-  private final TelemetryGauge nodeCountGauge;
-
   public HostResponseTimeServiceImpl(
-      final @NonNull PluginService pluginService,
+      final @NonNull FullServicesContainer servicesContainer,
       final @NonNull Properties props,
       int intervalMs) {
-
-    this.pluginService = pluginService;
+    this.servicesContainer = servicesContainer;
+    this.pluginService = servicesContainer.getPluginService();
     this.props = props;
     this.intervalMs = intervalMs;
-    this.telemetryFactory = this.pluginService.getTelemetryFactory();
-    this.nodeCountGauge = telemetryFactory.createGauge("frt.nodes.count",
-        () -> (long) monitoringNodes.size());
-
-    monitoringNodes.setCleanupIntervalNanos(CACHE_CLEANUP_NANO);
   }
 
   @Override
   public int getResponseTime(HostSpec hostSpec) {
-    final NodeResponseTimeMonitor monitor = monitoringNodes.get(hostSpec.getUrl(), CACHE_EXPIRATION_NANO);
+    final NodeResponseTimeMonitor monitor =
+        this.servicesContainer.getMonitorService().get(NodeResponseTimeMonitor.class, hostSpec.getUrl());
     if (monitor == null) {
       return Integer.MAX_VALUE;
     }
@@ -99,26 +73,24 @@ public class HostResponseTimeServiceImpl implements HostResponseTimeService {
         // hostSpec is not in the set of hosts that already being monitored
         .filter(hostSpec -> !oldHosts.contains(hostSpec.getUrl()))
         .forEach(hostSpec -> {
-          cacheLock.lock();
           try {
-            monitoringNodes.computeIfAbsent(
+            this.servicesContainer.getMonitorService().runIfAbsent(
+                NodeResponseTimeMonitor.class,
                 hostSpec.getUrl(),
-                (key) -> new NodeResponseTimeMonitor(this.pluginService, hostSpec, this.props, this.intervalMs),
-                CACHE_EXPIRATION_NANO);
-          } finally {
-            cacheLock.unlock();
+                servicesContainer.getStorageService(),
+                servicesContainer.getTelemetryFactory(),
+                this.pluginService.getOriginalUrl(),
+                this.pluginService.getDriverProtocol(),
+                this.pluginService.getTargetDriverDialect(),
+                this.pluginService.getDialect(),
+                this.props,
+                (connectionService, pluginService) ->
+                    new NodeResponseTimeMonitor(pluginService, connectionService, hostSpec, this.props,
+                        this.intervalMs));
+          } catch (SQLException e) {
+            LOGGER.warning(
+                Messages.get("HostResponseTimeServiceImpl.errorStartingMonitor", new Object[] {hostSpec.getUrl(), e}));
           }
         });
-  }
-
-  public static void closeAllMonitors() {
-    monitoringNodes.getEntries().values().forEach(monitor -> {
-      try {
-        monitor.close();
-      } catch (Exception ex) {
-        // ignore
-      }
-    });
-    monitoringNodes.clear();
   }
 }

@@ -383,4 +383,14 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
     }
   }
 
+  @Override
+  public void close() {
+    if (this.monitoringConn != null) {
+      try {
+        this.monitoringConn.close();
+      } catch (SQLException e) {
+        // ignore
+      }
+    }
+  }
 }
