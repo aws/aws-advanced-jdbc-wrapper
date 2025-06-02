@@ -46,6 +46,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -62,6 +63,7 @@ public class CustomEndpointPluginTest {
 
   @Mock private FullServicesContainer mockServicesContainer;
   @Mock private PluginService mockPluginService;
+  @Mock private MonitorService mockMonitorService;
   @Mock private BiFunction<HostSpec, Region, RdsClient> mockRdsClientFunc;
   @Mock private TelemetryFactory mockTelemetryFactory;
   @Mock private TelemetryCounter mockTelemetryCounter;
@@ -75,6 +77,7 @@ public class CustomEndpointPluginTest {
     closeable = MockitoAnnotations.openMocks(this);
 
     when(mockServicesContainer.getPluginService()).thenReturn(mockPluginService);
+    when(mockServicesContainer.getMonitorService()).thenReturn(mockMonitorService);
     when(mockServicesContainer.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.createCounter(any(String.class))).thenReturn(mockTelemetryCounter);
     when(mockMonitor.hasCustomEndpointInfo()).thenReturn(true);
