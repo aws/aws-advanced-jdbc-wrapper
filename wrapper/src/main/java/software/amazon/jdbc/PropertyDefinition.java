@@ -233,6 +233,7 @@ public class PropertyDefinition {
     final String password = props.getProperty(PropertyDefinition.PASSWORD.name, null);
 
     removeAll(props);
+    props.remove(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY);
 
     if (user != null) {
       props.setProperty(PropertyDefinition.USER.name, user);

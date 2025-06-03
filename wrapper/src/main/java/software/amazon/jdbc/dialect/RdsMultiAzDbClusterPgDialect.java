@@ -21,6 +21,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
+import java.util.Properties;
 import java.util.logging.Logger;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.MultiAzDbClusterPgExceptionHandler;
@@ -67,40 +68,26 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
   }
 
   @Override
-  public boolean isDialect(final Connection connection) {
-    Statement stmt = null;
-    ResultSet rs = null;
+  public boolean isDialect(final Connection connection, final Properties properties) {
+    if (!super.isDialect(connection, properties)) {
+      return false;
+    }
+
     try {
-      stmt = connection.createStatement();
-      rs = stmt.executeQuery(WRITER_NODE_FUNC_EXIST_QUERY);
+      try (Statement stmt = connection.createStatement();
+          ResultSet rs = stmt.executeQuery(WRITER_NODE_FUNC_EXIST_QUERY)) {
+        if (!rs.next()) {
+          return false;
+        }
+      }
 
-      if (rs.next()) {
-        rs.close();
-        stmt.close();
-
-        stmt = connection.createStatement();
-        rs = stmt.executeQuery(NODE_ID_FUNC_EXIST_QUERY);
-
+      try (Statement stmt = connection.createStatement();
+          ResultSet rs = stmt.executeQuery(NODE_ID_FUNC_EXIST_QUERY)) {
         return rs.next();
       }
-      return false;
-    } catch (final SQLException ex) {
-      // ignore
-    } finally {
-      if (stmt != null) {
-        try {
-          stmt.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
-      if (rs != null) {
-        try {
-          rs.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
+
+    } catch (SQLException ex) {
+      // do nothing
     }
     return false;
   }
