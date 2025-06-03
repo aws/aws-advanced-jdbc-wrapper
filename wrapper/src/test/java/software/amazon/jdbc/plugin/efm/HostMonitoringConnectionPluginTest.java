@@ -83,11 +83,11 @@ class HostMonitoringConnectionPluginTest {
   Properties properties = new Properties();
   @Mock HostSpec hostSpec;
   @Mock HostSpec hostSpec2;
-  @Mock Supplier<MonitorService> supplier;
+  @Mock Supplier<HostMonitorService> supplier;
   @Mock RdsUtils rdsUtils;
-  @Mock MonitorConnectionContext context;
+  @Mock HostMonitorConnectionContext context;
   @Mock ReentrantLock mockReentrantLock;
-  @Mock MonitorService monitorService;
+  @Mock HostMonitorService monitorService;
   @Mock JdbcCallable<ResultSet, SQLException> sqlFunction;
   private HostMonitoringConnectionPlugin plugin;
   private AutoCloseable closeable;
@@ -156,15 +156,6 @@ class HostMonitoringConnectionPluginTest {
 
   private void initializePlugin() {
     plugin = new HostMonitoringConnectionPlugin(pluginService, properties, supplier, rdsUtils);
-  }
-
-  @ParameterizedTest
-  @MethodSource("generateNullArguments")
-  void test_initWithNullArguments(
-      final PluginService pluginService, final Properties properties) {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> new HostMonitoringConnectionPlugin(pluginService, properties));
   }
 
   @Test

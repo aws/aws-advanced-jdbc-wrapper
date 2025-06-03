@@ -20,7 +20,7 @@ import java.util.concurrent.ExecutorService;
 
 /**
  * Interface for passing a specific {@link ExecutorService} to use by the {@link
- * MonitorThreadContainer}.
+ * HostMonitorThreadContainer}.
  */
 @FunctionalInterface
 public interface ExecutorServiceInitializer {

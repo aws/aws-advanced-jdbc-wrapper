@@ -31,7 +31,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -51,9 +50,10 @@ import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.states.SessionStateServiceImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.CacheMap;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.storage.CacheMap;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class PluginServiceImpl implements PluginService, CanReleaseResources,
@@ -63,13 +63,13 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected static final long DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(5);
 
   protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache = new CacheMap<>();
+  protected final FullServicesContainer servicesContainer;
   protected final ConnectionPluginManager pluginManager;
   private final Properties props;
   private final String originalUrl;
   private final String driverProtocol;
   protected volatile HostListProvider hostListProvider;
   protected List<HostSpec> allHosts = new ArrayList<>();
-  protected AtomicReference<AllowedAndBlockedHosts> allowedAndBlockedHosts = new AtomicReference<>();
   protected Connection currentConnection;
   protected HostSpec currentHostSpec;
   protected HostSpec initialConnectionHostSpec;
@@ -87,14 +87,15 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected final ReentrantLock connectionSwitchLock = new ReentrantLock();
 
   public PluginServiceImpl(
-      @NonNull final ConnectionPluginManager pluginManager,
+      @NonNull final FullServicesContainer servicesContainer,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
       @NonNull final String targetDriverProtocol,
       @NonNull final TargetDriverDialect targetDriverDialect)
       throws SQLException {
 
-    this(pluginManager,
+    this(
+        servicesContainer,
         new ExceptionManager(),
         props,
         originalUrl,
@@ -106,13 +107,14 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   public PluginServiceImpl(
-      @NonNull final ConnectionPluginManager pluginManager,
+      @NonNull final FullServicesContainer servicesContainer,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
       @NonNull final String targetDriverProtocol,
       @NonNull final TargetDriverDialect targetDriverDialect,
       @Nullable final ConfigurationProfile configurationProfile) throws SQLException {
-    this(pluginManager,
+    this(
+        servicesContainer,
         new ExceptionManager(),
         props,
         originalUrl,
@@ -124,7 +126,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   public PluginServiceImpl(
-      @NonNull final ConnectionPluginManager pluginManager,
+      @NonNull final FullServicesContainer servicesContainer,
       @NonNull final ExceptionManager exceptionManager,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
@@ -133,7 +135,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       @NonNull final TargetDriverDialect targetDriverDialect,
       @Nullable final ConfigurationProfile configurationProfile,
       @Nullable final SessionStateService sessionStateService) throws SQLException {
-    this.pluginManager = pluginManager;
+    this.servicesContainer = servicesContainer;
+    this.pluginManager = servicesContainer.getConnectionPluginManager();
     this.props = props;
     this.originalUrl = originalUrl;
     this.driverProtocol = targetDriverProtocol;
@@ -206,8 +209,14 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
+  public String getOriginalUrl() {
+    return this.originalUrl;
+  }
+
+  @Override
+  @Deprecated
   public void setAllowedAndBlockedHosts(AllowedAndBlockedHosts allowedAndBlockedHosts) {
-    this.allowedAndBlockedHosts.set(allowedAndBlockedHosts);
+    this.servicesContainer.getStorageService().set(this.initialConnectionHostSpec.getHost(), allowedAndBlockedHosts);
   }
 
   @Override
@@ -401,7 +410,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   @Override
   public List<HostSpec> getHosts() {
-    AllowedAndBlockedHosts hostPermissions = this.allowedAndBlockedHosts.get();
+    AllowedAndBlockedHosts hostPermissions = this.servicesContainer.getStorageService()
+        .get(AllowedAndBlockedHosts.class, this.initialConnectionHostSpec.getUrl());
     if (hostPermissions == null) {
       return this.allHosts;
     }
@@ -715,7 +725,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     }
 
     final HostListProviderSupplier supplier = this.dialect.getHostListProvider();
-    this.setHostListProvider(supplier.getProvider(props, this.originalUrl, this, this));
+    this.setHostListProvider(supplier.getProvider(this.props, this.originalUrl, this.servicesContainer));
   }
 
   @Override

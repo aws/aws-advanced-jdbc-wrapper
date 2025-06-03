@@ -62,6 +62,9 @@ import software.amazon.jdbc.benchmarks.testplugin.TestConnectionWrapper;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.connection.ConnectionService;
+import software.amazon.jdbc.util.monitoring.MonitorService;
+import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -88,7 +91,11 @@ public class PluginBenchmarks {
   private final HostSpec writerHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
       .host(TEST_HOST).port(TEST_PORT).build();
 
+  @Mock private StorageService mockStorageService;
+  @Mock private MonitorService mockMonitorService;
+  @Mock private ConnectionService mockConnectionService;
   @Mock private PluginService mockPluginService;
+  @Mock private TargetDriverDialect mockTargetDriverDialect;
   @Mock private Dialect mockDialect;
   @Mock private ConnectionPluginManager mockConnectionPluginManager;
   @Mock private TelemetryFactory mockTelemetryFactory;
@@ -157,29 +164,31 @@ public class PluginBenchmarks {
 
   @Benchmark
   public ConnectionWrapper initAndReleaseWithExecutionTimePlugin() throws SQLException {
-    try (ConnectionWrapper wrapper = new TestConnectionWrapper(
-        useExecutionTimePlugin(),
-        CONNECTION_STRING,
-        mockConnectionPluginManager,
-        mockTelemetryFactory,
-        mockPluginService,
-        mockHostListProviderService,
-        mockPluginManagerService)) {
+    try (ConnectionWrapper wrapper = getConnectionWrapper(useExecutionTimePlugin(), CONNECTION_STRING)) {
       wrapper.releaseResources();
       return wrapper;
     }
   }
 
-  @Benchmark
-  public ConnectionWrapper initAndReleaseWithAuroraHostListPlugin() throws SQLException {
-    try (ConnectionWrapper wrapper = new TestConnectionWrapper(
-        useAuroraHostListPlugin(),
-        CONNECTION_STRING,
+  private ConnectionWrapper getConnectionWrapper(Properties props, String connString) throws SQLException {
+    return new TestConnectionWrapper(
+        props,
+        connString,
+        mockConnectionProvider,
+        mockTargetDriverDialect,
         mockConnectionPluginManager,
         mockTelemetryFactory,
         mockPluginService,
         mockHostListProviderService,
-        mockPluginManagerService)) {
+        mockPluginManagerService,
+        mockStorageService,
+        mockMonitorService,
+        mockConnectionService);
+  }
+
+  @Benchmark
+  public ConnectionWrapper initAndReleaseWithAuroraHostListPlugin() throws SQLException {
+    try (ConnectionWrapper wrapper = getConnectionWrapper(useAuroraHostListPlugin(), CONNECTION_STRING)) {
       wrapper.releaseResources();
       return wrapper;
     }
@@ -187,14 +196,8 @@ public class PluginBenchmarks {
 
   @Benchmark
   public ConnectionWrapper initAndReleaseWithExecutionTimeAndAuroraHostListPlugins() throws SQLException {
-    try (ConnectionWrapper wrapper = new TestConnectionWrapper(
-        useExecutionTimeAndAuroraHostListPlugins(),
-        CONNECTION_STRING,
-        mockConnectionPluginManager,
-        mockTelemetryFactory,
-        mockPluginService,
-        mockHostListProviderService,
-        mockPluginManagerService)) {
+    try (ConnectionWrapper wrapper =
+             getConnectionWrapper(useExecutionTimeAndAuroraHostListPlugins(), CONNECTION_STRING)) {
       wrapper.releaseResources();
       return wrapper;
     }
@@ -202,14 +205,7 @@ public class PluginBenchmarks {
 
   @Benchmark
   public ConnectionWrapper initAndReleaseWithReadWriteSplittingPlugin() throws SQLException {
-    try (ConnectionWrapper wrapper = new TestConnectionWrapper(
-        useReadWriteSplittingPlugin(),
-        CONNECTION_STRING,
-        mockConnectionPluginManager,
-        mockTelemetryFactory,
-        mockPluginService,
-        mockHostListProviderService,
-        mockPluginManagerService)) {
+    try (ConnectionWrapper wrapper = getConnectionWrapper(useReadWriteSplittingPlugin(), CONNECTION_STRING)) {
       wrapper.releaseResources();
       return wrapper;
     }
@@ -218,14 +214,8 @@ public class PluginBenchmarks {
   @Benchmark
   public ConnectionWrapper initAndReleaseWithAuroraHostListAndReadWriteSplittingPlugin()
       throws SQLException {
-    try (ConnectionWrapper wrapper = new TestConnectionWrapper(
-        useAuroraHostListAndReadWriteSplittingPlugin(),
-        PG_CONNECTION_STRING,
-        mockConnectionPluginManager,
-        mockTelemetryFactory,
-        mockPluginService,
-        mockHostListProviderService,
-        mockPluginManagerService)) {
+    try (ConnectionWrapper wrapper =
+             getConnectionWrapper(useAuroraHostListAndReadWriteSplittingPlugin(), PG_CONNECTION_STRING)) {
       wrapper.releaseResources();
       return wrapper;
     }
@@ -236,14 +226,7 @@ public class PluginBenchmarks {
     HikariPooledConnectionProvider provider =
         new HikariPooledConnectionProvider((hostSpec, props) -> new HikariConfig());
     Driver.setCustomConnectionProvider(provider);
-    try (ConnectionWrapper wrapper = new TestConnectionWrapper(
-        useReadWriteSplittingPlugin(),
-        CONNECTION_STRING,
-        mockConnectionPluginManager,
-        mockTelemetryFactory,
-        mockPluginService,
-        mockHostListProviderService,
-        mockPluginManagerService)) {
+    try (ConnectionWrapper wrapper = getConnectionWrapper(useReadWriteSplittingPlugin(), CONNECTION_STRING)) {
       wrapper.releaseResources();
       ConnectionProviderManager.releaseResources();
       Driver.resetCustomConnectionProvider();
@@ -257,14 +240,8 @@ public class PluginBenchmarks {
     HikariPooledConnectionProvider provider =
         new HikariPooledConnectionProvider((hostSpec, props) -> new HikariConfig());
     Driver.setCustomConnectionProvider(provider);
-    try (ConnectionWrapper wrapper = new TestConnectionWrapper(
-        useAuroraHostListAndReadWriteSplittingPlugin(),
-        PG_CONNECTION_STRING,
-        mockConnectionPluginManager,
-        mockTelemetryFactory,
-        mockPluginService,
-        mockHostListProviderService,
-        mockPluginManagerService)) {
+    try (ConnectionWrapper wrapper = getConnectionWrapper(
+        useAuroraHostListAndReadWriteSplittingPlugin(), PG_CONNECTION_STRING)) {
       wrapper.releaseResources();
       ConnectionProviderManager.releaseResources();
       Driver.resetCustomConnectionProvider();
@@ -274,14 +251,7 @@ public class PluginBenchmarks {
 
   @Benchmark
   public Statement executeStatementBaseline() throws SQLException {
-    try (ConnectionWrapper wrapper = new TestConnectionWrapper(
-        useExecutionTimePlugin(),
-        CONNECTION_STRING,
-        mockConnectionPluginManager,
-        mockTelemetryFactory,
-        mockPluginService,
-        mockHostListProviderService,
-        mockPluginManagerService);
+    try (ConnectionWrapper wrapper = getConnectionWrapper(useExecutionTimePlugin(), CONNECTION_STRING);
          Statement statement = wrapper.createStatement()) {
       return statement;
     }
@@ -290,14 +260,7 @@ public class PluginBenchmarks {
   @Benchmark
   public ResultSet executeStatementWithExecutionTimePlugin() throws SQLException {
     try (
-        ConnectionWrapper wrapper = new TestConnectionWrapper(
-            useExecutionTimePlugin(),
-            CONNECTION_STRING,
-            mockConnectionPluginManager,
-            mockTelemetryFactory,
-            mockPluginService,
-            mockHostListProviderService,
-            mockPluginManagerService);
+        ConnectionWrapper wrapper = getConnectionWrapper(useExecutionTimePlugin(), CONNECTION_STRING);
         Statement statement = wrapper.createStatement();
         ResultSet resultSet = statement.executeQuery("some sql")) {
       return resultSet;
@@ -307,14 +270,7 @@ public class PluginBenchmarks {
   @Benchmark
   public ResultSet executeStatementWithTelemetryDisabled() throws SQLException {
     try (
-        ConnectionWrapper wrapper = new TestConnectionWrapper(
-            disabledTelemetry(),
-            CONNECTION_STRING,
-            mockConnectionPluginManager,
-            mockTelemetryFactory,
-            mockPluginService,
-            mockHostListProviderService,
-            mockPluginManagerService);
+        ConnectionWrapper wrapper = getConnectionWrapper(disabledTelemetry(), CONNECTION_STRING);
         Statement statement = wrapper.createStatement();
         ResultSet resultSet = statement.executeQuery("some sql")) {
       return resultSet;
@@ -324,14 +280,7 @@ public class PluginBenchmarks {
   @Benchmark
   public ResultSet executeStatementWithTelemetry() throws SQLException {
     try (
-        ConnectionWrapper wrapper = new TestConnectionWrapper(
-            useTelemetry(),
-            CONNECTION_STRING,
-            mockConnectionPluginManager,
-            mockTelemetryFactory,
-            mockPluginService,
-            mockHostListProviderService,
-            mockPluginManagerService);
+        ConnectionWrapper wrapper = getConnectionWrapper(useTelemetry(), CONNECTION_STRING);
         Statement statement = wrapper.createStatement();
         ResultSet resultSet = statement.executeQuery("some sql")) {
       return resultSet;

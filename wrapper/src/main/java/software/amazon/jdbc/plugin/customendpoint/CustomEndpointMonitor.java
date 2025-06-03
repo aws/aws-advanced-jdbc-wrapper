@@ -16,18 +16,13 @@
 
 package software.amazon.jdbc.plugin.customendpoint;
 
+import software.amazon.jdbc.util.monitoring.Monitor;
+
 /**
  * Interface for custom endpoint monitors. Custom endpoint monitors analyze a given custom endpoint for custom endpoint
  * information and future changes to the endpoint.
  */
-public interface CustomEndpointMonitor extends AutoCloseable, Runnable {
-
-  /**
-   * Evaluates whether the monitor should be disposed.
-   *
-   * @return true if the monitor should be disposed, otherwise return false.
-   */
-  boolean shouldDispose();
+public interface CustomEndpointMonitor extends Monitor {
 
   /**
    * Indicates whether the monitor has info about the custom endpoint or not. This will be false if the monitor is new
