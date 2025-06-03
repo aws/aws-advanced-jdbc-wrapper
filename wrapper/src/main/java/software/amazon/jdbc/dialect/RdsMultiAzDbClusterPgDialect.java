@@ -21,6 +21,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
+import java.util.Properties;
 import java.util.logging.Logger;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
@@ -63,7 +64,7 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
   }
 
   @Override
-  public boolean isDialect(final Connection connection) {
+  public boolean isDialect(final Connection connection, , final Properties properties) {
     try (Statement stmt = connection.createStatement();
         ResultSet rs = stmt.executeQuery(IS_RDS_CLUSTER_QUERY)) {
       return rs.next() && rs.getString(1) != null;

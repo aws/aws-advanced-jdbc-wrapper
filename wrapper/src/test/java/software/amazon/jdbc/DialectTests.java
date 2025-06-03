@@ -28,6 +28,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Properties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -81,20 +82,20 @@ public class DialectTests {
     when(successResultSet.next()).thenReturn(true);
     when(successResultSet.getString(2)).thenReturn("MySQL Community Server (GPL)");
     when(successResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
-    assertTrue(mysqlDialect.isDialect(mockConnection));
+    assertTrue(mysqlDialect.isDialect(mockConnection, new Properties()));
   }
 
   @Test
   void testMysqlIsDialectQueryReturnedEmptyResultSet() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(failResultSet);
-    assertFalse(mysqlDialect.isDialect(mockConnection));
+    assertFalse(mysqlDialect.isDialect(mockConnection, new Properties()));
     verify(failResultSet, times(1)).next();
   }
 
   @Test
   void testMysqlIsDialectExceptionThrown() throws SQLException {
     when(mockStatement.executeQuery(any())).thenThrow(new SQLException());
-    assertFalse(mysqlDialect.isDialect(mockConnection));
+    assertFalse(mysqlDialect.isDialect(mockConnection, new Properties()));
   }
 
   @Test
@@ -103,31 +104,31 @@ public class DialectTests {
     when(successResultSet.next()).thenReturn(true, false);
     when(successResultSet.getString(2)).thenReturn("Invalid");
     when(successResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
-    assertFalse(mysqlDialect.isDialect(mockConnection));
+    assertFalse(mysqlDialect.isDialect(mockConnection, new Properties()));
   }
 
   // RDS MYSQL DIALECT
   @Test
   void testRdsMysqlIsDialectSuccess() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(successResultSet);
-    when(successResultSet.next()).thenReturn(true, false, true, true);
+    when(successResultSet.next()).thenReturn(true, true, true, true);
     when(successResultSet.getString(2)).thenReturn(
         "Source distribution", "Source distribution", "");
     when(successResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
-    assertTrue(rdsMysqlDialect.isDialect(mockConnection));
+    assertTrue(rdsMysqlDialect.isDialect(mockConnection, new Properties()));
   }
 
   @Test
   void testRdsMysqlIsDialectQueryReturnedEmptyResultSet() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(failResultSet);
-    assertFalse(rdsMysqlDialect.isDialect(mockConnection));
+    assertFalse(rdsMysqlDialect.isDialect(mockConnection, new Properties()));
     verify(failResultSet, times(2)).next(); // once for super.isDialect()
   }
 
   @Test
   void testRdsMysqlIsDialectExceptionThrown() throws SQLException {
     when(mockStatement.executeQuery(any())).thenThrow(new SQLException());
-    assertFalse(rdsMysqlDialect.isDialect(mockConnection));
+    assertFalse(rdsMysqlDialect.isDialect(mockConnection, new Properties()));
   }
 
   @Test
@@ -136,18 +137,18 @@ public class DialectTests {
     when(successResultSet.next()).thenReturn(true, false);
     when(successResultSet.getString(2)).thenReturn("MySQL Community Server (GPL)");
     when(successResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
-    assertFalse(rdsMysqlDialect.isDialect(mockConnection));
+    assertFalse(rdsMysqlDialect.isDialect(mockConnection, new Properties()));
     verify(successResultSet, times(1)).next();
   }
 
   @Test
   void testRdsMysqlIsDialectInvalidVersionComment() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(successResultSet);
-    when(successResultSet.next()).thenReturn(true, false, true, false);
+    when(successResultSet.next()).thenReturn(true, true, true, false);
     when(successResultSet.getString(2)).thenReturn("Invalid");
     when(successResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
-    assertFalse(rdsMysqlDialect.isDialect(mockConnection));
-    verify(successResultSet, times(3)).next();
+    assertFalse(rdsMysqlDialect.isDialect(mockConnection, new Properties()));
+    verify(successResultSet, times(2)).next();
   }
 
   // RDS MULTI A-Z DB CLUSTER MYSQL DIALECT
@@ -157,20 +158,20 @@ public class DialectTests {
     when(successResultSet.next()).thenReturn(true, true, true);
     when(successResultSet.getString(2)).thenReturn("any-ip-address");
     when(successResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
-    assertTrue(rdsTazMysqlDialect.isDialect(mockConnection));
+    assertTrue(rdsTazMysqlDialect.isDialect(mockConnection, new Properties()));
   }
 
   @Test
   void testRdsTazMysqlIsDialectExceptionThrown() throws SQLException {
     when(mockStatement.executeQuery(any())).thenThrow(new SQLException());
-    assertFalse(rdsTazMysqlDialect.isDialect(mockConnection));
+    assertFalse(rdsTazMysqlDialect.isDialect(mockConnection, new Properties()));
   }
 
   @Test
   void testRdsTazMysqlIsDialectQueryReturnedEmptyResultSet() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(failResultSet);
-    assertFalse(rdsTazMysqlDialect.isDialect(mockConnection));
-    verify(failResultSet, times(1)).next();
+    assertFalse(rdsTazMysqlDialect.isDialect(mockConnection, new Properties()));
+    verify(failResultSet, times(2)).next();
   }
 
   // AURORA MYSQL DIALECT
@@ -178,20 +179,20 @@ public class DialectTests {
   void testAuroraMysqlIsDialectSuccess() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(successResultSet);
     when(successResultSet.next()).thenReturn(true);
-    assertTrue(auroraMysqlDialect.isDialect(mockConnection));
+    assertTrue(auroraMysqlDialect.isDialect(mockConnection, new Properties()));
   }
 
   @Test
   void testAuroraMysqlIsDialectExceptionThrown() throws SQLException {
     when(mockStatement.executeQuery(any())).thenThrow(new SQLException());
-    assertFalse(auroraMysqlDialect.isDialect(mockConnection));
+    assertFalse(auroraMysqlDialect.isDialect(mockConnection, new Properties()));
   }
 
   @Test
   void testAuroraMysqlIsDialectQueryReturnedEmptyResultSet() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(failResultSet);
-    assertFalse(auroraMysqlDialect.isDialect(mockConnection));
-    verify(failResultSet, times(1)).next();
+    assertFalse(auroraMysqlDialect.isDialect(mockConnection, new Properties()));
+    verify(failResultSet, times(2)).next();
   }
 
   // PG DIALECT
@@ -199,19 +200,20 @@ public class DialectTests {
   void testPgIsDialectSuccess() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(successResultSet);
     when(successResultSet.next()).thenReturn(true);
-    assertTrue(pgDialect.isDialect(mockConnection));
+    when(successResultSet.getString(2)).thenReturn("postgresql");
+    assertTrue(pgDialect.isDialect(mockConnection, new Properties()));
   }
 
   @Test
   void testPgIsDialectExceptionThrown() throws SQLException {
     when(mockStatement.executeQuery(any())).thenThrow(new SQLException());
-    assertFalse(pgDialect.isDialect(mockConnection));
+    assertFalse(pgDialect.isDialect(mockConnection, new Properties()));
   }
 
   @Test
   void testPgIsDialectQueryReturnedEmptyResultSet() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(failResultSet);
-    assertFalse(pgDialect.isDialect(mockConnection));
+    assertFalse(pgDialect.isDialect(mockConnection, new Properties()));
     verify(failResultSet, times(1)).next();
   }
 
@@ -220,21 +222,22 @@ public class DialectTests {
   void testRdsPgIsDialectSuccess() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(successResultSet);
     when(successResultSet.next()).thenReturn(true);
+    when(successResultSet.getString(2)).thenReturn("postgresql");
     when(successResultSet.getBoolean("rds_tools")).thenReturn(true);
     when(successResultSet.getBoolean("aurora_stat_utils")).thenReturn(false);
-    assertTrue(rdsPgDialect.isDialect(mockConnection));
+    assertTrue(rdsPgDialect.isDialect(mockConnection, new Properties()));
   }
 
   @Test
   void testRdsPgIsDialectExceptionThrown() throws SQLException {
     when(mockStatement.executeQuery(any())).thenThrow(new SQLException());
-    assertFalse(rdsPgDialect.isDialect(mockConnection));
+    assertFalse(rdsPgDialect.isDialect(mockConnection, new Properties()));
   }
 
   @Test
   void testRdsPgIsDialectQueryReturnedEmptyResultSet() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(failResultSet);
-    assertFalse(rdsPgDialect.isDialect(mockConnection));
+    assertFalse(rdsPgDialect.isDialect(mockConnection, new Properties()));
     verify(failResultSet, times(1)).next();
   }
 
@@ -244,7 +247,7 @@ public class DialectTests {
     when(successResultSet.next()).thenReturn(true, false);
     when(successResultSet.getBoolean("rds_tools")).thenReturn(true);
     when(successResultSet.getBoolean("aurora_stat_utils")).thenReturn(true);
-    assertFalse(rdsPgDialect.isDialect(mockConnection));
+    assertFalse(rdsPgDialect.isDialect(mockConnection, new Properties()));
   }
 
   // RDS MULTI A-Z DB CLUSTER PG DIALECT
@@ -253,19 +256,20 @@ public class DialectTests {
     when(mockStatement.executeQuery(any())).thenReturn(successResultSet);
     when(successResultSet.next()).thenReturn(true);
     when(successResultSet.getString(1)).thenReturn("id");
-    assertTrue(rdsTazPgDialect.isDialect(mockConnection));
+    when(successResultSet.getString(2)).thenReturn("postgresql");
+    assertTrue(rdsTazPgDialect.isDialect(mockConnection, new Properties()));
   }
 
   @Test
   void testRdsTazPgIsDialectExceptionThrown() throws SQLException {
     when(mockStatement.executeQuery(any())).thenThrow(new SQLException());
-    assertFalse(rdsTazPgDialect.isDialect(mockConnection));
+    assertFalse(rdsTazPgDialect.isDialect(mockConnection, new Properties()));
   }
 
   @Test
   void testRdsTazPgIsDialectQueryReturnedEmptyResultSet() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(failResultSet);
-    assertFalse(rdsTazPgDialect.isDialect(mockConnection));
+    assertFalse(rdsTazPgDialect.isDialect(mockConnection, new Properties()));
     verify(failResultSet, times(1)).next();
   }
 
@@ -273,7 +277,7 @@ public class DialectTests {
   void testRdsTazPgIsDialectIsRdsClusterQueryFailed() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(failResultSet);
     when(successResultSet.next()).thenReturn(false);
-    assertFalse(rdsTazPgDialect.isDialect(mockConnection));
+    assertFalse(rdsTazPgDialect.isDialect(mockConnection, new Properties()));
     verify(failResultSet, times(1)).next();
   }
 
@@ -282,20 +286,21 @@ public class DialectTests {
   void testAuroraPgIsDialectSuccess() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(successResultSet);
     when(successResultSet.next()).thenReturn(true);
+    when(successResultSet.getString(2)).thenReturn("postgresql");
     when(successResultSet.getBoolean("aurora_stat_utils")).thenReturn(true);
-    assertTrue(auroraPgDialect.isDialect(mockConnection));
+    assertTrue(auroraPgDialect.isDialect(mockConnection, new Properties()));
   }
 
   @Test
   void testAuroraPgIsDialectExceptionThrown() throws SQLException {
     when(mockStatement.executeQuery(any())).thenThrow(new SQLException());
-    assertFalse(auroraPgDialect.isDialect(mockConnection));
+    assertFalse(auroraPgDialect.isDialect(mockConnection, new Properties()));
   }
 
   @Test
   void testAuroraPgIsDialectQueryReturnedEmptyResultSet() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(failResultSet);
-    assertFalse(auroraPgDialect.isDialect(mockConnection));
+    assertFalse(auroraPgDialect.isDialect(mockConnection, new Properties()));
     verify(failResultSet, times(1)).next();
   }
 
@@ -304,7 +309,7 @@ public class DialectTests {
     when(mockStatement.executeQuery(any())).thenReturn(successResultSet);
     when(successResultSet.next()).thenReturn(true);
     when(successResultSet.getBoolean("aurora_stat_utils")).thenReturn(false);
-    assertFalse(auroraPgDialect.isDialect(mockConnection));
+    assertFalse(auroraPgDialect.isDialect(mockConnection, new Properties()));
   }
 
   // MARIADB DIALECT
@@ -312,20 +317,20 @@ public class DialectTests {
   void testMariaDbIsDialectSuccess() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(successResultSet);
     when(successResultSet.next()).thenReturn(true);
-    when(successResultSet.getString(1)).thenReturn("mariadb");
-    assertTrue(mariaDbDialect.isDialect(mockConnection));
+    when(successResultSet.getString(2)).thenReturn("mariadb");
+    assertTrue(mariaDbDialect.isDialect(mockConnection, new Properties()));
   }
 
   @Test
   void testMariaDbIsDialectExceptionThrown() throws SQLException {
     when(mockStatement.executeQuery(any())).thenThrow(new SQLException());
-    assertFalse(mariaDbDialect.isDialect(mockConnection));
+    assertFalse(mariaDbDialect.isDialect(mockConnection, new Properties()));
   }
 
   @Test
   void testMariaDbIsDialectQueryReturnedEmptyResultSet() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(failResultSet);
-    assertFalse(mariaDbDialect.isDialect(mockConnection));
+    assertFalse(mariaDbDialect.isDialect(mockConnection, new Properties()));
     verify(failResultSet, times(1)).next();
   }
 
@@ -333,7 +338,7 @@ public class DialectTests {
   void testMariaDbIsDialectIncorrectVersion() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(successResultSet);
     when(successResultSet.next()).thenReturn(true, false);
-    when(successResultSet.getString(1)).thenReturn("Invalid");
-    assertFalse(mariaDbDialect.isDialect(mockConnection));
+    when(successResultSet.getString(2)).thenReturn("Invalid");
+    assertFalse(mariaDbDialect.isDialect(mockConnection, new Properties()));
   }
 }

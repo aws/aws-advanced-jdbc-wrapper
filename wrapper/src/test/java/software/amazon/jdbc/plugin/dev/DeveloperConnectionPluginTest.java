@@ -29,7 +29,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Properties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -63,6 +65,9 @@ public class DeveloperConnectionPluginTest {
   @Mock TelemetryContext mockTelemetryContext;
   @Mock TargetDriverDialect mockTargetDriverDialect;
 
+  @Mock Statement mockStatement;
+  @Mock ResultSet mockResultSet;
+
   private AutoCloseable closeable;
 
   @AfterEach
@@ -74,6 +79,10 @@ public class DeveloperConnectionPluginTest {
   void init() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
     servicesContainer = new FullServicesContainerImpl(mockStorageService, mockMonitorService, mockTelemetryFactory);
+
+    when(mockConnection.createStatement()).thenReturn(mockStatement);
+    when(mockStatement.executeQuery(any())).thenReturn(mockResultSet);
+    when(mockResultSet.next()).thenReturn(false);
 
     when(mockConnectionProvider.connect(any(), any(), any(), any(), any())).thenReturn(mockConnection);
     when(mockConnectCallback.getExceptionToRaise(any(), any(), any(), anyBoolean())).thenReturn(null);

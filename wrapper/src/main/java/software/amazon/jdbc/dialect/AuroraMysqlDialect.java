@@ -23,6 +23,7 @@ import java.sql.Statement;
 import java.util.Collections;
 import java.util.List;
 import software.amazon.jdbc.PluginService;
+import java.util.Properties;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
@@ -51,33 +52,22 @@ public class AuroraMysqlDialect extends MysqlDialect implements BlueGreenDialect
           + " table_schema = 'mysql' AND table_name = 'rds_topology'";
 
   @Override
-  public boolean isDialect(final Connection connection) {
-    Statement stmt = null;
-    ResultSet rs = null;
+  public boolean isDialect(final Connection connection, final Properties properties) {
+    if (super.isDialect(connection, properties)) {
+      // If super.isDialect() returns true then there is no need to check other conditions.
+      return false;
+    }
+
     try {
-      stmt = connection.createStatement();
-      rs = stmt.executeQuery("SHOW VARIABLES LIKE 'aurora_version'");
-      if (rs.next()) {
-        // If variable with such name is presented then it means it's an Aurora cluster
-        return true;
-      }
-    } catch (final SQLException ex) {
-      // ignore
-    } finally {
-      if (stmt != null) {
-        try {
-          stmt.close();
-        } catch (SQLException ex) {
-          // ignore
+      try (Statement stmt = connection.createStatement();
+          ResultSet rs = stmt.executeQuery("SHOW VARIABLES LIKE 'aurora_version'")) {
+        if (rs.next()) {
+          // If variable with such name is presented then it means it's an Aurora cluster
+          return true;
         }
       }
-      if (rs != null) {
-        try {
-          rs.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
+    } catch (SQLException ex) {
+      // do nothing
     }
     return false;
   }

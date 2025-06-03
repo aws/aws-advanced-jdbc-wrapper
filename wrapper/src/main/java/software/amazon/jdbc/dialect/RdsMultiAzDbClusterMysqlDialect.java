@@ -56,7 +56,12 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
   protected final RdsUtils rdsUtils = new RdsUtils();
 
   @Override
-  public boolean isDialect(final Connection connection) {
+  public boolean isDialect(final Connection connection, final Properties properties) {
+    if (super.isDialect(connection, properties)) {
+      // If super.isDialect() returns true then there is no need to check other conditions.
+      return false;
+    }
+
     try {
       try (Statement stmt = connection.createStatement();
           ResultSet rs = stmt.executeQuery(TOPOLOGY_TABLE_EXIST_QUERY)) {
@@ -119,17 +124,6 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
             FETCH_WRITER_NODE_QUERY_COLUMN_NAME);
       }
     };
-  }
-
-  @Override
-  public void prepareConnectProperties(
-      final @NonNull Properties connectProperties, final @NonNull String protocol, final @NonNull HostSpec hostSpec) {
-    final String connectionAttributes =
-        "_jdbc_wrapper_name:aws_jdbc_driver,_jdbc_wrapper_version:" + DriverInfo.DRIVER_VERSION;
-    connectProperties.setProperty("connectionAttributes",
-        connectProperties.getProperty("connectionAttributes") == null
-            ? connectionAttributes
-            : connectProperties.getProperty("connectionAttributes") + "," + connectionAttributes);
   }
 
   @Override

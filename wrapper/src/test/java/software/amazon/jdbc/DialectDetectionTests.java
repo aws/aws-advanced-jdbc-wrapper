@@ -37,6 +37,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.dialect.AuroraMysqlDialect;
 import software.amazon.jdbc.dialect.AuroraPgDialect;
@@ -74,6 +75,9 @@ public class DialectDetectionTests {
   @Mock private ConnectionPluginManager mockPluginManager;
   @Mock private TargetDriverDialect mockTargetDriverDialect;
   @Mock private ResultSetMetaData mockResultSetMetaData;
+  private final DialectManager dialectManager = new DialectManager(Mockito.mock(PluginService.class));
+  private final Properties props = new Properties();
+  private AutoCloseable closeable;
 
   @BeforeEach
   void setUp() throws SQLException {
