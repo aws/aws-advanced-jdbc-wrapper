@@ -26,12 +26,14 @@ import java.util.List;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.MariaDBExceptionHandler;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverRestriction;
+import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.Pair;
 
 public class MariaDbDialect implements Dialect {
@@ -100,7 +102,16 @@ public class MariaDbDialect implements Dialect {
   @Override
   public void prepareConnectProperties(
       final @NonNull Properties connectProperties, final @NonNull String protocol, final @NonNull HostSpec hostSpec) {
-    // do nothing
+
+    final String connectionAttributes = String.format(
+        "_d:aws_jdbc_wrapper,_v:%s,_p:%s",
+        DriverInfo.DRIVER_VERSION,
+        connectProperties.getProperty(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY));
+    connectProperties.setProperty("connectionAttributes",
+        connectProperties.getProperty("connectionAttributes") == null
+            ? connectionAttributes
+            : connectProperties.getProperty("connectionAttributes") + "," + connectionAttributes);
+    connectProperties.remove(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY);
   }
 
   @Override
