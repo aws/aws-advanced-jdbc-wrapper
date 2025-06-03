@@ -22,8 +22,12 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Properties;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.ConnectionPluginManager;
+import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.hostlistprovider.AuroraTopologyUtils;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.hostlistprovider.TopologyUtils;
@@ -139,5 +143,22 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
   @Override
   public String getBlueGreenStatusQuery() {
     return BG_STATUS_QUERY;
+  }
+
+  @Override
+  public void prepareConnectProperties(
+      final @NonNull Properties connectProperties,
+      final @NonNull String protocol,
+      final @NonNull HostSpec hostSpec) {
+
+    final String driverInfoOption = String.format(
+        "-c aurora.connection_str=_d:aws_jdbc_wrapper,_v:%s,_p:%s",
+        DriverInfo.DRIVER_VERSION,
+        connectProperties.getProperty(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY));
+    connectProperties.setProperty("options",
+        connectProperties.getProperty("options") == null
+            ? driverInfoOption
+            : connectProperties.getProperty("options") + " " + driverInfoOption);
+    connectProperties.remove(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY);
   }
 }
