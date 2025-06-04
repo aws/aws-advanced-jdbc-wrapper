@@ -19,6 +19,7 @@ package integration.container.tests;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import integration.DatabaseEngineDeployment;
 import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
@@ -27,6 +28,7 @@ import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestDriver;
 import integration.container.condition.DisableOnTestFeature;
+import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnTestFeature;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -64,7 +66,8 @@ import software.amazon.jdbc.plugin.iam.RegularRdsUtility;
 @DisableOnTestFeature({
     TestEnvironmentFeatures.PERFORMANCE,
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
-    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
+    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
+    TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT})
 @Order(3)
 // MariaDb driver has no configuration parameters to force using 'mysql_clear_password'
 // authentication that is essential for IAM. A proper user name and IAM token are passed to MariaDb
@@ -238,7 +241,7 @@ public class AwsIamIntegrationTest {
   void test_AwsIam_UserAndPasswordPropertiesArePreserved() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setJdbcProtocol(DriverHelper.getDriverProtocol());
-    ds.setServerName(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint());
+    ds.setServerName(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0).getHost());
     ds.setDatabase(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
 

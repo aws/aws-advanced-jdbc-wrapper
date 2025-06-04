@@ -72,7 +72,8 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingSQLExcep
 @DisableOnTestFeature({
     TestEnvironmentFeatures.PERFORMANCE,
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
-    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
+    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
+    TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT})
 @EnableOnNumOfInstances(min = 3)
 @MakeSureFirstInstanceWriter
 @Order(16)
@@ -89,7 +90,7 @@ public class CustomEndpointTest {
   @BeforeAll
   public static void setupEndpoint() {
     TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
-    String clusterId = envInfo.getAuroraClusterName();
+    String clusterId = envInfo.getRdsDbName();
     String region = envInfo.getRegion();
 
     try (RdsClient client = RdsClient.builder().region(Region.of(region)).build()) {
