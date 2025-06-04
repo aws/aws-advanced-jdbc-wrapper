@@ -24,10 +24,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
-import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
@@ -35,7 +35,6 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.PooledConnectionProvider;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
@@ -484,11 +483,14 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
         readerHost = hostSpec;
         break;
       } catch (final SQLException e) {
-        LOGGER.warning(
-            () -> Messages.get(
-                "ReadWriteSplittingPlugin.failedToConnectToReader",
-                new Object[] {
-                    hostSpec.getUrl()}));
+        if (LOGGER.isLoggable(Level.WARNING)) {
+          LOGGER.log(Level.WARNING,
+              Messages.get(
+                  "ReadWriteSplittingPlugin.failedToConnectToReader",
+                  new Object[]{
+                      hostSpec.getUrl()}),
+              e);
+        }
       }
     }
 
