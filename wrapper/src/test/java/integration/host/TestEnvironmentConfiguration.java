@@ -22,8 +22,10 @@ public class TestEnvironmentConfiguration {
       Boolean.parseBoolean(System.getProperty("test-no-docker", "false"));
   public boolean noAurora =
       Boolean.parseBoolean(System.getProperty("test-no-aurora", "false"));
-  public boolean noMultiAz =
-      Boolean.parseBoolean(System.getProperty("test-no-multi-az", "false"));
+  public boolean noMultiAzCluster =
+      Boolean.parseBoolean(System.getProperty("test-no-multi-az-cluster", "false"));
+  public boolean noMultiAzInstance =
+      Boolean.parseBoolean(System.getProperty("test-no-multi-az-instance", "false"));
   public boolean noPerformance =
       Boolean.parseBoolean(System.getProperty("test-no-performance", "false"));
   public boolean noMysqlEngine =
@@ -72,16 +74,21 @@ public class TestEnvironmentConfiguration {
       Boolean.parseBoolean(System.getProperty("test-no-traces-telemetry", "false"));
   public boolean noMetricsTelemetry =
       Boolean.parseBoolean(System.getProperty("test-no-metrics-telemetry", "false"));
+  public boolean noBlueGreen =
+      Boolean.parseBoolean(System.getProperty("test-no-bg", "true"));
+  public boolean testBlueGreenOnly =
+      Boolean.parseBoolean(System.getProperty("test-bg-only", "false"));
 
   public String includeTags = System.getProperty("test-include-tags");
   public String excludeTags = System.getProperty("test-exclude-tags");
 
   public String rdsDbRegion = System.getenv("RDS_DB_REGION");
 
-  public boolean reuseRdsCluster = Boolean.parseBoolean(System.getenv("REUSE_RDS_CLUSTER"));
-  public String rdsClusterName = System.getenv("RDS_CLUSTER_NAME"); // "cluster-mysql"
-  public String rdsClusterDomain =
-      System.getenv("RDS_CLUSTER_DOMAIN"); // "XYZ.us-west-2.rds.amazonaws.com"
+  public boolean reuseRdsDb = Boolean.parseBoolean(System.getenv("REUSE_RDS_DB"));
+  public String rdsDbName = System.getenv("RDS_DB_NAME"); // "cluster-mysql", "instance-name", "cluster-multi-az-name"
+  public String rdsDbDomain =
+      System.getenv("RDS_DB_DOMAIN"); // "XYZ.us-west-2.rds.amazonaws.com"
+
   public String rdsEndpoint =
       System.getenv("RDS_ENDPOINT"); // "https://rds-int.amazon.com"
 

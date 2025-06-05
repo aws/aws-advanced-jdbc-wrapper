@@ -79,9 +79,8 @@ public class DialectTests {
   void testMysqlIsDialectSuccess() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(successResultSet);
     when(successResultSet.next()).thenReturn(true);
-    when(successResultSet.getString(1)).thenReturn("MySQL Community Server (GPL)");
+    when(successResultSet.getString(2)).thenReturn("MySQL Community Server (GPL)");
     when(successResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
-    when(mockResultSetMetaData.getColumnCount()).thenReturn(1);
     assertTrue(mysqlDialect.isDialect(mockConnection));
   }
 
@@ -102,9 +101,8 @@ public class DialectTests {
   void testMysqlIsDialectIncorrectVersionComment() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(successResultSet);
     when(successResultSet.next()).thenReturn(true, false);
-    when(successResultSet.getString(1)).thenReturn("Invalid");
+    when(successResultSet.getString(2)).thenReturn("Invalid");
     when(successResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
-    when(mockResultSetMetaData.getColumnCount()).thenReturn(1);
     assertFalse(mysqlDialect.isDialect(mockConnection));
   }
 
@@ -112,10 +110,10 @@ public class DialectTests {
   @Test
   void testRdsMysqlIsDialectSuccess() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(successResultSet);
-    when(successResultSet.next()).thenReturn(true, false, true, false);
-    when(successResultSet.getString(1)).thenReturn("Source distribution");
+    when(successResultSet.next()).thenReturn(true, false, true, true);
+    when(successResultSet.getString(2)).thenReturn(
+        "Source distribution", "Source distribution", "");
     when(successResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
-    when(mockResultSetMetaData.getColumnCount()).thenReturn(1);
     assertTrue(rdsMysqlDialect.isDialect(mockConnection));
   }
 
@@ -136,9 +134,8 @@ public class DialectTests {
   void testRdsMysqlIsDialectSuperIsDialectReturnedTrue() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(successResultSet);
     when(successResultSet.next()).thenReturn(true, false);
-    when(successResultSet.getString(1)).thenReturn("MySQL Community Server (GPL)");
+    when(successResultSet.getString(2)).thenReturn("MySQL Community Server (GPL)");
     when(successResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
-    when(mockResultSetMetaData.getColumnCount()).thenReturn(1);
     assertFalse(rdsMysqlDialect.isDialect(mockConnection));
     verify(successResultSet, times(1)).next();
   }
@@ -147,18 +144,19 @@ public class DialectTests {
   void testRdsMysqlIsDialectInvalidVersionComment() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(successResultSet);
     when(successResultSet.next()).thenReturn(true, false, true, false);
-    when(successResultSet.getString(1)).thenReturn("Invalid");
+    when(successResultSet.getString(2)).thenReturn("Invalid");
     when(successResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
-    when(mockResultSetMetaData.getColumnCount()).thenReturn(1);
     assertFalse(rdsMysqlDialect.isDialect(mockConnection));
-    verify(successResultSet, times(4)).next();
+    verify(successResultSet, times(3)).next();
   }
 
   // RDS MULTI A-Z DB CLUSTER MYSQL DIALECT
   @Test
   void testRdsTazMysqlIsDialectSuccess() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(successResultSet);
-    when(successResultSet.next()).thenReturn(true);
+    when(successResultSet.next()).thenReturn(true, true, true);
+    when(successResultSet.getString(2)).thenReturn("any-ip-address");
+    when(successResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
     assertTrue(rdsTazMysqlDialect.isDialect(mockConnection));
   }
 

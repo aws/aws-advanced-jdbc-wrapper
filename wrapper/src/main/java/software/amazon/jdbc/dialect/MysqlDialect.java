@@ -73,12 +73,9 @@ public class MysqlDialect implements Dialect {
       stmt = connection.createStatement();
       rs = stmt.executeQuery(this.getServerVersionQuery());
       while (rs.next()) {
-        final int columnCount = rs.getMetaData().getColumnCount();
-        for (int i = 1; i <= columnCount; i++) {
-          final String columnValue = rs.getString(i);
-          if (columnValue != null && columnValue.toLowerCase().contains("mysql")) {
-            return true;
-          }
+        final String columnValue = rs.getString(2);
+        if (columnValue != null && columnValue.toLowerCase().contains("mysql")) {
+          return true;
         }
       }
     } catch (final SQLException ex) {
