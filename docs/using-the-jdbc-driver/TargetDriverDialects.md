@@ -17,21 +17,21 @@ By default, target driver dialect is determined based on used target driver clas
 ### List of Available Target Driver Codes
 Target Driver Dialect codes specify what target driver dialect class to use. 
 
-| Dialect Code Reference | Value          | Target driver or DataSource class names                                                                                                                   |
-|------------------------|----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `PG_JDBC`         | `pgjdbc` | org.postgresql.Driver,<br>org.postgresql.ds.PGSimpleDataSource,<br>org.postgresql.ds.PGPoolingDataSource,<br>org.postgresql.ds.PGConnectionPoolDataSource |
-| `MYSQL_CONNECTOR_J`            | `mysql-connector-j`    | com.mysql.cj.jdbc.Driver,<br>com.mysql.cj.jdbc.MysqlDataSource,<br>com.mysql.cj.jdbc.MysqlConnectionPoolDataSource                                        |
-| `MARIADB_CONNECTOR_J_VER_3`                | `mariadb-connector-j-3`        | org.mariadb.jdbc.Driver (ver. 3+),<br>org.mariadb.jdbc.MariaDbDataSource,<br>org.mariadb.jdbc.MariaDbPoolDataSource                                       |
-| `GENERIC`            | `generic`    | Any other JDBC driver                                                                                                                                     |
+| Dialect Code Reference      | Value                   | Target driver or DataSource class names                                                                                                                   |
+|-----------------------------|-------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `PG_JDBC`                   | `pgjdbc`                | org.postgresql.Driver,<br>org.postgresql.ds.PGSimpleDataSource,<br>org.postgresql.ds.PGPoolingDataSource,<br>org.postgresql.ds.PGConnectionPoolDataSource |
+| `MYSQL_CONNECTOR_J`         | `mysql-connector-j`     | com.mysql.cj.jdbc.Driver,<br>com.mysql.cj.jdbc.MysqlDataSource,<br>com.mysql.cj.jdbc.MysqlConnectionPoolDataSource                                        |
+| `MARIADB_CONNECTOR_J_VER_3` | `mariadb-connector-j-3` | org.mariadb.jdbc.Driver (ver. 3+),<br>org.mariadb.jdbc.MariaDbDataSource,<br>org.mariadb.jdbc.MariaDbPoolDataSource                                       |
+| `GENERIC`                   | `generic`               | Any other JDBC driver                                                                                                                                     |
 
 ## Custom Target Driver Dialects
 If you are interested in using the AWS JDBC Driver but your desired target driver has unique features so the existing generic dialect doesn't work well with it, it is possible to create a custom target driver dialect.
 
-To create a custom target driver dialect, implement the [`TargetDriverDialect`](/wrapper/src/main/java/software/amazon/jdbc/targetdriverdialect/TargetDriverDialect.java) interface. See the following classes for examples:
+To create a custom target driver dialect, implement the [`TargetDriverDialect`](../../wrapper/src/main/java/software/amazon/jdbc/targetdriverdialect/TargetDriverDialect.java) interface. See the following classes for examples:
 
-- [PgTargetDriverDialect](/wrapper/src/main/java/software/amazon/jdbc/targetdriverdialect/PgTargetDriverDialect.java)
+- [PgTargetDriverDialect](../../wrapper/src/main/java/software/amazon/jdbc/targetdriverdialect/PgTargetDriverDialect.java)
     - This is a dialect that should work with [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc).
-- [MysqlConnectorJTargetDriverDialect](/wrapper/src/main/java/software/amazon/jdbc/targetdriverdialect/MysqlConnectorJTargetDriverDialect.java)
+- [MysqlConnectorJTargetDriverDialect](../../wrapper/src/main/java/software/amazon/jdbc/targetdriverdialect/MysqlConnectorJTargetDriverDialect.java)
     - This is a dialect that should work with [MySQL Connector/J Driver](https://github.com/mysql/mysql-connector-j).
 
 Once the custom dialect class has been created, tell the AWS JDBC Driver to use it with the `setCustomDialect` method in the `TargetDriverDialectManager` class. It is not necessary to set the `wrapperTargetDriverDialect` parameter. See below for an example:

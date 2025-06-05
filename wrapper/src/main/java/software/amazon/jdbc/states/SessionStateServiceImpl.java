@@ -22,12 +22,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.StringUtils;
 
 public class SessionStateServiceImpl implements SessionStateService {
@@ -456,7 +456,8 @@ public class SessionStateServiceImpl implements SessionStateService {
     if (this.sessionState.networkTimeout.getValue().isPresent()) {
       this.sessionState.networkTimeout.resetPristineValue();
       this.setupPristineNetworkTimeout();
-      final ExecutorService executorService = Executors.newSingleThreadExecutor();
+      final ExecutorService executorService =
+          ExecutorFactory.newSingleThreadExecutor("session");
       newConnection.setNetworkTimeout(executorService, this.sessionState.networkTimeout.getValue().get());
       executorService.shutdown();
     }
@@ -543,7 +544,8 @@ public class SessionStateServiceImpl implements SessionStateService {
 
     if (this.copySessionState.networkTimeout.canRestorePristine()) {
       try {
-        final ExecutorService executorService = Executors.newSingleThreadExecutor();
+        final ExecutorService executorService =
+            ExecutorFactory.newSingleThreadExecutor("session");
         //noinspection OptionalGetWithoutIsPresent
         connection.setNetworkTimeout(executorService,
             this.copySessionState.networkTimeout.getPristineValue().get());

@@ -35,7 +35,6 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.wrapper.HighestWeightHostSelector;
 
 /**
  * This class is a basic implementation of {@link ConnectionProvider} interface. It creates and

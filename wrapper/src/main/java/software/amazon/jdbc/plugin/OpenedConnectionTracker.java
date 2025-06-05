@@ -29,10 +29,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
@@ -45,13 +46,10 @@ public class OpenedConnectionTracker {
 
   static final Map<String, Queue<WeakReference<Connection>>> openedConnections = new ConcurrentHashMap<>();
   private static final String TELEMETRY_INVALIDATE_CONNECTIONS = "invalidate connections";
+  private static final ExecutorService pruneConnectionsExecutorService =
+      ExecutorFactory.newSingleThreadExecutor("pruneConnection");
   private static final ExecutorService invalidateConnectionsExecutorService =
-      Executors.newCachedThreadPool(
-          r -> {
-            final Thread invalidateThread = new Thread(r);
-            invalidateThread.setDaemon(true);
-            return invalidateThread;
-          });
+      ExecutorFactory.newCachedThreadPool("invalidateConnection");
   private static final Executor abortConnectionExecutor = new SynchronousExecutor();
 
   private static final Logger LOGGER = Logger.getLogger(OpenedConnectionTracker.class.getName());
@@ -64,6 +62,24 @@ public class OpenedConnectionTracker {
       "org.mariadb.jdbc.Connection"));
 
   private final PluginService pluginService;
+
+  static {
+    pruneConnectionsExecutorService.submit(() -> {
+      while (!Thread.currentThread().isInterrupted()) {
+        try {
+          pruneConnections();
+          TimeUnit.SECONDS.sleep(30);
+
+        } catch (InterruptedException ex) {
+          Thread.currentThread().interrupt();
+          return;
+        } catch (Exception ex) {
+          // do nothing
+        }
+      }
+    });
+    pruneConnectionsExecutorService.shutdown();
+  }
 
   public OpenedConnectionTracker(final PluginService pluginService) {
     this.pluginService = pluginService;
@@ -209,6 +225,10 @@ public class OpenedConnectionTracker {
   }
 
   public void pruneNullConnections() {
+    pruneConnections();
+  }
+
+  protected static void pruneConnections() {
     openedConnections.forEach((key, queue) -> {
       queue.removeIf(connectionWeakReference -> {
         final Connection conn = connectionWeakReference.get();

@@ -79,7 +79,7 @@ public class RdsUtils {
           "^(?<instance>.+)\\."
               + "(?<dns>proxy-|cluster-|cluster-ro-|cluster-custom-|shardgrp-)?"
               + "(?<domain>[a-zA-Z0-9]+\\.(?<region>[a-zA-Z0-9\\-]+)"
-              + "\\.rds\\.amazonaws\\.com)$",
+              + "\\.rds\\.amazonaws\\.com\\.?)$",
           Pattern.CASE_INSENSITIVE);
 
   private static final Pattern AURORA_CLUSTER_PATTERN =
@@ -87,21 +87,21 @@ public class RdsUtils {
           "^(?<instance>.+)\\."
               + "(?<dns>cluster-|cluster-ro-)+"
               + "(?<domain>[a-zA-Z0-9]+\\.(?<region>[a-zA-Z0-9\\-]+)"
-              + "\\.rds\\.amazonaws\\.com)$",
+              + "\\.rds\\.amazonaws\\.com\\.?)$",
           Pattern.CASE_INSENSITIVE);
   private static final Pattern AURORA_LIMITLESS_CLUSTER_PATTERN =
       Pattern.compile(
           "(?<instance>.+)\\."
               + "(?<dns>shardgrp-)+"
               + "(?<domain>[a-zA-Z0-9]+\\.(?<region>[a-zA-Z0-9\\-]+)"
-              + "\\.rds\\.(amazonaws\\.com(\\.cn)?|sc2s\\.sgov\\.gov|c2s\\.ic\\.gov))$",
+              + "\\.rds\\.(amazonaws\\.com\\.?|amazonaws\\.com\\.cn\\.?|sc2s\\.sgov\\.gov\\.?|c2s\\.ic\\.gov\\.?))$",
           Pattern.CASE_INSENSITIVE);
   private static final Pattern AURORA_CHINA_DNS_PATTERN =
       Pattern.compile(
           "^(?<instance>.+)\\."
               + "(?<dns>proxy-|cluster-|cluster-ro-|cluster-custom-|shardgrp-)?"
               + "(?<domain>[a-zA-Z0-9]+\\.rds\\.(?<region>[a-zA-Z0-9\\-]+)"
-              + "\\.amazonaws\\.com\\.cn)$",
+              + "\\.amazonaws\\.com\\.cn\\.?)$",
           Pattern.CASE_INSENSITIVE);
 
   private static final Pattern AURORA_CHINA_CLUSTER_PATTERN =
@@ -109,7 +109,7 @@ public class RdsUtils {
           "^(?<instance>.+)\\."
               + "(?<dns>cluster-|cluster-ro-)+"
               + "(?<domain>[a-zA-Z0-9]+\\.rds\\.(?<region>[a-zA-Z0-9\\-]+)"
-              + "\\.amazonaws\\.com\\.cn)$",
+              + "\\.amazonaws\\.com\\.cn\\.?)$",
           Pattern.CASE_INSENSITIVE);
 
   private static final Pattern AURORA_OLD_CHINA_DNS_PATTERN =
@@ -117,7 +117,7 @@ public class RdsUtils {
           "^(?<instance>.+)\\."
               + "(?<dns>proxy-|cluster-|cluster-ro-|cluster-custom-|shardgrp-)?"
               + "(?<domain>[a-zA-Z0-9]+\\.(?<region>[a-zA-Z0-9\\-]+)"
-              + "\\.rds\\.amazonaws\\.com\\.cn)$",
+              + "\\.rds\\.amazonaws\\.com\\.cn\\.?)$",
           Pattern.CASE_INSENSITIVE);
 
   private static final Pattern AURORA_OLD_CHINA_CLUSTER_PATTERN =
@@ -125,7 +125,7 @@ public class RdsUtils {
           "^(?<instance>.+)\\."
               + "(?<dns>cluster-|cluster-ro-)+"
               + "(?<domain>[a-zA-Z0-9]+\\.(?<region>[a-zA-Z0-9\\-]+)"
-              + "\\.rds\\.amazonaws\\.com\\.cn)$",
+              + "\\.rds\\.amazonaws\\.com\\.cn\\.?)$",
           Pattern.CASE_INSENSITIVE);
 
   private static final Pattern AURORA_GOV_DNS_PATTERN =
@@ -133,7 +133,7 @@ public class RdsUtils {
           "^(?<instance>.+)\\."
               + "(?<dns>proxy-|cluster-|cluster-ro-|cluster-custom-|shardgrp-)?"
               + "(?<domain>[a-zA-Z0-9]+\\.rds\\.(?<region>[a-zA-Z0-9\\-]+)"
-              + "\\.(amazonaws\\.com|c2s\\.ic\\.gov|sc2s\\.sgov\\.gov))$",
+              + "\\.(amazonaws\\.com\\.?|c2s\\.ic\\.gov\\.?|sc2s\\.sgov\\.gov\\.?))$",
           Pattern.CASE_INSENSITIVE);
 
   private static final Pattern AURORA_GOV_CLUSTER_PATTERN =
@@ -141,13 +141,13 @@ public class RdsUtils {
           "^(?<instance>.+)\\."
               + "(?<dns>cluster-|cluster-ro-)+"
               + "(?<domain>[a-zA-Z0-9]+\\.rds\\.(?<region>[a-zA-Z0-9\\-]+)"
-              + "\\.(amazonaws\\.com|c2s\\.ic\\.gov|sc2s\\.sgov\\.gov))$",
+              + "\\.(amazonaws\\.com\\.?|c2s\\.ic\\.gov\\.?|sc2s\\.sgov\\.gov\\.?))$",
           Pattern.CASE_INSENSITIVE);
 
   private static final Pattern ELB_PATTERN =
       Pattern.compile(
           "^(?<instance>.+)\\.elb\\."
-              + "((?<region>[a-zA-Z0-9\\-]+)\\.amazonaws\\.com)$",
+              + "((?<region>[a-zA-Z0-9\\-]+)\\.amazonaws\\.com\\.?)$",
           Pattern.CASE_INSENSITIVE);
 
   private static final Pattern IP_V4 =
@@ -164,6 +164,16 @@ public class RdsUtils {
   private static final Pattern BG_GREEN_HOST_PATTERN =
       Pattern.compile(
           ".*(?<prefix>-green-[0-9a-z]{6})\\..*",
+          Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern BG_GREEN_HOSTID_PATTERN =
+      Pattern.compile(
+          "(.*)-green-[0-9a-z]{6}",
+          Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern BG_OLD_HOST_PATTERN =
+      Pattern.compile(
+          ".*(?<prefix>-old1)\\..*",
           Pattern.CASE_INSENSITIVE);
 
   private static final Map<String, Matcher> cachedPatterns = new ConcurrentHashMap<>();
@@ -308,9 +318,13 @@ public class RdsUtils {
     }
     final Matcher limitlessMatcher = AURORA_LIMITLESS_CLUSTER_PATTERN.matcher(preparedHost);
     if (limitlessMatcher.find()) {
-      return preparedHost.replaceAll(AURORA_LIMITLESS_CLUSTER_PATTERN.pattern(), "${instance}.cluster-${domain}");
+      return preparedHost.replaceAll(AURORA_LIMITLESS_CLUSTER_PATTERN.pattern(), "${instance}.shardgrp-${domain}");
     }
     return null;
+  }
+
+  public boolean isIP(final String ip) {
+    return isIPv4(ip) || isIPv6(ip);
   }
 
   public boolean isIPv4(final String ip) {
@@ -331,7 +345,7 @@ public class RdsUtils {
       return RdsUrlType.OTHER;
     }
 
-    if (isIPv4(host) || isIPv6(host)) {
+    if (isIP(host)) {
       return RdsUrlType.IP_ADDRESS;
     } else if (isWriterClusterDns(host)) {
       return RdsUrlType.RDS_WRITER_CLUSTER;
@@ -367,13 +381,35 @@ public class RdsUtils {
     return !StringUtils.isNullOrEmpty(preparedHost) && BG_GREEN_HOST_PATTERN.matcher(preparedHost).matches();
   }
 
+  public boolean isOldInstance(final String host) {
+    final String preparedHost = getPreparedHost(host);
+    return !StringUtils.isNullOrEmpty(preparedHost) && BG_OLD_HOST_PATTERN.matcher(preparedHost).matches();
+  }
+
+  public boolean isNotOldInstance(final String host) {
+    final String preparedHost = getPreparedHost(host);
+    return StringUtils.isNullOrEmpty(preparedHost) || !BG_OLD_HOST_PATTERN.matcher(preparedHost).matches();
+  }
+
+  // Verify that provided host is a blue host name and contains neither green prefix nor old prefix.
+  public boolean isNotGreenAndOldPrefixInstance(final String host) {
+    final String preparedHost = getPreparedHost(host);
+    return !StringUtils.isNullOrEmpty(preparedHost)
+        && !BG_GREEN_HOST_PATTERN.matcher(preparedHost).matches()
+        && !BG_OLD_HOST_PATTERN.matcher(preparedHost).matches();
+  }
+
   public String removeGreenInstancePrefix(final String host) {
     if (StringUtils.isNullOrEmpty(host)) {
       return host;
     }
     final Matcher matcher = BG_GREEN_HOST_PATTERN.matcher(getPreparedHost(host));
     if (!matcher.matches()) {
-      return host;
+      final Matcher hostIdMatcher = BG_GREEN_HOSTID_PATTERN.matcher(getPreparedHost(host));
+      if (!hostIdMatcher.matches()) {
+        return host;
+      }
+      return hostIdMatcher.group(1);
     }
     final String prefix = matcher.group("prefix");
     if (StringUtils.isNullOrEmpty(prefix)) {

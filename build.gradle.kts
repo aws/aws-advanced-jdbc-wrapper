@@ -98,7 +98,7 @@ allprojects {
                         description.set(
                             project.description ?: "Amazon Web Services (AWS) Advanced JDBC Wrapper"
                         )
-                        url.set("https://github.com/awslabs/aws-advanced-jdbc-wrapper")
+                        url.set("https://github.com/aws/aws-advanced-jdbc-wrapper")
                         licenses {
                             license {
                                 name.set("Apache 2.0")
@@ -114,13 +114,13 @@ allprojects {
                             }
                         }
                         scm {
-                            connection.set("scm:git:https://github.com/awslabs/aws-advanced-jdbc-wrapper.git")
+                            connection.set("scm:git:https://github.com/aws/aws-advanced-jdbc-wrapper.git")
                             developerConnection.set("scm:git@github.com:awslabs/aws-advanced-jdbc-wrapper.git")
-                            url.set("https://github.com/awslabs/aws-advanced-jdbc-wrapper")
+                            url.set("https://github.com/aws/aws-advanced-jdbc-wrapper")
                         }
                         issueManagement {
                             system.set("GitHub issues")
-                            url.set("https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues")
+                            url.set("https://github.com/aws/aws-advanced-jdbc-wrapper/issues")
                         }
                     }
                 }

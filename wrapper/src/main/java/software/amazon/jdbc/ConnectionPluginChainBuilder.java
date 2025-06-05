@@ -35,6 +35,7 @@ import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
 import software.amazon.jdbc.plugin.DriverMetaDataConnectionPluginFactory;
 import software.amazon.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
 import software.amazon.jdbc.plugin.LogQueryConnectionPluginFactory;
+import software.amazon.jdbc.plugin.bluegreen.BlueGreenConnectionPluginFactory;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointPluginFactory;
 import software.amazon.jdbc.plugin.dev.DeveloperConnectionPluginFactory;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPluginFactory;
@@ -82,6 +83,7 @@ public class ConnectionPluginChainBuilder {
           put("fastestResponseStrategy", FastestResponseStrategyPluginFactory.class);
           put("initialConnection", AuroraInitialConnectionStrategyPluginFactory.class);
           put("limitless", LimitlessConnectionPluginFactory.class);
+          put("bg", BlueGreenConnectionPluginFactory.class);
         }
       };
 
@@ -99,6 +101,7 @@ public class ConnectionPluginChainBuilder {
           put(AuroraInitialConnectionStrategyPluginFactory.class, 390);
           put(AuroraConnectionTrackerPluginFactory.class, 400);
           put(AuroraStaleDnsPluginFactory.class, 500);
+          put(BlueGreenConnectionPluginFactory.class, 550);
           put(ReadWriteSplittingPluginFactory.class, 600);
           put(FailoverConnectionPluginFactory.class, 700);
           put(software.amazon.jdbc.plugin.failover2.FailoverConnectionPluginFactory.class, 710);
@@ -116,7 +119,7 @@ public class ConnectionPluginChainBuilder {
         }
       };
 
-  protected static final String DEFAULT_PLUGINS = "auroraConnectionTracker,failover,efm2";
+  protected static final String DEFAULT_PLUGINS = "auroraConnectionTracker,failover2,efm2";
 
   /*
    Internal class used for plugin factory sorting. It holds a reference to a plugin

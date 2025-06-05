@@ -6,7 +6,7 @@ Make sure you have Amazon Corretto 8+ or Java 8+ installed.
 Clone the AWS JDBC Driver repository:
 
 ```bash
-git clone https://github.com/awslabs/aws-advanced-jdbc-wrapper.git
+git clone https://github.com/aws/aws-advanced-jdbc-wrapper.git
 ```
 
 You can now make changes in the repository.
@@ -152,7 +152,7 @@ Windows:
 ```
 
 #### Integration Tests
-For more information on how to run the integration tests, please visit [Integration Tests](/docs/development-guide/IntegrationTests.md).
+For more information on how to run the integration tests, please visit [Integration Tests](IntegrationTests.md).
 
 #### Sample Code
 [Connection Test Sample Code](./../../examples/AWSDriverExample/src/main/java/software/amazon/PgConnectionSample.java)

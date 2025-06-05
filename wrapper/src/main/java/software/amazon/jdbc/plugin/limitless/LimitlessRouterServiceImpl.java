@@ -26,15 +26,16 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
+import software.amazon.jdbc.HighestWeightHostSelector;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.RoundRobinHostSelector;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.Utils;
-import software.amazon.jdbc.wrapper.HighestWeightHostSelector;
 
 public class LimitlessRouterServiceImpl implements LimitlessRouterService {
   private static final Logger LOGGER =
@@ -57,7 +58,8 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
             try {
               limitlessRouterMonitor.close();
             } catch (Exception e) {
-              // ignore
+              LOGGER.warning(Messages.get("LimitlessRouterServiceImpl.errorClosingMonitor",
+                  new Object[]{e.getMessage()}));
             }
           },
           CACHE_CLEANUP_NANO
@@ -70,6 +72,10 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
           x -> {},
         CACHE_CLEANUP_NANO
       );
+
+  static {
+    PropertyDefinition.registerPluginProperties(LimitlessRouterServiceImpl.class);
+  }
 
   public LimitlessRouterServiceImpl(final @NonNull PluginService pluginService) {
     this(
@@ -125,6 +131,9 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
         try {
           context.setConnection(context.getConnectFunc().call());
         } catch (final SQLException e) {
+          if (this.isLoginException(e)) {
+            throw e;
+          }
           retryConnectWithLeastLoadedRouters(context);
         }
       }
@@ -144,6 +153,9 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
           "LimitlessRouterServiceImpl.selectedHost",
           new Object[] {selectedHostSpec != null ? selectedHostSpec.getHost() : "null"}));
     } catch (SQLException e) {
+      if (this.isLoginException(e)) {
+        throw e;
+      }
       retryConnectWithLeastLoadedRouters(context);
       return;
     }
@@ -156,13 +168,17 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
     try {
       context.setConnection(this.pluginService.connect(selectedHostSpec, context.getProps(), context.getPlugin()));
     } catch (SQLException e) {
+      if (this.isLoginException(e)) {
+        throw e;
+      }
       if (selectedHostSpec != null) {
         LOGGER.fine(Messages.get(
             "LimitlessRouterServiceImpl.failedToConnectToHost",
             new Object[] {selectedHostSpec.getHost()}));
         selectedHostSpec.setAvailability(HostAvailability.NOT_AVAILABLE);
       }
-      // Retry connect prioritising healthiest router for best chance of connection over load-balancing with round-robin
+      // Retry connect prioritising the healthiest router for best chance of
+      // connection over load-balancing with round-robin.
       retryConnectWithLeastLoadedRouters(context);
     }
   }
@@ -198,7 +214,12 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
               context.setConnection(context.getConnectFunc().call());
               return;
             } catch (final SQLException e) {
-              throw new SQLException(Messages.get("LimitlessRouterServiceImpl.noRoutersAvailable"));
+              if (this.isLoginException(e)) {
+                throw e;
+              }
+              throw new SQLException(Messages.get(
+                  "LimitlessRouterServiceImpl.unableToConnectNoRoutersAvailable",
+                  new Object[] {context.getHostSpec().getHost()}), e);
             }
           }
         }
@@ -229,6 +250,9 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
           return;
         }
       } catch (final SQLException e) {
+        if (this.isLoginException(e)) {
+          throw e;
+        }
         selectedHostSpec.setAvailability(HostAvailability.NOT_AVAILABLE);
         LOGGER.finest(Messages.get(
             "LimitlessRouterServiceImpl.failedToConnectToHost",
@@ -252,6 +276,9 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
         }
         Thread.sleep(retryIntervalMs);
       } catch (final SQLException e) {
+        if (this.isLoginException(e)) {
+          throw e;
+        }
         LOGGER.finest(Messages.get("LimitlessRouterServiceImpl.getLimitlessRoutersException", new Object[] {e}));
       } catch (final InterruptedException e) {
         Thread.currentThread().interrupt();
@@ -300,6 +327,10 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
     } finally {
       lock.unlock();
     }
+  }
+
+  protected boolean isLoginException(Throwable throwable) {
+    return this.pluginService.isLoginException(throwable, this.pluginService.getTargetDriverDialect());
   }
 
   @Override
