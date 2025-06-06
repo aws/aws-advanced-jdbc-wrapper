@@ -129,14 +129,15 @@ The development team is aware of these limitations and is working to improve the
 > [!WARNING]\
 > **Blue/Green Support Behaviour and Version Compatibility**
 > 
-> The AWS Advanced JDBC Wrapper now includes enhanced full support for Blue/Green Deployments. This support requires a minimum database version, for RDS and Aurora PostgreSQL, that includes a specific metadata table. This constraint **does not** apply to RDS MySQL and Aurora MySQL.
+> The AWS Advanced JDBC Wrapper now includes enhanced full support for Blue/Green Deployments. This support requires a minimum database version that includes a specific metadata table. This constraint **does not** apply to RDS MySQL.
 >
 > If your database version does **not** support this table, the driver will automatically detect its absence and fallback to its previous behaviour. In this fallback mode, Blue/Green handling is subject to the same limitations listed above.
 >
 > **No action is required** if your database does not include the new metadata table -- the driver will continue to operate as before. If you have questions or encounter issues, please open an issue in this repository.
 >
-> Supported RDS PostgreSQL Versions: `rds_tools v1.7 (17.1, 16.5, 15.9, 14.14, 13.17, 12.21)`.<br>
-> Supported Aurora PostgreSQL Versions: Engine Release `17.5, 16.9, 15.13, 14.18, 13.21`.
+> Supported RDS PostgreSQL Versions: `rds_tools v1.7 (17.1, 16.5, 15.9, 14.14, 13.17, 12.21)` and above.<br>
+> Supported Aurora PostgreSQL Versions: Engine Release `17.5, 16.9, 15.13, 14.18, 13.21` and above.<br>
+> Supported Aurora MySQL Versions: Engine Release `3.07` and above.
 
 [^1]: Aurora MySQL requires v3.07 or later.
 

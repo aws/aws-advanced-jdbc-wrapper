@@ -106,14 +106,3 @@ public class HikariCPSQLException implements SQLExceptionOverride {
     }
 }
 ```
-
-### Blue/Green Deployments
-Although the AWS Advanced JDBC Wrapper is not compatible with [AWS Blue/Green Deployments](https://docs.aws.amazon.com/whitepapers/latest/overview-deployment-options/bluegreen-deployments.html) and does not officially support them, the combination of the AWS Advanced JDBC Wrapper and the Failover Plugin has been validated for use with clusters that employ Blue/Green Deployments. While general basic connectivity to both Blue and Green clusters is always in place, some failover cases are not fully supported.
-
-The current limitations are:
-- After a Blue/Green switchover, the wrapper may not be able to properly detect the new topology and handle failover, as there are discrepancies between the metadata and the available endpoints.
-- The specific version requirements for Aurora MySQL versus Aurora PostgreSQL may vary, as the internal systems used by the wrapper can differ[^1].
-
-The development team is aware of these limitations and is working to improve the wrapper's awareness and handling of Blue/Green switchovers. In the meantime, users can consider utilizing the `enableGreenNodeReplacement` configuration parameter, which allows the driver to override incorrect topology metadata and try to connect to available new Blue endpoints.
-
-[^1]: Aurora MySQL requires v3.07 or later.
