@@ -4,6 +4,7 @@ import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisCommandExecutionException;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulRedisConnection;
+import io.lettuce.core.api.async.RedisAsyncCommands;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.resource.ClientResources;
 import software.amazon.jdbc.AwsWrapperProperty;
@@ -174,23 +175,42 @@ public class CacheConnection {
   }
 
   public void writeToCache(String key, byte[] value, int expiry) {
-    boolean isBroken = false;
     StatefulRedisConnection<byte[], byte[]> conn = null;
     try {
       initializeCacheConnectionIfNeeded(false);
       // get a connection from the write connection pool
       conn = writeConnectionPool.borrowObject();
-      // TODO: make the write to the cache to be async.
-      conn.sync().setex(computeHashDigest(key.getBytes(StandardCharsets.UTF_8)), expiry, value);
+      // Add support to make write to the cache to be async.
+      RedisAsyncCommands<byte[], byte[]> asyncCommands = conn.async();
+      byte[] keyHash = computeHashDigest(key.getBytes(StandardCharsets.UTF_8));
+
+      StatefulRedisConnection<byte[], byte[]> finalConn = conn;
+      asyncCommands.setex(keyHash, expiry, value)
+          .whenComplete((result, exception) -> {
+            if (exception != null) {
+              LOGGER.warning("Failed to write to cache: " + exception.getMessage());
+              if (writeConnectionPool != null) {
+                try {
+                  returnConnectionBackToPool(finalConn, true, false);
+                } catch (Exception ex) {
+                  LOGGER.warning("Error returning broken write connection back to pool: " + ex.getMessage());
+                }
+              }
+            } else {
+              if (writeConnectionPool != null) {
+                try {
+                  returnConnectionBackToPool(finalConn, false, false);
+                } catch (Exception ex) {
+                  LOGGER.warning("Error returning write connection back to pool: " + ex.getMessage());
+                }
+              }
+            }
+          });
     } catch (Exception e) {
-      if (conn !=  null){
-        isBroken = true;
-      }
       LOGGER.warning("Failed to write to cache: " + e.getMessage());
-    } finally {
       if (conn != null && writeConnectionPool != null) {
         try {
-          this.returnConnectionBackToPool(conn, isBroken, false);
+          returnConnectionBackToPool(conn, true, false);
         } catch (Exception ex) {
           LOGGER.warning("Error closing write connection: " + ex.getMessage());
         }
