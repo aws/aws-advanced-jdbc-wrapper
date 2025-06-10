@@ -79,6 +79,7 @@ public class DialectManager implements DialectProvider {
   private final RdsUtils rdsHelper = new RdsUtils();
   private final ConnectionUrlParser connectionUrlParser = new ConnectionUrlParser();
   private boolean canUpdate = false;
+  private boolean shouldReportMetadata = false;
   private Dialect dialect = null;
   private String dialectCode;
 
@@ -131,6 +132,7 @@ public class DialectManager implements DialectProvider {
       this.dialectCode = DialectCodes.CUSTOM;
       this.dialect = customDialect;
       this.logCurrentDialect();
+      this.shouldReportMetadata = true;
       return this.dialect;
     }
 
@@ -145,6 +147,7 @@ public class DialectManager implements DialectProvider {
         this.dialectCode = dialectCode;
         this.dialect = userDialect;
         this.logCurrentDialect();
+        this.shouldReportMetadata = true;
         return userDialect;
       } else {
         throw new SQLException(
@@ -157,8 +160,8 @@ public class DialectManager implements DialectProvider {
     }
 
     String host = url;
-    final List<HostSpec> hosts = this.connectionUrlParser.getHostsFromConnectionUrl(url, true,
-        () -> pluginService.getHostSpecBuilder());
+    final List<HostSpec> hosts = this.connectionUrlParser.getHostsFromConnectionUrl(
+        url, true, pluginService::getHostSpecBuilder);
     if (!Utils.isNullOrEmpty(hosts)) {
       host = hosts.get(0).getHost();
     }
@@ -232,10 +235,15 @@ public class DialectManager implements DialectProvider {
   public Dialect getDialect(
       final @NonNull String originalUrl,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Connection connection) throws SQLException {
+      final @NonNull Connection connection,
+      final @NonNull Properties properties) throws SQLException {
 
     if (!this.canUpdate) {
       this.logCurrentDialect();
+      if (this.shouldReportMetadata) {
+        this.dialect.reportMetadata(connection, properties);
+        this.shouldReportMetadata = false;
+      }
       return this.dialect;
     }
 
@@ -247,7 +255,7 @@ public class DialectManager implements DialectProvider {
           throw new SQLException(
               Messages.get("DialectManager.unknownDialectCode", new Object[] {dialectCandidateCode}));
         }
-        boolean isDialect = dialectCandidate.isDialect(connection);
+        boolean isDialect = dialectCandidate.isDialect(connection, properties);
         if (isDialect) {
           this.canUpdate = false;
           this.dialectCode = dialectCandidateCode;

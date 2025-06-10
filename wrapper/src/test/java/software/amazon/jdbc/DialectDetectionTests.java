@@ -37,6 +37,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.dialect.AuroraMysqlDialect;
 import software.amazon.jdbc.dialect.AuroraPgDialect;
@@ -68,7 +69,7 @@ public class DialectDetectionTests {
   @Mock private ConnectionPluginManager pluginManager;
   @Mock private TargetDriverDialect mockTargetDriverDialect;
   @Mock private ResultSetMetaData mockResultSetMetaData;
-  private final DialectManager dialectManager = new DialectManager(null);
+  private final DialectManager dialectManager = new DialectManager(Mockito.mock(PluginService.class));
   private final Properties props = new Properties();
   private AutoCloseable closeable;
 
@@ -137,7 +138,7 @@ public class DialectDetectionTests {
     when(mockStatement.executeQuery("SHOW VARIABLES LIKE 'version_comment'")).thenReturn(successResultSet);
     when(mockStatement.executeQuery("SHOW VARIABLES LIKE 'report_host'")).thenReturn(successResultSet);
     when(successResultSet.getString(2)).thenReturn(
-        "Source distribution", "Source distribution", "");
+        "Source distribution", "Source distribution", "Source distribution", "");
     when(successResultSet.next()).thenReturn(true, false, true, true);
     when(successResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
     when(failResultSet.next()).thenReturn(false);
@@ -186,6 +187,7 @@ public class DialectDetectionTests {
     when(mockStatement.executeQuery(any()))
         .thenReturn(successResultSet, failResultSet, failResultSet, successResultSet);
     when(successResultSet.getBoolean(any())).thenReturn(false);
+    when(successResultSet.getString(2)).thenReturn("postgresql");
     when(successResultSet.getBoolean("rds_tools")).thenReturn(true);
     when(successResultSet.getBoolean("aurora_stat_utils")).thenReturn(false);
     when(successResultSet.next()).thenReturn(true);
@@ -241,7 +243,7 @@ public class DialectDetectionTests {
     when(mockStatement.executeQuery("SHOW VARIABLES LIKE 'version_comment'")).thenReturn(successResultSet);
     when(mockStatement.executeQuery("SHOW VARIABLES LIKE 'report_host'")).thenReturn(successResultSet);
     when(successResultSet.getString(2)).thenReturn(
-        "Source distribution", "Source distribution", "");
+        "Source distribution", "Source distribution", "Source distribution", "");
     when(successResultSet.next()).thenReturn(true, false, true, true);
     when(successResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
     when(failResultSet.next()).thenReturn(false);
