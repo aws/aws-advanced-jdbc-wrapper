@@ -4,9 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
 ## [2.6.0] - 2025-06-10
+### :magic_wand: Added
+- Add support of Blue/Green Deployment for Aurora MySQL clusters, Aurora PostgreSQL clusters, RDS MySQL Instances, and RDS PostgreSQL Instances. See [Using The Blue/Green Deployment Plugin](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheBlueGreenPlugin.md).
+- Allow driver to recognize lower case parameters ([PR #1361](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1361)).
+- Set names for all internal threads ([PR #1410](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1410)).
+
 ### :bug: Fixed
-- Fix connection leaks in Limitless Plugin
-    - [PR #1369](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1369)
+- Fix connection leaks in Limitless Plugin:
+    - [PR #1369](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1369).
     - [PR #1388](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1388).
 - Fix wrong calls in wrapper class ([PR #1413](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1413)).
 - Fix host info type ([PR #1423](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1423)).
@@ -18,12 +23,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Set `failover2` as default plugin ([PR #1414](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1414)).
 - Improve logging for Limitless Plugin ([PR #1431](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1431)).
 - Clarifies support for blue/green deployments by specifying minimum versions ([PR #1434](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1434)).
-
-### :magic_wand: Added
-- Add support of Blue/Green Deployment for Aurora Mysql cluster, Aurora Postgres cluster, RDS Mysql Instance, RDS Postgres Instance. See [Using The Blue/Green Deployment Plugin](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheBlueGreenPlugin.md).
-- Allow driver to recognize lower case parameters ([PR #1361](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1361)).
-- Set names for all internal threads ([PR #1410](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1410)). 
-
 
 ## [2.5.6] - 2025-04-09
 ### :bug: Fixed
