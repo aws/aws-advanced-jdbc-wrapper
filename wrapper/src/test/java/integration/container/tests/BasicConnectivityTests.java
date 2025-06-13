@@ -223,22 +223,39 @@ public class BasicConnectivityTests {
     conn.close();
   }
 
-  @ParameterizedTest
+  @TestTemplate
   @EnableOnNumOfInstances(min = 2)
   @EnableOnDatabaseEngineDeployment({DatabaseEngineDeployment.AURORA, DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER})
-  @MethodSource("testPluginParameters")
-  public void testBasicConnectivityTestWithPlugins(String plugin, String url) throws SQLException {
-    final Properties props = getDefaultProperties();
-    props.setProperty(PropertyDefinition.PLUGINS.name, plugin);
-    LOGGER.finest("Connecting to " + url);
+  public void testBasicConnectivityTestWithPlugins() throws SQLException {
+    final TestInstanceInfo readerInstance = TestEnvironment.getCurrent()
+        .getInfo()
+        .getDatabaseInfo()
+        .getInstances()
+        .get(1);
 
-    try (Connection conn = DriverManager.getConnection(url, props);
-        Statement stmt = conn.createStatement();
-        ResultSet rs = stmt.executeQuery("SELECT 1");
-    ) {
-      assertTrue(rs.next());
-      assertEquals(1, rs.getInt(1));
+    final List<String> urls = Arrays.asList(
+        ConnectionStringHelper.getWrapperUrl(),
+        ConnectionStringHelper.getWrapperUrl(readerInstance),
+        ConnectionStringHelper.getWrapperClusterEndpointUrl(),
+        ConnectionStringHelper.getWrapperReaderClusterUrl()
+    );
+
+    for (String url : urls) {
+      for (String plugin : PLUGINS) {
+        final Properties props = getDefaultProperties();
+        props.setProperty(PropertyDefinition.PLUGINS.name, plugin);
+        LOGGER.finest("Connecting to " + url);
+
+        try (Connection conn = DriverManager.getConnection(url, props);
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery("SELECT 1");
+        ) {
+          assertTrue(rs.next());
+          assertEquals(1, rs.getInt(1));
+        }
+      }
     }
+
   }
 
   @TestTemplate
@@ -471,31 +488,6 @@ public class BasicConnectivityTests {
                   DriverHelper.getDriverRequiredParameters(testDriver)),
               TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername(),
               ""));
-    }
-    return results.stream();
-  }
-
-  private static Stream<Arguments> testPluginParameters() {
-    final List<Arguments> results = new ArrayList<>();
-    final TestInstanceInfo readerInstance = TestEnvironment.getCurrent()
-        .getInfo()
-        .getDatabaseInfo()
-        .getInstances()
-        .get(1);
-    final String writerInstanceUrl = ConnectionStringHelper.getWrapperUrl();
-    final String readerInstanceUrl = ConnectionStringHelper.getWrapperUrl(readerInstance);
-    final String writerClusterUrl = ConnectionStringHelper.getWrapperClusterEndpointUrl();
-    final String readerClusterUrl = ConnectionStringHelper.getWrapperReaderClusterUrl();
-
-    for (String plugin : PLUGINS) {
-      // Connect via writer instance endpoint.
-      results.add(Arguments.of(plugin, writerInstanceUrl));
-      // Connect via reader instance endpoint.
-      results.add(Arguments.of(plugin, readerInstanceUrl));
-      // Connect via writer cluster endpoint.
-      results.add(Arguments.of(plugin, writerClusterUrl));
-      // Connect via reader cluster endpoint.
-      results.add(Arguments.of(plugin, readerClusterUrl));
     }
     return results.stream();
   }
