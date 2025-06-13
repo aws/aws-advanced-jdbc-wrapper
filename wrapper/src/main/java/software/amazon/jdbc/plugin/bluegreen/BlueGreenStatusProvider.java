@@ -905,11 +905,7 @@ public class BlueGreenStatusProvider {
 
     boolean differentNodeNames = connectHost != null && !connectHost.equals(iamHost);
     if (differentNodeNames) {
-      boolean alreadyChangedName = this.iamHostSuccessfulConnects
-          .computeIfAbsent(connectHost, (key) -> ConcurrentHashMap.newKeySet())
-          .contains(iamHost);
-
-      if (!alreadyChangedName) {
+      if (!isAlreadySuccessfullyConnected(connectHost, iamHost)) {
         this.greenNodeChangeNameTimes.computeIfAbsent(connectHost, (key) -> Instant.now());
         LOGGER.finest(() -> Messages.get("bgd.greenNodeChangedName", new Object[] {connectHost, iamHost}));
       }
