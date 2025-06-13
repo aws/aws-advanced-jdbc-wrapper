@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.plugin.bluegreen;
 
+@FunctionalInterface
 public interface OnBlueGreenStatusChange {
   void onBlueGreenStatusChanged(BlueGreenRole role, BlueGreenInterimStatus interimStatus);
 }

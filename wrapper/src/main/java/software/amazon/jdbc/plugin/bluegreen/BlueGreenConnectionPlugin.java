@@ -174,7 +174,10 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
         if (conn == null) {
 
-          this.bgStatus = this.pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
+          BlueGreenStatus latestStatus = this.pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
+          if (latestStatus != null) {
+            this.bgStatus = latestStatus;
+          }
 
           routing = this.bgStatus.getConnectRouting().stream()
               .filter(r -> r.isMatch(hostSpec, hostRole))
@@ -276,7 +279,10 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
         if (!result.isPresent()) {
 
-          this.bgStatus = this.pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
+          BlueGreenStatus latestStatus = this.pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
+          if (latestStatus != null) {
+            this.bgStatus = latestStatus;
+          }
 
           routing = this.bgStatus.getExecuteRouting().stream()
               .filter(r -> r.isMatch(currentHostSpec, hostRole))
