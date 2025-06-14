@@ -70,6 +70,11 @@ public class OpenTelemetryFactory implements TelemetryFactory {
     return new OpenTelemetryGauge(meter, trimName(name), callback);
   }
 
+  @Override
+  public boolean inUse() {
+    return true;
+  }
+
   private String trimName(final String name) {
     return (name.length() > NAME_MAX_LENGTH) ? name.substring(0, NAME_MAX_LENGTH) : name;
   }

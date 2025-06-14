@@ -21,6 +21,7 @@ import java.sql.Struct;
 import java.util.Map;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.ConnectionPluginManager;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.util.WrapperUtils;
 
 public class StructWrapper implements Struct {
@@ -35,36 +36,48 @@ public class StructWrapper implements Struct {
 
   @Override
   public String getSQLTypeName() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        SQLException.class,
-        this.pluginManager,
-        this.struct,
-        "Struct.getSQLTypeName",
-        () -> this.struct.getSQLTypeName());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.STRUCT_GETSQLTYPENAME)) {
+      return WrapperUtils.executeWithPlugins(
+          String.class,
+          SQLException.class,
+          this.pluginManager,
+          this.struct,
+          JdbcMethod.STRUCT_GETSQLTYPENAME,
+          () -> this.struct.getSQLTypeName());
+    } else {
+      return this.struct.getSQLTypeName();
+    }
   }
 
   @Override
   public Object[] getAttributes() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        Object[].class,
-        SQLException.class,
-        this.pluginManager,
-        this.struct,
-        "Struct.getAttributes",
-        () -> this.struct.getAttributes());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.STRUCT_GETATTRIBUTES)) {
+      return WrapperUtils.executeWithPlugins(
+          Object[].class,
+          SQLException.class,
+          this.pluginManager,
+          this.struct,
+          JdbcMethod.STRUCT_GETATTRIBUTES,
+          () -> this.struct.getAttributes());
+    } else {
+      return this.struct.getAttributes();
+    }
   }
 
   @Override
   public Object[] getAttributes(Map<String, Class<?>> map) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        Object[].class,
-        SQLException.class,
-        this.pluginManager,
-        this.struct,
-        "Struct.getAttributes",
-        () -> this.struct.getAttributes(map),
-        map);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.STRUCT_GETATTRIBUTES)) {
+      return WrapperUtils.executeWithPlugins(
+          Object[].class,
+          SQLException.class,
+          this.pluginManager,
+          this.struct,
+          JdbcMethod.STRUCT_GETATTRIBUTES,
+          () -> this.struct.getAttributes(map),
+          map);
+    } else {
+      return this.struct.getAttributes(map);
+    }
   }
 
   @Override

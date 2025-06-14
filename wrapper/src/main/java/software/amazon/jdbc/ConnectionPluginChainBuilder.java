@@ -23,6 +23,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -59,31 +62,31 @@ public class ConnectionPluginChainBuilder {
 
   private static final int WEIGHT_RELATIVE_TO_PRIOR_PLUGIN = -1;
 
-  protected static final Map<String, Class<? extends ConnectionPluginFactory>> pluginFactoriesByCode =
-      new HashMap<String, Class<? extends ConnectionPluginFactory>>() {
+  protected static final Map<String, ConnectionPluginFactory> pluginFactoriesByCode =
+      new HashMap<String, ConnectionPluginFactory>() {
         {
-          put("executionTime", ExecutionTimeConnectionPluginFactory.class);
-          put("logQuery", LogQueryConnectionPluginFactory.class);
-          put("dataCache", DataCacheConnectionPluginFactory.class);
-          put("customEndpoint", CustomEndpointPluginFactory.class);
-          put("efm", HostMonitoringConnectionPluginFactory.class);
-          put("efm2", software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPluginFactory.class);
-          put("failover", FailoverConnectionPluginFactory.class);
-          put("failover2", software.amazon.jdbc.plugin.failover2.FailoverConnectionPluginFactory.class);
-          put("iam", IamAuthConnectionPluginFactory.class);
-          put("awsSecretsManager", AwsSecretsManagerConnectionPluginFactory.class);
-          put("federatedAuth", FederatedAuthPluginFactory.class);
-          put("okta", OktaAuthPluginFactory.class);
-          put("auroraStaleDns", AuroraStaleDnsPluginFactory.class);
-          put("readWriteSplitting", ReadWriteSplittingPluginFactory.class);
-          put("auroraConnectionTracker", AuroraConnectionTrackerPluginFactory.class);
-          put("driverMetaData", DriverMetaDataConnectionPluginFactory.class);
-          put("connectTime", ConnectTimeConnectionPluginFactory.class);
-          put("dev", DeveloperConnectionPluginFactory.class);
-          put("fastestResponseStrategy", FastestResponseStrategyPluginFactory.class);
-          put("initialConnection", AuroraInitialConnectionStrategyPluginFactory.class);
-          put("limitless", LimitlessConnectionPluginFactory.class);
-          put("bg", BlueGreenConnectionPluginFactory.class);
+          put("executionTime", new ExecutionTimeConnectionPluginFactory());
+          put("logQuery", new LogQueryConnectionPluginFactory());
+          put("dataCache", new DataCacheConnectionPluginFactory());
+          put("customEndpoint", new CustomEndpointPluginFactory());
+          put("efm", new HostMonitoringConnectionPluginFactory());
+          put("efm2", new software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPluginFactory());
+          put("failover", new FailoverConnectionPluginFactory());
+          put("failover2", new software.amazon.jdbc.plugin.failover2.FailoverConnectionPluginFactory());
+          put("iam", new IamAuthConnectionPluginFactory());
+          put("awsSecretsManager", new AwsSecretsManagerConnectionPluginFactory());
+          put("federatedAuth", new FederatedAuthPluginFactory());
+          put("okta", new OktaAuthPluginFactory());
+          put("auroraStaleDns", new AuroraStaleDnsPluginFactory());
+          put("readWriteSplitting", new ReadWriteSplittingPluginFactory());
+          put("auroraConnectionTracker", new AuroraConnectionTrackerPluginFactory());
+          put("driverMetaData", new DriverMetaDataConnectionPluginFactory());
+          put("connectTime", new ConnectTimeConnectionPluginFactory());
+          put("dev", new DeveloperConnectionPluginFactory());
+          put("fastestResponseStrategy", new FastestResponseStrategyPluginFactory());
+          put("initialConnection", new AuroraInitialConnectionStrategyPluginFactory());
+          put("limitless", new LimitlessConnectionPluginFactory());
+          put("bg", new BlueGreenConnectionPluginFactory());
         }
       };
 
@@ -119,6 +122,9 @@ public class ConnectionPluginChainBuilder {
         }
       };
 
+  protected static final ConcurrentMap<Class<? extends ConnectionPluginFactory>, ConnectionPluginFactory>
+      pluginFactoriesByClass = new ConcurrentHashMap<>();
+
   protected static final String DEFAULT_PLUGINS = "auroraConnectionTracker,failover2,efm2";
 
   /*
@@ -126,10 +132,10 @@ public class ConnectionPluginChainBuilder {
    factory and an assigned weight.
   */
   private static class PluginFactoryInfo {
-    public Class<? extends ConnectionPluginFactory> factory;
+    public ConnectionPluginFactory factory;
     public int weight;
 
-    public PluginFactoryInfo(final Class<? extends ConnectionPluginFactory> factory, final int weight) {
+    public PluginFactoryInfo(final ConnectionPluginFactory factory, final int weight) {
       this.factory = factory;
       this.weight = weight;
     }
@@ -145,10 +151,41 @@ public class ConnectionPluginChainBuilder {
       throws SQLException {
 
     List<ConnectionPlugin> plugins;
-    List<Class<? extends ConnectionPluginFactory>> pluginFactories;
+    List<ConnectionPluginFactory> pluginFactories;
 
     if (configurationProfile != null && configurationProfile.getPluginFactories() != null) {
-      pluginFactories = configurationProfile.getPluginFactories();
+      List<Class<? extends ConnectionPluginFactory>> pluginFactoryClasses = configurationProfile.getPluginFactories();
+      pluginFactories = new ArrayList<>(pluginFactoryClasses.size());
+
+      for (final Class<? extends ConnectionPluginFactory> factoryClazz : pluginFactoryClasses) {
+        final AtomicReference<InstantiationException> lastException = new AtomicReference<>(null);
+        final ConnectionPluginFactory factory = pluginFactoriesByClass.computeIfAbsent(factoryClazz, (key) -> {
+          try {
+            return WrapperUtils.createInstance(
+                factoryClazz,
+                ConnectionPluginFactory.class,
+                null,
+                (Object) null);
+
+          } catch (InstantiationException ex) {
+            lastException.set(ex);
+          }
+          return null;
+        });
+
+        if (lastException.get() != null) {
+          throw new SQLException(
+              Messages.get(
+                  "ConnectionPluginManager.unableToLoadPlugin",
+                  new Object[] {factoryClazz.getName()}),
+              SqlState.UNKNOWN_STATE.getState(),
+              lastException.get());
+        }
+
+        if (factory != null) {
+          pluginFactories.add(factory);
+        }
+      }
     } else {
 
       final List<String> pluginCodeList = getPluginCodes(props);
@@ -170,33 +207,20 @@ public class ConnectionPluginChainBuilder {
       if (PropertyDefinition.AUTO_SORT_PLUGIN_ORDER.getBoolean(props)) {
         pluginFactories = this.sortPluginFactories(pluginFactories);
 
-        final List<Class<? extends ConnectionPluginFactory>> tempPluginFactories = pluginFactories;
+        final List<ConnectionPluginFactory> tempPluginFactories = pluginFactories;
         LOGGER.finest(() ->
             "Plugins order has been rearranged. The following order is in effect: "
                 + tempPluginFactories.stream()
-                  .map(Class::getSimpleName)
+                  .map(x -> x.getClass().getSimpleName())
                   .collect(Collectors.joining(", ")));
       }
 
-      try {
-        final ConnectionPluginFactory[] factories =
-            WrapperUtils.loadClasses(
-                    pluginFactories,
-                    ConnectionPluginFactory.class,
-                    "ConnectionPluginManager.unableToLoadPlugin")
-                .toArray(new ConnectionPluginFactory[0]);
-
-        // make a chain of connection plugins
-
-        plugins = new ArrayList<>(factories.length + 1);
-
-        for (final ConnectionPluginFactory factory : factories) {
-          plugins.add(factory.getInstance(pluginService, props));
-        }
-
-      } catch (final InstantiationException instEx) {
-        throw new SQLException(instEx.getMessage(), SqlState.UNKNOWN_STATE.getState(), instEx);
+      // make a chain of connection plugins
+      plugins = new ArrayList<>(pluginFactories.size() + 1);
+      for (final ConnectionPluginFactory factory : pluginFactories) {
+        plugins.add(factory.getInstance(pluginService, props));
       }
+
     } else {
       plugins = new ArrayList<>(1); // one spot for default connection plugin
     }
@@ -221,13 +245,13 @@ public class ConnectionPluginChainBuilder {
     return StringUtils.split(pluginCodes, ",", true);
   }
 
-  protected List<Class<? extends ConnectionPluginFactory>> sortPluginFactories(
-      final List<Class<? extends ConnectionPluginFactory>> unsortedPluginFactories) {
+  protected List<ConnectionPluginFactory> sortPluginFactories(
+      final List<ConnectionPluginFactory> unsortedPluginFactories) {
 
     final ArrayList<PluginFactoryInfo> weights = new ArrayList<>();
     int lastWeight = 0;
-    for (Class<? extends ConnectionPluginFactory> pluginFactory : unsortedPluginFactories) {
-      Integer pluginFactoryWeight = pluginWeightByPluginFactory.get(pluginFactory);
+    for (ConnectionPluginFactory pluginFactory : unsortedPluginFactories) {
+      Integer pluginFactoryWeight = pluginWeightByPluginFactory.get(pluginFactory.getClass());
 
       if (pluginFactoryWeight == null || pluginFactoryWeight == WEIGHT_RELATIVE_TO_PRIOR_PLUGIN) {
 

@@ -18,14 +18,11 @@ package software.amazon.jdbc.util.telemetry;
 
 public class NullTelemetryGauge implements TelemetryGauge {
 
-  private final String name;
-
-  public NullTelemetryGauge(String name) {
-    this.name = name;
+  public NullTelemetryGauge() {
   }
 
   public String getName() {
-    return name;
+    return "null";
   }
 
 }

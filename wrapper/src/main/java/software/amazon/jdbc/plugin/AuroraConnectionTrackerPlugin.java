@@ -32,13 +32,12 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.SubscribedMethodHelper;
 
 public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
 
@@ -47,18 +46,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
   // Check topology changes 3 min after last failover
   private static final long TOPOLOGY_CHANGES_EXPECTED_TIME_NANO = TimeUnit.MINUTES.toNanos(3);
 
-  static final String METHOD_ABORT = "Connection.abort";
-  static final String METHOD_CLOSE = "Connection.close";
-  private static final Set<String> subscribedMethods =
-      Collections.unmodifiableSet(new HashSet<String>() {
-        {
-          addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
-          add(METHOD_CLOSE);
-          add(METHOD_ABORT);
-          add("connect");
-          add("notifyNodeListChanged");
-        }
-      });
+  private final Set<String> subscribedMethods;
 
   private static final AtomicLong hostListRefreshEndTimeNano = new AtomicLong(0);
 
@@ -80,6 +68,14 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
     this.pluginService = pluginService;
     this.rdsHelper = rdsUtils;
     this.tracker = tracker;
+
+    final HashSet<String> methods = new HashSet<>(
+        this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(props));
+    methods.add(JdbcMethod.CONNECTION_CLOSE.methodName);
+    methods.add(JdbcMethod.CONNECTION_ABORT.methodName);
+    methods.add(JdbcMethod.CONNECT.methodName);
+    methods.add(JdbcMethod.NOTIFYNODELISTCHANGED.methodName);
+    this.subscribedMethods = Collections.unmodifiableSet(methods);
   }
 
   @Override
@@ -114,7 +110,8 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
     this.rememberWriter();
 
     try {
-      if (!methodName.equals(METHOD_CLOSE) && !methodName.equals(METHOD_ABORT)) {
+      if (!methodName.equals(JdbcMethod.CONNECTION_CLOSE.methodName)
+          && !methodName.equals(JdbcMethod.CONNECTION_ABORT.methodName)) {
         long localHostListRefreshEndTimeNano = hostListRefreshEndTimeNano.get();
         boolean needRefreshHostLists = false;
         if (localHostListRefreshEndTimeNano > 0) {
@@ -135,7 +132,8 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
         }
       }
       final T result = jdbcMethodFunc.call();
-      if ((methodName.equals(METHOD_CLOSE) || methodName.equals(METHOD_ABORT))) {
+      if ((methodName.equals(JdbcMethod.CONNECTION_CLOSE.methodName)
+          || methodName.equals(JdbcMethod.CONNECTION_ABORT.methodName))) {
         tracker.removeConnectionTracking(currentHostSpec, this.pluginService.getCurrentConnection());
       }
       return result;

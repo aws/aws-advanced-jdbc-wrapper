@@ -25,6 +25,7 @@ import java.sql.NClob;
 import java.sql.SQLException;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.ConnectionPluginManager;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.util.WrapperUtils;
 
 public class NClobWrapper implements NClob {
@@ -39,156 +40,212 @@ public class NClobWrapper implements NClob {
 
   @Override
   public long length() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        long.class,
-        SQLException.class,
-        this.pluginManager,
-        this.nclob,
-        "NClob.length",
-        () -> this.nclob.length());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.NCLOB_LENGTH)) {
+      return WrapperUtils.executeWithPlugins(
+          long.class,
+          SQLException.class,
+          this.pluginManager,
+          this.nclob,
+          JdbcMethod.NCLOB_LENGTH,
+          () -> this.nclob.length());
+    } else {
+      return this.nclob.length();
+    }
   }
 
   @Override
   public String getSubString(long pos, int length) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        SQLException.class,
-        this.pluginManager,
-        this.nclob,
-        "NClob.getSubString",
-        () -> this.nclob.getSubString(pos, length),
-        pos,
-        length);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.NCLOB_GETSUBSTRING)) {
+      return WrapperUtils.executeWithPlugins(
+          String.class,
+          SQLException.class,
+          this.pluginManager,
+          this.nclob,
+          JdbcMethod.NCLOB_GETSUBSTRING,
+          () -> this.nclob.getSubString(pos, length),
+          pos,
+          length);
+    } else {
+      return this.nclob.getSubString(pos, length);
+    }
   }
 
   @Override
   public Reader getCharacterStream() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        Reader.class,
-        SQLException.class,
-        this.pluginManager,
-        this.nclob,
-        "NClob.getCharacterStream",
-        () -> this.nclob.getCharacterStream());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.NCLOB_GETASCIISTREAM)) {
+      return WrapperUtils.executeWithPlugins(
+          Reader.class,
+          SQLException.class,
+          this.pluginManager,
+          this.nclob,
+          JdbcMethod.NCLOB_GETASCIISTREAM,
+          () -> this.nclob.getCharacterStream());
+    } else {
+      return this.nclob.getCharacterStream();
+    }
   }
 
   @Override
   public Reader getCharacterStream(long pos, long length) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        Reader.class,
-        SQLException.class,
-        this.pluginManager,
-        this.nclob,
-        "NClob.getCharacterStream",
-        () -> this.nclob.getCharacterStream(pos, length),
-        pos,
-        length);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.NCLOB_GETCHARACTERSTREAM)) {
+      return WrapperUtils.executeWithPlugins(
+          Reader.class,
+          SQLException.class,
+          this.pluginManager,
+          this.nclob,
+          JdbcMethod.NCLOB_GETCHARACTERSTREAM,
+          () -> this.nclob.getCharacterStream(pos, length),
+          pos,
+          length);
+    } else {
+      return this.nclob.getCharacterStream(pos, length);
+    }
   }
 
   @Override
   public InputStream getAsciiStream() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        InputStream.class,
-        SQLException.class,
-        this.pluginManager,
-        this.nclob,
-        "NClob.getAsciiStream",
-        () -> this.nclob.getAsciiStream());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.NCLOB_GETASCIISTREAM)) {
+      return WrapperUtils.executeWithPlugins(
+          InputStream.class,
+          SQLException.class,
+          this.pluginManager,
+          this.nclob,
+          JdbcMethod.NCLOB_GETASCIISTREAM,
+          () -> this.nclob.getAsciiStream());
+    } else {
+      return this.nclob.getAsciiStream();
+    }
   }
 
   @Override
   public long position(String searchStr, long start) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        long.class,
-        SQLException.class,
-        this.pluginManager,
-        this.nclob,
-        "NClob.position",
-        () -> this.nclob.position(searchStr, start),
-        searchStr,
-        start);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.NCLOB_POSITION)) {
+      return WrapperUtils.executeWithPlugins(
+          long.class,
+          SQLException.class,
+          this.pluginManager,
+          this.nclob,
+          JdbcMethod.NCLOB_POSITION,
+          () -> this.nclob.position(searchStr, start),
+          searchStr,
+          start);
+    } else {
+      return this.nclob.position(searchStr, start);
+    }
   }
 
   @Override
   public long position(Clob searchStr, long start) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        long.class,
-        SQLException.class,
-        this.pluginManager,
-        this.nclob,
-        "NClob.position",
-        () -> this.nclob.position(searchStr, start),
-        searchStr,
-        start);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.NCLOB_POSITION)) {
+      return WrapperUtils.executeWithPlugins(
+          long.class,
+          SQLException.class,
+          this.pluginManager,
+          this.nclob,
+          JdbcMethod.NCLOB_POSITION,
+          () -> this.nclob.position(searchStr, start),
+          searchStr,
+          start);
+    } else {
+      return this.nclob.position(searchStr, start);
+    }
   }
 
   @Override
   public int setString(long pos, String str) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.nclob,
-        "NClob.setString",
-        () -> this.nclob.setString(pos, str),
-        pos,
-        str);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.NCLOB_SETSTRING)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.nclob,
+          JdbcMethod.NCLOB_SETSTRING,
+          () -> this.nclob.setString(pos, str),
+          pos,
+          str);
+    } else {
+      return this.nclob.setString(pos, str);
+    }
   }
 
   @Override
   public int setString(long pos, String str, int offset, int len) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.nclob,
-        "NClob.setString",
-        () -> this.nclob.setString(pos, str, offset, len),
-        pos,
-        str,
-        offset,
-        len);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.NCLOB_SETSTRING)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.nclob,
+          JdbcMethod.NCLOB_SETSTRING,
+          () -> this.nclob.setString(pos, str, offset, len),
+          pos,
+          str,
+          offset,
+          len);
+    } else {
+      return this.nclob.setString(pos, str, offset, len);
+    }
   }
 
   @Override
   public OutputStream setAsciiStream(long pos) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        OutputStream.class,
-        SQLException.class,
-        this.pluginManager,
-        this.nclob,
-        "NClob.setAsciiStream",
-        () -> this.nclob.setAsciiStream(pos),
-        pos);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.NCLOB_SETASCIISTREAM)) {
+      return WrapperUtils.executeWithPlugins(
+          OutputStream.class,
+          SQLException.class,
+          this.pluginManager,
+          this.nclob,
+          JdbcMethod.NCLOB_SETASCIISTREAM,
+          () -> this.nclob.setAsciiStream(pos),
+          pos);
+    } else {
+      return this.nclob.setAsciiStream(pos);
+    }
   }
 
   @Override
   public Writer setCharacterStream(long pos) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        Writer.class,
-        SQLException.class,
-        this.pluginManager,
-        this.nclob,
-        "NClob.setCharacterStream",
-        () -> this.nclob.setCharacterStream(pos),
-        pos);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.NCLOB_SETCHARACTERSTREAM)) {
+      return WrapperUtils.executeWithPlugins(
+          Writer.class,
+          SQLException.class,
+          this.pluginManager,
+          this.nclob,
+          JdbcMethod.NCLOB_SETCHARACTERSTREAM,
+          () -> this.nclob.setCharacterStream(pos),
+          pos);
+    } else {
+      return this.nclob.setCharacterStream(pos);
+    }
   }
 
   @Override
   public void truncate(long len) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.nclob,
-        "NClob.truncate",
-        () -> this.nclob.truncate(len),
-        len);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.NCLOB_TRUNCATE)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.nclob,
+          JdbcMethod.NCLOB_TRUNCATE,
+          () -> this.nclob.truncate(len),
+          len);
+    } else {
+      this.nclob.truncate(len);
+    }
   }
 
   @Override
   public void free() throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class, this.pluginManager, this.nclob, "NClob.free", () -> this.nclob.free());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.NCLOB_FREE)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.nclob,
+          JdbcMethod.NCLOB_FREE,
+          () -> this.nclob.free());
+    } else {
+      this.nclob.free();
+    }
   }
 
   @Override

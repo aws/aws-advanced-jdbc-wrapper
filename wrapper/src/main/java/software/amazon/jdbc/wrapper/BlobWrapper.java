@@ -22,6 +22,7 @@ import java.sql.Blob;
 import java.sql.SQLException;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.ConnectionPluginManager;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.util.WrapperUtils;
 
 public class BlobWrapper implements Blob {
@@ -36,133 +37,181 @@ public class BlobWrapper implements Blob {
 
   @Override
   public long length() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        long.class,
-        SQLException.class,
-        this.pluginManager,
-        this.blob,
-        "Blob.length",
-        () -> this.blob.length());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.BLOB_LENGTH)) {
+      return WrapperUtils.executeWithPlugins(
+          long.class,
+          SQLException.class,
+          this.pluginManager,
+          this.blob,
+          JdbcMethod.BLOB_LENGTH,
+          () -> this.blob.length());
+    } else {
+      return this.blob.length();
+    }
   }
 
   @Override
   public byte[] getBytes(long pos, int length) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        byte[].class,
-        SQLException.class,
-        this.pluginManager,
-        this.blob,
-        "Blob.getBytes",
-        () -> this.blob.getBytes(pos, length),
-        pos,
-        length);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.BLOB_GETBYTES)) {
+      return WrapperUtils.executeWithPlugins(
+          byte[].class,
+          SQLException.class,
+          this.pluginManager,
+          this.blob,
+          JdbcMethod.BLOB_GETBYTES,
+          () -> this.blob.getBytes(pos, length),
+          pos,
+          length);
+    } else {
+      return this.blob.getBytes(pos, length);
+    }
   }
 
   @Override
   public InputStream getBinaryStream() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        InputStream.class,
-        SQLException.class,
-        this.pluginManager,
-        this.blob,
-        "Blob.getBinaryStream",
-        () -> this.blob.getBinaryStream());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.BLOB_GETBINARYSTREAM)) {
+      return WrapperUtils.executeWithPlugins(
+          InputStream.class,
+          SQLException.class,
+          this.pluginManager,
+          this.blob,
+          JdbcMethod.BLOB_GETBINARYSTREAM,
+          () -> this.blob.getBinaryStream());
+    } else {
+      return this.blob.getBinaryStream();
+    }
   }
 
   @Override
   public InputStream getBinaryStream(long pos, long length) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        InputStream.class,
-        SQLException.class,
-        this.pluginManager,
-        this.blob,
-        "Blob.getBinaryStream",
-        () -> this.blob.getBinaryStream(pos, length),
-        pos,
-        length);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.BLOB_GETBINARYSTREAM)) {
+      return WrapperUtils.executeWithPlugins(
+          InputStream.class,
+          SQLException.class,
+          this.pluginManager,
+          this.blob,
+          JdbcMethod.BLOB_GETBINARYSTREAM,
+          () -> this.blob.getBinaryStream(pos, length),
+          pos,
+          length);
+    } else {
+      return this.blob.getBinaryStream(pos, length);
+    }
   }
 
   @Override
   public long position(byte[] pattern, long start) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        long.class,
-        SQLException.class,
-        this.pluginManager,
-        this.blob,
-        "Blob.position",
-        () -> this.blob.position(pattern, start),
-        pattern,
-        start);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.BLOB_POSITION)) {
+      return WrapperUtils.executeWithPlugins(
+          long.class,
+          SQLException.class,
+          this.pluginManager,
+          this.blob,
+          JdbcMethod.BLOB_POSITION,
+          () -> this.blob.position(pattern, start),
+          pattern,
+          start);
+    } else {
+      return this.blob.position(pattern, start);
+    }
   }
 
   @Override
   public long position(Blob pattern, long start) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        long.class,
-        SQLException.class,
-        this.pluginManager,
-        this.blob,
-        "Blob.position",
-        () -> this.blob.position(pattern, start),
-        pattern,
-        start);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.BLOB_POSITION)) {
+      return WrapperUtils.executeWithPlugins(
+          long.class,
+          SQLException.class,
+          this.pluginManager,
+          this.blob,
+          JdbcMethod.BLOB_POSITION,
+          () -> this.blob.position(pattern, start),
+          pattern,
+          start);
+    } else {
+      return this.blob.position(pattern, start);
+    }
   }
 
   @Override
   public int setBytes(long pos, byte[] bytes) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.blob,
-        "Blob.setBytes",
-        () -> this.blob.setBytes(pos, bytes),
-        pos,
-        bytes);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.BLOB_SETBYTES)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.blob,
+          JdbcMethod.BLOB_SETBYTES,
+          () -> this.blob.setBytes(pos, bytes),
+          pos,
+          bytes);
+    } else {
+      return this.blob.setBytes(pos, bytes);
+    }
   }
 
   @Override
   public int setBytes(long pos, byte[] bytes, int offset, int len) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.blob,
-        "Blob.setBytes",
-        () -> this.blob.setBytes(pos, bytes, offset, len),
-        pos,
-        bytes,
-        offset,
-        len);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.BLOB_SETBYTES)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.blob,
+          JdbcMethod.BLOB_SETBYTES,
+          () -> this.blob.setBytes(pos, bytes, offset, len),
+          pos,
+          bytes,
+          offset,
+          len);
+    } else {
+      return this.blob.setBytes(pos, bytes, offset, len);
+    }
   }
 
   @Override
   public OutputStream setBinaryStream(long pos) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        OutputStream.class,
-        SQLException.class,
-        this.pluginManager,
-        this.blob,
-        "Blob.setBinaryStream",
-        () -> this.blob.setBinaryStream(pos),
-        pos);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.BLOB_SETBINARYSTREAM)) {
+      return WrapperUtils.executeWithPlugins(
+          OutputStream.class,
+          SQLException.class,
+          this.pluginManager,
+          this.blob,
+          JdbcMethod.BLOB_SETBINARYSTREAM,
+          () -> this.blob.setBinaryStream(pos),
+          pos);
+    } else {
+      return this.blob.setBinaryStream(pos);
+    }
   }
 
   @Override
   public void truncate(long len) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.blob,
-        "Blob.truncate",
-        () -> this.blob.truncate(len),
-        len);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.BLOB_TRUNCATE)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.blob,
+          JdbcMethod.BLOB_TRUNCATE,
+          () -> this.blob.truncate(len),
+          len);
+    } else {
+      this.blob.truncate(len);
+    }
   }
 
   @Override
   public void free() throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class, this.pluginManager, this.blob, "Blob.free", () -> this.blob.free());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.BLOB_FREE)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.blob,
+          JdbcMethod.BLOB_FREE,
+          () -> this.blob.free());
+    } else {
+      this.blob.free();
+    }
   }
 
   @Override

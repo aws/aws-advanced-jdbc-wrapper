@@ -25,6 +25,7 @@ import java.util.Set;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PropertyDefinition;
 
 public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
@@ -33,6 +34,68 @@ public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
   private static final String DRIVER_CLASS_NAME = "org.mariadb.jdbc.Driver";
   private static final String DS_CLASS_NAME = "org.mariadb.jdbc.MariaDbDataSource";
   private static final String CP_DS_CLASS_NAME = "org.mariadb.jdbc.MariaDbPoolDataSource";
+
+  private static final Set<String> MARIADB_ALLOWED_ON_CLOSED_METHOD_NAMES = Collections.unmodifiableSet(
+      new HashSet<String>() {
+        {
+          addAll(ALLOWED_ON_CLOSED_METHODS);
+          add(JdbcMethod.CONNECTION_GETCATALOG.methodName);
+          add(JdbcMethod.CONNECTION_GETMETADATA.methodName);
+          add(JdbcMethod.CONNECTION_ISREADONLY.methodName);
+          add(JdbcMethod.CONNECTION_GETSCHEMA.methodName);
+          add(JdbcMethod.CONNECTION_GETAUTOCOMMIT.methodName);
+          add(JdbcMethod.CONNECTION_GETHOLDABILITY.methodName);
+          add(JdbcMethod.CONNECTION_GETCLIENTINFO.methodName);
+          add(JdbcMethod.CONNECTION_GETNETWORKTIMEOUT.methodName);
+          add(JdbcMethod.CONNECTION_GETTYPEMAP.methodName);
+          add(JdbcMethod.CONNECTION_CREATECLOB.methodName);
+          add(JdbcMethod.CONNECTION_CREATEBLOB.methodName);
+          add(JdbcMethod.CONNECTION_CREATENCLOB.methodName);
+          add(JdbcMethod.CONNECTION_CLEARWARNINGS.methodName);
+          add(JdbcMethod.CONNECTION_SETHOLDABILITY.methodName);
+          add(JdbcMethod.CONNECTION_SETSCHEMA.methodName);
+          add(JdbcMethod.STATEMENT_CLEARWARNINGS.methodName);
+          add(JdbcMethod.STATEMENT_GETFETCHSIZE.methodName);
+          add(JdbcMethod.STATEMENT_GETMAXFIELDSIZE.methodName);
+          add(JdbcMethod.STATEMENT_GETRESULTSETTYPE.methodName);
+          add(JdbcMethod.STATEMENT_ISCLOSEONCOMPLETION.methodName);
+          add(JdbcMethod.STATEMENT_CLEARBATCH.methodName);
+          add(JdbcMethod.STATEMENT_CLOSEONCOMPLETION.methodName);
+          add(JdbcMethod.STATEMENT_GETGENERATEDKEYS.methodName);
+          add(JdbcMethod.STATEMENT_GETMAXROWS.methodName);
+          add(JdbcMethod.STATEMENT_GETMORERESULTS.methodName);
+          add(JdbcMethod.STATEMENT_GETQUERYTIMEOUT.methodName);
+          add(JdbcMethod.STATEMENT_GETRESULTSET.methodName);
+          add(JdbcMethod.STATEMENT_GETRESULTSETCONCURRENCY.methodName);
+          add(JdbcMethod.STATEMENT_GETUPDATECOUNT.methodName);
+          add(JdbcMethod.STATEMENT_ADDBATCH.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETARRAY.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETBIGDECIMAL.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETBLOB.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETBOOLEAN.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETBYTE.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETBYTES.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETCHARACTERSTREAM.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETCLOB.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETDATE.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETDOUBLE.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETFLOAT.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETINT.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETLONG.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETNCHARACTERSTREAM.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETNCLOB.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETNSTRING.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETOBJECT.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETSHORT.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETTIME.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETSTRING.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETTIMESTAMP.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_GETURL.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_WASNULL.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_ADDBATCH.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_CLEARPARAMETERS.methodName);
+        }
+      });
 
   @Override
   public boolean isDialect(Driver driver) {
@@ -100,65 +163,6 @@ public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
 
   @Override
   public Set<String> getAllowedOnConnectionMethodNames() {
-    return Collections.unmodifiableSet(new HashSet<String>() {
-      {
-        addAll(ALLOWED_ON_CLOSED_METHODS);
-        add(CONN_GET_CATALOG);
-        add(CONN_GET_METADATA);
-        add(CONN_IS_READ_ONLY);
-        add(CONN_GET_SCHEMA);
-        add(CONN_GET_AUTO_COMMIT);
-        add(CONN_GET_HOLDABILITY);
-        add(CONN_GET_CLIENT_INFO);
-        add(CONN_GET_NETWORK_TIMEOUT);
-        add(CONN_GET_TYPE_MAP);
-        add(CONN_CREATE_CLOB);
-        add(CONN_CREATE_BLOB);
-        add(CONN_CREATE_NCLOB);
-        add(CONN_CLEAR_WARNINGS);
-        add(CONN_SET_HOLDABILITY);
-        add(CONN_SET_SCHEMA);
-        add(STATEMENT_CLEAR_WARNINGS);
-        add(STATEMENT_GET_FETCH_SIZE);
-        add(STATEMENT_GET_MAX_FIELD_SIZE);
-        add(STATEMENT_GET_RESULT_SET_TYPE);
-        add(STATEMENT_IS_CLOSE_ON_COMPLETION);
-        add(STATEMENT_CLEAR_BATCH);
-        add(STATEMENT_CLOSE_ON_COMPLETION);
-        add(STATEMENT_GET_GENERATED_KEYS);
-        add(STATEMENT_GET_MAX_ROWS);
-        add(STATEMENT_GET_MORE_RESULTS);
-        add(STATEMENT_GET_QUERY_TIMEOUT);
-        add(STATEMENT_GET_RESULT_SET);
-        add(STATEMENT_GET_RESULT_SET_CONCURRENCY);
-        add(STATEMENT_GET_UPDATE_COUNT);
-        add(STATEMENT_ADD_BATCH);
-        add(CALL_GET_ARRAY);
-        add(CALL_GET_BIG_DECIMAL);
-        add(CALL_GET_BLOB);
-        add(CALL_GET_BOOLEAN);
-        add(CALL_GET_BYTE);
-        add(CALL_GET_BYTES);
-        add(CALL_GET_CHARACTER_STREAM);
-        add(CALL_GET_CLOB);
-        add(CALL_GET_DATE);
-        add(CALL_GET_DOUBLE);
-        add(CALL_GET_FLOAT);
-        add(CALL_GET_INT);
-        add(CALL_GET_LONG);
-        add(CALL_GET_N_CHAR);
-        add(CALL_GET_N_CLOB);
-        add(CALL_GET_N_STRING);
-        add(CALL_GET_OBJECT);
-        add(CALL_GET_SHORT);
-        add(CALL_GET_TIME);
-        add(CALL_GET_STRING);
-        add(CALL_GET_TIMESTAMP);
-        add(CALL_GET_URL);
-        add(CALL_WAS_NULL);
-        add(PREP_ADD_BATCH);
-        add(PREP_CLEAR_PARAMS);
-      }
-    });
+    return MARIADB_ALLOWED_ON_CLOSED_METHOD_NAMES;
   }
 }

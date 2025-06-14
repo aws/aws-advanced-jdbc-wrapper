@@ -172,6 +172,11 @@ public class PropertyDefinition {
               "true", "false"
           });
 
+  public static final AwsWrapperProperty ASSUME_FETCH_ENTIRE_RESULT_SET = new AwsWrapperProperty(
+      "wrapperAssumeFetchEntireResultSet", "true",
+      "Allow the driver to optimized work with ResultSets and skip tracking some of their methods"
+          + " by assuming that entire data result are fetched at once.");
+
   private static final Map<String, AwsWrapperProperty> PROPS_BY_NAME =
       new ConcurrentHashMap<>();
   private static final Map<String, AwsWrapperProperty> PROPS_BY_NAME_LOWERCASE =

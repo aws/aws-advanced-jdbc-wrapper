@@ -55,7 +55,7 @@ public class AuroraStaleDnsHelper {
   public AuroraStaleDnsHelper(final PluginService pluginService) {
     this.pluginService = pluginService;
     this.telemetryFactory = pluginService.getTelemetryFactory();
-    this.staleDNSDetectedCounter = telemetryFactory.createCounter("staleDNS.stale.detected");
+    this.staleDNSDetectedCounter = this.telemetryFactory.createCounter("staleDNS.stale.detected");
   }
 
   public Connection getVerifiedConnection(

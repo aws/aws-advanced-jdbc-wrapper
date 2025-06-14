@@ -142,9 +142,9 @@ public class FederatedAuthPlugin extends AbstractConnectionPlugin {
     this.pluginService = pluginService;
     this.credentialsProviderFactory = credentialsProviderFactory;
     this.telemetryFactory = pluginService.getTelemetryFactory();
-    this.cacheSizeGauge = telemetryFactory.createGauge("federatedAuth.tokenCache.size",
+    this.cacheSizeGauge = this.telemetryFactory.createGauge("federatedAuth.tokenCache.size",
         () -> (long) FederatedAuthCacheHolder.tokenCache.size());
-    this.fetchTokenCounter = telemetryFactory.createCounter("federatedAuth.fetchToken.count");
+    this.fetchTokenCounter = this.telemetryFactory.createCounter("federatedAuth.fetchToken.count");
     this.rdsUtils = rdsUtils;
     this.samlUtils = new SamlUtils(this.rdsUtils);
     this.iamTokenUtility = tokenUtils;

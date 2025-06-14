@@ -19,6 +19,7 @@ package software.amazon.jdbc.mock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import software.amazon.jdbc.JdbcMethod;
 
 public class TestPluginTwo extends TestPluginOne {
 
@@ -26,6 +27,7 @@ public class TestPluginTwo extends TestPluginOne {
     super();
     this.calls = calls;
 
-    this.subscribedMethods = new HashSet<>(Arrays.asList("testJdbcCall_A", "testJdbcCall_B"));
+    this.subscribedMethods = new HashSet<>(
+        Arrays.asList(JdbcMethod.BLOB_LENGTH.methodName, JdbcMethod.BLOB_POSITION.methodName));
   }
 }

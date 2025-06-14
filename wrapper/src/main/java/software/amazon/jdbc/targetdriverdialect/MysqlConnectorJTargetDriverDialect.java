@@ -28,6 +28,7 @@ import java.util.Set;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PropertyDefinition;
 
 public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDialect {
@@ -35,6 +36,24 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
   private static final String DRIVER_CLASS_NAME = "com.mysql.cj.jdbc.Driver";
   private static final String DS_CLASS_NAME = "com.mysql.cj.jdbc.MysqlDataSource";
   private static final String CP_DS_CLASS_NAME = "com.mysql.cj.jdbc.MysqlConnectionPoolDataSource";
+
+  private static final Set<String> MYSQL_ALLOWED_ON_CLOSED_METHOD_NAMES = Collections.unmodifiableSet(
+      new HashSet<String>() {
+        {
+          addAll(ALLOWED_ON_CLOSED_METHODS);
+          add(JdbcMethod.CONNECTION_GETCATALOG.methodName);
+          add(JdbcMethod.CONNECTION_ISREADONLY.methodName);
+          add(JdbcMethod.CONNECTION_GETAUTOCOMMIT.methodName);
+          add(JdbcMethod.CONNECTION_GETHOLDABILITY.methodName);
+          add(JdbcMethod.CONNECTION_GETCLIENTINFO.methodName);
+          add(JdbcMethod.CONNECTION_GETNETWORKTIMEOUT.methodName);
+          add(JdbcMethod.CONNECTION_GETTYPEMAP.methodName);
+          add(JdbcMethod.CONNECTION_CREATECLOB.methodName);
+          add(JdbcMethod.CONNECTION_CREATEBLOB.methodName);
+          add(JdbcMethod.CONNECTION_CREATENCLOB.methodName);
+          add(JdbcMethod.CONNECTION_SETHOLDABILITY.methodName);
+        }
+      });
 
   @Override
   public boolean isDialect(Driver driver) {
@@ -109,22 +128,7 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
 
   @Override
   public Set<String> getAllowedOnConnectionMethodNames() {
-    return Collections.unmodifiableSet(new HashSet<String>() {
-      {
-        addAll(ALLOWED_ON_CLOSED_METHODS);
-        add(CONN_GET_CATALOG);
-        add(CONN_IS_READ_ONLY);
-        add(CONN_GET_AUTO_COMMIT);
-        add(CONN_GET_HOLDABILITY);
-        add(CONN_GET_CLIENT_INFO);
-        add(CONN_GET_NETWORK_TIMEOUT);
-        add(CONN_GET_TYPE_MAP);
-        add(CONN_CREATE_CLOB);
-        add(CONN_CREATE_BLOB);
-        add(CONN_CREATE_NCLOB);
-        add(CONN_SET_HOLDABILITY);
-      }
-    });
+    return MYSQL_ALLOWED_ON_CLOSED_METHOD_NAMES;
   }
 
   @Override

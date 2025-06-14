@@ -34,6 +34,7 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.ConnectionPluginManager;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.util.WrapperUtils;
 
 public class SQLInputWrapper implements SQLInput {
@@ -49,201 +50,273 @@ public class SQLInputWrapper implements SQLInput {
 
   @Override
   public String readString() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        SQLException.class,
-        this.pluginManager,
-        this.sqlInput,
-        "SQLInput.readString",
-        () -> this.sqlInput.readString());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLINPUT_READSTRING)) {
+      return WrapperUtils.executeWithPlugins(
+          String.class,
+          SQLException.class,
+          this.pluginManager,
+          this.sqlInput,
+          JdbcMethod.SQLINPUT_READSTRING,
+          () -> this.sqlInput.readString());
+    } else {
+      return this.sqlInput.readString();
+    }
   }
 
   @Override
   public boolean readBoolean() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
-        SQLException.class,
-        this.pluginManager,
-        this.sqlInput,
-        "SQLInput.readBoolean",
-        () -> this.sqlInput.readBoolean());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLINPUT_READBOOLEAN)) {
+      return WrapperUtils.executeWithPlugins(
+          boolean.class,
+          SQLException.class,
+          this.pluginManager,
+          this.sqlInput,
+          JdbcMethod.SQLINPUT_READBOOLEAN,
+          () -> this.sqlInput.readBoolean());
+    } else {
+      return this.sqlInput.readBoolean();
+    }
   }
 
   @Override
   public byte readByte() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        byte.class,
-        SQLException.class,
-        this.pluginManager,
-        this.sqlInput,
-        "SQLInput.readByte",
-        () -> this.sqlInput.readByte());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLINPUT_READBYTE)) {
+      return WrapperUtils.executeWithPlugins(
+          byte.class,
+          SQLException.class,
+          this.pluginManager,
+          this.sqlInput,
+          JdbcMethod.SQLINPUT_READBYTE,
+          () -> this.sqlInput.readByte());
+    } else {
+      return this.sqlInput.readByte();
+    }
   }
 
   @Override
   public short readShort() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        short.class,
-        SQLException.class,
-        this.pluginManager,
-        this.sqlInput,
-        "SQLInput.readShort",
-        () -> this.sqlInput.readShort());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLINPUT_READSHORT)) {
+      return WrapperUtils.executeWithPlugins(
+          short.class,
+          SQLException.class,
+          this.pluginManager,
+          this.sqlInput,
+          JdbcMethod.SQLINPUT_READSHORT,
+          () -> this.sqlInput.readShort());
+    } else {
+      return this.sqlInput.readShort();
+    }
   }
 
   @Override
   public int readInt() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.sqlInput,
-        "SQLInput.readInt",
-        () -> this.sqlInput.readInt());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLINPUT_READINT)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.sqlInput,
+          JdbcMethod.SQLINPUT_READINT,
+          () -> this.sqlInput.readInt());
+    } else {
+      return this.sqlInput.readInt();
+    }
   }
 
   @Override
   public long readLong() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        long.class,
-        SQLException.class,
-        this.pluginManager,
-        this.sqlInput,
-        "SQLInput.readLong",
-        () -> this.sqlInput.readLong());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLINPUT_READLONG)) {
+      return WrapperUtils.executeWithPlugins(
+          long.class,
+          SQLException.class,
+          this.pluginManager,
+          this.sqlInput,
+          JdbcMethod.SQLINPUT_READLONG,
+          () -> this.sqlInput.readLong());
+    } else {
+      return this.sqlInput.readLong();
+    }
   }
 
   @Override
   public float readFloat() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        float.class,
-        SQLException.class,
-        this.pluginManager,
-        this.sqlInput,
-        "SQLInput.readFloat",
-        () -> this.sqlInput.readFloat());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLINPUT_READFLOAT)) {
+      return WrapperUtils.executeWithPlugins(
+          float.class,
+          SQLException.class,
+          this.pluginManager,
+          this.sqlInput,
+          JdbcMethod.SQLINPUT_READFLOAT,
+          () -> this.sqlInput.readFloat());
+    } else {
+      return this.sqlInput.readFloat();
+    }
   }
 
   @Override
   public double readDouble() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        double.class,
-        SQLException.class,
-        this.pluginManager,
-        this.sqlInput,
-        "SQLInput.readDouble",
-        () -> this.sqlInput.readDouble());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLINPUT_READDOUBLE)) {
+      return WrapperUtils.executeWithPlugins(
+          double.class,
+          SQLException.class,
+          this.pluginManager,
+          this.sqlInput,
+          JdbcMethod.SQLINPUT_READDOUBLE,
+          () -> this.sqlInput.readDouble());
+    } else {
+      return this.sqlInput.readDouble();
+    }
   }
 
   @Override
   public BigDecimal readBigDecimal() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        BigDecimal.class,
-        SQLException.class,
-        this.pluginManager,
-        this.sqlInput,
-        "SQLInput.readBigDecimal",
-        () -> this.sqlInput.readBigDecimal());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLINPUT_READBIGDECIMAL)) {
+      return WrapperUtils.executeWithPlugins(
+          BigDecimal.class,
+          SQLException.class,
+          this.pluginManager,
+          this.sqlInput,
+          JdbcMethod.SQLINPUT_READBIGDECIMAL,
+          () -> this.sqlInput.readBigDecimal());
+    } else {
+      return this.sqlInput.readBigDecimal();
+    }
   }
 
   @Override
   public byte[] readBytes() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        byte[].class,
-        SQLException.class,
-        this.pluginManager,
-        this.sqlInput,
-        "SQLInput.readBytes",
-        () -> this.sqlInput.readBytes());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLINPUT_READBYTES)) {
+      return WrapperUtils.executeWithPlugins(
+          byte[].class,
+          SQLException.class,
+          this.pluginManager,
+          this.sqlInput,
+          JdbcMethod.SQLINPUT_READBYTES,
+          () -> this.sqlInput.readBytes());
+    } else {
+      return this.sqlInput.readBytes();
+    }
   }
 
   @Override
   public Date readDate() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        Date.class,
-        SQLException.class,
-        this.pluginManager,
-        this.sqlInput,
-        "SQLInput.readDate",
-        () -> this.sqlInput.readDate());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLINPUT_READDATE)) {
+      return WrapperUtils.executeWithPlugins(
+          Date.class,
+          SQLException.class,
+          this.pluginManager,
+          this.sqlInput,
+          JdbcMethod.SQLINPUT_READDATE,
+          () -> this.sqlInput.readDate());
+    } else {
+      return this.sqlInput.readDate();
+    }
   }
 
   @Override
   public Time readTime() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        Time.class,
-        SQLException.class,
-        this.pluginManager,
-        this.sqlInput,
-        "SQLInput.readTime",
-        () -> this.sqlInput.readTime());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLINPUT_READTIME)) {
+      return WrapperUtils.executeWithPlugins(
+          Time.class,
+          SQLException.class,
+          this.pluginManager,
+          this.sqlInput,
+          JdbcMethod.SQLINPUT_READTIME,
+          () -> this.sqlInput.readTime());
+    } else {
+      return this.sqlInput.readTime();
+    }
   }
 
   @Override
   public Timestamp readTimestamp() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        Timestamp.class,
-        SQLException.class,
-        this.pluginManager,
-        this.sqlInput,
-        "SQLInput.readTimestamp",
-        () -> this.sqlInput.readTimestamp());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLINPUT_READTIMESTAMP)) {
+      return WrapperUtils.executeWithPlugins(
+          Timestamp.class,
+          SQLException.class,
+          this.pluginManager,
+          this.sqlInput,
+          JdbcMethod.SQLINPUT_READTIMESTAMP,
+          () -> this.sqlInput.readTimestamp());
+    } else {
+      return this.sqlInput.readTimestamp();
+    }
   }
 
   @Override
   public Reader readCharacterStream() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        Reader.class,
-        SQLException.class,
-        this.pluginManager,
-        this.sqlInput,
-        "SQLInput.readCharacterStream",
-        () -> this.sqlInput.readCharacterStream());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLINPUT_READCHARACTERSTREAM)) {
+      return WrapperUtils.executeWithPlugins(
+          Reader.class,
+          SQLException.class,
+          this.pluginManager,
+          this.sqlInput,
+          JdbcMethod.SQLINPUT_READCHARACTERSTREAM,
+          () -> this.sqlInput.readCharacterStream());
+    } else {
+      return this.sqlInput.readCharacterStream();
+    }
   }
 
   @Override
   public InputStream readAsciiStream() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        InputStream.class,
-        SQLException.class,
-        this.pluginManager,
-        this.sqlInput,
-        "SQLInput.readAsciiStream",
-        () -> this.sqlInput.readAsciiStream());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLINPUT_READASCIISTREAM)) {
+      return WrapperUtils.executeWithPlugins(
+          InputStream.class,
+          SQLException.class,
+          this.pluginManager,
+          this.sqlInput,
+          JdbcMethod.SQLINPUT_READASCIISTREAM,
+          () -> this.sqlInput.readAsciiStream());
+    } else {
+      return this.sqlInput.readAsciiStream();
+    }
   }
 
   @Override
   public InputStream readBinaryStream() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        InputStream.class,
-        SQLException.class,
-        this.pluginManager,
-        this.sqlInput,
-        "SQLInput.readBinaryStream",
-        () -> this.sqlInput.readBinaryStream());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLINPUT_READBINARYSTREAM)) {
+      return WrapperUtils.executeWithPlugins(
+          InputStream.class,
+          SQLException.class,
+          this.pluginManager,
+          this.sqlInput,
+          JdbcMethod.SQLINPUT_READBINARYSTREAM,
+          () -> this.sqlInput.readBinaryStream());
+    } else {
+      return this.sqlInput.readBinaryStream();
+    }
   }
 
   @Override
   public Object readObject() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        Object.class,
-        SQLException.class,
-        this.pluginManager,
-        this.sqlInput,
-        "SQLInput.readObject",
-        () -> this.sqlInput.readObject());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLINPUT_READOBJECT)) {
+      return WrapperUtils.executeWithPlugins(
+          Object.class,
+          SQLException.class,
+          this.pluginManager,
+          this.sqlInput,
+          JdbcMethod.SQLINPUT_READOBJECT,
+          () -> this.sqlInput.readObject());
+    } else {
+      return this.sqlInput.readObject();
+    }
   }
 
   @Override
   public <T> T readObject(Class<T> type) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        type,
-        SQLException.class,
-        this.pluginManager,
-        this.sqlInput,
-        "SQLInput.readString",
-        () -> this.sqlInput.readObject(type),
-        type);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLINPUT_READOBJECT)) {
+      return WrapperUtils.executeWithPlugins(
+          type,
+          SQLException.class,
+          this.pluginManager,
+          this.sqlInput,
+          JdbcMethod.SQLINPUT_READOBJECT,
+          () -> this.sqlInput.readObject(type),
+          type);
+    } else {
+      return this.sqlInput.readObject(type);
+    }
   }
 
   @Override
@@ -253,7 +326,7 @@ public class SQLInputWrapper implements SQLInput {
         SQLException.class,
         this.pluginManager,
         this.sqlInput,
-        "SQLInput.readRef",
+        JdbcMethod.SQLINPUT_READREF,
         () -> this.sqlInput.readRef());
   }
 
@@ -264,7 +337,7 @@ public class SQLInputWrapper implements SQLInput {
         SQLException.class,
         this.pluginManager,
         this.sqlInput,
-        "SQLInput.readBlob",
+        JdbcMethod.SQLINPUT_READBLOB,
         () -> this.sqlInput.readBlob());
   }
 
@@ -275,7 +348,7 @@ public class SQLInputWrapper implements SQLInput {
         SQLException.class,
         this.pluginManager,
         this.sqlInput,
-        "SQLInput.readClob",
+        JdbcMethod.SQLINPUT_READCLOB,
         () -> this.sqlInput.readClob());
   }
 
@@ -286,30 +359,38 @@ public class SQLInputWrapper implements SQLInput {
         SQLException.class,
         this.pluginManager,
         this.sqlInput,
-        "SQLInput.readArray",
+        JdbcMethod.SQLINPUT_READARRAY,
         () -> this.sqlInput.readArray());
   }
 
   @Override
   public boolean wasNull() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
-        SQLException.class,
-        this.pluginManager,
-        this.sqlInput,
-        "SQLInput.wasNull",
-        () -> this.sqlInput.wasNull());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLINPUT_WASNULL)) {
+      return WrapperUtils.executeWithPlugins(
+          boolean.class,
+          SQLException.class,
+          this.pluginManager,
+          this.sqlInput,
+          JdbcMethod.SQLINPUT_WASNULL,
+          () -> this.sqlInput.wasNull());
+    } else {
+      return this.sqlInput.wasNull();
+    }
   }
 
   @Override
   public URL readURL() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        URL.class,
-        SQLException.class,
-        this.pluginManager,
-        this.sqlInput,
-        "SQLInput.readURL",
-        () -> this.sqlInput.readURL());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLINPUT_READURL)) {
+      return WrapperUtils.executeWithPlugins(
+          URL.class,
+          SQLException.class,
+          this.pluginManager,
+          this.sqlInput,
+          JdbcMethod.SQLINPUT_READURL,
+          () -> this.sqlInput.readURL());
+    } else {
+      return this.sqlInput.readURL();
+    }
   }
 
   @Override
@@ -319,41 +400,53 @@ public class SQLInputWrapper implements SQLInput {
         SQLException.class,
         this.pluginManager,
         this.sqlInput,
-        "SQLInput.readNClob",
+        JdbcMethod.SQLINPUT_READNCLOB,
         () -> this.sqlInput.readNClob());
   }
 
   @Override
   public String readNString() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        SQLException.class,
-        this.pluginManager,
-        this.sqlInput,
-        "SQLInput.readNString",
-        () -> this.sqlInput.readNString());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLINPUT_READNSTRING)) {
+      return WrapperUtils.executeWithPlugins(
+          String.class,
+          SQLException.class,
+          this.pluginManager,
+          this.sqlInput,
+          JdbcMethod.SQLINPUT_READNSTRING,
+          () -> this.sqlInput.readNString());
+    } else {
+      return this.sqlInput.readNString();
+    }
   }
 
   @Override
   public SQLXML readSQLXML() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        SQLXML.class,
-        SQLException.class,
-        this.pluginManager,
-        this.sqlInput,
-        "SQLInput.readSQLXML",
-        () -> this.sqlInput.readSQLXML());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLINPUT_READSQLXML)) {
+      return WrapperUtils.executeWithPlugins(
+          SQLXML.class,
+          SQLException.class,
+          this.pluginManager,
+          this.sqlInput,
+          JdbcMethod.SQLINPUT_READSQLXML,
+          () -> this.sqlInput.readSQLXML());
+    } else {
+      return this.sqlInput.readSQLXML();
+    }
   }
 
   @Override
   public RowId readRowId() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        RowId.class,
-        SQLException.class,
-        this.pluginManager,
-        this.sqlInput,
-        "SQLInput.readRowId",
-        () -> this.sqlInput.readRowId());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLINPUT_READROWID)) {
+      return WrapperUtils.executeWithPlugins(
+          RowId.class,
+          SQLException.class,
+          this.pluginManager,
+          this.sqlInput,
+          JdbcMethod.SQLINPUT_READROWID,
+          () -> this.sqlInput.readRowId());
+    } else {
+      return this.sqlInput.readRowId();
+    }
   }
 
   @Override
