@@ -56,6 +56,7 @@ import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.benchmarks.testplugin.TestConnectionWrapper;
@@ -119,7 +120,7 @@ public class PluginBenchmarks {
     when(mockConnectionPluginManager.connect(any(), any(), any(Properties.class), anyBoolean(), any()))
         .thenReturn(mockConnection);
     when(mockConnectionPluginManager.execute(
-        any(), any(), any(), eq("Connection.createStatement"), any(), any()))
+        any(), any(), any(), eq(JdbcMethod.CONNECTION_CREATESTATEMENT), any(), any()))
         .thenReturn(mockStatement);
     when(mockConnectionPluginManager.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);

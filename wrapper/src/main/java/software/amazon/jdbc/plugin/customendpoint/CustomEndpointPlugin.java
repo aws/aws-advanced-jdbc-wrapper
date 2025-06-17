@@ -30,6 +30,7 @@ import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
@@ -39,7 +40,6 @@ import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.RegionUtils;
 import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.StringUtils;
-import software.amazon.jdbc.util.SubscribedMethodHelper;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -66,13 +66,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
           },
           CACHE_CLEANUP_RATE_NANO);
 
-  private static final Set<String> subscribedMethods =
-      Collections.unmodifiableSet(new HashSet<String>() {
-        {
-          addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
-          add("connect");
-        }
-      });
+  private final Set<String> subscribedMethods;
 
   public static final AwsWrapperProperty CUSTOM_ENDPOINT_INFO_REFRESH_RATE_MS = new AwsWrapperProperty(
       "customEndpointInfoRefreshRateMs", "30000",
@@ -153,6 +147,11 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
 
     TelemetryFactory telemetryFactory = pluginService.getTelemetryFactory();
     this.waitForInfoCounter = telemetryFactory.createCounter(TELEMETRY_WAIT_FOR_INFO_COUNTER);
+
+    final HashSet<String> methods = new HashSet<>();
+    methods.add(JdbcMethod.CONNECT.methodName);
+    methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.props));
+    this.subscribedMethods = Collections.unmodifiableSet(methods);
   }
 
   @Override
@@ -239,7 +238,9 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     if (!hasCustomEndpointInfo) {
       // Wait for the monitor to place the custom endpoint info in the cache. This ensures other plugins get accurate
       // custom endpoint info.
-      this.waitForInfoCounter.inc();
+      if (this.waitForInfoCounter != null) {
+        this.waitForInfoCounter.inc();
+      }
       LOGGER.fine(
           Messages.get(
               "CustomEndpointPlugin.waitingForCustomEndpointInfo",

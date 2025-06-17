@@ -42,6 +42,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.wrapper.CallableStatementWrapper;
@@ -74,7 +75,7 @@ public class WrapperUtilsTest {
         any(Class.class),
         any(Class.class),
         any(Object.class),
-        argThat(methodName -> !AsynchronousMethodsHelper.ASYNCHRONOUS_METHODS.contains(methodName)),
+        argThat(jdbcMethod -> jdbcMethod.shouldLockConnection),
         any(JdbcCallable.class),
         any(Object[].class));
 
@@ -89,38 +90,38 @@ public class WrapperUtilsTest {
   }
 
   Integer callCancelExecuteWithPlugins() {
-    return callExecuteWithPlugins("Statement.cancel");
+    return callExecuteWithPlugins(JdbcMethod.STATEMENT_CANCEL);
   }
 
   Integer callExecuteWithPlugins() {
-    return callExecuteWithPlugins("methodName");
+    return callExecuteWithPlugins(JdbcMethod.BLOB_LENGTH);
   }
 
-  Integer callExecuteWithPlugins(String methodName) {
+  Integer callExecuteWithPlugins(JdbcMethod jdbcMethod) {
     return WrapperUtils.executeWithPlugins(
         Integer.class,
         pluginManager,
         object,
-        methodName,
+        jdbcMethod,
         () -> 1);
   }
 
   Integer callCancelExecuteWithPluginsWithException() {
-    return callExecuteWithPluginsWithException("Statement.cancel");
+    return callExecuteWithPluginsWithException(JdbcMethod.STATEMENT_CANCEL);
   }
 
   Integer callExecuteWithPluginsWithException() {
-    return callExecuteWithPluginsWithException("methodName");
+    return callExecuteWithPluginsWithException(JdbcMethod.BLOB_LENGTH);
   }
 
-  Integer callExecuteWithPluginsWithException(String methodName) {
+  Integer callExecuteWithPluginsWithException(JdbcMethod jdbcMethod) {
     try {
       return WrapperUtils.executeWithPlugins(
           Integer.class,
           SQLException.class,
           pluginManager,
           object,
-          methodName,
+          jdbcMethod,
           () -> 1);
     } catch (SQLException e) {
       fail();

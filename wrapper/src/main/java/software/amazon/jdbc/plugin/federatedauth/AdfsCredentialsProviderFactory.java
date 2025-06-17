@@ -17,7 +17,6 @@
 package software.amazon.jdbc.plugin.federatedauth;
 
 import java.io.IOException;
-import java.net.URI;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -33,7 +32,6 @@ import org.apache.http.StatusLine;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -91,11 +89,15 @@ public class AdfsCredentialsProviderFactory extends SamlCredentialsProviderFacto
       return matcher.group(FederatedAuthPlugin.SAML_RESPONSE_PATTERN_GROUP);
     } catch (final IOException e) {
       LOGGER.severe(Messages.get("SAMLCredentialsProviderFactory.getSamlAssertionFailed", new Object[] {e}));
-      this.telemetryContext.setSuccess(false);
-      this.telemetryContext.setException(e);
+      if (this.telemetryContext != null) {
+        this.telemetryContext.setSuccess(false);
+        this.telemetryContext.setException(e);
+      }
       throw new SQLException(e);
     } finally {
-      this.telemetryContext.closeContext();
+      if (this.telemetryContext != null) {
+        this.telemetryContext.closeContext();
+      }
     }
   }
 

@@ -21,6 +21,7 @@ import java.sql.SQLException;
 import java.util.Map;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.ConnectionPluginManager;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.util.WrapperUtils;
 
 public class RefWrapper implements Ref {
@@ -35,47 +36,63 @@ public class RefWrapper implements Ref {
 
   @Override
   public String getBaseTypeName() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        SQLException.class,
-        this.pluginManager,
-        this.ref,
-        "Ref.getBaseTypeName",
-        () -> this.ref.getBaseTypeName());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.REF_GETBASETYPENAME)) {
+      return WrapperUtils.executeWithPlugins(
+          String.class,
+          SQLException.class,
+          this.pluginManager,
+          this.ref,
+          JdbcMethod.REF_GETBASETYPENAME,
+          () -> this.ref.getBaseTypeName());
+    } else {
+      return this.ref.getBaseTypeName();
+    }
   }
 
   @Override
   public Object getObject(Map<String, Class<?>> map) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        Object.class,
-        SQLException.class,
-        this.pluginManager,
-        this.ref,
-        "Ref.getObject",
-        () -> this.ref.getObject(map),
-        map);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.REF_GETOBJECT)) {
+      return WrapperUtils.executeWithPlugins(
+          Object.class,
+          SQLException.class,
+          this.pluginManager,
+          this.ref,
+          JdbcMethod.REF_GETOBJECT,
+          () -> this.ref.getObject(map),
+          map);
+    } else {
+      return this.ref.getObject(map);
+    }
   }
 
   @Override
   public Object getObject() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        Object.class,
-        SQLException.class,
-        this.pluginManager,
-        this.ref,
-        "Ref.getObject",
-        () -> this.ref.getObject());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.REF_GETOBJECT)) {
+      return WrapperUtils.executeWithPlugins(
+          Object.class,
+          SQLException.class,
+          this.pluginManager,
+          this.ref,
+          JdbcMethod.REF_GETOBJECT,
+          () -> this.ref.getObject());
+    } else {
+      return this.ref.getObject();
+    }
   }
 
   @Override
   public void setObject(Object value) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.ref,
-        "Ref.setObject",
-        () -> this.ref.setObject(value),
-        value);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.REF_SETOBJECT)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.ref,
+          JdbcMethod.REF_SETOBJECT,
+          () -> this.ref.setObject(value),
+          value);
+    } else {
+      this.ref.setObject(value);
+    }
   }
 
   @Override

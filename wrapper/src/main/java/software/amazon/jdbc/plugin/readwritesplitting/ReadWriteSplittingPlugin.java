@@ -32,6 +32,7 @@ import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
@@ -51,15 +52,28 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {
-          add("initHostProvider");
-          add("connect");
-          add("notifyConnectionChanged");
-          add(METHOD_SET_READ_ONLY);
-          add(METHOD_CLEAR_WARNINGS);
+          add(JdbcMethod.INITHOSTPROVIDER.methodName);
+          add(JdbcMethod.CONNECT.methodName);
+          add(JdbcMethod.NOTIFYCONNECTIONCHANGED.methodName);
+          add(JdbcMethod.CONNECTION_SETREADONLY.methodName);
+          add(JdbcMethod.CONNECTION_CLEARWARNINGS.methodName);
+          add(JdbcMethod.STATEMENT_EXECUTE.methodName);
+          add(JdbcMethod.STATEMENT_EXECUTEQUERY.methodName);
+          add(JdbcMethod.STATEMENT_EXECUTEBATCH.methodName);
+          add(JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_EXECUTELARGEUPDATE.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEBATCH.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_EXECUTEBATCH.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName);
+          add(JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName);
         }
       });
-  static final String METHOD_SET_READ_ONLY = "Connection.setReadOnly";
-  static final String METHOD_CLEAR_WARNINGS = "Connection.clearWarnings";
 
   private final PluginService pluginService;
   private final Properties properties;
@@ -190,7 +204,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       return jdbcMethodFunc.call();
     }
 
-    if (methodName.equals(METHOD_CLEAR_WARNINGS)) {
+    if (JdbcMethod.CONNECTION_CLEARWARNINGS.methodName.equals(methodName)) {
       try {
         if (this.writerConnection != null && !this.writerConnection.isClosed()) {
           this.writerConnection.clearWarnings();
@@ -203,7 +217,9 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       }
     }
 
-    if (methodName.equals(METHOD_SET_READ_ONLY) && args != null && args.length > 0) {
+    if (JdbcMethod.CONNECTION_SETREADONLY.methodName.equals(methodName)
+        && args != null
+        && args.length > 0) {
       try {
         switchConnectionIfRequired((Boolean) args[0]);
       } catch (final SQLException e) {
