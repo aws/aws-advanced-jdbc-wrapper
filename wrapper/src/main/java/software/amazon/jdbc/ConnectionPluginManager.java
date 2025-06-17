@@ -100,12 +100,15 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
   private static final String INIT_HOST_PROVIDER_METHOD = "initHostProvider";
   private static final String NOTIFY_CONNECTION_CHANGED_METHOD = "notifyConnectionChanged";
   private static final String NOTIFY_NODE_LIST_CHANGED_METHOD = "notifyNodeListChanged";
+
+  public static final String EFFECTIVE_PLUGIN_CODES_PROPERTY = "36377fa6-f016-483f-a78a-02f68c71201a";
   private static final SqlMethodAnalyzer sqlMethodAnalyzer = new SqlMethodAnalyzer();
 
   private final ReentrantLock lock = new ReentrantLock();
 
   protected Properties props = new Properties();
   protected List<ConnectionPlugin> plugins;
+  protected String effectivePluginCodes;
   protected final @NonNull ConnectionProvider defaultConnProvider;
   protected final @Nullable ConnectionProvider effectiveConnProvider;
   protected final ConnectionWrapper connectionWrapper;
@@ -204,6 +207,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
         pluginManagerService,
         props,
         configurationProfile);
+    this.effectivePluginCodes = pluginChainBuilder.getPluginCodes(this.plugins);
+    this.props.setProperty(EFFECTIVE_PLUGIN_CODES_PROPERTY, this.effectivePluginCodes);
   }
 
   protected <T, E extends Exception> T executeWithSubscribedPlugins(
