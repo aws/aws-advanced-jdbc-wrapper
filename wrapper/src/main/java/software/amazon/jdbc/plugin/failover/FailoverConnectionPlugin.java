@@ -86,7 +86,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
           JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE.methodName,
           JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName,
-          JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName
+          JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTEBATCH.methodName
       )));
 
   private final Set<String> subscribedMethods;

@@ -174,6 +174,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
     methods.add(JdbcMethod.INITHOSTPROVIDER.methodName);
     methods.add(JdbcMethod.CONNECT.methodName);
+    methods.add(JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName);
     methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.properties));
     this.subscribedMethods = Collections.unmodifiableSet(methods);
   }
