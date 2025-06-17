@@ -67,5 +67,5 @@ pluginManagement {
 }
 
 plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention") version "0.10.0" // Does not get imported correctly in pluginManagement
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0" // Does not get imported correctly in pluginManagement
 }
