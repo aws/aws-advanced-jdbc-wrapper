@@ -1,3 +1,7 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright Red Hat Inc. and Hibernate Authors
+ */
 package org.hibernate.orm.test.type;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -7,7 +11,7 @@ import java.time.Duration;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.cfg.AvailableSettings;
 import org.hibernate.dialect.PostgreSQLDialect;
-import org.hibernate.dialect.PostgreSQLIntervalSecondJdbcType;
+import org.hibernate.dialect.type.PostgreSQLIntervalSecondJdbcType;
 import org.hibernate.metamodel.spi.MappingMetamodelImplementor;
 import org.hibernate.persister.entity.EntityPersister;
 import org.hibernate.type.SqlTypes;

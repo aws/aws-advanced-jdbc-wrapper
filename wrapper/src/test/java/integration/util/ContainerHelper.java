@@ -26,6 +26,8 @@ import com.github.dockerjava.api.exception.DockerException;
 import eu.rekawek.toxiproxy.ToxiproxyClient;
 import integration.TestInstanceInfo;
 import java.io.IOException;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -40,6 +42,8 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.ToxiproxyContainer;
 import org.testcontainers.containers.output.FrameConsumerResultCallback;
 import org.testcontainers.containers.output.OutputFrame;
+import org.testcontainers.containers.startupcheck.StartupCheckStrategy;
+import org.testcontainers.containers.wait.strategy.LogMessageWaitStrategy;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.builder.ImageFromDockerfile;
 import org.testcontainers.images.builder.dockerfile.DockerfileBuilder;
@@ -50,7 +54,7 @@ import software.amazon.jdbc.util.StringUtils;
 
 public class ContainerHelper {
 
-  private static final String MYSQL_CONTAINER_IMAGE_NAME = "mysql:8.0.36";
+  private static final String MYSQL_CONTAINER_IMAGE_NAME = "mysql:8.0.31";
   private static final String POSTGRES_CONTAINER_IMAGE_NAME = "postgres:latest";
   private static final String MARIADB_CONTAINER_IMAGE_NAME = "mariadb:10";
   // Note: this image version may need to be occasionally updated to keep it up-to-date and prevent toxiproxy issues.
@@ -345,11 +349,12 @@ public class ContainerHelper {
             "--max_allowed_packet=40M",
             "--max-connections=2048",
             "--secure-file-priv=/var/lib/mysql",
-            "--log_bin_trust_function_creators=1",
+            "--log-error-verbosity=4",
             "--character-set-server=utf8mb4",
             "--collation-server=utf8mb4_0900_as_cs",
             "--skip-character-set-client-handshake",
-            "--log-error-verbosity=4");
+            "--log-bin-trust-function-creators=1",
+            "--lower_case_table_names=2");
   }
 
   public PostgreSQLContainer<?> createPostgresContainer(
@@ -361,6 +366,44 @@ public class ContainerHelper {
         .withDatabaseName(testDbName)
         .withUsername(username)
         .withPassword(password);
+  }
+
+  public GenericContainer createPostgisContainer(
+      Network network, String networkAlias, String testDbName, String username, String password) {
+
+    GenericContainer genericContainer = new GenericContainer(
+        new ImageFromDockerfile()
+            .withDockerfileFromBuilder(builder ->
+                builder
+                    .from("postgis/postgis:16-3.4")
+                    .run("apt-get update")
+                    .run("/usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y")
+                    .run("apt install -y postgresql-16-pgvector")
+                    .cmd("postgres",
+                        "-c", "fsync=off",
+                        "-c", "synchronous_commit=off",
+                        "-c", "full_page_writes=off",
+                        "-c", "shared_buffers=256MB",
+                        "-c", "maintenance_work_mem=256MB",
+                        "-c", "max_wal_size=1GB",
+                        "-c", "checkpoint_timeout=1d")
+                    .build()))
+        .waitingFor(new LogMessageWaitStrategy()
+            .withRegEx(".*database system is ready to accept connections.*\\s")
+            .withTimes(2)
+            .withStartupTimeout(Duration.of(180, ChronoUnit.SECONDS)))
+        .withNetwork(network)
+        .withNetworkAliases(networkAlias)
+        .withEnv("POSTGRES_DB", testDbName)
+        .withEnv("POSTGRES_USER", username)
+        .withEnv("POSTGRES_PASSWORD", password)
+        .withCopyFileToContainer(MountableFile.forHostPath(
+                "src/test/resources/postgis_pgvector/docker-entrypoint-initdb.d/01_pgvector.sql"),
+            "/docker-entrypoint-initdb.d/01_pgvector.sql");
+
+    genericContainer.addExposedPort(5432);
+
+    return genericContainer;
   }
 
   public MariaDBContainer<?> createMariadbContainer(
