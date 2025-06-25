@@ -26,6 +26,8 @@ import com.github.dockerjava.api.exception.DockerException;
 import eu.rekawek.toxiproxy.ToxiproxyClient;
 import integration.TestInstanceInfo;
 import java.io.IOException;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -40,6 +42,8 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.ToxiproxyContainer;
 import org.testcontainers.containers.output.FrameConsumerResultCallback;
 import org.testcontainers.containers.output.OutputFrame;
+import org.testcontainers.containers.startupcheck.StartupCheckStrategy;
+import org.testcontainers.containers.wait.strategy.LogMessageWaitStrategy;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.builder.ImageFromDockerfile;
 import org.testcontainers.images.builder.dockerfile.DockerfileBuilder;
@@ -361,6 +365,74 @@ public class ContainerHelper {
         .withDatabaseName(testDbName)
         .withUsername(username)
         .withPassword(password);
+  }
+
+  public GenericContainer createPostgisContainer(
+      Network network, String networkAlias, String testDbName, String username, String password) {
+
+    GenericContainer genericContainer = new GenericContainer(
+        new ImageFromDockerfile()
+            .withDockerfileFromBuilder(builder ->
+                builder
+                    .from("postgis/postgis:16-3.4")
+                    .run("apt-get update")
+                    .run("/usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y")
+                    .run("apt install -y postgresql-16-pgvector")
+                    .cmd("postgres",
+                        "-c", "fsync=off",
+                        "-c", "synchronous_commit=off",
+                        "-c", "full_page_writes=off",
+                        "-c", "shared_buffers=256MB",
+                        "-c", "maintenance_work_mem=256MB",
+                        "-c", "max_wal_size=1GB",
+                        "-c", "checkpoint_timeout=1d")
+                    .build()))
+        .waitingFor(new LogMessageWaitStrategy()
+            .withRegEx(".*database system is ready to accept connections.*\\s")
+            .withTimes(2)
+            .withStartupTimeout(Duration.of(180, ChronoUnit.SECONDS)))
+        .withNetwork(network)
+        .withNetworkAliases(networkAlias)
+        .withEnv("POSTGRES_DB", testDbName)
+        .withEnv("POSTGRES_USER", username)
+        .withEnv("POSTGRES_PASSWORD", password)
+        .withCopyFileToContainer(MountableFile.forHostPath(
+                "src/test/resources/postgis_pgvector/docker-entrypoint-initdb.d/01_pgvector.sql"),
+            "/docker-entrypoint-initdb.d/01_pgvector.sql");
+
+        genericContainer.addExposedPort(5432);
+
+    return genericContainer;
+
+
+//     PostgreSQLContainer container = new PostgreSQLContainer(
+//         new ImageFromDockerfile().
+//     )
+//
+//         new PostgreSQLContainer<>(
+//         DockerImageName.parse("postgis/postgis:16-3.4").asCompatibleSubstituteFor("postgres"))
+//         .withNetwork(network)
+//         .withNetworkAliases(networkAlias)
+//         .withDatabaseName(testDbName)
+//         .withUsername(username)
+//         .withPassword(password)
+//         .waitingFor(
+//             new LogMessageWaitStrategy()
+//                 .withRegEx(".*database system is ready to accept connections.*\\s")
+//                 .withTimes(2)
+//                 .withStartupTimeout(Duration.of(180, ChronoUnit.SECONDS)));
+//
+// //         container.setCommand("/usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y && apt install -y "
+// //             + "postgresql-16-pgvector && psql -U " + username + " -W " + password + " -d " + testDbName
+// //             + " -c \"create extension vector;\"", "&&",
+// //             "postgres", "-c", "fsync=off");
+//
+//     container.setCommand(
+//         //"/usr/share/postgresql-common/pgdg/apt.postgresql.org.sh", "-y", "&&",
+//         "apt", "install", "-y", "postgresql-16-pgvector", "&&",
+//         "postgres", "-c", "fsync=off");
+//
+//     return container;
   }
 
   public MariaDBContainer<?> createMariadbContainer(

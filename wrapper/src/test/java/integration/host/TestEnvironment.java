@@ -50,6 +50,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
+import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.ToxiproxyContainer;
@@ -74,7 +75,7 @@ public class TestEnvironment implements AutoCloseable {
   private static final String PROXIED_DOMAIN_NAME_SUFFIX = ".proxied";
   protected static final int PROXY_CONTROL_PORT = 8474;
   protected static final int PROXY_PORT = 8666;
-  private static final String HIBERNATE_VERSION = "6.2.0.CR2";
+  private static final String HIBERNATE_VERSION = "7.0.3"; // branch or tag name
 
   private static final TestEnvironmentConfiguration config = new TestEnvironmentConfiguration();
   private static final boolean USE_OTLP_CONTAINER_FOR_TRACES = true;
@@ -416,14 +417,15 @@ public class TestEnvironment implements AutoCloseable {
     switch (env.info.getRequest().getDatabaseEngine()) {
       case MYSQL:
         for (int i = 1; i <= env.numOfInstances; i++) {
-          env.databaseContainers.add(
+          GenericContainer<?> dbContainer =
               containerHelper.createMysqlContainer(
                   env.network,
                   DATABASE_CONTAINER_NAME_PREFIX + i,
                   env.info.getDatabaseInfo().getDefaultDbName(),
                   env.info.getDatabaseInfo().getUsername(),
-                  env.info.getDatabaseInfo().getPassword()));
-          env.databaseContainers.get(0).start();
+                  env.info.getDatabaseInfo().getPassword());
+          env.databaseContainers.add(dbContainer);
+          dbContainer.start();
 
           env.info
               .getDatabaseInfo()
@@ -438,14 +440,24 @@ public class TestEnvironment implements AutoCloseable {
 
       case PG:
         for (int i = 1; i <= env.numOfInstances; i++) {
-          env.databaseContainers.add(
-              containerHelper.createPostgresContainer(
-                  env.network,
-                  DATABASE_CONTAINER_NAME_PREFIX + i,
-                  env.info.getDatabaseInfo().getDefaultDbName(),
-                  env.info.getDatabaseInfo().getUsername(),
-                  env.info.getDatabaseInfo().getPassword()));
-          env.databaseContainers.get(0).start();
+
+          GenericContainer<?> dbContainer =
+              env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY)
+                  ? containerHelper.createPostgisContainer(
+                        env.network,
+                        DATABASE_CONTAINER_NAME_PREFIX + i,
+                        env.info.getDatabaseInfo().getDefaultDbName(),
+                        env.info.getDatabaseInfo().getUsername(),
+                        env.info.getDatabaseInfo().getPassword())
+                  : containerHelper.createPostgresContainer(
+                        env.network,
+                        DATABASE_CONTAINER_NAME_PREFIX + i,
+                        env.info.getDatabaseInfo().getDefaultDbName(),
+                        env.info.getDatabaseInfo().getUsername(),
+                        env.info.getDatabaseInfo().getPassword());
+
+          env.databaseContainers.add(dbContainer);
+          dbContainer.start();
 
           env.info
               .getDatabaseInfo()
@@ -460,14 +472,15 @@ public class TestEnvironment implements AutoCloseable {
 
       case MARIADB:
         for (int i = 1; i <= env.numOfInstances; i++) {
-          env.databaseContainers.add(
+          GenericContainer<?> dbContainer =
               containerHelper.createMariadbContainer(
                   env.network,
                   DATABASE_CONTAINER_NAME_PREFIX + i,
                   env.info.getDatabaseInfo().getDefaultDbName(),
                   env.info.getDatabaseInfo().getUsername(),
-                  env.info.getDatabaseInfo().getPassword()));
-          env.databaseContainers.get(0).start();
+                  env.info.getDatabaseInfo().getPassword());
+              env.databaseContainers.add(dbContainer);
+          dbContainer.start();
 
           env.info
               .getDatabaseInfo()
@@ -1079,21 +1092,41 @@ public class TestEnvironment implements AutoCloseable {
                   "aws/rds-test-container",
                   getContainerBaseImageName(env.info.getRequest()),
                   builder -> builder
+                      .run("apk", "add", "--no-cache", "--upgrade", "bash")
                       .run("apk", "add", "git")
                       .run("git", "clone", "--depth", "1", "--branch", HIBERNATE_VERSION,
-                          "https://github.com/hibernate/hibernate-orm.git", "/app/hibernate-orm"))
+                          "https://github.com/hibernate/hibernate-orm.git", "/app/hibernate-orm")
+//                       .copy("/app/DefaultPackageTest.java",
+//                           "/app/hibernate-orm/tooling/metamodel-generator/src/test/java/DefaultPackageTest.java")
+              )
               .withCopyFileToContainer(MountableFile.forHostPath(
-                      "src/test/resources/hibernate_files/databases.gradle"),
-                  "app/hibernate-orm/gradle/databases.gradle")
+                      "src/test/resources/hibernate_files/DefaultPackageTest.java"),
+                  "app/hibernate-orm/tooling/metamodel-generator/src/test/java/DefaultPackageTest.java")
               .withCopyFileToContainer(MountableFile.forHostPath(
-                      "src/test/resources/hibernate_files/hibernate-core.gradle"),
-                  "hibernate-core/hibernate-core.gradle")
+                      "src/test/resources/hibernate_files/local.databases.gradle"),
+                  "app/hibernate-orm/local-build-plugins/src/main/groovy/local.databases.gradle")
               .withCopyFileToContainer(MountableFile.forHostPath(
-                      "src/test/resources/hibernate_files/java-module.gradle"),
-                  "app/hibernate-orm/gradle/java-module.gradle")
+                      "src/test/resources/hibernate_files/PostgreSQLCastingIntervalSecondJdbcType.java"),
+                  "app/hibernate-orm/hibernate-core/src/main/java/org/hibernate/dialect/type/PostgreSQLCastingIntervalSecondJdbcType.java")
+              .withCopyFileToContainer(MountableFile.forHostPath("./build/libs"), "app/hibernate-orm/drivers")
+//               .withCopyFileToContainer(MountableFile.forHostPath(
+//                       "src/test/resources/hibernate_files/hibernate-core.gradle"),
+//                   "hibernate-core/hibernate-core.gradle")
+//               .withCopyFileToContainer(MountableFile.forHostPath(
+//                       "src/test/resources/hibernate_files/java-module.gradle"),
+//                   "app/hibernate-orm/gradle/java-module.gradle")
               .withCopyFileToContainer(MountableFile.forHostPath(
                       "src/test/resources/hibernate_files/collect_test_results.sh"),
                   "app/collect_test_results.sh");
+//               .withFileSystemBind(
+//                   "./build/reports/container-hibernate",
+//                   "/app/hibernate-orm/hibernate-core/target/reports",
+//                   BindMode.READ_WRITE)
+//               .withFileSystemBind(
+//                   "./build/test-results/container-hibernate",
+//                   "/app/hibernate-orm/hibernate-core/target/test-results",
+//                   BindMode.READ_WRITE);
+
 
     } else {
       env.testContainer = containerHelper.createTestContainer(
@@ -1192,6 +1225,8 @@ public class TestEnvironment implements AutoCloseable {
         return "openjdk:8-jdk-alpine";
       case OPENJDK11:
         return "amazoncorretto:11.0.19-alpine3.17";
+      case OPENJDK17:
+        return "amazoncorretto:17-alpine3.21";
       case GRAALVM:
         return "ghcr.io/graalvm/jdk:22.2.0";
       default:
@@ -1310,11 +1345,13 @@ public class TestEnvironment implements AutoCloseable {
     final TestDatabaseInfo dbInfo = this.info.getDatabaseInfo();
     final List<String> command = new ArrayList<>(Arrays.asList(
         "./gradlew", "test",
-        "-DdbHost=" + DATABASE_CONTAINER_NAME_PREFIX + 1, // Hibernate ORM tests only support 1 database instance
+        "-DdbHost=" + DATABASE_CONTAINER_NAME_PREFIX + "1", // Hibernate ORM tests only support 1 database instance
         "-DdbUser=" + dbInfo.getUsername(),
         "-DdbPass=" + dbInfo.getPassword(),
         "-DdbName=" + dbInfo.getDefaultDbName(),
-        "--no-parallel", "--no-daemon"
+        "--no-parallel",
+        "--no-daemon",
+        "--stacktrace"
     ));
 
     if (debugMode) {
@@ -1323,13 +1360,21 @@ public class TestEnvironment implements AutoCloseable {
 
     switch (this.info.getRequest().getDatabaseEngine()) {
       case PG:
-        command.add("-Pdb=amazon_ci");
-        command.add("-PexcludeTests=PostgreSQLSkipAutoCommitTest");
+        command.add("-Pdb=aws_wrapper_pgsql");
+        //command.add("-Pdb=pgsql");
+//        command.add("-PexcludeTests=**/*BasicEntityManagerFactoryScopeTests*");
+//         command.add("-PexcludeTests=BasicSessionFactoryScopeTests");
+//         command.add("-PexcludeTests=DomainModelTesting");
+//         command.add("-PexcludeTests=EntityManagerFactoryScopeTesting");
+//         command.add("-PexcludeTests=MoreEntityManagerFactoryScopeTesting");
+//         command.add("-PexcludeTests=SessionFactoryTesting");
+        //command.add("-PexcludeTests=BasicEntityManagerFactoryScopeTests,BasicSessionFactoryScopeTests,DomainModelTesting,EntityManagerFactoryScopeTesting,MoreEntityManagerFactoryScopeTesting,SessionFactoryTesting");
+        //command.add("-PexcludeTests=PostgreSQLSkipAutoCommitTest");
         break;
       case MYSQL:
       default:
-        command.add("-Pdb=amazon_mysql_ci");
-        command.add("-PexcludeTests=MySQLSkipAutoCommitTest");
+        command.add("-Pdb=aws_wrapper_mysql");
+        //command.add("-PexcludeTests=MySQLSkipAutoCommitTest");
         break;
     }
     return command.toArray(new String[] {});
