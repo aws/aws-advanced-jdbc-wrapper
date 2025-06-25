@@ -33,6 +33,8 @@ public interface BlockingHostListProvider extends HostListProvider {
    *                  will be returned. If a non-zero timeout is provided and the timeout is hit,
    *                  a TimeoutException will be thrown.
    * @return a list of host details representing a cluster topology
+   * @throws SQLException if there's errors updating topology
+   * @throws TimeoutException if topology update takes longer time than expected
    */
   List<HostSpec> forceRefresh(final boolean shouldVerifyWriter, final long timeoutMs)
       throws SQLException, TimeoutException;

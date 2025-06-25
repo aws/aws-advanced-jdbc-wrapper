@@ -581,6 +581,8 @@ public class BlueGreenStatusProvider {
    * New connect requests with IP address: default behaviour; no routing
    * Existing connections: default behaviour; no action
    * Execute JDBC calls: default behaviour; no action
+   *
+   * @return Blue/Green status
    */
   protected BlueGreenStatus getStatusOfPreparation() {
 
@@ -640,6 +642,8 @@ public class BlueGreenStatusProvider {
    * New connect requests with IP address: suspend
    * Existing connections: default behaviour; no action
    * Execute JDBC calls: suspend
+   *
+   * @return Blue/Green status
    */
   protected BlueGreenStatus getStatusOfInProgress() {
 
@@ -940,6 +944,8 @@ public class BlueGreenStatusProvider {
 
   /**
    * For testing purposes.
+   *
+   * @return current time in nanoseconds
    */
   protected long getNanoTime() {
     return System.nanoTime();
