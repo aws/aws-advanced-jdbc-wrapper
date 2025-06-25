@@ -68,7 +68,6 @@ public class DialectDetectionTests {
   @Mock private ConnectionPluginManager pluginManager;
   @Mock private TargetDriverDialect mockTargetDriverDialect;
   @Mock private ResultSetMetaData mockResultSetMetaData;
-  private final DialectManager dialectManager = new DialectManager(null);
   private final Properties props = new Properties();
   private AutoCloseable closeable;
 
@@ -104,6 +103,7 @@ public class DialectDetectionTests {
   @ParameterizedTest
   @MethodSource("getInitialDialectArguments")
   public void testInitialDialectDetection(String protocol, String host, Object expectedDialect) throws SQLException {
+    final DialectManager dialectManager = new DialectManager(this.getPluginService(host, protocol));
     final Dialect dialect = dialectManager.getDialect(protocol, host, new Properties());
     assertEquals(expectedDialect, dialect.getClass());
   }

@@ -662,6 +662,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
+  @Deprecated
   public boolean isNetworkException(Throwable throwable) {
     return this.isNetworkException(throwable, this.targetDriverDialect);
   }
@@ -683,6 +684,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
+  @Deprecated
   public boolean isLoginException(Throwable throwable) {
     return this.isLoginException(throwable, this.targetDriverDialect);
   }

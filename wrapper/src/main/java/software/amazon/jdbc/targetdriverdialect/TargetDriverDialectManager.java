@@ -73,6 +73,8 @@ public class TargetDriverDialectManager implements TargetDriverDialectProvider {
   /**
    * Sets a custom target driver dialect handler.
    *
+   * @param targetDriverDialect A custom driver dialect to use.
+   *
    * @deprecated Use software.amazon.jdbc.Driver instead
    */
   @Deprecated
