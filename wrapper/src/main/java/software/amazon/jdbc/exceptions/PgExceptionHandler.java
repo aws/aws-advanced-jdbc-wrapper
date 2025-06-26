@@ -30,8 +30,7 @@ public class PgExceptionHandler extends AbstractPgExceptionHandler {
       "58", // system error (backend)
       "08", // connection error
       "99", // unexpected error
-      "F0", // configuration file error (backend)
-      "XX" // internal error (backend)
+      "F0" // configuration file error (backend)
   );
 
   private static final List<String> ACCESS_ERRORS = Arrays.asList(
