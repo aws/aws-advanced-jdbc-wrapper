@@ -52,7 +52,6 @@ public class DataRemoteCachePluginTest {
     when(mockTelemetryFactory.createCounter("remoteCache.cache.hit")).thenReturn(mockHitCounter);
     when(mockTelemetryFactory.createCounter("remoteCache.cache.miss")).thenReturn(mockMissCounter);
     when(mockTelemetryFactory.createCounter("remoteCache.cache.totalCalls")).thenReturn(mockTotalCallsCounter);
-
     when(mockResult1.getMetaData()).thenReturn(mockMetaData);
     when(mockMetaData.getColumnCount()).thenReturn(1);
     when(mockMetaData.getColumnName(1)).thenReturn("fooName");
@@ -97,6 +96,22 @@ public class DataRemoteCachePluginTest {
     assertNull(plugin.getTtlForQuery(veryShortQuery));
     assertNull(plugin.getTtlForQuery(insertQuery));
     assertNull(plugin.getTtlForQuery(updateQuery));
+  }
+
+  @Test
+  void test_inTransaction_noCaching() throws Exception {
+    // Query is not cacheable
+    when(mockPluginService.isInTransaction()).thenReturn(true);
+    when(mockCallable.call()).thenReturn(mockResult1);
+    ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
+        methodName, mockCallable, new String[]{"/* cacheTtl=50s */ select * from B"});
+
+    // Mock result set containing 1 row
+    when(mockResult1.next()).thenReturn(true, true, false, false);
+    when(mockResult1.getObject(1)).thenReturn("bar1", "bar1");
+    compareResults(mockResult1, rs);
+    verify(mockCallable).call();
+    verify(mockTotalCallsCounter).inc();
   }
 
   @Test
@@ -158,7 +173,7 @@ public class DataRemoteCachePluginTest {
 
     // Cached result set contains 1 row
     assertTrue(rs.next());
-    assertEquals(rs.getString("fooName"), "bar1");
+    assertEquals("bar1", rs.getString("fooName"));
     assertFalse(rs.next());
     verify(mockPluginService, times(2)).getCurrentConnection();
     verify(mockPluginService).isInTransaction();
@@ -191,11 +206,11 @@ public class DataRemoteCachePluginTest {
 
     // Cached result set contains 2 rows
     assertTrue(rs.next());
-    assertEquals(rs.getString("date"), "2009-09-30");
-    assertEquals(rs.getString("code"), "avata");
+    assertEquals("2009-09-30", rs.getString("date"));
+    assertEquals("avata", rs.getString("code"));
     assertTrue(rs.next());
-    assertEquals(rs.getString("date"), "2015-05-30");
-    assertEquals(rs.getString("code"), "dracu");
+    assertEquals("2015-05-30", rs.getString("date"));
+    assertEquals("dracu", rs.getString("code"));
     assertFalse(rs.next());
     verify(mockPluginService).getCurrentConnection();
     verify(mockPluginService).isInTransaction();
