@@ -3,6 +3,7 @@ package software.amazon.jdbc.plugin.cache;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisCommandExecutionException;
 import io.lettuce.core.RedisURI;
+import io.lettuce.core.SetArgs;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.async.RedisAsyncCommands;
 import io.lettuce.core.codec.ByteArrayCodec;
@@ -174,38 +175,40 @@ public class CacheConnection {
     }
   }
 
+  protected void handleCompletedCacheWrite(StatefulRedisConnection<byte[], byte[]> conn, Throwable ex) {
+    // Note: this callback upon completion of cache write is on a different thread
+    if (ex != null) {
+      LOGGER.warning("Failed to write to cache: " + ex.getMessage());
+      if (writeConnectionPool != null) {
+        try {
+          returnConnectionBackToPool(conn, true, false);
+        } catch (Exception e) {
+          LOGGER.warning("Error returning broken write connection back to pool: " + e.getMessage());
+        }
+      }
+    } else {
+      if (writeConnectionPool != null) {
+        try {
+          returnConnectionBackToPool(conn, false, false);
+        } catch (Exception e) {
+          LOGGER.warning("Error returning write connection back to pool: " + e.getMessage());
+        }
+      }
+    }
+  }
+
   public void writeToCache(String key, byte[] value, int expiry) {
     StatefulRedisConnection<byte[], byte[]> conn = null;
     try {
       initializeCacheConnectionIfNeeded(false);
       // get a connection from the write connection pool
       conn = writeConnectionPool.borrowObject();
-      // Add support to make write to the cache to be async.
+      // Write to the cache is async.
       RedisAsyncCommands<byte[], byte[]> asyncCommands = conn.async();
       byte[] keyHash = computeHashDigest(key.getBytes(StandardCharsets.UTF_8));
-
       StatefulRedisConnection<byte[], byte[]> finalConn = conn;
-      asyncCommands.setex(keyHash, expiry, value)
-          .whenComplete((result, exception) -> {
-            if (exception != null) {
-              LOGGER.warning("Failed to write to cache: " + exception.getMessage());
-              if (writeConnectionPool != null) {
-                try {
-                  returnConnectionBackToPool(finalConn, true, false);
-                } catch (Exception ex) {
-                  LOGGER.warning("Error returning broken write connection back to pool: " + ex.getMessage());
-                }
-              }
-            } else {
-              if (writeConnectionPool != null) {
-                try {
-                  returnConnectionBackToPool(finalConn, false, false);
-                } catch (Exception ex) {
-                  LOGGER.warning("Error returning write connection back to pool: " + ex.getMessage());
-                }
-              }
-            }
-          });
+      asyncCommands.set(keyHash, value, SetArgs.Builder.ex(expiry))
+          .whenComplete((result, exception) -> handleCompletedCacheWrite(finalConn, exception));
     } catch (Exception e) {
       LOGGER.warning("Failed to write to cache: " + e.getMessage());
       if (conn != null && writeConnectionPool != null) {
@@ -229,5 +232,12 @@ public class CacheConnection {
     } else {
         pool.returnObject(connection);
     }
+  }
+
+  // Used for unit testing only
+  protected void setConnectionPools(GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readPool,
+      GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writePool) {
+    readConnectionPool = readPool;
+    writeConnectionPool = writePool;
   }
 }
