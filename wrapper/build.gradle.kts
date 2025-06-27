@@ -17,13 +17,18 @@
 plugins {
     checkstyle
     java
-    jacoco
     id("biz.aQute.bnd.builder")
     id("com.diffplug.spotless") version "6.13.0" // 6.13.0 is the last version that is compatible with Java 8
     id("com.github.spotbugs")
     id("com.github.vlsi.gradle-extensions")
     id("com.github.vlsi.ide")
     id("com.kncept.junit.reporter")
+}
+
+var useJacoco = (!project.hasProperty("jacocoEnabled") || project.property("jacocoEnabled").toString().toBoolean())
+
+if (useJacoco) {
+    apply(plugin = "org.gradle.jacoco")
 }
 
 dependencies {
@@ -95,8 +100,10 @@ repositories {
     mavenCentral()
 }
 
-tasks.check {
-    dependsOn("jacocoTestCoverageVerification")
+if (useJacoco) {
+    tasks.check {
+        dependsOn("jacocoTestCoverageVerification")
+    }
 }
 
 tasks.test {
@@ -115,10 +122,12 @@ tasks.named("sourcesJar") {
     dependsOn("preprocessVersion")
 }
 
-tasks.named("jacocoTestCoverageVerification") {
-    dependsOn("preprocessVersion")
-    dependsOn("compileJava")
-    dependsOn("processResources")
+if (useJacoco) {
+    tasks.named("jacocoTestCoverageVerification") {
+        dependsOn("preprocessVersion")
+        dependsOn("compileJava")
+        dependsOn("processResources")
+    }
 }
 
 checkstyle {
@@ -169,41 +178,43 @@ tasks.spotbugsTest {
     }
 }
 
-tasks.withType<JacocoCoverageVerification> {
-    violationRules {
-        rule {
-            limit {
-                minimum = BigDecimal(0.30)
+if (useJacoco) {
+    tasks.withType<JacocoCoverageVerification> {
+        violationRules {
+            rule {
+                limit {
+                    minimum = BigDecimal(0.30)
+                }
             }
+        }
+
+        afterEvaluate {
+            classDirectories.setFrom(files(classDirectories.files.map {
+                fileTree(it).apply {
+                    exclude(
+                        "software/amazon/jdbc/wrapper/*",
+                        "software/amazon/jdbc/util/*",
+                        "software/amazon/jdbc/profile/*",
+                        "software/amazon/jdbc/plugin/DataCacheConnectionPlugin*"
+                    )
+                }
+            }))
         }
     }
 
-    afterEvaluate {
-        classDirectories.setFrom(files(classDirectories.files.map {
-            fileTree(it).apply {
-                exclude(
-                    "software/amazon/jdbc/wrapper/*",
-                    "software/amazon/jdbc/util/*",
-                    "software/amazon/jdbc/profile/*",
-                    "software/amazon/jdbc/plugin/DataCacheConnectionPlugin*"
-                )
-            }
-        }))
-    }
-}
-
-tasks.withType<JacocoReport> {
-    afterEvaluate {
-        classDirectories.setFrom(files(classDirectories.files.map {
-            fileTree(it).apply {
-                exclude(
-                    "software/amazon/jdbc/wrapper/*",
-                    "software/amazon/jdbc/util/*",
-                    "software/amazon/jdbc/profile/*",
-                    "software/amazon/jdbc/plugin/DataCacheConnectionPlugin*"
-                )
-            }
-        }))
+    tasks.withType<JacocoReport> {
+        afterEvaluate {
+            classDirectories.setFrom(files(classDirectories.files.map {
+                fileTree(it).apply {
+                    exclude(
+                        "software/amazon/jdbc/wrapper/*",
+                        "software/amazon/jdbc/util/*",
+                        "software/amazon/jdbc/profile/*",
+                        "software/amazon/jdbc/plugin/DataCacheConnectionPlugin*"
+                    )
+                }
+            }))
+        }
     }
 }
 

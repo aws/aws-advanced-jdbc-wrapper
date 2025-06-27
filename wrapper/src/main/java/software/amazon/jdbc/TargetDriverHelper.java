@@ -35,6 +35,10 @@ public class TargetDriverHelper {
    * Registration of the driver could be disabled by provided configuration properties.
    * If driver couldn't be found and couldn't be registered, the method raises an exception.
    *
+   * @param driverUrl A driver connection string.
+   * @param props Connection properties
+   * @return A target driver
+   *
    * @throws SQLException when a driver couldn't be found.
    */
   public java.sql.Driver getTargetDriver(

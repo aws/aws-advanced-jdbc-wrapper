@@ -559,6 +559,7 @@ public class WrapperUtils {
    *
    * @param exceptionClass The exception class the exception is expected to be
    * @param exception      The exception that occurred while invoking the given method
+   * @param <E>            The exception class the exception is expected to be
    * @return an exception indicating the failure that occurred while invoking the given method
    */
   public static <E extends Exception> E wrapExceptionIfNeeded(final Class<E> exceptionClass,

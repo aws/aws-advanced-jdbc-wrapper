@@ -39,6 +39,7 @@ public class GenericExceptionHandler implements ExceptionHandler {
   );
 
   @Override
+  @Deprecated
   public boolean isNetworkException(Throwable throwable) {
     return this.isNetworkException(throwable, null);
   }
@@ -79,6 +80,7 @@ public class GenericExceptionHandler implements ExceptionHandler {
   }
 
   @Override
+  @Deprecated
   public boolean isLoginException(Throwable throwable) {
     return this.isLoginException(throwable, null);
   }

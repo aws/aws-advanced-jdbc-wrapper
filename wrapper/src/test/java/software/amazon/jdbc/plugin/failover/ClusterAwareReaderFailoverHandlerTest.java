@@ -54,6 +54,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 
 class ClusterAwareReaderFailoverHandlerTest {
 
@@ -102,11 +103,12 @@ class ClusterAwareReaderFailoverHandlerTest {
         final SQLException exception = new SQLException("exception", "08S01", null);
         when(mockPluginService.forceConnect(hosts.get(i), properties))
             .thenThrow(exception);
-        when(mockPluginService.isNetworkException(exception)).thenReturn(true);
+        when(mockPluginService.isNetworkException(exception, null)).thenReturn(true);
       } else {
         when(mockPluginService.forceConnect(hosts.get(i), properties)).thenReturn(mockConnection);
       }
     }
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(null);
 
     hosts.get(2).setAvailability(HostAvailability.NOT_AVAILABLE);
     hosts.get(4).setAvailability(HostAvailability.NOT_AVAILABLE);
