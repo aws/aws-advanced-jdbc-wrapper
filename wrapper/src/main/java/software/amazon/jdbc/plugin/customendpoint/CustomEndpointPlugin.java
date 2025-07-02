@@ -231,6 +231,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
    * endpoint info. Since custom endpoint monitors and information are shared, we should not have to wait often.
    *
    * @param monitor A {@link CustomEndpointMonitor} monitor.
+   * @throws SQLException if there's an error getting custom endpoint, or if it takes longer time than anticipated
    */
   protected void waitForCustomEndpointInfo(CustomEndpointMonitor monitor) throws SQLException {
     boolean hasCustomEndpointInfo = monitor.hasCustomEndpointInfo();
