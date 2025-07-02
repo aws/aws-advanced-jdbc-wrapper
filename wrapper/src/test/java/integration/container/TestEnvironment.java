@@ -254,8 +254,7 @@ public class TestEnvironment {
 
     switch (testDriver) {
       case MYSQL:
-        driverCompatibleToDatabaseEngine =
-            databaseEngine == DatabaseEngine.MYSQL || databaseEngine == DatabaseEngine.MARIADB;
+        driverCompatibleToDatabaseEngine = databaseEngine == DatabaseEngine.MYSQL;
         disabledByFeature = features.contains(TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS);
         break;
       case PG:

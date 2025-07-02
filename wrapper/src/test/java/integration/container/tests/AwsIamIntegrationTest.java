@@ -19,7 +19,6 @@ package integration.container.tests;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import integration.DatabaseEngineDeployment;
 import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
@@ -28,7 +27,6 @@ import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestDriver;
 import integration.container.condition.DisableOnTestFeature;
-import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnTestFeature;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
