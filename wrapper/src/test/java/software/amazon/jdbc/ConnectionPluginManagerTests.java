@@ -95,6 +95,7 @@ public class ConnectionPluginManagerTests {
   void init() {
     closeable = MockitoAnnotations.openMocks(this);
     when(mockServicesContainer.getPluginService()).thenReturn(mockPluginService);
+    when(mockServicesContainer.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
     when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);

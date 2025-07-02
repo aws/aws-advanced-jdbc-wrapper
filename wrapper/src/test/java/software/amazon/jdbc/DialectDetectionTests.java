@@ -52,6 +52,7 @@ import software.amazon.jdbc.dialect.RdsPgDialect;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.storage.StorageService;
 
 public class DialectDetectionTests {
   private static final String LOCALHOST = "localhost";
@@ -65,6 +66,7 @@ public class DialectDetectionTests {
   private AutoCloseable closeable;
   @Mock private FullServicesContainer mockServicesContainer;
   @Mock private HostListProviderService mockHostListProviderService;
+  @Mock private StorageService mockStorageService;
   @Mock private Connection mockConnection;
   @Mock private Statement mockStatement;
   @Mock private ResultSet mockSuccessResultSet;
@@ -79,6 +81,7 @@ public class DialectDetectionTests {
     closeable = MockitoAnnotations.openMocks(this);
     when(this.mockServicesContainer.getHostListProviderService()).thenReturn(mockHostListProviderService);
     when(this.mockServicesContainer.getConnectionPluginManager()).thenReturn(mockPluginManager);
+    when(this.mockServicesContainer.getStorageService()).thenReturn(mockStorageService);
     when(this.mockConnection.createStatement()).thenReturn(this.mockStatement);
     when(this.mockHost.getUrl()).thenReturn("url");
     when(this.mockFailResultSet.next()).thenReturn(false);
@@ -92,7 +95,7 @@ public class DialectDetectionTests {
   }
 
   PluginServiceImpl getPluginService(String host, String protocol) throws SQLException {
-    return spy(
+    PluginServiceImpl pluginService = spy(
         new PluginServiceImpl(
             mockServicesContainer,
             new ExceptionManager(),
@@ -103,6 +106,9 @@ public class DialectDetectionTests {
             mockTargetDriverDialect,
             null,
             null));
+
+    when(this.mockServicesContainer.getHostListProviderService()).thenReturn(pluginService);
+    return pluginService;
   }
 
   @ParameterizedTest
