@@ -238,6 +238,7 @@ public class BlueGreenDeploymentTests {
             hostId, host, testInstance.getPort(), dbName, startLatchAtomic, stop, finishLatchAtomic,
             results.get(hostId)));
         threadCount++;
+        threadFinishCount++;
 
         threads.add(getBlueDnsMonitoringThread(
             hostId, host, startLatchAtomic, stop, finishLatchAtomic, results.get(hostId)));

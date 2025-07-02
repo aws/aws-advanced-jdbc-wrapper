@@ -824,9 +824,15 @@ public class TestEnvironment implements AutoCloseable {
           throw new RuntimeException(e);
         }
       }
-      env.auroraUtil.ec2DeauthorizesIP(env.runnerIP);
-      LOGGER.finest(String.format("Test runner IP %s de-authorized. Usage count: %d",
-          env.runnerIP, ipAddressUsageRefCount.get()));
+
+      if (!env.reuseDb) {
+        env.auroraUtil.ec2DeauthorizesIP(env.runnerIP);
+        LOGGER.finest(String.format("Test runner IP %s de-authorized. Usage count: %d",
+            env.runnerIP, ipAddressUsageRefCount.get()));
+      } else {
+        LOGGER.finest("The IP address usage count hit 0, but the REUSE_RDS_DB was set to true, so IP "
+            + "de-authorization was skipped.");
+      }
     } else {
       LOGGER.finest("IP usage count: " + ipAddressUsageRefCount.get());
     }
@@ -1515,10 +1521,12 @@ public class TestEnvironment implements AutoCloseable {
   }
 
   private void deleteCustomClusterParameterGroup(String groupName) {
-    try {
-      this.auroraUtil.deleteCustomClusterParameterGroup(groupName);
-    } catch (Exception ex) {
-      LOGGER.finest(String.format("Error deleting cluster parameter group %s. %s", groupName, ex));
+    if (!this.reuseDb) {
+      try {
+        this.auroraUtil.deleteCustomClusterParameterGroup(groupName);
+      } catch (Exception ex) {
+        LOGGER.finest(String.format("Error deleting cluster parameter group %s. %s", groupName, ex));
+      }
     }
   }
 
