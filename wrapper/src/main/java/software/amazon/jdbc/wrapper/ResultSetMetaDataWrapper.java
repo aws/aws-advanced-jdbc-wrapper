@@ -20,6 +20,7 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.ConnectionPluginManager;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.util.WrapperUtils;
 
 public class ResultSetMetaDataWrapper implements ResultSetMetaData {
@@ -36,254 +37,338 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
 
   @Override
   public int getColumnCount() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.resultSetMetaData,
-        "ResultSetMetaData.getColumnCount",
-        () -> this.resultSetMetaData.getColumnCount());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSETMETADATA_GETCOLUMNCOUNT)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.resultSetMetaData,
+          JdbcMethod.RESULTSETMETADATA_GETCOLUMNCOUNT,
+          () -> this.resultSetMetaData.getColumnCount());
+    } else {
+      return this.resultSetMetaData.getColumnCount();
+    }
   }
 
   @Override
   public boolean isAutoIncrement(int column) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
-        SQLException.class,
-        this.pluginManager,
-        this.resultSetMetaData,
-        "ResultSetMetaData.isAutoIncrement",
-        () -> this.resultSetMetaData.isAutoIncrement(column),
-        column);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSETMETADATA_ISAUTOINCREMENT)) {
+      return WrapperUtils.executeWithPlugins(
+          boolean.class,
+          SQLException.class,
+          this.pluginManager,
+          this.resultSetMetaData,
+          JdbcMethod.RESULTSETMETADATA_ISAUTOINCREMENT,
+          () -> this.resultSetMetaData.isAutoIncrement(column),
+          column);
+    } else {
+      return this.resultSetMetaData.isAutoIncrement(column);
+    }
   }
 
   @Override
   public boolean isCaseSensitive(int column) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
-        SQLException.class,
-        this.pluginManager,
-        this.resultSetMetaData,
-        "ResultSetMetaData.isCaseSensitive",
-        () -> this.resultSetMetaData.isCaseSensitive(column),
-        column);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSETMETADATA_ISCASESENSITIVE)) {
+      return WrapperUtils.executeWithPlugins(
+          boolean.class,
+          SQLException.class,
+          this.pluginManager,
+          this.resultSetMetaData,
+          JdbcMethod.RESULTSETMETADATA_ISCASESENSITIVE,
+          () -> this.resultSetMetaData.isCaseSensitive(column),
+          column);
+    } else {
+      return this.resultSetMetaData.isCaseSensitive(column);
+    }
   }
 
   @Override
   public boolean isSearchable(int column) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
-        SQLException.class,
-        this.pluginManager,
-        this.resultSetMetaData,
-        "ResultSetMetaData.isSearchable",
-        () -> this.resultSetMetaData.isSearchable(column),
-        column);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSETMETADATA_ISSEARCHABLE)) {
+      return WrapperUtils.executeWithPlugins(
+          boolean.class,
+          SQLException.class,
+          this.pluginManager,
+          this.resultSetMetaData,
+          JdbcMethod.RESULTSETMETADATA_ISSEARCHABLE,
+          () -> this.resultSetMetaData.isSearchable(column),
+          column);
+    } else {
+      return this.resultSetMetaData.isSearchable(column);
+    }
   }
 
   @Override
   public boolean isCurrency(int column) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
-        SQLException.class,
-        this.pluginManager,
-        this.resultSetMetaData,
-        "ResultSetMetaData.isCurrency",
-        () -> this.resultSetMetaData.isCurrency(column),
-        column);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSETMETADATA_ISCURRENCY)) {
+      return WrapperUtils.executeWithPlugins(
+          boolean.class,
+          SQLException.class,
+          this.pluginManager,
+          this.resultSetMetaData,
+          JdbcMethod.RESULTSETMETADATA_ISCURRENCY,
+          () -> this.resultSetMetaData.isCurrency(column),
+          column);
+    } else {
+      return this.resultSetMetaData.isCurrency(column);
+    }
   }
 
   @Override
   public int isNullable(int column) throws SQLException {
-    //noinspection MagicConstant
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.resultSetMetaData,
-        "ResultSetMetaData.isNullable",
-        () -> this.resultSetMetaData.isNullable(column),
-        column);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSETMETADATA_ISNULLABLE)) {
+      //noinspection MagicConstant
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.resultSetMetaData,
+          JdbcMethod.RESULTSETMETADATA_ISNULLABLE,
+          () -> this.resultSetMetaData.isNullable(column),
+          column);
+    } else {
+      return this.resultSetMetaData.isNullable(column);
+    }
   }
 
   @Override
   public boolean isSigned(int column) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
-        SQLException.class,
-        this.pluginManager,
-        this.resultSetMetaData,
-        "ResultSetMetaData.isSigned",
-        () -> this.resultSetMetaData.isSigned(column),
-        column);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSETMETADATA_ISSIGNED)) {
+      return WrapperUtils.executeWithPlugins(
+          boolean.class,
+          SQLException.class,
+          this.pluginManager,
+          this.resultSetMetaData,
+          JdbcMethod.RESULTSETMETADATA_ISSIGNED,
+          () -> this.resultSetMetaData.isSigned(column),
+          column);
+    } else {
+      return this.resultSetMetaData.isSigned(column);
+    }
   }
 
   @Override
   public int getColumnDisplaySize(int column) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.resultSetMetaData,
-        "ResultSetMetaData.getColumnDisplaySize",
-        () -> this.resultSetMetaData.getColumnDisplaySize(column),
-        column);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSETMETADATA_GETCOLUMNDISPLAYSIZE)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.resultSetMetaData,
+          JdbcMethod.RESULTSETMETADATA_GETCOLUMNDISPLAYSIZE,
+          () -> this.resultSetMetaData.getColumnDisplaySize(column),
+          column);
+    } else {
+      return this.resultSetMetaData.getColumnDisplaySize(column);
+    }
   }
 
   @Override
   public String getColumnLabel(int column) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        SQLException.class,
-        this.pluginManager,
-        this.resultSetMetaData,
-        "ResultSetMetaData.getColumnLabel",
-        () -> this.resultSetMetaData.getColumnLabel(column),
-        column);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSETMETADATA_GETCOLUMNLABEL)) {
+      return WrapperUtils.executeWithPlugins(
+          String.class,
+          SQLException.class,
+          this.pluginManager,
+          this.resultSetMetaData,
+          JdbcMethod.RESULTSETMETADATA_GETCOLUMNLABEL,
+          () -> this.resultSetMetaData.getColumnLabel(column),
+          column);
+    } else {
+      return this.resultSetMetaData.getColumnLabel(column);
+    }
   }
 
   @Override
   public String getColumnName(int column) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        SQLException.class,
-        this.pluginManager,
-        this.resultSetMetaData,
-        "ResultSetMetaData.getColumnName",
-        () -> this.resultSetMetaData.getColumnName(column),
-        column);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSETMETADATA_GETCOLUMNNAME)) {
+      return WrapperUtils.executeWithPlugins(
+          String.class,
+          SQLException.class,
+          this.pluginManager,
+          this.resultSetMetaData,
+          JdbcMethod.RESULTSETMETADATA_GETCOLUMNNAME,
+          () -> this.resultSetMetaData.getColumnName(column),
+          column);
+    } else {
+      return this.resultSetMetaData.getColumnName(column);
+    }
   }
 
   @Override
   public String getSchemaName(int column) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        SQLException.class,
-        this.pluginManager,
-        this.resultSetMetaData,
-        "ResultSetMetaData.getSchemaName",
-        () -> this.resultSetMetaData.getSchemaName(column),
-        column);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSETMETADATA_GETSCHEMANAME)) {
+      return WrapperUtils.executeWithPlugins(
+          String.class,
+          SQLException.class,
+          this.pluginManager,
+          this.resultSetMetaData,
+          JdbcMethod.RESULTSETMETADATA_GETSCHEMANAME,
+          () -> this.resultSetMetaData.getSchemaName(column),
+          column);
+    } else {
+      return this.resultSetMetaData.getSchemaName(column);
+    }
   }
 
   @Override
   public int getPrecision(int column) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.resultSetMetaData,
-        "ResultSetMetaData.getPrecision",
-        () -> this.resultSetMetaData.getPrecision(column),
-        column);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSETMETADATA_GETPRECISION)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.resultSetMetaData,
+          JdbcMethod.RESULTSETMETADATA_GETPRECISION,
+          () -> this.resultSetMetaData.getPrecision(column),
+          column);
+    } else {
+      return this.resultSetMetaData.getPrecision(column);
+    }
   }
 
   @Override
   public int getScale(int column) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.resultSetMetaData,
-        "ResultSetMetaData.getScale",
-        () -> this.resultSetMetaData.getScale(column),
-        column);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSETMETADATA_GETSCALE)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.resultSetMetaData,
+          JdbcMethod.RESULTSETMETADATA_GETSCALE,
+          () -> this.resultSetMetaData.getScale(column),
+          column);
+    } else {
+      return this.resultSetMetaData.getScale(column);
+    }
   }
 
   @Override
   public String getTableName(int column) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        SQLException.class,
-        this.pluginManager,
-        this.resultSetMetaData,
-        "ResultSetMetaData.getTableName",
-        () -> this.resultSetMetaData.getTableName(column),
-        column);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSETMETADATA_GETTABLENAME)) {
+      return WrapperUtils.executeWithPlugins(
+          String.class,
+          SQLException.class,
+          this.pluginManager,
+          this.resultSetMetaData,
+          JdbcMethod.RESULTSETMETADATA_GETTABLENAME,
+          () -> this.resultSetMetaData.getTableName(column),
+          column);
+    } else {
+      return this.resultSetMetaData.getTableName(column);
+    }
   }
 
   @Override
   public String getCatalogName(int column) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        SQLException.class,
-        this.pluginManager,
-        this.resultSetMetaData,
-        "ResultSetMetaData.getCatalogName",
-        () -> this.resultSetMetaData.getCatalogName(column),
-        column);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSETMETADATA_GETCATALOGNAME)) {
+      return WrapperUtils.executeWithPlugins(
+          String.class,
+          SQLException.class,
+          this.pluginManager,
+          this.resultSetMetaData,
+          JdbcMethod.RESULTSETMETADATA_GETCATALOGNAME,
+          () -> this.resultSetMetaData.getCatalogName(column),
+          column);
+    } else {
+      return this.resultSetMetaData.getCatalogName(column);
+    }
   }
 
   @Override
   public int getColumnType(int column) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.resultSetMetaData,
-        "ResultSetMetaData.getColumnType",
-        () -> this.resultSetMetaData.getColumnType(column),
-        column);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSETMETADATA_GETCOLUMNTYPE)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.resultSetMetaData,
+          JdbcMethod.RESULTSETMETADATA_GETCOLUMNTYPE,
+          () -> this.resultSetMetaData.getColumnType(column),
+          column);
+    } else {
+      return this.resultSetMetaData.getColumnType(column);
+    }
   }
 
   @Override
   public String getColumnTypeName(int column) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        SQLException.class,
-        this.pluginManager,
-        this.resultSetMetaData,
-        "ResultSetMetaData.getColumnTypeName",
-        () -> this.resultSetMetaData.getColumnTypeName(column),
-        column);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSETMETADATA_GETCOLUMNTYPENAME)) {
+      return WrapperUtils.executeWithPlugins(
+          String.class,
+          SQLException.class,
+          this.pluginManager,
+          this.resultSetMetaData,
+          JdbcMethod.RESULTSETMETADATA_GETCOLUMNTYPENAME,
+          () -> this.resultSetMetaData.getColumnTypeName(column),
+          column);
+    } else {
+      return this.resultSetMetaData.getColumnTypeName(column);
+    }
   }
 
   @Override
   public boolean isReadOnly(int column) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
-        SQLException.class,
-        this.pluginManager,
-        this.resultSetMetaData,
-        "ResultSetMetaData.isReadOnly",
-        () -> this.resultSetMetaData.isReadOnly(column),
-        column);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSETMETADATA_ISREADONLY)) {
+      return WrapperUtils.executeWithPlugins(
+          boolean.class,
+          SQLException.class,
+          this.pluginManager,
+          this.resultSetMetaData,
+          JdbcMethod.RESULTSETMETADATA_ISREADONLY,
+          () -> this.resultSetMetaData.isReadOnly(column),
+          column);
+    } else {
+      return this.resultSetMetaData.isReadOnly(column);
+    }
   }
 
   @Override
   public boolean isWritable(int column) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
-        SQLException.class,
-        this.pluginManager,
-        this.resultSetMetaData,
-        "ResultSetMetaData.isWritable",
-        () -> this.resultSetMetaData.isWritable(column),
-        column);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSETMETADATA_ISWRITABLE)) {
+      return WrapperUtils.executeWithPlugins(
+          boolean.class,
+          SQLException.class,
+          this.pluginManager,
+          this.resultSetMetaData,
+          JdbcMethod.RESULTSETMETADATA_ISWRITABLE,
+          () -> this.resultSetMetaData.isWritable(column),
+          column);
+    } else {
+      return this.resultSetMetaData.isWritable(column);
+    }
   }
 
   @Override
   public boolean isDefinitelyWritable(int column) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
-        SQLException.class,
-        this.pluginManager,
-        this.resultSetMetaData,
-        "ResultSetMetaData.isDefinitelyWritable",
-        () -> this.resultSetMetaData.isDefinitelyWritable(column),
-        column);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSETMETADATA_ISDEFINITELYWRITABLE)) {
+      return WrapperUtils.executeWithPlugins(
+          boolean.class,
+          SQLException.class,
+          this.pluginManager,
+          this.resultSetMetaData,
+          JdbcMethod.RESULTSETMETADATA_ISDEFINITELYWRITABLE,
+          () -> this.resultSetMetaData.isDefinitelyWritable(column),
+          column);
+    } else {
+      return this.resultSetMetaData.isDefinitelyWritable(column);
+    }
   }
 
   @Override
   public String getColumnClassName(int column) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        SQLException.class,
-        this.pluginManager,
-        this.resultSetMetaData,
-        "ResultSetMetaData.getColumnClassName",
-        () -> this.resultSetMetaData.getColumnClassName(column),
-        column);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSETMETADATA_GETCOLUMNCLASSNAME)) {
+      return WrapperUtils.executeWithPlugins(
+          String.class,
+          SQLException.class,
+          this.pluginManager,
+          this.resultSetMetaData,
+          JdbcMethod.RESULTSETMETADATA_GETCOLUMNCLASSNAME,
+          () -> this.resultSetMetaData.getColumnClassName(column),
+          column);
+    } else {
+      return this.resultSetMetaData.getColumnClassName(column);
+    }
   }
 
   @Override

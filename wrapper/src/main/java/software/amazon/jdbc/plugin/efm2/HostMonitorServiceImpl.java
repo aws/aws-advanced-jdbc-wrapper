@@ -138,7 +138,9 @@ public class HostMonitorServiceImpl implements HostMonitorService {
       try {
         connectionToAbort.abort(ABORT_EXECUTOR);
         connectionToAbort.close();
-        this.abortedConnectionsCounter.inc();
+        if (this.abortedConnectionsCounter != null) {
+          this.abortedConnectionsCounter.inc();
+        }
       } catch (final SQLException sqlEx) {
         // ignore
         LOGGER.finest(

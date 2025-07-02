@@ -150,7 +150,9 @@ public class HostMonitorConnectionContext {
     try {
       this.connectionToAbort.abort(ABORT_EXECUTOR);
       this.connectionToAbort.close();
-      this.abortedConnectionsCounter.inc();
+      if (this.abortedConnectionsCounter != null) {
+        this.abortedConnectionsCounter.inc();
+      }
     } catch (final SQLException sqlEx) {
       // ignore
       LOGGER.finest(

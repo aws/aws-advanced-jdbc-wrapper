@@ -1,7 +1,7 @@
 # Release Schedule
 
-| Release Date       | Release                                                                                  |
-|--------------------|------------------------------------------------------------------------------------------|
+| Release Date       | Release                                                                              |
+|--------------------|--------------------------------------------------------------------------------------|
 | October 5, 2022    | [Release 1.0.0](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/1.0.0) |  
 | January 31, 2023   | [Release 1.0.1](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/1.0.1) | 
 | Mar 30, 2023       | [Release 1.0.2](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/1.0.2) |
@@ -32,6 +32,7 @@
 | December 23, 2024  | [Release 2.5.4](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/2.5.4) |
 | March 6, 2025      | [Release 2.5.5](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/2.5.5) |
 | April 9, 2025      | [Release 2.5.6](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/2.5.6) |
+| June 10, 2025      | [Release 2.6.0](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/2.6.0) |
 
 `aws-advanced-jdbc-wrapper` [follows semver](https://semver.org/#semantic-versioning-200) which means we will only
 release breaking changes in major versions. Generally speaking patches will be released to fix existing problems without
@@ -85,4 +86,4 @@ from the updated source after the PRs are merged.
 | Major Version | Latest Minor Version | Status      | Initial Release | Maintenance Window Start | Maintenance Window End |
 |---------------|----------------------|-------------|-----------------|--------------------------|------------------------|
 | 1             | 1.0.2                | Maintenance | Oct 5, 2022     | Apr 28, 2023             | Apr 28, 2024           | 
-| 2             | 2.5.6                | Current     | Apr 28, 2023    | N/A                      | N/A                    | 
+| 2             | 2.6.0                | Current     | Apr 28, 2023    | N/A                      | N/A                    | 

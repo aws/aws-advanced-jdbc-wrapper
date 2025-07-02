@@ -85,7 +85,7 @@ public class NodeResponseTimeMonitor implements AutoCloseable, Runnable {
 
     // Report current response time (in milliseconds) to telemetry engine.
     // Report -1 if response time couldn't be measured.
-    this.responseTimeMsGauge = telemetryFactory.createGauge(
+    this.responseTimeMsGauge = this.telemetryFactory.createGauge(
         String.format("frt.response.time.%s", nodeId),
         () -> this.responseTime.get() == Integer.MAX_VALUE ? -1 : (long) this.responseTime.get());
 
@@ -126,9 +126,11 @@ public class NodeResponseTimeMonitor implements AutoCloseable, Runnable {
 
   @Override
   public void run() {
-    TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
+    TelemetryContext telemetryContext = this.telemetryFactory.openTelemetryContext(
         "node response time thread", TelemetryTraceLevel.TOP_LEVEL);
-    telemetryContext.setAttribute("url", hostSpec.getUrl());
+    if (telemetryContext != null) {
+      telemetryContext.setAttribute("url", hostSpec.getUrl());
+    }
 
     try {
       while (!this.stopped.get()) {

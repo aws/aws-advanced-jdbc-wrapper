@@ -245,11 +245,15 @@ public class Driver implements java.sql.Driver {
           configurationProfile);
 
     } catch (Exception ex) {
-      context.setException(ex);
-      context.setSuccess(false);
+      if (context != null) {
+        context.setException(ex);
+        context.setSuccess(false);
+      }
       throw ex;
     } finally {
-      context.closeContext();
+      if (context != null) {
+        context.closeContext();
+      }
     }
   }
 

@@ -41,6 +41,7 @@ import java.sql.Timestamp;
 import java.util.Calendar;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.ConnectionPluginManager;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.util.WrapperUtils;
 
 public class PreparedStatementWrapper implements PreparedStatement {
@@ -56,167 +57,227 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
   @Override
   public void addBatch() throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.addBatch",
-        () -> this.statement.addBatch());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_ADDBATCH)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_ADDBATCH,
+          () -> this.statement.addBatch());
+    } else {
+      this.statement.addBatch();
+    }
   }
 
   @Override
   public void addBatch(String sql) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.addBatch",
-        () -> this.statement.addBatch(sql),
-        sql);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_ADDBATCH)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_ADDBATCH,
+          () -> this.statement.addBatch(sql),
+          sql);
+    } else {
+      this.statement.addBatch(sql);
+    }
   }
 
   @Override
   public void cancel() throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.cancel",
-        () -> this.statement.cancel());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_CANCEL)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_CANCEL,
+          () -> this.statement.cancel());
+    } else {
+      this.statement.cancel();
+    }
   }
 
   @Override
   public void clearBatch() throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.clearBatch",
-        () -> this.statement.clearBatch());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_CLEARBATCH)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_CLEARBATCH,
+          () -> this.statement.clearBatch());
+    } else {
+      this.statement.clearBatch();
+    }
   }
 
   @Override
   public void clearParameters() throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.clearParameters",
-        () -> this.statement.clearParameters());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_CLEARPARAMETERS)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_CLEARPARAMETERS,
+          () -> this.statement.clearParameters());
+    } else {
+      this.statement.clearParameters();
+    }
   }
 
   @Override
   public void clearWarnings() throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.clearWarnings",
-        () -> this.statement.clearWarnings());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_CLEARWARNINGS)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_CLEARWARNINGS,
+          () -> this.statement.clearWarnings());
+    } else {
+      this.statement.clearWarnings();
+    }
   }
 
   @Override
   public void close() throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.close",
-        () -> this.statement.close());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_CLOSE)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_CLOSE,
+          () -> this.statement.close());
+    } else {
+      this.statement.close();
+    }
   }
 
   @Override
   public void closeOnCompletion() throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.closeOnCompletion",
-        () -> this.statement.closeOnCompletion());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_CLOSEONCOMPLETION)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_CLOSEONCOMPLETION,
+          () -> this.statement.closeOnCompletion());
+    } else {
+      this.statement.closeOnCompletion();
+    }
   }
 
   @Override
   public boolean execute() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.execute",
-        () -> this.statement.execute());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_EXECUTE)) {
+      return WrapperUtils.executeWithPlugins(
+          boolean.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTE,
+          () -> this.statement.execute());
+    } else {
+      return this.statement.execute();
+    }
   }
 
   @Override
   public boolean execute(String sql) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.execute",
-        () -> this.statement.execute(sql),
-        sql);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_EXECUTE)) {
+      return WrapperUtils.executeWithPlugins(
+          boolean.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTE,
+          () -> this.statement.execute(sql),
+          sql);
+    } else {
+      return this.statement.execute(sql);
+    }
   }
 
   @Override
   public boolean execute(String sql, int autoGeneratedKeys) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.execute",
-        () -> this.statement.execute(sql, autoGeneratedKeys),
-        sql,
-        autoGeneratedKeys);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_EXECUTE)) {
+      return WrapperUtils.executeWithPlugins(
+          boolean.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTE,
+          () -> this.statement.execute(sql, autoGeneratedKeys),
+          sql,
+          autoGeneratedKeys);
+    } else {
+      return this.statement.execute(sql, autoGeneratedKeys);
+    }
   }
 
   @Override
   public boolean execute(String sql, int[] columnIndexes) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.execute",
-        () -> this.statement.execute(sql, columnIndexes),
-        sql,
-        columnIndexes);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_EXECUTE)) {
+      return WrapperUtils.executeWithPlugins(
+          boolean.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTE,
+          () -> this.statement.execute(sql, columnIndexes),
+          sql,
+          columnIndexes);
+    } else {
+      return this.statement.execute(sql, columnIndexes);
+    }
   }
 
   @Override
   public boolean execute(String sql, String[] columnNames) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.execute",
-        () -> this.statement.execute(sql, columnNames),
-        sql,
-        columnNames);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_EXECUTE)) {
+      return WrapperUtils.executeWithPlugins(
+          boolean.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTE,
+          () -> this.statement.execute(sql, columnNames),
+          sql,
+          columnNames);
+    } else {
+      return this.statement.execute(sql, columnNames);
+    }
   }
 
   @Override
   public int[] executeBatch() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int[].class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.executeBatch",
-        () -> this.statement.executeBatch());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_EXECUTEBATCH)) {
+      return WrapperUtils.executeWithPlugins(
+          int[].class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTEBATCH,
+          () -> this.statement.executeBatch());
+    } else {
+      return this.statement.executeBatch();
+    }
   }
 
   @Override
   public long executeLargeUpdate() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        long.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.executeLargeUpdate",
-        () -> this.statement.executeLargeUpdate());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_EXECUTELARGEUPDATE)) {
+      return WrapperUtils.executeWithPlugins(
+          long.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTELARGEUPDATE,
+          () -> this.statement.executeLargeUpdate());
+    } else {
+      return this.statement.executeLargeUpdate();
+    }
   }
 
   @Override
@@ -226,7 +287,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
         SQLException.class,
         this.pluginManager,
         this.statement,
-        "PreparedStatement.executeQuery",
+        JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY,
         () -> this.statement.executeQuery());
   }
 
@@ -237,71 +298,91 @@ public class PreparedStatementWrapper implements PreparedStatement {
         SQLException.class,
         this.pluginManager,
         this.statement,
-        "PreparedStatement.executeQuery",
+        JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY,
         () -> this.statement.executeQuery(sql),
         sql);
   }
 
   @Override
   public int executeUpdate() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.executeUpdate",
-        () -> this.statement.executeUpdate());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE,
+          () -> this.statement.executeUpdate());
+    } else {
+      return this.statement.executeUpdate();
+    }
   }
 
   @Override
   public int executeUpdate(String sql) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.executeUpdate",
-        () -> this.statement.executeUpdate(sql),
-        sql);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE,
+          () -> this.statement.executeUpdate(sql),
+          sql);
+    } else {
+      return this.statement.executeUpdate(sql);
+    }
   }
 
   @Override
   public int executeUpdate(String sql, int autoGeneratedKeys) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.executeUpdate",
-        () -> this.statement.executeUpdate(sql, autoGeneratedKeys),
-        sql,
-        autoGeneratedKeys);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE,
+          () -> this.statement.executeUpdate(sql, autoGeneratedKeys),
+          sql,
+          autoGeneratedKeys);
+    } else {
+      return this.statement.executeUpdate(sql, autoGeneratedKeys);
+    }
   }
 
   @Override
   public int executeUpdate(String sql, int[] columnIndexes) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.executeUpdate",
-        () -> this.statement.executeUpdate(sql, columnIndexes),
-        sql,
-        columnIndexes);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE,
+          () -> this.statement.executeUpdate(sql, columnIndexes),
+          sql,
+          columnIndexes);
+    } else {
+      return this.statement.executeUpdate(sql, columnIndexes);
+    }
   }
 
   @Override
   public int executeUpdate(String sql, String[] columnNames) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.executeUpdate",
-        () -> this.statement.executeUpdate(sql, columnNames),
-        sql,
-        columnNames);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE,
+          () -> this.statement.executeUpdate(sql, columnNames),
+          sql,
+          columnNames);
+    } else {
+      return this.statement.executeUpdate(sql, columnNames);
+    }
   }
 
   @Override
@@ -311,31 +392,39 @@ public class PreparedStatementWrapper implements PreparedStatement {
         SQLException.class,
         this.pluginManager,
         this.statement,
-        "PreparedStatement.getConnection",
+        JdbcMethod.PREPAREDSTATEMENT_GETCONNECTION,
         () -> this.pluginManager.getConnectionWrapper());
   }
 
   @SuppressWarnings("MagicConstant")
   @Override
   public int getFetchDirection() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.getFetchDirection",
-        () -> this.statement.getFetchDirection());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_GETFETCHDIRECTION)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_GETFETCHDIRECTION,
+          () -> this.statement.getFetchDirection());
+    } else {
+      return this.statement.getFetchDirection();
+    }
   }
 
   @Override
   public int getFetchSize() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.getFetchSize",
-        () -> this.statement.getFetchSize());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_GETFETCHSIZE)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_GETFETCHSIZE,
+          () -> this.statement.getFetchSize());
+    } else {
+      return this.statement.getFetchSize();
+    }
   }
 
   @Override
@@ -345,30 +434,38 @@ public class PreparedStatementWrapper implements PreparedStatement {
         SQLException.class,
         this.pluginManager,
         this.statement,
-        "PreparedStatement.getGeneratedKeys",
+        JdbcMethod.PREPAREDSTATEMENT_GETGENERATEDKEYS,
         () -> this.statement.getGeneratedKeys());
   }
 
   @Override
   public int getMaxFieldSize() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.getMaxFieldSize",
-        () -> this.statement.getMaxFieldSize());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_GETMAXFIELDSIZE)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_GETMAXFIELDSIZE,
+          () -> this.statement.getMaxFieldSize());
+    } else {
+      return this.statement.getMaxFieldSize();
+    }
   }
 
   @Override
   public int getMaxRows() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.getMaxRows",
-        () -> this.statement.getMaxRows());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_GETMAXROWS)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_GETMAXROWS,
+          () -> this.statement.getMaxRows());
+    } else {
+      return this.statement.getMaxRows();
+    }
   }
 
   @Override
@@ -378,31 +475,39 @@ public class PreparedStatementWrapper implements PreparedStatement {
         SQLException.class,
         this.pluginManager,
         this.statement,
-        "PreparedStatement.getMetaData",
+        JdbcMethod.PREPAREDSTATEMENT_GETMETADATA,
         () -> this.statement.getMetaData());
   }
 
   @Override
   public boolean getMoreResults() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.getMoreResults",
-        () -> this.statement.getMoreResults());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_GETMORERESULTS)) {
+      return WrapperUtils.executeWithPlugins(
+          boolean.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_GETMORERESULTS,
+          () -> this.statement.getMoreResults());
+    } else {
+      return this.statement.getMoreResults();
+    }
   }
 
   @Override
   public boolean getMoreResults(int current) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.getMoreResults",
-        () -> this.statement.getMoreResults(current),
-        current);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_GETMORERESULTS)) {
+      return WrapperUtils.executeWithPlugins(
+          boolean.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_GETMORERESULTS,
+          () -> this.statement.getMoreResults(current),
+          current);
+    } else {
+      return this.statement.getMoreResults(current);
+    }
   }
 
   @Override
@@ -412,19 +517,23 @@ public class PreparedStatementWrapper implements PreparedStatement {
         SQLException.class,
         this.pluginManager,
         this.statement,
-        "PreparedStatement.getParameterMetaData",
+        JdbcMethod.PREPAREDSTATEMENT_GETPARAMETERMETADATA,
         () -> this.statement.getParameterMetaData());
   }
 
   @Override
   public int getQueryTimeout() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.getQueryTimeout",
-        () -> this.statement.getQueryTimeout());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_GETQUERYTIMEOUT)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_GETQUERYTIMEOUT,
+          () -> this.statement.getQueryTimeout());
+    } else {
+      return this.statement.getQueryTimeout();
+    }
   }
 
   @Override
@@ -434,99 +543,131 @@ public class PreparedStatementWrapper implements PreparedStatement {
         SQLException.class,
         this.pluginManager,
         this.statement,
-        "PreparedStatement.getResultSet",
+        JdbcMethod.PREPAREDSTATEMENT_GETRESULTSET,
         () -> this.statement.getResultSet());
   }
 
   @SuppressWarnings("MagicConstant")
   @Override
   public int getResultSetConcurrency() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.getResultSetConcurrency",
-        () -> this.statement.getResultSetConcurrency());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_GETRESULTSETCONCURRENCY)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_GETRESULTSETCONCURRENCY,
+          () -> this.statement.getResultSetConcurrency());
+    } else {
+      return this.statement.getResultSetConcurrency();
+    }
   }
 
   @Override
   public int getResultSetHoldability() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.getResultSetHoldability",
-        () -> this.statement.getResultSetHoldability());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_GETRESULTSETHOLDABILITY)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_GETRESULTSETHOLDABILITY,
+          () -> this.statement.getResultSetHoldability());
+    } else {
+      return this.statement.getResultSetHoldability();
+    }
   }
 
   @SuppressWarnings("MagicConstant")
   @Override
   public int getResultSetType() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.getResultSetType",
-        () -> this.statement.getResultSetType());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_GETRESULTSETTYPE)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_GETRESULTSETTYPE,
+          () -> this.statement.getResultSetType());
+    } else {
+      return this.statement.getResultSetType();
+    }
   }
 
   @Override
   public int getUpdateCount() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.getUpdateCount",
-        () -> this.statement.getUpdateCount());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_GETUPDATECOUNT)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_GETUPDATECOUNT,
+          () -> this.statement.getUpdateCount());
+    } else {
+      return this.statement.getUpdateCount();
+    }
   }
 
   @Override
   public SQLWarning getWarnings() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        SQLWarning.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.getWarnings",
-        () -> this.statement.getWarnings());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_GETWARNINGS)) {
+      return WrapperUtils.executeWithPlugins(
+          SQLWarning.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_GETWARNINGS,
+          () -> this.statement.getWarnings());
+    } else {
+      return this.statement.getWarnings();
+    }
   }
 
   @Override
   public boolean isCloseOnCompletion() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.isCloseOnCompletion",
-        () -> this.statement.isCloseOnCompletion());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_ISCLOSEONCOMPLETION)) {
+      return WrapperUtils.executeWithPlugins(
+          boolean.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_ISCLOSEONCOMPLETION,
+          () -> this.statement.isCloseOnCompletion());
+    } else {
+      return this.statement.isCloseOnCompletion();
+    }
   }
 
   @Override
   public boolean isClosed() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.isClosed",
-        () -> this.statement.isClosed());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_ISCLOSED)) {
+      return WrapperUtils.executeWithPlugins(
+          boolean.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_ISCLOSED,
+          () -> this.statement.isClosed());
+    } else {
+      return this.statement.isClosed();
+    }
   }
 
   @SuppressWarnings("SpellCheckingInspection")
   @Override
   public boolean isPoolable() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.isPoolable",
-        () -> this.statement.isPoolable());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_ISPOOLABLE)) {
+      return WrapperUtils.executeWithPlugins(
+          boolean.class,
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_ISPOOLABLE,
+          () -> this.statement.isPoolable());
+    } else {
+      return this.statement.isPoolable();
+    }
   }
 
   @Override
@@ -536,720 +677,951 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
   @Override
   public void setArray(int parameterIndex, Array x) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setArray",
-        () -> this.statement.setArray(parameterIndex, x),
-        parameterIndex,
-        x);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETARRAY)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETARRAY,
+          () -> this.statement.setArray(parameterIndex, x),
+          parameterIndex,
+          x);
+    } else {
+      this.statement.setArray(parameterIndex, x);
+    }
   }
 
   @Override
   public void setAsciiStream(int parameterIndex, InputStream x, int length) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setAsciiStream",
-        () -> this.statement.setAsciiStream(parameterIndex, x, length),
-        parameterIndex,
-        x,
-        length);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETASCIISTREAM)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETASCIISTREAM,
+          () -> this.statement.setAsciiStream(parameterIndex, x, length),
+          parameterIndex,
+          x,
+          length);
+    } else {
+      this.statement.setAsciiStream(parameterIndex, x, length);
+    }
   }
 
   @Override
   public void setAsciiStream(int parameterIndex, InputStream x, long length) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setAsciiStream",
-        () -> this.statement.setAsciiStream(parameterIndex, x, length),
-        parameterIndex,
-        x,
-        length);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETASCIISTREAM)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETASCIISTREAM,
+          () -> this.statement.setAsciiStream(parameterIndex, x, length),
+          parameterIndex,
+          x,
+          length);
+    } else {
+      this.statement.setAsciiStream(parameterIndex, x, length);
+    }
   }
 
   @Override
   public void setAsciiStream(int parameterIndex, InputStream x) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setAsciiStream",
-        () -> this.statement.setAsciiStream(parameterIndex, x),
-        parameterIndex,
-        x);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETASCIISTREAM)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETASCIISTREAM,
+          () -> this.statement.setAsciiStream(parameterIndex, x),
+          parameterIndex,
+          x);
+    } else {
+      this.statement.setAsciiStream(parameterIndex, x);
+    }
   }
 
   @Override
   public void setBigDecimal(int parameterIndex, BigDecimal x) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setBigDecimal",
-        () -> this.statement.setBigDecimal(parameterIndex, x),
-        parameterIndex,
-        x);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBIGDECIMAL)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETBIGDECIMAL,
+          () -> this.statement.setBigDecimal(parameterIndex, x),
+          parameterIndex,
+          x);
+    } else {
+      this.statement.setBigDecimal(parameterIndex, x);
+    }
   }
 
   @Override
   public void setBinaryStream(int parameterIndex, InputStream x, int length) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setBinaryStream",
-        () -> this.statement.setBinaryStream(parameterIndex, x, length),
-        parameterIndex,
-        x,
-        length);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBINARYSTREAM)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETBINARYSTREAM,
+          () -> this.statement.setBinaryStream(parameterIndex, x, length),
+          parameterIndex,
+          x,
+          length);
+    } else {
+      this.statement.setBinaryStream(parameterIndex, x, length);
+    }
   }
 
   @Override
   public void setBinaryStream(int parameterIndex, InputStream x, long length) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setBinaryStream",
-        () -> this.statement.setBinaryStream(parameterIndex, x, length),
-        parameterIndex,
-        x,
-        length);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBINARYSTREAM)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETBINARYSTREAM,
+          () -> this.statement.setBinaryStream(parameterIndex, x, length),
+          parameterIndex,
+          x,
+          length);
+    } else {
+      this.statement.setBinaryStream(parameterIndex, x, length);
+    }
   }
 
   @Override
   public void setBinaryStream(int parameterIndex, InputStream x) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setBinaryStream",
-        () -> this.statement.setBinaryStream(parameterIndex, x),
-        parameterIndex,
-        x);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBINARYSTREAM)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETBINARYSTREAM,
+          () -> this.statement.setBinaryStream(parameterIndex, x),
+          parameterIndex,
+          x);
+    } else {
+      this.statement.setBinaryStream(parameterIndex, x);
+    }
   }
 
   @Override
   public void setBlob(int parameterIndex, Blob x) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setBlob",
-        () -> this.statement.setBlob(parameterIndex, x),
-        parameterIndex,
-        x);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBLOB)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETBLOB,
+          () -> this.statement.setBlob(parameterIndex, x),
+          parameterIndex,
+          x);
+    } else {
+      this.statement.setBlob(parameterIndex, x);
+    }
   }
 
   @Override
   public void setBlob(int parameterIndex, InputStream inputStream, long length)
       throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setBlob",
-        () -> this.statement.setBlob(parameterIndex, inputStream, length),
-        parameterIndex,
-        inputStream,
-        length);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBLOB)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETBLOB,
+          () -> this.statement.setBlob(parameterIndex, inputStream, length),
+          parameterIndex,
+          inputStream,
+          length);
+    } else {
+      this.statement.setBlob(parameterIndex, inputStream, length);
+    }
   }
 
   @Override
   public void setBlob(int parameterIndex, InputStream inputStream) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setBlob",
-        () -> this.statement.setBlob(parameterIndex, inputStream),
-        parameterIndex,
-        inputStream);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBLOB)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETBLOB,
+          () -> this.statement.setBlob(parameterIndex, inputStream),
+          parameterIndex,
+          inputStream);
+    } else {
+      this.statement.setBlob(parameterIndex, inputStream);
+    }
   }
 
   @Override
   public void setBoolean(int parameterIndex, boolean x) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setBoolean",
-        () -> this.statement.setBoolean(parameterIndex, x),
-        parameterIndex,
-        x);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBOOLEAN)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETBOOLEAN,
+          () -> this.statement.setBoolean(parameterIndex, x),
+          parameterIndex,
+          x);
+    } else {
+      this.statement.setBoolean(parameterIndex, x);
+    }
   }
 
   @Override
   public void setByte(int parameterIndex, byte x) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setByte",
-        () -> this.statement.setByte(parameterIndex, x),
-        parameterIndex,
-        x);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBYTE)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETBYTE,
+          () -> this.statement.setByte(parameterIndex, x),
+          parameterIndex,
+          x);
+    } else {
+      this.statement.setByte(parameterIndex, x);
+    }
   }
 
   @Override
   public void setBytes(int parameterIndex, byte[] x) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setBytes",
-        () -> this.statement.setBytes(parameterIndex, x),
-        parameterIndex,
-        x);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBYTES)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETBYTES,
+          () -> this.statement.setBytes(parameterIndex, x),
+          parameterIndex,
+          x);
+    } else {
+      this.statement.setBytes(parameterIndex, x);
+    }
   }
 
   @Override
   public void setCharacterStream(int parameterIndex, Reader reader, int length)
       throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setCharacterStream",
-        () -> this.statement.setCharacterStream(parameterIndex, reader, length),
-        parameterIndex,
-        reader,
-        length);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETCHARACTERSTREAM)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETCHARACTERSTREAM,
+          () -> this.statement.setCharacterStream(parameterIndex, reader, length),
+          parameterIndex,
+          reader,
+          length);
+    } else {
+      this.statement.setCharacterStream(parameterIndex, reader, length);
+    }
   }
 
   @Override
   public void setCharacterStream(int parameterIndex, Reader reader, long length)
       throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setCharacterStream",
-        () -> this.statement.setCharacterStream(parameterIndex, reader, length),
-        parameterIndex,
-        reader,
-        length);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETCHARACTERSTREAM)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETCHARACTERSTREAM,
+          () -> this.statement.setCharacterStream(parameterIndex, reader, length),
+          parameterIndex,
+          reader,
+          length);
+    } else {
+      this.statement.setCharacterStream(parameterIndex, reader, length);
+    }
   }
 
   @Override
   public void setCharacterStream(int parameterIndex, Reader reader) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setCharacterStream",
-        () -> this.statement.setCharacterStream(parameterIndex, reader),
-        parameterIndex,
-        reader);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETCHARACTERSTREAM)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETCHARACTERSTREAM,
+          () -> this.statement.setCharacterStream(parameterIndex, reader),
+          parameterIndex,
+          reader);
+    } else {
+      this.statement.setCharacterStream(parameterIndex, reader);
+    }
   }
 
   @Override
   public void setClob(int parameterIndex, Clob x) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setClob",
-        () -> this.statement.setClob(parameterIndex, x),
-        parameterIndex,
-        x);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETCLOB)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETCLOB,
+          () -> this.statement.setClob(parameterIndex, x),
+          parameterIndex,
+          x);
+    } else {
+      this.statement.setClob(parameterIndex, x);
+    }
   }
 
   @Override
   public void setClob(int parameterIndex, Reader reader, long length) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setClob",
-        () -> this.statement.setClob(parameterIndex, reader, length),
-        parameterIndex,
-        reader,
-        length);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETCLOB)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETCLOB,
+          () -> this.statement.setClob(parameterIndex, reader, length),
+          parameterIndex,
+          reader,
+          length);
+    } else {
+      this.statement.setClob(parameterIndex, reader, length);
+    }
   }
 
   @Override
   public void setClob(int parameterIndex, Reader reader) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setClob",
-        () -> this.statement.setClob(parameterIndex, reader),
-        parameterIndex,
-        reader);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETCLOB)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETCLOB,
+          () -> this.statement.setClob(parameterIndex, reader),
+          parameterIndex,
+          reader);
+    } else {
+      this.statement.setClob(parameterIndex, reader);
+    }
   }
 
   @Override
   public void setCursorName(String name) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setCursorName",
-        () -> this.statement.setCursorName(name),
-        name);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETCURSORNAME)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETCURSORNAME,
+          () -> this.statement.setCursorName(name),
+          name);
+    } else {
+      this.statement.setCursorName(name);
+    }
   }
 
   @Override
   public void setDate(int parameterIndex, Date x) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setDate",
-        () -> this.statement.setDate(parameterIndex, x),
-        parameterIndex,
-        x);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETDATE)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETDATE,
+          () -> this.statement.setDate(parameterIndex, x),
+          parameterIndex,
+          x);
+    } else {
+      this.statement.setDate(parameterIndex, x);
+    }
   }
 
   @Override
   public void setDate(int parameterIndex, Date x, Calendar cal) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setDate",
-        () -> this.statement.setDate(parameterIndex, x, cal),
-        parameterIndex,
-        x,
-        cal);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETDATE)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETDATE,
+          () -> this.statement.setDate(parameterIndex, x, cal),
+          parameterIndex,
+          x,
+          cal);
+    } else {
+      this.statement.setDate(parameterIndex, x, cal);
+    }
   }
 
   @Override
   public void setDouble(int parameterIndex, double x) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setDouble",
-        () -> this.statement.setDouble(parameterIndex, x),
-        parameterIndex,
-        x);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETDOUBLE)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETDOUBLE,
+          () -> this.statement.setDouble(parameterIndex, x),
+          parameterIndex,
+          x);
+    } else {
+      this.statement.setDouble(parameterIndex, x);
+    }
   }
 
   @Override
   public void setEscapeProcessing(boolean enable) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setEscapeProcessing",
-        () -> this.statement.setEscapeProcessing(enable),
-        enable);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETESCAPEPROCESSING)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETESCAPEPROCESSING,
+          () -> this.statement.setEscapeProcessing(enable),
+          enable);
+    } else {
+      this.statement.setEscapeProcessing(enable);
+    }
   }
 
   @Override
   public void setFetchDirection(int direction) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setFetchDirection",
-        () -> this.statement.setFetchDirection(direction),
-        direction);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETFETCHDIRECTION)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETFETCHDIRECTION,
+          () -> this.statement.setFetchDirection(direction),
+          direction);
+    } else {
+      this.statement.setFetchDirection(direction);
+    }
   }
 
   @Override
   public void setFetchSize(int rows) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setFetchSize",
-        () -> this.statement.setFetchSize(rows),
-        rows);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETFETCHSIZE)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETFETCHSIZE,
+          () -> this.statement.setFetchSize(rows),
+          rows);
+    } else {
+      this.statement.setFetchSize(rows);
+    }
   }
 
   @Override
   public void setFloat(int parameterIndex, float x) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setFloat",
-        () -> this.statement.setFloat(parameterIndex, x),
-        parameterIndex,
-        x);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETFLOAT)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETFLOAT,
+          () -> this.statement.setFloat(parameterIndex, x),
+          parameterIndex,
+          x);
+    } else {
+      this.statement.setFloat(parameterIndex, x);
+    }
   }
 
   @Override
   public void setInt(int parameterIndex, int x) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setInt",
-        () -> this.statement.setInt(parameterIndex, x),
-        parameterIndex,
-        x);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETINT)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETINT,
+          () -> this.statement.setInt(parameterIndex, x),
+          parameterIndex,
+          x);
+    } else {
+      this.statement.setInt(parameterIndex, x);
+    }
   }
 
   @Override
   public void setLong(int parameterIndex, long x) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setLong",
-        () -> this.statement.setLong(parameterIndex, x),
-        parameterIndex,
-        x);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETLONG)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETLONG,
+          () -> this.statement.setLong(parameterIndex, x),
+          parameterIndex,
+          x);
+    } else {
+      this.statement.setLong(parameterIndex, x);
+    }
   }
 
   @Override
   public void setMaxFieldSize(int max) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setMaxFieldSize",
-        () -> this.statement.setMaxFieldSize(max),
-        max);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETMAXFIELDSIZE)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETMAXFIELDSIZE,
+          () -> this.statement.setMaxFieldSize(max),
+          max);
+    } else {
+      this.statement.setMaxFieldSize(max);
+    }
   }
 
   @Override
   public void setMaxRows(int max) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setMaxRows",
-        () -> this.statement.setMaxRows(max),
-        max);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETMAXROWS)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETMAXROWS,
+          () -> this.statement.setMaxRows(max),
+          max);
+    } else {
+      this.statement.setMaxRows(max);
+    }
   }
 
   @Override
   public void setNCharacterStream(int parameterIndex, Reader value, long length)
       throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setNCharacterStream",
-        () -> this.statement.setNCharacterStream(parameterIndex, value, length),
-        parameterIndex,
-        value,
-        length);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETNCHARACTERSTREAM)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETNCHARACTERSTREAM,
+          () -> this.statement.setNCharacterStream(parameterIndex, value, length),
+          parameterIndex,
+          value,
+          length);
+    } else {
+      this.statement.setNCharacterStream(parameterIndex, value, length);
+    }
   }
 
   @Override
   public void setNCharacterStream(int parameterIndex, Reader value) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setNCharacterStream",
-        () -> this.statement.setNCharacterStream(parameterIndex, value),
-        parameterIndex,
-        value);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETNCHARACTERSTREAM)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETNCHARACTERSTREAM,
+          () -> this.statement.setNCharacterStream(parameterIndex, value),
+          parameterIndex,
+          value);
+    } else {
+      this.statement.setNCharacterStream(parameterIndex, value);
+    }
   }
 
   @Override
   public void setNClob(int parameterIndex, NClob value) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setNClob",
-        () -> this.statement.setNClob(parameterIndex, value),
-        parameterIndex,
-        value);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETNCLOB)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETNCLOB,
+          () -> this.statement.setNClob(parameterIndex, value),
+          parameterIndex,
+          value);
+    } else {
+      this.statement.setNClob(parameterIndex, value);
+    }
   }
 
   @Override
   public void setNClob(int parameterIndex, Reader reader, long length) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setNClob",
-        () -> this.statement.setNClob(parameterIndex, reader, length),
-        parameterIndex,
-        reader,
-        length);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETNCLOB)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETNCLOB,
+          () -> this.statement.setNClob(parameterIndex, reader, length),
+          parameterIndex,
+          reader,
+          length);
+    } else {
+      this.statement.setNClob(parameterIndex, reader, length);
+    }
   }
 
   @Override
   public void setNClob(int parameterIndex, Reader reader) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setNClob",
-        () -> this.statement.setNClob(parameterIndex, reader),
-        parameterIndex,
-        reader);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETNCLOB)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETNCLOB,
+          () -> this.statement.setNClob(parameterIndex, reader),
+          parameterIndex,
+          reader);
+    } else {
+      this.statement.setNClob(parameterIndex, reader);
+    }
   }
 
   @Override
   public void setNString(int parameterIndex, String value) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setNString",
-        () -> this.statement.setNString(parameterIndex, value),
-        parameterIndex,
-        value);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETNSTRING)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETNSTRING,
+          () -> this.statement.setNString(parameterIndex, value),
+          parameterIndex,
+          value);
+    } else {
+      this.statement.setNString(parameterIndex, value);
+    }
   }
 
   @Override
   public void setNull(int parameterIndex, int sqlType) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setNull",
-        () -> this.statement.setNull(parameterIndex, sqlType),
-        parameterIndex,
-        sqlType);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETNULL)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETNULL,
+          () -> this.statement.setNull(parameterIndex, sqlType),
+          parameterIndex,
+          sqlType);
+    } else {
+      this.statement.setNull(parameterIndex, sqlType);
+    }
   }
 
   @Override
   public void setNull(int parameterIndex, int sqlType, String typeName) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setNull",
-        () -> this.statement.setNull(parameterIndex, sqlType, typeName),
-        parameterIndex,
-        sqlType,
-        typeName);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETNULL)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETNULL,
+          () -> this.statement.setNull(parameterIndex, sqlType, typeName),
+          parameterIndex,
+          sqlType,
+          typeName);
+    } else {
+      this.statement.setNull(parameterIndex, sqlType, typeName);
+    }
   }
 
   @Override
   public void setObject(int parameterIndex, Object x, int targetSqlType) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setObject",
-        () -> this.statement.setObject(parameterIndex, x, targetSqlType),
-        parameterIndex,
-        x,
-        targetSqlType);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETOBJECT)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETOBJECT,
+          () -> this.statement.setObject(parameterIndex, x, targetSqlType),
+          parameterIndex,
+          x,
+          targetSqlType);
+    } else {
+      this.statement.setObject(parameterIndex, x, targetSqlType);
+    }
   }
 
   @Override
   public void setObject(int parameterIndex, Object x) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setObject",
-        () -> this.statement.setObject(parameterIndex, x),
-        parameterIndex,
-        x);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETOBJECT)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETOBJECT,
+          () -> this.statement.setObject(parameterIndex, x),
+          parameterIndex,
+          x);
+    } else {
+      this.statement.setObject(parameterIndex, x);
+    }
   }
 
   @Override
   public void setObject(int parameterIndex, Object x, int targetSqlType, int scaleOrLength)
       throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setObject",
-        () -> this.statement.setObject(parameterIndex, x, targetSqlType, scaleOrLength),
-        parameterIndex,
-        x,
-        targetSqlType,
-        scaleOrLength);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETOBJECT)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETOBJECT,
+          () -> this.statement.setObject(parameterIndex, x, targetSqlType, scaleOrLength),
+          parameterIndex,
+          x,
+          targetSqlType,
+          scaleOrLength);
+    } else {
+      this.statement.setObject(parameterIndex, x, targetSqlType, scaleOrLength);
+    }
   }
 
   @Override
   public void setObject(int parameterIndex, Object x, SQLType targetSqlType, int scaleOrLength)
       throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setObject",
-        () -> this.statement.setObject(parameterIndex, x, targetSqlType, scaleOrLength),
-        parameterIndex,
-        x,
-        targetSqlType,
-        scaleOrLength);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETOBJECT)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETOBJECT,
+          () -> this.statement.setObject(parameterIndex, x, targetSqlType, scaleOrLength),
+          parameterIndex,
+          x,
+          targetSqlType,
+          scaleOrLength);
+    } else {
+      this.statement.setObject(parameterIndex, x, targetSqlType, scaleOrLength);
+    }
   }
 
   @Override
   public void setObject(int parameterIndex, Object x, SQLType targetSqlType) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setObject",
-        () -> this.statement.setObject(parameterIndex, x, targetSqlType),
-        parameterIndex,
-        x,
-        targetSqlType);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETOBJECT)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETOBJECT,
+          () -> this.statement.setObject(parameterIndex, x, targetSqlType),
+          parameterIndex,
+          x,
+          targetSqlType);
+    } else {
+      this.statement.setObject(parameterIndex, x, targetSqlType);
+    }
   }
 
   @SuppressWarnings("SpellCheckingInspection")
   @Override
   public void setPoolable(boolean poolable) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setPoolable",
-        () -> this.statement.setPoolable(poolable),
-        poolable);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETPOOLABLE)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETPOOLABLE,
+          () -> this.statement.setPoolable(poolable),
+          poolable);
+    } else {
+      this.statement.setPoolable(poolable);
+    }
   }
 
   @Override
   public void setQueryTimeout(int seconds) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setQueryTimeout",
-        () -> this.statement.setQueryTimeout(seconds),
-        seconds);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETQUERYTIMEOUT)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETQUERYTIMEOUT,
+          () -> this.statement.setQueryTimeout(seconds),
+          seconds);
+    } else {
+      this.statement.setQueryTimeout(seconds);
+    }
   }
 
   @Override
   public void setRef(int parameterIndex, Ref x) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setRef",
-        () -> this.statement.setRef(parameterIndex, x),
-        parameterIndex,
-        x);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETREF)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETREF,
+          () -> this.statement.setRef(parameterIndex, x),
+          parameterIndex,
+          x);
+    } else {
+      this.statement.setRef(parameterIndex, x);
+    }
   }
 
   @Override
   public void setRowId(int parameterIndex, RowId x) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setRowId",
-        () -> this.statement.setRowId(parameterIndex, x),
-        parameterIndex,
-        x);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETROWID)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETROWID,
+          () -> this.statement.setRowId(parameterIndex, x),
+          parameterIndex,
+          x);
+    } else {
+      this.statement.setRowId(parameterIndex, x);
+    }
   }
 
   @Override
   public void setSQLXML(int parameterIndex, SQLXML xmlObject) throws SQLException {
-    //noinspection SpellCheckingInspection
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setSQLXML",
-        () -> this.statement.setSQLXML(parameterIndex, xmlObject),
-        parameterIndex,
-        xmlObject);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETSQLXML)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETSQLXML,
+          () -> this.statement.setSQLXML(parameterIndex, xmlObject),
+          parameterIndex,
+          xmlObject);
+    } else {
+      this.statement.setSQLXML(parameterIndex, xmlObject);
+    }
   }
 
   @Override
   public void setShort(int parameterIndex, short x) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setShort",
-        () -> this.statement.setShort(parameterIndex, x),
-        parameterIndex,
-        x);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETSHORT)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETSHORT,
+          () -> this.statement.setShort(parameterIndex, x),
+          parameterIndex,
+          x);
+    } else {
+      this.statement.setShort(parameterIndex, x);
+    }
   }
 
   @Override
   public void setString(int parameterIndex, String x) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setString",
-        () -> this.statement.setString(parameterIndex, x),
-        parameterIndex,
-        x);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETSTRING)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETSTRING,
+          () -> this.statement.setString(parameterIndex, x),
+          parameterIndex,
+          x);
+    } else {
+      this.statement.setString(parameterIndex, x);
+    }
   }
 
   @Override
   public void setTime(int parameterIndex, Time x) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setTime",
-        () -> this.statement.setTime(parameterIndex, x),
-        parameterIndex,
-        x);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETTIME)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETTIME,
+          () -> this.statement.setTime(parameterIndex, x),
+          parameterIndex,
+          x);
+    } else {
+      this.statement.setTime(parameterIndex, x);
+    }
   }
 
   @Override
   public void setTime(int parameterIndex, Time x, Calendar cal) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setTime",
-        () -> this.statement.setTime(parameterIndex, x, cal),
-        parameterIndex,
-        x,
-        cal);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETTIME)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETTIME,
+          () -> this.statement.setTime(parameterIndex, x, cal),
+          parameterIndex,
+          x,
+          cal);
+    } else {
+      this.statement.setTime(parameterIndex, x, cal);
+    }
   }
 
   @Override
   public void setTimestamp(int parameterIndex, Timestamp x) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setTimestamp",
-        () -> this.statement.setTimestamp(parameterIndex, x),
-        parameterIndex,
-        x);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETTIMESTAMP)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETTIMESTAMP,
+          () -> this.statement.setTimestamp(parameterIndex, x),
+          parameterIndex,
+          x);
+    } else {
+      this.statement.setTimestamp(parameterIndex, x);
+    }
   }
 
   @Override
   public void setTimestamp(int parameterIndex, Timestamp x, Calendar cal) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setTimestamp",
-        () -> this.statement.setTimestamp(parameterIndex, x, cal),
-        parameterIndex,
-        x,
-        cal);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETTIMESTAMP)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETTIMESTAMP,
+          () -> this.statement.setTimestamp(parameterIndex, x, cal),
+          parameterIndex,
+          x,
+          cal);
+    } else {
+      this.statement.setTimestamp(parameterIndex, x, cal);
+    }
   }
 
   @Override
   public void setURL(int parameterIndex, URL x) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setURL",
-        () -> this.statement.setURL(parameterIndex, x),
-        parameterIndex,
-        x);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETURL)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETURL,
+          () -> this.statement.setURL(parameterIndex, x),
+          parameterIndex,
+          x);
+    } else {
+      this.statement.setURL(parameterIndex, x);
+    }
   }
 
   @Override
   @SuppressWarnings("deprecation")
   public void setUnicodeStream(int parameterIndex, InputStream x, int length) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.statement,
-        "PreparedStatement.setUnicodeStream",
-        () -> this.statement.setUnicodeStream(parameterIndex, x, length),
-        parameterIndex,
-        x,
-        length);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETUNICODESTREAM)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.statement,
+          JdbcMethod.PREPAREDSTATEMENT_SETUNICODESTREAM,
+          () -> this.statement.setUnicodeStream(parameterIndex, x, length),
+          parameterIndex,
+          x,
+          length);
+    } else {
+      this.statement.setUnicodeStream(parameterIndex, x, length);
+    }
   }
 
   @Override

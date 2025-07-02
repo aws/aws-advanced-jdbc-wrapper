@@ -159,7 +159,9 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
           this.storageService.set(this.customEndpointHostSpec.getUrl(), allowedAndBlockedHosts);
           customEndpointInfoCache.put(
               this.customEndpointHostSpec.getUrl(), endpointInfo, CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO);
-          this.infoChangedCounter.inc();
+          if (this.infoChangedCounter != null) {
+            this.infoChangedCounter.inc();
+          }
 
           long elapsedTime = System.nanoTime() - start;
           long sleepDuration = Math.max(0, this.refreshRateNano - elapsedTime);

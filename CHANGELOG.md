@@ -3,6 +3,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [2.6.0] - 2025-06-10
+### :magic_wand: Added
+- Add support of Blue/Green Deployment for Aurora MySQL clusters, Aurora PostgreSQL clusters, RDS MySQL Instances, and RDS PostgreSQL Instances. See [Using The Blue/Green Deployment Plugin](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheBlueGreenPlugin.md).
+- Allow driver to recognize lower case parameters ([PR #1361](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1361)).
+- Set names for all internal threads ([PR #1410](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1410)).
+
+### :bug: Fixed
+- Fix connection leaks in Limitless Plugin:
+    - [PR #1369](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1369).
+    - [PR #1388](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1388).
+- Fix wrong calls in wrapper class ([PR #1413](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1413)).
+- Fix host info type ([PR #1423](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1423)).
+- Include optional trailing dot in DNS regex patterns ([Issue #1381](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1381)).
+- Clean up connections in a separate thread ([Issue #1390](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1390)).
+
+### :crab: Changed
+- Javadoc improvement ([PR #1368](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1368)).
+- Set `failover2` as default plugin ([PR #1414](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1414)).
+- Improve logging for Limitless Plugin ([PR #1431](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1431)).
+- Clarifies support for blue/green deployments by specifying minimum versions ([PR #1434](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1434)).
+
 ## [2.5.6] - 2025-04-09
 ### :bug: Fixed
 - Issue with non-cluster database dialects and/or custom domains ([PR #1315](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1315)).
@@ -435,6 +456,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[2.6.0]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.5.6...2.6.0
 [2.5.6]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.5.5...2.5.6
 [2.5.5]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.5.4...2.5.5
 [2.5.4]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.5.3...2.5.4

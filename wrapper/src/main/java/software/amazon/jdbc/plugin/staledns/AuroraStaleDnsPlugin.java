@@ -28,11 +28,10 @@ import java.util.logging.Logger;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
-import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.SubscribedMethodHelper;
 
 /**
  * After Aurora DB cluster fail over is completed and a cluster has elected a new writer node, the corresponding
@@ -51,15 +50,7 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
 
   private static final Logger LOGGER = Logger.getLogger(AuroraStaleDnsPlugin.class.getName());
 
-  private static final Set<String> subscribedMethods =
-      Collections.unmodifiableSet(new HashSet<String>() {
-        {
-          addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
-          add("initHostProvider");
-          add("connect");
-          add("notifyNodeListChanged");
-        }
-      });
+  private final Set<String> subscribedMethods;
 
   private final PluginService pluginService;
   private final AuroraStaleDnsHelper helper;
@@ -68,6 +59,13 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
   public AuroraStaleDnsPlugin(final PluginService pluginService, final Properties properties) {
     this.pluginService = pluginService;
     this.helper = new AuroraStaleDnsHelper(this.pluginService);
+
+    final HashSet<String> methods = new HashSet<>();
+    methods.add(JdbcMethod.INITHOSTPROVIDER.methodName);
+    methods.add(JdbcMethod.CONNECT.methodName);
+    methods.add(JdbcMethod.NOTIFYNODELISTCHANGED.methodName);
+    methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(properties));
+    this.subscribedMethods = Collections.unmodifiableSet(methods);
   }
 
   @Override

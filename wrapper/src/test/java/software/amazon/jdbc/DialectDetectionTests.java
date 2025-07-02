@@ -138,12 +138,13 @@ public class DialectDetectionTests {
   void testUpdateDialectMysqlToRds() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(mockFailResultSet);
     when(mockStatement.executeQuery("SHOW VARIABLES LIKE 'version_comment'")).thenReturn(mockSuccessResultSet);
-    when(mockSuccessResultSet.getString(1)).thenReturn("Source distribution");
-    when(mockSuccessResultSet.next()).thenReturn(true, false, true, false);
+    when(mockStatement.executeQuery("SHOW VARIABLES LIKE 'report_host'")).thenReturn(mockSuccessResultSet);
+    when(mockSuccessResultSet.getString(2)).thenReturn(
+        "Source distribution", "Source distribution", "");
+    when(mockSuccessResultSet.next()).thenReturn(true, false, true, true);
     when(mockSuccessResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
     when(mockFailResultSet.next()).thenReturn(false);
-    when(mockResultSetMetaData.getColumnCount()).thenReturn(1);
-    final PluginServiceImpl target = getPluginService(MYSQL_PROTOCOL);
+    final PluginServiceImpl target = getPluginService(LOCALHOST, MYSQL_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
     assertEquals(RdsMysqlDialect.class, target.dialect.getClass());
@@ -242,12 +243,13 @@ public class DialectDetectionTests {
   void testUpdateDialectMariaToMysqlRds() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(mockFailResultSet);
     when(mockStatement.executeQuery("SHOW VARIABLES LIKE 'version_comment'")).thenReturn(mockSuccessResultSet);
-    when(mockSuccessResultSet.getString(1)).thenReturn("Source distribution");
-    when(mockSuccessResultSet.next()).thenReturn(true, false, true, false);
-    when(mockSuccessResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
-    when(mockFailResultSet.next()).thenReturn(false);
-    when(mockResultSetMetaData.getColumnCount()).thenReturn(1);
-    final PluginServiceImpl target = getPluginService(MARIA_PROTOCOL);
+    when(mockStatement.executeQuery("SHOW VARIABLES LIKE 'report_host'")).thenReturn(mockSuccessResultSet);
+    when(successResultSet.getString(2)).thenReturn(
+        "Source distribution", "Source distribution", "");
+    when(successResultSet.next()).thenReturn(true, false, true, true);
+    when(successResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
+    when(failResultSet.next()).thenReturn(false);
+    final PluginServiceImpl target = getPluginService(LOCALHOST, MARIA_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
     assertEquals(RdsMysqlDialect.class, target.dialect.getClass());

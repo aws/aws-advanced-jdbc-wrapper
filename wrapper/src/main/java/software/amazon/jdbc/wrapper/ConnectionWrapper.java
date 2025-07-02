@@ -42,6 +42,7 @@ import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostListProvider;
 import software.amazon.jdbc.HostListProviderService;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PluginServiceImpl;
@@ -206,67 +207,100 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
   @Override
   public void abort(final Executor executor) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.abort",
-        () -> {
-          this.pluginService.getCurrentConnection().abort(executor);
-          this.pluginManagerService.setInTransaction(false);
-          this.pluginService.getSessionStateService().reset();
-        },
-        executor);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_ABORT)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_ABORT,
+          () -> {
+            this.pluginService.getCurrentConnection().abort(executor);
+            this.pluginManagerService.setInTransaction(false);
+            this.pluginService.getSessionStateService().reset();
+          },
+          executor);
+    } else {
+      this.pluginService.getCurrentConnection().abort(executor);
+      this.pluginManagerService.setInTransaction(false);
+      this.pluginService.getSessionStateService().reset();
+    }
   }
 
   @Override
   public void clearWarnings() throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.clearWarnings",
-        () -> this.pluginService.getCurrentConnection().clearWarnings());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_CLEARWARNINGS)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_CLEARWARNINGS,
+          () -> this.pluginService.getCurrentConnection().clearWarnings());
+    } else {
+      this.pluginService.getCurrentConnection().clearWarnings();
+    }
   }
 
   @Override
   public void close() throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.close",
-        () -> {
-          this.pluginService.getSessionStateService().begin();
-          try {
-            this.pluginService.getSessionStateService().applyPristineSessionState(
-                this.pluginService.getCurrentConnection());
-            this.pluginService.getCurrentConnection().close();
-          } finally {
-            this.pluginService.getSessionStateService().complete();
-            this.pluginService.getSessionStateService().reset();
-          }
-          this.openConnectionStacktrace = null;
-          this.pluginManagerService.setInTransaction(false);
-        });
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_CLOSE)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_CLOSE,
+          () -> {
+            this.pluginService.getSessionStateService().begin();
+            try {
+              this.pluginService.getSessionStateService().applyPristineSessionState(
+                  this.pluginService.getCurrentConnection());
+              this.pluginService.getCurrentConnection().close();
+            } finally {
+              this.pluginService.getSessionStateService().complete();
+              this.pluginService.getSessionStateService().reset();
+            }
+            this.openConnectionStacktrace = null;
+            this.pluginManagerService.setInTransaction(false);
+          });
+    } else {
+      this.pluginService.getSessionStateService().begin();
+      try {
+        this.pluginService.getSessionStateService().applyPristineSessionState(
+            this.pluginService.getCurrentConnection());
+        this.pluginService.getCurrentConnection().close();
+      } finally {
+        this.pluginService.getSessionStateService().complete();
+        this.pluginService.getSessionStateService().reset();
+      }
+      this.openConnectionStacktrace = null;
+      this.pluginManagerService.setInTransaction(false);
+    }
     this.releaseResources();
   }
 
   @Override
   public void commit() throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.commit",
-        () -> {
-          this.pluginService.getCurrentConnection().commit();
-          this.pluginManagerService.setInTransaction(false);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_COMMIT)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_COMMIT,
+          () -> {
+            this.pluginService.getCurrentConnection().commit();
+            this.pluginManagerService.setInTransaction(false);
 
-          // After commit, autoCommit setting restores to the latest value set by user,
-          // and it is already tracked by session state service.
-          // No additional handling of autoCommit is required.
-        });
+            // After commit, autoCommit setting restores to the latest value set by user,
+            // and it is already tracked by session state service.
+            // No additional handling of autoCommit is required.
+          });
+    } else {
+      this.pluginService.getCurrentConnection().commit();
+      this.pluginManagerService.setInTransaction(false);
+
+      // After commit, autoCommit setting restores to the latest value set by user,
+      // and it is already tracked by session state service.
+      // No additional handling of autoCommit is required.
+    }
   }
 
   @Override
@@ -276,7 +310,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         SQLException.class,
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
-        "Connection.createArrayOf",
+        JdbcMethod.CONNECTION_CREATEARRAYOF,
         () -> this.pluginService.getCurrentConnection().createArrayOf(typeName, elements),
         typeName,
         elements);
@@ -289,7 +323,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         SQLException.class,
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
-        "Connection.createBlob",
+        JdbcMethod.CONNECTION_CREATEBLOB,
         () -> this.pluginService.getCurrentConnection().createBlob());
   }
 
@@ -300,7 +334,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         SQLException.class,
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
-        "Connection.createClob",
+        JdbcMethod.CONNECTION_CREATECLOB,
         () -> this.pluginService.getCurrentConnection().createClob());
   }
 
@@ -311,19 +345,23 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         SQLException.class,
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
-        "Connection.createNClob",
+        JdbcMethod.CONNECTION_CREATENCLOB,
         () -> this.pluginService.getCurrentConnection().createNClob());
   }
 
   @Override
   public SQLXML createSQLXML() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        SQLXML.class,
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.createSQLXML",
-        () -> this.pluginService.getCurrentConnection().createSQLXML());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_CREATESQLXML)) {
+      return WrapperUtils.executeWithPlugins(
+          SQLXML.class,
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_CREATESQLXML,
+          () -> this.pluginService.getCurrentConnection().createSQLXML());
+    } else {
+      return this.pluginService.getCurrentConnection().createSQLXML();
+    }
   }
 
   @Override
@@ -333,7 +371,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         SQLException.class,
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
-        "Connection.createStatement",
+        JdbcMethod.CONNECTION_CREATESTATEMENT,
         () -> this.pluginService.getCurrentConnection().createStatement());
   }
 
@@ -345,7 +383,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         SQLException.class,
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
-        "Connection.createStatement",
+        JdbcMethod.CONNECTION_CREATESTATEMENT,
         () ->
             this.pluginService
                 .getCurrentConnection()
@@ -362,10 +400,10 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         SQLException.class,
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
-        "Connection.createStatement",
+        JdbcMethod.CONNECTION_CREATESTATEMENT,
         () -> this.pluginService
-          .getCurrentConnection()
-          .createStatement(resultSetType, resultSetConcurrency, resultSetHoldability),
+            .getCurrentConnection()
+            .createStatement(resultSetType, resultSetConcurrency, resultSetHoldability),
         resultSetType,
         resultSetConcurrency,
         resultSetHoldability);
@@ -378,7 +416,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         SQLException.class,
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
-        "Connection.createStruct",
+        JdbcMethod.CONNECTION_CREATESTRUCT,
         () -> this.pluginService.getCurrentConnection().createStruct(typeName, attributes),
         typeName,
         attributes);
@@ -386,70 +424,96 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
   @Override
   public void setReadOnly(final boolean readOnly) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.setReadOnly",
-        () -> {
-          this.pluginService.getSessionStateService().setupPristineReadOnly();
-          this.pluginService.getCurrentConnection().setReadOnly(readOnly);
-          this.pluginService.getSessionStateService().setReadOnly(readOnly);
-        },
-        readOnly);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_SETREADONLY)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_SETREADONLY,
+          () -> {
+            this.pluginService.getSessionStateService().setupPristineReadOnly();
+            this.pluginService.getCurrentConnection().setReadOnly(readOnly);
+            this.pluginService.getSessionStateService().setReadOnly(readOnly);
+          },
+          readOnly);
+    } else {
+      this.pluginService.getSessionStateService().setupPristineReadOnly();
+      this.pluginService.getCurrentConnection().setReadOnly(readOnly);
+      this.pluginService.getSessionStateService().setReadOnly(readOnly);
+    }
   }
 
   @Override
   public String getCatalog() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.getCatalog",
-        () -> {
-          final String catalog = this.pluginService.getCurrentConnection().getCatalog();
-          this.pluginService.getSessionStateService().setupPristineCatalog(catalog);
-          return catalog;
-        });
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_GETCATALOG)) {
+      return WrapperUtils.executeWithPlugins(
+          String.class,
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_GETCATALOG,
+          () -> {
+            final String catalog = this.pluginService.getCurrentConnection().getCatalog();
+            this.pluginService.getSessionStateService().setupPristineCatalog(catalog);
+            return catalog;
+          });
+    } else {
+      final String catalog = this.pluginService.getCurrentConnection().getCatalog();
+      this.pluginService.getSessionStateService().setupPristineCatalog(catalog);
+      return catalog;
+    }
   }
 
   @Override
   public String getClientInfo(final String name) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.getClientInfo",
-        () -> this.pluginService.getCurrentConnection().getClientInfo(name),
-        name);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_GETCLIENTINFO)) {
+      return WrapperUtils.executeWithPlugins(
+          String.class,
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_GETCLIENTINFO,
+          () -> this.pluginService.getCurrentConnection().getClientInfo(name),
+          name);
+    } else {
+      return this.pluginService.getCurrentConnection().getClientInfo(name);
+    }
   }
 
   @Override
   public Properties getClientInfo() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        Properties.class,
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.getClientInfo",
-        () -> this.pluginService.getCurrentConnection().getClientInfo());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_GETCLIENTINFO)) {
+      return WrapperUtils.executeWithPlugins(
+          Properties.class,
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_GETCLIENTINFO,
+          () -> this.pluginService.getCurrentConnection().getClientInfo());
+    } else {
+      return this.pluginService.getCurrentConnection().getClientInfo();
+    }
   }
 
   @Override
   public int getHoldability() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.getHoldability",
-        () -> {
-          final int holdability = this.pluginService.getCurrentConnection().getHoldability();
-          this.pluginService.getSessionStateService().setupPristineHoldability(holdability);
-          return holdability;
-        });
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_GETHOLDABILITY)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_GETHOLDABILITY,
+          () -> {
+            final int holdability = this.pluginService.getCurrentConnection().getHoldability();
+            this.pluginService.getSessionStateService().setupPristineHoldability(holdability);
+            return holdability;
+          });
+    } else {
+      final int holdability = this.pluginService.getCurrentConnection().getHoldability();
+      this.pluginService.getSessionStateService().setupPristineHoldability(holdability);
+      return holdability;
+    }
   }
 
   @Override
@@ -459,132 +523,178 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         SQLException.class,
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
-        "Connection.getMetaData",
+        JdbcMethod.CONNECTION_GETMETADATA,
         () -> this.pluginService.getCurrentConnection().getMetaData());
   }
 
   @Override
   public int getNetworkTimeout() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.getNetworkTimeout",
-        () -> {
-          final int milliseconds = this.pluginService.getCurrentConnection().getNetworkTimeout();
-          this.pluginService.getSessionStateService().setupPristineNetworkTimeout(milliseconds);
-          return milliseconds;
-        });
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_GETNETWORKTIMEOUT)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_GETNETWORKTIMEOUT,
+          () -> {
+            final int milliseconds = this.pluginService.getCurrentConnection().getNetworkTimeout();
+            this.pluginService.getSessionStateService().setupPristineNetworkTimeout(milliseconds);
+            return milliseconds;
+          });
+    } else {
+      final int milliseconds = this.pluginService.getCurrentConnection().getNetworkTimeout();
+      this.pluginService.getSessionStateService().setupPristineNetworkTimeout(milliseconds);
+      return milliseconds;
+    }
   }
 
   @Override
   public String getSchema() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.getSchema",
-        () -> {
-          final String schema = this.pluginService.getCurrentConnection().getSchema();
-          this.pluginService.getSessionStateService().setupPristineSchema(schema);
-          return schema;
-        });
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_GETSCHEMA)) {
+      return WrapperUtils.executeWithPlugins(
+          String.class,
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_GETSCHEMA,
+          () -> {
+            final String schema = this.pluginService.getCurrentConnection().getSchema();
+            this.pluginService.getSessionStateService().setupPristineSchema(schema);
+            return schema;
+          });
+    } else {
+      final String schema = this.pluginService.getCurrentConnection().getSchema();
+      this.pluginService.getSessionStateService().setupPristineSchema(schema);
+      return schema;
+    }
   }
 
   @Override
   public int getTransactionIsolation() throws SQLException {
-    // noinspection MagicConstant
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.getTransactionIsolation",
-        () -> {
-          final int level = this.pluginService.getCurrentConnection().getTransactionIsolation();
-          this.pluginService.getSessionStateService().setupPristineTransactionIsolation(level);
-          return level;
-        });
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_GETTRANSACTIONISOLATION)) {
+      // noinspection MagicConstant
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_GETTRANSACTIONISOLATION,
+          () -> {
+            final int level = this.pluginService.getCurrentConnection().getTransactionIsolation();
+            this.pluginService.getSessionStateService().setupPristineTransactionIsolation(level);
+            return level;
+          });
+    } else {
+      final int level = this.pluginService.getCurrentConnection().getTransactionIsolation();
+      this.pluginService.getSessionStateService().setupPristineTransactionIsolation(level);
+      return level;
+    }
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public Map<String, Class<?>> getTypeMap() throws SQLException {
-    // noinspection unchecked
-    return WrapperUtils.executeWithPlugins(
-        Map.class,
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.getTypeMap",
-        () -> {
-          final Map<String, Class<?>> map = this.pluginService.getCurrentConnection().getTypeMap();
-          this.pluginService.getSessionStateService().setupPristineTypeMap(map);
-          return map;
-        });
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_GETTYPEMAP)) {
+      // noinspection unchecked
+      return WrapperUtils.executeWithPlugins(
+          Map.class,
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_GETTYPEMAP,
+          () -> {
+            final Map<String, Class<?>> map = this.pluginService.getCurrentConnection().getTypeMap();
+            this.pluginService.getSessionStateService().setupPristineTypeMap(map);
+            return map;
+          });
+    } else {
+      final Map<String, Class<?>> map = this.pluginService.getCurrentConnection().getTypeMap();
+      this.pluginService.getSessionStateService().setupPristineTypeMap(map);
+      return map;
+    }
   }
 
   @Override
   public SQLWarning getWarnings() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        SQLWarning.class,
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.getWarnings",
-        () -> this.pluginService.getCurrentConnection().getWarnings());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_GETWARNINGS)) {
+      return WrapperUtils.executeWithPlugins(
+          SQLWarning.class,
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_GETWARNINGS,
+          () -> this.pluginService.getCurrentConnection().getWarnings());
+    } else {
+      return this.pluginService.getCurrentConnection().getWarnings();
+    }
   }
 
   @Override
   public boolean isClosed() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.isClosed",
-        () -> this.pluginService.getCurrentConnection().isClosed());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_ISCLOSED)) {
+      return WrapperUtils.executeWithPlugins(
+          boolean.class,
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_ISCLOSED,
+          () -> this.pluginService.getCurrentConnection().isClosed());
+    } else {
+      return this.pluginService.getCurrentConnection().isClosed();
+    }
   }
 
   @Override
   public boolean isReadOnly() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.isReadOnly",
-        () -> {
-          final boolean isReadOnly = this.pluginService.getCurrentConnection().isReadOnly();
-          this.pluginService.getSessionStateService().setupPristineReadOnly(isReadOnly);
-          return isReadOnly;
-        });
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_ISREADONLY)) {
+      return WrapperUtils.executeWithPlugins(
+          boolean.class,
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_ISREADONLY,
+          () -> {
+            final boolean isReadOnly = this.pluginService.getCurrentConnection().isReadOnly();
+            this.pluginService.getSessionStateService().setupPristineReadOnly(isReadOnly);
+            return isReadOnly;
+          });
+    } else {
+      final boolean isReadOnly = this.pluginService.getCurrentConnection().isReadOnly();
+      this.pluginService.getSessionStateService().setupPristineReadOnly(isReadOnly);
+      return isReadOnly;
+    }
   }
 
   @Override
   public boolean isValid(final int timeout) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.isValid",
-        () -> this.pluginService.getCurrentConnection().isValid(timeout),
-        timeout);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_ISVALID)) {
+      return WrapperUtils.executeWithPlugins(
+          boolean.class,
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_ISVALID,
+          () -> this.pluginService.getCurrentConnection().isValid(timeout),
+          timeout);
+    } else {
+      return this.pluginService.getCurrentConnection().isValid(timeout);
+    }
   }
 
   @Override
   public String nativeSQL(final String sql) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.nativeSQL",
-        () -> this.pluginService.getCurrentConnection().nativeSQL(sql),
-        sql);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_NATIVESQL)) {
+      return WrapperUtils.executeWithPlugins(
+          String.class,
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_NATIVESQL,
+          () -> this.pluginService.getCurrentConnection().nativeSQL(sql),
+          sql);
+    } else {
+      return this.pluginService.getCurrentConnection().nativeSQL(sql);
+    }
   }
 
   @Override
@@ -594,7 +704,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         SQLException.class,
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
-        "Connection.prepareCall",
+        JdbcMethod.CONNECTION_PREPARECALL,
         () -> this.pluginService.getCurrentConnection().prepareCall(sql),
         sql);
   }
@@ -607,7 +717,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         SQLException.class,
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
-        "Connection.prepareCall",
+        JdbcMethod.CONNECTION_PREPARECALL,
         () ->
             this.pluginService
                 .getCurrentConnection()
@@ -626,7 +736,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         SQLException.class,
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
-        "Connection.prepareCall",
+        JdbcMethod.CONNECTION_PREPARECALL,
         () ->
             this.pluginService
                 .getCurrentConnection()
@@ -644,7 +754,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         SQLException.class,
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
-        "Connection.prepareStatement",
+        JdbcMethod.CONNECTION_PREPARESTATEMENT,
         () -> this.pluginService.getCurrentConnection().prepareStatement(sql),
         sql);
   }
@@ -657,7 +767,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         SQLException.class,
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
-        "Connection.prepareStatement",
+        JdbcMethod.CONNECTION_PREPARESTATEMENT,
         () ->
             this.pluginService
                 .getCurrentConnection()
@@ -676,7 +786,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         SQLException.class,
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
-        "Connection.prepareStatement",
+        JdbcMethod.CONNECTION_PREPARESTATEMENT,
         () ->
             this.pluginService
                 .getCurrentConnection()
@@ -694,7 +804,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         SQLException.class,
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
-        "Connection.prepareStatement",
+        JdbcMethod.CONNECTION_PREPARESTATEMENT,
         () -> this.pluginService.getCurrentConnection().prepareStatement(sql, autoGeneratedKeys),
         sql,
         autoGeneratedKeys);
@@ -707,7 +817,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         SQLException.class,
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
-        "Connection.prepareStatement",
+        JdbcMethod.CONNECTION_PREPARESTATEMENT,
         () -> this.pluginService.getCurrentConnection().prepareStatement(sql, columnIndexes),
         sql,
         columnIndexes);
@@ -720,7 +830,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         SQLException.class,
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
-        "Connection.prepareStatement",
+        JdbcMethod.CONNECTION_PREPARESTATEMENT,
         () -> this.pluginService.getCurrentConnection().prepareStatement(sql, columnNames),
         sql,
         columnNames);
@@ -728,153 +838,217 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
   @Override
   public void releaseSavepoint(final Savepoint savepoint) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.releaseSavepoint",
-        () -> {
-          if (savepoint instanceof SavepointWrapper) {
-            this.pluginService.getCurrentConnection().releaseSavepoint(((SavepointWrapper) savepoint).savepoint);
-          } else {
-            this.pluginService.getCurrentConnection().releaseSavepoint(savepoint);
-          }
-        },
-        savepoint);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_RELEASESAVEPOINT)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_RELEASESAVEPOINT,
+          () -> {
+            if (savepoint instanceof SavepointWrapper) {
+              this.pluginService.getCurrentConnection().releaseSavepoint(((SavepointWrapper) savepoint).savepoint);
+            } else {
+              this.pluginService.getCurrentConnection().releaseSavepoint(savepoint);
+            }
+          },
+          savepoint);
+    } else {
+      if (savepoint instanceof SavepointWrapper) {
+        this.pluginService.getCurrentConnection().releaseSavepoint(((SavepointWrapper) savepoint).savepoint);
+      } else {
+        this.pluginService.getCurrentConnection().releaseSavepoint(savepoint);
+      }
+    }
   }
 
   @Override
   public void rollback() throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.rollback",
-        () -> {
-          this.pluginService.getCurrentConnection().rollback();
-          this.pluginManagerService.setInTransaction(false);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_ROLLBACK)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_ROLLBACK,
+          () -> {
+            this.pluginService.getCurrentConnection().rollback();
+            this.pluginManagerService.setInTransaction(false);
 
-          // After rollback, autoCommit setting restores to the latest value set by user,
-          // and it is already tracked by session state service.
-          // No additional handling of autoCommit is required.
-        });
+            // After rollback, autoCommit setting restores to the latest value set by user,
+            // and it is already tracked by session state service.
+            // No additional handling of autoCommit is required.
+          });
+    } else {
+      this.pluginService.getCurrentConnection().rollback();
+      this.pluginManagerService.setInTransaction(false);
+
+      // After rollback, autoCommit setting restores to the latest value set by user,
+      // and it is already tracked by session state service.
+      // No additional handling of autoCommit is required.
+    }
   }
 
   @Override
   public void rollback(final Savepoint savepoint) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.rollback",
-        () -> {
-          if (savepoint instanceof SavepointWrapper) {
-            this.pluginService.getCurrentConnection().rollback(((SavepointWrapper) savepoint).savepoint);
-          } else {
-            this.pluginService.getCurrentConnection().rollback(savepoint);
-          }
-          this.pluginManagerService.setInTransaction(false);
-        },
-        savepoint);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_ROLLBACK)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_ROLLBACK,
+          () -> {
+            if (savepoint instanceof SavepointWrapper) {
+              this.pluginService.getCurrentConnection().rollback(((SavepointWrapper) savepoint).savepoint);
+            } else {
+              this.pluginService.getCurrentConnection().rollback(savepoint);
+            }
+            this.pluginManagerService.setInTransaction(false);
+          },
+          savepoint);
+    } else {
+      if (savepoint instanceof SavepointWrapper) {
+        this.pluginService.getCurrentConnection().rollback(((SavepointWrapper) savepoint).savepoint);
+      } else {
+        this.pluginService.getCurrentConnection().rollback(savepoint);
+      }
+      this.pluginManagerService.setInTransaction(false);
+    }
   }
 
   @Override
   public void setAutoCommit(final boolean autoCommit) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.setAutoCommit",
-        () -> {
-          this.pluginService.getSessionStateService().setupPristineAutoCommit();
-          this.pluginService.getCurrentConnection().setAutoCommit(autoCommit);
-          this.pluginService.getSessionStateService().setAutoCommit(autoCommit);
-        },
-        autoCommit);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_SETAUTOCOMMIT)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_SETAUTOCOMMIT,
+          () -> {
+            this.pluginService.getSessionStateService().setupPristineAutoCommit();
+            this.pluginService.getCurrentConnection().setAutoCommit(autoCommit);
+            this.pluginService.getSessionStateService().setAutoCommit(autoCommit);
+          },
+          autoCommit);
+    } else {
+      this.pluginService.getSessionStateService().setupPristineAutoCommit();
+      this.pluginService.getCurrentConnection().setAutoCommit(autoCommit);
+      this.pluginService.getSessionStateService().setAutoCommit(autoCommit);
+    }
   }
 
   @Override
   public boolean getAutoCommit() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.getAutoCommit",
-        () -> {
-          final boolean autoCommit = this.pluginService.getCurrentConnection().getAutoCommit();
-          this.pluginService.getSessionStateService().setupPristineAutoCommit(autoCommit);
-          return autoCommit;
-        });
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_GETAUTOCOMMIT)) {
+      return WrapperUtils.executeWithPlugins(
+          boolean.class,
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_GETAUTOCOMMIT,
+          () -> {
+            final boolean autoCommit = this.pluginService.getCurrentConnection().getAutoCommit();
+            this.pluginService.getSessionStateService().setupPristineAutoCommit(autoCommit);
+            return autoCommit;
+          });
+    } else {
+      final boolean autoCommit = this.pluginService.getCurrentConnection().getAutoCommit();
+      this.pluginService.getSessionStateService().setupPristineAutoCommit(autoCommit);
+      return autoCommit;
+    }
   }
 
   @Override
   public void setCatalog(final String catalog) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.setCatalog",
-        () -> {
-          this.pluginService.getSessionStateService().setupPristineCatalog();
-          this.pluginService.getCurrentConnection().setCatalog(catalog);
-          this.pluginService.getSessionStateService().setCatalog(catalog);
-        },
-        catalog);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_SETCATALOG)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_SETCATALOG,
+          () -> {
+            this.pluginService.getSessionStateService().setupPristineCatalog();
+            this.pluginService.getCurrentConnection().setCatalog(catalog);
+            this.pluginService.getSessionStateService().setCatalog(catalog);
+          },
+          catalog);
+    } else {
+      this.pluginService.getSessionStateService().setupPristineCatalog();
+      this.pluginService.getCurrentConnection().setCatalog(catalog);
+      this.pluginService.getSessionStateService().setCatalog(catalog);
+    }
   }
 
   @Override
   public void setClientInfo(final String name, final String value) throws SQLClientInfoException {
-    WrapperUtils.runWithPlugins(
-        SQLClientInfoException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.setClientInfo",
-        () -> this.pluginService.getCurrentConnection().setClientInfo(name, value),
-        name,
-        value);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_SETCLIENTINFO)) {
+      WrapperUtils.runWithPlugins(
+          SQLClientInfoException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_SETCLIENTINFO,
+          () -> this.pluginService.getCurrentConnection().setClientInfo(name, value),
+          name,
+          value);
+    } else {
+      this.pluginService.getCurrentConnection().setClientInfo(name, value);
+    }
   }
 
   @Override
   public void setClientInfo(final Properties properties) throws SQLClientInfoException {
-    WrapperUtils.runWithPlugins(
-        SQLClientInfoException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.setClientInfo",
-        () -> this.pluginService.getCurrentConnection().setClientInfo(properties),
-        properties);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_SETCLIENTINFO)) {
+      WrapperUtils.runWithPlugins(
+          SQLClientInfoException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_SETCLIENTINFO,
+          () -> this.pluginService.getCurrentConnection().setClientInfo(properties),
+          properties);
+    } else {
+      this.pluginService.getCurrentConnection().setClientInfo(properties);
+    }
   }
 
   @Override
   public void setHoldability(final int holdability) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.setHoldability",
-        () -> {
-          this.pluginService.getSessionStateService().setupPristineHoldability();
-          this.pluginService.getCurrentConnection().setHoldability(holdability);
-          this.pluginService.getSessionStateService().setHoldability(holdability);
-        },
-        holdability);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_SETHOLDABILITY)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_SETHOLDABILITY,
+          () -> {
+            this.pluginService.getSessionStateService().setupPristineHoldability();
+            this.pluginService.getCurrentConnection().setHoldability(holdability);
+            this.pluginService.getSessionStateService().setHoldability(holdability);
+          },
+          holdability);
+    } else {
+      this.pluginService.getSessionStateService().setupPristineHoldability();
+      this.pluginService.getCurrentConnection().setHoldability(holdability);
+      this.pluginService.getSessionStateService().setHoldability(holdability);
+    }
   }
 
   @Override
   public void setNetworkTimeout(final Executor executor, final int milliseconds) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.setNetworkTimeout",
-        () -> {
-          this.pluginService.getSessionStateService().setupPristineNetworkTimeout();
-          this.pluginService.getCurrentConnection().setNetworkTimeout(executor, milliseconds);
-          this.pluginService.getSessionStateService().setNetworkTimeout(milliseconds);
-        },
-        executor,
-        milliseconds);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_SETNETWORKTIMEOUT)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_SETNETWORKTIMEOUT,
+          () -> {
+            this.pluginService.getSessionStateService().setupPristineNetworkTimeout();
+            this.pluginService.getCurrentConnection().setNetworkTimeout(executor, milliseconds);
+            this.pluginService.getSessionStateService().setNetworkTimeout(milliseconds);
+          },
+          executor,
+          milliseconds);
+    } else {
+      this.pluginService.getSessionStateService().setupPristineNetworkTimeout();
+      this.pluginService.getCurrentConnection().setNetworkTimeout(executor, milliseconds);
+      this.pluginService.getSessionStateService().setNetworkTimeout(milliseconds);
+    }
   }
 
   @Override
@@ -884,7 +1058,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         SQLException.class,
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
-        "Connection.setSavepoint",
+        JdbcMethod.CONNECTION_SETSAVEPOINT,
         () -> this.pluginService.getCurrentConnection().setSavepoint());
   }
 
@@ -895,54 +1069,72 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         SQLException.class,
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
-        "Connection.setSavepoint",
+        JdbcMethod.CONNECTION_SETSAVEPOINT,
         () -> this.pluginService.getCurrentConnection().setSavepoint(name),
         name);
   }
 
   @Override
   public void setSchema(final String schema) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.setSchema",
-        () -> {
-          this.pluginService.getSessionStateService().setupPristineSchema();
-          this.pluginService.getCurrentConnection().setSchema(schema);
-          this.pluginService.getSessionStateService().setSchema(schema);
-        },
-        schema);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_SETSCHEMA)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_SETSCHEMA,
+          () -> {
+            this.pluginService.getSessionStateService().setupPristineSchema();
+            this.pluginService.getCurrentConnection().setSchema(schema);
+            this.pluginService.getSessionStateService().setSchema(schema);
+          },
+          schema);
+    } else {
+      this.pluginService.getSessionStateService().setupPristineSchema();
+      this.pluginService.getCurrentConnection().setSchema(schema);
+      this.pluginService.getSessionStateService().setSchema(schema);
+    }
   }
 
   @Override
   public void setTransactionIsolation(final int level) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.setTransactionIsolation",
-        () -> {
-          this.pluginService.getSessionStateService().setupPristineTransactionIsolation();
-          this.pluginService.getCurrentConnection().setTransactionIsolation(level);
-          this.pluginService.getSessionStateService().setTransactionIsolation(level);
-        },
-        level);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_SETTRANSACTIONISOLATION)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_SETTRANSACTIONISOLATION,
+          () -> {
+            this.pluginService.getSessionStateService().setupPristineTransactionIsolation();
+            this.pluginService.getCurrentConnection().setTransactionIsolation(level);
+            this.pluginService.getSessionStateService().setTransactionIsolation(level);
+          },
+          level);
+    } else {
+      this.pluginService.getSessionStateService().setupPristineTransactionIsolation();
+      this.pluginService.getCurrentConnection().setTransactionIsolation(level);
+      this.pluginService.getSessionStateService().setTransactionIsolation(level);
+    }
   }
 
   @Override
   public void setTypeMap(final Map<String, Class<?>> map) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.setTypeMap",
-        () -> {
-          this.pluginService.getSessionStateService().setupPristineTypeMap();
-          this.pluginService.getCurrentConnection().setTypeMap(map);
-          this.pluginService.getSessionStateService().setTypeMap(map);
-        },
-        map);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_SETTYPEMAP)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.pluginService.getCurrentConnection(),
+          JdbcMethod.CONNECTION_SETTYPEMAP,
+          () -> {
+            this.pluginService.getSessionStateService().setupPristineTypeMap();
+            this.pluginService.getCurrentConnection().setTypeMap(map);
+            this.pluginService.getSessionStateService().setTypeMap(map);
+          },
+          map);
+    } else {
+      this.pluginService.getSessionStateService().setupPristineTypeMap();
+      this.pluginService.getCurrentConnection().setTypeMap(map);
+      this.pluginService.getSessionStateService().setTypeMap(map);
+    }
   }
 
   @Override

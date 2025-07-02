@@ -495,15 +495,15 @@ class RdsHostListProviderTest {
 
     final String hostName1 = "hostName1";
     final String hostName2 = "hostName2";
-    final Float cpuUtilization = 11.1F;
-    final Float nodeLag = 0.123F;
+    final Double cpuUtilization = 11.1D;
+    final Double nodeLag = 0.123D;
     final Timestamp firstTimestamp = Timestamp.from(Instant.now());
     final Timestamp secondTimestamp = new Timestamp(firstTimestamp.getTime() + 100);
     when(mockResultSet.next()).thenReturn(true, true, false);
     when(mockResultSet.getString(1)).thenReturn(hostName1).thenReturn(hostName2);
     when(mockResultSet.getBoolean(2)).thenReturn(true).thenReturn(true);
-    when(mockResultSet.getFloat(3)).thenReturn(cpuUtilization).thenReturn(cpuUtilization);
-    when(mockResultSet.getFloat(4)).thenReturn(nodeLag).thenReturn(nodeLag);
+    when(mockResultSet.getDouble(3)).thenReturn(cpuUtilization).thenReturn(cpuUtilization);
+    when(mockResultSet.getDouble(4)).thenReturn(nodeLag).thenReturn(nodeLag);
     when(mockResultSet.getTimestamp(5)).thenReturn(firstTimestamp).thenReturn(secondTimestamp);
     long weight = Math.round(nodeLag) * 100L + Math.round(cpuUtilization);
     final HostSpec expectedWriter = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
@@ -527,13 +527,13 @@ class RdsHostListProviderTest {
     rdsHostListProvider.isInitialized = true;
 
     final String hostName = "hostName";
-    final Float cpuUtilization = 11.1F;
-    final Float nodeLag = 0.123F;
+    final Double cpuUtilization = 11.1D;
+    final Double nodeLag = 0.123D;
     when(mockResultSet.next()).thenReturn(true, false);
     when(mockResultSet.getString(1)).thenReturn(hostName);
     when(mockResultSet.getBoolean(2)).thenReturn(true);
-    when(mockResultSet.getFloat(3)).thenReturn(cpuUtilization);
-    when(mockResultSet.getFloat(4)).thenReturn(nodeLag);
+    when(mockResultSet.getDouble(3)).thenReturn(cpuUtilization);
+    when(mockResultSet.getDouble(4)).thenReturn(nodeLag);
     when(mockResultSet.getTimestamp(5)).thenThrow(WrongArgumentException.class);
 
     final FetchTopologyResult result = rdsHostListProvider.getTopology(mockConnection, true);

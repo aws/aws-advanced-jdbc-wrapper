@@ -56,11 +56,13 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
@@ -68,8 +70,8 @@ import software.amazon.jdbc.util.RdsUtils;
 class HostMonitoringConnectionPluginTest {
 
   static final Class<Connection> MONITOR_METHOD_INVOKE_ON = Connection.class;
-  static final String MONITOR_METHOD_NAME = "Statement.executeQuery";
-  static final String NO_MONITOR_METHOD_NAME = "Connection.abort";
+  static final String MONITOR_METHOD_NAME = JdbcMethod.STATEMENT_EXECUTEQUERY.methodName;
+  static final String NO_MONITOR_METHOD_NAME = JdbcMethod.CONNECTION_ABORT.methodName;
   static final int FAILURE_DETECTION_TIME = 10;
   static final int FAILURE_DETECTION_INTERVAL = 100;
   static final int FAILURE_DETECTION_COUNT = 5;
@@ -89,6 +91,8 @@ class HostMonitoringConnectionPluginTest {
   @Mock ReentrantLock mockReentrantLock;
   @Mock HostMonitorService monitorService;
   @Mock JdbcCallable<ResultSet, SQLException> sqlFunction;
+  @Mock TargetDriverDialect targetDriverDialect;
+
   private HostMonitoringConnectionPlugin plugin;
   private AutoCloseable closeable;
 
@@ -137,6 +141,9 @@ class HostMonitoringConnectionPluginTest {
     when(pluginService.getCurrentConnection()).thenReturn(connection);
     when(pluginService.getCurrentHostSpec()).thenReturn(hostSpec);
     when(pluginService.getDialect()).thenReturn(mockDialect);
+    when(pluginService.getTargetDriverDialect()).thenReturn(targetDriverDialect);
+    when(targetDriverDialect.getNetworkBoundMethodNames(any())).thenReturn(
+        new HashSet<>(Collections.singletonList(MONITOR_METHOD_NAME)));
     when(mockDialect.getHostAliasQuery()).thenReturn("any");
     when(hostSpec.getHost()).thenReturn("host");
     when(hostSpec.getHost()).thenReturn("port");

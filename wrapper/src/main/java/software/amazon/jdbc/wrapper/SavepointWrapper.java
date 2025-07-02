@@ -20,6 +20,7 @@ import java.sql.SQLException;
 import java.sql.Savepoint;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.ConnectionPluginManager;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.util.WrapperUtils;
 
 public class SavepointWrapper implements Savepoint {
@@ -35,24 +36,32 @@ public class SavepointWrapper implements Savepoint {
 
   @Override
   public int getSavepointId() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.savepoint,
-        "Savepoint.getSavepointId",
-        () -> this.savepoint.getSavepointId());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SAVEPOINT_GETSAVEPOINTID)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.savepoint,
+          JdbcMethod.SAVEPOINT_GETSAVEPOINTID,
+          () -> this.savepoint.getSavepointId());
+    } else {
+      return this.savepoint.getSavepointId();
+    }
   }
 
   @Override
   public String getSavepointName() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        SQLException.class,
-        this.pluginManager,
-        this.savepoint,
-        "Savepoint.getSavepointName",
-        () -> this.savepoint.getSavepointName());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SAVEPOINT_GETSAVEPOINTNAME)) {
+      return WrapperUtils.executeWithPlugins(
+          String.class,
+          SQLException.class,
+          this.pluginManager,
+          this.savepoint,
+          JdbcMethod.SAVEPOINT_GETSAVEPOINTNAME,
+          () -> this.savepoint.getSavepointName());
+    } else {
+      return this.savepoint.getSavepointName();
+    }
   }
 
   @Override

@@ -64,6 +64,10 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache = new CacheMap<>();
   protected final FullServicesContainer servicesContainer;
+
+  protected static final CacheMap<String, Object> statusesExpiringCache = new CacheMap<>();
+  protected static final long DEFAULT_STATUS_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(60);
+
   protected final ConnectionPluginManager pluginManager;
   private final Properties props;
   private final String originalUrl;
@@ -206,6 +210,11 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   public HostSpec getInitialConnectionHostSpec() {
     return this.initialConnectionHostSpec;
+  }
+
+  @Override
+  public String getOriginalUrl() {
+    return this.originalUrl;
   }
 
   @Override
@@ -726,6 +735,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
     final HostListProviderSupplier supplier = this.dialect.getHostListProvider();
     this.setHostListProvider(supplier.getProvider(this.props, this.originalUrl, this.servicesContainer));
+    this.refreshHostList(connection);
   }
 
   @Override
@@ -799,5 +809,54 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   public static void clearCache() {
     hostAvailabilityExpiringCache.clear();
+  }
+
+  public <T> void setStatus(final Class<T> clazz, final @Nullable T status, final boolean clusterBound) {
+    String clusterId = null;
+    if (clusterBound) {
+      try {
+        clusterId = this.hostListProvider.getClusterId();
+      } catch (Exception ex) {
+        // do nothing
+      }
+    }
+    this.setStatus(clazz, status, clusterId);
+  }
+
+  public <T> void setStatus(final Class<T> clazz, final @Nullable T status, final String key) {
+    final String cacheKey = this.getStatusCacheKey(clazz, key);
+    if (status == null) {
+      statusesExpiringCache.remove(cacheKey);
+    } else {
+      statusesExpiringCache.put(cacheKey, status, DEFAULT_STATUS_CACHE_EXPIRE_NANO);
+    }
+  }
+
+  public <T> T getStatus(final @NonNull Class<T> clazz, final boolean clusterBound) {
+    String clusterId = null;
+    if (clusterBound) {
+      try {
+        clusterId = this.hostListProvider.getClusterId();
+      } catch (Exception ex) {
+        // do nothing
+      }
+    }
+    return this.getStatus(clazz, clusterId);
+  }
+
+  public <T> T getStatus(final @NonNull Class<T> clazz, String key) {
+    return clazz.cast(statusesExpiringCache.get(this.getStatusCacheKey(clazz, key)));
+  }
+
+  protected <T> String getStatusCacheKey(final Class<T> clazz, final String key) {
+    return String.format("%s::%s", key == null ? "" : key.trim().toLowerCase(), clazz.getName());
+  }
+
+  public boolean isPluginInUse(final Class<? extends ConnectionPlugin> pluginClazz) {
+    try {
+      return this.pluginManager.isWrapperFor(pluginClazz);
+    } catch (SQLException e) {
+      return false;
+    }
   }
 }

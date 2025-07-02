@@ -73,7 +73,7 @@ public class HostResponseTimeServiceImpl implements HostResponseTimeService {
     this.props = props;
     this.intervalMs = intervalMs;
     this.telemetryFactory = this.pluginService.getTelemetryFactory();
-    this.nodeCountGauge = telemetryFactory.createGauge("frt.nodes.count",
+    this.nodeCountGauge = this.telemetryFactory.createGauge("frt.nodes.count",
         () -> (long) monitoringNodes.size());
 
     monitoringNodes.setCleanupIntervalNanos(CACHE_CLEANUP_NANO);

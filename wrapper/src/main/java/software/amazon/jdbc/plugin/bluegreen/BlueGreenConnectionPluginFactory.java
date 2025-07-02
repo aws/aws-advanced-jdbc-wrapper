@@ -14,15 +14,18 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.util;
+package software.amazon.jdbc.plugin.bluegreen;
 
-import java.util.Arrays;
-import java.util.List;
+import java.util.Properties;
+import software.amazon.jdbc.ConnectionPlugin;
+import software.amazon.jdbc.ConnectionPluginFactory;
+import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 
-public class AsynchronousMethodsHelper {
-  public static final List<String> ASYNCHRONOUS_METHODS = Arrays.asList(
-      "Statement.cancel",
-      "PreparedStatement.cancel",
-      "Connection.abort"
-  );
+public class BlueGreenConnectionPluginFactory implements ConnectionPluginFactory {
+
+  @Override
+  public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
+    return new BlueGreenConnectionPlugin(pluginService, props);
+  }
 }
