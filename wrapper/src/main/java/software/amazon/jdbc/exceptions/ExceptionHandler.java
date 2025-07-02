@@ -29,7 +29,7 @@ public interface ExceptionHandler {
    *
    * @deprecated Use similar method below that accepts throwable and target driver dialect.
    */
-  @Deprecated()
+  @Deprecated
   boolean isNetworkException(Throwable throwable);
 
   boolean isNetworkException(Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect);
