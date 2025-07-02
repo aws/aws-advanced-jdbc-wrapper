@@ -52,6 +52,7 @@ import software.amazon.jdbc.plugin.bluegreen.routing.SubstituteConnectRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.SuspendConnectRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.SuspendExecuteRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.SuspendUntilCorrespondingNodeFoundConnectRouting;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
@@ -119,6 +120,7 @@ public class BlueGreenStatusProvider {
   protected final long switchoverTimeoutNano;
   protected final boolean suspendNewBlueConnectionsWhenInProgress;
 
+  protected final FullServicesContainer servicesContainer;
   protected final PluginService pluginService;
   protected final Properties props;
   protected final String bgdId;
@@ -126,11 +128,12 @@ public class BlueGreenStatusProvider {
   protected final RdsUtils rdsUtils = new RdsUtils();
 
   public BlueGreenStatusProvider(
-      final @NonNull PluginService pluginService,
+      final @NonNull FullServicesContainer servicesContainer,
       final @NonNull Properties props,
       final @NonNull String bgdId) {
 
-    this.pluginService = pluginService;
+    this.servicesContainer = servicesContainer;
+    this.pluginService = servicesContainer.getPluginService();
     this.props = props;
     this.bgdId = bgdId;
 
@@ -156,7 +159,7 @@ public class BlueGreenStatusProvider {
             BlueGreenRole.SOURCE,
             this.bgdId,
             this.pluginService.getCurrentHostSpec(),
-            this.pluginService,
+            this.servicesContainer,
             this.getMonitoringProperties(),
             statusCheckIntervalMap,
             this::prepareStatus);
@@ -165,7 +168,7 @@ public class BlueGreenStatusProvider {
             BlueGreenRole.TARGET,
             this.bgdId,
             this.pluginService.getCurrentHostSpec(),
-            this.pluginService,
+            this.servicesContainer,
             this.getMonitoringProperties(),
             statusCheckIntervalMap,
             this::prepareStatus);

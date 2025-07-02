@@ -218,11 +218,6 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public String getOriginalUrl() {
-    return this.originalUrl;
-  }
-
-  @Override
   @Deprecated
   public void setAllowedAndBlockedHosts(AllowedAndBlockedHosts allowedAndBlockedHosts) {
     this.servicesContainer.getStorageService().set(this.initialConnectionHostSpec.getHost(), allowedAndBlockedHosts);

@@ -662,6 +662,38 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
     return null;
   }
 
+  @Override
+  public <T> void setStatus(Class<T> clazz, @Nullable T status, boolean clusterBound) {
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"setStatus"}));
+  }
+
+  @Override
+  public <T> void setStatus(Class<T> clazz, @Nullable T status, String key) {
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"setStatus"}));
+  }
+
+  @Override
+  public <T> T getStatus(@NonNull Class<T> clazz, boolean clusterBound) {
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getStatus"}));
+  }
+
+  @Override
+  public <T> T getStatus(@NonNull Class<T> clazz, String key) {
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getStatus"}));
+  }
+
+  public boolean isPluginInUse(final Class<? extends ConnectionPlugin> pluginClazz) {
+    try {
+      return this.pluginManager.isWrapperFor(pluginClazz);
+    } catch (SQLException e) {
+      return false;
+    }
+  }
+
   public static void clearCache() {
     hostAvailabilityExpiringCache.clear();
   }

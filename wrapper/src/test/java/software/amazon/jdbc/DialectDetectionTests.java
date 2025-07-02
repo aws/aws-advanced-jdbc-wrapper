@@ -64,7 +64,7 @@ public class DialectDetectionTests {
   private final Properties props = new Properties();
   private AutoCloseable closeable;
   @Mock private FullServicesContainer mockServicesContainer;
-  @Mock private HostListProvider mockHostListProvider;
+  @Mock private HostListProviderService mockHostListProviderService;
   @Mock private Connection mockConnection;
   @Mock private Statement mockStatement;
   @Mock private ResultSet mockSuccessResultSet;
@@ -77,6 +77,7 @@ public class DialectDetectionTests {
   @BeforeEach
   void setUp() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
+    when(this.mockServicesContainer.getHostListProviderService()).thenReturn(mockHostListProviderService);
     when(this.mockServicesContainer.getConnectionPluginManager()).thenReturn(mockPluginManager);
     when(this.mockConnection.createStatement()).thenReturn(this.mockStatement);
     when(this.mockHost.getUrl()).thenReturn("url");
@@ -90,13 +91,13 @@ public class DialectDetectionTests {
     DialectManager.resetEndpointCache();
   }
 
-  PluginServiceImpl getPluginService(String protocol) throws SQLException {
+  PluginServiceImpl getPluginService(String host, String protocol) throws SQLException {
     return spy(
         new PluginServiceImpl(
             mockServicesContainer,
             new ExceptionManager(),
             props,
-            protocol + DialectDetectionTests.LOCALHOST,
+            protocol + host,
             protocol,
             null,
             mockTargetDriverDialect,
@@ -128,7 +129,7 @@ public class DialectDetectionTests {
   @Test
   void testUpdateDialectMysqlUnchanged() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(mockFailResultSet);
-    final PluginServiceImpl target = getPluginService(MYSQL_PROTOCOL);
+    final PluginServiceImpl target = getPluginService(LOCALHOST, MYSQL_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
     assertEquals(MysqlDialect.class, target.dialect.getClass());
@@ -158,7 +159,7 @@ public class DialectDetectionTests {
   void testUpdateDialectMysqlToTaz() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(mockFailResultSet, mockSuccessResultSet);
     when(mockSuccessResultSet.next()).thenReturn(true);
-    final PluginServiceImpl target = getPluginService(MYSQL_PROTOCOL);
+    final PluginServiceImpl target = getPluginService(LOCALHOST, MYSQL_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
     assertEquals(AuroraMysqlDialect.class, target.dialect.getClass());
@@ -169,7 +170,7 @@ public class DialectDetectionTests {
     when(mockStatement.executeQuery(any())).thenReturn(mockFailResultSet);
     when(mockStatement.executeQuery("SHOW VARIABLES LIKE 'aurora_version'")).thenReturn(mockSuccessResultSet);
     when(mockSuccessResultSet.next()).thenReturn(true, false);
-    final PluginServiceImpl target = getPluginService(MYSQL_PROTOCOL);
+    final PluginServiceImpl target = getPluginService(LOCALHOST, MYSQL_PROTOCOL);
     when(mockServicesContainer.getPluginService()).thenReturn(target);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
@@ -179,7 +180,7 @@ public class DialectDetectionTests {
   @Test
   void testUpdateDialectPgUnchanged() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(mockFailResultSet);
-    final PluginServiceImpl target = getPluginService(PG_PROTOCOL);
+    final PluginServiceImpl target = getPluginService(LOCALHOST, PG_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
     assertEquals(PgDialect.class, target.dialect.getClass());
@@ -194,7 +195,7 @@ public class DialectDetectionTests {
     when(mockSuccessResultSet.getBoolean("aurora_stat_utils")).thenReturn(false);
     when(mockSuccessResultSet.next()).thenReturn(true);
     when(mockFailResultSet.next()).thenReturn(false);
-    final PluginServiceImpl target = getPluginService(PG_PROTOCOL);
+    final PluginServiceImpl target = getPluginService(LOCALHOST, PG_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
     assertEquals(RdsPgDialect.class, target.dialect.getClass());
@@ -209,7 +210,7 @@ public class DialectDetectionTests {
     when(mockStatement.executeQuery(any())).thenReturn(mockSuccessResultSet);
     when(mockSuccessResultSet.getBoolean(any())).thenReturn(false);
     when(mockSuccessResultSet.next()).thenReturn(true);
-    final PluginServiceImpl target = getPluginService(PG_PROTOCOL);
+    final PluginServiceImpl target = getPluginService(LOCALHOST, PG_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
     assertEquals(RdsMultiAzDbClusterPgDialect.class, target.dialect.getClass());
@@ -224,7 +225,7 @@ public class DialectDetectionTests {
     when(mockStatement.executeQuery(any())).thenReturn(mockSuccessResultSet);
     when(mockSuccessResultSet.next()).thenReturn(true);
     when(mockSuccessResultSet.getBoolean(any())).thenReturn(true);
-    final PluginServiceImpl target = getPluginService(PG_PROTOCOL);
+    final PluginServiceImpl target = getPluginService(LOCALHOST, PG_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
     assertEquals(AuroraPgDialect.class, target.dialect.getClass());
@@ -233,7 +234,7 @@ public class DialectDetectionTests {
   @Test
   void testUpdateDialectMariaUnchanged() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(mockFailResultSet);
-    final PluginServiceImpl target = getPluginService(MARIA_PROTOCOL);
+    final PluginServiceImpl target = getPluginService(LOCALHOST, MARIA_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
     assertEquals(MariaDbDialect.class, target.dialect.getClass());
@@ -244,11 +245,11 @@ public class DialectDetectionTests {
     when(mockStatement.executeQuery(any())).thenReturn(mockFailResultSet);
     when(mockStatement.executeQuery("SHOW VARIABLES LIKE 'version_comment'")).thenReturn(mockSuccessResultSet);
     when(mockStatement.executeQuery("SHOW VARIABLES LIKE 'report_host'")).thenReturn(mockSuccessResultSet);
-    when(successResultSet.getString(2)).thenReturn(
+    when(mockSuccessResultSet.getString(2)).thenReturn(
         "Source distribution", "Source distribution", "");
-    when(successResultSet.next()).thenReturn(true, false, true, true);
-    when(successResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
-    when(failResultSet.next()).thenReturn(false);
+    when(mockSuccessResultSet.next()).thenReturn(true, false, true, true);
+    when(mockSuccessResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
+    when(mockFailResultSet.next()).thenReturn(false);
     final PluginServiceImpl target = getPluginService(LOCALHOST, MARIA_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
@@ -262,7 +263,7 @@ public class DialectDetectionTests {
   // 2) test PluginServiceImpl.updateDialect() with mocked DialectManager.getDialect()
   void testUpdateDialectMariaToMysqlTaz() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(mockFailResultSet, mockSuccessResultSet);
-    final PluginServiceImpl target = getPluginService(MARIA_PROTOCOL);
+    final PluginServiceImpl target = getPluginService(LOCALHOST, MARIA_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
     assertEquals(RdsMultiAzDbClusterMysqlDialect.class, target.dialect.getClass());
@@ -273,7 +274,7 @@ public class DialectDetectionTests {
     when(mockStatement.executeQuery(any())).thenReturn(mockFailResultSet);
     when(mockStatement.executeQuery("SHOW VARIABLES LIKE 'aurora_version'")).thenReturn(mockSuccessResultSet);
     when(mockSuccessResultSet.next()).thenReturn(true, false);
-    final PluginServiceImpl target = getPluginService(MARIA_PROTOCOL);
+    final PluginServiceImpl target = getPluginService(LOCALHOST, MARIA_PROTOCOL);
     when(mockServicesContainer.getPluginService()).thenReturn(target);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);

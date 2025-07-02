@@ -55,7 +55,6 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   protected static final RegionUtils regionUtils = new RegionUtils();
   protected static final Set<MonitorErrorResponse> monitorErrorResponses =
       new HashSet<>(Collections.singletonList(MonitorErrorResponse.RECREATE));
-  protected static final Set<String> subscribedMethods;
 
   public static final AwsWrapperProperty CUSTOM_ENDPOINT_INFO_REFRESH_RATE_MS = new AwsWrapperProperty(
       "customEndpointInfoRefreshRateMs", "30000",
@@ -92,6 +91,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   protected final RdsUtils rdsUtils = new RdsUtils();
   protected final BiFunction<HostSpec, Region, RdsClient> rdsClientFunc;
 
+  protected final Set<String> subscribedMethods;
   protected final TelemetryCounter waitForInfoCounter;
   protected final boolean shouldWaitForInfo;
   protected final int waitOnCachedInfoDurationMs;
