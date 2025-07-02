@@ -56,6 +56,7 @@ import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginManagerService;
@@ -216,7 +217,7 @@ public class ConnectionPluginManagerBenchmarks {
         int.class,
         RuntimeException.class,
         mockStatement,
-        "Statement.execute",
+        JdbcMethod.STATEMENT_EXECUTE,
         () -> 1,
         new Object[] {1}
     );
@@ -228,7 +229,7 @@ public class ConnectionPluginManagerBenchmarks {
         int.class,
         RuntimeException.class,
         mockStatement,
-        "Statement.execute",
+        JdbcMethod.STATEMENT_EXECUTE,
         () -> 1,
         new Object[] {1}
     );

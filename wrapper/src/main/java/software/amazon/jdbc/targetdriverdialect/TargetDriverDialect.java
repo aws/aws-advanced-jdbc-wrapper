@@ -22,6 +22,7 @@ import java.util.Properties;
 import java.util.Set;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 
 public interface TargetDriverDialect {
@@ -58,4 +59,6 @@ public interface TargetDriverDialect {
   Set<String> getAllowedOnConnectionMethodNames();
 
   String getSQLState(final Throwable throwable);
+
+  Set<String> getNetworkBoundMethodNames(final @Nullable Properties properties);
 }

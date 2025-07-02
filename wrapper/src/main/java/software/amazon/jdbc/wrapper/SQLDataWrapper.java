@@ -22,6 +22,7 @@ import java.sql.SQLInput;
 import java.sql.SQLOutput;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.ConnectionPluginManager;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.util.WrapperUtils;
 
 public class SQLDataWrapper implements SQLData {
@@ -36,36 +37,48 @@ public class SQLDataWrapper implements SQLData {
 
   @Override
   public String getSQLTypeName() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        SQLException.class,
-        this.pluginManager,
-        this.sqlData,
-        "SQLData.getSQLTypeName",
-        () -> this.sqlData.getSQLTypeName());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLDATA_GETSQLTYPENAME)) {
+      return WrapperUtils.executeWithPlugins(
+          String.class,
+          SQLException.class,
+          this.pluginManager,
+          this.sqlData,
+          JdbcMethod.SQLDATA_GETSQLTYPENAME,
+          () -> this.sqlData.getSQLTypeName());
+    } else {
+      return this.sqlData.getSQLTypeName();
+    }
   }
 
   @Override
   public void readSQL(SQLInput stream, String typeName) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.sqlData,
-        "SQLData.readSQL",
-        () -> this.sqlData.readSQL(stream, typeName),
-        stream,
-        typeName);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLDATA_READSQL)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.sqlData,
+          JdbcMethod.SQLDATA_READSQL,
+          () -> this.sqlData.readSQL(stream, typeName),
+          stream,
+          typeName);
+    } else {
+      this.sqlData.readSQL(stream, typeName);
+    }
   }
 
   @Override
   public void writeSQL(SQLOutput stream) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.sqlData,
-        "SQLData.writeSQL",
-        () -> this.sqlData.writeSQL(stream),
-        stream);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLDATA_WRITESQL)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.sqlData,
+          JdbcMethod.SQLDATA_WRITESQL,
+          () -> this.sqlData.writeSQL(stream),
+          stream);
+    } else {
+      this.sqlData.writeSQL(stream);
+    }
   }
 
   @Override

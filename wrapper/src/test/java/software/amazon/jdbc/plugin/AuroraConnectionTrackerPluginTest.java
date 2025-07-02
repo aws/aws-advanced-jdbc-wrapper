@@ -30,6 +30,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -39,17 +40,18 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 
@@ -66,6 +68,8 @@ public class AuroraConnectionTrackerPluginTest {
   @Mock JdbcCallable<Connection, SQLException> mockConnectionFunction;
   @Mock JdbcCallable<ResultSet, SQLException> mockSqlFunction;
   @Mock JdbcCallable<Void, SQLException> mockCloseOrAbortFunction;
+  @Mock TargetDriverDialect mockTargetDriverDialect;
+
   private static final Object[] SQL_ARGS = {"sql"};
 
   private AutoCloseable closeable;
@@ -82,6 +86,8 @@ public class AuroraConnectionTrackerPluginTest {
     when(mockRdsUtils.identifyRdsType(any())).thenReturn(RdsUrlType.RDS_INSTANCE);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.getDialect()).thenReturn(mockTopologyAwareDialect);
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(mockTargetDriverDialect);
+    when(mockTargetDriverDialect.getNetworkBoundMethodNames(any())).thenReturn(new HashSet<>());
   }
 
   @AfterEach
@@ -197,7 +203,7 @@ public class AuroraConnectionTrackerPluginTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {AuroraConnectionTrackerPlugin.METHOD_ABORT, AuroraConnectionTrackerPlugin.METHOD_CLOSE})
+  @MethodSource("testInvalidateConnectionsOnCloseOrAbortArgs")
   public void testInvalidateConnectionsOnCloseOrAbort(final String method) throws SQLException {
     final HostSpec originalHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host")
         .build();
@@ -219,6 +225,13 @@ public class AuroraConnectionTrackerPluginTest {
     );
 
     verify(mockTracker).removeConnectionTracking(eq(originalHost), eq(mockConnection));
+  }
+
+  static Stream<Arguments> testInvalidateConnectionsOnCloseOrAbortArgs() {
+    return Stream.of(
+        Arguments.of(JdbcMethod.CONNECTION_ABORT.methodName),
+        Arguments.of(JdbcMethod.CONNECTION_CLOSE.methodName)
+    );
   }
 
   private static Stream<Arguments> trackNewConnectionsParameters() {

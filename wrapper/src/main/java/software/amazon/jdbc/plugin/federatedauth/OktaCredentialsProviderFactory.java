@@ -19,29 +19,14 @@ package software.amazon.jdbc.plugin.federatedauth;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
-import java.io.StringWriter;
-import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerConfigurationException;
-import javax.xml.transform.TransformerException;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
-import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HttpEntity;
-import org.apache.http.NameValuePair;
 import org.apache.http.StatusLine;
 import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.entity.StringEntity;
@@ -50,12 +35,8 @@ import org.apache.http.util.EntityUtils;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.parser.Parser;
-import org.jsoup.select.Elements;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
@@ -84,7 +65,8 @@ public class OktaCredentialsProviderFactory extends SamlCredentialsProviderFacto
 
   @Override
   String getSamlAssertion(@NonNull Properties props) throws SQLException {
-    this.telemetryContext = telemetryFactory.openTelemetryContext(TELEMETRY_FETCH_SAML, TelemetryTraceLevel.NESTED);
+    this.telemetryContext = this.telemetryFactory.openTelemetryContext(
+        TELEMETRY_FETCH_SAML, TelemetryTraceLevel.NESTED);
 
     try (final CloseableHttpClient httpClient = httpClientSupplier.get()) {
       final String sessionToken = getSessionToken(props);
@@ -122,11 +104,15 @@ public class OktaCredentialsProviderFactory extends SamlCredentialsProviderFacto
 
     } catch (final IOException e) {
       LOGGER.severe(Messages.get("SAMLCredentialsProviderFactory.getSamlAssertionFailed", new Object[] {e}));
-      this.telemetryContext.setSuccess(false);
-      this.telemetryContext.setException(e);
+      if (this.telemetryContext != null) {
+        this.telemetryContext.setSuccess(false);
+        this.telemetryContext.setException(e);
+      }
       throw new SQLException(e);
     } finally {
-      this.telemetryContext.closeContext();
+      if (this.telemetryContext != null) {
+        this.telemetryContext.closeContext();
+      }
     }
   }
 

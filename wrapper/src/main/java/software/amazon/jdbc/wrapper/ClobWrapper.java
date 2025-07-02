@@ -24,6 +24,7 @@ import java.sql.Clob;
 import java.sql.SQLException;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.ConnectionPluginManager;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.util.WrapperUtils;
 
 public class ClobWrapper implements Clob {
@@ -38,156 +39,212 @@ public class ClobWrapper implements Clob {
 
   @Override
   public long length() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        long.class,
-        SQLException.class,
-        this.pluginManager,
-        this.clob,
-        "Clob.length",
-        () -> this.clob.length());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CLOB_LENGTH)) {
+      return WrapperUtils.executeWithPlugins(
+          long.class,
+          SQLException.class,
+          this.pluginManager,
+          this.clob,
+          JdbcMethod.CLOB_LENGTH,
+          () -> this.clob.length());
+    } else {
+      return this.clob.length();
+    }
   }
 
   @Override
   public String getSubString(long pos, int length) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        SQLException.class,
-        this.pluginManager,
-        this.clob,
-        "Clob.getSubString",
-        () -> this.clob.getSubString(pos, length),
-        pos,
-        length);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CLOB_GETSUBSTRING)) {
+      return WrapperUtils.executeWithPlugins(
+          String.class,
+          SQLException.class,
+          this.pluginManager,
+          this.clob,
+          JdbcMethod.CLOB_GETSUBSTRING,
+          () -> this.clob.getSubString(pos, length),
+          pos,
+          length);
+    } else {
+      return this.clob.getSubString(pos, length);
+    }
   }
 
   @Override
   public Reader getCharacterStream() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        Reader.class,
-        SQLException.class,
-        this.pluginManager,
-        this.clob,
-        "Clob.getCharacterStream",
-        () -> this.clob.getCharacterStream());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CLOB_GETCHARACTERSTREAM)) {
+      return WrapperUtils.executeWithPlugins(
+          Reader.class,
+          SQLException.class,
+          this.pluginManager,
+          this.clob,
+          JdbcMethod.CLOB_GETCHARACTERSTREAM,
+          () -> this.clob.getCharacterStream());
+    } else {
+      return this.clob.getCharacterStream();
+    }
   }
 
   @Override
   public Reader getCharacterStream(long pos, long length) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        Reader.class,
-        SQLException.class,
-        this.pluginManager,
-        this.clob,
-        "Clob.getCharacterStream",
-        () -> this.clob.getCharacterStream(pos, length),
-        pos,
-        length);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CLOB_GETCHARACTERSTREAM)) {
+      return WrapperUtils.executeWithPlugins(
+          Reader.class,
+          SQLException.class,
+          this.pluginManager,
+          this.clob,
+          JdbcMethod.CLOB_GETCHARACTERSTREAM,
+          () -> this.clob.getCharacterStream(pos, length),
+          pos,
+          length);
+    } else {
+      return this.clob.getCharacterStream(pos, length);
+    }
   }
 
   @Override
   public InputStream getAsciiStream() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        InputStream.class,
-        SQLException.class,
-        this.pluginManager,
-        this.clob,
-        "Clob.getAsciiStream",
-        () -> this.clob.getAsciiStream());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CLOB_GETASCIISTREAM)) {
+      return WrapperUtils.executeWithPlugins(
+          InputStream.class,
+          SQLException.class,
+          this.pluginManager,
+          this.clob,
+          JdbcMethod.CLOB_GETASCIISTREAM,
+          () -> this.clob.getAsciiStream());
+    } else {
+      return this.clob.getAsciiStream();
+    }
   }
 
   @Override
   public long position(String searchStr, long start) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        long.class,
-        SQLException.class,
-        this.pluginManager,
-        this.clob,
-        "Clob.position",
-        () -> this.clob.position(searchStr, start),
-        searchStr,
-        start);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CLOB_POSITION)) {
+      return WrapperUtils.executeWithPlugins(
+          long.class,
+          SQLException.class,
+          this.pluginManager,
+          this.clob,
+          JdbcMethod.CLOB_POSITION,
+          () -> this.clob.position(searchStr, start),
+          searchStr,
+          start);
+    } else {
+      return this.clob.position(searchStr, start);
+    }
   }
 
   @Override
   public long position(Clob searchStr, long start) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        long.class,
-        SQLException.class,
-        this.pluginManager,
-        this.clob,
-        "Clob.position",
-        () -> this.clob.position(searchStr, start),
-        searchStr,
-        start);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CLOB_POSITION)) {
+      return WrapperUtils.executeWithPlugins(
+          long.class,
+          SQLException.class,
+          this.pluginManager,
+          this.clob,
+          JdbcMethod.CLOB_POSITION,
+          () -> this.clob.position(searchStr, start),
+          searchStr,
+          start);
+    } else {
+      return this.clob.position(searchStr, start);
+    }
   }
 
   @Override
   public int setString(long pos, String str) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.clob,
-        "Clob.setString",
-        () -> this.clob.setString(pos, str),
-        pos,
-        str);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CLOB_SETSTRING)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.clob,
+          JdbcMethod.CLOB_SETSTRING,
+          () -> this.clob.setString(pos, str),
+          pos,
+          str);
+    } else {
+      return this.clob.setString(pos, str);
+    }
   }
 
   @Override
   public int setString(long pos, String str, int offset, int len) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        SQLException.class,
-        this.pluginManager,
-        this.clob,
-        "Clob.setString",
-        () -> this.clob.setString(pos, str, offset, len),
-        pos,
-        str,
-        offset,
-        len);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CLOB_SETSTRING)) {
+      return WrapperUtils.executeWithPlugins(
+          int.class,
+          SQLException.class,
+          this.pluginManager,
+          this.clob,
+          JdbcMethod.CLOB_SETSTRING,
+          () -> this.clob.setString(pos, str, offset, len),
+          pos,
+          str,
+          offset,
+          len);
+    } else {
+      return this.clob.setString(pos, str, offset, len);
+    }
   }
 
   @Override
   public OutputStream setAsciiStream(long pos) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        OutputStream.class,
-        SQLException.class,
-        this.pluginManager,
-        this.clob,
-        "Clob.setAsciiStream",
-        () -> this.clob.setAsciiStream(pos),
-        pos);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CLOB_SETASCIISTREAM)) {
+      return WrapperUtils.executeWithPlugins(
+          OutputStream.class,
+          SQLException.class,
+          this.pluginManager,
+          this.clob,
+          JdbcMethod.CLOB_SETASCIISTREAM,
+          () -> this.clob.setAsciiStream(pos),
+          pos);
+    } else {
+      return this.clob.setAsciiStream(pos);
+    }
   }
 
   @Override
   public Writer setCharacterStream(long pos) throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        Writer.class,
-        SQLException.class,
-        this.pluginManager,
-        this.clob,
-        "Clob.setCharacterStream",
-        () -> this.clob.setCharacterStream(pos),
-        pos);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CLOB_SETCHARACTERSTREAM)) {
+      return WrapperUtils.executeWithPlugins(
+          Writer.class,
+          SQLException.class,
+          this.pluginManager,
+          this.clob,
+          JdbcMethod.CLOB_SETCHARACTERSTREAM,
+          () -> this.clob.setCharacterStream(pos),
+          pos);
+    } else {
+      return this.clob.setCharacterStream(pos);
+    }
   }
 
   @Override
   public void truncate(long len) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.clob,
-        "Clob.truncate",
-        () -> this.clob.truncate(len),
-        len);
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CLOB_TRUNCATE)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.clob,
+          JdbcMethod.CLOB_TRUNCATE,
+          () -> this.clob.truncate(len),
+          len);
+    } else {
+      this.clob.truncate(len);
+    }
   }
 
   @Override
   public void free() throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class, this.pluginManager, this.clob, "Clob.free", () -> this.clob.free());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.CLOB_FREE)) {
+      WrapperUtils.runWithPlugins(
+          SQLException.class,
+          this.pluginManager,
+          this.clob,
+          JdbcMethod.CLOB_FREE,
+          () -> this.clob.free());
+    } else {
+      this.clob.free();
+    }
   }
 
   @Override

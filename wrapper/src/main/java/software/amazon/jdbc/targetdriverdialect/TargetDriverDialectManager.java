@@ -57,12 +57,12 @@ public class TargetDriverDialectManager implements TargetDriverDialectProvider {
         }
       };
 
-  protected static final Map<String, TargetDriverDialect> defaultDialectsByProtocol =
-      new HashMap<String, TargetDriverDialect>() {
+  protected static final Map<String, String> defaultDialectCodesByProtocol =
+      new HashMap<String, String>() {
         {
-          put("jdbc:postgresql://", new PgTargetDriverDialect());
-          put("jdbc:mysql://", new MysqlConnectorJTargetDriverDialect());
-          put("jdbc:mariadb://", new MariadbTargetDriverDialect());
+          put("jdbc:postgresql://", TargetDriverDialectCodes.PG_JDBC);
+          put("jdbc:mysql://", TargetDriverDialectCodes.MYSQL_CONNECTOR_J);
+          put("jdbc:mariadb://", TargetDriverDialectCodes.MARIADB_CONNECTOR_J_VER_3);
         }
       };
 
@@ -187,7 +187,8 @@ public class TargetDriverDialectManager implements TargetDriverDialectProvider {
     // Target driver dialect isn't found (or it's not provided by the user).
     // Try to find a dialect by provided protocol.
     if (targetDriverDialect == null) {
-      targetDriverDialect = defaultDialectsByProtocol.get(protocol.toLowerCase());
+      final String targetDriverDialectCode = defaultDialectCodesByProtocol.get(protocol.toLowerCase());
+      targetDriverDialect = targetDriverDialectCode == null ? null : knownDialectsByCode.get(targetDriverDialectCode);
       if (targetDriverDialect == null) {
         throw new SQLException(Messages.get(
             "TargetDriverDialectManager.unknownProtocol",

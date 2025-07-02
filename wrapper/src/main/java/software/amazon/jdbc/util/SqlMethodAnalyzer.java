@@ -20,14 +20,49 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
+import software.amazon.jdbc.JdbcMethod;
 
 public class SqlMethodAnalyzer {
 
+  private static final Set<String> CLOSING_METHOD_NAMES = Collections.unmodifiableSet(
+      new HashSet<>(Arrays.asList(
+          JdbcMethod.CONNECTION_CLOSE.methodName,
+          JdbcMethod.CONNECTION_ABORT.methodName,
+          JdbcMethod.STATEMENT_CLOSE.methodName,
+          JdbcMethod.CALLABLESTATEMENT_CLOSE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_CLOSE.methodName,
+          JdbcMethod.RESULTSET_CLOSE.methodName
+      )));
+
+  private static final Set<String> EXECUTE_SQL_METHOD_NAMES = Collections.unmodifiableSet(
+      new HashSet<>(Arrays.asList(
+          JdbcMethod.STATEMENT_EXECUTE.methodName,
+          JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
+          JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName
+      )));
+
+  private static final Set<String> CLOSE_TRANSACTION_METHOD_NAMES = Collections.unmodifiableSet(
+      new HashSet<>(Arrays.asList(
+          JdbcMethod.CONNECTION_COMMIT.methodName,
+          JdbcMethod.CONNECTION_ROLLBACK.methodName,
+          JdbcMethod.CONNECTION_CLOSE.methodName,
+          JdbcMethod.CONNECTION_ABORT.methodName
+      )));
+
   public boolean doesOpenTransaction(final Connection conn, final String methodName,
       final Object[] args) {
-    if (!(methodName.contains("execute") && args != null && args.length >= 1)) {
+    if (!(EXECUTE_SQL_METHOD_NAMES.contains(methodName) && args != null && args.length >= 1)) {
       return false;
     }
 
@@ -74,8 +109,7 @@ public class SqlMethodAnalyzer {
 
   public boolean doesCloseTransaction(final Connection conn, final String methodName,
       final Object[] args) {
-    if (methodName.equals("Connection.commit") || methodName.equals("Connection.rollback")
-        || methodName.equals("Connection.close") || methodName.equals("Connection.abort")) {
+    if (CLOSE_TRANSACTION_METHOD_NAMES.contains(methodName)) {
       return true;
     }
 
@@ -111,7 +145,11 @@ public class SqlMethodAnalyzer {
   }
 
   public boolean isStatementSettingAutoCommit(final String methodName, final Object[] args) {
-    if (!(methodName.contains("execute") && args != null && args.length >= 1)) {
+    if (args == null || args.length < 1) {
+      return false;
+    }
+
+    if (!EXECUTE_SQL_METHOD_NAMES.contains(methodName)) {
       return false;
     }
 
@@ -123,7 +161,7 @@ public class SqlMethodAnalyzer {
       final Object[] jdbcMethodArgs) {
     final boolean isStatementSettingAutoCommit = isStatementSettingAutoCommit(
         methodName, jdbcMethodArgs);
-    if (!methodName.contains("setAutoCommit") && !isStatementSettingAutoCommit) {
+    if (!isStatementSettingAutoCommit && !JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName.equals(methodName)) {
       return false;
     }
 
@@ -135,7 +173,7 @@ public class SqlMethodAnalyzer {
       return false;
     }
 
-    if (methodName.contains("setAutoCommit") && jdbcMethodArgs.length > 0) {
+    if (JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName.equals(methodName) && jdbcMethodArgs.length > 0) {
       newAutoCommitVal = (Boolean) jdbcMethodArgs[0];
     } else if (isStatementSettingAutoCommit) {
       newAutoCommitVal = getAutoCommitValueFromSqlStatement(jdbcMethodArgs);
@@ -181,6 +219,6 @@ public class SqlMethodAnalyzer {
   }
 
   public boolean isMethodClosingSqlObject(final String methodName) {
-    return methodName.endsWith(".close") || methodName.endsWith(".abort");
+    return CLOSING_METHOD_NAMES.contains(methodName);
   }
 }

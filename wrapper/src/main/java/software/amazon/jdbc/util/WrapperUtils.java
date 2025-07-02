@@ -16,8 +16,12 @@
 
 package software.amazon.jdbc.util;
 
+import java.io.InputStream;
+import java.io.Reader;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.math.BigDecimal;
+import java.net.URL;
 import java.sql.Array;
 import java.sql.Blob;
 import java.sql.CallableStatement;
@@ -40,72 +44,88 @@ import java.sql.SQLXML;
 import java.sql.Savepoint;
 import java.sql.Statement;
 import java.sql.Struct;
-import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Timer;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.locks.ReentrantLock;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.JdbcRunnable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 import software.amazon.jdbc.wrapper.ArrayWrapper;
+import software.amazon.jdbc.wrapper.ArrayWrapperFactory;
 import software.amazon.jdbc.wrapper.BlobWrapper;
+import software.amazon.jdbc.wrapper.BlobWrapperFactory;
 import software.amazon.jdbc.wrapper.CallableStatementWrapper;
+import software.amazon.jdbc.wrapper.CallableStatementWrapperFactory;
 import software.amazon.jdbc.wrapper.ClobWrapper;
+import software.amazon.jdbc.wrapper.ClobWrapperFactory;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 import software.amazon.jdbc.wrapper.DatabaseMetaDataWrapper;
+import software.amazon.jdbc.wrapper.DatabaseMetaDataWrapperFactory;
 import software.amazon.jdbc.wrapper.NClobWrapper;
+import software.amazon.jdbc.wrapper.NClobWrapperFactory;
 import software.amazon.jdbc.wrapper.ParameterMetaDataWrapper;
+import software.amazon.jdbc.wrapper.ParameterMetaDataWrapperFactory;
 import software.amazon.jdbc.wrapper.PreparedStatementWrapper;
+import software.amazon.jdbc.wrapper.PreparedStatementWrapperFactory;
 import software.amazon.jdbc.wrapper.RefWrapper;
+import software.amazon.jdbc.wrapper.RefWrapperFactory;
 import software.amazon.jdbc.wrapper.ResultSetMetaDataWrapper;
+import software.amazon.jdbc.wrapper.ResultSetMetaDataWrapperFactory;
 import software.amazon.jdbc.wrapper.ResultSetWrapper;
+import software.amazon.jdbc.wrapper.ResultSetWrapperFactory;
 import software.amazon.jdbc.wrapper.SQLDataWrapper;
+import software.amazon.jdbc.wrapper.SQLDataWrapperFactory;
 import software.amazon.jdbc.wrapper.SQLInputWrapper;
+import software.amazon.jdbc.wrapper.SQLInputWrapperFactory;
 import software.amazon.jdbc.wrapper.SQLOutputWrapper;
+import software.amazon.jdbc.wrapper.SQLOutputWrapperFactory;
 import software.amazon.jdbc.wrapper.SQLTypeWrapper;
+import software.amazon.jdbc.wrapper.SQLTypeWrapperFactory;
 import software.amazon.jdbc.wrapper.SavepointWrapper;
+import software.amazon.jdbc.wrapper.SavepointWrapperFactory;
 import software.amazon.jdbc.wrapper.StatementWrapper;
+import software.amazon.jdbc.wrapper.StatementWrapperFactory;
 import software.amazon.jdbc.wrapper.StructWrapper;
+import software.amazon.jdbc.wrapper.StructWrapperFactory;
+import software.amazon.jdbc.wrapper.WrapperFactory;
 
 public class WrapperUtils {
 
-  private static final ConcurrentMap<Class<?>, Class<?>[]> getImplementedInterfacesCache =
-      new ConcurrentHashMap<>();
   private static final ConcurrentMap<Class<?>, Boolean> isJdbcInterfaceCache =
       new ConcurrentHashMap<>();
 
-  private static final Map<Class<?>, Class<?>> availableWrappers =
-      new HashMap<Class<?>, Class<?>>() {
+  private static final Map<Class<?>, WrapperFactory> availableWrappers =
+      new HashMap<Class<?>, WrapperFactory>() {
         {
-          put(CallableStatement.class, CallableStatementWrapper.class);
-          put(PreparedStatement.class, PreparedStatementWrapper.class);
-          put(Statement.class, StatementWrapper.class);
-          put(ResultSet.class, ResultSetWrapper.class);
-          put(Array.class, ArrayWrapper.class);
-          put(Blob.class, BlobWrapper.class);
-          put(NClob.class, NClobWrapper.class);
-          put(Clob.class, ClobWrapper.class);
-          put(Ref.class, RefWrapper.class);
-          put(Struct.class, StructWrapper.class);
-          put(Savepoint.class, SavepointWrapper.class);
-          put(DatabaseMetaData.class, DatabaseMetaDataWrapper.class);
-          put(ParameterMetaData.class, ParameterMetaDataWrapper.class);
-          put(ResultSetMetaData.class, ResultSetMetaDataWrapper.class);
-          put(SQLData.class, SQLDataWrapper.class);
-          put(SQLInput.class, SQLInputWrapper.class);
-          put(SQLOutput.class, SQLOutputWrapper.class);
-          put(SQLType.class, SQLTypeWrapper.class);
+          put(CallableStatement.class, new CallableStatementWrapperFactory());
+          put(PreparedStatement.class, new PreparedStatementWrapperFactory());
+          put(Statement.class, new StatementWrapperFactory());
+          put(ResultSet.class, new ResultSetWrapperFactory());
+          put(Array.class, new ArrayWrapperFactory());
+          put(Blob.class, new BlobWrapperFactory());
+          put(NClob.class, new NClobWrapperFactory());
+          put(Clob.class, new ClobWrapperFactory());
+          put(Ref.class, new RefWrapperFactory());
+          put(Struct.class, new StructWrapperFactory());
+          put(Savepoint.class, new SavepointWrapperFactory());
+          put(DatabaseMetaData.class, new DatabaseMetaDataWrapperFactory());
+          put(ParameterMetaData.class, new ParameterMetaDataWrapperFactory());
+          put(ResultSetMetaData.class, new ResultSetMetaDataWrapperFactory());
+          put(SQLData.class, new SQLDataWrapperFactory());
+          put(SQLInput.class, new SQLInputWrapperFactory());
+          put(SQLOutput.class, new SQLOutputWrapperFactory());
+          put(SQLType.class, new SQLTypeWrapperFactory());
         }
       };
 
@@ -115,7 +135,7 @@ public class WrapperUtils {
       add(BlobWrapper.class);
       add(CallableStatementWrapper.class);
       add(ClobWrapper.class);
-      add(ConnectionWrapper.class);
+      add(ConnectionWrapper.class); // additional
       add(DatabaseMetaDataWrapper.class);
       add(NClobWrapper.class);
       add(ParameterMetaDataWrapper.class);
@@ -133,31 +153,28 @@ public class WrapperUtils {
     }
   };
 
-  public static void runWithPlugins(
-      final ConnectionPluginManager pluginManager,
-      final Object methodInvokeOn,
-      final String methodName,
-      final JdbcRunnable<RuntimeException> jdbcMethodFunc,
-      final Object... jdbcMethodArgs) {
-
-    executeWithPlugins(
-        Void.TYPE,
-        RuntimeException.class,
-        pluginManager,
-        methodInvokeOn,
-        methodName,
-        () -> {
-          jdbcMethodFunc.call();
-          return null;
-        },
-        jdbcMethodArgs);
-  }
+  private static final Set<Class<?>> skipWrappingForClasses = new HashSet<Class<?>>() {
+    {
+      add(Boolean.class);
+      add(String.class);
+      add(Float.class);
+      add(Integer.class);
+      add(BigDecimal.class);
+      add(Double.class);
+      add(Date.class);
+      add(Long.class);
+      add(Object.class);
+      add(Short.class);
+      add(Timer.class);
+      add(URL.class);
+    }
+  };
 
   public static <E extends Exception> void runWithPlugins(
       final Class<E> exceptionClass,
       final ConnectionPluginManager pluginManager,
       final Object methodInvokeOn,
-      final String methodName,
+      final JdbcMethod jdbcMethod,
       final JdbcRunnable<E> jdbcMethodFunc,
       final Object... jdbcMethodArgs)
       throws E {
@@ -167,7 +184,7 @@ public class WrapperUtils {
         exceptionClass,
         pluginManager,
         methodInvokeOn,
-        methodName,
+        jdbcMethod,
         () -> {
           jdbcMethodFunc.call();
           return null;
@@ -179,39 +196,49 @@ public class WrapperUtils {
       final Class<T> resultClass,
       final ConnectionPluginManager pluginManager,
       final Object methodInvokeOn,
-      final String methodName,
+      final JdbcMethod jdbcMethod,
       final JdbcCallable<T, RuntimeException> jdbcMethodFunc,
       final Object... jdbcMethodArgs) {
 
-    if (!AsynchronousMethodsHelper.ASYNCHRONOUS_METHODS.contains(methodName)) {
+    if (jdbcMethod.shouldLockConnection) {
       pluginManager.lock();
     }
     TelemetryFactory telemetryFactory = pluginManager.getTelemetryFactory();
-    TelemetryContext context = null;
+    TelemetryContext context =
+        telemetryFactory.openTelemetryContext(jdbcMethod.methodName, TelemetryTraceLevel.TOP_LEVEL);
 
     try {
-      context = telemetryFactory.openTelemetryContext(methodName, TelemetryTraceLevel.TOP_LEVEL);
-      context.setAttribute("jdbcCall", methodName);
+      if (context != null) {
+        context.setAttribute("jdbcCall", jdbcMethod.methodName);
+      }
 
       final T result =
           pluginManager.execute(
               resultClass,
               RuntimeException.class,
               methodInvokeOn,
-              methodName,
+              jdbcMethod,
               jdbcMethodFunc,
               jdbcMethodArgs);
 
-      context.setSuccess(true);
+      if (context != null) {
+        context.setSuccess(true);
+      }
 
       try {
-        return wrapWithProxyIfNeeded(resultClass, result, pluginManager);
+        if (jdbcMethod.wrapResults) {
+          return wrapWithProxyIfNeeded(resultClass, result, pluginManager);
+        } else {
+          return result;
+        }
       } catch (final InstantiationException e) {
-        context.setSuccess(false);
+        if (context != null) {
+          context.setSuccess(false);
+        }
         throw new RuntimeException(e);
       }
     } finally {
-      if (pluginManager.isHeldByCurrentThread()) {
+      if (jdbcMethod.shouldLockConnection) {
         pluginManager.unlock();
       }
       if (context != null) {
@@ -225,40 +252,50 @@ public class WrapperUtils {
       final Class<E> exceptionClass,
       final ConnectionPluginManager pluginManager,
       final Object methodInvokeOn,
-      final String methodName,
+      final JdbcMethod jdbcMethod,
       final JdbcCallable<T, E> jdbcMethodFunc,
       final Object... jdbcMethodArgs)
       throws E {
 
-    if (!AsynchronousMethodsHelper.ASYNCHRONOUS_METHODS.contains(methodName)) {
+    if (jdbcMethod.shouldLockConnection) {
       pluginManager.lock();
     }
     TelemetryFactory telemetryFactory = pluginManager.getTelemetryFactory();
-    TelemetryContext context = null;
+    TelemetryContext context =
+        telemetryFactory.openTelemetryContext(jdbcMethod.methodName, TelemetryTraceLevel.TOP_LEVEL);
 
     try {
-      context = telemetryFactory.openTelemetryContext(methodName, TelemetryTraceLevel.TOP_LEVEL);
-      context.setAttribute("jdbcCall", methodName);
+      if (context != null) {
+        context.setAttribute("jdbcCall", jdbcMethod.methodName);
+      }
 
       final T result =
           pluginManager.execute(resultClass,
               exceptionClass,
               methodInvokeOn,
-              methodName,
+              jdbcMethod,
               jdbcMethodFunc,
               jdbcMethodArgs);
 
-      context.setSuccess(true);
+      if (context != null) {
+        context.setSuccess(true);
+      }
 
-      try {
-        return wrapWithProxyIfNeeded(resultClass, result, pluginManager);
-      } catch (final InstantiationException e) {
-        context.setSuccess(false);
-        throw new RuntimeException(e);
+      if (jdbcMethod.wrapResults) {
+        try {
+          return wrapWithProxyIfNeeded(resultClass, result, pluginManager);
+        } catch (final InstantiationException e) {
+          if (context != null) {
+            context.setSuccess(false);
+          }
+          throw new RuntimeException(e);
+        }
+      } else {
+        return result;
       }
 
     } finally {
-      if (pluginManager.isHeldByCurrentThread()) {
+      if (jdbcMethod.shouldLockConnection) {
         pluginManager.unlock();
       }
       if (context != null) {
@@ -267,7 +304,7 @@ public class WrapperUtils {
     }
   }
 
-  protected static @Nullable <T> T wrapWithProxyIfNeeded(
+  public static @Nullable <T> T wrapWithProxyIfNeeded(
       final Class<T> resultClass, @Nullable final T toProxy, final ConnectionPluginManager pluginManager)
       throws InstantiationException {
 
@@ -275,8 +312,14 @@ public class WrapperUtils {
       return null;
     }
 
+    final Class<?> toProxyClass = toProxy.getClass();
+
     // Exceptional case
-    if (toProxy instanceof RowId || toProxy instanceof SQLXML) {
+    if (skipWrappingForClasses.contains(toProxyClass)
+        || toProxy instanceof RowId
+        || toProxy instanceof SQLXML
+        || toProxy instanceof InputStream
+        || toProxy instanceof Reader) {
       return toProxy;
     }
 
@@ -298,27 +341,17 @@ public class WrapperUtils {
       }
     }
 
-    Class<?> wrapperClass = availableWrappers.get(effectiveResultClass);
+    WrapperFactory wrapperFactory = availableWrappers.get(effectiveResultClass);
 
-    if (wrapperClass != null) {
-      return createInstance(
-          wrapperClass,
-          resultClass,
-          new Class<?>[] {effectiveResultClass, ConnectionPluginManager.class},
-          toProxy,
-          pluginManager);
+    if (wrapperFactory != null) {
+      return resultClass.cast(wrapperFactory.getInstance(toProxy, pluginManager));
     }
 
     for (final Class<?> iface : toProxy.getClass().getInterfaces()) {
       if (isJdbcInterface(iface)) {
-        wrapperClass = availableWrappers.get(iface);
-        if (wrapperClass != null) {
-          return createInstance(
-              wrapperClass,
-              resultClass,
-              new Class<?>[] {iface, ConnectionPluginManager.class},
-              toProxy,
-              pluginManager);
+        wrapperFactory = availableWrappers.get(iface);
+        if (wrapperFactory != null) {
+          return resultClass.cast(wrapperFactory.getInstance(toProxy, pluginManager));
         }
       }
     }
@@ -387,79 +420,6 @@ public class WrapperUtils {
     return false;
   }
 
-  /**
-   * Get the {@link Class} objects corresponding to the interfaces implemented by the given class.
-   * Calls to this function are cached for improved efficiency.
-   *
-   * @param clazz the class to analyze
-   * @return the interfaces implemented by the given class
-   */
-  public static Class<?>[] getImplementedInterfaces(final Class<?> clazz) {
-    Class<?>[] implementedInterfaces = getImplementedInterfacesCache.get(clazz);
-    if (implementedInterfaces != null) {
-      return implementedInterfaces;
-    }
-
-    final Set<Class<?>> interfaces = new LinkedHashSet<>();
-    Class<?> superClass = clazz;
-    do {
-      Collections.addAll(interfaces, superClass.getInterfaces());
-    } while ((superClass = superClass.getSuperclass()) != null);
-
-    implementedInterfaces = interfaces.toArray(new Class<?>[0]);
-    final Class<?>[] oldValue = getImplementedInterfacesCache.putIfAbsent(clazz, implementedInterfaces);
-    if (oldValue != null) {
-      implementedInterfaces = oldValue;
-    }
-
-    return implementedInterfaces;
-  }
-
-  public static <T> List<T> loadClasses(
-      final String extensionClassNames, final Class<T> clazz, final String errorMessageResourceKey)
-      throws InstantiationException {
-
-    final List<T> instances = new LinkedList<>();
-    final List<String> interceptorsToCreate = StringUtils.split(extensionClassNames, ",", true);
-    String className = null;
-
-    try {
-      for (final String value : interceptorsToCreate) {
-        className = value;
-        final T instance = createInstance(className, clazz);
-        instances.add(instance);
-      }
-
-    } catch (final Throwable t) {
-      throw new InstantiationException(Messages.get(errorMessageResourceKey, new Object[] {className}));
-    }
-
-    return instances;
-  }
-
-  public static <T> List<T> loadClasses(
-      final List<Class<? extends T>> extensionClassList,
-      final Class<T> resultClass,
-      final String errorMessageResourceKey)
-      throws InstantiationException {
-
-    final List<T> instances = new LinkedList<>();
-    Class<? extends T> lastClass = null;
-
-    try {
-      for (final Class<? extends T> extensionClass : extensionClassList) {
-        lastClass = extensionClass;
-        final T instance = createInstance(lastClass, resultClass, null);
-        instances.add(instance);
-      }
-
-    } catch (final Throwable t) {
-      throw new InstantiationException(Messages.get(errorMessageResourceKey, new Object[] {lastClass.getName()}));
-    }
-
-    return instances;
-  }
-
   public static <T> T createInstance(
       final Class<?> classToInstantiate,
       final Class<T> resultClass,
@@ -476,7 +436,10 @@ public class WrapperUtils {
     }
 
     try {
-      if (constructorArgs.length == 0) {
+      if (constructorArgClasses == null
+          || constructorArgClasses.length == 0
+          || constructorArgs == null
+          || constructorArgs.length == 0) {
         return resultClass.cast(classToInstantiate.newInstance());
       }
 

@@ -19,6 +19,7 @@ package software.amazon.jdbc.wrapper;
 import java.sql.SQLType;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.ConnectionPluginManager;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.util.WrapperUtils;
 
 public class SQLTypeWrapper implements SQLType {
@@ -33,32 +34,44 @@ public class SQLTypeWrapper implements SQLType {
 
   @Override
   public String getName() {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        this.pluginManager,
-        this.sqlType,
-        "SQLType.getName",
-        () -> this.sqlType.getName());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLTYPE_GETNAME)) {
+      return WrapperUtils.executeWithPlugins(
+          String.class,
+          this.pluginManager,
+          this.sqlType,
+          JdbcMethod.SQLTYPE_GETNAME,
+          () -> this.sqlType.getName());
+    } else {
+      return this.sqlType.getName();
+    }
   }
 
   @Override
   public String getVendor() {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        this.pluginManager,
-        this.sqlType,
-        "SQLType.getVendor",
-        () -> this.sqlType.getVendor());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLTYPE_GETVENDOR)) {
+      return WrapperUtils.executeWithPlugins(
+          String.class,
+          this.pluginManager,
+          this.sqlType,
+          JdbcMethod.SQLTYPE_GETVENDOR,
+          () -> this.sqlType.getVendor());
+    } else {
+      return this.sqlType.getVendor();
+    }
   }
 
   @Override
   public Integer getVendorTypeNumber() {
-    return WrapperUtils.executeWithPlugins(
-        Integer.class,
-        this.pluginManager,
-        this.sqlType,
-        "SQLType.getVendorTypeNumber",
-        () -> this.sqlType.getVendorTypeNumber());
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLTYPE_GETVENDORTYPENUMBER)) {
+      return WrapperUtils.executeWithPlugins(
+          Integer.class,
+          this.pluginManager,
+          this.sqlType,
+          JdbcMethod.SQLTYPE_GETVENDORTYPENUMBER,
+          () -> this.sqlType.getVendorTypeNumber());
+    } else {
+      return this.sqlType.getVendorTypeNumber();
+    }
   }
 
   @Override

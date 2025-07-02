@@ -16,14 +16,17 @@
 
 package software.amazon.jdbc.util.telemetry;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 public interface TelemetryFactory {
 
-  TelemetryContext openTelemetryContext(String name, TelemetryTraceLevel traceLevel);
+  @Nullable TelemetryContext openTelemetryContext(String name, TelemetryTraceLevel traceLevel);
 
   void postCopy(TelemetryContext telemetryContext, TelemetryTraceLevel traceLevel);
 
-  TelemetryCounter createCounter(String name);
+  @Nullable TelemetryCounter createCounter(String name);
 
-  TelemetryGauge createGauge(String name, GaugeCallable<Long> callback);
+  @Nullable TelemetryGauge createGauge(String name, GaugeCallable<Long> callback);
 
+  boolean inUse();
 }
