@@ -17,8 +17,8 @@
 package software.amazon.jdbc.plugin.bluegreen.routing;
 
 import java.util.concurrent.TimeUnit;
-import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenStatus;
+import software.amazon.jdbc.util.storage.StorageService;
 
 public abstract class BaseRouting {
 
@@ -29,7 +29,7 @@ public abstract class BaseRouting {
   }
 
   @SuppressWarnings("SynchronizationOnLocalVariableOrMethodParameter")
-  protected void delay(long delayMs, BlueGreenStatus bgStatus, PluginService pluginService, String bgdId)
+  protected void delay(long delayMs, BlueGreenStatus bgStatus, StorageService storageService, String bgdId)
       throws InterruptedException {
 
     long start = System.nanoTime();
@@ -46,7 +46,7 @@ public abstract class BaseRouting {
         }
       } while (
         // check if status reference is changed
-        bgStatus == pluginService.getStatus(BlueGreenStatus.class, bgdId)
+        bgStatus == storageService.get(BlueGreenStatus.class, bgdId)
             && System.nanoTime() < end
             && !Thread.currentThread().isInterrupted());
     }

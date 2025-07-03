@@ -42,6 +42,7 @@ import software.amazon.jdbc.plugin.bluegreen.routing.ExecuteRouting;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
@@ -73,6 +74,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   protected final FullServicesContainer servicesContainer;
+  protected final StorageService storageService;
   protected final PluginService pluginService;
   protected final Properties props;
   protected BlueGreenProviderSupplier providerSupplier;
@@ -102,6 +104,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
       final @NonNull BlueGreenProviderSupplier providerSupplier) {
 
     this.servicesContainer = servicesContainer;
+    this.storageService = servicesContainer.getStorageService();
     this.pluginService = servicesContainer.getPluginService();
     this.props = props;
     this.telemetryFactory = pluginService.getTelemetryFactory();
@@ -134,7 +137,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
     try {
 
-      this.bgStatus = this.pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
+      this.bgStatus = this.storageService.get(BlueGreenStatus.class, this.bgdId);
 
       if (this.bgStatus == null) {
         return regularOpenConnection(connectFunc, isInitialConnection);
@@ -170,11 +173,14 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
             props,
             isInitialConnection,
             connectFunc,
+            this.storageService,
             this.pluginService);
 
         if (conn == null) {
-
-          this.bgStatus = this.pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
+          BlueGreenStatus latestStatus = this.storageService.get(BlueGreenStatus.class, this.bgdId);
+          if (latestStatus != null) {
+            this.bgStatus = latestStatus;
+          }
 
           routing = this.bgStatus.getConnectRouting().stream()
               .filter(r -> r.isMatch(hostSpec, hostRole))
@@ -236,7 +242,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
         return jdbcMethodFunc.call();
       }
 
-      this.bgStatus = this.pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
+      this.bgStatus = this.storageService.get(BlueGreenStatus.class, this.bgdId);
 
       if (this.bgStatus == null) {
         return jdbcMethodFunc.call();
@@ -271,12 +277,13 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
             methodName,
             jdbcMethodFunc,
             jdbcMethodArgs,
+            this.storageService,
             this.pluginService,
             this.props);
 
         if (!result.isPresent()) {
 
-          this.bgStatus = this.pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
+          this.bgStatus = this.storageService.get(BlueGreenStatus.class, this.bgdId);
 
           routing = this.bgStatus.getExecuteRouting().stream()
               .filter(r -> r.isMatch(currentHostSpec, hostRole))

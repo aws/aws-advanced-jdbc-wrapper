@@ -806,6 +806,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     hostAvailabilityExpiringCache.clear();
   }
 
+  @Deprecated  // Use StorageService#set instead.
   public <T> void setStatus(final Class<T> clazz, final @Nullable T status, final boolean clusterBound) {
     String clusterId = null;
     if (clusterBound) {
@@ -818,6 +819,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     this.setStatus(clazz, status, clusterId);
   }
 
+  @Deprecated  // Use StorageService#set instead.
   public <T> void setStatus(final Class<T> clazz, final @Nullable T status, final String key) {
     final String cacheKey = this.getStatusCacheKey(clazz, key);
     if (status == null) {
@@ -827,6 +829,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     }
   }
 
+  @Deprecated  // Use StorageService#get instead.
   public <T> T getStatus(final @NonNull Class<T> clazz, final boolean clusterBound) {
     String clusterId = null;
     if (clusterBound) {
@@ -839,6 +842,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     return this.getStatus(clazz, clusterId);
   }
 
+  @Deprecated  // Use StorageService#get instead.
   public <T> T getStatus(final @NonNull Class<T> clazz, String key) {
     return clazz.cast(statusesExpiringCache.get(this.getStatusCacheKey(clazz, key)));
   }

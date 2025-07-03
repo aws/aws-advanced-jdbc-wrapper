@@ -27,6 +27,7 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AllowedAndBlockedHosts;
 import software.amazon.jdbc.hostlistprovider.Topology;
+import software.amazon.jdbc.plugin.bluegreen.BlueGreenStatus;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.events.DataAccessEvent;
@@ -41,6 +42,8 @@ public class StorageServiceImpl implements StorageService {
     Map<Class<?>, Supplier<ExpirationCache<Object, ?>>> suppliers = new HashMap<>();
     suppliers.put(Topology.class, ExpirationCache::new);
     suppliers.put(AllowedAndBlockedHosts.class, ExpirationCache::new);
+    suppliers.put(BlueGreenStatus.class,
+        () -> new ExpirationCache<>(false, TimeUnit.MINUTES.toNanos(60), null, null));
     defaultCacheSuppliers = Collections.unmodifiableMap(suppliers);
   }
 

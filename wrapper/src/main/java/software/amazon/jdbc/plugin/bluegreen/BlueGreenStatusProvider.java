@@ -59,6 +59,7 @@ import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.storage.StorageService;
 
 public class BlueGreenStatusProvider {
 
@@ -121,6 +122,7 @@ public class BlueGreenStatusProvider {
   protected final boolean suspendNewBlueConnectionsWhenInProgress;
 
   protected final FullServicesContainer servicesContainer;
+  protected final StorageService storageService;
   protected final PluginService pluginService;
   protected final Properties props;
   protected final String bgdId;
@@ -133,6 +135,7 @@ public class BlueGreenStatusProvider {
       final @NonNull String bgdId) {
 
     this.servicesContainer = servicesContainer;
+    this.storageService = servicesContainer.getStorageService();
     this.pluginService = servicesContainer.getPluginService();
     this.props = props;
     this.bgdId = bgdId;
@@ -273,8 +276,8 @@ public class BlueGreenStatusProvider {
   }
 
   protected void updateStatusCache() {
-    final BlueGreenStatus latestStatus = this.pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
-    this.pluginService.setStatus(BlueGreenStatus.class, this.summaryStatus, this.bgdId);
+    final BlueGreenStatus latestStatus = this.storageService.get(BlueGreenStatus.class, this.bgdId);
+    this.storageService.set(this.bgdId, this.summaryStatus);
     this.storePhaseTime(this.summaryStatus.getCurrentPhase());
 
     // Notify all waiting threads that status is updated.
