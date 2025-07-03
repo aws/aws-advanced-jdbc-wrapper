@@ -168,12 +168,11 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
             isInitialConnection,
             connectFunc,
             this.pluginService);
-
         if (conn == null) {
 
-          BlueGreenStatus latestStatus = this.pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
-          if (latestStatus != null) {
-            this.bgStatus = latestStatus;
+          this.bgStatus = this.pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
+          if (this.bgStatus == null) {
+            return regularOpenConnection(connectFunc, isInitialConnection);
           }
 
           routing = this.bgStatus.getConnectRouting().stream()
@@ -276,9 +275,9 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
         if (!result.isPresent()) {
 
-          BlueGreenStatus latestStatus = this.pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
-          if (latestStatus != null) {
-            this.bgStatus = latestStatus;
+          this.bgStatus = this.pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
+          if (this.bgStatus == null) {
+            return jdbcMethodFunc.call();
           }
 
           routing = this.bgStatus.getExecuteRouting().stream()

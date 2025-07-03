@@ -621,7 +621,7 @@ public class BlueGreenStatusProvider {
       String host = entry.getKey();
       BlueGreenRole role = entry.getValue();
       Pair<HostSpec, HostSpec> nodePair = this.correspondingNodes.get(host);
-      if (role == BlueGreenRole.TARGET || nodePair == null) {
+      if (role != BlueGreenRole.SOURCE || nodePair == null) {
         continue;
       }
 
@@ -850,15 +850,12 @@ public class BlueGreenStatusProvider {
                   this.bgdId));
 
               BlueGreenInterimStatus interimStatus = this.interimStatuses[x.getValue().getValue()];
-              if (interimStatus == null) {
-                // Cannot find port using interimStatus; continue to the next roleByHost entry.
-                return;
+              if (interimStatus != null) {
+                connectRouting.add(new SuspendUntilCorrespondingNodeFoundConnectRouting(
+                    this.getHostAndPort(blueHost, interimStatus.port),
+                    x.getValue(),
+                    this.bgdId));
               }
-
-              connectRouting.add(new SuspendUntilCorrespondingNodeFoundConnectRouting(
-                  this.getHostAndPort(blueHost, interimStatus.port),
-                  x.getValue(),
-                  this.bgdId));
             } else {
               final String greenHost = greenHostSpec.getHost();
               Optional<String> greenIp = this.hostIpAddresses.get(greenHostSpec.getHost());
@@ -886,17 +883,14 @@ public class BlueGreenStatusProvider {
                   isBlueHostInstance ? (iamHost) -> this.registerIamHost(greenHost, iamHost) : null));
 
               BlueGreenInterimStatus interimStatus = this.interimStatuses[x.getValue().getValue()];
-              if (interimStatus == null) {
-                // Cannot find port; continue to the next roleByHost entry.
-                return;
+              if (interimStatus != null) {
+                connectRouting.add(new SubstituteConnectRouting(
+                    this.getHostAndPort(blueHost, interimStatus.port),
+                    x.getValue(),
+                    greenHostSpecWithIp,
+                    iamHosts,
+                    isBlueHostInstance ? (iamHost) -> this.registerIamHost(greenHost, iamHost) : null));
               }
-
-              connectRouting.add(new SubstituteConnectRouting(
-                  this.getHostAndPort(blueHost, interimStatus.port),
-                  x.getValue(),
-                  greenHostSpecWithIp,
-                  iamHosts,
-                  isBlueHostInstance ? (iamHost) -> this.registerIamHost(greenHost, iamHost) : null));
             }
           });
     }
