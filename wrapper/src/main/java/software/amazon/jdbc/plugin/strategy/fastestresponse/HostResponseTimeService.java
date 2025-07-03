@@ -34,6 +34,8 @@ public interface HostResponseTimeService {
 
   /**
    * Provides an updated host list to a service.
+   *
+   * @param hosts A list of hosts to monitor.
    */
   void setHosts(final @NonNull List<HostSpec> hosts);
 }

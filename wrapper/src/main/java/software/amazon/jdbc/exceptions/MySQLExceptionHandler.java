@@ -28,6 +28,7 @@ public class MySQLExceptionHandler implements ExceptionHandler {
       "setNetworkTimeout cannot be called on a closed connection";
 
   @Override
+  @Deprecated
   public boolean isNetworkException(Throwable throwable) {
     return this.isNetworkException(throwable, null);
   }
@@ -74,6 +75,7 @@ public class MySQLExceptionHandler implements ExceptionHandler {
   }
 
   @Override
+  @Deprecated
   public boolean isLoginException(Throwable throwable) {
     return this.isLoginException(throwable, null);
   }

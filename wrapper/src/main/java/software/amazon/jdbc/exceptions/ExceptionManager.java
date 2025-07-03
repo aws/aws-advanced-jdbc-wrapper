@@ -25,6 +25,8 @@ public class ExceptionManager {
   /**
    * Sets a custom exception handler.
    *
+   * @param exceptionHandler A custom exception handler to use.
+   *
    * @deprecated Use software.amazon.jdbc.Driver instead
    */
   @Deprecated
