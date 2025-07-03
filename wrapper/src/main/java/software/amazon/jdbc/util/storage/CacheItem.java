@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.util.storage;
 
+import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -86,10 +87,7 @@ public class CacheItem<V> {
 
   @Override
   public int hashCode() {
-    final int prime = 31;
-    int result = 1;
-    result = prime * result + item.hashCode();
-    return result;
+    return Objects.hashCode(this.item);
   }
 
   @Override
@@ -104,7 +102,7 @@ public class CacheItem<V> {
       return false;
     }
     final CacheItem<?> other = (CacheItem<?>) obj;
-    return item.equals(other.item);
+    return Objects.equals(item, other.item);
   }
 
   @Override
