@@ -25,8 +25,10 @@ import integration.container.TestDriver;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestFeature;
+import integration.container.condition.MakeSureFirstInstanceWriter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.logging.Logger;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
@@ -48,6 +50,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
     TestEnvironmentFeatures.PERFORMANCE,
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
+@MakeSureFirstInstanceWriter
 @Order(19)
 public class HibernateTests {
   private static final Logger LOGGER = Logger.getLogger(HibernateTests.class.getName());
@@ -75,9 +78,11 @@ public class HibernateTests {
       List<Skill> skills = new ArrayList<>();
       skills.add(skill);
 
+      String email = String.format("foo_%d@foo.com", new Random().nextInt(1000000));
+
       User user = new User();
       user.setName("Brett Meyer");
-      user.setEmail("foo@foo.com");
+      user.setEmail(email);
       user.setPhone("123-456-7890");
       user.setTools(tools);
       user.setSkills(skills);
@@ -88,7 +93,7 @@ public class HibernateTests {
 
       assertNotNull(savedUser);
       assertEquals("Brett Meyer", savedUser.getName());
-      assertEquals("foo@foo.com", savedUser.getEmail());
+      assertEquals(email, savedUser.getEmail());
       assertEquals("123-456-7890", savedUser.getPhone());
       assertEquals(1, savedUser.getSkills().size());
       assertEquals(1, savedUser.getTools().size());
@@ -97,7 +102,7 @@ public class HibernateTests {
 
       assertNotNull(savedQueryUser);
       assertEquals("Brett Meyer", savedQueryUser.getName());
-      assertEquals("foo@foo.com", savedQueryUser.getEmail());
+      assertEquals(email, savedQueryUser.getEmail());
       assertEquals("123-456-7890", savedQueryUser.getPhone());
       assertEquals(1, savedQueryUser.getSkills().size());
       assertEquals(1, savedQueryUser.getTools().size());
@@ -120,7 +125,6 @@ public class HibernateTests {
         break;
       case MYSQL:
         configuration.setProperty("hibernate.dialect", "org.hibernate.dialect.MySQL8Dialect");
-        //configuration.setProperty("hibernate.dialect", "org.hibernate.dialect.MySQLDialect");
         break;
       case MARIADB:
         configuration.setProperty("hibernate.dialect", "org.hibernate.dialect.MariaDBDialect");
