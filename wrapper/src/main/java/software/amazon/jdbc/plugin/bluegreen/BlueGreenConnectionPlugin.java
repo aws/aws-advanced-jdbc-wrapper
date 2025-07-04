@@ -172,6 +172,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
           this.bgStatus = this.pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
           if (this.bgStatus == null) {
+            this.endTimeNano.set(this.getNanoTime());
             return regularOpenConnection(connectFunc, isInitialConnection);
           }
 
@@ -277,6 +278,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
           this.bgStatus = this.pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
           if (this.bgStatus == null) {
+            this.endTimeNano.set(this.getNanoTime());
             return jdbcMethodFunc.call();
           }
 
