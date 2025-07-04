@@ -220,7 +220,8 @@ In addition to the built-in plugins, you can also create custom plugins more sui
 For more information, see [Custom Plugins](../development-guide/LoadablePlugins.md#using-custom-plugins).
 
 ### Using a Snapshot of the Driver
-If there is an unreleased feature you would like to try, it may be available in a snapshot build of the driver. Snapshot builds can be found [here](https://aws.oss.sonatype.org/content/repositories/snapshots/software/amazon/jdbc/aws-advanced-jdbc-wrapper/). To use a snapshot, find the desired `.jar` file, which will be named `aws-advanced-jdbc-wrapper-<version>-<date>-<time>-<snapshot-number>.jar`, and add it to your project as a dependency.
+If there is an unreleased feature you would like to try, it may be available in a snapshot build of the driver.
+To use a snapshot build in your project, check the following examples. More information available within this [documentation](https://central.sonatype.org/publish/publish-portal-snapshots/#publishing-via-other-methods).
 
 #### As a Maven dependency
 ```xml
@@ -229,16 +230,39 @@ If there is an unreleased feature you would like to try, it may be available in 
     <groupId>software.amazon.jdbc</groupId>
     <artifactId>aws-advanced-jdbc-wrapper</artifactId>
     <version>2.6.1-SNAPSHOT</version>
-    <scope>system</scope>
-    <systemPath>path-to-snapshot-jar</systemPath>
   </dependency>
 </dependencies>
+
+<repositories>
+<repository>
+   <name>Central Portal Snapshots</name>
+   <id>central-portal-snapshots</id>
+   <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+   <releases>
+      <enabled>false</enabled>
+   </releases>
+   <snapshots>
+      <enabled>true</enabled>
+   </snapshots>
+</repository>
+</repositories>
 ```
 
 #### As a Gradle dependency
 ```gradle
 dependencies {
     implementation(files("path-to-snapshot-jar"))
+}
+
+repositories {
+  maven {
+      name = "Central Portal Snapshots"
+      url = uri("https://central.sonatype.com/repository/maven-snapshots/")
+      content {
+          includeModule("software.amazon.jdbc", "aws-advanced-jdbc-wrapper")
+      }
+  }
+  mavenCentral()
 }
 ```
 
