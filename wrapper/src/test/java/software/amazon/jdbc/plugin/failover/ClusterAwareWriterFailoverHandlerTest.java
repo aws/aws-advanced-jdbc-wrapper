@@ -379,7 +379,7 @@ class ClusterAwareWriterFailoverHandlerTest {
     when(mockPluginService.forceConnect(refEq(readerA), eq(properties))).thenReturn(mockReaderAConnection);
     when(mockPluginService.forceConnect(refEq(readerB), eq(properties))).thenReturn(mockReaderBConnection);
     when(mockPluginService.forceConnect(refEq(newWriterHost), eq(properties))).thenThrow(exception);
-    when(mockPluginService.isNetworkException(exception)).thenReturn(true);
+    when(mockPluginService.isNetworkException(eq(exception), any())).thenReturn(true);
 
     when(mockPluginService.getAllHosts()).thenReturn(newTopology);
 
