@@ -40,7 +40,6 @@ import java.util.TimeZone;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 
-@SuppressWarnings({"RedundantThrows", "checkstyle:OverloadMethodsDeclarationOrder"})
 public class CachedResultSet implements ResultSet {
 
   public static class CachedRow {
@@ -65,8 +64,10 @@ public class CachedResultSet implements ResultSet {
 
   protected ArrayList<CachedRow> rows;
   protected int currentRow;
+  protected boolean wasNullFlag;
   protected ResultSetMetaData metadata;
   protected static ObjectMapper mapper = new ObjectMapper();
+  protected static boolean mapperInitialized = false;
   protected static final TimeZone defaultTimeZone = TimeZone.getDefault();
   private static final Calendar calendarWithUserTz = new GregorianCalendar();
 
@@ -83,34 +84,45 @@ public class CachedResultSet implements ResultSet {
       rows.add(row);
     }
     currentRow = -1;
+    initializeObjectMapper();
   }
 
   public CachedResultSet(final List<Map<String, Object>> resultList) {
     rows = new ArrayList<>();
-    CachedResultSetMetaData.Field[] fields = new CachedResultSetMetaData.Field[resultList.get(0).size()];
-    boolean fieldsInitialized = false;
-    for (Map<String, Object> rowMap : resultList) {
-      final CachedRow row = new CachedRow();
-      int i = 0;
-      for (Map.Entry<String, Object> entry : rowMap.entrySet()) {
-        String columnName = entry.getKey();
-        if (!fieldsInitialized) {
-          fields[i] = new CachedResultSetMetaData.Field(columnName, columnName);
+    int numFields = resultList.isEmpty() ? 0 : resultList.get(0).size();
+    CachedResultSetMetaData.Field[] fields = new CachedResultSetMetaData.Field[numFields];
+    if (!resultList.isEmpty()) {
+      boolean fieldsInitialized = false;
+      for (Map<String, Object> rowMap : resultList) {
+        final CachedRow row = new CachedRow();
+        int i = 0;
+        for (Map.Entry<String, Object> entry : rowMap.entrySet()) {
+          String columnName = entry.getKey();
+          if (!fieldsInitialized) {
+            fields[i] = new CachedResultSetMetaData.Field(columnName, columnName);
+          }
+          row.put(++i, columnName, entry.getValue());
         }
-        row.put(++i, columnName, entry.getValue());
+        rows.add(row);
+        fieldsInitialized = true;
       }
-      rows.add(row);
-      fieldsInitialized = true;
     }
     currentRow = -1;
     metadata = new CachedResultSetMetaData(fields);
+    initializeObjectMapper();
+  }
+
+  // Helper method to initialize the object mapper for serialization of objects
+  private void initializeObjectMapper() {
+    if (mapperInitialized) return;
+    // For serialization of Date/LocalDateTime etc, set up the time module,
+    // and use standard string format (i.e. ISO)
+    mapper.registerModule(new JavaTimeModule());
+    mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    mapperInitialized = true;
   }
 
   public String serializeIntoJsonString() throws SQLException {
-    mapper.registerModule(new JavaTimeModule());
-    // Serialize Date/LocalDateTime etc. into standard string format (i.e. ISO)
-    mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-
     List<Map<String, Object>> resultList = new ArrayList<>();
     ResultSetMetaData metaData = this.getMetaData();
     int columns = metaData.getColumnCount();
@@ -156,7 +168,10 @@ public class CachedResultSet implements ResultSet {
 
   @Override
   public boolean wasNull() throws SQLException {
-    throw new UnsupportedOperationException();
+    if (isClosed()) {
+      throw new SQLException("This result set is closed");
+    }
+    return this.wasNullFlag;
   }
 
   // TODO: implement all the getXXX APIs.
@@ -476,12 +491,12 @@ public class CachedResultSet implements ResultSet {
 
   @Override
   public SQLWarning getWarnings() throws SQLException {
-    throw new UnsupportedOperationException();
+    return null;
   }
 
   @Override
   public void clearWarnings() throws SQLException {
-    throw new UnsupportedOperationException();
+    // no-op
   }
 
   @Override
@@ -494,28 +509,34 @@ public class CachedResultSet implements ResultSet {
     return metadata;
   }
 
+  private void checkCurrentRow() throws SQLException {
+    if (this.currentRow < 0 || this.currentRow >= this.rows.size()) {
+      throw new SQLException("The current row index " + this.currentRow + " is out of range.");
+    }
+  }
+
   @Override
   public Object getObject(final int columnIndex) throws SQLException {
-    if (this.currentRow < 0 || this.currentRow >= this.rows.size()) {
-      return null; // out of boundaries
-    }
+    checkCurrentRow();
     final CachedRow row = this.rows.get(this.currentRow);
     if (!row.columnByIndex.containsKey(columnIndex)) {
-      return null; // column index out of boundaries
+      throw new SQLException("The column index: " + columnIndex + " is out of range, number of columns: " + row.columnByIndex.size());
     }
-    return row.columnByIndex.get(columnIndex);
+    Object obj = row.columnByIndex.get(columnIndex);
+    this.wasNullFlag = (obj == null);
+    return obj;
   }
 
   @Override
   public Object getObject(final String columnLabel) throws SQLException {
-    if (this.currentRow < 0 || this.currentRow >= this.rows.size()) {
-      return null; // out of boundaries
-    }
+    checkCurrentRow();
     final CachedRow row = this.rows.get(this.currentRow);
     if (!row.columnByName.containsKey(columnLabel)) {
-      return null; // column name not found
+      throw new SQLException("The column label: " + columnLabel + " is not found");
     }
-    return row.columnByName.get(columnLabel);
+    Object obj = row.columnByName.get(columnLabel);
+    this.wasNullFlag = (obj == null);
+    return obj;
   }
 
   @Override
@@ -559,12 +580,12 @@ public class CachedResultSet implements ResultSet {
 
   @Override
   public boolean isFirst() throws SQLException {
-    return this.currentRow == 0 && this.rows.size() > 0;
+    return this.currentRow == 0 && !this.rows.isEmpty();
   }
 
   @Override
   public boolean isLast() throws SQLException {
-    return this.currentRow == (this.rows.size() - 1) && this.rows.size() > 0;
+    return this.currentRow == (this.rows.size() - 1) && !this.rows.isEmpty();
   }
 
   @Override
@@ -596,24 +617,49 @@ public class CachedResultSet implements ResultSet {
 
   @Override
   public boolean absolute(final int row) throws SQLException {
-    if (row > 0) {
-      this.currentRow = row - 1;
+    if (row == 0) {
+      this.beforeFirst();
+      return false;
     } else {
-      this.currentRow = this.rows.size() + row;
+      int rowsSize = this.rows.size();
+      if (row < 0) {
+        if (row < -rowsSize) {
+          this.beforeFirst();
+          return false;
+        }
+        this.currentRow = rowsSize + row;
+      } else { // row > 0
+        if (row > rowsSize) {
+          this.afterLast();
+          return false;
+        }
+        this.currentRow = row - 1;
+      }
     }
-    return this.currentRow >= 0 && this.currentRow < this.rows.size();
+    return true;
   }
 
   @Override
   public boolean relative(final int rows) throws SQLException {
     this.currentRow += rows;
-    return this.currentRow >= 0 && this.currentRow < this.rows.size();
+    if (this.currentRow < 0) {
+      this.beforeFirst();
+      return false;
+    } else if (this.currentRow >= this.rows.size()) {
+      this.afterLast();
+      return false;
+    }
+    return true;
   }
 
   @Override
   public boolean previous() throws SQLException {
+    if (this.currentRow < 1) {
+      this.beforeFirst();
+      return false;
+    }
     this.currentRow--;
-    return this.currentRow >= 0 && this.currentRow < this.rows.size();
+    return true;
   }
 
   @Override
@@ -1054,7 +1100,7 @@ public class CachedResultSet implements ResultSet {
 
   @Override
   public boolean isClosed() throws SQLException {
-    return false;
+    return this.rows == null;
   }
 
   @Override

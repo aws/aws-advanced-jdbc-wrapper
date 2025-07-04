@@ -14,10 +14,12 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.Properties;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import io.lettuce.core.support.ConnectionPoolSupport;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.StringUtils;
 
 // Abstraction layer on top of a connection to a remote cache server
@@ -36,8 +38,8 @@ public class CacheConnection {
   private static final int DEFAULT_POOL_MIN_IDLE = 0;
   private static final long DEFAULT_MAX_BORROW_WAIT_MS = 50;
 
-  private static final Object READ_LOCK = new Object();
-  private static final Object WRITE_LOCK = new Object();
+  private static final ReentrantLock READ_LOCK = new ReentrantLock();
+  private static final ReentrantLock WRITE_LOCK = new ReentrantLock();
 
   protected static final AwsWrapperProperty CACHE_RW_ENDPOINT_ADDR =
       new AwsWrapperProperty(
@@ -58,6 +60,10 @@ public class CacheConnection {
           "Whether to use SSL for cache connections.");
 
   private final boolean useSSL;
+
+  static {
+    PropertyDefinition.registerPluginProperties(CacheConnection.class);
+  }
 
   public CacheConnection(final Properties properties) {
     this.cacheRwServerAddr = CACHE_RW_ENDPOINT_ADDR.getString(properties);
@@ -84,11 +90,14 @@ public class CacheConnection {
     GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> cacheConnectionPool =
         isRead ? readConnectionPool : writeConnectionPool;
     if (cacheConnectionPool == null) {
-      Object lock = isRead ? READ_LOCK : WRITE_LOCK;
-      synchronized (lock) {
+      ReentrantLock connectionPoolLock = isRead ? READ_LOCK : WRITE_LOCK;
+      connectionPoolLock.lock();
+      try {
         if ((isRead && readConnectionPool == null) || (!isRead && writeConnectionPool == null)) {
           createConnectionPool(isRead);
         }
+      } finally {
+        connectionPoolLock.unlock();
       }
     }
   }
@@ -105,7 +114,7 @@ public class CacheConnection {
       String[] hostnameAndPort = serverAddr.split(":");
       RedisURI redisUriCluster = RedisURI.Builder.redis(hostnameAndPort[0])
           .withPort(Integer.parseInt(hostnameAndPort[1]))
-          .withSsl(useSSL).withVerifyPeer(false).build();
+          .withSsl(useSSL).withVerifyPeer(false).withLibraryName("aws-jdbc-lettuce").build();
 
       RedisClient client = RedisClient.create(resources, redisUriCluster);
       GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> pool =
@@ -219,6 +228,7 @@ public class CacheConnection {
       asyncCommands.set(keyHash, value, SetArgs.Builder.ex(expiry))
           .whenComplete((result, exception) -> handleCompletedCacheWrite(finalConn, exception));
     } catch (Exception e) {
+      // Failed to trigger the async write to the cache, return the cache connection to the pool as broken
       LOGGER.warning("Failed to write to cache: " + e.getMessage());
       if (conn != null && writeConnectionPool != null) {
         try {
