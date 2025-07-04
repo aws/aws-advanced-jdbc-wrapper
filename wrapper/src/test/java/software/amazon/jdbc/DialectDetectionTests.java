@@ -61,7 +61,6 @@ public class DialectDetectionTests {
   private static final String MYSQL_PROTOCOL = "jdbc:mysql://";
   private static final String PG_PROTOCOL = "jdbc:postgresql://";
   private static final String MARIA_PROTOCOL = "jdbc:mariadb://";
-  private final DialectManager dialectManager = new DialectManager(null);
   private final Properties props = new Properties();
   private AutoCloseable closeable;
   @Mock private FullServicesContainer mockServicesContainer;
