@@ -119,7 +119,8 @@ public class HibernateTests {
         configuration.setProperty("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
         break;
       case MYSQL:
-        configuration.setProperty("hibernate.dialect", "org.hibernate.dialect.MySQL8Dialect");
+        //configuration.setProperty("hibernate.dialect", "org.hibernate.dialect.MySQL8Dialect");
+        configuration.setProperty("hibernate.dialect", "org.hibernate.dialect.MySQLDialect");
         break;
       case MARIADB:
         configuration.setProperty("hibernate.dialect", "org.hibernate.dialect.MariaDBDialect");

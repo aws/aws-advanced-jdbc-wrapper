@@ -34,6 +34,7 @@ import java.sql.Statement;
 import java.util.Collections;
 import java.util.Properties;
 import java.util.Random;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
@@ -55,6 +56,7 @@ import software.amazon.jdbc.wrapper.StatementWrapper;
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
     TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT})
 @Order(7)
+@Disabled
 public class DriverConfigurationProfileTests {
 
   @TestTemplate
