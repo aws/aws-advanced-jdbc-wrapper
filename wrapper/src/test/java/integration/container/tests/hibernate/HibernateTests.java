@@ -119,8 +119,8 @@ public class HibernateTests {
         configuration.setProperty("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
         break;
       case MYSQL:
-        //configuration.setProperty("hibernate.dialect", "org.hibernate.dialect.MySQL8Dialect");
-        configuration.setProperty("hibernate.dialect", "org.hibernate.dialect.MySQLDialect");
+        configuration.setProperty("hibernate.dialect", "org.hibernate.dialect.MySQL8Dialect");
+        //configuration.setProperty("hibernate.dialect", "org.hibernate.dialect.MySQLDialect");
         break;
       case MARIADB:
         configuration.setProperty("hibernate.dialect", "org.hibernate.dialect.MariaDBDialect");
@@ -134,7 +134,7 @@ public class HibernateTests {
 
     configuration.setProperty("hibernate.show_sql", "true");
     configuration.setProperty("hibernate.format_sql", "true");
-    configuration.setProperty("hibernate.hbm2ddl.auto", "create");
+    configuration.setProperty("hibernate.hbm2ddl.auto", "update");
     configuration.setProperty("hibernate.connection.url", url);
     configuration.setProperty("hibernate.connection.username",
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getUsername());
