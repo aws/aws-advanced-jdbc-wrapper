@@ -29,6 +29,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jetbrains.annotations.NotNull;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.plugin.AuroraConnectionTrackerPlugin;
 import software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPlugin;
@@ -48,6 +49,7 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPlugin;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPlugin;
 import software.amazon.jdbc.profile.ConfigurationProfile;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -98,6 +100,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
   protected final @NonNull ConnectionProvider defaultConnProvider;
   protected final @Nullable ConnectionProvider effectiveConnProvider;
   protected final ConnectionWrapper connectionWrapper;
+  protected FullServicesContainer servicesContainer;
   protected PluginService pluginService;
   protected TelemetryFactory telemetryFactory;
   protected boolean isTelemetryInUse;
@@ -108,7 +111,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
   public ConnectionPluginManager(
       final @NonNull ConnectionProvider defaultConnProvider,
       final @Nullable ConnectionProvider effectiveConnProvider,
-      final @NonNull ConnectionWrapper connectionWrapper,
+      final @Nullable ConnectionWrapper connectionWrapper,
       final @NonNull TelemetryFactory telemetryFactory) {
     this.defaultConnProvider = defaultConnProvider;
     this.effectiveConnProvider = effectiveConnProvider;
@@ -167,27 +170,28 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    * <p>The {@link DefaultConnectionPlugin} will always be initialized and attached as the last
    * connection plugin in the chain.
    *
-   * @param pluginService        a reference to a plugin service that plugin can use
+   * @param servicesContainer     the service container for the services required by this class.
    * @param props                the configuration of the connection
    * @param pluginManagerService a reference to a plugin manager service
    * @param configurationProfile a profile configuration defined by the user
    * @throws SQLException if errors occurred during the execution
    */
   public void init(
-      final PluginService pluginService,
+      final FullServicesContainer servicesContainer,
       final Properties props,
       final PluginManagerService pluginManagerService,
       @Nullable ConfigurationProfile configurationProfile)
       throws SQLException {
 
     this.props = props;
-    this.pluginService = pluginService;
-    this.telemetryFactory = pluginService.getTelemetryFactory();
+    this.servicesContainer = servicesContainer;
+    this.pluginService = servicesContainer.getPluginService();
+    this.telemetryFactory = servicesContainer.getTelemetryFactory();
     this.isTelemetryInUse = telemetryFactory.inUse();
 
     ConnectionPluginChainBuilder pluginChainBuilder = new ConnectionPluginChainBuilder();
     this.plugins = pluginChainBuilder.getPlugins(
-        this.pluginService,
+        this.servicesContainer,
         this.defaultConnProvider,
         this.effectiveConnProvider,
         pluginManagerService,

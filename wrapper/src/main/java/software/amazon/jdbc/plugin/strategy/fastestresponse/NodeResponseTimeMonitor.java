@@ -63,6 +63,7 @@ public class NodeResponseTimeMonitor implements AutoCloseable, Runnable {
 
   private Connection monitoringConn = null;
 
+  // TODO: remove and submit monitors to MonitorService instead
   private final ExecutorService threadPool =
       ExecutorFactory.newFixedThreadPool(1, "threadPool");
 
@@ -215,6 +216,7 @@ public class NodeResponseTimeMonitor implements AutoCloseable, Runnable {
         LOGGER.finest(() -> Messages.get(
                 "NodeResponseTimeMonitor.openingConnection",
                 new Object[] {this.hostSpec.getUrl()}));
+        // TODO: replace with ConnectionService#open
         this.monitoringConn = this.pluginService.forceConnect(this.hostSpec, monitoringConnProperties);
         LOGGER.finest(() -> Messages.get(
             "NodeResponseTimeMonitor.openedConnection",

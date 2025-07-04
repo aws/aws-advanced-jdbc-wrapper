@@ -27,6 +27,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenRole;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.storage.StorageService;
 
 // Close current connection.
 public class CloseConnectionExecuteRouting extends BaseExecuteRouting {
@@ -46,6 +47,7 @@ public class CloseConnectionExecuteRouting extends BaseExecuteRouting {
       final String methodName,
       final JdbcCallable<T, E> jdbcMethodFunc,
       final Object[] jdbcMethodArgs,
+      final StorageService storageService,
       final PluginService pluginService,
       final Properties props) throws E {
 

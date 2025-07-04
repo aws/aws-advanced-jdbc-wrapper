@@ -35,6 +35,7 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.storage.StorageService;
 
 /**
  * Open a new connection to a provided substitute host.
@@ -60,7 +61,8 @@ public class SubstituteConnectRouting extends BaseConnectRouting {
 
   @Override
   public Connection apply(ConnectionPlugin plugin, HostSpec hostSpec, Properties props, boolean isInitialConnection,
-      JdbcCallable<Connection, SQLException> connectFunc, PluginService pluginService) throws SQLException {
+      JdbcCallable<Connection, SQLException> connectFunc, StorageService storageService, PluginService pluginService)
+      throws SQLException {
 
     if (!RDS_UTILS.isIP(this.substituteHostSpec.getHost())) {
       return pluginService.connect(this.substituteHostSpec, props, plugin);

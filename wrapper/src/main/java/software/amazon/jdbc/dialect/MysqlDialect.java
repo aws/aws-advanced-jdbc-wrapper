@@ -105,8 +105,8 @@ public class MysqlDialect implements Dialect {
   }
 
   public HostListProviderSupplier getHostListProvider() {
-    return (properties, initialUrl, hostListProviderService, pluginService) ->
-        new ConnectionStringHostListProvider(properties, initialUrl, hostListProviderService);
+    return (properties, initialUrl, servicesContainer) ->
+        new ConnectionStringHostListProvider(properties, initialUrl, servicesContainer.getHostListProviderService());
   }
 
   @Override

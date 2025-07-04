@@ -18,14 +18,21 @@ package software.amazon.jdbc.plugin.bluegreen;
 
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
+import software.amazon.jdbc.ServicesContainerPluginFactory;
+import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.Messages;
 
-public class BlueGreenConnectionPluginFactory implements ConnectionPluginFactory {
-
+public class BlueGreenConnectionPluginFactory implements ServicesContainerPluginFactory {
   @Override
   public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
-    return new BlueGreenConnectionPlugin(pluginService, props);
+    throw new UnsupportedOperationException(
+        Messages.get(
+            "ServicesContainerPluginFactory.servicesContainerRequired", new Object[] {"BlueGreenConnectionPlugin"}));
+  }
+
+  @Override
+  public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
+    return new BlueGreenConnectionPlugin(servicesContainer, props);
   }
 }
