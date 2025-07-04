@@ -196,14 +196,14 @@ public class BlueGreenStatusProvider {
   }
 
   protected void prepareStatus(
-      final BlueGreenRole role,
-      final BlueGreenInterimStatus interimStatus) {
+      final @NonNull BlueGreenRole role,
+      final @NonNull BlueGreenInterimStatus interimStatus) {
 
     this.processStatusLock.lock();
     try {
 
       // Detect changes
-      int statusHash = interimStatus == null ? 0 : interimStatus.getCustomHashCode();
+      int statusHash = interimStatus.getCustomHashCode();
       int contextHash = this.getContextHash();
       if (this.interimStatusHashes[role.getValue()] == statusHash
           && this.lastContextHash == contextHash) {
@@ -246,10 +246,8 @@ public class BlueGreenStatusProvider {
   }
 
   protected void updatePhase(BlueGreenRole role, BlueGreenInterimStatus interimStatus) {
-
-    BlueGreenPhase latestInterimPhase = this.interimStatuses[role.getValue()] == null
-        ? BlueGreenPhase.NOT_CREATED
-        : this.interimStatuses[role.getValue()].blueGreenPhase;
+    BlueGreenInterimStatus roleStatus = this.interimStatuses[role.getValue()];
+    BlueGreenPhase latestInterimPhase = roleStatus == null ? BlueGreenPhase.NOT_CREATED : roleStatus.blueGreenPhase;
 
     if (latestInterimPhase != null
         && interimStatus.blueGreenPhase != null
@@ -298,10 +296,10 @@ public class BlueGreenStatusProvider {
   protected void updateCorrespondingNodes() {
     this.correspondingNodes.clear();
 
-    if (this.interimStatuses[BlueGreenRole.SOURCE.getValue()] != null
-        && !Utils.isNullOrEmpty(this.interimStatuses[BlueGreenRole.SOURCE.getValue()].startTopology)
-        && this.interimStatuses[BlueGreenRole.TARGET.getValue()] != null
-        && !Utils.isNullOrEmpty(this.interimStatuses[BlueGreenRole.TARGET.getValue()].startTopology)) {
+    BlueGreenInterimStatus sourceInterimStatus = this.interimStatuses[BlueGreenRole.SOURCE.getValue()];
+    BlueGreenInterimStatus targetInterimStatus = this.interimStatuses[BlueGreenRole.TARGET.getValue()];
+    if (sourceInterimStatus != null && !Utils.isNullOrEmpty(sourceInterimStatus.startTopology)
+        && targetInterimStatus != null && !Utils.isNullOrEmpty(targetInterimStatus.startTopology)) {
 
       HostSpec blueWriterHostSpec = getWriterHost(BlueGreenRole.SOURCE);
       HostSpec greenWriterHostSpec = getWriterHost(BlueGreenRole.TARGET);
@@ -314,29 +312,30 @@ public class BlueGreenStatusProvider {
             blueWriterHostSpec.getHost(), Pair.create(blueWriterHostSpec, greenWriterHostSpec));
       }
 
-      if (!sortedGreenReaderHostSpecs.isEmpty()) {
-        int greenIndex = 0;
-        for (HostSpec blueHostSpec : sortedBlueReaderHostSpecs) {
-          this.correspondingNodes.put(
-              blueHostSpec.getHost(), Pair.create(blueHostSpec, sortedGreenReaderHostSpecs.get(greenIndex++)));
-          greenIndex %= sortedGreenReaderHostSpecs.size();
-        }
-      } else {
-        // There's no green reader nodes. We have to map all blue reader nodes to a green writer.
-        for (HostSpec blueHostSpec : sortedBlueReaderHostSpecs) {
-          this.correspondingNodes.put(
-              blueHostSpec.getHost(), Pair.create(blueHostSpec, greenWriterHostSpec));
+      if (!Utils.isNullOrEmpty(sortedBlueReaderHostSpecs)) {
+        // Map blue readers to green nodes.
+        if (!Utils.isNullOrEmpty(sortedGreenReaderHostSpecs)) {
+          int greenIndex = 0;
+          for (HostSpec blueHostSpec : sortedBlueReaderHostSpecs) {
+            this.correspondingNodes.put(
+                blueHostSpec.getHost(), Pair.create(blueHostSpec, sortedGreenReaderHostSpecs.get(greenIndex++)));
+            greenIndex %= sortedGreenReaderHostSpecs.size();
+          }
+        } else {
+          // There's no green reader nodes. We have to map all blue reader nodes to the green writer.
+          for (HostSpec blueHostSpec : sortedBlueReaderHostSpecs) {
+            this.correspondingNodes.put(
+                blueHostSpec.getHost(), Pair.create(blueHostSpec, greenWriterHostSpec));
+          }
         }
       }
     }
 
-    if (this.interimStatuses[BlueGreenRole.SOURCE.getValue()] != null
-        && !Utils.isNullOrEmpty(this.interimStatuses[BlueGreenRole.SOURCE.getValue()].hostNames)
-        && this.interimStatuses[BlueGreenRole.TARGET.getValue()] != null
-        && !Utils.isNullOrEmpty(this.interimStatuses[BlueGreenRole.TARGET.getValue()].hostNames)) {
+    if (sourceInterimStatus != null && !Utils.isNullOrEmpty(sourceInterimStatus.hostNames)
+        && targetInterimStatus != null && !Utils.isNullOrEmpty(targetInterimStatus.hostNames)) {
 
-      Set<String> blueHosts = this.interimStatuses[BlueGreenRole.SOURCE.getValue()].hostNames;
-      Set<String> greenHosts = this.interimStatuses[BlueGreenRole.TARGET.getValue()].hostNames;
+      Set<String> blueHosts = sourceInterimStatus.hostNames;
+      Set<String> greenHosts = targetInterimStatus.hostNames;
 
       // Find corresponding cluster hosts
       String blueClusterHost = blueHosts.stream().filter(this.rdsUtils::isWriterClusterDns)
@@ -386,15 +385,25 @@ public class BlueGreenStatusProvider {
     }
   }
 
-  protected HostSpec getWriterHost(final BlueGreenRole role) {
-    return this.interimStatuses[role.getValue()].startTopology.stream()
+  protected @Nullable HostSpec getWriterHost(final BlueGreenRole role) {
+    BlueGreenInterimStatus interimStatus = this.interimStatuses[role.getValue()];
+    if (interimStatus == null) {
+      return null;
+    }
+
+    return interimStatus.startTopology.stream()
         .filter(x -> x.getRole() == HostRole.WRITER)
         .findFirst()
         .orElse(null);
   }
 
-  protected List<HostSpec> getReaderHosts(final BlueGreenRole role) {
-    return this.interimStatuses[role.getValue()].startTopology.stream()
+  protected @Nullable List<HostSpec> getReaderHosts(final BlueGreenRole role) {
+    BlueGreenInterimStatus interimStatus = this.interimStatuses[role.getValue()];
+    if (interimStatus == null) {
+      return null;
+    }
+
+    return interimStatus.startTopology.stream()
         .filter(x -> x.getRole() != HostRole.WRITER)
         .sorted(Comparator.comparing(HostSpec::getHost))
         .collect(Collectors.toList());
@@ -614,31 +623,43 @@ public class BlueGreenStatusProvider {
 
   protected List<ConnectRouting> addSubstituteBlueWithIpAddressConnectRouting() {
     List<ConnectRouting> connectRouting = new ArrayList<>();
-    this.roleByHost.entrySet().stream()
-        .filter(x -> x.getValue() == BlueGreenRole.SOURCE && this.correspondingNodes.containsKey(x.getKey()))
-        .forEach(x -> {
-          HostSpec hostSpec = this.correspondingNodes.get(x.getKey()).getValue1();
-          Optional<String> blueIp = this.hostIpAddresses.get(hostSpec.getHost());
-          HostSpec substituteHostSpecWithIp = blueIp == null || !blueIp.isPresent()
-              ? hostSpec
-              : this.hostSpecBuilder.copyFrom(hostSpec).host(blueIp.get()).build();
+    for (Map.Entry<String, BlueGreenRole> entry : this.roleByHost.entrySet()) {
+      String host = entry.getKey();
+      BlueGreenRole role = entry.getValue();
+      Pair<HostSpec, HostSpec> nodePair = this.correspondingNodes.get(host);
+      if (role != BlueGreenRole.SOURCE || nodePair == null) {
+        continue;
+      }
 
-          connectRouting.add(new SubstituteConnectRouting(
-              x.getKey(),
-              x.getValue(),
-              substituteHostSpecWithIp,
-              Collections.singletonList(hostSpec),
-              null));
+      HostSpec blueHostSpec = nodePair.getValue1();
+      Optional<String> blueIp = this.hostIpAddresses.get(blueHostSpec.getHost());
+      HostSpec blueIpHostSpec;
+      if (blueIp == null || !blueIp.isPresent()) {
+        blueIpHostSpec = blueHostSpec;
+      } else {
+        blueIpHostSpec = this.hostSpecBuilder.copyFrom(blueHostSpec).host(blueIp.get()).build();
+      }
 
-          connectRouting.add(new SubstituteConnectRouting(
-              this.getHostAndPort(
-                  x.getKey(),
-                  this.interimStatuses[x.getValue().getValue()].port),
-              x.getValue(),
-              substituteHostSpecWithIp,
-              Collections.singletonList(hostSpec),
-              null));
-        });
+      connectRouting.add(new SubstituteConnectRouting(
+          host,
+          role,
+          blueIpHostSpec,
+          Collections.singletonList(blueHostSpec),
+          null));
+
+      BlueGreenInterimStatus interimStatus = this.interimStatuses[role.getValue()];
+      if (interimStatus == null) {
+        continue;
+      }
+
+      connectRouting.add(new SubstituteConnectRouting(
+          this.getHostAndPort(host, interimStatus.port),
+          role,
+          blueIpHostSpec,
+          Collections.singletonList(blueHostSpec),
+          null));
+    }
+
     return connectRouting;
   }
 
@@ -821,8 +842,10 @@ public class BlueGreenStatusProvider {
           .forEach(x -> {
             final String blueHost = x.getKey();
             final boolean isBlueHostInstance = rdsUtils.isRdsInstance(blueHost);
-            HostSpec blueHostSpec = this.correspondingNodes.get(x.getKey()).getValue1();
-            HostSpec greenHostSpec = this.correspondingNodes.get(x.getKey()).getValue2();
+
+            Pair<HostSpec, HostSpec> nodePair = this.correspondingNodes.get(x.getKey());
+            HostSpec blueHostSpec = nodePair == null ? null : nodePair.getValue1();
+            HostSpec greenHostSpec = nodePair == null ? null : nodePair.getValue2();
 
             if (greenHostSpec == null) {
 
@@ -832,13 +855,13 @@ public class BlueGreenStatusProvider {
                   x.getValue(),
                   this.bgdId));
 
-              connectRouting.add(new SuspendUntilCorrespondingNodeFoundConnectRouting(
-                  this.getHostAndPort(
-                      blueHost,
-                      this.interimStatuses[x.getValue().getValue()].port),
-                  x.getValue(),
-                  this.bgdId));
-
+              BlueGreenInterimStatus interimStatus = this.interimStatuses[x.getValue().getValue()];
+              if (interimStatus != null) {
+                connectRouting.add(new SuspendUntilCorrespondingNodeFoundConnectRouting(
+                    this.getHostAndPort(blueHost, interimStatus.port),
+                    x.getValue(),
+                    this.bgdId));
+              }
             } else {
               final String greenHost = greenHostSpec.getHost();
               Optional<String> greenIp = this.hostIpAddresses.get(greenHostSpec.getHost());
@@ -847,11 +870,16 @@ public class BlueGreenStatusProvider {
                   : this.hostSpecBuilder.copyFrom(greenHostSpec).host(greenIp.get()).build();
 
               // Check whether green host is already been connected with blue (no-prefixes) IAM host name.
-              List<HostSpec> iamHosts = this.isAlreadySuccessfullyConnected(greenHost, blueHost)
-                  // Green node has already changed its name, and it's not a new blue node (no prefixes).
-                  ? Collections.singletonList(blueHostSpec)
-                  // Green node isn't yet changed its name, so we need to try both possible IAM host options.
-                  : Arrays.asList(greenHostSpec, blueHostSpec);
+              List<HostSpec> iamHosts;
+              if (this.isAlreadySuccessfullyConnected(greenHost, blueHost)) {
+                // Green node has already changed its name, and it's not a new blue node (no prefixes).
+                iamHosts = blueHostSpec == null ? null : Collections.singletonList(blueHostSpec);
+              } else {
+                // Green node isn't yet changed its name, so we need to try both possible IAM host options.
+                iamHosts = blueHostSpec == null
+                    ? Collections.singletonList(greenHostSpec)
+                    : Arrays.asList(greenHostSpec, blueHostSpec);
+              }
 
               connectRouting.add(new SubstituteConnectRouting(
                   blueHost,
@@ -860,14 +888,15 @@ public class BlueGreenStatusProvider {
                   iamHosts,
                   isBlueHostInstance ? (iamHost) -> this.registerIamHost(greenHost, iamHost) : null));
 
-              connectRouting.add(new SubstituteConnectRouting(
-                  this.getHostAndPort(
-                      blueHost,
-                      this.interimStatuses[x.getValue().getValue()].port),
-                  x.getValue(),
-                  greenHostSpecWithIp,
-                  iamHosts,
-                  isBlueHostInstance ? (iamHost) -> this.registerIamHost(greenHost, iamHost) : null));
+              BlueGreenInterimStatus interimStatus = this.interimStatuses[x.getValue().getValue()];
+              if (interimStatus != null) {
+                connectRouting.add(new SubstituteConnectRouting(
+                    this.getHostAndPort(blueHost, interimStatus.port),
+                    x.getValue(),
+                    greenHostSpecWithIp,
+                    iamHosts,
+                    isBlueHostInstance ? (iamHost) -> this.registerIamHost(greenHost, iamHost) : null));
+              }
             }
           });
     }
@@ -1002,9 +1031,9 @@ public class BlueGreenStatusProvider {
       return;
     }
 
-    PhaseTimeInfo timeZero = this.rollback
-        ? this.phaseTimeNano.get(BlueGreenPhase.PREPARATION.name())
-        : this.phaseTimeNano.get(BlueGreenPhase.IN_PROGRESS.name());
+    BlueGreenPhase timeZeroPhase = this.rollback ? BlueGreenPhase.PREPARATION : BlueGreenPhase.IN_PROGRESS;
+    String timeZeroKey = this.rollback ? timeZeroPhase.name() + " (rollback)" : timeZeroPhase.name();
+    PhaseTimeInfo timeZero = this.phaseTimeNano.get(timeZeroKey);
     String divider = "----------------------------------------------------------------------------------\n";
 
     String logMessage =
