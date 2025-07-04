@@ -68,6 +68,8 @@ public class SpringHibernateBalancedReaderTwoDataSourceExampleApplication implem
    * The method helps to execute a simple logic updating number of available books in multiple threads.
    * If a failover manually triggered through AWS Console, it's possible to observe how the application
    * handles the failover and check if there's any failed transactions there.
+   *
+   * @throws InterruptedException when a thread is interrupted.
    */
   public void runMultiThread() throws InterruptedException {
     final AtomicBoolean stop = new AtomicBoolean(false);

@@ -266,7 +266,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
 
           } catch (final SQLException exception) {
             // Propagate exceptions that are not caused by network errors.
-            if (!pluginService.isNetworkException(exception)) {
+            if (!pluginService.isNetworkException(exception, pluginService.getTargetDriverDialect())) {
               LOGGER.finer(
                   () -> Messages.get(
                       "ClusterAwareWriterFailoverHandler.taskAEncounteredException",

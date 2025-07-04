@@ -215,7 +215,8 @@ public class FederatedAuthPlugin extends AbstractConnectionPlugin {
     try {
       return connectFunc.call();
     } catch (final SQLException exception) {
-      if (!isCachedToken || !this.pluginService.isLoginException(exception)) {
+      if (!isCachedToken
+          || !this.pluginService.isLoginException(exception, this.pluginService.getTargetDriverDialect())) {
         throw exception;
       }
       updateAuthenticationToken(hostSpec, props, region, cacheKey, host);

@@ -95,6 +95,8 @@ public class DialectManager implements DialectProvider {
   /**
    * Sets a custom dialect handler.
    *
+   * @param dialect A custom dialect to use.
+   *
    * @deprecated Use software.amazon.jdbc.Driver instead
    */
   @Deprecated
@@ -157,8 +159,8 @@ public class DialectManager implements DialectProvider {
     }
 
     String host = url;
-    final List<HostSpec> hosts = this.connectionUrlParser.getHostsFromConnectionUrl(url, true,
-        () -> pluginService.getHostSpecBuilder());
+    final List<HostSpec> hosts = this.connectionUrlParser.getHostsFromConnectionUrl(
+            url, true, pluginService::getHostSpecBuilder);
     if (!Utils.isNullOrEmpty(hosts)) {
       host = hosts.get(0).getHost();
     }

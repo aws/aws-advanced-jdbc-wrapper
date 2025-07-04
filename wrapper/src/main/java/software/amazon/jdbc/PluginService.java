@@ -55,6 +55,7 @@ public interface PluginService extends ExceptionHandler {
    *                                      doesn't need to receive such notification and uses a pointer to
    *                                      itself as a call parameter.
    * @return a set of notification options about this connection switch.
+   * @throws SQLException if there's an error setting a current connection.
    */
   EnumSet<NodeChangeOptions> setCurrentConnection(
       final @NonNull Connection connection,
@@ -101,6 +102,7 @@ public interface PluginService extends ExceptionHandler {
    * @return true if the available {@link ConnectionProvider} or {@link ConnectionPlugin} instances
    *     support the selection of a host with the requested role and strategy via
    *     {@link #getHostSpecByStrategy}. Otherwise, return false.
+   * @throws SQLException if there's an error processing this method.
    */
   boolean acceptsStrategy(HostRole role, String strategy) throws SQLException;
 

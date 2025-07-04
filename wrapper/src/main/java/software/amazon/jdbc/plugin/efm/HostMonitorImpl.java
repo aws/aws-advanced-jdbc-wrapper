@@ -380,6 +380,7 @@ public class HostMonitorImpl implements HostMonitor {
    * Used to help with testing.
    *
    * @param duration Duration of sleep in millis.
+   * @throws InterruptedException is thread is interrupted
    */
   protected void sleep(long duration) throws InterruptedException {
     TimeUnit.MILLISECONDS.sleep(duration);

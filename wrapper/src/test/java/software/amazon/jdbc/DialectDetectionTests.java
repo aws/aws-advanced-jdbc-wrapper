@@ -114,6 +114,7 @@ public class DialectDetectionTests {
   @ParameterizedTest
   @MethodSource("getInitialDialectArguments")
   public void testInitialDialectDetection(String protocol, String host, Object expectedDialect) throws SQLException {
+    final DialectManager dialectManager = new DialectManager(this.getPluginService(host, protocol));
     final Dialect dialect = dialectManager.getDialect(protocol, host, new Properties());
     assertEquals(expectedDialect, dialect.getClass());
   }

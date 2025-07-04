@@ -103,7 +103,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
   protected FullServicesContainer servicesContainer;
   protected PluginService pluginService;
   protected TelemetryFactory telemetryFactory;
-  protected boolean isTelemetryInUse = false;
+  protected boolean isTelemetryInUse;
   @SuppressWarnings("rawtypes")
   protected final PluginChainJdbcCallableInfo[] pluginChainFuncMap =
       new PluginChainJdbcCallableInfo[JdbcMethod.ALL.id + 1]; // it should be the last element in JdbcMethod enum
@@ -232,6 +232,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
     if (jdbcMethod.alwaysUsePipeline || pluginChainJdbcCallableInfo.isSubscribed) {
       // noinspection unchecked
+      @SuppressWarnings("unchecked")
       PluginChainJdbcCallable<T, E> pluginChainFunc = pluginChainJdbcCallableInfo.func;
       return pluginChainFunc.call(pluginPipeline, jdbcMethodFunc, pluginToSkip);
     } else {
@@ -475,6 +476,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    * @return true if the available {@link ConnectionProvider} or {@link ConnectionPlugin} instances
    *     support the selection of a host with the requested role and strategy via
    *     {@link #getHostSpecByStrategy}. Otherwise, return false.
+   * @throws SQLException if there's error processing this method
    */
   public boolean acceptsStrategy(HostRole role, String strategy) throws SQLException {
     try {
