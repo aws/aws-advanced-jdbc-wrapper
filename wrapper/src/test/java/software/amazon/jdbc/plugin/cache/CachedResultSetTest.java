@@ -1,6 +1,7 @@
 package software.amazon.jdbc.plugin.cache;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -22,6 +23,7 @@ public class CachedResultSetTest {
   @BeforeAll
   static void setUp() {
     Map<String, Object> row = new HashMap<>();
+    row.put("fieldNull", null); // null
     row.put("fieldInt", 1); // Integer
     row.put("fieldString", "John Doe"); // String
     row.put("fieldBoolean", true);
@@ -36,6 +38,7 @@ public class CachedResultSetTest {
     row.put("fieldDateTime", Timestamp.valueOf("2025-03-15 22:54:00"));
     testResultList.add(row);
     Map<String, Object> row2 = new HashMap<>();
+    row2.put("fieldNull", null); // null
     row2.put("fieldInt", 123456); // Integer
     row2.put("fieldString", "Tony Stark"); // String
     row2.put("fieldBoolean", false);
@@ -58,42 +61,78 @@ public class CachedResultSetTest {
       colNameToIndexMap.put(rsmd.getColumnName(i), i);
     }
     assertEquals(1, rs.getInt(colNameToIndexMap.get("fieldInt")));
+    assertFalse(rs.wasNull());
     assertEquals("John Doe", rs.getString(colNameToIndexMap.get("fieldString")));
+    assertFalse(rs.wasNull());
     assertTrue(rs.getBoolean(colNameToIndexMap.get("fieldBoolean")));
+    assertFalse(rs.wasNull());
     assertEquals(100, rs.getByte(colNameToIndexMap.get("fieldByte")));
+    assertFalse(rs.wasNull());
     assertEquals(55, rs.getShort(colNameToIndexMap.get("fieldShort")));
+    assertFalse(rs.wasNull());
+    assertNull(rs.getObject(colNameToIndexMap.get("fieldNull")));
+    assertTrue(rs.wasNull());
     assertEquals(8589934592L, rs.getLong(colNameToIndexMap.get("fieldLong")));
+    assertFalse(rs.wasNull());
     assertEquals(3.14159f, rs.getFloat(colNameToIndexMap.get("fieldFloat")), 0);
+    assertFalse(rs.wasNull());
     assertEquals(2345.23345d, rs.getDouble(colNameToIndexMap.get("fieldDouble")));
+    assertFalse(rs.wasNull());
     assertEquals(0, rs.getBigDecimal(colNameToIndexMap.get("fieldBigDecimal")).compareTo(new BigDecimal("15.33")));
+    assertFalse(rs.wasNull());
+    assertNull(rs.getObject(colNameToIndexMap.get("fieldNull")));
+    assertTrue(rs.wasNull());
     Date date = rs.getDate(colNameToIndexMap.get("fieldDate"));
     assertEquals(1742022000000L, date.getTime());
+    assertFalse(rs.wasNull());
     Time time = rs.getTime(colNameToIndexMap.get("fieldTime"));
     assertEquals(111240000, time.getTime());
+    assertFalse(rs.wasNull());
     Timestamp ts = rs.getTimestamp(colNameToIndexMap.get("fieldDateTime"));
     assertEquals(1742104440000L, ts.getTime());
+    assertFalse(rs.wasNull());
   }
 
   private void verifyRow2(ResultSet rs) throws SQLException {
     assertEquals(123456, rs.getInt("fieldInt"));
+    assertFalse(rs.wasNull());
     assertEquals("Tony Stark", rs.getString("fieldString"));
+    assertFalse(rs.wasNull());
     assertFalse(rs.getBoolean("fieldBoolean"));
+    assertFalse(rs.wasNull());
     assertEquals(70, rs.getByte("fieldByte"));
+    assertFalse(rs.wasNull());
     assertEquals(135, rs.getShort("fieldShort"));
+    assertFalse(rs.wasNull());
+    assertNull(rs.getObject("fieldNull"));
+    assertTrue(rs.wasNull());
     assertEquals(-34359738368L, rs.getLong("fieldLong"));
+    assertFalse(rs.wasNull());
     assertEquals(-233.14159f, rs.getFloat("fieldFloat"));
+    assertFalse(rs.wasNull());
     assertEquals(-2344355.4543d, rs.getDouble("fieldDouble"));
+    assertFalse(rs.wasNull());
     assertEquals(0, rs.getBigDecimal("fieldBigDecimal").compareTo(new BigDecimal("-12.45")));
+    assertFalse(rs.wasNull());
     Date date = rs.getDate("fieldDate");
     assertEquals("1102-01-15", date.toString());
+    assertFalse(rs.wasNull());
     Time time = rs.getTime("fieldTime");
     assertEquals("01:10:00", time.toString());
+    assertFalse(rs.wasNull());
     Timestamp ts = rs.getTimestamp("fieldDateTime");
     assertTrue(ts.toString().startsWith("1981-03-10 01:10:20"));
+    assertFalse(rs.wasNull());
   }
 
   @Test
   void test_create_and_verify_basic() throws Exception {
+    // An empty result set
+    ResultSet rs0 = new CachedResultSet(new ArrayList<>());
+    assertFalse(rs0.next());
+    ResultSetMetaData md = rs0.getMetaData();
+    assertEquals(0, md.getColumnCount());
+    // Result set containing data
     ResultSet rs = new CachedResultSet(testResultList);
     verifyMetadata(rs);
     verifyContent(rs);
@@ -101,6 +140,8 @@ public class CachedResultSetTest {
     CachedResultSet cachedRs = new CachedResultSet(rs);
     verifyMetadata(cachedRs);
     verifyContent(cachedRs);
+    rs.clearWarnings();
+    assertNull(rs.getWarnings());
   }
 
   @Test
@@ -117,17 +158,39 @@ public class CachedResultSetTest {
       verifyRow1(rs);
       assertTrue(rs.next());
       verifyRow2(rs);
+      rs.previous();
+      verifyRow1(rs);
+      verifyNonexistingField(rs);
+      rs.relative(1); // Advances to next row
+      verifyRow2(rs);
+      rs.absolute(2);
+      verifyRow2(rs);
     } else {
       verifyRow2(rs);
       assertTrue(rs.next());
       verifyRow1(rs);
+      rs.previous();
+      verifyRow2(rs);
+      verifyNonexistingField(rs);
+      rs.relative(1); // Advances to next row
+      verifyRow1(rs);
+      rs.absolute(2);
+      verifyRow1(rs);
     }
     assertFalse(rs.next());
+    rs.relative(-10);
+    assertTrue(rs.isBeforeFirst());
+    rs.relative(10);
+    assertTrue(rs.isAfterLast());
+    rs.absolute(-10);
+    assertTrue(rs.isBeforeFirst());
+    rs.absolute(10);
+    assertTrue(rs.isAfterLast());
   }
 
   private void verifyMetadata(ResultSet rs) throws SQLException {
     ResultSetMetaData md = rs.getMetaData();
-    List<String> expectedCols = Arrays.asList("fieldInt", "fieldString", "fieldBoolean", "fieldByte", "fieldShort", "fieldLong", "fieldFloat", "fieldDouble", "fieldBigDecimal", "fieldDate", "fieldTime", "fieldDateTime");
+    List<String> expectedCols = Arrays.asList("fieldNull", "fieldInt", "fieldString", "fieldBoolean", "fieldByte", "fieldShort", "fieldLong", "fieldFloat", "fieldDouble", "fieldBigDecimal", "fieldDate", "fieldTime", "fieldDateTime");
     assertEquals(md.getColumnCount(), testResultList.get(0).size());
     List<String> actualColNames = new ArrayList<>();
     List<String> actualColLabels = new ArrayList<>();
@@ -161,11 +224,22 @@ public class CachedResultSetTest {
     CachedResultSet cachedRs = new CachedResultSet(testTimestamps);
     assertTrue(cachedRs.next());
     verifyTimestamps(cachedRs);
+    verifyNonexistingField(cachedRs);
     cachedRs.beforeFirst();
     String serialized_data = cachedRs.serializeIntoJsonString();
     ResultSet rs = CachedResultSet.deserializeFromJsonString(serialized_data);
     assertTrue(rs.next());
     verifyTimestamps(rs);
+    verifyNonexistingField(rs);
+  }
+
+  private void verifyNonexistingField(ResultSet rs) {
+    try {
+      rs.getTimestamp("nonExistingField");
+      throw new IllegalStateException("Expected an exception due to column doesn't exist");
+    } catch (SQLException e) {
+      // Expected an exception if the column doesn't exist
+    }
   }
 
   private void verifyTimestamps(ResultSet rs) throws SQLException {
@@ -207,8 +281,6 @@ public class CachedResultSetTest {
     localTime = LocalDateTime.parse("2025-04-01T21:55:21.822364");
     assertEquals(localTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(), rs.getTimestamp("fieldTimestamp8").getTime());
     assertEquals(localTime.atZone(estZone).toInstant().toEpochMilli(), rs.getTimestamp("fieldTimestamp8", estCalendar).getTime());
-
-    assertNull(rs.getTimestamp("nonExistingField"));
   }
 
   @Test
@@ -233,6 +305,7 @@ public class CachedResultSetTest {
     CachedResultSet cachedRs = new CachedResultSet(testTimes);
     assertTrue(cachedRs.next());
     verifyTimes(cachedRs);
+    verifyNonexistingField(cachedRs);
     cachedRs.beforeFirst();
     String serialized_data = cachedRs.serializeIntoJsonString();
     ResultSet rs = CachedResultSet.deserializeFromJsonString(serialized_data);
@@ -276,8 +349,6 @@ public class CachedResultSetTest {
 
     assertEquals("00:00:00", rs.getTime("fieldTime10").toString());
     assertEquals("00:00:00", rs.getTime("fieldTime10", estCalendar).toString());
-
-    assertNull(rs.getTime("nonExistingField"));
   }
 
   @Test
@@ -296,6 +367,7 @@ public class CachedResultSetTest {
     CachedResultSet cachedRs = new CachedResultSet(testTimes);
     assertTrue(cachedRs.next());
     verifyDates(cachedRs);
+    verifyNonexistingField(cachedRs);
     cachedRs.beforeFirst();
     String serialized_data = cachedRs.serializeIntoJsonString();
     ResultSet rs = CachedResultSet.deserializeFromJsonString(serialized_data);
