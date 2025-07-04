@@ -532,17 +532,15 @@ public class BlueGreenStatusMonitor {
     this.panicMode.set(true);
 
     this.openConnectionFuture = openConnectionExecutorService.submit(() -> {
+      if (this.connectionHostSpec == null) {
+        this.connectionHostSpec.set(this.initialHostSpec);
+        this.connectedIpAddress.set(null);
+        this.connectionHostSpecCorrect.set(false);
+      }
 
       HostSpec connectionHostSpecCopy = this.connectionHostSpec.get();
       String connectedIpAddressCopy = this.connectedIpAddress.get();
 
-      if (connectionHostSpecCopy == null) {
-        this.connectionHostSpec.set(this.initialHostSpec);
-        connectionHostSpecCopy = this.initialHostSpec;
-        this.connectedIpAddress.set(null);
-        connectedIpAddressCopy = null;
-        this.connectionHostSpecCorrect.set(false);
-      }
       try {
 
         if (this.useIpAddress.get() && connectedIpAddressCopy != null) {
