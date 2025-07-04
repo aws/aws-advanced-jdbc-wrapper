@@ -28,20 +28,25 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(DataRemoteCachePlugin.class.getName());
   private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
-      Arrays.asList("Statement.executeQuery", "Statement.execute",
-          "PreparedStatement.execute", "PreparedStatement.executeQuery",
-          "CallableStatement.execute", "CallableStatement.executeQuery")));
+      Arrays.asList(JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
+          JdbcMethod.STATEMENT_EXECUTE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName)));
 
   static {
     PropertyDefinition.registerPluginProperties(DataRemoteCachePlugin.class);
@@ -173,8 +178,6 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
       final JdbcCallable<T, E> jdbcMethodFunc,
       final Object[] jdbcMethodArgs)
       throws E {
-    totalCallsCounter.inc();
-
     ResultSet result;
     boolean needToCache = false;
     final String sql = getQuery(jdbcMethodArgs);
@@ -196,23 +199,21 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     // Query result can be served from the cache if it has a configured TTL value, and it is
     // not executed in a transaction as a transaction typically need to return consistent results.
     if (!isInTransaction && (configuredQueryTtl != null)) {
+      incrCounter(totalCallsCounter);
       result = fetchResultSetFromCache(mainQuery);
       if (result == null) {
         // Cache miss. Need to fetch result from the database
         needToCache = true;
-        missCounter.inc();
+        incrCounter(missCounter);
         LOGGER.finest("Got a cache miss for SQL: " + sql);
       } else {
         LOGGER.finest("Got a cache hit for SQL: " + sql);
         // Cache hit. Return the cached result
-        hitCounter.inc();
+        incrCounter(hitCounter);
         try {
           result.beforeFirst();
         } catch (final SQLException ex) {
-          if (exceptionClass.isAssignableFrom(ex.getClass())) {
-            throw exceptionClass.cast(ex);
-          }
-          throw new RuntimeException(ex);
+          throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, ex);
         }
         return resultClass.cast(result);
       }
@@ -220,16 +221,27 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
 
     result = (ResultSet) jdbcMethodFunc.call();
 
+    // We need to cache the query result if we got a cache miss for the query result,
+    // or the query is cacheable and executed inside a transaction.
+    if (isInTransaction && (configuredQueryTtl != null)) {
+      needToCache = true;
+    }
     if (needToCache) {
       try {
         result = cacheResultSet(mainQuery, result, configuredQueryTtl);
       } catch (final SQLException ex) {
-        // ignore exception
-        LOGGER.warning("Encountered SQLException when caching results: " + ex.getMessage());
+        // Log and re-throw exception
+        LOGGER.warning("Encountered SQLException when caching query results: " + ex.getMessage());
+        throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, ex);
       }
     }
 
     return resultClass.cast(result);
+  }
+
+  private void incrCounter(TelemetryCounter counter) {
+    if (counter == null) return;
+    counter.inc();
   }
 
   protected String getQuery(final Object[] jdbcMethodArgs) {

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -99,22 +100,6 @@ public class DataRemoteCachePluginTest {
   }
 
   @Test
-  void test_inTransaction_noCaching() throws Exception {
-    // Query is not cacheable
-    when(mockPluginService.isInTransaction()).thenReturn(true);
-    when(mockCallable.call()).thenReturn(mockResult1);
-    ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
-        methodName, mockCallable, new String[]{"/* cacheTtl=50s */ select * from B"});
-
-    // Mock result set containing 1 row
-    when(mockResult1.next()).thenReturn(true, true, false, false);
-    when(mockResult1.getObject(1)).thenReturn("bar1", "bar1");
-    compareResults(mockResult1, rs);
-    verify(mockCallable).call();
-    verify(mockTotalCallsCounter).inc();
-  }
-
-  @Test
   void test_execute_noCaching() throws Exception {
     // Query is not cacheable
     when(mockPluginService.isInTransaction()).thenReturn(false);
@@ -129,7 +114,7 @@ public class DataRemoteCachePluginTest {
     compareResults(mockResult1, rs);
     verify(mockPluginService).isInTransaction();
     verify(mockCallable).call();
-    verify(mockTotalCallsCounter).inc();
+    verify(mockTotalCallsCounter, never()).inc();
     verify(mockHitCounter, never()).inc();
     verify(mockMissCounter, never()).inc();
   }
@@ -148,7 +133,7 @@ public class DataRemoteCachePluginTest {
     when(mockResult1.getObject(1)).thenReturn("bar1", "bar1");
     compareResults(mockResult1, rs);
     verify(mockCallable).call();
-    verify(mockTotalCallsCounter).inc();
+    verify(mockTotalCallsCounter, never()).inc();
     verify(mockHitCounter, never()).inc();
     verify(mockMissCounter, never()).inc();
   }
@@ -219,6 +204,56 @@ public class DataRemoteCachePluginTest {
     verify(mockCacheConn, never()).writeToCache("public_user_select * from table", "[{\"fooName\":\"bar1\"}]".getBytes(StandardCharsets.UTF_8), 50);
     verify(mockTotalCallsCounter).inc();
     verify(mockHitCounter).inc();
+  }
+
+  @Test
+  void test_transaction_cacheQuery() throws Exception {
+    // Query is cacheable
+    when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
+    when(mockPluginService.isInTransaction()).thenReturn(true);
+    when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+    when(mockConnection.getSchema()).thenReturn("public");
+    when(mockDbMetadata.getUserName()).thenReturn("user");
+    when(mockCallable.call()).thenReturn(mockResult1);
+
+    // Result set contains 1 row
+    when(mockResult1.next()).thenReturn(true, false);
+    when(mockResult1.getObject(1)).thenReturn("bar1");
+
+    ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
+        methodName, mockCallable, new String[]{"/* cacheTTL=300s */ select * from T"});
+
+    // Cached result set contains 1 row
+    assertTrue(rs.next());
+    assertEquals("bar1", rs.getString("fooName"));
+    assertFalse(rs.next());
+    verify(mockPluginService).getCurrentConnection();
+    verify(mockPluginService).isInTransaction();
+    verify(mockCacheConn, never()).readFromCache(anyString());
+    verify(mockCallable).call();
+    verify(mockCacheConn).writeToCache("public_user_select * from T", "[{\"fooName\":\"bar1\"}]".getBytes(StandardCharsets.UTF_8), 300);
+    verify(mockTotalCallsCounter, never()).inc();
+    verify(mockHitCounter, never()).inc();
+    verify(mockMissCounter, never()).inc();
+  }
+
+  @Test
+  void test_transaction_noCaching() throws Exception {
+    // Query is not cacheable
+    when(mockPluginService.isInTransaction()).thenReturn(true);
+    when(mockCallable.call()).thenReturn(mockResult1);
+    ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
+        methodName, mockCallable, new String[]{"delete from mytable"});
+
+    // Mock result set containing 1 row
+    when(mockResult1.next()).thenReturn(true, true, false, false);
+    when(mockResult1.getObject(1)).thenReturn("bar1", "bar1");
+    compareResults(mockResult1, rs);
+    verify(mockCacheConn, never()).readFromCache(anyString());
+    verify(mockCallable).call();
+    verify(mockTotalCallsCounter, never()).inc();
+    verify(mockHitCounter, never()).inc();
+    verify(mockMissCounter, never()).inc();
   }
 
   void compareResults(final ResultSet expected, final ResultSet actual) throws SQLException {
