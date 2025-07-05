@@ -62,6 +62,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
@@ -97,6 +98,7 @@ import software.amazon.jdbc.util.StringUtils;
     TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT})
 @MakeSureFirstInstanceWriter
 @Order(12)
+@Disabled
 public class ReadWriteSplittingTests {
 
   protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();

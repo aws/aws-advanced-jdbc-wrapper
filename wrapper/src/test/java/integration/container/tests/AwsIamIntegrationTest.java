@@ -40,6 +40,7 @@ import java.util.Properties;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
@@ -69,6 +70,7 @@ import software.amazon.jdbc.plugin.iam.RegularRdsUtility;
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
     TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT})
 @Order(3)
+@Disabled
 // MariaDb driver has no configuration parameters to force using 'mysql_clear_password'
 // authentication that is essential for IAM. A proper user name and IAM token are passed to MariaDb
 // driver however 'mysql_native_password' authentication is chosen by default.

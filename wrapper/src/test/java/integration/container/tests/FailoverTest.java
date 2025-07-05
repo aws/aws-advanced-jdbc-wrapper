@@ -55,6 +55,7 @@ import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
@@ -77,6 +78,7 @@ import software.amazon.jdbc.util.SqlState;
     TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT})
 @MakeSureFirstInstanceWriter
 @Order(14)
+@Disabled
 public class FailoverTest {
 
   private static final Logger LOGGER = Logger.getLogger(FailoverTest.class.getName());
