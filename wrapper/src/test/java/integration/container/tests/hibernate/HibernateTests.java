@@ -19,6 +19,8 @@ package integration.container.tests.hibernate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import integration.DatabaseEngine;
+import integration.DatabaseEngineDeployment;
 import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriver;
@@ -119,19 +121,26 @@ public class HibernateTests {
     configuration.addAnnotatedClass(Tool.class);
     configuration.addAnnotatedClass(Skill.class);
 
-    switch (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine()) {
+    DatabaseEngine databaseEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
+    DatabaseEngineDeployment databaseEngineDeployment =
+        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment();
+
+    switch (databaseEngine) {
       case PG:
         configuration.setProperty("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
         break;
       case MYSQL:
-        configuration.setProperty("hibernate.dialect", "org.hibernate.dialect.MySQL8Dialect");
+        if (databaseEngineDeployment == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER) {
+          configuration.setProperty("hibernate.dialect", "org.hibernate.dialect.MySQLDialect");
+        } else {
+          configuration.setProperty("hibernate.dialect", "org.hibernate.dialect.MySQL8Dialect");
+        }
         break;
       case MARIADB:
         configuration.setProperty("hibernate.dialect", "org.hibernate.dialect.MariaDBDialect");
         break;
       default:
-        throw new UnsupportedOperationException(
-            TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine().toString());
+        throw new UnsupportedOperationException(databaseEngine.toString());
     }
 
     configuration.setProperty("hibernate.connection.driver_class", "software.amazon.jdbc.Driver");
