@@ -5,8 +5,7 @@ This directory contains [reachability metadata](https://www.graalvm.org/jdk21/re
 ## Usage
 1. Copy the `.json` files in the relevant version directory to your `src/main/resources/META-INF/native-image` directory.
 2. Modify the `reflect-config.json` file as follows:
-   1. The beginning of the file contains reachability metadata for all existing plugin factories. By default, all plugin factories will be included in the native image. You can decrease the size of the native image by removing the plugin factories for the plugins that you are not using in your application.
-   2. If you are using `AwsWrapperDataSource`, add a json block defining the target data source class you are using. For example, if you call `AwsWrapperDataSource#setDataSourceClassName("org.postgresql.ds.PGSimpleDataSource")`, then add the following block:
+   1. If you are using `AwsWrapperDataSource`, add a json block defining the target data source class you are using. For example, if you call `AwsWrapperDataSource#setDataSourceClassName("org.postgresql.ds.PGSimpleDataSource")`, then add the following block:
     ```json
     {
       "name": "org.postgresql.ds.PGSimpleDataSource",
