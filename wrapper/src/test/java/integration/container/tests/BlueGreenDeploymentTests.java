@@ -91,7 +91,7 @@ import software.amazon.jdbc.util.RdsUtils;
 @EnableOnTestFeature(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)
 @EnableOnDatabaseEngineDeployment({DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE, DatabaseEngineDeployment.AURORA})
 @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
-@Order(16)
+@Order(18)
 public class BlueGreenDeploymentTests {
 
   private static final Logger LOGGER = Logger.getLogger(BlueGreenDeploymentTests.class.getName());

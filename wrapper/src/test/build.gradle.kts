@@ -59,6 +59,8 @@ dependencies {
     testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.43.0")
     testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.44.1")
     testImplementation("de.vandermeer:asciitable:0.3.2")
+    testImplementation("org.hibernate:hibernate-core:5.6.15.Final") // the latest version compatible with Java 8
+    testImplementation("jakarta.persistence:jakarta.persistence-api:2.2.3")
 }
 
 tasks.withType<Test> {

@@ -398,6 +398,7 @@ public class DriverHelper {
             info.getDatabaseInfo().getClusterEndpointPort(),
             info.getDatabaseInfo().getDefaultDbName());
         break;
+      case DOCKER:
       case RDS_MULTI_AZ_INSTANCE:
         url = String.format(
             "%s%s:%d/%s",
