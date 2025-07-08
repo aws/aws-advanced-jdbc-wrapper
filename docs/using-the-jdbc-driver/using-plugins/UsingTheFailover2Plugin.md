@@ -43,7 +43,7 @@ With the `failover2` plugin:
 - The `MonitoringRdsHostListProvider` continues topology monitoring at an increased rate to ensure all cluster nodes appear in the topology.
 
 ## Using the Failover Plugin v2
-The Failover Plugin v2 will be enabled by default if the [`wrapperPlugins`](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters) value is not specified. The failover plugin v2 can also be explicitly included by adding the plugin code `failover2` to the [`wrapperPlugins`](../UsingTheJdbcDriver.md#aws-advanced-jdbc-driver-parameters) value, or by adding it to the current [driver profile](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters). After you load the plugin, the failover feature will be enabled. 
+The Failover Plugin v2 will be enabled by default if the [`wrapperPlugins`](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters) value is not specified. If you would like to override the default plugins, you can explicitly include the failover plugin v2 in your list of plugins by adding the plugin code `failover2` to the [`wrapperPlugins`](../UsingTheJdbcDriver.md#aws-advanced-jdbc-driver-parameters) value, or by adding it to the current [driver profile](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters). After you load the plugin, the failover feature will be enabled. 
 
 Please refer to the [failover configuration guide](../FailoverConfigurationGuide.md) for tips to keep in mind when using the failover plugin.
 
