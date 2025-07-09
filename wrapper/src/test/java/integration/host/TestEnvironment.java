@@ -1097,6 +1097,10 @@ public class TestEnvironment implements AutoCloseable {
                       "src/test/resources/hibernate_files/databases.gradle"),
                   "app/hibernate-orm/gradle/databases.gradle")
               .withCopyFileToContainer(MountableFile.forHostPath(
+                      "src/test/resources/hibernate_files/PostgresIntervalSecondTest.java"),
+                  "app/hibernate-orm/hibernate-core/src/test/java/org/hibernate/orm/test/type/"
+                    + "PostgresIntervalSecondTest.java")
+              .withCopyFileToContainer(MountableFile.forHostPath(
                       "src/test/resources/hibernate_files/collect_test_results.sh"),
                   "app/collect_test_results.sh");
 
@@ -1331,12 +1335,10 @@ public class TestEnvironment implements AutoCloseable {
     switch (this.info.getRequest().getDatabaseEngine()) {
       case PG:
         command.add("-Pdb=pg_amazon_ci");
-        //command.add("-PexcludeTests=PostgreSQLSkipAutoCommitTest");
         break;
       case MYSQL:
       default:
         command.add("-Pdb=mysql_amazon_ci");
-        //command.add("-PexcludeTests=MySQLSkipAutoCommitTest");
         break;
     }
     return command.toArray(new String[] {});
