@@ -74,7 +74,7 @@ public class TestEnvironment implements AutoCloseable {
   private static final String PROXIED_DOMAIN_NAME_SUFFIX = ".proxied";
   protected static final int PROXY_CONTROL_PORT = 8474;
   protected static final int PROXY_PORT = 8666;
-  private static final String HIBERNATE_VERSION = "6.2.0.CR2";
+  private static final String HIBERNATE_VERSION = "6.2.38";
 
   private static final TestEnvironmentConfiguration config = new TestEnvironmentConfiguration();
   private static final boolean USE_OTLP_CONTAINER_FOR_TRACES = true;
@@ -1085,18 +1085,17 @@ public class TestEnvironment implements AutoCloseable {
                   "aws/rds-test-container",
                   getContainerBaseImageName(env.info.getRequest()),
                   builder -> builder
+                      .run("apk", "add", "--no-cache", "--upgrade", "bash")
                       .run("apk", "add", "git")
                       .run("git", "clone", "--depth", "1", "--branch", HIBERNATE_VERSION,
-                          "https://github.com/hibernate/hibernate-orm.git", "/app/hibernate-orm"))
+                          "https://github.com/hibernate/hibernate-orm.git", "/app/hibernate-orm")
+                      .run("rm -f /app/libs/*-bundle-*.jar")
+                      .run("rm -f /app/hibernate-orm/drivers/*-bundle-*.jar"))
+              .withCopyFileToContainer(MountableFile.forHostPath("./build/libs"),
+                  "app/hibernate-orm/drivers")
               .withCopyFileToContainer(MountableFile.forHostPath(
                       "src/test/resources/hibernate_files/databases.gradle"),
                   "app/hibernate-orm/gradle/databases.gradle")
-              .withCopyFileToContainer(MountableFile.forHostPath(
-                      "src/test/resources/hibernate_files/hibernate-core.gradle"),
-                  "hibernate-core/hibernate-core.gradle")
-              .withCopyFileToContainer(MountableFile.forHostPath(
-                      "src/test/resources/hibernate_files/java-module.gradle"),
-                  "app/hibernate-orm/gradle/java-module.gradle")
               .withCopyFileToContainer(MountableFile.forHostPath(
                       "src/test/resources/hibernate_files/collect_test_results.sh"),
                   "app/collect_test_results.sh");
@@ -1320,7 +1319,9 @@ public class TestEnvironment implements AutoCloseable {
         "-DdbUser=" + dbInfo.getUsername(),
         "-DdbPass=" + dbInfo.getPassword(),
         "-DdbName=" + dbInfo.getDefaultDbName(),
-        "--no-parallel", "--no-daemon"
+        "--no-parallel",
+        "--no-daemon",
+        "--no-build-cache"
     ));
 
     if (debugMode) {
@@ -1329,13 +1330,13 @@ public class TestEnvironment implements AutoCloseable {
 
     switch (this.info.getRequest().getDatabaseEngine()) {
       case PG:
-        command.add("-Pdb=amazon_ci");
-        command.add("-PexcludeTests=PostgreSQLSkipAutoCommitTest");
+        command.add("-Pdb=pg_amazon_ci");
+        //command.add("-PexcludeTests=PostgreSQLSkipAutoCommitTest");
         break;
       case MYSQL:
       default:
-        command.add("-Pdb=amazon_mysql_ci");
-        command.add("-PexcludeTests=MySQLSkipAutoCommitTest");
+        command.add("-Pdb=mysql_amazon_ci");
+        //command.add("-PexcludeTests=MySQLSkipAutoCommitTest");
         break;
     }
     return command.toArray(new String[] {});
