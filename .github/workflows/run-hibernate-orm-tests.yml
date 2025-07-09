@@ -61,3 +61,10 @@ jobs:
           name: html-summary-report
           path: ./wrapper/build/report
           retention-days: 5
+      - name: 'Archive container reports'
+        if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false' && !cancelled()}}
+        uses: actions/upload-artifact@v4
+        with:
+          name: container-reports
+          path: ./wrapper/build/test-results/*.tar.gz
+          retention-days: 5
