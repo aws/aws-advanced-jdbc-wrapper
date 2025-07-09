@@ -75,7 +75,7 @@ public class TestEnvironment implements AutoCloseable {
   private static final String PROXIED_DOMAIN_NAME_SUFFIX = ".proxied";
   protected static final int PROXY_CONTROL_PORT = 8474;
   protected static final int PROXY_PORT = 8666;
-  private static final String HIBERNATE_VERSION = "6.2.38";
+  private static final String HIBERNATE_VERSION = "7.0.2"; // branch or tag name
 
   private static final TestEnvironmentConfiguration config = new TestEnvironmentConfiguration();
   private static final boolean USE_OTLP_CONTAINER_FOR_TRACES = true;
@@ -1211,7 +1211,8 @@ public class TestEnvironment implements AutoCloseable {
       case OPENJDK11:
         return "amazoncorretto:11.0.19-alpine3.17";
       case OPENJDK17:
-        return "amazoncorretto:17-alpine3.21";
+        //return "amazoncorretto:17-alpine3.21";
+        return "openjdk:17-jdk-alpine";
       case GRAALVM:
         return "ghcr.io/graalvm/jdk:22.2.0";
       default:

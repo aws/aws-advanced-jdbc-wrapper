@@ -6,7 +6,7 @@
 ext {
     // this `db` property is defined in gradle.properties and so we assume it is always available
     assert project.hasProperty('db')
-    db = project.getProperty('db')
+    db = 'pgsql' //project.getProperty('db')
     dbHost = System.getProperty( 'dbHost', 'localhost' )
     dbService = System.getProperty( 'dbService', '' )
     runID = System.getProperty( 'runID', '' )
@@ -22,7 +22,7 @@ ext {
                     'jdbc.user'  : dbUser,
                     'jdbc.pass'  : dbPass,
                     // Disable prepared statement caching due to https://www.postgresql.org/message-id/CAEcMXhmmRd4-%2BNQbnjDT26XNdUoXdmntV9zdr8%3DTu8PL9aVCYg%40mail.gmail.com
-                    'jdbc.url'   : 'jdbc:aws-wrapper:postgresql://' + dbHost + '/' + dbName + '?preparedStatementCacheQueries=0&escapeSyntaxCallMode=callIfNoReturn&wrapperPlugins=driverMetaData&wrapperDriverName=PostgreSQL JDBC Driver',
+                    'jdbc.url'   : 'jdbc:aws-wrapper:postgresql://' + dbHost + '/' + dbName + '?preparedStatementCacheQueries=0&escapeSyntaxCallMode=callIfNoReturn&wrapperPlugins=',
                     //'jdbc.url'   : 'jdbc:aws-wrapper:postgresql://' + dbHost + '/' + dbName + '?wrapperPlugins=driverMetaData&wrapperDriverName=PostgreSQL%20JDBC%20Driver',
                     //'jdbc.datasource' : 'software.amazon.jdbc.ds.AwsWrapperDataSource',
                     'jdbc.datasource' : 'software.amazon.jdbc.Driver',

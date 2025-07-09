@@ -358,8 +358,10 @@ tasks.register<Test>("test-hibernate-only") {
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-hibernate-only", "true")
         systemProperty("test-no-bg", "true")
+
         // TODO: debug
-        systemProperty("test-no-mysql-engine", "true")
+        systemProperty("test-no-pg-engine", "true")
+        systemProperty("test-no-mariadb-engine", "true")
     }
 }
 
