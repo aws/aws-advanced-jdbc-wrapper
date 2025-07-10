@@ -47,7 +47,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -65,17 +64,22 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider.FetchTopologyResult;
+import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.events.EventPublisher;
+import software.amazon.jdbc.util.storage.StorageService;
+import software.amazon.jdbc.util.storage.TestStorageServiceImpl;
 
 class RdsHostListProviderTest {
-
-  private final long defaultRefreshRateNano = TimeUnit.SECONDS.toNanos(5);
+  private StorageService storageService;
   private RdsHostListProvider rdsHostListProvider;
 
   @Mock private Connection mockConnection;
   @Mock private Statement mockStatement;
   @Mock private ResultSet mockResultSet;
+  @Mock private FullServicesContainer mockServicesContainer;
   @Mock private PluginService mockPluginService;
   @Mock private HostListProviderService mockHostListProviderService;
+  @Mock private EventPublisher mockEventPublisher;
   @Mock Dialect mockTopologyAwareDialect;
   @Captor private ArgumentCaptor<String> queryCaptor;
 
@@ -89,6 +93,9 @@ class RdsHostListProviderTest {
   @BeforeEach
   void setUp() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
+    storageService = new TestStorageServiceImpl(mockEventPublisher);
+    when(mockServicesContainer.getHostListProviderService()).thenReturn(mockHostListProviderService);
+    when(mockServicesContainer.getStorageService()).thenReturn(storageService);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.connect(any(HostSpec.class), any(Properties.class))).thenReturn(mockConnection);
     when(mockPluginService.getCurrentHostSpec()).thenReturn(currentHostSpec);
@@ -103,16 +110,15 @@ class RdsHostListProviderTest {
   @AfterEach
   void tearDown() throws Exception {
     RdsHostListProvider.clearAll();
+    storageService.clearAll();
     closeable.close();
   }
 
-  private RdsHostListProvider getRdsHostListProvider(
-      HostListProviderService mockHostListProviderService,
-      String originalUrl) throws SQLException {
+  private RdsHostListProvider getRdsHostListProvider(String originalUrl) throws SQLException {
     RdsHostListProvider provider = new RdsHostListProvider(
         new Properties(),
         originalUrl,
-        mockHostListProviderService,
+        mockServicesContainer,
         "foo", "bar", "baz");
     provider.init();
     return provider;
@@ -120,12 +126,10 @@ class RdsHostListProviderTest {
 
   @Test
   void testGetTopology_returnCachedTopology() throws SQLException {
-    rdsHostListProvider = Mockito.spy(
-        getRdsHostListProvider(mockHostListProviderService, "protocol://url/"));
+    rdsHostListProvider = Mockito.spy(getRdsHostListProvider("protocol://url/"));
 
-    final Instant lastUpdated = Instant.now();
     final List<HostSpec> expected = hosts;
-    RdsHostListProvider.topologyCache.put(rdsHostListProvider.clusterId, expected, defaultRefreshRateNano);
+    storageService.set(rdsHostListProvider.clusterId, new Topology(expected));
 
     final FetchTopologyResult result = rdsHostListProvider.getTopology(mockConnection, false);
     assertEquals(expected, result.hosts);
@@ -135,11 +139,10 @@ class RdsHostListProviderTest {
 
   @Test
   void testGetTopology_withForceUpdate_returnsUpdatedTopology() throws SQLException {
-    rdsHostListProvider = Mockito.spy(
-        getRdsHostListProvider(mockHostListProviderService, "jdbc:someprotocol://url"));
+    rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
     rdsHostListProvider.isInitialized = true;
 
-    RdsHostListProvider.topologyCache.put(rdsHostListProvider.clusterId, hosts, defaultRefreshRateNano);
+    storageService.set(rdsHostListProvider.clusterId, new Topology(hosts));
 
     final List<HostSpec> newHosts = Collections.singletonList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("newHost").build());
@@ -153,13 +156,12 @@ class RdsHostListProviderTest {
 
   @Test
   void testGetTopology_noForceUpdate_queryReturnsEmptyHostList() throws SQLException {
-    rdsHostListProvider = Mockito.spy(
-        getRdsHostListProvider(mockHostListProviderService, "jdbc:someprotocol://url"));
+    rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
     rdsHostListProvider.clusterId = "cluster-id";
     rdsHostListProvider.isInitialized = true;
 
     final List<HostSpec> expected = hosts;
-    RdsHostListProvider.topologyCache.put(rdsHostListProvider.clusterId, expected, defaultRefreshRateNano);
+    storageService.set(rdsHostListProvider.clusterId, new Topology(expected));
 
     doReturn(new ArrayList<>()).when(rdsHostListProvider).queryForTopology(mockConnection);
 
@@ -171,8 +173,7 @@ class RdsHostListProviderTest {
 
   @Test
   void testGetTopology_withForceUpdate_returnsInitialHostList() throws SQLException {
-    rdsHostListProvider = Mockito.spy(
-        getRdsHostListProvider(mockHostListProviderService, "jdbc:someprotocol://url"));
+    rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
     rdsHostListProvider.clear();
 
     doReturn(new ArrayList<>()).when(rdsHostListProvider).queryForTopology(mockConnection);
@@ -181,7 +182,7 @@ class RdsHostListProviderTest {
     verify(rdsHostListProvider, atMostOnce()).queryForTopology(mockConnection);
     assertNotNull(result.hosts);
     assertEquals(
-        Arrays.asList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("url").build()),
+        Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("url").build()),
         result.hosts);
   }
 
@@ -198,8 +199,7 @@ class RdsHostListProviderTest {
     when(mockResultSet.getString(eq(1))).thenReturn("mysql");
 
 
-    rdsHostListProvider =
-        getRdsHostListProvider(mockHostListProviderService, "mysql://url/");
+    rdsHostListProvider = getRdsHostListProvider("mysql://url/");
 
     List<HostSpec> hosts = rdsHostListProvider.queryForTopology(mockConnection);
     assertEquals(expectedMySQL, hosts);
@@ -207,16 +207,14 @@ class RdsHostListProviderTest {
     when(mockResultSet.next()).thenReturn(true, false);
     when(mockResultSet.getString(eq(1))).thenReturn("postgresql");
 
-    rdsHostListProvider =
-        getRdsHostListProvider(mockHostListProviderService, "postgresql://url/");
+    rdsHostListProvider = getRdsHostListProvider("postgresql://url/");
     hosts = rdsHostListProvider.queryForTopology(mockConnection);
     assertEquals(expectedPostgres, hosts);
   }
 
   @Test
   void testQueryForTopology_queryResultsInException() throws SQLException {
-    rdsHostListProvider =
-        getRdsHostListProvider(mockHostListProviderService, "protocol://url/");
+    rdsHostListProvider = getRdsHostListProvider("protocol://url/");
     when(mockStatement.executeQuery(queryCaptor.capture())).thenThrow(new SQLSyntaxErrorException());
 
     assertThrows(
@@ -225,39 +223,21 @@ class RdsHostListProviderTest {
   }
 
   @Test
-  void testGetCachedTopology_returnCachedTopology() throws SQLException {
-    rdsHostListProvider = getRdsHostListProvider(mockHostListProviderService, "jdbc:someprotocol://url");
+  void testGetCachedTopology_returnStoredTopology() throws SQLException {
+    rdsHostListProvider = getRdsHostListProvider("jdbc:someprotocol://url");
 
     final List<HostSpec> expected = hosts;
-    RdsHostListProvider.topologyCache.put(rdsHostListProvider.clusterId, expected, defaultRefreshRateNano);
+    storageService.set(rdsHostListProvider.clusterId, new Topology(expected));
 
-    final List<HostSpec> result = rdsHostListProvider.getCachedTopology();
+    final List<HostSpec> result = rdsHostListProvider.getStoredTopology();
     assertEquals(expected, result);
-  }
-
-  @Test
-  void testGetCachedTopology_returnNull() throws InterruptedException, SQLException {
-    rdsHostListProvider = getRdsHostListProvider(mockHostListProviderService, "jdbc:someprotocol://url");
-    // Test getCachedTopology with empty topology.
-    assertNull(rdsHostListProvider.getCachedTopology());
-    rdsHostListProvider.clear();
-
-    rdsHostListProvider = getRdsHostListProvider(mockHostListProviderService, "jdbc:someprotocol://url");
-    final long refreshRateOneNanosecond = 1;
-    RdsHostListProvider.topologyCache.put(rdsHostListProvider.clusterId, hosts, refreshRateOneNanosecond);
-    TimeUnit.NANOSECONDS.sleep(1);
-
-    // Test getCachedTopology with expired cache.
-    assertNull(rdsHostListProvider.getCachedTopology());
   }
 
   @Test
   void testTopologyCache_NoSuggestedClusterId() throws SQLException {
     RdsHostListProvider.clearAll();
 
-    RdsHostListProvider provider1 = Mockito.spy(
-        getRdsHostListProvider(mockHostListProviderService,
-            "jdbc:something://cluster-a.domain.com/"));
+    RdsHostListProvider provider1 = Mockito.spy(getRdsHostListProvider("jdbc:something://cluster-a.domain.com/"));
     provider1.init();
     final List<HostSpec> topologyClusterA = Arrays.asList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
@@ -270,16 +250,14 @@ class RdsHostListProviderTest {
     doReturn(topologyClusterA)
         .when(provider1).queryForTopology(any(Connection.class));
 
-    assertEquals(0, RdsHostListProvider.topologyCache.size());
+    assertEquals(0, storageService.size(Topology.class));
 
     final List<HostSpec> topologyProvider1 = provider1.refresh(mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider1);
 
-    RdsHostListProvider provider2 = Mockito.spy(
-        getRdsHostListProvider(mockHostListProviderService,
-            "jdbc:something://cluster-b.domain.com/"));
+    RdsHostListProvider provider2 = Mockito.spy(getRdsHostListProvider("jdbc:something://cluster-b.domain.com/"));
     provider2.init();
-    assertNull(provider2.getCachedTopology());
+    assertNull(provider2.getStoredTopology());
 
     final List<HostSpec> topologyClusterB = Arrays.asList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
@@ -293,16 +271,15 @@ class RdsHostListProviderTest {
     final List<HostSpec> topologyProvider2 = provider2.refresh(mock(Connection.class));
     assertEquals(topologyClusterB, topologyProvider2);
 
-    assertEquals(2, RdsHostListProvider.topologyCache.size());
+    assertEquals(2, storageService.size(Topology.class));
   }
 
   @Test
   void testTopologyCache_SuggestedClusterIdForRds() throws SQLException {
     RdsHostListProvider.clearAll();
 
-    RdsHostListProvider provider1 = Mockito.spy(
-        getRdsHostListProvider(mockHostListProviderService,
-            "jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));
+    RdsHostListProvider provider1 =
+        Mockito.spy(getRdsHostListProvider("jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));
     provider1.init();
     final List<HostSpec> topologyClusterA = Arrays.asList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
@@ -323,14 +300,13 @@ class RdsHostListProviderTest {
 
     doReturn(topologyClusterA).when(provider1).queryForTopology(any(Connection.class));
 
-    assertEquals(0, RdsHostListProvider.topologyCache.size());
+    assertEquals(0, storageService.size(Topology.class));
 
     final List<HostSpec> topologyProvider1 = provider1.refresh(mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider1);
 
-    RdsHostListProvider provider2 = Mockito.spy(
-        getRdsHostListProvider(mockHostListProviderService,
-            "jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));
+    RdsHostListProvider provider2 =
+        Mockito.spy(getRdsHostListProvider("jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));
     provider2.init();
 
     assertEquals(provider1.clusterId, provider2.clusterId);
@@ -340,16 +316,15 @@ class RdsHostListProviderTest {
     final List<HostSpec> topologyProvider2 = provider2.refresh(mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider2);
 
-    assertEquals(1, RdsHostListProvider.topologyCache.size());
+    assertEquals(1, storageService.size(Topology.class));
   }
 
   @Test
   void testTopologyCache_SuggestedClusterIdForInstance() throws SQLException {
     RdsHostListProvider.clearAll();
 
-    RdsHostListProvider provider1 = Mockito.spy(
-        getRdsHostListProvider(mockHostListProviderService,
-            "jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));
+    RdsHostListProvider provider1 =
+        Mockito.spy(getRdsHostListProvider("jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));
     provider1.init();
     final List<HostSpec> topologyClusterA = Arrays.asList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
@@ -370,14 +345,13 @@ class RdsHostListProviderTest {
 
     doReturn(topologyClusterA).when(provider1).queryForTopology(any(Connection.class));
 
-    assertEquals(0, RdsHostListProvider.topologyCache.size());
+    assertEquals(0, storageService.size(Topology.class));
 
     final List<HostSpec> topologyProvider1 = provider1.refresh(mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider1);
 
-    RdsHostListProvider provider2 = Mockito.spy(
-        getRdsHostListProvider(mockHostListProviderService,
-            "jdbc:something://instance-a-3.xyz.us-east-2.rds.amazonaws.com/"));
+    RdsHostListProvider provider2 =
+        Mockito.spy(getRdsHostListProvider("jdbc:something://instance-a-3.xyz.us-east-2.rds.amazonaws.com/"));
     provider2.init();
 
     assertEquals(provider1.clusterId, provider2.clusterId);
@@ -387,16 +361,15 @@ class RdsHostListProviderTest {
     final List<HostSpec> topologyProvider2 = provider2.refresh(mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider2);
 
-    assertEquals(1, RdsHostListProvider.topologyCache.size());
+    assertEquals(1, storageService.size(Topology.class));
   }
 
   @Test
   void testTopologyCache_AcceptSuggestion() throws SQLException {
     RdsHostListProvider.clearAll();
 
-    RdsHostListProvider provider1 = Mockito.spy(
-        getRdsHostListProvider(mockHostListProviderService,
-            "jdbc:something://instance-a-2.xyz.us-east-2.rds.amazonaws.com/"));
+    RdsHostListProvider provider1 =
+        Mockito.spy(getRdsHostListProvider("jdbc:something://instance-a-2.xyz.us-east-2.rds.amazonaws.com/"));
     provider1.init();
     final List<HostSpec> topologyClusterA = Arrays.asList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
@@ -417,16 +390,15 @@ class RdsHostListProviderTest {
 
     doAnswer(a -> topologyClusterA).when(provider1).queryForTopology(any(Connection.class));
 
-    assertEquals(0, RdsHostListProvider.topologyCache.size());
+    assertEquals(0, storageService.size(Topology.class));
 
     List<HostSpec> topologyProvider1 = provider1.refresh(mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider1);
 
     // RdsHostListProvider.logCache();
 
-    RdsHostListProvider provider2 = Mockito.spy(
-        getRdsHostListProvider(mockHostListProviderService,
-            "jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));
+    RdsHostListProvider provider2 =
+        Mockito.spy(getRdsHostListProvider("jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));
     provider2.init();
 
     doAnswer(a -> topologyClusterA).when(provider2).queryForTopology(any(Connection.class));
@@ -437,7 +409,7 @@ class RdsHostListProviderTest {
     assertNotEquals(provider1.clusterId, provider2.clusterId);
     assertFalse(provider1.isPrimaryClusterId);
     assertTrue(provider2.isPrimaryClusterId);
-    assertEquals(2, RdsHostListProvider.topologyCache.size());
+    assertEquals(2, storageService.size(Topology.class));
     assertEquals("cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com",
         RdsHostListProvider.suggestedPrimaryClusterIdCache.get(provider1.clusterId));
 
@@ -454,9 +426,7 @@ class RdsHostListProviderTest {
 
   @Test
   void testIdentifyConnectionWithInvalidNodeIdQuery() throws SQLException {
-    rdsHostListProvider = Mockito.spy(getRdsHostListProvider(
-        mockHostListProviderService,
-        "jdbc:someprotocol://url"));
+    rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
 
     when(mockResultSet.next()).thenReturn(false);
     assertThrows(SQLException.class, () -> rdsHostListProvider.identifyConnection(mockConnection));
@@ -467,9 +437,7 @@ class RdsHostListProviderTest {
 
   @Test
   void testIdentifyConnectionNullTopology() throws SQLException {
-    rdsHostListProvider = Mockito.spy(getRdsHostListProvider(
-        mockHostListProviderService,
-        "jdbc:someprotocol://url"));
+    rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
     rdsHostListProvider.clusterInstanceTemplate = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("?.pattern").build();
 
@@ -490,9 +458,7 @@ class RdsHostListProviderTest {
             .role(HostRole.WRITER)
             .build());
 
-    rdsHostListProvider = Mockito.spy(getRdsHostListProvider(
-        mockHostListProviderService,
-        "jdbc:someprotocol://url"));
+    rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
     when(mockResultSet.next()).thenReturn(true);
     when(mockResultSet.getString(eq(1))).thenReturn("instance-1");
     doReturn(cachedTopology).when(rdsHostListProvider).refresh(mockConnection);
@@ -511,9 +477,7 @@ class RdsHostListProviderTest {
     expectedHost.setHostId("instance-a-1");
     final List<HostSpec> cachedTopology = Collections.singletonList(expectedHost);
 
-    rdsHostListProvider = Mockito.spy(getRdsHostListProvider(
-        mockHostListProviderService,
-        "jdbc:someprotocol://url"));
+    rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
     when(mockResultSet.next()).thenReturn(true);
     when(mockResultSet.getString(eq(1))).thenReturn("instance-a-1");
     doReturn(cachedTopology).when(rdsHostListProvider).refresh(mockConnection);
@@ -526,8 +490,7 @@ class RdsHostListProviderTest {
 
   @Test
   void testGetTopology_StaleRecord() throws SQLException {
-    rdsHostListProvider = Mockito.spy(
-        getRdsHostListProvider(mockHostListProviderService, "jdbc:someprotocol://url"));
+    rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
     rdsHostListProvider.isInitialized = true;
 
     final String hostName1 = "hostName1";
@@ -560,8 +523,7 @@ class RdsHostListProviderTest {
 
   @Test
   void testGetTopology_InvalidLastUpdatedTimestamp() throws SQLException {
-    rdsHostListProvider = Mockito.spy(
-        getRdsHostListProvider(mockHostListProviderService, "jdbc:someprotocol://url"));
+    rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
     rdsHostListProvider.isInitialized = true;
 
     final String hostName = "hostName";
@@ -586,8 +548,7 @@ class RdsHostListProviderTest {
 
   @Test
   void testGetTopology_returnsLatestWriter() throws SQLException {
-    rdsHostListProvider = Mockito.spy(
-        getRdsHostListProvider(mockHostListProviderService, "jdbc:someprotocol://url"));
+    rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
     rdsHostListProvider.isInitialized = true;
 
     HostSpec expectedWriterHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
@@ -650,23 +611,19 @@ class RdsHostListProviderTest {
     String readerClusterUrl = "mycluster.cluster-ro-XYZ.us-east-1.rds.amazonaws.com";
     String expectedClusterId = "mycluster.cluster-XYZ.us-east-1.rds.amazonaws.com:1234";
     String connectionString = "jdbc:someprotocol://" + readerClusterUrl + ":1234/test";
-    RdsHostListProvider provider1 = Mockito.spy(getRdsHostListProvider(
-        mockHostListProviderService,
-        connectionString));
+    RdsHostListProvider provider1 = Mockito.spy(getRdsHostListProvider(connectionString));
     assertEquals(expectedClusterId, provider1.getClusterId());
 
     List<HostSpec> mockTopology =
         Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host").build());
     doReturn(mockTopology).when(provider1).queryForTopology(any(Connection.class));
     provider1.refresh();
-    assertEquals(mockTopology, provider1.getCachedTopology());
+    assertEquals(mockTopology, provider1.getStoredTopology());
     verify(provider1, times(1)).queryForTopology(mockConnection);
 
-    RdsHostListProvider provider2 = Mockito.spy(getRdsHostListProvider(
-        mockHostListProviderService,
-        connectionString));
+    RdsHostListProvider provider2 = Mockito.spy(getRdsHostListProvider(connectionString));
     assertEquals(expectedClusterId, provider2.getClusterId());
-    assertEquals(mockTopology, provider2.getCachedTopology());
+    assertEquals(mockTopology, provider2.getStoredTopology());
     verify(provider2, never()).queryForTopology(mockConnection);
   }
 }

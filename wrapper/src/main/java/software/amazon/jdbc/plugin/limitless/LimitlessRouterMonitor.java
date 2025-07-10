@@ -31,8 +31,8 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
-import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.storage.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
@@ -53,6 +53,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
   protected final TelemetryFactory telemetryFactory;
   protected Connection monitoringConn = null;
 
+  // TODO: remove and submit monitors to MonitorService instead
   private final ExecutorService threadPool = ExecutorFactory.newFixedThreadPool(1, "threadPool");
 
   private final AtomicBoolean stopped = new AtomicBoolean(false);
@@ -194,6 +195,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
         LOGGER.finest(() -> Messages.get(
             "LimitlessRouterMonitor.openingConnection",
             new Object[] {this.hostSpec.getUrl()}));
+        // TODO: replace with ConnectionService#open
         this.monitoringConn = this.pluginService.forceConnect(this.hostSpec, this.props);
         LOGGER.finest(() -> Messages.get(
             "LimitlessRouterMonitor.openedConnection",

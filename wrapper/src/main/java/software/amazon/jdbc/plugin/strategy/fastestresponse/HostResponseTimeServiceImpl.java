@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
+import software.amazon.jdbc.util.storage.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 
@@ -39,6 +39,7 @@ public class HostResponseTimeServiceImpl implements HostResponseTimeService {
   protected static final long CACHE_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(10);
   protected static final long CACHE_CLEANUP_NANO = TimeUnit.MINUTES.toNanos(1);
 
+  // TODO: remove and submit monitors to MonitorService instead
   protected static final SlidingExpirationCacheWithCleanupThread<String, NodeResponseTimeMonitor> monitoringNodes
       = new SlidingExpirationCacheWithCleanupThread<>(
           (monitor) -> true,

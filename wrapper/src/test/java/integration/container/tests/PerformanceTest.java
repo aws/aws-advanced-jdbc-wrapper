@@ -64,8 +64,8 @@ import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 import software.amazon.jdbc.plugin.OpenedConnectionTracker;
-import software.amazon.jdbc.plugin.efm.MonitorThreadContainer;
-import software.amazon.jdbc.plugin.efm2.MonitorServiceImpl;
+import software.amazon.jdbc.plugin.efm.HostMonitorThreadContainer;
+import software.amazon.jdbc.plugin.efm2.HostMonitorServiceImpl;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -145,8 +145,8 @@ public class PerformanceTest {
         throws IOException {
 
     OpenedConnectionTracker.clearCache();
-    MonitorThreadContainer.releaseInstance();
-    MonitorServiceImpl.closeAllMonitors();
+    HostMonitorThreadContainer.releaseInstance();
+    HostMonitorServiceImpl.closeAllMonitors();
     AuroraHostListProvider.clearAll();
     MonitoringRdsHostListProvider.clearCache();
 
@@ -227,8 +227,8 @@ public class PerformanceTest {
       throws IOException {
 
     OpenedConnectionTracker.clearCache();
-    MonitorThreadContainer.releaseInstance();
-    MonitorServiceImpl.closeAllMonitors();
+    HostMonitorThreadContainer.releaseInstance();
+    HostMonitorServiceImpl.closeAllMonitors();
     AuroraHostListProvider.clearAll();
     MonitoringRdsHostListProvider.clearCache();
 
@@ -315,8 +315,8 @@ public class PerformanceTest {
   private void test_FailoverTime_SocketTimeout(final String plugins) throws IOException {
 
     OpenedConnectionTracker.clearCache();
-    MonitorThreadContainer.releaseInstance();
-    MonitorServiceImpl.closeAllMonitors();
+    HostMonitorThreadContainer.releaseInstance();
+    HostMonitorServiceImpl.closeAllMonitors();
     AuroraHostListProvider.clearAll();
     MonitoringRdsHostListProvider.clearCache();
 

@@ -43,7 +43,7 @@ import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.SlidingExpirationCache;
+import software.amazon.jdbc.util.storage.SlidingExpirationCache;
 
 public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     CanReleaseResources {

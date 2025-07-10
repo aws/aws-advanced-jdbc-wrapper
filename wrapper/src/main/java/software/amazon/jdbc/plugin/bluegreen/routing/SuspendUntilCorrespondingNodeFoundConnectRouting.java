@@ -34,6 +34,7 @@ import software.amazon.jdbc.plugin.bluegreen.BlueGreenRole;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenStatus;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
@@ -62,17 +63,16 @@ public class SuspendUntilCorrespondingNodeFoundConnectRouting extends BaseConnec
       Properties props,
       boolean isInitialConnection,
       JdbcCallable<Connection, SQLException> connectFunc,
-      PluginService pluginService)
-      throws SQLException {
+      StorageService storageService,
+      PluginService pluginService) throws SQLException {
 
     LOGGER.finest(() -> Messages.get("bgd.waitConnectUntilCorrespondingNodeFound",
         new Object[] {hostSpec.getHost()}));
-
     TelemetryFactory telemetryFactory = pluginService.getTelemetryFactory();
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(TELEMETRY_SWITCHOVER,
         TelemetryTraceLevel.NESTED);
 
-    BlueGreenStatus bgStatus = pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
+    BlueGreenStatus bgStatus = storageService.get(BlueGreenStatus.class, this.bgdId);
     Pair<HostSpec, HostSpec> correspondingPair = bgStatus == null
         ? null
         : bgStatus.getCorrespondingNodes().get(hostSpec.getHost());
@@ -89,13 +89,13 @@ public class SuspendUntilCorrespondingNodeFoundConnectRouting extends BaseConnec
           && (correspondingPair == null || correspondingPair.getValue2() == null)) {
 
         try {
-          this.delay(SLEEP_TIME_MS, bgStatus, pluginService, this.bgdId);
+          this.delay(SLEEP_TIME_MS, bgStatus, storageService, this.bgdId);
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           throw new RuntimeException(e);
         }
 
-        bgStatus = pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
+        bgStatus = storageService.get(BlueGreenStatus.class, this.bgdId);
         correspondingPair = bgStatus == null
             ? null
             : bgStatus.getCorrespondingNodes().get(hostSpec.getHost());
