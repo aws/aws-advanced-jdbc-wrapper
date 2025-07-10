@@ -362,6 +362,7 @@ tasks.register<Test>("test-hibernate-only") {
         // TODO: debug
         systemProperty("test-no-pg-engine", "true")
         systemProperty("test-no-mariadb-engine", "true")
+        systemProperty("test-no-openjdk17", "true")
     }
 }
 

@@ -58,6 +58,8 @@ public class TestEnvironmentConfiguration {
       Boolean.parseBoolean(System.getProperty("test-no-openjdk11", "false"));
   public boolean noOpenJdk17 =
       Boolean.parseBoolean(System.getProperty("test-no-openjdk17", "false"));
+  public boolean noOpenJdk22 =
+      Boolean.parseBoolean(System.getProperty("test-no-openjdk22", "false"));
   public boolean testHibernateOnly =
       Boolean.parseBoolean(System.getProperty("test-hibernate-only", "false"));
   public boolean testAutoscalingOnly =

@@ -20,5 +20,6 @@ public enum TargetJvm {
   OPENJDK8,
   OPENJDK11,
   OPENJDK17,
+  OPENJDK22,
   GRAALVM
 }

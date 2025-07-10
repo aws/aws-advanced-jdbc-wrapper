@@ -1211,8 +1211,9 @@ public class TestEnvironment implements AutoCloseable {
       case OPENJDK11:
         return "amazoncorretto:11.0.19-alpine3.17";
       case OPENJDK17:
-        //return "amazoncorretto:17-alpine3.21";
-        return "openjdk:17-jdk-alpine";
+        return "amazoncorretto:17-alpine3.21";
+      case OPENJDK22:
+        return "alpine/java:22.0.2-jdk";
       case GRAALVM:
         return "ghcr.io/graalvm/jdk:22.2.0";
       default:
@@ -1350,7 +1351,8 @@ public class TestEnvironment implements AutoCloseable {
         break;
       case MYSQL:
       default:
-        command.add("-Pdb=mysql_amazon_ci");
+        //command.add("-Pdb=mysql_amazon_ci");
+        command.add("-Pdb=mysql_ci");
         break;
     }
     return command.toArray(new String[] {});

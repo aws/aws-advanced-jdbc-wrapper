@@ -54,7 +54,7 @@ import software.amazon.jdbc.util.StringUtils;
 
 public class ContainerHelper {
 
-  private static final String MYSQL_CONTAINER_IMAGE_NAME = "mysql:8.0.36";
+  private static final String MYSQL_CONTAINER_IMAGE_NAME = "mysql:8.0.31";
   private static final String POSTGRES_CONTAINER_IMAGE_NAME = "postgres:latest";
   private static final String MARIADB_CONTAINER_IMAGE_NAME = "mariadb:10";
   // Note: this image version may need to be occasionally updated to keep it up-to-date and prevent toxiproxy issues.
@@ -349,11 +349,16 @@ public class ContainerHelper {
             "--max_allowed_packet=40M",
             "--max-connections=2048",
             "--secure-file-priv=/var/lib/mysql",
-            "--log_bin_trust_function_creators=1",
+            //"--log_bin_trust_function_creators=1",
+            //"--character-set-server=utf8mb4",
+            //"--collation-server=utf8mb4_0900_as_cs",
+            //"--skip-character-set-client-handshake",
+            "--log-error-verbosity=4",
             "--character-set-server=utf8mb4",
             "--collation-server=utf8mb4_0900_as_cs",
             "--skip-character-set-client-handshake",
-            "--log-error-verbosity=4");
+            "--log-bin-trust-function-creators=1",
+            "--lower_case_table_names=2");
   }
 
   public PostgreSQLContainer<?> createPostgresContainer(
