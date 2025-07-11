@@ -966,19 +966,27 @@ public class TestEnvironment implements AutoCloseable {
   }
 
   private static void initDatabaseParams(TestEnvironment env) {
+    final boolean isHibernateOnly =
+        env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY);
     final String dbName =
-        config.dbName == null
-            ? "test_database"
-            : config.dbName.trim();
+        isHibernateOnly
+            ? "hibernate_orm_test"
+            : (config.dbName == null
+              ? "test_database"
+              : config.dbName.trim());
 
     final String dbUsername =
-        !StringUtils.isNullOrEmpty(config.dbUsername)
-            ? config.dbUsername
-            : "test_user";
+        isHibernateOnly
+            ? "hibernate_orm_test"
+            : (!StringUtils.isNullOrEmpty(config.dbUsername)
+              ? config.dbUsername
+              : "test_user");
     final String dbPassword =
-        !StringUtils.isNullOrEmpty(config.dbPassword)
-            ? config.dbPassword
-            : "secret_password";
+        isHibernateOnly
+            ? "hibernate_orm_test"
+            : (!StringUtils.isNullOrEmpty(config.dbPassword)
+              ? config.dbPassword
+              : "secret_password");
 
     env.info.setDatabaseInfo(new TestDatabaseInfo());
     env.info.getDatabaseInfo().setUsername(dbUsername);
@@ -1213,7 +1221,7 @@ public class TestEnvironment implements AutoCloseable {
       case OPENJDK17:
         return "amazoncorretto:17-alpine3.21";
       case OPENJDK22:
-        return "alpine/java:22.0.2-jdk";
+        return "amazoncorretto:22-alpine3.20-full";
       case GRAALVM:
         return "ghcr.io/graalvm/jdk:22.2.0";
       default:

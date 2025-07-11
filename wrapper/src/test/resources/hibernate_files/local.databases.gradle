@@ -6,7 +6,7 @@
 ext {
     // this `db` property is defined in gradle.properties and so we assume it is always available
     assert project.hasProperty('db')
-    db = 'pgsql' //project.getProperty('db')
+    db = project.getProperty('db')
     dbHost = System.getProperty( 'dbHost', 'localhost' )
     dbService = System.getProperty( 'dbService', '' )
     runID = System.getProperty( 'runID', '' )
