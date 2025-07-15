@@ -27,6 +27,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenRole;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.storage.StorageService;
 
 // Reject an attempt to open a new connection.
 public class RejectConnectRouting extends BaseConnectRouting {
@@ -39,7 +40,8 @@ public class RejectConnectRouting extends BaseConnectRouting {
 
   @Override
   public Connection apply(ConnectionPlugin plugin, HostSpec hostSpec, Properties props, boolean isInitialConnection,
-      JdbcCallable<Connection, SQLException> connectFunc, PluginService pluginService) throws SQLException {
+      JdbcCallable<Connection, SQLException> connectFunc, StorageService storageService,
+      PluginService pluginService) throws SQLException {
 
     LOGGER.finest(() -> Messages.get("bgd.inProgressCantConnect"));
     throw new SQLException(Messages.get("bgd.inProgressCantConnect"));

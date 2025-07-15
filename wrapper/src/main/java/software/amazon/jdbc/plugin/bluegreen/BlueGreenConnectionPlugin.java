@@ -40,7 +40,9 @@ import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.bluegreen.routing.ConnectRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.ExecuteRouting;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
@@ -71,6 +73,8 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
     PropertyDefinition.registerPluginProperties(BlueGreenConnectionPlugin.class);
   }
 
+  protected final FullServicesContainer servicesContainer;
+  protected final StorageService storageService;
   protected final PluginService pluginService;
   protected final Properties props;
   protected BlueGreenProviderSupplier providerSupplier;
@@ -89,17 +93,19 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
   protected final Set<String> subscribedMethods;
 
   public BlueGreenConnectionPlugin(
-      final @NonNull PluginService pluginService,
+      final @NonNull FullServicesContainer servicesContainer,
       final @NonNull Properties props) {
-    this(pluginService, props, BlueGreenStatusProvider::new);
+    this(servicesContainer, props, BlueGreenStatusProvider::new);
   }
 
   public BlueGreenConnectionPlugin(
-      final @NonNull PluginService pluginService,
+      final @NonNull FullServicesContainer servicesContainer,
       final @NonNull Properties props,
       final @NonNull BlueGreenProviderSupplier providerSupplier) {
 
-    this.pluginService = pluginService;
+    this.servicesContainer = servicesContainer;
+    this.storageService = servicesContainer.getStorageService();
+    this.pluginService = servicesContainer.getPluginService();
     this.props = props;
     this.telemetryFactory = pluginService.getTelemetryFactory();
     this.providerSupplier = providerSupplier;
@@ -131,7 +137,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
     try {
 
-      this.bgStatus = this.pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
+      this.bgStatus = this.storageService.get(BlueGreenStatus.class, this.bgdId);
 
       if (this.bgStatus == null) {
         return regularOpenConnection(connectFunc, isInitialConnection);
@@ -167,10 +173,11 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
             props,
             isInitialConnection,
             connectFunc,
+            this.storageService,
             this.pluginService);
         if (conn == null) {
 
-          this.bgStatus = this.pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
+          this.bgStatus = this.storageService.get(BlueGreenStatus.class, this.bgdId);
           if (this.bgStatus == null) {
             this.endTimeNano.set(this.getNanoTime());
             return regularOpenConnection(connectFunc, isInitialConnection);
@@ -236,7 +243,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
         return jdbcMethodFunc.call();
       }
 
-      this.bgStatus = this.pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
+      this.bgStatus = this.storageService.get(BlueGreenStatus.class, this.bgdId);
 
       if (this.bgStatus == null) {
         return jdbcMethodFunc.call();
@@ -271,12 +278,13 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
             methodName,
             jdbcMethodFunc,
             jdbcMethodArgs,
+            this.storageService,
             this.pluginService,
             this.props);
 
         if (!result.isPresent()) {
 
-          this.bgStatus = this.pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
+          this.bgStatus = this.storageService.get(BlueGreenStatus.class, this.bgdId);
           if (this.bgStatus == null) {
             this.endTimeNano.set(this.getNanoTime());
             return jdbcMethodFunc.call();
@@ -306,7 +314,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
   protected void initProvider() {
     provider.computeIfAbsent(this.bgdId,
-        (key) -> this.providerSupplier.create(this.pluginService, this.props, this.bgdId));
+        (key) -> this.providerSupplier.create(this.servicesContainer, this.props, this.bgdId));
   }
 
   // For testing purposes

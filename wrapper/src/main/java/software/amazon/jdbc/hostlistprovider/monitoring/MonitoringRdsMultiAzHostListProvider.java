@@ -16,10 +16,10 @@
 
 package software.amazon.jdbc.hostlistprovider.monitoring;
 
+import java.sql.SQLException;
 import java.util.Properties;
 import java.util.logging.Logger;
-import software.amazon.jdbc.HostListProviderService;
-import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.FullServicesContainer;
 
 public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListProvider {
 
@@ -31,32 +31,50 @@ public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListP
   public MonitoringRdsMultiAzHostListProvider(
       final Properties properties,
       final String originalUrl,
-      final HostListProviderService hostListProviderService,
+      final FullServicesContainer servicesContainer,
       final String topologyQuery,
       final String nodeIdQuery,
       final String isReaderQuery,
-      final PluginService pluginService,
       final String fetchWriterNodeQuery,
       final String fetchWriterNodeColumnName) {
-    super(properties, originalUrl, hostListProviderService, topologyQuery, nodeIdQuery, isReaderQuery,
-        "", pluginService);
+    super(
+        properties,
+        originalUrl,
+        servicesContainer,
+        topologyQuery,
+        nodeIdQuery,
+        isReaderQuery,
+        "");
     this.fetchWriterNodeQuery = fetchWriterNodeQuery;
     this.fetchWriterNodeColumnName = fetchWriterNodeColumnName;
   }
 
   @Override
-  protected ClusterTopologyMonitor initMonitor() {
-    return monitors.computeIfAbsent(this.clusterId,
-        (key) -> new MultiAzClusterTopologyMonitorImpl(
-            key, topologyCache, this.initialHostSpec, this.properties, this.pluginService,
-            this.hostListProviderService, this.clusterInstanceTemplate,
-            this.refreshRateNano, this.highRefreshRateNano, TOPOLOGY_CACHE_EXPIRATION_NANO,
+  protected ClusterTopologyMonitor initMonitor() throws SQLException {
+    return this.servicesContainer.getMonitorService().runIfAbsent(MultiAzClusterTopologyMonitorImpl.class,
+        this.clusterId,
+        this.servicesContainer.getStorageService(),
+        this.pluginService.getTelemetryFactory(),
+        this.originalUrl,
+        this.pluginService.getDriverProtocol(),
+        this.pluginService.getTargetDriverDialect(),
+        this.pluginService.getDialect(),
+        this.properties,
+        (connectionService, pluginService) -> new MultiAzClusterTopologyMonitorImpl(
+            this.clusterId,
+            this.servicesContainer.getStorageService(),
+            connectionService,
+            this.initialHostSpec,
+            this.properties,
+            this.hostListProviderService,
+            this.clusterInstanceTemplate,
+            this.refreshRateNano,
+            this.highRefreshRateNano,
             this.topologyQuery,
             this.writerTopologyQuery,
             this.nodeIdQuery,
             this.fetchWriterNodeQuery,
-            this.fetchWriterNodeColumnName),
-        MONITOR_EXPIRATION_NANO);
+            this.fetchWriterNodeColumnName));
   }
 
 }

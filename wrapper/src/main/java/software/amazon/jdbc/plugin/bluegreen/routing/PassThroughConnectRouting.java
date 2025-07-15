@@ -26,6 +26,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenRole;
+import software.amazon.jdbc.util.storage.StorageService;
 
 public class PassThroughConnectRouting extends BaseConnectRouting {
 
@@ -37,9 +38,8 @@ public class PassThroughConnectRouting extends BaseConnectRouting {
 
   @Override
   public Connection apply(ConnectionPlugin plugin, HostSpec hostSpec, Properties props, boolean isInitialConnection,
-      JdbcCallable<Connection, SQLException> connectFunc, PluginService pluginService)
-      throws SQLException {
-
+      JdbcCallable<Connection, SQLException> connectFunc, StorageService storageService,
+      PluginService pluginService) throws SQLException {
     return connectFunc.call();
   }
 }

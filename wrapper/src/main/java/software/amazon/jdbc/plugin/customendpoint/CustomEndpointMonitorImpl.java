@@ -19,9 +19,7 @@ package software.amazon.jdbc.plugin.customendpoint;
 import static software.amazon.jdbc.plugin.customendpoint.MemberListType.STATIC_LIST;
 
 import java.util.List;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -33,10 +31,10 @@ import software.amazon.awssdk.services.rds.model.DescribeDbClusterEndpointsRespo
 import software.amazon.awssdk.services.rds.model.Filter;
 import software.amazon.jdbc.AllowedAndBlockedHosts;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.util.CacheMap;
-import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.monitoring.AbstractMonitor;
+import software.amazon.jdbc.util.storage.CacheMap;
+import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -44,34 +42,32 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
  * The default custom endpoint monitor implementation. This class uses a background thread to monitor a given custom
  * endpoint for custom endpoint information and future changes to the custom endpoint.
  */
-public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
+public class CustomEndpointMonitorImpl extends AbstractMonitor implements CustomEndpointMonitor {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointPlugin.class.getName());
   private static final String TELEMETRY_ENDPOINT_INFO_CHANGED = "customEndpoint.infoChanged.counter";
 
   // Keys are custom endpoint URLs, values are information objects for the associated custom endpoint.
   protected static final CacheMap<String, CustomEndpointInfo> customEndpointInfoCache = new CacheMap<>();
   protected static final long CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(5);
+  protected static final long MONITOR_TERMINATION_TIMEOUT_SEC = 30;
 
-  protected final AtomicBoolean stop = new AtomicBoolean(false);
   protected final RdsClient rdsClient;
   protected final HostSpec customEndpointHostSpec;
   protected final String endpointIdentifier;
   protected final Region region;
   protected final long refreshRateNano;
-
-  protected final PluginService pluginService;
-  protected final ExecutorService monitorExecutor =
-      ExecutorFactory.newSingleThreadExecutor("monitor");
+  protected final StorageService storageService;
 
   private final TelemetryCounter infoChangedCounter;
 
   /**
    * Constructs a CustomEndpointMonitorImpl instance for the host specified by {@code customEndpointHostSpec}.
    *
-   * @param pluginService          The plugin service to use to update the set of allowed/blocked hosts according to
-   *                               the custom endpoint info.
+   * @param storageService         The storage service used to store the set of allowed/blocked hosts according to the
+   *                               custom endpoint info.
+   * @param telemetryFactory       The telemetry factory used to create telemetry data.
    * @param customEndpointHostSpec The host information for the custom endpoint to be monitored.
-   * @param endpointIdentifier An endpoint identifier.
+   * @param endpointIdentifier     An endpoint identifier.
    * @param region                 The region of the custom endpoint to be monitored.
    * @param refreshRateNano        Controls how often the custom endpoint information should be fetched and analyzed for
    *                               changes. The value specified should be in nanoseconds.
@@ -79,40 +75,39 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
    *                               information.
    */
   public CustomEndpointMonitorImpl(
-      PluginService pluginService,
+      StorageService storageService,
+      TelemetryFactory telemetryFactory,
       HostSpec customEndpointHostSpec,
       String endpointIdentifier,
       Region region,
       long refreshRateNano,
       BiFunction<HostSpec, Region, RdsClient> rdsClientFunc) {
-    this.pluginService = pluginService;
+    super(MONITOR_TERMINATION_TIMEOUT_SEC);
+    this.storageService = storageService;
     this.customEndpointHostSpec = customEndpointHostSpec;
     this.endpointIdentifier = endpointIdentifier;
     this.region = region;
     this.refreshRateNano = refreshRateNano;
     this.rdsClient = rdsClientFunc.apply(customEndpointHostSpec, this.region);
 
-    TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
     this.infoChangedCounter = telemetryFactory.createCounter(TELEMETRY_ENDPOINT_INFO_CHANGED);
-
-    this.monitorExecutor.submit(this);
-    this.monitorExecutor.shutdown();
   }
 
   /**
    * Analyzes a given custom endpoint for changes to custom endpoint information.
    */
   @Override
-  public void run() {
+  public void monitor() {
     LOGGER.fine(
         Messages.get(
             "CustomEndpointMonitorImpl.startingMonitor",
-            new Object[] { this.customEndpointHostSpec.getHost() }));
+            new Object[] {this.customEndpointHostSpec.getUrl()}));
 
     try {
       while (!this.stop.get() && !Thread.currentThread().isInterrupted()) {
         try {
           long start = System.nanoTime();
+          this.lastActivityTimestampNanos.set(System.nanoTime());
 
           final Filter customEndpointFilter =
               Filter.builder().name("db-cluster-endpoint-type").values("custom").build();
@@ -140,7 +135,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
           }
 
           CustomEndpointInfo endpointInfo = CustomEndpointInfo.fromDBClusterEndpoint(endpoints.get(0));
-          CustomEndpointInfo cachedEndpointInfo = customEndpointInfoCache.get(this.customEndpointHostSpec.getHost());
+          CustomEndpointInfo cachedEndpointInfo = customEndpointInfoCache.get(this.customEndpointHostSpec.getUrl());
           if (cachedEndpointInfo != null && cachedEndpointInfo.equals(endpointInfo)) {
             long elapsedTime = System.nanoTime() - start;
             long sleepDuration = Math.max(0, this.refreshRateNano - elapsedTime);
@@ -151,7 +146,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
           LOGGER.fine(
               Messages.get(
                   "CustomEndpointMonitorImpl.detectedChangeInCustomEndpointInfo",
-                  new Object[] {this.customEndpointHostSpec.getHost(), endpointInfo}));
+                  new Object[] {this.customEndpointHostSpec.getUrl(), endpointInfo}));
 
           // The custom endpoint info has changed, so we need to update the set of allowed/blocked hosts.
           AllowedAndBlockedHosts allowedAndBlockedHosts;
@@ -161,9 +156,9 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
             allowedAndBlockedHosts = new AllowedAndBlockedHosts(null, endpointInfo.getExcludedMembers());
           }
 
-          this.pluginService.setAllowedAndBlockedHosts(allowedAndBlockedHosts);
+          this.storageService.set(this.customEndpointHostSpec.getUrl(), allowedAndBlockedHosts);
           customEndpointInfoCache.put(
-              this.customEndpointHostSpec.getHost(), endpointInfo, CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO);
+              this.customEndpointHostSpec.getUrl(), endpointInfo, CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO);
           if (this.infoChangedCounter != null) {
             this.infoChangedCounter.inc();
           }
@@ -178,68 +173,33 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
           LOGGER.log(Level.SEVERE,
               Messages.get(
                   "CustomEndpointMonitorImpl.exception",
-                  new Object[]{this.customEndpointHostSpec.getHost()}), e);
+                  new Object[] {this.customEndpointHostSpec.getUrl()}), e);
         }
       }
     } catch (InterruptedException e) {
       LOGGER.fine(
           Messages.get(
               "CustomEndpointMonitorImpl.interrupted",
-              new Object[]{ this.customEndpointHostSpec.getHost() }));
+              new Object[] {this.customEndpointHostSpec.getUrl()}));
       Thread.currentThread().interrupt();
     } finally {
-      customEndpointInfoCache.remove(this.customEndpointHostSpec.getHost());
+      customEndpointInfoCache.remove(this.customEndpointHostSpec.getUrl());
       this.rdsClient.close();
       LOGGER.fine(
           Messages.get(
               "CustomEndpointMonitorImpl.stoppedMonitor",
-              new Object[]{ this.customEndpointHostSpec.getHost() }));
+              new Object[] {this.customEndpointHostSpec.getUrl()}));
     }
   }
 
   public boolean hasCustomEndpointInfo() {
-    return customEndpointInfoCache.get(this.customEndpointHostSpec.getHost()) != null;
+    return customEndpointInfoCache.get(this.customEndpointHostSpec.getUrl()) != null;
   }
 
-  @Override
-  public boolean shouldDispose() {
-    return true;
-  }
-
-  /**
-   * Stops the custom endpoint monitor.
-   */
   @Override
   public void close() {
-    LOGGER.fine(
-        Messages.get(
-            "CustomEndpointMonitorImpl.stoppingMonitor",
-            new Object[]{ this.customEndpointHostSpec.getHost() }));
-
-    this.stop.set(true);
-
-    try {
-      int terminationTimeoutSec = 5;
-      if (!this.monitorExecutor.awaitTermination(terminationTimeoutSec, TimeUnit.SECONDS)) {
-        LOGGER.info(
-            Messages.get(
-                "CustomEndpointMonitorImpl.monitorTerminationTimeout",
-                new Object[]{ terminationTimeoutSec, this.customEndpointHostSpec.getHost() }));
-
-        this.monitorExecutor.shutdownNow();
-      }
-    } catch (InterruptedException e) {
-      LOGGER.info(
-          Messages.get(
-              "CustomEndpointMonitorImpl.interruptedWhileTerminating",
-              new Object[]{ this.customEndpointHostSpec.getHost() }));
-
-      Thread.currentThread().interrupt();
-      this.monitorExecutor.shutdownNow();
-    } finally {
-      customEndpointInfoCache.remove(this.customEndpointHostSpec.getHost());
-      this.rdsClient.close();
-    }
+    customEndpointInfoCache.remove(this.customEndpointHostSpec.getUrl());
+    this.rdsClient.close();
   }
 
   /**

@@ -19,6 +19,7 @@ package software.amazon.jdbc.util;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -35,6 +36,10 @@ public class ExecutorFactory {
 
   public static ExecutorService newFixedThreadPool(int threadCount, String threadName) {
     return Executors.newFixedThreadPool(threadCount, getThreadFactory(threadName));
+  }
+
+  public static ScheduledExecutorService newSingleThreadScheduledThreadExecutor(String threadName) {
+    return Executors.newSingleThreadScheduledExecutor(getThreadFactory(threadName));
   }
 
   private static ThreadFactory getThreadFactory(String threadName) {

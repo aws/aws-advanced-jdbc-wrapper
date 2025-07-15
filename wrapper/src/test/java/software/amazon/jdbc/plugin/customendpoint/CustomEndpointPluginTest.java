@@ -19,7 +19,6 @@ package software.amazon.jdbc.plugin.customendpoint;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -33,7 +32,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashSet;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,6 +47,8 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -63,7 +63,9 @@ public class CustomEndpointPluginTest {
   private final HostSpec writerClusterHost = hostSpecBuilder.host(writerClusterUrl).build();
   private final HostSpec host = hostSpecBuilder.host(customEndpointUrl).build();
 
+  @Mock private FullServicesContainer mockServicesContainer;
   @Mock private PluginService mockPluginService;
+  @Mock private MonitorService mockMonitorService;
   @Mock private BiFunction<HostSpec, Region, RdsClient> mockRdsClientFunc;
   @Mock private TelemetryFactory mockTelemetryFactory;
   @Mock private TelemetryCounter mockTelemetryCounter;
@@ -78,7 +80,9 @@ public class CustomEndpointPluginTest {
   public void init() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
 
-    when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
+    when(mockServicesContainer.getPluginService()).thenReturn(mockPluginService);
+    when(mockServicesContainer.getMonitorService()).thenReturn(mockMonitorService);
+    when(mockServicesContainer.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.createCounter(any(String.class))).thenReturn(mockTelemetryCounter);
     when(mockMonitor.hasCustomEndpointInfo()).thenReturn(true);
     when(mockPluginService.getTargetDriverDialect()).thenReturn(mockTargetDriverDialect);
@@ -89,11 +93,10 @@ public class CustomEndpointPluginTest {
   void cleanUp() throws Exception {
     closeable.close();
     props.clear();
-    CustomEndpointPlugin.monitors.clear();
   }
 
-  private CustomEndpointPlugin getSpyPlugin() {
-    CustomEndpointPlugin plugin = new CustomEndpointPlugin(mockPluginService, props, mockRdsClientFunc);
+  private CustomEndpointPlugin getSpyPlugin() throws SQLException {
+    CustomEndpointPlugin plugin = new CustomEndpointPlugin(mockServicesContainer, props, mockRdsClientFunc);
     CustomEndpointPlugin spyPlugin = spy(plugin);
     doReturn(mockMonitor).when(spyPlugin).createMonitorIfAbsent(any(Properties.class));
     return spyPlugin;
@@ -152,15 +155,5 @@ public class CustomEndpointPluginTest {
 
     verify(spyPlugin, times(1)).createMonitorIfAbsent(eq(props));
     verify(mockJdbcMethodFunc, times(1)).call();
-  }
-
-  @Test
-  public void testCloseMonitors() throws Exception {
-    CustomEndpointPlugin.monitors.computeIfAbsent("test-monitor", (key) -> mockMonitor, TimeUnit.SECONDS.toNanos(30));
-
-    CustomEndpointPlugin.closeMonitors();
-
-    // close() may be called by the cleanup thread in addition to the call below.
-    verify(mockMonitor, atLeastOnce()).close();
   }
 }

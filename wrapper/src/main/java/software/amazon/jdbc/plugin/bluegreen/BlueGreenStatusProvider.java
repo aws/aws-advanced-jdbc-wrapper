@@ -52,12 +52,14 @@ import software.amazon.jdbc.plugin.bluegreen.routing.SubstituteConnectRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.SuspendConnectRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.SuspendExecuteRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.SuspendUntilCorrespondingNodeFoundConnectRouting;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.storage.StorageService;
 
 public class BlueGreenStatusProvider {
 
@@ -119,6 +121,8 @@ public class BlueGreenStatusProvider {
   protected final long switchoverTimeoutNano;
   protected final boolean suspendNewBlueConnectionsWhenInProgress;
 
+  protected final FullServicesContainer servicesContainer;
+  protected final StorageService storageService;
   protected final PluginService pluginService;
   protected final Properties props;
   protected final String bgdId;
@@ -126,11 +130,13 @@ public class BlueGreenStatusProvider {
   protected final RdsUtils rdsUtils = new RdsUtils();
 
   public BlueGreenStatusProvider(
-      final @NonNull PluginService pluginService,
+      final @NonNull FullServicesContainer servicesContainer,
       final @NonNull Properties props,
       final @NonNull String bgdId) {
 
-    this.pluginService = pluginService;
+    this.servicesContainer = servicesContainer;
+    this.storageService = servicesContainer.getStorageService();
+    this.pluginService = servicesContainer.getPluginService();
     this.props = props;
     this.bgdId = bgdId;
 
@@ -156,7 +162,7 @@ public class BlueGreenStatusProvider {
             BlueGreenRole.SOURCE,
             this.bgdId,
             this.pluginService.getCurrentHostSpec(),
-            this.pluginService,
+            this.servicesContainer,
             this.getMonitoringProperties(),
             statusCheckIntervalMap,
             this::prepareStatus);
@@ -165,7 +171,7 @@ public class BlueGreenStatusProvider {
             BlueGreenRole.TARGET,
             this.bgdId,
             this.pluginService.getCurrentHostSpec(),
-            this.pluginService,
+            this.servicesContainer,
             this.getMonitoringProperties(),
             statusCheckIntervalMap,
             this::prepareStatus);
@@ -268,8 +274,8 @@ public class BlueGreenStatusProvider {
   }
 
   protected void updateStatusCache() {
-    final BlueGreenStatus latestStatus = this.pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
-    this.pluginService.setStatus(BlueGreenStatus.class, this.summaryStatus, this.bgdId);
+    final BlueGreenStatus latestStatus = this.storageService.get(BlueGreenStatus.class, this.bgdId);
+    this.storageService.set(this.bgdId, this.summaryStatus);
     this.storePhaseTime(this.summaryStatus.getCurrentPhase());
 
     // Notify all waiting threads that status is updated.

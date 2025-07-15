@@ -77,9 +77,9 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
   protected final Set<String> subscribedMethods;
 
   protected @NonNull Properties properties;
-  private final @NonNull Supplier<MonitorService> monitorServiceSupplier;
+  private final @NonNull Supplier<HostMonitorService> monitorServiceSupplier;
   private final @NonNull PluginService pluginService;
-  private MonitorService monitorService;
+  private HostMonitorService monitorService;
   private final RdsUtils rdsHelper;
   private HostSpec monitoringHostSpec;
   protected final boolean isEnabled;
@@ -98,23 +98,14 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
    */
   public HostMonitoringConnectionPlugin(
       final @NonNull PluginService pluginService, final @NonNull Properties properties) {
-    this(pluginService, properties, () -> new MonitorServiceImpl(pluginService), new RdsUtils());
+    this(pluginService, properties, () -> new HostMonitorServiceImpl(pluginService), new RdsUtils());
   }
 
   HostMonitoringConnectionPlugin(
       final @NonNull PluginService pluginService,
       final @NonNull Properties properties,
-      final @NonNull Supplier<MonitorService> monitorServiceSupplier,
+      final @NonNull Supplier<HostMonitorService> monitorServiceSupplier,
       final RdsUtils rdsHelper) {
-    if (pluginService == null) {
-      throw new IllegalArgumentException("pluginService");
-    }
-    if (properties == null) {
-      throw new IllegalArgumentException("properties");
-    }
-    if (monitorServiceSupplier == null) {
-      throw new IllegalArgumentException("monitorServiceSupplier");
-    }
     this.pluginService = pluginService;
     this.properties = properties;
     this.monitorServiceSupplier = monitorServiceSupplier;
@@ -135,7 +126,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
   }
 
   /**
-   * Executes the given SQL function with {@link MonitorImpl} if connection monitoring is enabled.
+   * Executes the given SQL function with {@link HostMonitorImpl} if connection monitoring is enabled.
    * Otherwise, executes the SQL function directly.
    */
   @Override
@@ -160,7 +151,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     initMonitorService();
 
     T result;
-    MonitorConnectionContext monitorContext = null;
+    HostMonitorConnectionContext monitorContext = null;
 
     try {
       LOGGER.finest(

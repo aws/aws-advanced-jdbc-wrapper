@@ -87,7 +87,9 @@ public interface PluginService extends ExceptionHandler {
    * Set the collection of hosts that should be allowed and/or blocked for connections.
    *
    * @param allowedAndBlockedHosts An object defining the allowed and blocked sets of hosts.
+   * @deprecated use StorageService#set(key, allowedAndBlockedHosts) instead.
    */
+  @Deprecated
   void setAllowedAndBlockedHosts(AllowedAndBlockedHosts allowedAndBlockedHosts);
 
   /**

@@ -33,6 +33,7 @@ import software.amazon.jdbc.plugin.bluegreen.BlueGreenRole;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenStatus;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
@@ -61,16 +62,16 @@ public class SuspendExecuteRouting extends BaseExecuteRouting {
       final String methodName,
       final JdbcCallable<T, E> jdbcMethodFunc,
       final Object[] jdbcMethodArgs,
+      final StorageService storageService,
       final PluginService pluginService,
       final Properties props) throws E {
 
     LOGGER.finest(Messages.get("bgd.inProgressSuspendMethod", new Object[] {methodName}));
-
     TelemetryFactory telemetryFactory = pluginService.getTelemetryFactory();
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(TELEMETRY_SWITCHOVER,
         TelemetryTraceLevel.NESTED);
 
-    BlueGreenStatus bgStatus = pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
+    BlueGreenStatus bgStatus = storageService.get(BlueGreenStatus.class, this.bgdId);
 
     long timeoutNano = TimeUnit.MILLISECONDS.toNanos(BG_CONNECT_TIMEOUT.getLong(props));
     long holdStartTime = this.getNanoTime();
@@ -83,13 +84,13 @@ public class SuspendExecuteRouting extends BaseExecuteRouting {
           && bgStatus.getCurrentPhase() == BlueGreenPhase.IN_PROGRESS) {
 
         try {
-          this.delay(SLEEP_TIME_MS, bgStatus, pluginService, this.bgdId);
+          this.delay(SLEEP_TIME_MS, bgStatus, storageService, this.bgdId);
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           throw new RuntimeException(e);
         }
 
-        bgStatus = pluginService.getStatus(BlueGreenStatus.class, this.bgdId);
+        bgStatus = storageService.get(BlueGreenStatus.class, this.bgdId);
       }
 
       if (bgStatus != null && bgStatus.getCurrentPhase() == BlueGreenPhase.IN_PROGRESS) {

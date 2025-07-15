@@ -35,12 +35,13 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.RegionUtils;
-import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.monitoring.MonitorErrorResponse;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -50,23 +51,10 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
  */
 public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointPlugin.class.getName());
-  private static final String TELEMETRY_WAIT_FOR_INFO_COUNTER = "customEndpoint.waitForInfo.counter";
-
-  protected static final long CACHE_CLEANUP_RATE_NANO = TimeUnit.MINUTES.toNanos(1);
+  protected static final String TELEMETRY_WAIT_FOR_INFO_COUNTER = "customEndpoint.waitForInfo.counter";
   protected static final RegionUtils regionUtils = new RegionUtils();
-  protected static final SlidingExpirationCacheWithCleanupThread<String, CustomEndpointMonitor> monitors =
-      new SlidingExpirationCacheWithCleanupThread<>(
-          CustomEndpointMonitor::shouldDispose,
-          (monitor) -> {
-            try {
-              monitor.close();
-            } catch (Exception ex) {
-              // ignore
-            }
-          },
-          CACHE_CLEANUP_RATE_NANO);
-
-  private final Set<String> subscribedMethods;
+  protected static final Set<MonitorErrorResponse> monitorErrorResponses =
+      new HashSet<>(Collections.singletonList(MonitorErrorResponse.RECREATE));
 
   public static final AwsWrapperProperty CUSTOM_ENDPOINT_INFO_REFRESH_RATE_MS = new AwsWrapperProperty(
       "customEndpointInfoRefreshRateMs", "30000",
@@ -96,11 +84,14 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     PropertyDefinition.registerPluginProperties(CustomEndpointPlugin.class);
   }
 
+  protected final FullServicesContainer servicesContainer;
   protected final PluginService pluginService;
+  protected final TelemetryFactory telemetryFactory;
   protected final Properties props;
   protected final RdsUtils rdsUtils = new RdsUtils();
   protected final BiFunction<HostSpec, Region, RdsClient> rdsClientFunc;
 
+  protected final Set<String> subscribedMethods;
   protected final TelemetryCounter waitForInfoCounter;
   protected final boolean shouldWaitForInfo;
   protected final int waitOnCachedInfoDurationMs;
@@ -112,12 +103,12 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   /**
    * Constructs a new CustomEndpointPlugin instance.
    *
-   * @param pluginService The plugin service that the custom endpoint plugin should use.
-   * @param props         The properties that the custom endpoint plugin should use.
+   * @param servicesContainer The service container for the services required by this class.
+   * @param props            The properties that the custom endpoint plugin should use.
    */
-  public CustomEndpointPlugin(final PluginService pluginService, final Properties props) {
+  public CustomEndpointPlugin(final FullServicesContainer servicesContainer, final Properties props) {
     this(
-        pluginService,
+        servicesContainer,
         props,
         (hostSpec, region) ->
             RdsClient.builder()
@@ -129,15 +120,18 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   /**
    * Constructs a new CustomEndpointPlugin instance.
    *
-   * @param pluginService The plugin service that the custom endpoint plugin should use.
-   * @param props         The properties that the custom endpoint plugin should use.
-   * @param rdsClientFunc The function to call to obtain an {@link RdsClient} instance.
+   * @param servicesContainer The service container for the services required by this class.
+   * @param props            The properties that the custom endpoint plugin should use.
+   * @param rdsClientFunc    The function to call to obtain an {@link RdsClient} instance.
    */
   public CustomEndpointPlugin(
-      final PluginService pluginService,
+      final FullServicesContainer servicesContainer,
       final Properties props,
       final BiFunction<HostSpec, Region, RdsClient> rdsClientFunc) {
-    this.pluginService = pluginService;
+    this.servicesContainer = servicesContainer;
+    this.pluginService = servicesContainer.getPluginService();
+    this.telemetryFactory = servicesContainer.getTelemetryFactory();
+
     this.props = props;
     this.rdsClientFunc = rdsClientFunc;
 
@@ -145,13 +139,21 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     this.waitOnCachedInfoDurationMs = WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS.getInteger(this.props);
     this.idleMonitorExpirationMs = CUSTOM_ENDPOINT_MONITOR_IDLE_EXPIRATION_MS.getInteger(this.props);
 
-    TelemetryFactory telemetryFactory = pluginService.getTelemetryFactory();
+    TelemetryFactory telemetryFactory = servicesContainer.getTelemetryFactory();
     this.waitForInfoCounter = telemetryFactory.createCounter(TELEMETRY_WAIT_FOR_INFO_COUNTER);
 
     final HashSet<String> methods = new HashSet<>();
     methods.add(JdbcMethod.CONNECT.methodName);
     methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.props));
     this.subscribedMethods = Collections.unmodifiableSet(methods);
+
+    this.servicesContainer.getMonitorService().registerMonitorTypeIfAbsent(
+        CustomEndpointMonitorImpl.class,
+        TimeUnit.MILLISECONDS.toNanos(this.idleMonitorExpirationMs),
+        TimeUnit.MINUTES.toNanos(1),
+        monitorErrorResponses,
+        CustomEndpointInfo.class
+    );
   }
 
   @Override
@@ -174,7 +176,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     this.customEndpointHostSpec = hostSpec;
     LOGGER.finest(
         Messages.get(
-            "CustomEndpointPlugin.connectionRequestToCustomEndpoint", new Object[]{ hostSpec.getHost() }));
+            "CustomEndpointPlugin.connectionRequestToCustomEndpoint", new Object[] {hostSpec.getUrl()}));
 
     this.customEndpointId = this.rdsUtils.getRdsClusterId(customEndpointHostSpec.getHost());
     if (StringUtils.isNullOrEmpty(customEndpointId)) {
@@ -208,21 +210,27 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
    * @param props The connection properties.
    * @return {@link CustomEndpointMonitor}
    */
-  protected CustomEndpointMonitor createMonitorIfAbsent(Properties props) {
-    return monitors.computeIfAbsent(
-        this.customEndpointHostSpec.getHost(),
-        (customEndpoint) -> new CustomEndpointMonitorImpl(
-            this.pluginService,
+  protected CustomEndpointMonitor createMonitorIfAbsent(Properties props) throws SQLException {
+    return this.servicesContainer.getMonitorService().runIfAbsent(
+        CustomEndpointMonitorImpl.class,
+        this.customEndpointHostSpec.getUrl(),
+        this.servicesContainer.getStorageService(),
+        this.pluginService.getTelemetryFactory(),
+        this.pluginService.getOriginalUrl(),
+        this.pluginService.getDriverProtocol(),
+        this.pluginService.getTargetDriverDialect(),
+        this.pluginService.getDialect(),
+        this.props,
+        (connectionService, pluginService) -> new CustomEndpointMonitorImpl(
+            this.servicesContainer.getStorageService(),
+            this.servicesContainer.getTelemetryFactory(),
             this.customEndpointHostSpec,
             this.customEndpointId,
             this.region,
             TimeUnit.MILLISECONDS.toNanos(CUSTOM_ENDPOINT_INFO_REFRESH_RATE_MS.getLong(props)),
             this.rdsClientFunc
-        ),
-        TimeUnit.MILLISECONDS.toNanos(this.idleMonitorExpirationMs)
-    );
+        ));
   }
-
 
 
   /**
@@ -245,7 +253,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
       LOGGER.fine(
           Messages.get(
               "CustomEndpointPlugin.waitingForCustomEndpointInfo",
-              new Object[]{ this.customEndpointHostSpec.getHost(), this.waitOnCachedInfoDurationMs }));
+              new Object[] {this.customEndpointHostSpec.getUrl(), this.waitOnCachedInfoDurationMs}));
       long waitForEndpointInfoTimeoutNano =
           System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(this.waitOnCachedInfoDurationMs);
 
@@ -259,13 +267,13 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
         throw new SQLException(
             Messages.get(
                 "CustomEndpointPlugin.interruptedThread",
-                new Object[]{ this.customEndpointHostSpec.getHost() }));
+                new Object[] {this.customEndpointHostSpec.getUrl()}));
       }
 
       if (!hasCustomEndpointInfo) {
         throw new SQLException(
             Messages.get("CustomEndpointPlugin.timedOutWaitingForCustomEndpointInfo",
-                new Object[]{this.waitOnCachedInfoDurationMs, this.customEndpointHostSpec.getHost()}));
+                new Object[] {this.waitOnCachedInfoDurationMs, this.customEndpointHostSpec.getUrl()}));
       }
     }
   }
@@ -310,14 +318,5 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     }
 
     return jdbcMethodFunc.call();
-  }
-
-  /**
-   * Closes all active custom endpoint monitors.
-   */
-  public static void closeMonitors() {
-    LOGGER.info(Messages.get("CustomEndpointPlugin.closeMonitors"));
-    // The clear call automatically calls close() on all monitors.
-    monitors.clear();
   }
 }

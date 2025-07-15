@@ -19,19 +19,27 @@ package software.amazon.jdbc.plugin.customendpoint;
 
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.ServicesContainerPluginFactory;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 
-public class CustomEndpointPluginFactory implements ConnectionPluginFactory {
+public class CustomEndpointPluginFactory implements ServicesContainerPluginFactory {
   @Override
   public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
+    throw new UnsupportedOperationException(
+        Messages.get(
+            "ServicesContainerPluginFactory.servicesContainerRequired", new Object[] {"CustomEndpointPlugin"}));
+  }
+
+  @Override
+  public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
     try {
       Class.forName("software.amazon.awssdk.services.rds.RdsClient");
     } catch (final ClassNotFoundException e) {
       throw new RuntimeException(Messages.get("CustomEndpointPluginFactory.awsSdkNotInClasspath"));
     }
 
-    return new CustomEndpointPlugin(pluginService, props);
+    return new CustomEndpointPlugin(servicesContainer, props);
   }
 }

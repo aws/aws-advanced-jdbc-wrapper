@@ -39,7 +39,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.RandomHostSelector;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
-import software.amazon.jdbc.util.CacheMap;
+import software.amazon.jdbc.util.storage.CacheMap;
 
 public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
 

@@ -24,6 +24,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenRole;
+import software.amazon.jdbc.util.storage.StorageService;
 
 public interface ConnectRouting {
   boolean isMatch(HostSpec hostSpec, BlueGreenRole hostRole);
@@ -34,5 +35,6 @@ public interface ConnectRouting {
       Properties props,
       boolean isInitialConnection,
       JdbcCallable<Connection, SQLException> connectFunc,
+      StorageService storageService,
       PluginService pluginService) throws SQLException;
 }

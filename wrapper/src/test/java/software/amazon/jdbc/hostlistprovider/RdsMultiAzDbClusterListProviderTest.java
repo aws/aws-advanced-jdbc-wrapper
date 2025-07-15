@@ -37,16 +37,13 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
 import java.sql.Statement;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
@@ -61,17 +58,22 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider.FetchTopologyResult;
+import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.events.EventPublisher;
+import software.amazon.jdbc.util.storage.StorageService;
+import software.amazon.jdbc.util.storage.TestStorageServiceImpl;
 
 class RdsMultiAzDbClusterListProviderTest {
-
-  private final long defaultRefreshRateNano = TimeUnit.SECONDS.toNanos(5);
+  private StorageService storageService;
   private RdsMultiAzDbClusterListProvider rdsMazDbClusterHostListProvider;
 
   @Mock private Connection mockConnection;
   @Mock private Statement mockStatement;
   @Mock private ResultSet mockResultSet;
+  @Mock private FullServicesContainer mockServicesContainer;
   @Mock private PluginService mockPluginService;
   @Mock private HostListProviderService mockHostListProviderService;
+  @Mock private EventPublisher mockEventPublisher;
   @Mock Dialect mockTopologyAwareDialect;
   @Captor private ArgumentCaptor<String> queryCaptor;
 
@@ -85,6 +87,9 @@ class RdsMultiAzDbClusterListProviderTest {
   @BeforeEach
   void setUp() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
+    storageService = new TestStorageServiceImpl(mockEventPublisher);
+    when(mockServicesContainer.getHostListProviderService()).thenReturn(mockHostListProviderService);
+    when(mockServicesContainer.getStorageService()).thenReturn(storageService);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.connect(any(HostSpec.class), any(Properties.class))).thenReturn(mockConnection);
     when(mockPluginService.getCurrentHostSpec()).thenReturn(currentHostSpec);
@@ -98,16 +103,15 @@ class RdsMultiAzDbClusterListProviderTest {
   @AfterEach
   void tearDown() throws Exception {
     RdsMultiAzDbClusterListProvider.clearAll();
+    storageService.clearAll();
     closeable.close();
   }
 
-  private RdsMultiAzDbClusterListProvider getRdsMazDbClusterHostListProvider(
-      HostListProviderService mockHostListProviderService,
-      String originalUrl) throws SQLException {
+  private RdsMultiAzDbClusterListProvider getRdsMazDbClusterHostListProvider(String originalUrl) throws SQLException {
     RdsMultiAzDbClusterListProvider provider = new RdsMultiAzDbClusterListProvider(
         new Properties(),
         originalUrl,
-        mockHostListProviderService,
+        mockServicesContainer,
         "foo",
         "bar",
         "baz",
@@ -120,13 +124,9 @@ class RdsMultiAzDbClusterListProviderTest {
 
   @Test
   void testGetTopology_returnCachedTopology() throws SQLException {
-    rdsMazDbClusterHostListProvider = Mockito.spy(
-        getRdsMazDbClusterHostListProvider(mockHostListProviderService, "protocol://url/"));
-
-    final Instant lastUpdated = Instant.now();
+    rdsMazDbClusterHostListProvider = Mockito.spy(getRdsMazDbClusterHostListProvider("protocol://url/"));
     final List<HostSpec> expected = hosts;
-    RdsMultiAzDbClusterListProvider.topologyCache.put(
-        rdsMazDbClusterHostListProvider.clusterId, expected, defaultRefreshRateNano);
+    storageService.set(rdsMazDbClusterHostListProvider.clusterId, new Topology(expected));
 
     final FetchTopologyResult result = rdsMazDbClusterHostListProvider.getTopology(mockConnection, false);
     assertEquals(expected, result.hosts);
@@ -136,12 +136,10 @@ class RdsMultiAzDbClusterListProviderTest {
 
   @Test
   void testGetTopology_withForceUpdate_returnsUpdatedTopology() throws SQLException {
-    rdsMazDbClusterHostListProvider = Mockito.spy(
-        getRdsMazDbClusterHostListProvider(mockHostListProviderService, "jdbc:someprotocol://url"));
+    rdsMazDbClusterHostListProvider = Mockito.spy(getRdsMazDbClusterHostListProvider("jdbc:someprotocol://url"));
     rdsMazDbClusterHostListProvider.isInitialized = true;
 
-    RdsMultiAzDbClusterListProvider.topologyCache.put(
-        rdsMazDbClusterHostListProvider.clusterId, hosts, defaultRefreshRateNano);
+    storageService.set(rdsMazDbClusterHostListProvider.clusterId, new Topology(hosts));
 
     final List<HostSpec> newHosts = Collections.singletonList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("newHost").build());
@@ -155,14 +153,12 @@ class RdsMultiAzDbClusterListProviderTest {
 
   @Test
   void testGetTopology_noForceUpdate_queryReturnsEmptyHostList() throws SQLException {
-    rdsMazDbClusterHostListProvider = Mockito.spy(
-        getRdsMazDbClusterHostListProvider(mockHostListProviderService, "jdbc:someprotocol://url"));
+    rdsMazDbClusterHostListProvider = Mockito.spy(getRdsMazDbClusterHostListProvider("jdbc:someprotocol://url"));
     rdsMazDbClusterHostListProvider.clusterId = "cluster-id";
     rdsMazDbClusterHostListProvider.isInitialized = true;
 
     final List<HostSpec> expected = hosts;
-    RdsMultiAzDbClusterListProvider.topologyCache.put(
-        rdsMazDbClusterHostListProvider.clusterId, expected, defaultRefreshRateNano);
+    storageService.set(rdsMazDbClusterHostListProvider.clusterId, new Topology(expected));
 
     doReturn(new ArrayList<>()).when(rdsMazDbClusterHostListProvider).queryForTopology(mockConnection);
 
@@ -174,8 +170,7 @@ class RdsMultiAzDbClusterListProviderTest {
 
   @Test
   void testGetTopology_withForceUpdate_returnsInitialHostList() throws SQLException {
-    rdsMazDbClusterHostListProvider = Mockito.spy(
-        getRdsMazDbClusterHostListProvider(mockHostListProviderService, "jdbc:someprotocol://url"));
+    rdsMazDbClusterHostListProvider = Mockito.spy(getRdsMazDbClusterHostListProvider("jdbc:someprotocol://url"));
     rdsMazDbClusterHostListProvider.clear();
 
     doReturn(new ArrayList<>()).when(rdsMazDbClusterHostListProvider).queryForTopology(mockConnection);
@@ -184,14 +179,13 @@ class RdsMultiAzDbClusterListProviderTest {
     verify(rdsMazDbClusterHostListProvider, atMostOnce()).queryForTopology(mockConnection);
     assertNotNull(result.hosts);
     assertEquals(
-        Arrays.asList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("url").build()),
+        Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("url").build()),
         result.hosts);
   }
 
   @Test
   void testQueryForTopology_queryResultsInException() throws SQLException {
-    rdsMazDbClusterHostListProvider =
-        getRdsMazDbClusterHostListProvider(mockHostListProviderService, "protocol://url/");
+    rdsMazDbClusterHostListProvider = getRdsMazDbClusterHostListProvider("protocol://url/");
     when(mockStatement.executeQuery(queryCaptor.capture())).thenThrow(new SQLSyntaxErrorException());
 
     assertThrows(
@@ -201,43 +195,21 @@ class RdsMultiAzDbClusterListProviderTest {
 
   @Test
   void testGetCachedTopology_returnCachedTopology() throws SQLException {
-    rdsMazDbClusterHostListProvider = getRdsMazDbClusterHostListProvider(
-        mockHostListProviderService, "jdbc:someprotocol://url");
+    rdsMazDbClusterHostListProvider = getRdsMazDbClusterHostListProvider("jdbc:someprotocol://url");
 
     final List<HostSpec> expected = hosts;
-    RdsMultiAzDbClusterListProvider.topologyCache.put(
-        rdsMazDbClusterHostListProvider.clusterId, expected, defaultRefreshRateNano);
+    storageService.set(rdsMazDbClusterHostListProvider.clusterId, new Topology(expected));
 
-    final List<HostSpec> result = rdsMazDbClusterHostListProvider.getCachedTopology();
+    final List<HostSpec> result = rdsMazDbClusterHostListProvider.getStoredTopology();
     assertEquals(expected, result);
-  }
-
-  @Test
-  void testGetCachedTopology_returnNull() throws InterruptedException, SQLException {
-    rdsMazDbClusterHostListProvider = getRdsMazDbClusterHostListProvider(
-        mockHostListProviderService, "jdbc:someprotocol://url");
-    // Test getCachedTopology with empty topology.
-    assertNull(rdsMazDbClusterHostListProvider.getCachedTopology());
-    rdsMazDbClusterHostListProvider.clear();
-
-    rdsMazDbClusterHostListProvider = getRdsMazDbClusterHostListProvider(
-        mockHostListProviderService, "jdbc:someprotocol://url");
-    final long refreshRateOneNanosecond = 1;
-    RdsMultiAzDbClusterListProvider.topologyCache.put(
-        rdsMazDbClusterHostListProvider.clusterId, hosts, refreshRateOneNanosecond);
-    TimeUnit.NANOSECONDS.sleep(1);
-
-    // Test getCachedTopology with expired cache.
-    assertNull(rdsMazDbClusterHostListProvider.getCachedTopology());
   }
 
   @Test
   void testTopologyCache_NoSuggestedClusterId() throws SQLException {
     RdsMultiAzDbClusterListProvider.clearAll();
 
-    RdsMultiAzDbClusterListProvider provider1 = Mockito.spy(
-        getRdsMazDbClusterHostListProvider(mockHostListProviderService,
-            "jdbc:something://cluster-a.domain.com/"));
+    RdsMultiAzDbClusterListProvider provider1 =
+        Mockito.spy(getRdsMazDbClusterHostListProvider("jdbc:something://cluster-a.domain.com/"));
     provider1.init();
     final List<HostSpec> topologyClusterA = Arrays.asList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
@@ -250,16 +222,15 @@ class RdsMultiAzDbClusterListProviderTest {
     doReturn(topologyClusterA)
         .when(provider1).queryForTopology(any(Connection.class));
 
-    assertEquals(0, RdsMultiAzDbClusterListProvider.topologyCache.size());
+    assertEquals(0, storageService.size(Topology.class));
 
     final List<HostSpec> topologyProvider1 = provider1.refresh(Mockito.mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider1);
 
-    RdsMultiAzDbClusterListProvider provider2 = Mockito.spy(
-        getRdsMazDbClusterHostListProvider(mockHostListProviderService,
-            "jdbc:something://cluster-b.domain.com/"));
+    RdsMultiAzDbClusterListProvider provider2 =
+        Mockito.spy(getRdsMazDbClusterHostListProvider("jdbc:something://cluster-b.domain.com/"));
     provider2.init();
-    assertNull(provider2.getCachedTopology());
+    assertNull(provider2.getStoredTopology());
 
     final List<HostSpec> topologyClusterB = Arrays.asList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
@@ -273,15 +244,15 @@ class RdsMultiAzDbClusterListProviderTest {
     final List<HostSpec> topologyProvider2 = provider2.refresh(Mockito.mock(Connection.class));
     assertEquals(topologyClusterB, topologyProvider2);
 
-    assertEquals(2, RdsMultiAzDbClusterListProvider.topologyCache.size());
+    assertEquals(2, storageService.size(Topology.class));
   }
 
   @Test
   void testTopologyCache_SuggestedClusterIdForRds() throws SQLException {
     RdsMultiAzDbClusterListProvider.clearAll();
 
-    RdsMultiAzDbClusterListProvider provider1 = Mockito.spy(
-        getRdsMazDbClusterHostListProvider(mockHostListProviderService,
+    RdsMultiAzDbClusterListProvider provider1 =
+        Mockito.spy(getRdsMazDbClusterHostListProvider(
             "jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));
     provider1.init();
     final List<HostSpec> topologyClusterA = Arrays.asList(
@@ -303,13 +274,13 @@ class RdsMultiAzDbClusterListProviderTest {
 
     doReturn(topologyClusterA).when(provider1).queryForTopology(any(Connection.class));
 
-    assertEquals(0, RdsMultiAzDbClusterListProvider.topologyCache.size());
+    assertEquals(0, storageService.size(Topology.class));
 
     final List<HostSpec> topologyProvider1 = provider1.refresh(Mockito.mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider1);
 
-    RdsMultiAzDbClusterListProvider provider2 = Mockito.spy(
-        getRdsMazDbClusterHostListProvider(mockHostListProviderService,
+    RdsMultiAzDbClusterListProvider provider2 =
+        Mockito.spy(getRdsMazDbClusterHostListProvider(
             "jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));
     provider2.init();
 
@@ -320,15 +291,15 @@ class RdsMultiAzDbClusterListProviderTest {
     final List<HostSpec> topologyProvider2 = provider2.refresh(Mockito.mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider2);
 
-    assertEquals(1, RdsMultiAzDbClusterListProvider.topologyCache.size());
+    assertEquals(1, storageService.size(Topology.class));
   }
 
   @Test
   void testTopologyCache_SuggestedClusterIdForInstance() throws SQLException {
     RdsMultiAzDbClusterListProvider.clearAll();
 
-    RdsMultiAzDbClusterListProvider provider1 = Mockito.spy(
-        getRdsMazDbClusterHostListProvider(mockHostListProviderService,
+    RdsMultiAzDbClusterListProvider provider1 =
+        Mockito.spy(getRdsMazDbClusterHostListProvider(
             "jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));
     provider1.init();
     final List<HostSpec> topologyClusterA = Arrays.asList(
@@ -350,13 +321,13 @@ class RdsMultiAzDbClusterListProviderTest {
 
     doReturn(topologyClusterA).when(provider1).queryForTopology(any(Connection.class));
 
-    assertEquals(0, RdsMultiAzDbClusterListProvider.topologyCache.size());
+    assertEquals(0, storageService.size(Topology.class));
 
     final List<HostSpec> topologyProvider1 = provider1.refresh(Mockito.mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider1);
 
-    RdsMultiAzDbClusterListProvider provider2 = Mockito.spy(
-        getRdsMazDbClusterHostListProvider(mockHostListProviderService,
+    RdsMultiAzDbClusterListProvider provider2 =
+        Mockito.spy(getRdsMazDbClusterHostListProvider(
             "jdbc:something://instance-a-3.xyz.us-east-2.rds.amazonaws.com/"));
     provider2.init();
 
@@ -367,15 +338,15 @@ class RdsMultiAzDbClusterListProviderTest {
     final List<HostSpec> topologyProvider2 = provider2.refresh(Mockito.mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider2);
 
-    assertEquals(1, RdsMultiAzDbClusterListProvider.topologyCache.size());
+    assertEquals(1, storageService.size(Topology.class));
   }
 
   @Test
   void testTopologyCache_AcceptSuggestion() throws SQLException {
     RdsMultiAzDbClusterListProvider.clearAll();
 
-    RdsMultiAzDbClusterListProvider provider1 = Mockito.spy(
-        getRdsMazDbClusterHostListProvider(mockHostListProviderService,
+    RdsMultiAzDbClusterListProvider provider1 =
+        Mockito.spy(getRdsMazDbClusterHostListProvider(
             "jdbc:something://instance-a-2.xyz.us-east-2.rds.amazonaws.com/"));
     provider1.init();
     final List<HostSpec> topologyClusterA = Arrays.asList(
@@ -397,15 +368,15 @@ class RdsMultiAzDbClusterListProviderTest {
 
     doAnswer(a -> topologyClusterA).when(provider1).queryForTopology(any(Connection.class));
 
-    assertEquals(0, RdsMultiAzDbClusterListProvider.topologyCache.size());
+    assertEquals(0, storageService.size(Topology.class));
 
     List<HostSpec> topologyProvider1 = provider1.refresh(Mockito.mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider1);
 
     // RdsMultiAzDbClusterListProvider.logCache();
 
-    RdsMultiAzDbClusterListProvider provider2 = Mockito.spy(
-        getRdsMazDbClusterHostListProvider(mockHostListProviderService,
+    RdsMultiAzDbClusterListProvider provider2 =
+        Mockito.spy(getRdsMazDbClusterHostListProvider(
             "jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));
     provider2.init();
 
@@ -417,7 +388,7 @@ class RdsMultiAzDbClusterListProviderTest {
     assertNotEquals(provider1.clusterId, provider2.clusterId);
     assertFalse(provider1.isPrimaryClusterId);
     assertTrue(provider2.isPrimaryClusterId);
-    assertEquals(2, RdsMultiAzDbClusterListProvider.topologyCache.size());
+    assertEquals(2, storageService.size(Topology.class));
     assertEquals("cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com",
         RdsMultiAzDbClusterListProvider.suggestedPrimaryClusterIdCache.get(provider1.clusterId));
 
@@ -434,9 +405,7 @@ class RdsMultiAzDbClusterListProviderTest {
 
   @Test
   void testIdentifyConnectionWithInvalidNodeIdQuery() throws SQLException {
-    rdsMazDbClusterHostListProvider = Mockito.spy(getRdsMazDbClusterHostListProvider(
-        mockHostListProviderService,
-        "jdbc:someprotocol://url"));
+    rdsMazDbClusterHostListProvider = Mockito.spy(getRdsMazDbClusterHostListProvider("jdbc:someprotocol://url"));
 
     when(mockResultSet.next()).thenReturn(false);
     assertThrows(SQLException.class, () -> rdsMazDbClusterHostListProvider.identifyConnection(mockConnection));
@@ -447,9 +416,7 @@ class RdsMultiAzDbClusterListProviderTest {
 
   @Test
   void testIdentifyConnectionNullTopology() throws SQLException {
-    rdsMazDbClusterHostListProvider = Mockito.spy(getRdsMazDbClusterHostListProvider(
-        mockHostListProviderService,
-        "jdbc:someprotocol://url"));
+    rdsMazDbClusterHostListProvider = Mockito.spy(getRdsMazDbClusterHostListProvider("jdbc:someprotocol://url"));
     rdsMazDbClusterHostListProvider.clusterInstanceTemplate = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("?.pattern").build();
 
@@ -470,9 +437,7 @@ class RdsMultiAzDbClusterListProviderTest {
             .role(HostRole.WRITER)
             .build());
 
-    rdsMazDbClusterHostListProvider = Mockito.spy(getRdsMazDbClusterHostListProvider(
-        mockHostListProviderService,
-        "jdbc:someprotocol://url"));
+    rdsMazDbClusterHostListProvider = Mockito.spy(getRdsMazDbClusterHostListProvider("jdbc:someprotocol://url"));
     when(mockResultSet.next()).thenReturn(true);
     when(mockResultSet.getString(eq(1))).thenReturn("instance-1");
     doReturn(cachedTopology).when(rdsMazDbClusterHostListProvider).refresh(mockConnection);
@@ -491,9 +456,7 @@ class RdsMultiAzDbClusterListProviderTest {
         .build();
     final List<HostSpec> cachedTopology = Collections.singletonList(expectedHost);
 
-    rdsMazDbClusterHostListProvider = Mockito.spy(getRdsMazDbClusterHostListProvider(
-        mockHostListProviderService,
-        "jdbc:someprotocol://url"));
+    rdsMazDbClusterHostListProvider = Mockito.spy(getRdsMazDbClusterHostListProvider("jdbc:someprotocol://url"));
     when(mockResultSet.next()).thenReturn(true);
     when(mockResultSet.getString(eq(1))).thenReturn("instance-a-1");
     doReturn(cachedTopology).when(rdsMazDbClusterHostListProvider).refresh(mockConnection);

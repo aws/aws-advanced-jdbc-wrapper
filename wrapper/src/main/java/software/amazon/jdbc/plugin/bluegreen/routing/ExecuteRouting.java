@@ -24,6 +24,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenRole;
+import software.amazon.jdbc.util.storage.StorageService;
 
 public interface ExecuteRouting {
   boolean isMatch(HostSpec hostSpec, BlueGreenRole hostRole);
@@ -36,6 +37,7 @@ public interface ExecuteRouting {
       final String methodName,
       final JdbcCallable<T, E> jdbcMethodFunc,
       final Object[] jdbcMethodArgs,
+      final StorageService storageService,
       final PluginService pluginService,
       final Properties props) throws E;
 }
