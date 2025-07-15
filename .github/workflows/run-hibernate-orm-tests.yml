@@ -5,12 +5,6 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - '*'
-    paths-ignore:
-      - '**/release_draft.yml'
-      - '**/maven*.yml'
 
 jobs:
   hibernate-integration-tests:
