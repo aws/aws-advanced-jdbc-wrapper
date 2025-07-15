@@ -16,9 +16,11 @@ import java.time.Duration;
 import java.util.Properties;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
-import io.lettuce.core.support.ConnectionPoolSupport;
+import org.apache.commons.pool2.BasePooledObjectFactory;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
+import org.apache.commons.pool2.impl.DefaultPooledObject;
+import org.apache.commons.pool2.PooledObject;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -117,27 +119,29 @@ public class CacheConnection {
           .withSsl(useSSL).withVerifyPeer(false).withLibraryName("aws-jdbc-lettuce").build();
 
       RedisClient client = RedisClient.create(resources, redisUriCluster);
-      GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> pool =
-          ConnectionPoolSupport.createGenericObjectPool(
-              () -> {
-                StatefulRedisConnection<byte[], byte[]> connection = client.connect(new ByteArrayCodec());
-                // In cluster mode, we need to send READONLY command to the server for reading from replica.
-                // Note: we gracefully ignore ERR reply to support non cluster mode.
-                if (isRead) {
-                  try {
-                    connection.sync().readOnly();
-                  } catch (RedisCommandExecutionException e) {
-                    if (e.getMessage().contains("ERR This instance has cluster support disabled")) {
-                      LOGGER.fine("------ Note: this cache cluster has cluster support disabled ------");
-                    } else {
-                      throw e;
-                    }
+      GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> pool = new GenericObjectPool<>(
+          new BasePooledObjectFactory<StatefulRedisConnection<byte[], byte[]>>() {
+            public StatefulRedisConnection<byte[], byte[]> create() {
+              StatefulRedisConnection<byte[], byte[]> connection = client.connect(new ByteArrayCodec());
+              // In cluster mode, we need to send READONLY command to the server for reading from replica.
+              // Note: we gracefully ignore ERR reply to support non cluster mode.
+              if (isRead) {
+                try {
+                  connection.sync().readOnly();
+                } catch (RedisCommandExecutionException e) {
+                  if (e.getMessage().contains("ERR This instance has cluster support disabled")) {
+                    LOGGER.fine("------ Note: this cache cluster has cluster support disabled ------");
+                  } else {
+                    throw e;
                   }
                 }
-                return connection;
-              },
-              poolConfig
-          );
+              }
+              return connection;
+            }
+            public PooledObject<StatefulRedisConnection<byte[], byte[]>> wrap(StatefulRedisConnection<byte[], byte[]> connection) {
+              return new DefaultPooledObject<>(connection);
+            }
+          }, poolConfig);
 
       if (isRead) {
         readConnectionPool = pool;
