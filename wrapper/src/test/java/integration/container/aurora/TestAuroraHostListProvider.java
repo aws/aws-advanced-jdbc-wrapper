@@ -26,8 +26,4 @@ public class TestAuroraHostListProvider extends AuroraHostListProvider {
       FullServicesContainer servicesContainer, Properties properties, String originalUrl) {
     super(properties, originalUrl, servicesContainer, "", "", "");
   }
-
-  public static void clearCache() {
-    AuroraHostListProvider.clearAll();
-  }
 }
