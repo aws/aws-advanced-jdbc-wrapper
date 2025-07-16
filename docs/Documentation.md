@@ -14,6 +14,7 @@
     - [Failover Plugin v2](./using-the-jdbc-driver/using-plugins/UsingTheFailover2Plugin.md)
     - [Host Monitoring Plugin](./using-the-jdbc-driver/using-plugins/UsingTheHostMonitoringPlugin.md)
     - [IAM Authentication Plugin](./using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
+    - [Aurora DSQL IAM Authentication Plugin](./using-the-jdbc-driver/using-plugins/UsingTheDsqlAuthenticationPlugin.md)
     - [AWS Secrets Manager Plugin](./using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
     - [Aurora Connection Tracker Plugin](./using-the-jdbc-driver/using-plugins/UsingTheAuroraConnectionTrackerPlugin.md)
     - [Driver Metadata Connection Plugin](./using-the-jdbc-driver/using-plugins/UsingTheDriverMetadataConnectionPlugin.md)
