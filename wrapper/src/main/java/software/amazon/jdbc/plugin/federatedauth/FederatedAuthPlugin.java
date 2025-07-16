@@ -121,7 +121,7 @@ public class FederatedAuthPlugin extends AbstractConnectionPlugin {
 
   public FederatedAuthPlugin(final PluginService pluginService,
       final CredentialsProviderFactory credentialsProviderFactory) {
-    this(pluginService, credentialsProviderFactory, new RdsUtils(), IamAuthUtils.getTokenUtility());
+    this(pluginService, credentialsProviderFactory, new RdsUtils(), IamAuthUtils.getRdsTokenUtility());
   }
 
   FederatedAuthPlugin(

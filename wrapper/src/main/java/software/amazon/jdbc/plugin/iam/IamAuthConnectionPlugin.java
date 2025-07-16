@@ -86,11 +86,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
 
   private final IamTokenUtility iamTokenUtility;
 
-  public IamAuthConnectionPlugin(final @NonNull PluginService pluginService) {
-    this(pluginService, IamAuthUtils.getTokenUtility());
-  }
-
-  IamAuthConnectionPlugin(final @NonNull PluginService pluginService, IamTokenUtility utility) {
+  public IamAuthConnectionPlugin(final @NonNull PluginService pluginService, final IamTokenUtility utility) {
     this.iamTokenUtility = utility;
     this.pluginService = pluginService;
     this.telemetryFactory = pluginService.getTelemetryFactory();
