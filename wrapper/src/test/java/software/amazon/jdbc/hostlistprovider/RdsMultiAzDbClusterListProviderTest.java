@@ -17,16 +17,13 @@
 package software.amazon.jdbc.hostlistprovider;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atMostOnce;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -118,7 +115,7 @@ class RdsMultiAzDbClusterListProviderTest {
         "fang",
         "li");
     provider.init();
-    // provider.clusterId = "cluster-id";
+    // provider.clusterId = "1";
     return provider;
   }
 
@@ -205,7 +202,7 @@ class RdsMultiAzDbClusterListProviderTest {
   }
 
   @Test
-  void testTopologyCache_NoSuggestedClusterId() throws SQLException {
+  void testTopologyCache() throws SQLException {
     RdsMultiAzDbClusterListProvider.clearAll();
 
     RdsMultiAzDbClusterListProvider provider1 =
@@ -229,8 +226,7 @@ class RdsMultiAzDbClusterListProviderTest {
 
     RdsMultiAzDbClusterListProvider provider2 =
         Mockito.spy(getRdsMazDbClusterHostListProvider("jdbc:something://cluster-b.domain.com/"));
-    provider2.init();
-    assertNull(provider2.getStoredTopology());
+    assertNotNull(provider2.getStoredTopology());
 
     final List<HostSpec> topologyClusterB = Arrays.asList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
@@ -241,10 +237,13 @@ class RdsMultiAzDbClusterListProviderTest {
             .host("instance-b-3.domain.com").port(HostSpec.NO_PORT).role(HostRole.READER).build());
     doReturn(topologyClusterB).when(provider2).queryForTopology(any(Connection.class));
 
-    final List<HostSpec> topologyProvider2 = provider2.refresh(Mockito.mock(Connection.class));
+    List<HostSpec> topologyProvider2 = provider2.refresh(Mockito.mock(Connection.class));
+    assertNotEquals(topologyClusterB, topologyProvider2);
+
+    topologyProvider2 = provider2.forceRefresh(Mockito.mock(Connection.class));
     assertEquals(topologyClusterB, topologyProvider2);
 
-    assertEquals(2, storageService.size(Topology.class));
+    assertEquals(1, storageService.size(Topology.class));
   }
 
   @Test
