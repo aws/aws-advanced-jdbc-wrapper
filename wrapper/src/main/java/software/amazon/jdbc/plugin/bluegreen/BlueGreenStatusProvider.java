@@ -378,7 +378,7 @@ public class BlueGreenStatusProvider {
               .findFirst()
               .ifPresent(y -> this.correspondingNodes.putIfAbsent(blueHost,
                   Pair.create(
-                      this.hostSpecBuilder.host(y).build(),
+                      this.hostSpecBuilder.host(blueHost).build(),
                       this.hostSpecBuilder.host(y).build())));
         }
       });
