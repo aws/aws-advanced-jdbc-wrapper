@@ -21,6 +21,7 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.plugin.iam.DsqlTokenUtility;
 import software.amazon.jdbc.plugin.iam.IamTokenUtility;
 import software.amazon.jdbc.plugin.iam.LightRdsUtility;
 import software.amazon.jdbc.plugin.iam.RegularRdsUtility;
@@ -59,7 +60,7 @@ public class IamAuthUtils {
     return String.format("%s:%s:%d:%s", region, hostname, port, user);
   }
 
-  public static IamTokenUtility getTokenUtility() {
+  public static IamTokenUtility getRdsTokenUtility() {
     try {
       // RegularRdsUtility requires AWS Java SDK RDS v2.x to be presented in classpath.
       Class.forName("software.amazon.awssdk.services.rds.RdsUtilities");
@@ -78,6 +79,15 @@ public class IamAuthUtils {
       } catch (final ClassNotFoundException ex) {
         throw new RuntimeException(Messages.get("AuthenticationToken.javaSdkNotInClasspath"), ex);
       }
+    }
+  }
+
+  public static IamTokenUtility getDsqlTokenUtility() {
+    try {
+      Class.forName("software.amazon.awssdk.services.dsql.DsqlUtilities");
+      return new DsqlTokenUtility();
+    } catch (final ClassNotFoundException e) {
+      throw new RuntimeException(Messages.get("AuthenticationToken.javaDsqlSdkNotInClasspath"), e);
     }
   }
 

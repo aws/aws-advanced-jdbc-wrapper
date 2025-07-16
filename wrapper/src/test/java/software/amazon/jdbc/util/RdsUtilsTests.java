@@ -116,6 +116,15 @@ public class RdsUtilsTests {
   private static final String usIsoEastRegionLimitlessDbShardGroup =
       "database-test-name.shardgrp-XYZ.rds.us-iso-east-1.c2s.ic.gov";
 
+  private static final String usEastRegionDsqlInstance =
+      "dsql-cluster-identifier-1.dsql.us-east-2.on.aws";
+  private static final String usEastRegionDsqlInstanceTrailingDot =
+      "dsql-cluster-identifier-2.dsql.us-east-2.on.aws.";
+  private static final String usWestRegionDsqlInstance =
+      "dsql-cluster-identifier-3.dsql.us-west-1.on.aws";
+  private static final String usWestRegionDsqlGammaInstance =
+      "dsql-cluster-identifier-4.dsql-gamma.us-west-1.on.aws";
+
   @BeforeEach
   public void setupTests() {
     RdsUtils.clearCache();
@@ -164,6 +173,26 @@ public class RdsUtilsTests {
     assertTrue(target.isRdsDns(usIsoEastRegionProxy));
     assertTrue(target.isRdsDns(usIsoEastRegionCustomDomain));
     assertTrue(target.isRdsDns(usIsoEastRegionLimitlessDbShardGroup));
+  }
+
+  @Test
+  public void testGetDsqlInstanceId() {
+    assertEquals("dsql-cluster-identifier-1", target.getDsqlInstanceId(usEastRegionDsqlInstance));
+    assertEquals("dsql-cluster-identifier-2", target.getDsqlInstanceId(usEastRegionDsqlInstanceTrailingDot));
+    assertEquals("dsql-cluster-identifier-3", target.getDsqlInstanceId(usWestRegionDsqlInstance));
+    assertEquals("dsql-cluster-identifier-4", target.getDsqlInstanceId(usWestRegionDsqlGammaInstance));
+  }
+
+  @Test
+  public void testIsDsqlCluster() {
+    assertTrue(target.isDsqlCluster(usEastRegionDsqlInstance));
+    assertTrue(target.isDsqlCluster(usEastRegionDsqlInstanceTrailingDot));
+    assertTrue(target.isDsqlCluster(usWestRegionDsqlInstance));
+    assertTrue(target.isDsqlCluster(usWestRegionDsqlGammaInstance));
+
+    assertFalse(target.isDsqlCluster(usIsobEastRegionCluster));
+    assertFalse(target.isDsqlCluster(usEastRegionProxy));
+    assertFalse(target.isDsqlCluster("https://www.amazon.com"));
   }
 
   @Test
@@ -378,6 +407,12 @@ public class RdsUtilsTests {
     assertEquals(expectedHostPattern, target.getRdsRegion(usEastRegionCustomDomain));
     assertEquals(expectedHostPattern, target.getRdsRegion(usEastRegionElbUrl));
     assertEquals(expectedHostPattern, target.getRdsRegion(usEastRegionLimitlessDbShardGroup));
+    assertEquals(expectedHostPattern, target.getRdsRegion(usEastRegionDsqlInstance));
+    assertEquals(expectedHostPattern, target.getRdsRegion(usEastRegionDsqlInstanceTrailingDot));
+
+    final String westExpectedHostPattern = "us-west-1";
+    assertEquals(westExpectedHostPattern, target.getRdsRegion(usWestRegionDsqlInstance));
+    assertEquals(westExpectedHostPattern, target.getRdsRegion(usWestRegionDsqlGammaInstance));
 
     final String govExpectedHostPattern = "us-gov-east-1";
     assertEquals(govExpectedHostPattern, target.getRdsRegion(usGovEastRegionCluster));
