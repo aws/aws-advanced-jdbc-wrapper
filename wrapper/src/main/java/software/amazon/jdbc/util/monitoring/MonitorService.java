@@ -40,6 +40,7 @@ public interface MonitorService {
    *                               last-updated timestamp within this duration it will be considered stuck.
    * @param errorResponses         a {@link Set} defining actions to take if the monitor is stuck or in an error state.
    * @param producedDataClass      the class of data produced by the monitor.
+   * @param <T>                    the type of the monitor.
    */
   <T extends Monitor> void registerMonitorTypeIfAbsent(
       Class<T> monitorClass,
@@ -52,18 +53,20 @@ public interface MonitorService {
    * Creates and starts the given monitor if it does not already exist and stores it under the given monitor type and
    * key. If the monitor already exists, its expiration time will be renewed, even if it was already expired.
    *
-   * @param monitorClass the concrete class of the monitor, eg `CustomEndpointMonitorImpl.class`.
-   * @param key          the key for the monitor, eg
-   *                     "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
-   * @param storageService the storage service for the monitor to use.
+   * @param monitorClass     the concrete class of the monitor, eg `CustomEndpointMonitorImpl.class`.
+   * @param key              the key for the monitor, eg
+   *                         "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
+   * @param storageService   the storage service for the monitor to use.
    * @param telemetryFactory the telemetry factory for creating telemetry data.
-   * @param originalUrl the URL of the original database connection.
-   * @param driverProtocol the protocol for the underlying target driver.
-   * @param driverDialect the target driver dialect.
-   * @param dbDialect the database dialect.
-   * @param originalProps the properties of the original database connection.
-   * @param initializer an initializer function to use to create the monitor if it does not already exist.
+   * @param originalUrl      the URL of the original database connection.
+   * @param driverProtocol   the protocol for the underlying target driver.
+   * @param driverDialect    the target driver dialect.
+   * @param dbDialect        the database dialect.
+   * @param originalProps    the properties of the original database connection.
+   * @param initializer      an initializer function to use to create the monitor if it does not already exist.
+   * @param <T>              the type of the monitor.
    * @return the new or existing monitor.
+   * @throws SQLException if an error occurs while trying to create the monitor.
    */
   <T extends Monitor> T runIfAbsent(
       Class<T> monitorClass,
@@ -82,6 +85,7 @@ public interface MonitorService {
    *
    * @param monitorClass the expected class of the monitor.
    * @param key          the key for the monitor.
+   * @param <T>          the type of the monitor.
    * @return the monitor stored at the given key.
    */
   @Nullable
@@ -93,6 +97,7 @@ public interface MonitorService {
    *
    * @param monitorClass the expected class of the monitor.
    * @param key          the key for the monitor.
+   * @param <T>          the type of the monitor.
    * @return the monitor that was removed. Returns null if there was no monitor at the given key or the expected monitor
    *     class did not match the actual monitor class.
    */
@@ -105,6 +110,7 @@ public interface MonitorService {
    * @param monitorClass the class of the monitor, eg `CustomEndpointMonitorImpl.class`.
    * @param key          the key for the monitor, eg
    *                     "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
+   * @param <T>          the type of the monitor.
    */
   <T extends Monitor> void stopAndRemove(Class<T> monitorClass, Object key);
 
@@ -112,6 +118,7 @@ public interface MonitorService {
    * Stops all monitors for the given type and removes them from the monitor service.
    *
    * @param monitorClass the class of the monitor, eg `CustomEndpointMonitorImpl.class`.
+   * @param <T>          the type of the monitor.
    */
   <T extends Monitor> void stopAndRemoveMonitors(Class<T> monitorClass);
 

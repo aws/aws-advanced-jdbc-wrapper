@@ -209,6 +209,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
    *
    * @param props The connection properties.
    * @return {@link CustomEndpointMonitor}
+   * @throws SQLException if an error occurs while attempting to create the monitor.
    */
   protected CustomEndpointMonitor createMonitorIfAbsent(Properties props) throws SQLException {
     return this.servicesContainer.getMonitorService().runIfAbsent(

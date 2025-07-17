@@ -30,6 +30,7 @@ public interface ConnectionService {
    * @param hostSpec the hostSpec containing the host information for the auxiliary connection.
    * @param props    the properties for the auxiliary connection.
    * @return a new connection to the given host using the given props.
+   * @throws SQLException if an error occurs while opening the connection.
    */
   Connection open(HostSpec hostSpec, Properties props) throws SQLException;
 

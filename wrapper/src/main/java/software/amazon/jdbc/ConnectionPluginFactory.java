@@ -23,8 +23,8 @@ import software.amazon.jdbc.util.FullServicesContainer;
  * Interface for connection plugin factories. This class implements ways to initialize a connection
  * plugin.
  *
- * @apiNote Consider using {@link ServicesContainerPluginFactory} for new implementations as it provides access to all
- *     services in the {@link FullServicesContainer}.
+ * <p>Note: consider using {@link ServicesContainerPluginFactory} for new implementations as it provides access to all
+ * services in the {@link FullServicesContainer}.
  */
 public interface ConnectionPluginFactory {
 
