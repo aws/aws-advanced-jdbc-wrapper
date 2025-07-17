@@ -14,15 +14,21 @@
  * limitations under the License.
  */
 
-plugins {
-	id("org.springframework.boot") version "2.7.0"
-	id("io.spring.dependency-management") version "1.1.7"
-}
+package software.amazon.SpringBootHikariDsqlExample;
 
-dependencies {
-	implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
-	implementation("org.springframework.boot:spring-boot-starter-web")
-	implementation("org.postgresql:postgresql:42.7.7")
-    implementation(project(":aws-advanced-jdbc-wrapper"))
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 
+@RestController
+public class ApiController {
+
+  @Autowired
+  private JdbcTemplate jdbcTemplate;
+
+  @GetMapping(value = "/select1")
+  public Integer getOne() {
+    return jdbcTemplate.queryForObject("SELECT 1;", Integer.class);
+  }
 }

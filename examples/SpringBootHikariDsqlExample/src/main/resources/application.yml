@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: jdbc:aws-wrapper:postgresql://cluster-identifier.dsql.us-east-1.on.aws:5432/postgres
+    username: admin
+    driver-class-name: software.amazon.jdbc.Driver
+    hikari:
+      data-source-properties:
+        wrapperPlugins: iamDsql
+        wrapperDialect: pg
+      max-lifetime: 840000
+      minimum-idle: 20
+      maximum-pool-size: 20
+      idle-timeout: 900000
+      read-only: true
