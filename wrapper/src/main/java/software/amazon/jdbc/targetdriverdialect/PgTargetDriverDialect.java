@@ -167,14 +167,14 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   }
 
   @Override
-  public void setConnectTimeoutMs(Properties props, String propertyKey, long milliseconds) {
+  public void setConnectTimeoutMs(Properties props, long milliseconds) {
     // PGJDBC uses seconds for its connect timeout setting.
-    props.setProperty(propertyKey, String.valueOf(TimeUnit.MILLISECONDS.toSeconds(milliseconds)));
+    PropertyDefinition.CONNECT_TIMEOUT.set(props, String.valueOf(TimeUnit.MILLISECONDS.toSeconds(milliseconds)));
   }
 
   @Override
-  public void setSocketTimeoutMs(Properties props, String propertyKey, long milliseconds) {
+  public void setSocketTimeoutMs(Properties props, long milliseconds) {
     // PGJDBC uses seconds for its socket timeout setting.
-    props.setProperty(propertyKey, String.valueOf(TimeUnit.MILLISECONDS.toSeconds(milliseconds)));
+    PropertyDefinition.SOCKET_TIMEOUT.set(props, String.valueOf(TimeUnit.MILLISECONDS.toSeconds(milliseconds)));
   }
 }

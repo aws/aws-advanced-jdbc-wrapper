@@ -41,7 +41,6 @@ import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.BlueGreenDialect;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
@@ -189,14 +188,10 @@ public class BlueGreenStatusProvider {
               monitoringConnProperties.remove(p);
             });
 
-    this.pluginService.getTargetDriverDialect().setConnectTimeoutMs(
-        monitoringConnProperties,
-        PropertyDefinition.CONNECT_TIMEOUT.name,
-        DEFAULT_CONNECT_TIMEOUT_MS);
-    this.pluginService.getTargetDriverDialect().setSocketTimeoutMs(
-        monitoringConnProperties,
-        PropertyDefinition.SOCKET_TIMEOUT.name,
-        DEFAULT_SOCKET_TIMEOUT_MS);
+    this.pluginService
+        .getTargetDriverDialect()
+        .setConnectTimeoutMs(monitoringConnProperties, DEFAULT_CONNECT_TIMEOUT_MS);
+    this.pluginService.getTargetDriverDialect().setSocketTimeoutMs(monitoringConnProperties, DEFAULT_SOCKET_TIMEOUT_MS);
 
     return monitoringConnProperties;
   }

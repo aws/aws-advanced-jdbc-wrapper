@@ -61,7 +61,7 @@ public interface TargetDriverDialect {
 
   Set<String> getNetworkBoundMethodNames(final @Nullable Properties properties);
 
-  void setConnectTimeoutMs(final Properties props, final String propertyKey, final long milliseconds);
+  void setConnectTimeoutMs(final Properties props, final long milliseconds);
 
-  void setSocketTimeoutMs(final Properties props, final String propertyKey, final long milliseconds);
+  void setSocketTimeoutMs(final Properties props, final long milliseconds);
 }

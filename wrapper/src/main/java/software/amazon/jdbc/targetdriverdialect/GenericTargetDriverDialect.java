@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -263,12 +264,12 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
   }
 
   @Override
-  public void setConnectTimeoutMs(Properties props, String propertyKey, long milliseconds) {
-    props.setProperty(propertyKey, String.valueOf(milliseconds));
+  public void setConnectTimeoutMs(Properties props, long milliseconds) {
+    PropertyDefinition.CONNECT_TIMEOUT.set(props, String.valueOf(milliseconds));
   }
 
   @Override
-  public void setSocketTimeoutMs(Properties props, String propertyKey, long milliseconds) {
-    props.setProperty(propertyKey, String.valueOf(milliseconds));
+  public void setSocketTimeoutMs(Properties props, long milliseconds) {
+    PropertyDefinition.SOCKET_TIMEOUT.set(props, String.valueOf(milliseconds));
   }
 }
