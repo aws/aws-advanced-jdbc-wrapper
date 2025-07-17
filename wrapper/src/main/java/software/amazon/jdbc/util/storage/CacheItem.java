@@ -66,6 +66,9 @@ public class CacheItem<V> {
 
   /**
    * Renews a cache item's expiration time.
+   *
+   * @param timeToLiveNanos the duration that the item should sit in the cache before being considered expired, in
+   *                        nanoseconds.
    */
   protected void extendExpiration(long timeToLiveNanos) {
     this.expirationTimeNanos = System.nanoTime() + timeToLiveNanos;
