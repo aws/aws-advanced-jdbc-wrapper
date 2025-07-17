@@ -261,4 +261,14 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
         ? NETWORK_BOUND_METHODS_FOR_ENTIRE_RESULTSET
         : NETWORK_BOUND_METHODS;
   }
+
+  @Override
+  public void setConnectTimeoutMs(Properties props, String propertyKey, long milliseconds) {
+    props.setProperty(propertyKey, String.valueOf(milliseconds));
+  }
+
+  @Override
+  public void setSocketTimeoutMs(Properties props, String propertyKey, long milliseconds) {
+    props.setProperty(propertyKey, String.valueOf(milliseconds));
+  }
 }

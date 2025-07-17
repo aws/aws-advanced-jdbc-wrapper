@@ -165,4 +165,16 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   public Set<String> getAllowedOnConnectionMethodNames() {
     return PG_ALLOWED_ON_CLOSED_METHOD_NAMES;
   }
+
+  @Override
+  public void setConnectTimeoutMs(Properties props, String propertyKey, long milliseconds) {
+    // PGJDBC uses seconds for its connect timeout setting.
+    props.setProperty(propertyKey, String.valueOf(TimeUnit.MILLISECONDS.toSeconds(milliseconds)));
+  }
+
+  @Override
+  public void setSocketTimeoutMs(Properties props, String propertyKey, long milliseconds) {
+    // PGJDBC uses seconds for its socket timeout setting.
+    props.setProperty(propertyKey, String.valueOf(TimeUnit.MILLISECONDS.toSeconds(milliseconds)));
+  }
 }

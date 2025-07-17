@@ -78,8 +78,8 @@ public class BlueGreenStatusProvider {
       "High Blue/Green Deployment status checking interval (in msec).");
 
   private static final String MONITORING_PROPERTY_PREFIX = "blue-green-monitoring-";
-  private static final String DEFAULT_CONNECT_TIMEOUT_MS = String.valueOf(TimeUnit.SECONDS.toMillis(10));
-  private static final String DEFAULT_SOCKET_TIMEOUT_MS = String.valueOf(TimeUnit.SECONDS.toMillis(10));
+  private static final long DEFAULT_CONNECT_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(10);
+  private static final long DEFAULT_SOCKET_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(10);
 
   public static final AwsWrapperProperty BG_SWITCHOVER_TIMEOUT_MS = new AwsWrapperProperty(
       "bgSwitchoverTimeoutMs", "180000", // 3min
@@ -189,8 +189,14 @@ public class BlueGreenStatusProvider {
               monitoringConnProperties.remove(p);
             });
 
-    monitoringConnProperties.putIfAbsent(PropertyDefinition.CONNECT_TIMEOUT.name, DEFAULT_CONNECT_TIMEOUT_MS);
-    monitoringConnProperties.putIfAbsent(PropertyDefinition.SOCKET_TIMEOUT.name, DEFAULT_SOCKET_TIMEOUT_MS);
+    this.pluginService.getTargetDriverDialect().setConnectTimeoutMs(
+        monitoringConnProperties,
+        PropertyDefinition.CONNECT_TIMEOUT.name,
+        DEFAULT_CONNECT_TIMEOUT_MS);
+    this.pluginService.getTargetDriverDialect().setSocketTimeoutMs(
+        monitoringConnProperties,
+        PropertyDefinition.SOCKET_TIMEOUT.name,
+        DEFAULT_SOCKET_TIMEOUT_MS);
 
     return monitoringConnProperties;
   }

@@ -46,10 +46,9 @@ public interface TargetDriverDialect {
   void registerDriver() throws SQLException;
 
   /**
-   * Attempts to communicate to a database node in order to measure network latency.
-   * Some database protocols may not support the simplest "ping" packet. In this case,
-   * it's recommended to execute a simple connection validation, or the simplest SQL
-   * query like "SELECT 1".
+   * Attempts to communicate to a database node in order to measure network latency. Some database protocols may not
+   * support the simplest "ping" packet. In this case, it's recommended to execute a simple connection validation, or
+   * the simplest SQL query like "SELECT 1".
    *
    * @param connection The database connection to a node to ping.
    * @return True, if operation is succeeded. False, otherwise.
@@ -61,4 +60,8 @@ public interface TargetDriverDialect {
   String getSQLState(final Throwable throwable);
 
   Set<String> getNetworkBoundMethodNames(final @Nullable Properties properties);
+
+  void setConnectTimeoutMs(final Properties props, final String propertyKey, final long milliseconds);
+
+  void setSocketTimeoutMs(final Properties props, final String propertyKey, final long milliseconds);
 }
