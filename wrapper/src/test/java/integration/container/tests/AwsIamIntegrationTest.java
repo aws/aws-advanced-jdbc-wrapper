@@ -19,8 +19,10 @@ package integration.container.tests;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import integration.DatabaseEngineDeployment;
 import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
+import integration.TestEnvironmentInfo;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriver;
 import integration.container.TestDriverProvider;
@@ -113,6 +115,7 @@ public class AwsIamIntegrationTest {
   /** Attempt to connect using IP address instead of a hostname. */
   @TestTemplate
   @DisableOnTestDriver(TestDriver.MARIADB)
+  @DisableOnTestFeature({TestEnvironmentFeatures.REQUIRES_TLS_SNI})
   public void test_AwsIam_UsingIPAddress() throws UnknownHostException, SQLException {
     final Properties props =
         initAwsIamProps(TestEnvironment.getCurrent().getInfo().getIamUsername(), "<anything>");
@@ -300,8 +303,13 @@ public class AwsIamIntegrationTest {
   }
 
   protected Properties initAwsIamProps(String user, String password) {
+    final TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
+    final DatabaseEngineDeployment deployment = envInfo.getRequest().getDatabaseEngineDeployment();
+    final boolean isDsql = (deployment == DatabaseEngineDeployment.DSQL);
+
     final Properties props = ConnectionStringHelper.getDefaultProperties();
-    props.setProperty(PropertyDefinition.PLUGINS.name, "iam");
+    props.setProperty(PropertyDefinition.PLUGINS.name, isDsql ? "iamDsql" : "iam");
+
     props.setProperty(
         IamAuthConnectionPlugin.IAM_REGION.name,
         TestEnvironment.getCurrent().getInfo().getRegion());

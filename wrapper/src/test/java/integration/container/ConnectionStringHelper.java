@@ -17,9 +17,11 @@
 package integration.container;
 
 import integration.DatabaseEngine;
+import integration.DatabaseEngineDeployment;
 import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
 import integration.TestEnvironmentInfo;
+import integration.TestEnvironmentRequest;
 import integration.TestInstanceInfo;
 import java.util.Properties;
 import java.util.Set;
@@ -190,13 +192,38 @@ public class ConnectionStringHelper {
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
   }
 
+  /**
+   * Add the {@code dataCache} plugin to the provided {@link Properties}, without clobbering existing plugins.
+   *
+   * @param props The {@link Properties} to modify.
+   * @param plugin The plugin to be added.
+   */
+  public static void addPlugin(final Properties props, final String plugin) {
+    final String pluginKey = PropertyDefinition.PLUGINS.name;
+    if (props.containsKey(pluginKey)) {
+      final String current = props.getProperty(pluginKey);
+      props.setProperty(pluginKey, plugin + "," + current);
+    } else {
+      props.setProperty(pluginKey, plugin);
+    }
+  }
+
   public static Properties getDefaultProperties() {
     final Properties props = new Properties();
-    TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
+    final TestEnvironment env = TestEnvironment.getCurrent();
+    final TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
     props.setProperty(PropertyDefinition.USER.name, envInfo.getDatabaseInfo().getUsername());
-    props.setProperty(PropertyDefinition.PASSWORD.name, envInfo.getDatabaseInfo().getPassword());
 
-    final Set<TestEnvironmentFeatures> features = envInfo.getRequest().getFeatures();
+    final TestEnvironmentRequest request = envInfo.getRequest();
+
+    // DSQL only supports IAM authentication.
+    if (request.getDatabaseEngineDeployment() == DatabaseEngineDeployment.DSQL) {
+      props.setProperty(PropertyDefinition.PLUGINS.name, "iamDsql");
+    } else {
+      props.setProperty(PropertyDefinition.PASSWORD.name, envInfo.getDatabaseInfo().getPassword());
+    }
+
+    final Set<TestEnvironmentFeatures> features = request.getFeatures();
     props.setProperty(PropertyDefinition.ENABLE_TELEMETRY.name, "true");
     props.setProperty(PropertyDefinition.TELEMETRY_SUBMIT_TOPLEVEL.name, "true");
     props.setProperty(
@@ -208,7 +235,7 @@ public class ConnectionStringHelper {
 
     props.setProperty(PropertyDefinition.TCP_KEEP_ALIVE.name, "false");
 
-    if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB) {
+    if (env.getCurrentDriver() == TestDriver.MARIADB) {
       // This property is sometimes required when using the mariadb driver against multi-az mysql version 8.4, or you
       // will get the error "RSA public key is not available client side" when connecting. The mariadb driver may not
       // fully support mysql 8.4's SSL mechanisms, which is why this property is only required for newer mysql versions.

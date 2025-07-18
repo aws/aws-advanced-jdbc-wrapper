@@ -38,6 +38,7 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.postgresql.util.PSQLException;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.DataCacheConnectionPlugin;
 import software.amazon.jdbc.plugin.DataCacheConnectionPlugin.CachedResultSet;
@@ -55,13 +56,70 @@ public class DataCachePluginTests {
 
   private static final Logger LOGGER = Logger.getLogger(DataCachePluginTests.class.getName());
 
+  private static final int ARBITRARY_NUM_RETRIES = 5;
+
   @BeforeEach
   public void beforeEach() {
     DataCacheConnectionPlugin.clearCache();
   }
 
+  private static void runWithRetries() {
+
+  }
+
+  /**
+   * Aurora DSQL occasionally requires multiple attempts to execute transactions surrounding DDL statements. The
+   * probability is increased when the same table is deleted/created back-to-back. This is due to the optimistic
+   * concurrency approach used by its transaction model.
+   * <p>
+   * This method executes the provided query, and retries it if an optimistic concurrency control error occurs.
+   *
+   * @param conn The {@link Connection} to execute the query against.
+   * @param sql The SQL to execute.
+   * @param expectResultSet Whether to expect and return a ResultSet.
+   * @return The {@link ResultSet} of the query if requested, {@code null} otherwise.
+   * @link
+   * <a href="https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-concurrency-control.html">Concurrency control in Aurora DSQL</a>
+   */
+  private static ResultSet executeWithRetry(final Connection conn, final String sql, boolean expectResultSet)
+      throws SQLException, InterruptedException {
+    SQLException lastException = null;
+
+    for (int remainingRetries = ARBITRARY_NUM_RETRIES; remainingRetries > 0; remainingRetries--) {
+      try {
+        Statement statement = conn.createStatement();
+        if (expectResultSet) {
+          return statement.executeQuery(sql);
+        } else {
+          statement.execute(sql);
+          return null;
+        }
+      } catch (final PSQLException ex) {
+        if (ex.getMessage().contains("OC00")) {
+          lastException = ex;
+          Thread.sleep(1000);
+          continue;
+        }
+        throw ex;
+      }
+    }
+
+    throw lastException;
+  }
+
+  private static void execute(final Connection conn, final String statement)
+      throws SQLException, InterruptedException {
+    executeWithRetry(conn, statement, false);
+  }
+
+  private static ResultSet executeQuery(final Connection conn, final String query)
+      throws SQLException, InterruptedException {
+    return executeWithRetry(conn, query, true);
+  }
+
+
   @TestTemplate
-  public void testQueryCacheable() throws SQLException {
+  public void testQueryCacheable() throws SQLException, InterruptedException {
 
     DataCacheConnectionPlugin.clearCache();
 
@@ -69,21 +127,20 @@ public class DataCachePluginTests {
     PropertyDefinition.CONNECT_TIMEOUT.set(props, "30000");
     PropertyDefinition.SOCKET_TIMEOUT.set(props, "30000");
 
-    props.setProperty(PropertyDefinition.PLUGINS.name, "dataCache");
+    ConnectionStringHelper.addPlugin(props, "dataCache");
     props.setProperty(DataCacheConnectionPlugin.DATA_CACHE_TRIGGER_CONDITION.name, ".*testTable.*");
 
     Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
 
-    conn.createStatement().execute("drop table if exists testTable");
-    conn.createStatement().execute("create table testTable (id int not null primary key, name varchar(100))");
-    conn.createStatement().execute("insert into testTable (id, name) values (1, 'name1')");
-    conn.createStatement().execute("insert into testTable (id, name) values (2, 'name2')");
-    conn.createStatement().execute("insert into testTable (id, name) values (3, 'name3')");
+    execute(conn, "drop table if exists testTable");
+    execute(conn, "create table testTable (id int not null primary key, name varchar(100))");
+    execute(conn, "insert into testTable (id, name) values (1, 'name1')");
+    execute(conn, "insert into testTable (id, name) values (2, 'name2')");
+    execute(conn, "insert into testTable (id, name) values (3, 'name3')");
 
     printTable();
 
-    Statement statement = conn.createStatement();
-    ResultSet resultSet = statement.executeQuery("select id, name from testTable");
+    ResultSet resultSet = executeQuery(conn, "select id, name from testTable");
     assertTrue(resultSet.next());
     assertEquals(1, resultSet.getObject(1));
     assertEquals("name1", resultSet.getObject(2));
@@ -96,8 +153,8 @@ public class DataCachePluginTests {
 
     assertFalse(resultSet.next()); // no more data
 
-    conn.createStatement().execute("update testTable set id=id*10");
-    conn.createStatement().execute("update testTable set name=concat('name', id)");
+    execute(conn, "update testTable set id=id*10");
+    execute(conn, "update testTable set name=concat('name', id)");
 
     // Actual data in the database table
     // 10, "name10"
@@ -106,8 +163,7 @@ public class DataCachePluginTests {
 
     printTable();
 
-    Statement testStatement = conn.createStatement();
-    ResultSet testResultSet = testStatement.executeQuery("select id, name from testTable");
+    ResultSet testResultSet = executeQuery(conn, "select id, name from testTable");
     assertTrue(testResultSet.isWrapperFor(CachedResultSet.class));
 
     // It's expected to get cached data
@@ -124,9 +180,7 @@ public class DataCachePluginTests {
     printTable();
 
     // The following SQL statement isn't in the cache so data is fetched from DB
-    Statement statementFromDb = conn.createStatement();
-    ResultSet resultSetFromDb =
-        statementFromDb.executeQuery("select id, name from testTable where id > 0");
+    ResultSet resultSetFromDb = executeQuery(conn, "select id, name from testTable where id > 0");
     assertTrue(resultSetFromDb.next());
     assertEquals(10, resultSetFromDb.getObject(1));
     assertEquals("name10", resultSetFromDb.getObject(2));
@@ -145,10 +199,8 @@ public class DataCachePluginTests {
         () -> {
           try {
             final Properties props = ConnectionStringHelper.getDefaultProperties();
-            Connection conn = DriverManager.getConnection(ConnectionStringHelper.getUrl(), props);
-            Statement statementFromDb = conn.createStatement();
-            ResultSet resultSetFromDb =
-                statementFromDb.executeQuery("select id, name from testTable where id > 0");
+            Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
+            ResultSet resultSetFromDb = executeQuery(conn, "select id, name from testTable where id > 0");
             StringBuilder sb = new StringBuilder("Table content:");
             boolean hasData = false;
             while (resultSetFromDb.next()) {
@@ -164,36 +216,35 @@ public class DataCachePluginTests {
             conn.close();
             return sb.toString();
 
-          } catch (SQLException ex) {
+          } catch (SQLException | InterruptedException ex) {
             throw new RuntimeException(ex);
           }
         });
   }
 
   @TestTemplate
-  public void testQueryNotCacheable() throws SQLException {
+  public void testQueryNotCacheable() throws SQLException, InterruptedException {
 
     DataCacheConnectionPlugin.clearCache();
 
     final Properties props = ConnectionStringHelper.getDefaultProperties();
     PropertyDefinition.CONNECT_TIMEOUT.set(props, "30000");
     PropertyDefinition.SOCKET_TIMEOUT.set(props, "30000");
-    props.setProperty(PropertyDefinition.PLUGINS.name, "dataCache");
+    ConnectionStringHelper.addPlugin(props, "dataCache");
     props.setProperty(
         DataCacheConnectionPlugin.DATA_CACHE_TRIGGER_CONDITION.name, ".*WRONG_EXPRESSION.*");
 
     Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
 
-    conn.createStatement().execute("drop table if exists testTable");
-    conn.createStatement().execute("create table testTable (id int not null primary key, name varchar(100))");
-    conn.createStatement().execute("insert into testTable (id, name) values (1, 'name1')");
-    conn.createStatement().execute("insert into testTable (id, name) values (2, 'name2')");
-    conn.createStatement().execute("insert into testTable (id, name) values (3, 'name3')");
+    execute(conn, "drop table if exists testTable");
+    execute(conn, "create table testTable (id int not null primary key, name varchar(100))");
+    execute(conn, "insert into testTable (id, name) values (1, 'name1')");
+    execute(conn, "insert into testTable (id, name) values (2, 'name2')");
+    execute(conn, "insert into testTable (id, name) values (3, 'name3')");
 
     printTable();
 
-    Statement statement = conn.createStatement();
-    ResultSet resultSet = statement.executeQuery("select id, name from testTable");
+    ResultSet resultSet = executeQuery(conn, "select id, name from testTable");
     assertTrue(resultSet.next());
     assertEquals(1, resultSet.getObject(1));
     assertEquals("name1", resultSet.getObject(2));
@@ -206,8 +257,8 @@ public class DataCachePluginTests {
 
     assertFalse(resultSet.next()); // no more data
 
-    conn.createStatement().execute("update testTable set id=id*10");
-    conn.createStatement().execute("update testTable set name=concat('name', id)");
+    execute(conn, "update testTable set id=id*10");
+    execute(conn, "update testTable set name=concat('name', id)");
 
     // Actual data in the database table
     // 10, "name10"
@@ -216,8 +267,7 @@ public class DataCachePluginTests {
 
     printTable();
 
-    Statement testStatement = conn.createStatement();
-    ResultSet testResultSet = testStatement.executeQuery("select id, name from testTable");
+    ResultSet testResultSet = executeQuery(conn, "select id, name from testTable");
     assertFalse(testResultSet.isWrapperFor(CachedResultSet.class));
 
     // It's expected to get cached data

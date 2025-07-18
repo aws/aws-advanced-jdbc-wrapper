@@ -362,6 +362,24 @@ tasks.register<Test>("test-hibernate-only") {
     }
 }
 
+tasks.register<Test>("test-all-dsql") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
+    doFirst {
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+        systemProperty("test-no-traces-telemetry", "true")
+        systemProperty("test-no-metrics-telemetry", "true")
+        systemProperty("test-no-secrets-manager", "true")
+        systemProperty("test-no-failover", "true")
+        systemProperty("test-no-multi-az-cluster", "true")
+        systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-aurora", "true")
+        systemProperty("test-no-bg", "true")
+    }
+}
+
 tasks.register<Test>("test-all-aurora") {
     group = "verification"
     filter.includeTestsMatching("integration.host.TestRunner.runTests")
@@ -674,6 +692,24 @@ tasks.register<Test>("debug-hibernate-only") {
         systemProperty("test-no-mariadb-driver", "true")
         systemProperty("test-no-mariadb-engine", "true")
         systemProperty("test-hibernate-only", "true")
+        systemProperty("test-no-bg", "true")
+    }
+}
+
+tasks.register<Test>("debug-all-dsql") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.TestRunner.debugTests")
+    doFirst {
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+        systemProperty("test-no-traces-telemetry", "true")
+        systemProperty("test-no-metrics-telemetry", "true")
+        systemProperty("test-no-secrets-manager", "true")
+        systemProperty("test-no-failover", "true")
+        systemProperty("test-no-multi-az-cluster", "true")
+        systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-aurora", "true")
         systemProperty("test-no-bg", "true")
     }
 }

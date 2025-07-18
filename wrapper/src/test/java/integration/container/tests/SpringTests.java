@@ -18,7 +18,10 @@ package integration.container.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import integration.DatabaseEngineDeployment;
 import integration.TestEnvironmentFeatures;
+import integration.TestEnvironmentInfo;
+import integration.TestEnvironmentRequest;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
@@ -56,13 +59,23 @@ public class SpringTests {
   }
 
   private DataSource getDataSource() {
+    final TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
+
     DriverManagerDataSource dataSource = new DriverManagerDataSource();
     dataSource.setDriverClassName("software.amazon.jdbc.Driver");
     dataSource.setUrl(ConnectionStringHelper.getWrapperUrl());
-    dataSource.setUsername(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
-    dataSource.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+    dataSource.setUsername(envInfo.getDatabaseInfo().getUsername());
 
     Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
+
+    // DSQL only supports IAM authentication.
+    final TestEnvironmentRequest request = envInfo.getRequest();
+    if (request.getDatabaseEngineDeployment() == DatabaseEngineDeployment.DSQL) {
+      props.setProperty(PropertyDefinition.PLUGINS.name, "iamDsql");
+    } else {
+      dataSource.setPassword(envInfo.getDatabaseInfo().getPassword());
+    }
+
     props.setProperty(PropertyDefinition.LOGGER_LEVEL.name, "ALL");
     dataSource.setConnectionProperties(props);
 

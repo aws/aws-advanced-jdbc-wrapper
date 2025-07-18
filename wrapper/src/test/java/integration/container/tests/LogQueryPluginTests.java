@@ -65,7 +65,7 @@ public class LogQueryPluginTests {
     logger.addHandler(handler);
 
     Properties props = ConnectionStringHelper.getDefaultProperties();
-    props.setProperty(PropertyDefinition.PLUGINS.name, "logQuery");
+    ConnectionStringHelper.addPlugin(props, "logQuery");
     props.setProperty(LogQueryConnectionPlugin.ENHANCED_LOG_QUERY_ENABLED.name, "true");
 
     Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
@@ -94,7 +94,7 @@ public class LogQueryPluginTests {
     logger.addHandler(handler);
 
     Properties props = ConnectionStringHelper.getDefaultProperties();
-    props.setProperty(PropertyDefinition.PLUGINS.name, "logQuery");
+    ConnectionStringHelper.addPlugin(props, "logQuery");
     props.setProperty(LogQueryConnectionPlugin.ENHANCED_LOG_QUERY_ENABLED.name, "true");
 
     Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
