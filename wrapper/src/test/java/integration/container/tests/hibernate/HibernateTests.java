@@ -20,7 +20,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import integration.DatabaseEngine;
-import integration.DatabaseEngineDeployment;
 import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
@@ -28,6 +27,7 @@ import integration.container.TestDriver;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestFeature;
+import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -54,6 +54,7 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
+@EnableOnTestFeature(TestEnvironmentFeatures.SUPPORTS_FOREIGN_KEYS)
 @DisableOnTestFeature({
     TestEnvironmentFeatures.PERFORMANCE,
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,

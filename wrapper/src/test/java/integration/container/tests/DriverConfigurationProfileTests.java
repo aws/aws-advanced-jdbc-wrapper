@@ -21,17 +21,21 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import integration.DatabaseEngineDeployment;
 import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
+import integration.TestEnvironmentInfo;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriverProvider;
+import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestFeature;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Properties;
 import java.util.Random;
 import org.junit.jupiter.api.MethodOrderer;
@@ -39,8 +43,10 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
+import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
+import software.amazon.jdbc.plugin.iam.DsqlIamConnectionPluginFactory;
 import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
@@ -74,13 +80,22 @@ public class DriverConfigurationProfileTests {
   @TestTemplate
   public void testOpenConnectionWithProfile() throws SQLException {
 
-    Properties props = ConnectionStringHelper.getDefaultProperties();
+    Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
     props.setProperty(PropertyDefinition.PROFILE_NAME.name, "testProfile");
+
+    final List<Class<? extends ConnectionPluginFactory>> pluginFactories = new LinkedList<>();
+    pluginFactories.add(ExecutionTimeConnectionPluginFactory.class);
+
+    // DSQL only supports IAM authentication.
+    TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
+    if (envInfo.getRequest().getDatabaseEngineDeployment() == DatabaseEngineDeployment.DSQL) {
+      pluginFactories.add(DsqlIamConnectionPluginFactory.class);
+    }
 
     DriverConfigurationProfiles.clear();
     ConfigurationProfileBuilder.get()
         .withName("testProfile")
-        .withPluginFactories(Collections.singletonList(ExecutionTimeConnectionPluginFactory.class))
+        .withPluginFactories(pluginFactories)
         .buildAndSet();
 
     Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);

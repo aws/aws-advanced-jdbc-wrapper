@@ -21,8 +21,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import integration.DatabaseEngineDeployment;
 import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
+import integration.TestEnvironmentInfo;
+import integration.TestEnvironmentRequest;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriver;
 import integration.container.TestDriverProvider;
@@ -64,20 +67,29 @@ public class DataSourceTests {
   @DisableOnTestDriver(TestDriver.MARIADB)
   public void testConnectionWithDataSourceClassNameAndServerNameFromJndiLookup()
       throws SQLException, NamingException, IllegalAccessException {
+    final TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
+
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setJdbcProtocol(DriverHelper.getDriverProtocol());
-    ds.setServerName(TestEnvironment.getCurrent()
-        .getInfo()
+    ds.setServerName(envInfo
         .getDatabaseInfo()
         .getInstances()
         .get(0)
         .getHost());
-    ds.setDatabase(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
-    ds.setUser(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
-    ds.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+    ds.setDatabase(envInfo.getDatabaseInfo().getDefaultDbName());
+    ds.setUser(envInfo.getDatabaseInfo().getUsername());
     ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
 
     final Properties targetDataSourceProps = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
+
+    // DSQL only supports IAM authentication.
+    final TestEnvironmentRequest request = envInfo.getRequest();
+    if (request.getDatabaseEngineDeployment() == DatabaseEngineDeployment.DSQL) {
+      targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "iamDsql");
+    } else {
+      ds.setPassword(envInfo.getDatabaseInfo().getPassword());
+    }
+
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     final Hashtable<String, Object> env = new Hashtable<>();
@@ -106,13 +118,11 @@ public class DataSourceTests {
 
     try (final Connection conn =
         dsFromJndiLookup.getConnection(
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername(),
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword())) {
+            envInfo.getDatabaseInfo().getUsername(),
+            envInfo.getDatabaseInfo().getPassword())) {
 
       assertTrue(conn.isWrapperFor(DriverHelper.getConnectionClass()));
-      assertEquals(
-          conn.getCatalog(),
-          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+      assertEquals(conn.getCatalog(), envInfo.getDatabaseInfo().getDefaultDbName());
 
       assertTrue(conn.isValid(10));
     }
@@ -121,16 +131,24 @@ public class DataSourceTests {
   @TestTemplate
   public void testConnectionWithDataSourceClassNameAndUrlFromJndiLookup()
       throws SQLException, NamingException, IllegalAccessException {
-    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    final TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
 
+    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
     ds.setJdbcProtocol(DriverHelper.getDriverProtocol());
     ds.setJdbcUrl(ConnectionStringHelper.getUrl());
-    ds.setUser(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
-    ds.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+    ds.setUser(envInfo.getDatabaseInfo().getUsername());
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "");
+
+    // DSQL only supports IAM authentication.
+    final TestEnvironmentRequest request = envInfo.getRequest();
+    if (request.getDatabaseEngineDeployment() == DatabaseEngineDeployment.DSQL) {
+      targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "iamDsql");
+    } else {
+      ds.setPassword(envInfo.getDatabaseInfo().getPassword());
+    }
+
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     final Hashtable<String, Object> env = new Hashtable<>();
@@ -159,14 +177,12 @@ public class DataSourceTests {
 
     try (final Connection conn =
         dsFromJndiLookup.getConnection(
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername(),
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword())) {
+            envInfo.getDatabaseInfo().getUsername(),
+            envInfo.getDatabaseInfo().getPassword())) {
 
       assertTrue(conn instanceof ConnectionWrapper);
       assertTrue(conn.isWrapperFor(DriverHelper.getConnectionClass()));
-      assertEquals(
-          conn.getCatalog(),
-          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+      assertEquals(conn.getCatalog(), envInfo.getDatabaseInfo().getDefaultDbName());
 
       assertTrue(conn.isValid(10));
     }

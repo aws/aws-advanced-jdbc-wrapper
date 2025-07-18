@@ -96,6 +96,9 @@ public class TestEnvironmentConfiguration {
   public String rdsEndpoint =
       System.getenv("RDS_ENDPOINT"); // "https://rds-int.amazon.com"
 
+  public String dsqlEndpoint =
+      System.getenv("DSQL_ENDPOINT"); // "cluster-identifier.dsql.us-east-1.on.aws"
+
   // Expected values: "latest", "default", or engine version, for example, "15.4"
   // If left as empty, will use default version
   public String mysqlVersion =

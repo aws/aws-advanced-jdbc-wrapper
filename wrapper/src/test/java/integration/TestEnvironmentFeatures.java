@@ -18,6 +18,9 @@ package integration;
 
 public enum TestEnvironmentFeatures {
   IAM,
+  REQUIRES_IAM_AUTH,
+  REQUIRES_TLS_SNI,
+  SUPPORTS_FOREIGN_KEYS,
   SECRETS_MANAGER,
   FAILOVER_SUPPORTED,
   NETWORK_OUTAGES_ENABLED,
