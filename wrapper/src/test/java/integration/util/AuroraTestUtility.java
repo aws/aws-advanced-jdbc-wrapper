@@ -40,6 +40,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -134,6 +135,7 @@ import software.amazon.awssdk.services.rds.model.SwitchoverBlueGreenDeploymentRe
 import software.amazon.awssdk.services.rds.model.SwitchoverBlueGreenDeploymentResponse;
 import software.amazon.awssdk.services.rds.model.Tag;
 import software.amazon.awssdk.services.rds.waiters.RdsWaiter;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -1260,6 +1262,36 @@ public class AuroraTestUtility {
       }
     }
     return auroraInstances;
+  }
+
+  public Pair<String, String> getTargetDriverNameAndVersion() {
+
+    try {
+      try (final Connection conn = DriverManager.getConnection(
+          ConnectionStringHelper.getUrl(),
+          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername(),
+          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword())) {
+
+        return Pair.create(conn.getMetaData().getDriverName(), conn.getMetaData().getDriverVersion());
+      }
+    } catch (SQLException ex) {
+      return Pair.create(null, null);
+    }
+  }
+
+  public Pair<String, String> getAwsDriverNameAndVersion() {
+
+    try {
+      try (final Connection conn = DriverManager.getConnection(
+          ConnectionStringHelper.getWrapperUrl(),
+          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername(),
+          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword())) {
+
+        return Pair.create(conn.getMetaData().getDriverName(), conn.getMetaData().getDriverVersion());
+      }
+    } catch (SQLException ex) {
+      return Pair.create(null, null);
+    }
   }
 
   private String getMultiAzMysqlReplicaWriterInstanceId(

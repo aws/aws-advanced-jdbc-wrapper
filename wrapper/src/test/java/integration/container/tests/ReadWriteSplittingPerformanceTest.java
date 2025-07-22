@@ -21,6 +21,7 @@ import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
+import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnNumOfInstances;
 import integration.container.condition.EnableOnTestFeature;
 import java.io.File;
@@ -56,6 +57,7 @@ import software.amazon.jdbc.util.StringUtils;
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
 @EnableOnTestFeature(TestEnvironmentFeatures.PERFORMANCE)
+@DisableOnTestFeature(TestEnvironmentFeatures.RUN_DB_METRICS_ONLY)
 @EnableOnNumOfInstances(min = 5)
 @Tag("rw-splitting")
 @Order(11)
