@@ -16,8 +16,8 @@
 
 import com.github.vlsi.gradle.dsl.configureEach
 import com.github.vlsi.gradle.properties.dsl.props
-import com.github.vlsi.gradle.publishing.dsl.simplifyXml
 import software.amazon.jdbc.buildtools.JavaCommentPreprocessorTask
+import com.github.vlsi.gradle.publishing.dsl.simplifyXml
 
 plugins {
     java
@@ -43,14 +43,6 @@ val buildVersion =
 allprojects {
     group = "software.amazon.jdbc"
     version = buildVersion
-
-    java {
-        withJavadocJar()
-        withSourcesJar()
-        toolchain {
-            languageVersion.set(JavaLanguageVersion.of(11))
-        }
-    }
 
     repositories {
         mavenCentral()
