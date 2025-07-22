@@ -16,8 +16,8 @@
 
 import com.github.vlsi.gradle.dsl.configureEach
 import com.github.vlsi.gradle.properties.dsl.props
-import software.amazon.jdbc.buildtools.JavaCommentPreprocessorTask
 import com.github.vlsi.gradle.publishing.dsl.simplifyXml
+import software.amazon.jdbc.buildtools.JavaCommentPreprocessorTask
 
 plugins {
     java
@@ -26,6 +26,10 @@ plugins {
     id("com.github.vlsi.gradle-extensions")
     id("com.github.vlsi.stage-vote-release")
     id("com.github.vlsi.ide")
+}
+
+releaseParams {
+    componentName.set("aws-advanced-jdbc-wrapper")
 }
 
 val versionMajor = project.property("aws-advanced-jdbc-wrapper.version.major")
@@ -156,5 +160,20 @@ allprojects {
 
             mavenLocal()
         }
+    }
+}
+
+tasks.register<Exec>("postPublishToMaven") {
+    doFirst {
+        val username = System.getenv("MAVEN_USERNAME")
+        val password = System.getenv("MAVEN_PASSWORD")
+
+        commandLine(
+            "curl", "-X", "POST",
+            "-u", "$username:$password",
+            "-H", "Content-Type: application/json",
+            "-d", "{}",
+            "https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/software.amazon"
+        )
     }
 }

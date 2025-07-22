@@ -3,13 +3,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
-## [2.6.1] - TBD
+## [2.6.1] - 2025-07-21
 ### :magic_wand: Added
+- Add a Blue/Green Support Behaviour and Version Compatibility section to the Blue Green Plugin documentation ([PR #1475](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1475)).
 
 ### :bug: Fixed
+- Incorrectly handling XX000 errors as network-related errors ([Issue #1453](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1453)).
+- Several minor issues in the Blue Green Plugin ([PR #1441](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1441), [PR #1479](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1479)).
 
 ### :crab: Changed
-- Remove suggested ClusterId functionality. For applications that use a single cluster database **no changes are required**. For application that access multiple database clusters, all connection string **should be** reviewed and a mandatory `clusterId` parameter **should be added**. ([PR #1476](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1476)).
+- Performance optimization ([PR #1444](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1444)).
+- Blue/Green Plugin [documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheBlueGreenPlugin.md) to include default and suggested parameter values.
+- Updated Hibernate tests to Hibernate version 7.0.2.
+- Remove suggested ClusterId functionality. For applications that use a single cluster database **no changes are required**. For application that access multiple database clusters, all connection string **should be** reviewed and a mandatory `clusterId` parameter **should be added** ([PR #1476](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1476)). See the [documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheFailover2Plugin.md#failover-plugin-v2-configuration-parameters) to learn about the `clusterId` parameter.
 
 ## [2.6.0] - 2025-06-10
 ### :magic_wand: Added
@@ -464,6 +470,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[2.6.1]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.0...2.6.1
 [2.6.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.5.6...2.6.0
 [2.5.6]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.5.5...2.5.6
 [2.5.5]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.5.4...2.5.5
