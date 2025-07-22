@@ -31,6 +31,7 @@ import integration.container.ConnectionStringHelper;
 import integration.container.ProxyHelper;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
+import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnTestFeature;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -76,6 +77,7 @@ import software.amazon.jdbc.util.StringUtils;
   TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
   TestEnvironmentFeatures.FAILOVER_SUPPORTED
 })
+@DisableOnTestFeature(TestEnvironmentFeatures.RUN_DB_METRICS_ONLY)
 @Order(10)
 public class PerformanceTest {
 

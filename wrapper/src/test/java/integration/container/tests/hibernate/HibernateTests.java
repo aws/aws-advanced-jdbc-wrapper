@@ -57,7 +57,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @DisableOnTestFeature({
     TestEnvironmentFeatures.PERFORMANCE,
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
-    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
+    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
+    TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
 @MakeSureFirstInstanceWriter
 @Order(19)
 public class HibernateTests {
