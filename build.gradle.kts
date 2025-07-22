@@ -44,6 +44,14 @@ allprojects {
     group = "software.amazon.jdbc"
     version = buildVersion
 
+    java {
+        withJavadocJar()
+        withSourcesJar()
+        toolchain {
+            languageVersion.set(JavaLanguageVersion.of(11))
+        }
+    }
+
     repositories {
         mavenCentral()
     }
