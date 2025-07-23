@@ -3,6 +3,7 @@ package software.amazon;
 import software.amazon.util.EnvLoader;
 import java.sql.*;
 import java.util.*;
+import java.util.logging.Logger;
 
 public class DatabaseConnectionWithCacheExample {
 
@@ -14,9 +15,12 @@ public class DatabaseConnectionWithCacheExample {
   private static final String USERNAME = env.get("DB_USERNAME");
   private static final String PASSWORD = env.get("DB_PASSWORD");
   private static final String USE_SSL = env.get("USE_SSL");
+  private static final int THREAD_COUNT = 8; //Use 8 Threads
+  private static final long TEST_DURATION_MS = 16000; //Test duration for 16 seconds
 
   public static void main(String[] args) throws SQLException {
     final Properties properties = new Properties();
+    final Logger LOGGER = Logger.getLogger(DatabaseConnectionWithCacheExample.class.getName());
 
     // Configuring connection properties for the underlying JDBC driver.
     properties.setProperty("user", USERNAME);
@@ -28,20 +32,35 @@ public class DatabaseConnectionWithCacheExample {
     properties.setProperty("cacheEndpointAddrRo", CACHE_RO_SERVER_ADDR);
     properties.setProperty("cacheUseSSL", USE_SSL); // "true" or "false"
     properties.setProperty("wrapperLogUnclosedConnections", "true");
-    String queryStr = "select * from cinemas";
-    String queryStr2 = "SELECT * from cinemas";
+    String queryStr = "/* cacheTTL=300s */ select * from cinemas";
 
-    for (int i = 0 ; i < 5; i++) {
-      // Create a new database connection and issue queries to it
+    // Create threads for concurrent connection testing
+    Thread[] threads = new Thread[THREAD_COUNT];
+    for (int t = 0; t < THREAD_COUNT; t++) {
+      // Each thread uses a single connection for multiple queries
+      threads[t] = new Thread(() -> {
+        try {
+          try (Connection conn = DriverManager.getConnection(DB_CONNECTION_STRING, properties)) {
+            long endTime = System.currentTimeMillis() + TEST_DURATION_MS;
+            try (Statement stmt = conn.createStatement()) {
+              while (System.currentTimeMillis() < endTime) {
+                ResultSet rs = stmt.executeQuery(queryStr);
+                System.out.println("Executed the SQL query with result sets: " + rs.toString());
+              }
+            }
+          }
+        } catch (Exception e) {
+          LOGGER.warning("Error: " + e.getMessage());
+        }
+      });
+      threads[t].start();
+    }
+    // Wait for all threads to complete
+    for (Thread thread : threads) {
       try {
-        Connection conn = DriverManager.getConnection(DB_CONNECTION_STRING, properties);
-        Statement stmt = conn.createStatement();
-        ResultSet rs = stmt.executeQuery(queryStr);
-        ResultSet rs2 = stmt.executeQuery(queryStr2);
-        System.out.println("Executed the SQL query with result sets: " + rs.toString() + " and " + rs2.toString());
-        Thread.sleep(2000);
+        thread.join();
       } catch (InterruptedException e) {
-        throw new RuntimeException(e);
+        LOGGER.warning("Thread interrupted: " + e.getMessage());
       }
     }
   }
