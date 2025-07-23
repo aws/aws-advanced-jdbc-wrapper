@@ -71,6 +71,9 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
       if (deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE && config.noMultiAzInstance) {
         continue;
       }
+      if (deployment == DatabaseEngineDeployment.DSQL && config.noDsql) {
+        continue;
+      }
 
       for (DatabaseEngine engine : DatabaseEngine.values()) {
         if (engine == DatabaseEngine.PG && config.noPgEngine) {
@@ -82,9 +85,12 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
         if (engine == DatabaseEngine.MARIADB && config.noMariadbEngine) {
           continue;
         }
+        if (engine != DatabaseEngine.PG && deployment == DatabaseEngineDeployment.DSQL) {
+          continue;
+        }
 
         for (DatabaseInstances instances : DatabaseInstances.values()) {
-          if (deployment == DatabaseEngineDeployment.DOCKER
+          if ((deployment == DatabaseEngineDeployment.DOCKER ||  deployment == DatabaseEngineDeployment.DSQL)
               && instances != DatabaseInstances.SINGLE_INSTANCE) {
             continue;
           }
@@ -186,6 +192,9 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
                                 || config.noIam
                                 ? null
                                 : TestEnvironmentFeatures.IAM,
+                            deployment == DatabaseEngineDeployment.DSQL
+                                ? TestEnvironmentFeatures.RUN_DSQL_TESTS_ONLY
+                                : null,
                             config.noSecretsManager ? null : TestEnvironmentFeatures.SECRETS_MANAGER,
                             config.noHikari ? null : TestEnvironmentFeatures.HIKARI,
                             config.noPerformance ? null : TestEnvironmentFeatures.PERFORMANCE,

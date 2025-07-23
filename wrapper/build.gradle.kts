@@ -340,6 +340,7 @@ tasks.register<Test>("test-all-docker") {
         systemProperty("test-no-aurora", "true")
         systemProperty("test-no-multi-az-cluster", "true")
         systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-no-performance", "true")
         systemProperty("test-no-bg", "true")
     }
@@ -352,6 +353,7 @@ tasks.register<Test>("test-hibernate-only") {
         systemProperty("test-no-aurora", "true")
         systemProperty("test-no-multi-az-cluster", "true")
         systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-no-performance", "true")
         systemProperty("test-no-mariadb-driver", "true")
         systemProperty("test-no-mariadb-engine", "true")
@@ -360,6 +362,24 @@ tasks.register<Test>("test-hibernate-only") {
         systemProperty("test-no-openjdk17", "true")
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-hibernate-only", "true")
+        systemProperty("test-no-bg", "true")
+    }
+}
+
+tasks.register<Test>("test-all-dsql") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
+    doFirst {
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+        systemProperty("test-no-traces-telemetry", "true")
+        systemProperty("test-no-metrics-telemetry", "true")
+        systemProperty("test-no-secrets-manager", "true")
+        systemProperty("test-no-failover", "true")
+        systemProperty("test-no-multi-az-cluster", "true")
+        systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-aurora", "true")
         systemProperty("test-no-bg", "true")
     }
 }
@@ -376,6 +396,7 @@ tasks.register<Test>("test-all-aurora") {
         systemProperty("test-no-openjdk17", "true")
         systemProperty("test-no-multi-az-cluster", "true")
         systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-no-bg", "true")
     }
 }
@@ -392,6 +413,7 @@ tasks.register<Test>("test-all-multi-az") {
         systemProperty("test-no-openjdk17", "true")
         systemProperty("test-no-openjdk22", "true")
         systemProperty("test-no-aurora", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-no-bg", "true")
     }
 }
@@ -408,6 +430,7 @@ tasks.register<Test>("test-all-pg-aurora") {
         systemProperty("test-no-mariadb-engine", "true")
         systemProperty("test-no-multi-az-cluster", "true")
         systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-openjdk8", "true")
         systemProperty("test-no-openjdk17", "true")
@@ -431,6 +454,7 @@ tasks.register<Test>("test-all-pg-multi-az") {
         systemProperty("test-no-openjdk17", "true")
         systemProperty("test-no-openjdk22", "true")
         systemProperty("test-no-aurora", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-no-bg", "true")
     }
 }
@@ -450,6 +474,7 @@ tasks.register<Test>("test-all-mysql-aurora") {
         systemProperty("test-no-openjdk22", "true")
         systemProperty("test-no-multi-az-cluster", "true")
         systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-no-bg", "true")
     }
 }
@@ -468,6 +493,7 @@ tasks.register<Test>("test-all-mysql-multi-az") {
         systemProperty("test-no-openjdk17", "true")
         systemProperty("test-no-openjdk22", "true")
         systemProperty("test-no-aurora", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-no-bg", "true")
     }
 }
@@ -494,6 +520,7 @@ tasks.register<Test>("test-bgd-mysql-rds-instance-mysql-driver") {
         systemProperty("test-no-instances-3", "true")
         systemProperty("test-no-instances-5", "true")
         systemProperty("test-no-multi-az-cluster", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-bg-only", "true")
     }
 }
@@ -520,6 +547,7 @@ tasks.register<Test>("test-bgd-mysql-rds-instance-mariadb-driver") {
         systemProperty("test-no-instances-3", "true")
         systemProperty("test-no-instances-5", "true")
         systemProperty("test-no-multi-az-cluster", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-bg-only", "true")
     }
 }
@@ -547,6 +575,7 @@ tasks.register<Test>("test-bgd-mysql-aurora-mysql-driver") {
         systemProperty("test-no-instances-3", "true")
         systemProperty("test-no-instances-5", "true")
         systemProperty("test-no-multi-az-cluster", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-bg-only", "true")
     }
 }
@@ -574,6 +603,7 @@ tasks.register<Test>("test-bgd-mysql-aurora-mariadb-driver") {
         systemProperty("test-no-instances-3", "true")
         systemProperty("test-no-instances-5", "true")
         systemProperty("test-no-multi-az-cluster", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-bg-only", "true")
     }
 }
@@ -600,6 +630,7 @@ tasks.register<Test>("test-bgd-pg-aurora") {
         systemProperty("test-no-instances-3", "true")
         systemProperty("test-no-instances-5", "true")
         systemProperty("test-no-multi-az-cluster", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-bg-only", "true")
     }
 }
@@ -626,6 +657,7 @@ tasks.register<Test>("test-bgd-pg-rds-instance") {
         systemProperty("test-no-instances-3", "true")
         systemProperty("test-no-instances-5", "true")
         systemProperty("test-no-multi-az-cluster", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-bg-only", "true")
     }
 }
@@ -648,6 +680,7 @@ tasks.register<Test>("debug-all-docker") {
         systemProperty("test-no-aurora", "true")
         systemProperty("test-no-multi-az-cluster", "true")
         systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-no-performance", "true")
         systemProperty("test-no-bg", "true")
     }
@@ -660,6 +693,7 @@ tasks.register<Test>("debug-all-aurora") {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-performance", "true")
         systemProperty("test-no-bg", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-no-openjdk17", "true")
         systemProperty("test-no-openjdk22", "true")
     }
@@ -672,10 +706,29 @@ tasks.register<Test>("debug-hibernate-only") {
         systemProperty("test-no-aurora", "true")
         systemProperty("test-no-multi-az-cluster", "true")
         systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-no-performance", "true")
         systemProperty("test-no-mariadb-driver", "true")
         systemProperty("test-no-mariadb-engine", "true")
         systemProperty("test-hibernate-only", "true")
+        systemProperty("test-no-bg", "true")
+    }
+}
+
+tasks.register<Test>("debug-all-dsql") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.TestRunner.debugTests")
+    doFirst {
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+        systemProperty("test-no-traces-telemetry", "true")
+        systemProperty("test-no-metrics-telemetry", "true")
+        systemProperty("test-no-secrets-manager", "true")
+        systemProperty("test-no-failover", "true")
+        systemProperty("test-no-multi-az-cluster", "true")
+        systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-aurora", "true")
         systemProperty("test-no-bg", "true")
     }
 }
@@ -689,6 +742,7 @@ tasks.register<Test>("test-all-aurora-performance") {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-multi-az-cluster", "true")
         systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-no-iam", "true")
         systemProperty("test-no-hikari", "true")
         systemProperty("test-no-secrets-manager", "true")
@@ -710,6 +764,7 @@ tasks.register<Test>("test-aurora-pg-performance") {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-multi-az-cluster", "true")
         systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-no-iam", "true")
         systemProperty("test-no-hikari", "true")
         systemProperty("test-no-secrets-manager", "true")
@@ -735,6 +790,7 @@ tasks.register<Test>("debug-aurora-pg-performance") {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-multi-az-cluster", "true")
         systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-no-iam", "true")
         systemProperty("test-no-hikari", "true")
         systemProperty("test-no-secrets-manager", "true")
@@ -760,6 +816,7 @@ tasks.register<Test>("test-aurora-mysql-performance") {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-multi-az-cluster", "true")
         systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-no-iam", "true")
         systemProperty("test-no-hikari", "true")
         systemProperty("test-no-secrets-manager", "true")
@@ -785,6 +842,7 @@ tasks.register<Test>("debug-aurora-mysql-performance") {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-multi-az-cluster", "true")
         systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-no-iam", "true")
         systemProperty("test-no-hikari", "true")
         systemProperty("test-no-secrets-manager", "true")
@@ -810,6 +868,7 @@ tasks.register<Test>("test-aurora-pg-advanced-performance") {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-multi-az-cluster", "true")
         systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-no-iam", "true")
         systemProperty("test-no-hikari", "true")
         systemProperty("test-no-secrets-manager", "true")
@@ -835,6 +894,7 @@ tasks.register<Test>("test-aurora-mysql-advanced-performance") {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-multi-az-cluster", "true")
         systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-no-iam", "true")
         systemProperty("test-no-hikari", "true")
         systemProperty("test-no-secrets-manager", "true")
@@ -864,6 +924,7 @@ tasks.register<Test>("test-autoscaling-only") {
         systemProperty("test-no-performance", "true")
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-bg", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-no-openjdk17", "true")
         systemProperty("test-no-openjdk22", "true")
     }
@@ -878,6 +939,7 @@ tasks.register<Test>("debug-autoscaling-only") {
         systemProperty("test-no-performance", "true")
         systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-bg", "true")
+        systemProperty("test-no-dsql", "true")
         systemProperty("test-no-openjdk17", "true")
         systemProperty("test-no-openjdk22", "true")
     }

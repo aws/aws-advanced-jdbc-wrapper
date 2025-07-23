@@ -59,7 +59,8 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 @DisableOnTestFeature({
     TestEnvironmentFeatures.PERFORMANCE,
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
-    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
+    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
+    TestEnvironmentFeatures.RUN_DSQL_TESTS_ONLY})
 @Order(4)
 public class BasicConnectivityTests {
 

@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import eu.rekawek.toxiproxy.ToxiproxyClient;
 import integration.DatabaseEngine;
 import integration.DatabaseEngineDeployment;
+import integration.DatabaseInstances;
 import integration.DriverHelper;
 import integration.TestDatabaseInfo;
 import integration.TestEnvironmentFeatures;
@@ -42,6 +43,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
@@ -50,7 +52,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
-import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.ToxiproxyContainer;
@@ -59,6 +60,7 @@ import org.testcontainers.utility.MountableFile;
 import software.amazon.awssdk.services.rds.model.BlueGreenDeployment;
 import software.amazon.awssdk.services.rds.model.DBCluster;
 import software.amazon.awssdk.services.rds.model.DBInstance;
+import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 
 public class TestEnvironment implements AutoCloseable {
@@ -93,6 +95,7 @@ public class TestEnvironment implements AutoCloseable {
   private String rdsDbName; // "cluster-mysql", "instance-name", "rds-multi-az-cluster-name"
   private String rdsDbDomain; // "XYZ.us-west-2.rds.amazonaws.com"
   private String rdsEndpoint; // "https://rds-int.amazon.com"
+  private String dsqlEndpoint; // "cluster-identifier.dsql.us-east-1.on.aws"
 
   private String awsAccessKeyId;
   private String awsSecretAccessKey;
@@ -108,6 +111,7 @@ public class TestEnvironment implements AutoCloseable {
 
   private final Network network = Network.newNetwork();
 
+  private final RdsUtils rdsUtil = new RdsUtils();
   private AuroraTestUtility auroraUtil;
 
   private TestEnvironment(TestEnvironmentRequest request) {
@@ -146,6 +150,7 @@ public class TestEnvironment implements AutoCloseable {
       case AURORA:
       case RDS_MULTI_AZ_CLUSTER:
       case RDS_MULTI_AZ_INSTANCE:
+      case DSQL:
 
         env = createAuroraOrMultiAzEnvironment(request);
 
@@ -238,6 +243,8 @@ public class TestEnvironment implements AutoCloseable {
             || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER) {
           LOGGER.finer(() -> String.format("Use pre-created DB cluster: %s.cluster-%s",
               resultTestEnvironment.rdsDbName, resultTestEnvironment.rdsDbDomain));
+        } else if (deployment == DatabaseEngineDeployment.DSQL) {
+          LOGGER.finer(() -> String.format("Use pre-created DSQL cluster : %s", resultTestEnvironment.dsqlEndpoint));
         } else {
           LOGGER.finer(() -> String.format("Use pre-created DB : %s.%s",
               resultTestEnvironment.rdsDbName, resultTestEnvironment.rdsDbDomain));
@@ -276,6 +283,12 @@ public class TestEnvironment implements AutoCloseable {
             createCustomClusterParameterGroup(env);
           }
           createDbCluster(env);
+          configureIamAccess(env);
+          break;
+        case DSQL:
+          initEnv(env);
+          authorizeRunnerIpAddress(env);
+          createDsqlCluster(env);
           configureIamAccess(env);
           break;
         default:
@@ -679,6 +692,52 @@ public class TestEnvironment implements AutoCloseable {
     }
   }
 
+  private static void createDsqlCluster(final TestEnvironment env) {
+    final DatabaseInstances dbInstances = env.info.getRequest().getDatabaseInstances();
+    if (dbInstances != DatabaseInstances.SINGLE_INSTANCE) {
+      throw new NotImplementedException(dbInstances.toString());
+    }
+
+    if (env.reuseDb) {
+      if (StringUtils.isNullOrEmpty(env.dsqlEndpoint)) {
+        throw new RuntimeException("Environment variable DSQL_ENDPOINT is required.");
+      }
+
+      final String identifier = env.rdsUtil.getDsqlInstanceId(env.dsqlEndpoint);
+      if (!env.auroraUtil.doesDsqlClusterExist(identifier)) {
+        throw new RuntimeException(
+            "It's requested to reuse existing DSQL cluster but it doesn't exist: " + env.dsqlEndpoint);
+      }
+
+      LOGGER.finer("Reuse existing cluster " + env.dsqlEndpoint);
+    } else {
+      final String name = getRandomName(env);
+      try {
+        final String identifier = env.auroraUtil.createDsqlCluster(name);
+        env.rdsDbName = identifier;
+        env.dsqlEndpoint = String.format("%s.dsql.%s.on.aws", identifier, env.info.getRegion());
+      } catch (Exception e) {
+        LOGGER.finer("Error creating a cluster " + name + ". " + e.getMessage());
+        throw new RuntimeException(e);
+      }
+    }
+
+    int port = getPort(env.info.getRequest());
+
+    env.info
+        .getDatabaseInfo()
+        .setClusterEndpoint(env.dsqlEndpoint, port);
+    env.info
+        .getDatabaseInfo()
+        .setClusterReadOnlyEndpoint(env.dsqlEndpoint, port);
+
+    List<TestInstanceInfo> instances = new LinkedList<>();
+    instances.add(new TestInstanceInfo(env.rdsDbName, env.dsqlEndpoint, port));
+
+    env.info.getDatabaseInfo().getInstances().clear();
+    env.info.getDatabaseInfo().getInstances().addAll(instances);
+  }
+
   private static void initEnv(TestEnvironment env) {
     env.info.setRegion(
         !StringUtils.isNullOrEmpty(config.rdsDbRegion)
@@ -689,6 +748,7 @@ public class TestEnvironment implements AutoCloseable {
     env.rdsDbName = config.rdsDbName; // "cluster-mysql"
     env.rdsDbDomain = config.rdsDbDomain; // "XYZ.us-west-2.rds.amazonaws.com"
     env.rdsEndpoint = config.rdsEndpoint; // "XYZ.us-west-2.rds.amazonaws.com"
+    env.dsqlEndpoint = config.dsqlEndpoint; // "cluster-identifier.dsql.us-east-1.on.aws"
     env.info.setRdsEndpoint(env.rdsEndpoint);
 
     env.auroraUtil =
@@ -966,21 +1026,27 @@ public class TestEnvironment implements AutoCloseable {
   }
 
   private static void initDatabaseParams(TestEnvironment env) {
-    final boolean isHibernateOnly =
-        env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY);
+    final TestEnvironmentRequest request = env.info.getRequest();
+    final boolean isHibernateOnly = request.getFeatures().contains(TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY);
+    final boolean isDsql = (request.getDatabaseEngineDeployment() == DatabaseEngineDeployment.DSQL);
+
     final String dbName =
         isHibernateOnly
             ? "hibernate_orm_test"
-            : (config.dbName == null
-              ? "test_database"
-              : config.dbName.trim());
+            : isDsql
+              ? "postgres"
+              : (config.dbName == null
+                ? "test_database"
+                : config.dbName.trim());
 
     final String dbUsername =
         isHibernateOnly
             ? "hibernate_orm_test"
-            : (!StringUtils.isNullOrEmpty(config.dbUsername)
-              ? config.dbUsername
-              : "test_user");
+            : isDsql
+                ? "admin"
+                : (!StringUtils.isNullOrEmpty(config.dbUsername)
+                  ? config.dbUsername
+                  : "test_user");
     final String dbPassword =
         isHibernateOnly
             ? "hibernate_orm_test"
@@ -1252,13 +1318,16 @@ public class TestEnvironment implements AutoCloseable {
     }
 
     final DatabaseEngineDeployment deployment = env.info.getRequest().getDatabaseEngineDeployment();
+    final boolean isDsql = (deployment == DatabaseEngineDeployment.DSQL);
 
     env.info.setIamUsername(
         !StringUtils.isNullOrEmpty(config.iamUser)
             ? config.iamUser
-            : "jane_doe");
+            : isDsql
+              ? "admin"
+              : "jane_doe");
 
-    if (!env.reuseDb) {
+    if (!env.reuseDb && !isDsql) {
       try {
         Class.forName(DriverHelper.getDriverClassname(env.info.getRequest().getDatabaseEngine()));
       } catch (ClassNotFoundException e) {
@@ -1420,6 +1489,7 @@ public class TestEnvironment implements AutoCloseable {
 
     switch (this.info.getRequest().getDatabaseEngineDeployment()) {
       case AURORA:
+      case DSQL:
         if (this.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)
             && !StringUtils.isNullOrEmpty(this.info.getBlueGreenDeploymentId())) {
           deleteBlueGreenDeployment();
@@ -1455,12 +1525,21 @@ public class TestEnvironment implements AutoCloseable {
   }
 
   private void deleteDbCluster(boolean waitForCompletion) {
-    if (!this.reuseDb) {
-      LOGGER.finest("Deleting cluster " + this.rdsDbName + ".cluster-" + this.rdsDbDomain);
-      auroraUtil.deleteCluster(
-          this.rdsDbName, this.info.getRequest().getDatabaseEngineDeployment(), waitForCompletion);
-      LOGGER.finest("Deleted cluster " + this.rdsDbName + ".cluster-" + this.rdsDbDomain);
+    if (this.reuseDb) {
+      return;
     }
+
+    final DatabaseEngineDeployment deployment = this.info.getRequest().getDatabaseEngineDeployment();
+    final String identifier;
+    if (deployment == DatabaseEngineDeployment.DSQL) {
+      identifier = this.rdsDbName;
+    } else {
+      identifier = this.rdsDbName + ".cluster-" + this.rdsDbDomain;
+    }
+
+    LOGGER.finest("Deleting cluster " + identifier);
+    auroraUtil.deleteCluster(this.rdsDbName, deployment, waitForCompletion);
+    LOGGER.finest("Deleted cluster " + identifier);
   }
 
   private void deleteMultiAzInstance() {
