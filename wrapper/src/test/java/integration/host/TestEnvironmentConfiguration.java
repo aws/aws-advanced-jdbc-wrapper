@@ -93,13 +93,10 @@ public class TestEnvironmentConfiguration {
   public boolean reuseRdsDb = Boolean.parseBoolean(System.getenv("REUSE_RDS_DB"));
   public String rdsDbName = System.getenv("RDS_DB_NAME"); // "cluster-mysql", "instance-name", "cluster-multi-az-name"
   public String rdsDbDomain =
-      System.getenv("RDS_DB_DOMAIN"); // "XYZ.us-west-2.rds.amazonaws.com"
+      System.getenv("RDS_DB_DOMAIN"); // "XYZ.us-west-2.rds.amazonaws.com", "dsql.us-east-1.on.aws"
 
   public String rdsEndpoint =
       System.getenv("RDS_ENDPOINT"); // "https://rds-int.amazon.com"
-
-  public String dsqlEndpoint =
-      System.getenv("DSQL_ENDPOINT"); // "cluster-identifier.dsql.us-east-1.on.aws"
 
   // Expected values: "latest", "default", or engine version, for example, "15.4"
   // If left as empty, will use default version
