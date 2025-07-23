@@ -54,6 +54,7 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
     TestEnvironmentFeatures.PERFORMANCE,
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
+    TestEnvironmentFeatures.RUN_DSQL_TESTS_ONLY,
     TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT})
 @Order(6)
 public class DataSourceTests {
