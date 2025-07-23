@@ -93,9 +93,8 @@ public class TestEnvironment implements AutoCloseable {
   private int numOfInstances;
   private boolean reuseDb;
   private String rdsDbName; // "cluster-mysql", "instance-name", "rds-multi-az-cluster-name"
-  private String rdsDbDomain; // "XYZ.us-west-2.rds.amazonaws.com"
+  private String rdsDbDomain; // "XYZ.us-west-2.rds.amazonaws.com", "dsql.us-east-1.on.aws"
   private String rdsEndpoint; // "https://rds-int.amazon.com"
-  private String dsqlEndpoint; // "cluster-identifier.dsql.us-east-1.on.aws"
 
   private String awsAccessKeyId;
   private String awsSecretAccessKey;
@@ -243,8 +242,6 @@ public class TestEnvironment implements AutoCloseable {
             || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER) {
           LOGGER.finer(() -> String.format("Use pre-created DB cluster: %s.cluster-%s",
               resultTestEnvironment.rdsDbName, resultTestEnvironment.rdsDbDomain));
-        } else if (deployment == DatabaseEngineDeployment.DSQL) {
-          LOGGER.finer(() -> String.format("Use pre-created DSQL cluster : %s", resultTestEnvironment.dsqlEndpoint));
         } else {
           LOGGER.finer(() -> String.format("Use pre-created DB : %s.%s",
               resultTestEnvironment.rdsDbName, resultTestEnvironment.rdsDbDomain));
@@ -698,24 +695,30 @@ public class TestEnvironment implements AutoCloseable {
       throw new NotImplementedException(dbInstances.toString());
     }
 
+    final String endpoint;
     if (env.reuseDb) {
-      if (StringUtils.isNullOrEmpty(env.dsqlEndpoint)) {
-        throw new RuntimeException("Environment variable DSQL_ENDPOINT is required.");
+      if (StringUtils.isNullOrEmpty(env.rdsDbName)) {
+        throw new RuntimeException("Environment variable RDS_DB_NAME is required.");
+      }
+      if (StringUtils.isNullOrEmpty(env.rdsDbDomain)) {
+        throw new RuntimeException("Environment variable RDS_DB_DOMAIN is required.");
       }
 
-      final String identifier = env.rdsUtil.getDsqlInstanceId(env.dsqlEndpoint);
+      endpoint = env.rdsDbName + "." + env.rdsDbDomain;
+
+      final String identifier = env.rdsUtil.getDsqlInstanceId(endpoint);
       if (!env.auroraUtil.doesDsqlClusterExist(identifier)) {
         throw new RuntimeException(
-            "It's requested to reuse existing DSQL cluster but it doesn't exist: " + env.dsqlEndpoint);
+            "It's requested to reuse existing DSQL cluster but it doesn't exist: " + endpoint);
       }
 
-      LOGGER.finer("Reuse existing cluster " + env.dsqlEndpoint);
+      LOGGER.finer("Reuse existing cluster " + endpoint);
     } else {
       final String name = getRandomName(env);
       try {
         final String identifier = env.auroraUtil.createDsqlCluster(name);
         env.rdsDbName = identifier;
-        env.dsqlEndpoint = String.format("%s.dsql.%s.on.aws", identifier, env.info.getRegion());
+        endpoint = String.format("%s.dsql.%s.on.aws", identifier, env.info.getRegion());
       } catch (Exception e) {
         LOGGER.finer("Error creating a cluster " + name + ". " + e.getMessage());
         throw new RuntimeException(e);
@@ -726,13 +729,13 @@ public class TestEnvironment implements AutoCloseable {
 
     env.info
         .getDatabaseInfo()
-        .setClusterEndpoint(env.dsqlEndpoint, port);
+        .setClusterEndpoint(endpoint, port);
     env.info
         .getDatabaseInfo()
-        .setClusterReadOnlyEndpoint(env.dsqlEndpoint, port);
+        .setClusterReadOnlyEndpoint(endpoint, port);
 
     List<TestInstanceInfo> instances = new LinkedList<>();
-    instances.add(new TestInstanceInfo(env.rdsDbName, env.dsqlEndpoint, port));
+    instances.add(new TestInstanceInfo(env.rdsDbName, endpoint, port));
 
     env.info.getDatabaseInfo().getInstances().clear();
     env.info.getDatabaseInfo().getInstances().addAll(instances);
@@ -746,9 +749,8 @@ public class TestEnvironment implements AutoCloseable {
 
     env.reuseDb = config.reuseRdsDb;
     env.rdsDbName = config.rdsDbName; // "cluster-mysql"
-    env.rdsDbDomain = config.rdsDbDomain; // "XYZ.us-west-2.rds.amazonaws.com"
+    env.rdsDbDomain = config.rdsDbDomain; // "XYZ.us-west-2.rds.amazonaws.com", "dsql.us-east-1.on.aws"
     env.rdsEndpoint = config.rdsEndpoint; // "XYZ.us-west-2.rds.amazonaws.com"
-    env.dsqlEndpoint = config.dsqlEndpoint; // "cluster-identifier.dsql.us-east-1.on.aws"
     env.info.setRdsEndpoint(env.rdsEndpoint);
 
     env.auroraUtil =
