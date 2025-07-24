@@ -21,5 +21,6 @@ public enum DatabaseEngineDeployment {
   RDS,
   RDS_MULTI_AZ_CLUSTER,
   RDS_MULTI_AZ_INSTANCE,
-  AURORA
+  AURORA,
+  DSQL
 }
