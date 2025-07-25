@@ -22,10 +22,11 @@ import java.util.List;
 public class RunDataNode implements Serializable {
   private static final long serialVersionUID = 1L;
   public int nodeId;
-  public int writerHostId;
+  public Integer writerHostId;
   public List<Integer> readerHostIds;
   public boolean accessible;
   public Boolean readOnly;
+  public Boolean blankTopology;
 
   public RunDataNode() {
   }

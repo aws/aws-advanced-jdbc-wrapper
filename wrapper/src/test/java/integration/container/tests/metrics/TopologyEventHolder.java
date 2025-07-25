@@ -30,6 +30,7 @@ public class TopologyEventHolder {
   public final Set<String> readerHostIds;
   public final boolean accessible;
   public final Boolean readOnly;
+  public final Boolean blankTopology;
 
   private long offsetTimeMs;
 
@@ -40,7 +41,8 @@ public class TopologyEventHolder {
       String writerHostId,
       Set<String> readerHostIds,
       boolean accessible,
-      boolean readOnly) {
+      boolean readOnly,
+      boolean blankTopology) {
     this.nodeId = nodeId;
     this.timestamp = timestamp;
     this.timestampNano = timestampNano;
@@ -48,6 +50,7 @@ public class TopologyEventHolder {
     this.readerHostIds = readerHostIds;
     this.accessible = accessible;
     this.readOnly = readOnly;
+    this.blankTopology = blankTopology;
   }
 
   public TopologyEventHolder(
@@ -61,10 +64,11 @@ public class TopologyEventHolder {
     this.timestampNano = timestampNano;
     this.accessible = topology != null;
     this.readOnly = readOnly;
-    this.writerHostId = topology == null
+    this.blankTopology = topology == null ? null : topology.isEmpty();
+    this.writerHostId = topology == null || topology.isEmpty()
         ? null
         : topology.stream().filter(x -> x.isWriter).map(x -> x.hostId).findFirst().orElse(null);
-    this.readerHostIds = topology == null
+    this.readerHostIds = topology == null || topology.isEmpty()
         ? null
         : topology.stream().filter(x -> !x.isWriter).map(x -> x.hostId).collect(Collectors.toSet());
   }

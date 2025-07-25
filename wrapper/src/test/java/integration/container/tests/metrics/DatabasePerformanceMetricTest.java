@@ -105,6 +105,7 @@ public class DatabasePerformanceMetricTest {
   private static final int NUM_OF_ITERATIONS = 3;
   private static final int STOP_IF_NO_CHANGES_FOR_LAST_SECONDS = 180;
   private static final String NOT_ACCESSIBLE = "#####";
+  private static final String BLANK_TOPOLOGY = "blank";
   private static final long DIRECT_CONNECT_TIMEOUT_MS = 1000;
   private static final long DIRECT_SOCKET_TIMEOUT_MS = 1000;
   private static final long WRAPPER_CONNECT_TIMEOUT_MS = 10000;
@@ -885,20 +886,24 @@ public class DatabasePerformanceMetricTest {
       if (beforeFailoverTopologyEventHolder != null) {
         runDataNode.accessible = beforeFailoverTopologyEventHolder.accessible;
         runDataNode.readOnly = beforeFailoverTopologyEventHolder.readOnly;
-        runDataNode.writerHostId = beforeFailoverTopologyEventHolder.accessible
-            ? hostMapping.getOrDefault(beforeFailoverTopologyEventHolder.writerHostId, 0)
-            : 0;
-        runDataNode.readerHostIds = beforeFailoverTopologyEventHolder.accessible
-            ? (beforeFailoverTopologyEventHolder.readerHostIds == null
-              ? new ArrayList<>()
+        runDataNode.blankTopology = beforeFailoverTopologyEventHolder.blankTopology;
+        runDataNode.writerHostId = !beforeFailoverTopologyEventHolder.accessible
+            || beforeFailoverTopologyEventHolder.blankTopology
+            || beforeFailoverTopologyEventHolder.writerHostId == null
+              ? null
+              : hostMapping.getOrDefault(beforeFailoverTopologyEventHolder.writerHostId, null);
+        runDataNode.readerHostIds = !beforeFailoverTopologyEventHolder.accessible
+            || beforeFailoverTopologyEventHolder.blankTopology
+            || beforeFailoverTopologyEventHolder.readerHostIds == null
+              ? null
               : beforeFailoverTopologyEventHolder.readerHostIds.stream()
-                  .map(hostMapping::get).sorted().collect(toList()))
-            : null;
+                    .map(hostMapping::get).sorted().collect(toList());
       } else {
         runDataNode.accessible = false;
         runDataNode.readOnly = null;
-        runDataNode.writerHostId = 0;
-        runDataNode.readerHostIds = new ArrayList<>();
+        runDataNode.writerHostId = null;
+        runDataNode.blankTopology = null;
+        runDataNode.readerHostIds = null;
       }
       beforeFailover.nodes.put(mappedHostId, runDataNode);
     }
@@ -976,15 +981,17 @@ public class DatabasePerformanceMetricTest {
         runDataNode.nodeId = mappedHostId;
         runDataNode.accessible = currentTopologyEventHolderForMappedHost.accessible;
         runDataNode.readOnly = currentTopologyEventHolderForMappedHost.readOnly;
-        runDataNode.writerHostId = currentTopologyEventHolderForMappedHost.accessible
-            ? hostMapping.getOrDefault(currentTopologyEventHolderForMappedHost.writerHostId, 0)
-            : 0;
-        runDataNode.readerHostIds = currentTopologyEventHolderForMappedHost.accessible
-            ? (currentTopologyEventHolderForMappedHost.readerHostIds == null
-              ? new ArrayList<>()
+        runDataNode.writerHostId = !currentTopologyEventHolderForMappedHost.accessible
+            || currentTopologyEventHolderForMappedHost.blankTopology
+            || currentTopologyEventHolderForMappedHost.writerHostId == null
+              ? null
+              : hostMapping.getOrDefault(currentTopologyEventHolderForMappedHost.writerHostId, null);
+        runDataNode.readerHostIds = !currentTopologyEventHolderForMappedHost.accessible
+            || currentTopologyEventHolderForMappedHost.blankTopology
+            || currentTopologyEventHolderForMappedHost.readerHostIds == null
+              ? null
               : currentTopologyEventHolderForMappedHost.readerHostIds.stream()
-                  .map(hostMapping::get).sorted().collect(toList()))
-            : null;
+                  .map(hostMapping::get).sorted().collect(toList());
 
         currentRow.nodes.put(mappedHostId, runDataNode);
       }
@@ -1119,10 +1126,14 @@ public class DatabasePerformanceMetricTest {
           .sorted(Comparator.comparingInt(Entry::getKey))
           .collect(toList())) {
         columns.add(entry.getValue().accessible
-            ? String.valueOf(entry.getValue().writerHostId)
+            ? (entry.getValue().blankTopology
+                ? BLANK_TOPOLOGY
+                : String.valueOf(entry.getValue().writerHostId))
             : NOT_ACCESSIBLE);
         columns.add(entry.getValue().accessible
-            ? entry.getValue().readerHostIds.stream().map(String::valueOf).collect(joining(","))
+            ? (entry.getValue().blankTopology
+                ? BLANK_TOPOLOGY
+                : entry.getValue().readerHostIds.stream().map(String::valueOf).collect(joining(",")))
             : NOT_ACCESSIBLE);
       }
 

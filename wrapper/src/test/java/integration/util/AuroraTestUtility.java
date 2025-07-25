@@ -1406,7 +1406,8 @@ public class AuroraTestUtility {
     executorService.shutdownNow();
 
     if (!remainingInstances.isEmpty()) {
-      fail("The following instances are still down: \n" + String.join("\n", remainingInstances.keySet()));
+      throw new RuntimeException("The following instances are still down: \n"
+          + String.join("\n", remainingInstances.keySet()));
     }
   }
 
