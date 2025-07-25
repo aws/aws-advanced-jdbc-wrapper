@@ -144,6 +144,14 @@ public class RdsUtils {
               + "\\.(amazonaws\\.com\\.?|c2s\\.ic\\.gov\\.?|sc2s\\.sgov\\.gov\\.?))$",
           Pattern.CASE_INSENSITIVE);
 
+  private static final Pattern AURORA_DSQL_CLUSTER_PATTERN =
+      Pattern.compile(
+          "^(?<instance>[^.]+)\\."
+              + "(?<dns>dsql(?:-[^.]+)?)\\."
+              + "(?<domain>(?<region>[a-zA-Z0-9\\-]+)"
+              + "\\.on\\.aws\\.?)$",
+          Pattern.CASE_INSENSITIVE);
+
   private static final Pattern ELB_PATTERN =
       Pattern.compile(
           "^(?<instance>.+)\\.elb\\."
@@ -259,6 +267,16 @@ public class RdsUtils {
     return group == null ? "?" : "?." + group;
   }
 
+  public String getDsqlInstanceId(final String host) {
+    final String preparedHost = getPreparedHost(host);
+    if (StringUtils.isNullOrEmpty(preparedHost)) {
+      return null;
+    }
+
+    final Matcher matcher = cacheMatcher(preparedHost, AURORA_DSQL_CLUSTER_PATTERN);
+    return getRegexGroup(matcher, INSTANCE_GROUP);
+  }
+
   public String getRdsRegion(final String host) {
     final String preparedHost = getPreparedHost(host);
     if (StringUtils.isNullOrEmpty(preparedHost)) {
@@ -266,7 +284,8 @@ public class RdsUtils {
     }
 
     final Matcher matcher = cacheMatcher(preparedHost,
-        AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN, AURORA_OLD_CHINA_DNS_PATTERN, AURORA_GOV_DNS_PATTERN);
+        AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN, AURORA_OLD_CHINA_DNS_PATTERN, AURORA_GOV_DNS_PATTERN,
+        AURORA_DSQL_CLUSTER_PATTERN);
     final String group = getRegexGroup(matcher, REGION_GROUP);
     if (group != null) {
       return group;
@@ -292,6 +311,11 @@ public class RdsUtils {
   public boolean isLimitlessDbShardGroupDns(final String host) {
     final String dnsGroup = getDnsGroup(getPreparedHost(host));
     return dnsGroup != null && dnsGroup.equalsIgnoreCase("shardgrp-");
+  }
+
+  public boolean isDsqlCluster(final String host) {
+    final String instanceId = getDsqlInstanceId(host);
+    return instanceId != null;
   }
 
   public String getRdsClusterHostUrl(final String host) {
