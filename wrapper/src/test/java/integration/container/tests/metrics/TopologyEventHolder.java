@@ -30,7 +30,7 @@ public class TopologyEventHolder {
   public final Set<String> readerHostIds;
   public final boolean accessible;
   public final Boolean readOnly;
-  public final Boolean blankTopology;
+  public final boolean blankTopology;
 
   private long offsetTimeMs;
 
@@ -64,7 +64,7 @@ public class TopologyEventHolder {
     this.timestampNano = timestampNano;
     this.accessible = topology != null;
     this.readOnly = readOnly;
-    this.blankTopology = topology == null ? null : topology.isEmpty();
+    this.blankTopology = topology != null && topology.isEmpty();
     this.writerHostId = topology == null || topology.isEmpty()
         ? null
         : topology.stream().filter(x -> x.isWriter).map(x -> x.hostId).findFirst().orElse(null);

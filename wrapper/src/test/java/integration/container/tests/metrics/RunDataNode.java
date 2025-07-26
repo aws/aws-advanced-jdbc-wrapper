@@ -26,7 +26,7 @@ public class RunDataNode implements Serializable {
   public List<Integer> readerHostIds;
   public boolean accessible;
   public Boolean readOnly;
-  public Boolean blankTopology;
+  public boolean blankTopology;
 
   public RunDataNode() {
   }

@@ -444,7 +444,8 @@ public class DatabasePerformanceMetricTest {
         props.setProperty(PropertyDefinition.TELEMETRY_METRICS_BACKEND.name, "none");
 
         props.setProperty("clusterId", String.valueOf(clusterId));
-        PropertyDefinition.PLUGINS.set(props, "efm2,failover2");
+        //PropertyDefinition.PLUGINS.set(props, "efm2,failover2");
+        PropertyDefinition.PLUGINS.set(props, "failover2");
         PropertyDefinition.CONNECT_TIMEOUT.set(props, String.valueOf(WRAPPER_CONNECT_TIMEOUT_MS));
 
         // Socket timeout also helps to abort a long-running query if failover isn't occurred.
@@ -902,7 +903,7 @@ public class DatabasePerformanceMetricTest {
         runDataNode.accessible = false;
         runDataNode.readOnly = null;
         runDataNode.writerHostId = null;
-        runDataNode.blankTopology = null;
+        runDataNode.blankTopology = false;
         runDataNode.readerHostIds = null;
       }
       beforeFailover.nodes.put(mappedHostId, runDataNode);
