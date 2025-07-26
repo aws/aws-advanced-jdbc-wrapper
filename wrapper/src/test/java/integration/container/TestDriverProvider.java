@@ -218,7 +218,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
     Driver.resetConnectionInitFunc();
   }
 
-  private static void checkClusterHealth(final boolean makeSureFirstInstanceWriter)
+  public static void checkClusterHealth(final boolean makeSureFirstInstanceWriter)
       throws InterruptedException, SQLException {
 
     final TestEnvironmentInfo testInfo = TestEnvironment.getCurrent().getInfo();
