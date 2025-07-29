@@ -91,6 +91,7 @@ These parameters are applicable to any instance of the AWS JDBC Driver.
 | `awsProfile`                                      | `String`  | No       | Allows users to specify a profile name for AWS credentials. This parameter is used by plugins that require AWS credentials, like the [IAM Authentication Connection Plugin](./using-plugins/UsingTheIamAuthenticationPlugin.md) and the [AWS Secrets Manager Connection Plugin](./using-plugins/UsingTheAwsSecretsManagerPlugin.md).                 | `null`        |
 | `enableGreenNodeReplacement`                      | `Boolean` | No       | Enables replacing a green node host name with the original host name when the green host DNS doesn't exist anymore after a blue/green switchover. Refer to [Overview of Amazon RDS Blue/Green Deployments](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/blue-green-deployments-overview.html) for more details about green and blue nodes. | `false`       |
 | `wrapperCaseSensitive`,<br>`wrappercasesensitive` | `Boolean` | No       | Allows the driver to change case sensitivity for parameter names in the connection string and in connection properties. Set parameter to `false` to allow case-insensitive parameter names.                                                                                                                                                          | `true`        |
+| `skipWrappingForPackages`                         | `String`  | No       | Register Java package names (separated by comma) which will be left unwrapped. This setting is global for the driver, not for a particular connection.                                                                                                                                                                                               | `true`        |
 
 ## Plugins
 The AWS JDBC Driver uses plugins to execute JDBC methods. You can think of a plugin as an extensible code module that adds extra logic around any JDBC method calls. The AWS JDBC Driver has a number of [built-in plugins](#list-of-available-plugins) available for use. 
@@ -392,3 +393,18 @@ public static void main(String[] args) throws SQLException {
 
 ## Enable Logging
 To enable logging in the AWS JDBC Driver, change the `logger=StandardLogger` parameter to `wrapperLoggerLevel=FINEST`
+
+
+## Enable Third Party Classes and Packages
+A user application may require a special handling for particular classes or Java packages. In such case, wrapping of data objects by the AWS Advanced JDBC Driver might be crucial for a user application. The driver allows to specify classes and packages that should be left intact with no wrapping. Use the following code snippet as an example to register classes or an entire package if needed.
+
+```java
+Driver.skipWrappingForType(com.pgvector.PGvector.class);
+Driver.skipWrappingForType(com.pgvector.PGhalfvec.class);
+Driver.skipWrappingForType(com.pgvector.PGbit.class);
+    
+Driver.skipWrappingForPackage("com.pgvector");
+```
+This feature can be used to allow the AWS Advanced JDBC Driver to properly handle popular database extensions like [PGvector](https://github.com/pgvector/pgvector-java) and [PostGIS](https://github.com/postgis/postgis-java).
+
+Using `Driver.skipWrappingForPackage()` method and using driver configuration parameter `skipWrappingForPackages` are functionally similar. The configuration parameter receives a comma separated list of package names while `Driver.skipWrappingForPackage()` accepts just one package at at time.
