@@ -164,6 +164,11 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   }
 
   @Override
+  public void setClusterId(String clusterId) {
+    this.clusterId = clusterId;
+  }
+
+  @Override
   public List<HostSpec> forceRefresh(final boolean shouldVerifyWriter, final long timeoutMs)
       throws SQLException, TimeoutException {
 
