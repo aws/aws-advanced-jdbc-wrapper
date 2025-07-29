@@ -153,7 +153,7 @@ public class WrapperUtils {
     }
   };
 
-  private static final Set<Class<?>> skipWrappingForClasses = new HashSet<Class<?>>() {
+  public static final Set<Class<?>> skipWrappingForClasses = new HashSet<Class<?>>() {
     {
       add(Boolean.class);
       add(String.class);
@@ -169,6 +169,8 @@ public class WrapperUtils {
       add(URL.class);
     }
   };
+
+  public static final Set<String> skipWrappingForPackages = new HashSet<>();
 
   public static <E extends Exception> void runWithPlugins(
       final Class<E> exceptionClass,
@@ -354,6 +356,10 @@ public class WrapperUtils {
           return resultClass.cast(wrapperFactory.getInstance(toProxy, pluginManager));
         }
       }
+    }
+
+    if (skipWrappingForPackages.contains(toProxyClass.getPackage().getName())) {
+      return toProxy;
     }
 
     if (isJdbcInterface(toProxy.getClass())) {
