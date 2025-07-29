@@ -80,9 +80,18 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
         stmt.close();
 
         stmt = connection.createStatement();
+        rs = stmt.executeQuery(FETCH_WRITER_NODE_QUERY);
+
+        if (rs.next() && rs.getString(1) == null) {
+          return false;
+        }
+
+        stmt = connection.createStatement();
         rs = stmt.executeQuery(NODE_ID_FUNC_EXIST_QUERY);
 
-        return rs.next();
+        rs.next();
+
+        return rs.getString(1) != null;
       }
       return false;
     } catch (final SQLException ex) {
