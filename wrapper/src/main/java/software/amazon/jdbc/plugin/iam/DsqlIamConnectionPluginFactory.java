@@ -17,14 +17,18 @@
 package software.amazon.jdbc.plugin.iam;
 
 import java.util.Properties;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.IamAuthUtils;
 
-public class IamAuthConnectionPluginFactory implements ConnectionPluginFactory {
+/**
+ * Provides {@link ConnectionPlugin} instances which can be used to connect to Amazon Aurora DSQL.
+ */
+public class DsqlIamConnectionPluginFactory implements ConnectionPluginFactory {
   @Override
-  public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
-    return new IamAuthConnectionPlugin(pluginService, IamAuthUtils.getRdsTokenUtility());
+  public ConnectionPlugin getInstance(@NonNull final PluginService pluginService, @NonNull final Properties props) {
+    return new IamAuthConnectionPlugin(pluginService, IamAuthUtils.getDsqlTokenUtility());
   }
 }

@@ -95,7 +95,7 @@ public class OktaAuthPlugin extends AbstractConnectionPlugin {
   private final TelemetryCounter fetchTokenCounter;
 
   public OktaAuthPlugin(PluginService pluginService, CredentialsProviderFactory credentialsProviderFactory) {
-    this(pluginService, credentialsProviderFactory, new RdsUtils(), IamAuthUtils.getTokenUtility());
+    this(pluginService, credentialsProviderFactory, new RdsUtils(), IamAuthUtils.getRdsTokenUtility());
   }
 
   OktaAuthPlugin(
