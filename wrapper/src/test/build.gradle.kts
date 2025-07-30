@@ -43,6 +43,7 @@ dependencies {
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
     testImplementation("software.amazon.awssdk:ec2:2.29.34")
     testImplementation("software.amazon.awssdk:rds:2.29.34")
+    testImplementation("software.amazon.awssdk:dsql:2.29.34")
     testImplementation("software.amazon.awssdk:sts:2.29.34")
     // Note: all org.testcontainers dependencies should have the same version
     testImplementation("org.testcontainers:testcontainers:1.20.4")
