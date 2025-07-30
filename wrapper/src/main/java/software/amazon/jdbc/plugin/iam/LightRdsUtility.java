@@ -33,6 +33,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.utils.CompletableFutureUtils;
 import software.amazon.awssdk.utils.StringUtils;
 
+@SuppressWarnings("deprecation")
 public class LightRdsUtility implements IamTokenUtility {
 
   private static final Logger LOGGER = Logger.getLogger(LightRdsUtility.class.getName());

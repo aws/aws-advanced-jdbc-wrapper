@@ -105,9 +105,11 @@ public class LimitlessRouterMonitor extends AbstractMonitor {
 
     try {
       while (!this.stop.get()) {
-        TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
+        TelemetryContext telemetryContext = this.telemetryFactory.openTelemetryContext(
             "limitless router monitor thread", TelemetryTraceLevel.TOP_LEVEL);
-        telemetryContext.setAttribute("url", hostSpec.getUrl());
+        if (telemetryContext != null) {
+          telemetryContext.setAttribute("url", hostSpec.getUrl());
+        }
 
         try {
           this.openConnection();

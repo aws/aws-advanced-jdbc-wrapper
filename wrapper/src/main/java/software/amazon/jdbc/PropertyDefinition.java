@@ -172,6 +172,11 @@ public class PropertyDefinition {
               "true", "false"
           });
 
+  public static final AwsWrapperProperty ASSUME_FETCH_ENTIRE_RESULT_SET = new AwsWrapperProperty(
+      "wrapperAssumeFetchEntireResultSet", "true",
+      "Allow the driver to optimized work with ResultSets and skip tracking some of their methods"
+          + " by assuming that entire data result are fetched at once.");
+
   private static final Map<String, AwsWrapperProperty> PROPS_BY_NAME =
       new ConcurrentHashMap<>();
   private static final Map<String, AwsWrapperProperty> PROPS_BY_NAME_LOWERCASE =
@@ -189,8 +194,10 @@ public class PropertyDefinition {
   /**
    * The usage of the method should be restricted. In most cases the {@link #byName(String)} method should be used
    * since the driver internally treats all properties in case-sensitive manner.
+   * For the moment only {@link software.amazon.jdbc.util.ConnectionUrlParser} uses this method.
    *
-   * <p></p>For the moment only {@link software.amazon.jdbc.util.ConnectionUrlParser} uses this method.
+   * @param name A parameter name
+   * @return A parameter definition
    */
   public static @Nullable AwsWrapperProperty byNameIgnoreCase(final String name) {
     return PROPS_BY_NAME_LOWERCASE.get(name.toLowerCase());

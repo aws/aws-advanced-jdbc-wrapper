@@ -16,7 +16,7 @@ If the primary DB instance has failed, the JDBC Driver attempts to use its inter
 At this point, the JDBC Driver will connect to the new primary DB instance and return control to the application by raising a FailoverSuccessSQLException with SQLState 08S02 so you can reconfigure the session state as needed. Although the DNS endpoint for the DB cluster might not yet resolve the new primary DB instance, the JDBC Driver has already discovered this new DB instance during its failover process, and will be directly connected to it when the application continues executing statements. In this way the JDBC Driver provides a faster way to reconnect to a newly promoted DB instance, thus increasing the availability of the DB cluster.
 
 ## Using the Failover Plugin
-The failover plugin will be enabled by default if the [`wrapperPlugins`](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters) value is not specified. The failover plugin can also be explicitly included by adding the plugin code `failover` to the [`wrapperPlugins`](../UsingTheJdbcDriver.md#aws-advanced-jdbc-driver-parameters) value, or by adding it to the current [driver profile](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters). After you load the plugin, the failover feature will be enabled by default and the enableClusterAwareFailover parameter will be set to true. <br> <br> Please refer to the [failover configuration guide](../FailoverConfigurationGuide.md) for tips to keep in mind when using the failover plugin.
+The Failover Plugin v1 will **NOT** be enabled by default. Instead, the newer [Failover Plugin v2](./UsingTheFailover2Plugin.md) will be enabled by default if the [`wrapperPlugins`](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters) value is not specified. If you would like to use the Failover Plugin v1 instead of v2, it must be explicitly included by adding the plugin code `failover` to the [`wrapperPlugins`](../UsingTheJdbcDriver.md#aws-advanced-jdbc-driver-parameters) value, or by adding it to the current [driver profile](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters). After you load the plugin, the failover feature will be enabled by default and the enableClusterAwareFailover parameter will be set to true. <br> <br> Please refer to the [failover configuration guide](../FailoverConfigurationGuide.md) for tips to keep in mind when using the failover plugin.
 
 ### Failover Parameters
 In addition to the parameters that you can configure for the underlying driver, you can pass the following parameters to the AWS JDBC Driver through the connection URL to specify additional failover behavior.
@@ -106,14 +106,3 @@ public class HikariCPSQLException implements SQLExceptionOverride {
     }
 }
 ```
-
-### Blue/Green Deployments
-Although the AWS Advanced JDBC Wrapper is not compatible with [AWS Blue/Green Deployments](https://docs.aws.amazon.com/whitepapers/latest/overview-deployment-options/bluegreen-deployments.html) and does not officially support them, the combination of the AWS Advanced JDBC Wrapper and the Failover Plugin has been validated for use with clusters that employ Blue/Green Deployments. While general basic connectivity to both Blue and Green clusters is always in place, some failover cases are not fully supported.
-
-The current limitations are:
-- After a Blue/Green switchover, the wrapper may not be able to properly detect the new topology and handle failover, as there are discrepancies between the metadata and the available endpoints.
-- The specific version requirements for Aurora MySQL versus Aurora PostgreSQL may vary, as the internal systems used by the wrapper can differ[^1].
-
-The development team is aware of these limitations and is working to improve the wrapper's awareness and handling of Blue/Green switchovers. In the meantime, users can consider utilizing the `enableGreenNodeReplacement` configuration parameter, which allows the driver to override incorrect topology metadata and try to connect to available new Blue endpoints.
-
-[^1]: Aurora MySQL requires v3.07 or later.

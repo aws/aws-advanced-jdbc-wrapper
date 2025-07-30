@@ -445,7 +445,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
                 "ClusterAwareReaderFailoverHandler.failedReaderConnection",
                 new Object[] {this.newHost.getUrl()}));
         // Propagate exceptions that are not caused by network errors.
-        if (!pluginService.isNetworkException(e)) {
+        if (!pluginService.isNetworkException(e, pluginService.getTargetDriverDialect())) {
           return new ReaderFailoverResult(
               null,
               null,

@@ -24,13 +24,14 @@ import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
@@ -39,71 +40,140 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
 
   private static final Logger LOGGER =
       Logger.getLogger(GenericTargetDriverDialect.class.getName());
-  public static final List<String> ALLOWED_ON_CLOSED_METHODS = Arrays.asList(
-      "Connection.isClosed",
-      "Statement.getConnection",
-      "Statement.getFetchDirection",
-      "Statement.getResultSetHoldability",
-      "Statement.isClosed",
-      "Statement.getLargeMaxRows"
+  public static final Set<String> ALLOWED_ON_CLOSED_METHODS = Collections.unmodifiableSet(
+      new HashSet<>(
+          Arrays.asList(
+              JdbcMethod.CONNECTION_ISCLOSED.methodName,
+              JdbcMethod.STATEMENT_GETCONNECTION.methodName,
+              JdbcMethod.STATEMENT_GETFETCHDIRECTION.methodName,
+              JdbcMethod.STATEMENT_GETRESULTSETHOLDABILITY.methodName,
+              JdbcMethod.STATEMENT_ISCLOSED.methodName,
+              JdbcMethod.STATEMENT_GETMAXROWS.methodName
+          )
+      )
   );
-  public static final String CONN_GET_AUTO_COMMIT = "Connection.getAutoCommit";
-  public static final String CONN_GET_CATALOG = "Connection.getCatalog";
-  public static final String CONN_GET_SCHEMA = "Connection.getSchema";
-  public static final String CONN_GET_NETWORK_TIMEOUT = "Connection.getNetworkTimeout";
-  public static final String CONN_GET_METADATA = "Connection.getMetaData";
-  public static final String CONN_IS_READ_ONLY = "Connection.isReadOnly";
-  public static final String CONN_GET_HOLDABILITY = "Connection.getHoldability";
-  public static final String CONN_GET_CLIENT_INFO = "Connection.getClientInfo";
-  public static final String CONN_GET_TYPE_MAP = "Connection.getTypeMap";
-  public static final String CONN_CREATE_CLOB = "Connection.createClob";
-  public static final String CONN_CREATE_BLOB = "Connection.createBlob";
-  public static final String CONN_CREATE_NCLOB = "Connection.createNClob";
-  public static final String CONN_CLEAR_WARNINGS = "Connection.clearWarnings";
-  public static final String CONN_SET_HOLDABILITY = "Connection.setHoldability";
-  public static final String CONN_SET_SCHEMA = "Connection.setSchema";
-  public static final String STATEMENT_CLEAR_WARNINGS = "Statement.clearWarnings";
-  public static final String STATEMENT_GET_FETCH_SIZE = "Statement.getFetchSize";
-  public static final String STATEMENT_GET_MAX_FIELD_SIZE = "Statement.getMaxFieldSize";
-  public static final String STATEMENT_GET_RESULT_SET_TYPE = "Statement.getResultSetType";
-  public static final String STATEMENT_IS_CLOSE_ON_COMPLETION = "Statement.isCloseOnCompletion";
-  public static final String STATEMENT_CLEAR_BATCH = "Statement.clearBatch";
-  public static final String STATEMENT_CLOSE_ON_COMPLETION = "Statement.closeOnCompletion";
-  public static final String STATEMENT_GET_GENERATED_KEYS = "Statement.getGeneratedKeys";
-  public static final String STATEMENT_GET_MAX_ROWS = "Statement.getMaxRows";
-  public static final String STATEMENT_GET_MORE_RESULTS = "Statement.getMoreResults";
-  public static final String STATEMENT_GET_QUERY_TIMEOUT = "Statement.getQueryTimeout";
-  public static final String STATEMENT_GET_RESULT_SET = "Statement.getResultSet";
-  public static final String STATEMENT_GET_RESULT_SET_CONCURRENCY = "Statement.getResultSetConcurrency";
-  public static final String STATEMENT_GET_UPDATE_COUNT = "Statement.getUpdateCount";
-  public static final String STATEMENT_GET_WARNINGS = "Statement.getWarnings";
-  public static final String STATEMENT_ADD_BATCH = "Statement.addBatch";
-  public static final String CALL_GET_ARRAY = "CallableStatement.getArray";
-  public static final String CALL_GET_BIG_DECIMAL = "CallableStatement.getBigDecimal";
-  public static final String CALL_GET_BLOB = "CallableStatement.getBlob";
-  public static final String CALL_GET_BOOLEAN = "CallableStatement.getBoolean";
-  public static final String CALL_GET_BYTE = "CallableStatement.getByte";
-  public static final String CALL_GET_BYTES = "CallableStatement.getBytes";
-  public static final String CALL_GET_CHARACTER_STREAM = "CallableStatement.getCharacterStream";
-  public static final String CALL_GET_CLOB = "CallableStatement.getClob";
-  public static final String CALL_GET_DATE = "CallableStatement.getDate";
-  public static final String CALL_GET_DOUBLE = "CallableStatement.getDouble";
-  public static final String CALL_GET_FLOAT = "CallableStatement.getFloat";
-  public static final String CALL_GET_INT = "CallableStatement.getInt";
-  public static final String CALL_GET_LONG = "CallableStatement.getLong";
-  public static final String CALL_GET_N_CLOB = "CallableStatement.getNClob";
-  public static final String CALL_GET_N_CHAR = "CallableStatement.getNCharacterStream";
-  public static final String CALL_GET_N_STRING = "CallableStatement.getNString";
-  public static final String CALL_GET_OBJECT = "CallableStatement.getObject";
-  public static final String CALL_GET_SHORT = "CallableStatement.getShort";
-  public static final String CALL_GET_SQLXML = "CallableStatement.getSQLXML";
-  public static final String CALL_GET_TIME = "CallableStatement.getTime";
-  public static final String CALL_GET_STRING = "CallableStatement.getString";
-  public static final String CALL_GET_TIMESTAMP = "CallableStatement.getTimestamp";
-  public static final String CALL_GET_URL = "CallableStatement.getURL";
-  public static final String CALL_WAS_NULL = "CallableStatement.wasNull";
-  public static final String PREP_ADD_BATCH = "PreparedStatement.addBatch";
-  public static final String PREP_CLEAR_PARAMS = "PreparedStatement.clearParameters";
+
+  private static final Set<String> NETWORK_BOUND_METHODS = Collections.unmodifiableSet(
+      new HashSet<>(Arrays.asList(
+          JdbcMethod.CONNECTION_COMMIT.methodName,
+          JdbcMethod.CONNECT.methodName,
+          JdbcMethod.FORCECONNECT.methodName,
+          JdbcMethod.CONNECTION_ISVALID.methodName,
+          JdbcMethod.CONNECTION_ROLLBACK.methodName,
+          JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName,
+          JdbcMethod.CONNECTION_SETREADONLY.methodName,
+          JdbcMethod.STATEMENT_CANCEL.methodName,
+          JdbcMethod.STATEMENT_EXECUTE.methodName,
+          JdbcMethod.STATEMENT_EXECUTEBATCH.methodName,
+          JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
+          JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTEBATCH.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTELARGEUPDATE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_GETPARAMETERMETADATA.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName,
+
+          // may require fetch another chunk of data
+          JdbcMethod.CALLABLESTATEMENT_GETMORERESULTS.methodName,
+          JdbcMethod.RESULTSET_NEXT.methodName,
+          JdbcMethod.RESULTSET_ABSOLUTE.methodName,
+          JdbcMethod.RESULTSET_AFTERLAST.methodName,
+          JdbcMethod.RESULTSET_BEFOREFIRST.methodName,
+          JdbcMethod.RESULTSET_FIRST.methodName,
+          JdbcMethod.RESULTSET_LAST.methodName,
+          JdbcMethod.RESULTSET_MOVETOCURRENTROW.methodName,
+          JdbcMethod.RESULTSET_MOVETOINSERTROW.methodName,
+          JdbcMethod.RESULTSET_PREVIOUS.methodName,
+          JdbcMethod.RESULTSET_RELATIVE.methodName,
+
+          // big data methods
+          JdbcMethod.RESULTSET_GETASCIISTREAM.methodName,
+          JdbcMethod.RESULTSET_GETBINARYSTREAM.methodName,
+          JdbcMethod.RESULTSET_GETBLOB.methodName,
+          JdbcMethod.RESULTSET_GETCHARACTERSTREAM.methodName,
+          JdbcMethod.RESULTSET_GETCLOB.methodName,
+          JdbcMethod.RESULTSET_GETNCHARACTERSTREAM.methodName,
+          JdbcMethod.RESULTSET_GETNCLOB.methodName,
+          JdbcMethod.RESULTSET_GETSQLXML.methodName,
+          JdbcMethod.RESULTSET_GETUNICODESTREAM.methodName,
+          JdbcMethod.RESULTSET_GETBYTES.methodName,
+
+          // data updates
+          JdbcMethod.RESULTSET_DELETEROW.methodName,
+          JdbcMethod.RESULTSET_INSERTROW.methodName,
+          JdbcMethod.RESULTSET_REFRESHROW.methodName,
+          JdbcMethod.RESULTSET_UPDATEROW.methodName,
+
+          // TODO: verify if these calls need network
+          JdbcMethod.RESULTSET_UPDATEASCIISTREAM.methodName,
+          JdbcMethod.RESULTSET_UPDATEBINARYSTREAM.methodName,
+          JdbcMethod.RESULTSET_UPDATEBLOB.methodName,
+          JdbcMethod.RESULTSET_UPDATECHARACTERSTREAM.methodName,
+          JdbcMethod.RESULTSET_UPDATECLOB.methodName,
+          JdbcMethod.RESULTSET_UPDATENCHARACTERSTREAM.methodName,
+          JdbcMethod.RESULTSET_UPDATENCLOB.methodName,
+          JdbcMethod.RESULTSET_UPDATESQLXML.methodName,
+          JdbcMethod.RESULTSET_UPDATEBYTE.methodName
+      )));
+
+  public static final Set<String> NETWORK_BOUND_METHODS_FOR_ENTIRE_RESULTSET = Collections.unmodifiableSet(
+      new HashSet<>(Arrays.asList(
+          JdbcMethod.CONNECTION_COMMIT.methodName,
+          JdbcMethod.CONNECT.methodName,
+          JdbcMethod.FORCECONNECT.methodName,
+          JdbcMethod.CONNECTION_ISVALID.methodName,
+          JdbcMethod.CONNECTION_ROLLBACK.methodName,
+          JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName,
+          JdbcMethod.CONNECTION_SETREADONLY.methodName,
+          JdbcMethod.STATEMENT_CANCEL.methodName,
+          JdbcMethod.STATEMENT_EXECUTE.methodName,
+          JdbcMethod.STATEMENT_EXECUTEBATCH.methodName,
+          JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
+          JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTEBATCH.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTELARGEUPDATE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_GETPARAMETERMETADATA.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName,
+
+          // big data methods
+          JdbcMethod.RESULTSET_GETASCIISTREAM.methodName,
+          JdbcMethod.RESULTSET_GETBINARYSTREAM.methodName,
+          JdbcMethod.RESULTSET_GETBLOB.methodName,
+          JdbcMethod.RESULTSET_GETCHARACTERSTREAM.methodName,
+          JdbcMethod.RESULTSET_GETCLOB.methodName,
+          JdbcMethod.RESULTSET_GETNCHARACTERSTREAM.methodName,
+          JdbcMethod.RESULTSET_GETNCLOB.methodName,
+          JdbcMethod.RESULTSET_GETSQLXML.methodName,
+          JdbcMethod.RESULTSET_GETUNICODESTREAM.methodName,
+          JdbcMethod.RESULTSET_GETBYTES.methodName,
+
+          // data updates
+          JdbcMethod.RESULTSET_DELETEROW.methodName,
+          JdbcMethod.RESULTSET_INSERTROW.methodName,
+          JdbcMethod.RESULTSET_REFRESHROW.methodName,
+          JdbcMethod.RESULTSET_UPDATEROW.methodName,
+
+          JdbcMethod.RESULTSET_UPDATEASCIISTREAM.methodName,
+          JdbcMethod.RESULTSET_UPDATEBINARYSTREAM.methodName,
+          JdbcMethod.RESULTSET_UPDATEBLOB.methodName,
+          JdbcMethod.RESULTSET_UPDATECHARACTERSTREAM.methodName,
+          JdbcMethod.RESULTSET_UPDATECLOB.methodName,
+          JdbcMethod.RESULTSET_UPDATENCHARACTERSTREAM.methodName,
+          JdbcMethod.RESULTSET_UPDATENCLOB.methodName,
+          JdbcMethod.RESULTSET_UPDATESQLXML.methodName,
+          JdbcMethod.RESULTSET_UPDATEBYTE.methodName
+      )));
 
   @Override
   public boolean isDialect(Driver driver) {
@@ -177,15 +247,18 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
 
   @Override
   public Set<String> getAllowedOnConnectionMethodNames() {
-    return Collections.unmodifiableSet(new HashSet<String>() {
-      {
-        addAll(ALLOWED_ON_CLOSED_METHODS);
-      }
-    });
+    return ALLOWED_ON_CLOSED_METHODS;
   }
 
   @Override
   public String getSQLState(Throwable throwable) {
     return null;
+  }
+
+  @Override
+  public Set<String> getNetworkBoundMethodNames(final @Nullable Properties properties) {
+    return properties != null && PropertyDefinition.ASSUME_FETCH_ENTIRE_RESULT_SET.getBoolean(properties)
+        ? NETWORK_BOUND_METHODS_FOR_ENTIRE_RESULTSET
+        : NETWORK_BOUND_METHODS;
   }
 }

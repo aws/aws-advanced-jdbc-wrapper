@@ -28,10 +28,17 @@ plugins {
     id("com.github.vlsi.ide")
 }
 
+releaseParams {
+    componentName.set("aws-advanced-jdbc-wrapper")
+}
+
 val versionMajor = project.property("aws-advanced-jdbc-wrapper.version.major")
 val versionMinor = project.property("aws-advanced-jdbc-wrapper.version.minor")
-val versionSubminor = Integer.parseInt(project.property("aws-advanced-jdbc-wrapper.version.subminor").toString()) + if (project.property("snapshot") == "true") 1 else 0
-val buildVersion = "$versionMajor.$versionMinor.$versionSubminor" + if (project.property("snapshot") == "true") "-SNAPSHOT" else ""
+val versionSubminor = Integer.parseInt(
+    project.property("aws-advanced-jdbc-wrapper.version.subminor").toString()
+) + if (project.property("snapshot") == "true") 1 else 0
+val buildVersion =
+    "$versionMajor.$versionMinor.$versionSubminor" + if (project.property("snapshot") == "true") "-SNAPSHOT" else ""
 
 allprojects {
     group = "software.amazon.jdbc"
@@ -115,7 +122,7 @@ allprojects {
                         }
                         scm {
                             connection.set("scm:git:https://github.com/aws/aws-advanced-jdbc-wrapper.git")
-                            developerConnection.set("scm:git@github.com:awslabs/aws-advanced-jdbc-wrapper.git")
+                            developerConnection.set("scm:git@github.com:aws/aws-advanced-jdbc-wrapper.git")
                             url.set("https://github.com/aws/aws-advanced-jdbc-wrapper")
                         }
                         issueManagement {
@@ -140,11 +147,10 @@ allprojects {
         }
         repositories {
             maven {
-                name = "OSSRH"
-                url = if(project.property("snapshot") == "true") {
-                    uri("https://aws.oss.sonatype.org/content/repositories/snapshots/")
+                url = if (project.property("snapshot") == "true") {
+                    uri("https://central.sonatype.com/repository/maven-snapshots/")
                 } else {
-                    uri("https://aws.oss.sonatype.org/service/local/staging/deploy/maven2/")
+                    uri("https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/")
                 }
                 credentials {
                     username = System.getenv("MAVEN_USERNAME")
@@ -154,5 +160,20 @@ allprojects {
 
             mavenLocal()
         }
+    }
+}
+
+tasks.register<Exec>("postPublishToMaven") {
+    doFirst {
+        val username = System.getenv("MAVEN_USERNAME")
+        val password = System.getenv("MAVEN_PASSWORD")
+
+        commandLine(
+            "curl", "-X", "POST",
+            "-u", "$username:$password",
+            "-H", "Content-Type: application/json",
+            "-d", "{}",
+            "https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/software.amazon"
+        )
     }
 }

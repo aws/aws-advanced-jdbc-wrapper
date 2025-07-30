@@ -32,6 +32,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
@@ -241,7 +242,9 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
             monitorContext.setInactive();
             if (connectionToAbort != null) {
               this.abortConnection(connectionToAbort);
-              this.abortedConnectionsCounter.inc();
+              if (this.abortedConnectionsCounter != null) {
+                this.abortedConnectionsCounter.inc();
+              }
             }
           } else if (monitorContext.isActive()) {
             tmpActiveContexts.add(monitorContextWeakRef);
@@ -294,7 +297,10 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
   boolean checkConnectionStatus() {
     TelemetryContext connectContext = telemetryFactory.openTelemetryContext(
         "connection status check", TelemetryTraceLevel.FORCE_TOP_LEVEL);
-    connectContext.setAttribute("url", this.hostSpec.getHost());
+
+    if (connectContext != null) {
+      connectContext.setAttribute("url", this.hostSpec.getHost());
+    }
 
     try {
       if (this.monitoringConn == null || this.monitoringConn.isClosed()) {
@@ -324,7 +330,9 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
     } catch (final SQLException sqlEx) {
       return false;
     } finally {
-      connectContext.closeContext();
+      if (connectContext != null) {
+        connectContext.closeContext();
+      }
     }
   }
 

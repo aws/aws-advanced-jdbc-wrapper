@@ -21,53 +21,63 @@ import software.amazon.jdbc.PropertyDefinition;
 
 public class DefaultTelemetryFactory implements TelemetryFactory {
 
+  private static final OpenTelemetryFactory OPEN_TELEMETRY_FACTORY = new OpenTelemetryFactory();
+  private static final XRayTelemetryFactory X_RAY_TELEMETRY_FACTORY = new XRayTelemetryFactory();
+
   private final boolean enableTelemetry;
   private final String telemetryTracesBackend;
   private final String telemetryMetricsBackend;
-  private final boolean telemetrySubmitToplevel;
+  private final boolean telemetrySubmitTopLevel;
 
   private final TelemetryFactory tracesTelemetryFactory;
   private final TelemetryFactory metricsTelemetryFactory;
+  private final boolean telemetryInUse;
 
   public DefaultTelemetryFactory(final Properties properties) {
     this.enableTelemetry = PropertyDefinition.ENABLE_TELEMETRY.getBoolean(properties);
     this.telemetryTracesBackend = PropertyDefinition.TELEMETRY_TRACES_BACKEND.getString(properties);
     this.telemetryMetricsBackend = PropertyDefinition.TELEMETRY_METRICS_BACKEND.getString(properties);
-    this.telemetrySubmitToplevel = PropertyDefinition.TELEMETRY_SUBMIT_TOPLEVEL.getBoolean(properties);
+    this.telemetrySubmitTopLevel = PropertyDefinition.TELEMETRY_SUBMIT_TOPLEVEL.getBoolean(properties);
 
     if (enableTelemetry) {
       if ("otlp".equalsIgnoreCase(telemetryTracesBackend)) {
-        this.tracesTelemetryFactory = new OpenTelemetryFactory();
+        this.tracesTelemetryFactory = OPEN_TELEMETRY_FACTORY;
       } else if ("xray".equalsIgnoreCase(telemetryTracesBackend)) {
-        this.tracesTelemetryFactory = new XRayTelemetryFactory();
+        this.tracesTelemetryFactory = X_RAY_TELEMETRY_FACTORY;
       } else if ("none".equalsIgnoreCase(telemetryTracesBackend)) {
-        this.tracesTelemetryFactory = new NullTelemetryFactory();
+        this.tracesTelemetryFactory = null;
       } else {
         throw new RuntimeException(
             telemetryTracesBackend + " is not a valid tracing backend. Available options: OTLP, XRAY, NONE.");
       }
     } else {
-      this.tracesTelemetryFactory = new NullTelemetryFactory();
+      this.tracesTelemetryFactory = null;
     }
 
     if (enableTelemetry) {
       if ("otlp".equalsIgnoreCase(telemetryMetricsBackend)) {
-        this.metricsTelemetryFactory = new OpenTelemetryFactory();
+        this.metricsTelemetryFactory = OPEN_TELEMETRY_FACTORY;
       } else if ("none".equalsIgnoreCase(telemetryMetricsBackend)) {
-        this.metricsTelemetryFactory = new NullTelemetryFactory();
+        this.metricsTelemetryFactory = null;
       } else {
         throw new RuntimeException(
             telemetryTracesBackend + " is not a valid metrics backend. Available options: OTLP, NONE.");
       }
     } else {
-      this.metricsTelemetryFactory = new NullTelemetryFactory();
+      this.metricsTelemetryFactory = null;
     }
+
+    this.telemetryInUse = this.tracesTelemetryFactory != null
+        || this.metricsTelemetryFactory != null;
   }
 
   @Override
   public TelemetryContext openTelemetryContext(final String name, final TelemetryTraceLevel traceLevel) {
+    if (this.tracesTelemetryFactory == null) {
+      return null;
+    }
     TelemetryTraceLevel effectiveTraceLevel = traceLevel;
-    if (!this.telemetrySubmitToplevel && traceLevel == TelemetryTraceLevel.TOP_LEVEL) {
+    if (!this.telemetrySubmitTopLevel && traceLevel == TelemetryTraceLevel.TOP_LEVEL) {
       effectiveTraceLevel = TelemetryTraceLevel.NESTED;
     }
     return this.tracesTelemetryFactory.openTelemetryContext(name, effectiveTraceLevel);
@@ -75,16 +85,29 @@ public class DefaultTelemetryFactory implements TelemetryFactory {
 
   @Override
   public void postCopy(TelemetryContext telemetryContext, TelemetryTraceLevel traceLevel) {
-    this.tracesTelemetryFactory.postCopy(telemetryContext, traceLevel);
+    if (this.tracesTelemetryFactory != null) {
+      this.tracesTelemetryFactory.postCopy(telemetryContext, traceLevel);
+    }
   }
 
   @Override
   public TelemetryCounter createCounter(final String name) {
+    if (this.metricsTelemetryFactory == null) {
+      return null;
+    }
     return this.metricsTelemetryFactory.createCounter(name);
   }
 
   @Override
   public TelemetryGauge createGauge(final String name, final GaugeCallable<Long> callback) {
+    if (this.metricsTelemetryFactory == null) {
+      return null;
+    }
     return this.metricsTelemetryFactory.createGauge(name, callback);
+  }
+
+  @Override
+  public boolean inUse() {
+    return this.telemetryInUse;
   }
 }

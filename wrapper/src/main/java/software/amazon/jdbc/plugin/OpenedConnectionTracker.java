@@ -139,7 +139,9 @@ public class OpenedConnectionTracker {
         }
       }
     } finally {
-      telemetryContext.closeContext();
+      if (telemetryContext != null) {
+        telemetryContext.closeContext();
+      }
     }
   }
 

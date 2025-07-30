@@ -18,10 +18,7 @@ package software.amazon.jdbc.util.telemetry;
 
 public class NullTelemetryCounter implements TelemetryCounter {
 
-  private final String name;
-
-  public NullTelemetryCounter(String name) {
-    this.name = name;
+  public NullTelemetryCounter() {
   }
 
   @Override
@@ -33,7 +30,7 @@ public class NullTelemetryCounter implements TelemetryCounter {
   }
 
   public String getName() {
-    return name;
+    return "null";
   }
 
 }

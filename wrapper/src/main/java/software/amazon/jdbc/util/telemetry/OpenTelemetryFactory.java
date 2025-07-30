@@ -29,9 +29,9 @@ public class OpenTelemetryFactory implements TelemetryFactory {
    * Max allowed name length for counters and gauges.
    *
    * @see
-   * <a href="https://opentelemetry.io/docs/specs/otel/metrics/api/#:~:text=It%20can%20have%20a%20maximum%20length%20of%2063%20characters">More details</a>
+   * <a href="https://opentelemetry.io/docs/specs/otel/metrics/api/#instrument-name-syntax">More details</a>
    */
-  private static final int NAME_MAX_LENGTH = 63;
+  private static final int NAME_MAX_LENGTH = 255;
 
   private static Tracer tracer;
   private static Meter meter;
@@ -68,6 +68,11 @@ public class OpenTelemetryFactory implements TelemetryFactory {
     }
     meter = getOpenTelemetry().getMeter(INSTRUMENTATION_NAME);
     return new OpenTelemetryGauge(meter, trimName(name), callback);
+  }
+
+  @Override
+  public boolean inUse() {
+    return true;
   }
 
   private String trimName(final String name) {

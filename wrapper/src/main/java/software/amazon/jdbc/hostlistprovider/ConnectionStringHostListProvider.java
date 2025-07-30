@@ -121,6 +121,6 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
 
   @Override
   public String getClusterId() throws UnsupportedOperationException {
-    throw new UnsupportedOperationException("ConnectionStringHostListProvider does not support `getClusterId` method.");
+    return "<none>";
   }
 }

@@ -116,9 +116,9 @@ public class OktaAuthPlugin extends AbstractConnectionPlugin {
     this.samlUtils = new SamlUtils(this.rdsUtils);
     this.iamTokenUtility = tokenUtils;
     this.telemetryFactory = pluginService.getTelemetryFactory();
-    this.cacheSizeGauge = telemetryFactory.createGauge("oktaAuth.tokenCache.size",
+    this.cacheSizeGauge = this.telemetryFactory.createGauge("oktaAuth.tokenCache.size",
         () -> (long) OktaAuthCacheHolder.tokenCache.size());
-    this.fetchTokenCounter = telemetryFactory.createCounter("oktaAuth.fetchToken.count");
+    this.fetchTokenCounter = this.telemetryFactory.createCounter("oktaAuth.fetchToken.count");
   }
 
   @Override
@@ -187,6 +187,10 @@ public class OktaAuthPlugin extends AbstractConnectionPlugin {
     try {
       return connectFunc.call();
     } catch (final SQLException exception) {
+      if (!isCachedToken
+          || !this.pluginService.isLoginException(exception, this.pluginService.getTargetDriverDialect())) {
+        throw exception;
+      }
       updateAuthenticationToken(hostSpec, props, region, cacheKey, host);
       return connectFunc.call();
     } catch (final Exception exception) {
@@ -213,7 +217,9 @@ public class OktaAuthPlugin extends AbstractConnectionPlugin {
         this.pluginService.getDialect().getDefaultPort());
     final AwsCredentialsProvider credentialsProvider =
         this.credentialsProviderFactory.getAwsCredentialsProvider(hostSpec.getHost(), region, props);
-    this.fetchTokenCounter.inc();
+    if (this.fetchTokenCounter != null) {
+      this.fetchTokenCounter.inc();
+    }
     final String token = IamAuthUtils.generateAuthenticationToken(
         this.iamTokenUtility,
         this.pluginService,

@@ -115,9 +115,7 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
   public HostListProviderSupplier getHostListProvider() {
     return (properties, initialUrl, servicesContainer) -> {
       final PluginService pluginService = servicesContainer.getPluginService();
-      final FailoverConnectionPlugin failover2Plugin = pluginService.getPlugin(FailoverConnectionPlugin.class);
-
-      if (failover2Plugin != null) {
+      if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {
         return new MonitoringRdsMultiAzHostListProvider(
             properties,
             initialUrl,

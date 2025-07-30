@@ -30,6 +30,7 @@ import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.monitoring.MonitorService;
+import software.amazon.jdbc.util.storage.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -105,7 +106,9 @@ public class HostMonitorServiceImpl implements HostMonitorService {
       try {
         connectionToAbort.abort(ABORT_EXECUTOR);
         connectionToAbort.close();
-        this.abortedConnectionsCounter.inc();
+        if (this.abortedConnectionsCounter != null) {
+          this.abortedConnectionsCounter.inc();
+        }
       } catch (final SQLException sqlEx) {
         // ignore
         LOGGER.finest(

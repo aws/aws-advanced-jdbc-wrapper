@@ -30,6 +30,7 @@ import static software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin.WA
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.HashSet;
 import java.util.Properties;
 import java.util.function.BiFunction;
 import org.junit.jupiter.api.AfterEach;
@@ -45,7 +46,9 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -62,6 +65,7 @@ public class CustomEndpointPluginTest {
 
   @Mock private FullServicesContainer mockServicesContainer;
   @Mock private PluginService mockPluginService;
+  @Mock private MonitorService mockMonitorService;
   @Mock private BiFunction<HostSpec, Region, RdsClient> mockRdsClientFunc;
   @Mock private TelemetryFactory mockTelemetryFactory;
   @Mock private TelemetryCounter mockTelemetryCounter;
@@ -69,15 +73,20 @@ public class CustomEndpointPluginTest {
   @Mock private JdbcCallable<Statement, SQLException> mockJdbcMethodFunc;
   @Mock private Connection mockConnection;
   @Mock private CustomEndpointMonitor mockMonitor;
+  @Mock TargetDriverDialect mockTargetDriverDialect;
+
 
   @BeforeEach
   public void init() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
 
     when(mockServicesContainer.getPluginService()).thenReturn(mockPluginService);
+    when(mockServicesContainer.getMonitorService()).thenReturn(mockMonitorService);
     when(mockServicesContainer.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.createCounter(any(String.class))).thenReturn(mockTelemetryCounter);
     when(mockMonitor.hasCustomEndpointInfo()).thenReturn(true);
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(mockTargetDriverDialect);
+    when(mockTargetDriverDialect.getNetworkBoundMethodNames(any())).thenReturn(new HashSet<>());
   }
 
   @AfterEach

@@ -24,9 +24,12 @@ public interface ExceptionHandler {
   /**
    * The method determines whether provided throwable is about any network issues.
    *
+   * @param throwable A throwable object to check.
+   * @return true, if a provided throwable object is network-related.
+   *
    * @deprecated Use similar method below that accepts throwable and target driver dialect.
    */
-  @Deprecated()
+  @Deprecated
   boolean isNetworkException(Throwable throwable);
 
   boolean isNetworkException(Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect);
@@ -38,9 +41,12 @@ public interface ExceptionHandler {
   /**
    * The method determines whether provided throwable is about any login or authentication issues.
    *
+   * @param throwable A throwable object to check.
+   * @return true, if a provided throwable object is related to authentication.
+
    * @deprecated Use similar method below that accepts throwable and target driver dialect.
    */
-  @Deprecated()
+  @Deprecated
   boolean isLoginException(Throwable throwable);
 
   boolean isLoginException(Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect);

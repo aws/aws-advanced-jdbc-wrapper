@@ -30,6 +30,7 @@ import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
@@ -39,7 +40,6 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.RegionUtils;
 import software.amazon.jdbc.util.StringUtils;
-import software.amazon.jdbc.util.SubscribedMethodHelper;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.monitoring.MonitorErrorResponse;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -55,13 +55,6 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   protected static final RegionUtils regionUtils = new RegionUtils();
   protected static final Set<MonitorErrorResponse> monitorErrorResponses =
       new HashSet<>(Collections.singletonList(MonitorErrorResponse.RECREATE));
-  protected static final Set<String> subscribedMethods =
-      Collections.unmodifiableSet(new HashSet<String>() {
-        {
-          addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
-          add("connect");
-        }
-      });
 
   public static final AwsWrapperProperty CUSTOM_ENDPOINT_INFO_REFRESH_RATE_MS = new AwsWrapperProperty(
       "customEndpointInfoRefreshRateMs", "30000",
@@ -98,6 +91,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   protected final RdsUtils rdsUtils = new RdsUtils();
   protected final BiFunction<HostSpec, Region, RdsClient> rdsClientFunc;
 
+  protected final Set<String> subscribedMethods;
   protected final TelemetryCounter waitForInfoCounter;
   protected final boolean shouldWaitForInfo;
   protected final int waitOnCachedInfoDurationMs;
@@ -147,6 +141,11 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
 
     TelemetryFactory telemetryFactory = servicesContainer.getTelemetryFactory();
     this.waitForInfoCounter = telemetryFactory.createCounter(TELEMETRY_WAIT_FOR_INFO_COUNTER);
+
+    final HashSet<String> methods = new HashSet<>();
+    methods.add(JdbcMethod.CONNECT.methodName);
+    methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.props));
+    this.subscribedMethods = Collections.unmodifiableSet(methods);
 
     this.servicesContainer.getMonitorService().registerMonitorTypeIfAbsent(
         CustomEndpointMonitorImpl.class,
@@ -210,6 +209,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
    *
    * @param props The connection properties.
    * @return {@link CustomEndpointMonitor}
+   * @throws SQLException if an error occurs while attempting to create the monitor.
    */
   protected CustomEndpointMonitor createMonitorIfAbsent(Properties props) throws SQLException {
     return this.servicesContainer.getMonitorService().runIfAbsent(
@@ -240,6 +240,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
    * endpoint info. Since custom endpoint monitors and information are shared, we should not have to wait often.
    *
    * @param monitor A {@link CustomEndpointMonitor} monitor.
+   * @throws SQLException if there's an error getting custom endpoint, or if it takes longer time than anticipated
    */
   protected void waitForCustomEndpointInfo(CustomEndpointMonitor monitor) throws SQLException {
     boolean hasCustomEndpointInfo = monitor.hasCustomEndpointInfo();
@@ -247,7 +248,9 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     if (!hasCustomEndpointInfo) {
       // Wait for the monitor to place the custom endpoint info in the cache. This ensures other plugins get accurate
       // custom endpoint info.
-      this.waitForInfoCounter.inc();
+      if (this.waitForInfoCounter != null) {
+        this.waitForInfoCounter.inc();
+      }
       LOGGER.fine(
           Messages.get(
               "CustomEndpointPlugin.waitingForCustomEndpointInfo",

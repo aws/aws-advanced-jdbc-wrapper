@@ -109,7 +109,9 @@ public class NodeResponseTimeMonitor extends AbstractMonitor {
   public void monitor() {
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
         "node response time thread", TelemetryTraceLevel.TOP_LEVEL);
-    telemetryContext.setAttribute("url", hostSpec.getUrl());
+    if (telemetryContext != null) {
+      telemetryContext.setAttribute("url", hostSpec.getUrl());
+    }
 
     try {
       while (!this.stopped.get()) {

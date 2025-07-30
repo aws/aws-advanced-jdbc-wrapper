@@ -189,7 +189,9 @@ public class ConnectionProviderManager {
    * Sets a custom connection initialization function. It'll be used
    * for every brand-new database connection.
    *
-   * @deprecated Use {@link Driver#setConnectionInitFunc(ConnectionInitFunc)} instead
+   * @param func A function that initialize a new connection
+   *
+   * @deprecated @see Driver#setConnectionInitFunc(ConnectionInitFunc)
    */
   @Deprecated
   public static void setConnectionInitFunc(final @NonNull ConnectionInitFunc func) {
