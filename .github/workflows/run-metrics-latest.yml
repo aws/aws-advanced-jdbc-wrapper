@@ -2,16 +2,15 @@ name: Run Metrics Latest
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
+  schedule:
+    - cron: "8 0 * * *" # Runs daily at 8am UTC (1am PST)
 
 permissions:
   id-token: write   # This is required for requesting the JWT
   contents: read    # This is required for actions/checkout
 
 jobs:
-  all-integration-tests-latest:
+  run-metrics-with-latest:
     name: Run Metrics with latest engine version
     runs-on: ubuntu-latest
     strategy:
