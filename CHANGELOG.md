@@ -3,7 +3,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [2.6.2] - 2025-07-31
+
+### :crab: Changed
+- Reverted the breaking change to suggested `clusterId` functionality ([PR #1476](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1493)), which made `clusterId` a required parameter in applications using multiple database clusters. This change will be reintroduce later as a major version update.
+
 ## [2.6.1] - 2025-07-21
+> [!WARNING]\
+> This patch removes the suggested ClusterId functionality.
+> #### Suggested ClusterId Functionality
+> Prior to this change, the wrapper would generate a unique cluster ID based on the connection string and the cluster topology; however, in some cases (such as custom endpoints, IP addresses, and CNAME aliases, etc), the wrapper would generate an incorrect identifier. This change was needed to prevent applications with several clusters from accidentally relying on incorrect topology during failover which could result in the wrapper failing to complete failover successfully.
+> #### Migration
+> | Number of Database Clusters in Use | Requires Changes | Action Items                                                                                                                                                                                                                                                                                                                                                                            |
+> |------------------------------------|------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+> | Single database cluster            | No               | No changes required                                                                                                                                                                                                                                                                                                                                                                     |
+> | Multiple database clusters         | Yes              | Review all connection strings and add mandatory `clusterId` parameter ([PR #1476](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1476)). See [documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheFailover2Plugin.md#failover-plugin-v2-configuration-parameters) for `clusterId` parameter configuration |
+
 ### :magic_wand: Added
 - Add a Blue/Green Support Behaviour and Version Compatibility section to the Blue Green Plugin documentation ([PR #1475](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1475)).
 
@@ -15,7 +30,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Performance optimization ([PR #1444](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1444)).
 - Blue/Green Plugin [documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheBlueGreenPlugin.md) to include default and suggested parameter values.
 - Updated Hibernate tests to Hibernate version 7.0.2.
-- Remove suggested ClusterId functionality. For applications that use a single cluster database **no changes are required**. For application that access multiple database clusters, all connection string **should be** reviewed and a mandatory `clusterId` parameter **should be added** ([PR #1476](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1476)). See the [documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheFailover2Plugin.md#failover-plugin-v2-configuration-parameters) to learn about the `clusterId` parameter.
 
 ## [2.6.0] - 2025-06-10
 ### :magic_wand: Added
@@ -470,6 +484,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[2.6.2]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.1...2.6.2
 [2.6.1]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.0...2.6.1
 [2.6.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.5.6...2.6.0
 [2.5.6]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.5.5...2.5.6
