@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [2.6.2] - 2025-07-31
 
 ### :crab: Changed
-- Reverted the breaking change to suggested `clusterId` functionality ([PR #1476](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1493)), which made `clusterId` a required parameter in applications using multiple database clusters. This change will be reintroduce later as a major version update.
+- Reverted the breaking change to suggested `clusterId` functionality ([PR #1476](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1493)), which made `clusterId` a required parameter in applications using multiple database clusters. This change will be reintroduced later as a major version update.
 
 ## [2.6.1] - 2025-07-21
 > [!WARNING]\
