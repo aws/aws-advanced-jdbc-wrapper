@@ -39,23 +39,18 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
   private static final String TOPOLOGY_QUERY =
       "SELECT id, endpoint, port FROM rds_tools.show_topology('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
 
-  private static final String WRITER_NODE_FUNC_EXIST_QUERY =
-      "SELECT 1 AS tmp FROM information_schema.routines"
-          + " WHERE routine_schema='rds_tools' AND routine_name='multi_az_db_cluster_source_dbi_resource_id'";
-
   // For reader nodes, the query should return a writer node ID. For a writer node, the query should return no data.
   private static final String FETCH_WRITER_NODE_QUERY =
       "SELECT multi_az_db_cluster_source_dbi_resource_id FROM rds_tools.multi_az_db_cluster_source_dbi_resource_id()"
           + " WHERE multi_az_db_cluster_source_dbi_resource_id !="
           + " (SELECT dbi_resource_id FROM rds_tools.dbi_resource_id())";
 
+  private static final String IS_RDS_CLUSTER_QUERY =
+      "SELECT multi_az_db_cluster_source_dbi_resource_id FROM rds_tools.multi_az_db_cluster_source_dbi_resource_id()";
+
   private static final String FETCH_WRITER_NODE_QUERY_COLUMN_NAME = "multi_az_db_cluster_source_dbi_resource_id";
 
   private static final String NODE_ID_QUERY = "SELECT dbi_resource_id FROM rds_tools.dbi_resource_id()";
-
-  private static final String NODE_ID_FUNC_EXIST_QUERY =
-      "SELECT 1 AS tmp FROM information_schema.routines"
-          + " WHERE routine_schema='rds_tools' AND routine_name='dbi_resource_id'";
 
   private static final String IS_READER_QUERY = "SELECT pg_is_in_recovery()";
 
@@ -69,39 +64,11 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
 
   @Override
   public boolean isDialect(final Connection connection) {
-    Statement stmt = null;
-    ResultSet rs = null;
-    try {
-      stmt = connection.createStatement();
-      rs = stmt.executeQuery(WRITER_NODE_FUNC_EXIST_QUERY);
-
-      if (rs.next()) {
-        rs.close();
-        stmt.close();
-
-        stmt = connection.createStatement();
-        rs = stmt.executeQuery(NODE_ID_FUNC_EXIST_QUERY);
-
-        return rs.next();
-      }
-      return false;
+    try (Statement stmt = connection.createStatement();
+        ResultSet rs = stmt.executeQuery(IS_RDS_CLUSTER_QUERY)) {
+      return rs.next() && rs.getString(1) != null;
     } catch (final SQLException ex) {
       // ignore
-    } finally {
-      if (stmt != null) {
-        try {
-          stmt.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
-      if (rs != null) {
-        try {
-          rs.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
     }
     return false;
   }

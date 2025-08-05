@@ -252,6 +252,7 @@ public class DialectTests {
   void testRdsTazPgIsDialectSuccess() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(successResultSet);
     when(successResultSet.next()).thenReturn(true);
+    when(successResultSet.getString(1)).thenReturn("id");
     assertTrue(rdsTazPgDialect.isDialect(mockConnection));
   }
 
@@ -269,11 +270,10 @@ public class DialectTests {
   }
 
   @Test
-  void testRdsTazPgIsDialectWriterNodeQueryFailed() throws SQLException {
-    when(mockStatement.executeQuery(any())).thenReturn(successResultSet, failResultSet);
-    when(successResultSet.next()).thenReturn(true);
+  void testRdsTazPgIsDialectIsRdsClusterQueryFailed() throws SQLException {
+    when(mockStatement.executeQuery(any())).thenReturn(failResultSet);
+    when(successResultSet.next()).thenReturn(false);
     assertFalse(rdsTazPgDialect.isDialect(mockConnection));
-    verify(successResultSet, times(1)).next();
     verify(failResultSet, times(1)).next();
   }
 
