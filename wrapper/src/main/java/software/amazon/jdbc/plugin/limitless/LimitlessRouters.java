@@ -17,12 +17,38 @@
 package software.amazon.jdbc.plugin.limitless;
 
 import java.util.List;
+import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.hostlistprovider.Topology;
 
-public class LimitlessRouters extends Topology {
+public class LimitlessRouters {
+  private final @NonNull List<HostSpec> hosts;
+
   public LimitlessRouters(@NonNull List<HostSpec> hosts) {
-    super(hosts);
+    this.hosts = hosts;
+  }
+
+  public @NonNull List<HostSpec> getHosts() {
+    return hosts;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(hosts);
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) {
+      return true;
+    }
+
+    if (obj == null || getClass() != obj.getClass()) {
+      return false;
+    }
+
+    LimitlessRouters other = (LimitlessRouters) obj;
+    return Objects.equals(hosts, other.hosts);
   }
 }
