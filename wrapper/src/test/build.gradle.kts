@@ -61,6 +61,7 @@ dependencies {
     testImplementation("de.vandermeer:asciitable:0.3.2")
     testImplementation("org.hibernate:hibernate-core:5.6.15.Final") // the latest version compatible with Java 8
     testImplementation("jakarta.persistence:jakarta.persistence-api:2.2.3")
+    testImplementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.19.2")
 }
 
 tasks.withType<Test> {

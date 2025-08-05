@@ -14,23 +14,28 @@
  * limitations under the License.
  */
 
-package integration;
+package integration.container.tests.metrics;
 
-public enum TestEnvironmentFeatures {
-  IAM,
-  SECRETS_MANAGER,
-  FAILOVER_SUPPORTED,
-  NETWORK_OUTAGES_ENABLED,
-  AWS_CREDENTIALS_ENABLED,
-  PERFORMANCE,
-  HIKARI,
-  SKIP_MYSQL_DRIVER_TESTS,
-  SKIP_PG_DRIVER_TESTS,
-  SKIP_MARIADB_DRIVER_TESTS,
-  RUN_HIBERNATE_TESTS_ONLY,
-  RUN_AUTOSCALING_TESTS_ONLY,
-  TELEMETRY_TRACES_ENABLED,
-  TELEMETRY_METRICS_ENABLED,
-  BLUE_GREEN_DEPLOYMENT,
-  RUN_DB_METRICS_ONLY
+import java.io.Serializable;
+import java.time.Instant;
+import java.util.List;
+
+public class Runs implements Serializable {
+  private static final long serialVersionUID = 1L;
+
+  public Instant start;
+  public String engineVersion;
+  public String awsDriverName;
+  public String awsDriverVersion;
+  public String targetDriverName;
+  public String targetDriverVersion;
+
+  public List<RunData> iterations;
+
+  public int numOfIterations;
+  public int numOfTopologyFalsePositive;
+  public int numOfTopologyOldWriterUnavailable;
+
+  public Runs() {
+  }
 }

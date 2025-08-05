@@ -229,7 +229,7 @@ To use a snapshot build in your project, check the following examples. More info
   <dependency>
     <groupId>software.amazon.jdbc</groupId>
     <artifactId>aws-advanced-jdbc-wrapper</artifactId>
-    <version>2.6.1-SNAPSHOT</version>
+    <version>2.6.2-SNAPSHOT</version>
   </dependency>
 </dependencies>
 

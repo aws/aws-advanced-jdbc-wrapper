@@ -164,6 +164,11 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   }
 
   @Override
+  public void setClusterId(String clusterId) {
+    this.clusterId = clusterId;
+  }
+
+  @Override
   public List<HostSpec> forceRefresh(final boolean shouldVerifyWriter, final long timeoutMs)
       throws SQLException, TimeoutException {
 
@@ -276,7 +281,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     try {
       LOGGER.finest(() -> Messages.get(
           "ClusterTopologyMonitorImpl.startMonitoringThread",
-          new Object[]{this.initialHostSpec.getHost()}));
+          new Object[]{this.clusterId, this.initialHostSpec.getHost()}));
 
       while (!this.stop.get() && !Thread.currentThread().isInterrupted()) {
         this.lastActivityTimestampNanos.set(System.nanoTime());
@@ -306,8 +311,11 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
               for (HostSpec hostSpec : hosts) {
                 this.submittedNodes.computeIfAbsent(hostSpec.getHost(),
                     (key) -> {
-                      this.nodeExecutorService.submit(
-                          this.getNodeMonitoringWorker(hostSpec, this.writerHostSpec.get()));
+                      final ExecutorService nodeExecutorServiceCopy = this.nodeExecutorService;
+                      if (nodeExecutorServiceCopy != null) {
+                        this.nodeExecutorService.submit(
+                            this.getNodeMonitoringWorker(hostSpec, this.writerHostSpec.get()));
+                      }
                       return true;
                     });
               }

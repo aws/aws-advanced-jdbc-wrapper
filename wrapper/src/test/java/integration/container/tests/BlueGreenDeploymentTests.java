@@ -36,6 +36,7 @@ import integration.container.ConnectionStringHelper;
 import integration.container.TestDriver;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
+import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngine;
 import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnTestFeature;
@@ -89,6 +90,7 @@ import software.amazon.jdbc.util.RdsUtils;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @EnableOnTestFeature(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)
+@DisableOnTestFeature(TestEnvironmentFeatures.RUN_DB_METRICS_ONLY)
 @EnableOnDatabaseEngineDeployment({DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE, DatabaseEngineDeployment.AURORA})
 @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
 @Order(18)
