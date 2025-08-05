@@ -28,6 +28,7 @@ include(
     "springhibernateonedatasource",
     "springhibernatetwodatasource",
     "springwildfly",
+    "springboothikaridsqlexample",
     "springboothikariexample",
     "springtxfailover",
     "vertxexample",
@@ -44,6 +45,7 @@ project(":springhibernate").projectDir = file("examples/SpringHibernateExample")
 project(":springhibernateonedatasource").projectDir = file("examples/SpringHibernateBalancedReaderOneDataSourceExample")
 project(":springhibernatetwodatasource").projectDir = file("examples/SpringHibernateBalancedReaderTwoDataSourceExample")
 project(":springwildfly").projectDir = file("examples/SpringWildflyExample/spring")
+project(":springboothikaridsqlexample").projectDir = file("examples/SpringBootHikariDsqlExample")
 project(":springboothikariexample").projectDir = file("examples/SpringBootHikariExample")
 project(":springtxfailover").projectDir = file("examples/SpringTxFailoverExample")
 project(":vertxexample").projectDir = file("examples/VertxExample")
