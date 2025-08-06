@@ -40,7 +40,6 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -1456,10 +1455,19 @@ public class AuroraTestUtility {
   }
 
   public void simulateTemporaryFailure(ExecutorService executor, String instanceName) {
+    simulateTemporaryFailure(executor, instanceName, 0, 5000);
+  }
+
+  public void simulateTemporaryFailure(
+      ExecutorService executor, String instanceName, int delayMs, int failureDurationMs) {
     executor.submit(() -> {
       try {
+        if (delayMs > 0) {
+          TimeUnit.MILLISECONDS.sleep(delayMs);
+        }
+
         ProxyHelper.disableConnectivity(instanceName);
-        TimeUnit.SECONDS.sleep(5);
+        TimeUnit.MILLISECONDS.sleep(failureDurationMs);
         ProxyHelper.enableConnectivity(instanceName);
       } catch (InterruptedException e) {
         fail("The disable connectivity thread was unexpectedly interrupted.");

@@ -93,7 +93,7 @@ import software.amazon.jdbc.util.RdsUtils;
 @DisableOnTestFeature(TestEnvironmentFeatures.RUN_DB_METRICS_ONLY)
 @EnableOnDatabaseEngineDeployment({DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE, DatabaseEngineDeployment.AURORA})
 @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
-@Order(18)
+@Order(19)
 public class BlueGreenDeploymentTests {
 
   private static final Logger LOGGER = Logger.getLogger(BlueGreenDeploymentTests.class.getName());
