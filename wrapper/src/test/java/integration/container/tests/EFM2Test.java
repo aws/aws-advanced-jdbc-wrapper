@@ -22,10 +22,10 @@ import static org.junit.jupiter.api.Assertions.fail;
 import integration.DatabaseEngine;
 import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
-import integration.container.TestDriver;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestFeature;
+import integration.container.condition.EnableOnTestFeature;
 import integration.util.AuroraTestUtility;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -33,14 +33,17 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
@@ -52,46 +55,65 @@ import software.amazon.jdbc.PropertyDefinition;
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
 @Order(17)
 public class EFM2Test {
-
-  private static final Logger LOGGER = Logger.getLogger(integration.container.tests.EFM2Test.class.getName());
   protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
-  protected ExecutorService executor;
+  protected ExecutorService executor = Executors.newFixedThreadPool(1, r -> {
+    final Thread thread = new Thread(r);
+    thread.setDaemon(true);
+    return thread;
+  });
+
+  @BeforeEach
+  public void setUpEach() {
+    this.executor = Executors.newFixedThreadPool(1, r -> {
+      final Thread thread = new Thread(r);
+      thread.setDaemon(true);
+      return thread;
+    });
+  }
+
+  @AfterEach
+  public void afterEach() {
+    this.executor.shutdownNow();
+  }
 
   @TestTemplate
   @ExtendWith(TestDriverProvider.class)
-  public void test_efmNetworkFailureDetection(TestDriver testDriver) throws SQLException {
-    LOGGER.info(testDriver.toString());
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
+  public void test_efmNetworkFailureDetection() throws SQLException {
+    int minDurationMs = 10000;
+    int maxDurationMs = 30000;
 
-    final Properties props = new Properties();
-    props.setProperty(
-        PropertyDefinition.USER.name,
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
-    props.setProperty(
-        PropertyDefinition.PASSWORD.name,
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+    final Properties props = ConnectionStringHelper.getDefaultProperties();
     props.setProperty(PropertyDefinition.CONNECT_TIMEOUT.name, "10000");
-    props.setProperty(PropertyDefinition.SOCKET_TIMEOUT.name, "120000");
+    props.setProperty(PropertyDefinition.SOCKET_TIMEOUT.name, String.valueOf(maxDurationMs));
     props.setProperty(PropertyDefinition.PLUGINS.name, "efm2");
+    props.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "5000");
+    props.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "1");
 
-    String url = ConnectionStringHelper.getWrapperUrl();
+    String url = ConnectionStringHelper.getProxyWrapperUrl();
     try (final Connection conn = DriverManager.getConnection(url, props)) {
       String instanceId = auroraUtil.queryInstanceId(conn);
       Statement stmt = conn.createStatement();
 
-      auroraUtil.simulateTemporaryFailure(executor, instanceId, 10000, 120000);
+      // Start a separate thread to simulate network failure iin the middle of the sleep query.
+      auroraUtil.simulateTemporaryFailure(executor, instanceId, 10000, maxDurationMs);
       long startNs = System.nanoTime();
       try {
-        stmt.executeQuery(getSleepSql(120));
+        stmt.executeQuery(getSleepSql(TimeUnit.MILLISECONDS.toSeconds(maxDurationMs)));
         fail("Sleep query should have failed");
       } catch (SQLException e) {
         long endNs = System.nanoTime();
-        long durationSec = TimeUnit.NANOSECONDS.toSeconds(endNs - startNs);
-        assertTrue(durationSec > 20000 && durationSec < 120000);
+        long durationMs = TimeUnit.NANOSECONDS.toMillis(endNs - startNs);
+        // EFM should detect network failure and abort the connection at some point between minDurationMs and
+        // maxDurationMs.
+        assertTrue(durationMs > minDurationMs && durationMs < maxDurationMs,
+            String.format("Time before failure was not between %d and %d seconds, actual duration was %d seconds.",
+                minDurationMs, maxDurationMs, durationMs));
       }
     }
   }
 
-  private String getSleepSql(final int seconds) {
+  private String getSleepSql(final long seconds) {
     final DatabaseEngine databaseEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
     switch (databaseEngine) {
       case PG:
