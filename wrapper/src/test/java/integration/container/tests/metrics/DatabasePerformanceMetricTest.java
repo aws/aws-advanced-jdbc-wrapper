@@ -96,7 +96,7 @@ import software.amazon.jdbc.util.Pair;
 @EnableOnDatabaseEngineDeployment({RDS_MULTI_AZ_CLUSTER, AURORA})
 @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
 @EnableOnNumOfInstances(min = 2)
-@Order(21)
+@Order(22)
 public class DatabasePerformanceMetricTest {
 
   private static final Logger LOGGER = Logger.getLogger(DatabasePerformanceMetricTest.class.getName());
