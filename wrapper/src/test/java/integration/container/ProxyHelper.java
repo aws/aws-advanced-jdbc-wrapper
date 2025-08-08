@@ -96,4 +96,41 @@ public class ProxyHelper {
     }
     LOGGER.finest("Enabled connectivity to " + proxy.getName());
   }
+
+  public static void setLatency(String instanceName, int latencyMs) {
+    Proxy proxy = TestEnvironment.getCurrent().getProxy(instanceName);
+    if (proxy == null) {
+      throw new RuntimeException("Proxy for instance " + instanceName + " not found.");
+    }
+
+    try {
+      proxy.toxics().latency("latency", ToxicDirection.DOWNSTREAM, latencyMs);
+    } catch (IOException ex) {
+      LOGGER.finest("Error setting latency for '" + instanceName + "': " + ex.getMessage());
+    }
+    LOGGER.finest("Set latency for '" + instanceName + "' to " + latencyMs);
+  }
+
+  public static void clearAllLatencies() {
+    for (Proxy proxy : TestEnvironment.getCurrent().getProxies()) {
+      clearLatencies(proxy);
+    }
+  }
+
+  public static void clearLatencies(Proxy proxy) {
+    try {
+      proxy.toxics().getAll().stream()
+          .filter(t -> "latency".equals(t.getName()))
+          .forEach(toxic -> {
+            try {
+              toxic.remove();
+            } catch (IOException e) {
+              // ignore
+            }
+          });
+    } catch (IOException ex) {
+      LOGGER.finest("Error clearing latencies for '" + proxy.getName() + "': " + ex.getMessage());
+    }
+    LOGGER.finest("Cleared latencies for '" + proxy.getName() + "'.");
+  }
 }

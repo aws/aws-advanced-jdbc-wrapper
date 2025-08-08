@@ -131,6 +131,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                     .contains(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)) {
                   // Enable all proxies
                   ProxyHelper.enableAllConnectivity();
+                  ProxyHelper.clearAllLatencies();
                 }
 
                 boolean makeSureFirstInstanceWriter =

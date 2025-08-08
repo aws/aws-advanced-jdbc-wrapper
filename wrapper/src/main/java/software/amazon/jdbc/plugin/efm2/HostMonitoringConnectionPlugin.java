@@ -36,9 +36,11 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.WrapperUtils;
 
 /**
  * Monitor the server while the connection is executing methods for more sophisticated failure
@@ -92,21 +94,24 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
   /**
    * Initialize the node monitoring plugin.
    *
-   * @param pluginService A service allowing the plugin to retrieve the current active connection
-   *     and its connection settings.
-   * @param properties The property set used to initialize the active connection.
+   * @param servicesContainer The service container for the services required by this class.
+   * @param properties        The property set used to initialize the active connection.
    */
   public HostMonitoringConnectionPlugin(
-      final @NonNull PluginService pluginService, final @NonNull Properties properties) {
-    this(pluginService, properties, () -> new HostMonitorServiceImpl(pluginService), new RdsUtils());
+      final @NonNull FullServicesContainer servicesContainer, final @NonNull Properties properties) {
+    this(
+        servicesContainer,
+        properties,
+        () -> new HostMonitorServiceImpl(servicesContainer, properties),
+        new RdsUtils());
   }
 
   HostMonitoringConnectionPlugin(
-      final @NonNull PluginService pluginService,
+      final @NonNull FullServicesContainer serviceContainer,
       final @NonNull Properties properties,
       final @NonNull Supplier<HostMonitorService> monitorServiceSupplier,
       final RdsUtils rdsHelper) {
-    this.pluginService = pluginService;
+    this.pluginService = serviceContainer.getPluginService();
     this.properties = properties;
     this.monitorServiceSupplier = monitorServiceSupplier;
     this.rdsHelper = rdsHelper;
@@ -161,14 +166,18 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
 
       final HostSpec monitoringHostSpec = this.getMonitoringHostSpec();
 
-      monitorContext =
-          this.monitorService.startMonitoring(
-              this.pluginService.getCurrentConnection(), // abort this connection if needed
-              monitoringHostSpec,
-              this.properties,
-              failureDetectionTimeMillis,
-              failureDetectionIntervalMillis,
-              failureDetectionCount);
+      try {
+        monitorContext =
+            this.monitorService.startMonitoring(
+                this.pluginService.getCurrentConnection(), // abort this connection if needed
+                monitoringHostSpec,
+                this.properties,
+                failureDetectionTimeMillis,
+                failureDetectionIntervalMillis,
+                failureDetectionCount);
+      } catch (SQLException e) {
+        throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
+      }
 
       result = jdbcMethodFunc.call();
 
@@ -192,7 +201,9 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     }
   }
 
-  /** Call this plugin's monitor service to release all resources associated with this plugin. */
+  /**
+   * Call this plugin's monitor service to release all resources associated with this plugin.
+   */
   @Override
   public void releaseResources() {
     if (this.monitorService != null) {

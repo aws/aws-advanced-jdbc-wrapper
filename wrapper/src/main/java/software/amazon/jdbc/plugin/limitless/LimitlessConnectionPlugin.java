@@ -33,6 +33,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.AuroraLimitlessDialect;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 
 public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
@@ -82,10 +83,12 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
     return subscribedMethods;
   }
 
-  public LimitlessConnectionPlugin(final PluginService pluginService, final @NonNull Properties properties) {
-    this(pluginService,
+  public LimitlessConnectionPlugin(
+      final FullServicesContainer servicesContainer,
+      final @NonNull Properties properties) {
+    this(servicesContainer.getPluginService(),
         properties,
-        () -> new LimitlessRouterServiceImpl(pluginService));
+        () -> new LimitlessRouterServiceImpl(servicesContainer, properties));
   }
 
   public LimitlessConnectionPlugin(

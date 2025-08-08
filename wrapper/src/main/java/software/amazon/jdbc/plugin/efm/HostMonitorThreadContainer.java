@@ -36,7 +36,6 @@ public class HostMonitorThreadContainer {
 
   private static HostMonitorThreadContainer singleton = null;
   private final Map<HostMonitor, Future<?>> tasksMap = new ConcurrentHashMap<>();
-  // TODO: remove monitorMap and threadPool and submit monitors to MonitorService instead
   private final Map<String, HostMonitor> monitorMap = new ConcurrentHashMap<>();
   private final ExecutorService threadPool;
   private static final ReentrantLock LOCK_OBJECT = new ReentrantLock();
