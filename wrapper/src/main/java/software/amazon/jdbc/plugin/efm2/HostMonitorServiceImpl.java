@@ -26,11 +26,11 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.CoreServicesContainer;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.monitoring.MonitorService;
-import software.amazon.jdbc.util.storage.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -71,7 +71,7 @@ public class HostMonitorServiceImpl implements HostMonitorService {
   }
 
   public static void closeAllMonitors() {
-    // TODO: implement
+    CoreServicesContainer.getInstance().getMonitorService().stopAndRemoveMonitors(HostMonitorImpl.class);
   }
 
   @Override
