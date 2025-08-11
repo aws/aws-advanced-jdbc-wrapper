@@ -20,11 +20,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import integration.DatabaseEngine;
+import integration.DatabaseEngineDeployment;
 import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestFeature;
+import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnTestFeature;
 import integration.util.AuroraTestUtility;
 import java.sql.Connection;
@@ -47,6 +49,12 @@ import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
+@EnableOnDatabaseEngineDeployment({
+    DatabaseEngineDeployment.AURORA,
+    DatabaseEngineDeployment.RDS,
+    DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER,
+    DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE
+})
 @DisableOnTestFeature({
     TestEnvironmentFeatures.PERFORMANCE,
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
@@ -80,7 +88,7 @@ public class EFM2Test {
   @ExtendWith(TestDriverProvider.class)
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void test_efmNetworkFailureDetection() throws SQLException {
-    int minDurationMs = 10000;
+    int minDurationMs = 1000;
     int maxDurationMs = 30000;
 
     final Properties props = ConnectionStringHelper.getDefaultProperties();
@@ -95,8 +103,9 @@ public class EFM2Test {
       String instanceId = auroraUtil.queryInstanceId(conn);
       Statement stmt = conn.createStatement();
 
-      // Start a separate thread to simulate network failure iin the middle of the sleep query.
-      auroraUtil.simulateTemporaryFailure(executor, instanceId, 10000, maxDurationMs);
+      // Start a separate thread to simulate network failure in the middle of the sleep query.
+      // The simulated failure occurs after 1000ms to allow time for the statement to be sent first.
+      auroraUtil.simulateTemporaryFailure(executor, instanceId, minDurationMs, maxDurationMs);
       long startNs = System.nanoTime();
       try {
         stmt.executeQuery(getSleepSql(TimeUnit.MILLISECONDS.toSeconds(maxDurationMs)));
@@ -104,9 +113,8 @@ public class EFM2Test {
       } catch (SQLException e) {
         long endNs = System.nanoTime();
         long durationMs = TimeUnit.NANOSECONDS.toMillis(endNs - startNs);
-        // EFM should detect network failure and abort the connection at some point between minDurationMs and
-        // maxDurationMs.
-        assertTrue(durationMs > minDurationMs && durationMs < maxDurationMs,
+        // EFM should detect network failure and abort the connection ~5-10 seconds after the query is sent
+        assertTrue(durationMs > minDurationMs && durationMs < maxDurationMs / 2,
             String.format("Time before failure was not between %d and %d seconds, actual duration was %d seconds.",
                 minDurationMs, maxDurationMs, durationMs));
       }

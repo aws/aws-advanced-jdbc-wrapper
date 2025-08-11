@@ -84,7 +84,6 @@ public class NodeResponseTimeMonitor extends AbstractMonitor {
 
     // Report current response time (in milliseconds) to telemetry engine.
     // Report -1 if response time couldn't be measured.
-    // TODO: this is not used anywhere, should we remove it?
     this.responseTimeMsGauge = telemetryFactory.createGauge(
         String.format("frt.response.time.%s", nodeId),
         () -> this.responseTime.get() == Integer.MAX_VALUE ? -1 : (long) this.responseTime.get());
