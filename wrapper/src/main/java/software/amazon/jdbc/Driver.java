@@ -66,6 +66,7 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
@@ -173,6 +174,14 @@ public class Driver implements java.sql.Driver {
 
     LOGGER.finest(() -> PropertyUtils.logProperties(
         PropertyUtils.maskProperties(props), "Connecting with properties: \n"));
+
+    final String registerPackageNames = PropertyDefinition.SKIP_WRAPPING_FOR_PACKAGES.getString(props);
+    if (!StringUtils.isNullOrEmpty(registerPackageNames)) {
+      String[] packages = registerPackageNames.split(",");
+      for (String packageName : packages) {
+        skipWrappingForPackage(packageName);
+      }
+    }
 
     final String profileName = PropertyDefinition.PROFILE_NAME.getString(props);
     ConfigurationProfile configurationProfile = null;
@@ -437,5 +446,19 @@ public class Driver implements java.sql.Driver {
     HikariPoolsHolder.closeAllPools();
     HostResponseTimeServiceImpl.closeAllMonitors();
     clearCaches();
+  }
+
+  public static void skipWrappingForType(Class<?> clazz) {
+    if (clazz == null) {
+      return;
+    }
+    WrapperUtils.skipWrappingForClasses.add(clazz);
+  }
+
+  public static void skipWrappingForPackage(String packageName) {
+    if (packageName == null) {
+      return;
+    }
+    WrapperUtils.skipWrappingForPackages.add(packageName.toLowerCase().trim());
   }
 }
