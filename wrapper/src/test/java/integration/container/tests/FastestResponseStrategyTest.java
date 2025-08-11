@@ -19,6 +19,7 @@ package integration.container.tests;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import integration.DatabaseEngineDeployment;
 import integration.TestEnvironmentFeatures;
 import integration.TestInstanceInfo;
 import integration.container.ConnectionStringHelper;
@@ -26,6 +27,7 @@ import integration.container.ProxyHelper;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestFeature;
+import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnNumOfInstances;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
@@ -48,6 +50,12 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
 @MakeSureFirstInstanceWriter
+@EnableOnDatabaseEngineDeployment({
+    DatabaseEngineDeployment.AURORA,
+    DatabaseEngineDeployment.RDS,
+    DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER,
+    DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE
+})
 @DisableOnTestFeature({
     TestEnvironmentFeatures.PERFORMANCE,
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
