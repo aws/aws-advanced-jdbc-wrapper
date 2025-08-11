@@ -121,7 +121,7 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
 
     final String registerPackageNames = PropertyDefinition.SKIP_WRAPPING_FOR_PACKAGES.getString(props);
     if (!StringUtils.isNullOrEmpty(registerPackageNames)) {
-      String[] packages = registerPackageNames.split(",");
+      final String[] packages = registerPackageNames.split(",");
       for (String packageName : packages) {
         Driver.skipWrappingForPackage(packageName);
       }

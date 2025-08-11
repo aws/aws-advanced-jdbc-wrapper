@@ -181,7 +181,8 @@ public class PropertyDefinition {
       new AwsWrapperProperty(
           "skipWrappingForPackages", null,
           "Register Java package names (comma separated list) which will be left unwrapped."
-              + " This setting is global for the driver, not for a particular connection.");
+              + " This setting modifies all future connections established by the driver, not just the current"
+              + " connection using this set of connection properties.");
 
   private static final Map<String, AwsWrapperProperty> PROPS_BY_NAME =
       new ConcurrentHashMap<>();
