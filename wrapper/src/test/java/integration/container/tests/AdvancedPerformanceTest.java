@@ -31,6 +31,7 @@ import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.aurora.TestAuroraHostListProvider;
 import integration.container.aurora.TestPluginServiceImpl;
+import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnTestFeature;
 import integration.util.AuroraTestUtility;
 import java.io.File;
@@ -76,6 +77,7 @@ import software.amazon.jdbc.util.StringUtils;
   TestEnvironmentFeatures.PERFORMANCE,
   TestEnvironmentFeatures.FAILOVER_SUPPORTED
 })
+@DisableOnTestFeature(TestEnvironmentFeatures.RUN_DB_METRICS_ONLY)
 @Tag("advanced")
 @Order(1)
 public class AdvancedPerformanceTest {

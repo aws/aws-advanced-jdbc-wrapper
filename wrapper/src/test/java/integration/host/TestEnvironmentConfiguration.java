@@ -64,6 +64,8 @@ public class TestEnvironmentConfiguration {
       Boolean.parseBoolean(System.getProperty("test-hibernate-only", "false"));
   public boolean testAutoscalingOnly =
       Boolean.parseBoolean(System.getProperty("test-autoscaling-only", "false"));
+  public boolean testMetricsOnly =
+      Boolean.parseBoolean(System.getProperty("test-metrics-only", "false"));
 
   public boolean noInstances1 =
       Boolean.parseBoolean(System.getProperty("test-no-instances-1", "false"));
