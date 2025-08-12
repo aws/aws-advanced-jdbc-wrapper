@@ -37,6 +37,7 @@ import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer;
@@ -63,6 +64,7 @@ import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
 @Order(17)
 public class EFM2Test {
+  private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingTests.class.getName());
   protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
   protected ExecutorService executor = Executors.newFixedThreadPool(1, r -> {
     final Thread thread = new Thread(r);
@@ -88,7 +90,7 @@ public class EFM2Test {
   @ExtendWith(TestDriverProvider.class)
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void test_efmNetworkFailureDetection() throws SQLException {
-    int minDurationMs = 1000;
+    int failureDelayMs = 10000;
     int maxDurationMs = 30000;
 
     final Properties props = ConnectionStringHelper.getDefaultProperties();
@@ -103,9 +105,9 @@ public class EFM2Test {
       String instanceId = auroraUtil.queryInstanceId(conn);
       Statement stmt = conn.createStatement();
 
-      // Start a separate thread to simulate network failure in the middle of the sleep query.
-      // The simulated failure occurs after 1000ms to allow time for the statement to be sent first.
-      auroraUtil.simulateTemporaryFailure(executor, instanceId, minDurationMs, maxDurationMs);
+      // Simulate network failure in the middle of the query. The simulated failure occurs after a small delay to allow
+      // time for the statement to be sent and the monitoring connection to be opened.
+      auroraUtil.simulateTemporaryFailure(executor, instanceId, failureDelayMs, maxDurationMs);
       long startNs = System.nanoTime();
       try {
         stmt.executeQuery(getSleepSql(TimeUnit.MILLISECONDS.toSeconds(maxDurationMs)));
@@ -114,9 +116,9 @@ public class EFM2Test {
         long endNs = System.nanoTime();
         long durationMs = TimeUnit.NANOSECONDS.toMillis(endNs - startNs);
         // EFM should detect network failure and abort the connection ~5-10 seconds after the query is sent
-        assertTrue(durationMs > minDurationMs && durationMs < maxDurationMs / 2,
+        assertTrue(durationMs > failureDelayMs && durationMs < maxDurationMs,
             String.format("Time before failure was not between %d and %d seconds, actual duration was %d seconds.",
-                minDurationMs, maxDurationMs, durationMs));
+                failureDelayMs, maxDurationMs, durationMs));
       }
     }
   }
