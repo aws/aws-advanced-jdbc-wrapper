@@ -177,6 +177,13 @@ public class PropertyDefinition {
       "Allow the driver to optimized work with ResultSets and skip tracking some of their methods"
           + " by assuming that entire data result are fetched at once.");
 
+  public static final AwsWrapperProperty SKIP_WRAPPING_FOR_PACKAGES =
+      new AwsWrapperProperty(
+          "skipWrappingForPackages", null,
+          "Register Java package names (comma separated list) which will be left unwrapped."
+              + " This setting modifies all future connections established by the driver, not just the current"
+              + " connection using this set of connection properties.");
+
   private static final Map<String, AwsWrapperProperty> PROPS_BY_NAME =
       new ConcurrentHashMap<>();
   private static final Map<String, AwsWrapperProperty> PROPS_BY_NAME_LOWERCASE =
