@@ -54,7 +54,6 @@ import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
     DatabaseEngineDeployment.AURORA,
     DatabaseEngineDeployment.RDS,
     DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER,
-    DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE
 })
 @DisableOnTestFeature({
     TestEnvironmentFeatures.PERFORMANCE,
