@@ -30,7 +30,6 @@ import integration.TestInstanceInfo;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
-import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnNumOfInstances;
 import integration.container.condition.EnableOnTestFeature;
@@ -63,7 +62,7 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 @EnableOnDatabaseEngineDeployment({DatabaseEngineDeployment.AURORA})
 @EnableOnNumOfInstances(min = 5)
 @MakeSureFirstInstanceWriter
-@Order(17)
+@Order(19)
 public class AutoscalingTests {
   protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
 

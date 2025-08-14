@@ -19,8 +19,6 @@ package software.amazon.jdbc.plugin.strategy.fastestresponse;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -30,21 +28,23 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.connection.ConnectionService;
+import software.amazon.jdbc.util.monitoring.AbstractMonitor;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
-public class NodeResponseTimeMonitor implements AutoCloseable, Runnable {
+public class NodeResponseTimeMonitor extends AbstractMonitor {
 
   private static final Logger LOGGER =
       Logger.getLogger(NodeResponseTimeMonitor.class.getName());
 
   private static final String MONITORING_PROPERTY_PREFIX = "frt-";
+  private static final int TERMINATION_TIMEOUT_SEC = 5;
   private static final int NUM_OF_MEASURES = 5;
 
   private final int intervalMs;
@@ -56,24 +56,23 @@ public class NodeResponseTimeMonitor implements AutoCloseable, Runnable {
 
   private final @NonNull Properties props;
   private final @NonNull PluginService pluginService;
+  private final @NonNull ConnectionService connectionService;
 
   private final TelemetryFactory telemetryFactory;
   private final TelemetryGauge responseTimeMsGauge;
 
-
   private Connection monitoringConn = null;
-
-  // TODO: remove and submit monitors to MonitorService instead
-  private final ExecutorService threadPool =
-      ExecutorFactory.newFixedThreadPool(1, "threadPool");
 
   public NodeResponseTimeMonitor(
       final @NonNull PluginService pluginService,
+      final @NonNull ConnectionService connectionService,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props,
       int intervalMs) {
+    super(TERMINATION_TIMEOUT_SEC);
 
     this.pluginService = pluginService;
+    this.connectionService = connectionService;
     this.hostSpec = hostSpec;
     this.props = props;
     this.intervalMs = intervalMs;
@@ -85,12 +84,9 @@ public class NodeResponseTimeMonitor implements AutoCloseable, Runnable {
 
     // Report current response time (in milliseconds) to telemetry engine.
     // Report -1 if response time couldn't be measured.
-    this.responseTimeMsGauge = this.telemetryFactory.createGauge(
+    this.responseTimeMsGauge = telemetryFactory.createGauge(
         String.format("frt.response.time.%s", nodeId),
         () -> this.responseTime.get() == Integer.MAX_VALUE ? -1 : (long) this.responseTime.get());
-
-    this.threadPool.submit(this);
-    this.threadPool.shutdown(); // No more task are accepted by pool.
   }
 
   // Return node response time in milliseconds.
@@ -98,25 +94,9 @@ public class NodeResponseTimeMonitor implements AutoCloseable, Runnable {
     return this.responseTime.get();
   }
 
-  public long getCheckTimestamp() {
-    return this.checkTimestamp.get();
-  }
-
+  @NonNull
   public HostSpec getHostSpec() {
     return this.hostSpec;
-  }
-
-  @Override
-  public void close() throws Exception {
-    this.stopped.set(true);
-
-    // Waiting for 5s gives a thread enough time to exit monitoring loop and close database connection.
-    if (!this.threadPool.awaitTermination(5, TimeUnit.SECONDS)) {
-      this.threadPool.shutdownNow();
-    }
-    LOGGER.finest(() -> Messages.get(
-        "NodeResponseTimeMonitor.stopped",
-        new Object[] {this.hostSpec.getHost()}));
   }
 
   // The method is for testing purposes.
@@ -125,8 +105,8 @@ public class NodeResponseTimeMonitor implements AutoCloseable, Runnable {
   }
 
   @Override
-  public void run() {
-    TelemetryContext telemetryContext = this.telemetryFactory.openTelemetryContext(
+  public void monitor() {
+    TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
         "node response time thread", TelemetryTraceLevel.TOP_LEVEL);
     if (telemetryContext != null) {
       telemetryContext.setAttribute("url", hostSpec.getUrl());
@@ -134,6 +114,7 @@ public class NodeResponseTimeMonitor implements AutoCloseable, Runnable {
 
     try {
       while (!this.stopped.get()) {
+        this.lastActivityTimestampNanos.set(System.nanoTime());
         this.openConnection();
 
         if (this.monitoringConn != null) {
@@ -216,8 +197,7 @@ public class NodeResponseTimeMonitor implements AutoCloseable, Runnable {
         LOGGER.finest(() -> Messages.get(
                 "NodeResponseTimeMonitor.openingConnection",
                 new Object[] {this.hostSpec.getUrl()}));
-        // TODO: replace with ConnectionService#open
-        this.monitoringConn = this.pluginService.forceConnect(this.hostSpec, monitoringConnProperties);
+        this.monitoringConn = this.connectionService.open(this.hostSpec, monitoringConnProperties);
         LOGGER.finest(() -> Messages.get(
             "NodeResponseTimeMonitor.openedConnection",
             new Object[] {this.monitoringConn}));
@@ -230,6 +210,17 @@ public class NodeResponseTimeMonitor implements AutoCloseable, Runnable {
           // ignore
         }
         this.monitoringConn = null;
+      }
+    }
+  }
+
+  @Override
+  public void close() {
+    if (this.monitoringConn != null) {
+      try {
+        this.monitoringConn.close();
+      } catch (SQLException e) {
+        // ignore
       }
     }
   }

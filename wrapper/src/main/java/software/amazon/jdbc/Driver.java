@@ -44,13 +44,11 @@ import software.amazon.jdbc.plugin.DataCacheConnectionPlugin;
 import software.amazon.jdbc.plugin.OpenedConnectionTracker;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
 import software.amazon.jdbc.plugin.efm.HostMonitorThreadContainer;
-import software.amazon.jdbc.plugin.efm2.HostMonitorServiceImpl;
 import software.amazon.jdbc.plugin.federatedauth.FederatedAuthCacheHolder;
 import software.amazon.jdbc.plugin.federatedauth.OktaAuthCacheHolder;
 import software.amazon.jdbc.plugin.iam.IamAuthCacheHolder;
 import software.amazon.jdbc.plugin.limitless.LimitlessRouterServiceImpl;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPlugin;
-import software.amazon.jdbc.plugin.strategy.fastestresponse.HostResponseTimeServiceImpl;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 import software.amazon.jdbc.states.ResetSessionStateOnCloseCallable;
@@ -440,11 +438,9 @@ public class Driver implements java.sql.Driver {
 
   public static void releaseResources() {
     CoreServicesContainer.getInstance().getMonitorService().stopAndRemoveAll();
-    HostMonitorServiceImpl.closeAllMonitors();
     HostMonitorThreadContainer.releaseInstance();
     ConnectionProviderManager.releaseResources();
     HikariPoolsHolder.closeAllPools();
-    HostResponseTimeServiceImpl.closeAllMonitors();
     clearCaches();
   }
 

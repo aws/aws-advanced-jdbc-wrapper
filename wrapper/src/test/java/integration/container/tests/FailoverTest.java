@@ -70,6 +70,9 @@ import software.amazon.jdbc.util.SqlState;
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
 @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
+@EnableOnDatabaseEngineDeployment({
+    DatabaseEngineDeployment.AURORA,
+    DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER})
 @DisableOnTestFeature({
     TestEnvironmentFeatures.PERFORMANCE,
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
@@ -567,6 +570,7 @@ public class FailoverTest {
 
   @TestTemplate
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
+  @EnableOnNumOfInstances(min = 2)
   // Multi-AZ tests already simulate this in other tests instead of sending server failover requests.
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_writerFailover_writerReelected() throws SQLException {
@@ -647,6 +651,7 @@ public class FailoverTest {
   }
 
   @TestTemplate
+  @EnableOnNumOfInstances(min = 2)
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void test_readerFailover_writerReelected() throws SQLException {
     final String initialWriterId = this.currentWriter;

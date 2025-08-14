@@ -17,6 +17,7 @@
 package software.amazon.jdbc.plugin.efm2;
 
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Properties;
 import software.amazon.jdbc.HostSpec;
 
@@ -32,7 +33,7 @@ public interface HostMonitorService {
       Properties properties,
       int failureDetectionTimeMillis,
       int failureDetectionIntervalMillis,
-      int failureDetectionCount);
+      int failureDetectionCount) throws SQLException;
 
   /**
    * Stop monitoring for a connection represented by the given {@link HostMonitorConnectionContext}.
