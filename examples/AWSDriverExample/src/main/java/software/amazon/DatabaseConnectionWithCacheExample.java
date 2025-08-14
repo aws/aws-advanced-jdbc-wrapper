@@ -32,7 +32,7 @@ public class DatabaseConnectionWithCacheExample {
     properties.setProperty("cacheEndpointAddrRo", CACHE_RO_SERVER_ADDR);
     properties.setProperty("cacheUseSSL", USE_SSL); // "true" or "false"
     properties.setProperty("wrapperLogUnclosedConnections", "true");
-    String queryStr = "/* cacheTTL=300s */ select * from cinemas";
+    String queryStr = "/*+ CACHE_PARAM(ttl=300s) */ select * from cinemas";
 
     // Create threads for concurrent connection testing
     Thread[] threads = new Thread[THREAD_COUNT];

@@ -16,7 +16,6 @@
 
 package software.amazon.jdbc.plugin.cache;
 
-import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
@@ -48,10 +47,6 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
           JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
           JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName)));
 
-  static {
-    PropertyDefinition.registerPluginProperties(DataRemoteCachePlugin.class);
-  }
-
   private PluginService pluginService;
   private TelemetryFactory telemetryFactory;
   private TelemetryCounter hitCounter;
@@ -63,8 +58,6 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     try {
       Class.forName("io.lettuce.core.RedisClient"); // Lettuce dependency
       Class.forName("org.apache.commons.pool2.impl.GenericObjectPool"); // Object pool dependency
-      Class.forName("com.fasterxml.jackson.databind.ObjectMapper"); // Jackson dependency
-      Class.forName("com.fasterxml.jackson.datatype.jsr310.JavaTimeModule"); // JSR310 dependency
     } catch (final ClassNotFoundException e) {
       throw new RuntimeException(Messages.get("DataRemoteCachePlugin.notInClassPath", new Object[] {e.getMessage()}));
     }
@@ -111,11 +104,11 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
 
     String cacheQueryKey = getCacheQueryKey(queryStr);
     if (cacheQueryKey == null) return null; // Treat this as a cache miss
-    byte[] result = cacheConnection.readFromCache(cacheQueryKey);
-    if (result == null) return null;
+    byte[] cachedResult = cacheConnection.readFromCache(cacheQueryKey);
+    if (cachedResult == null) return null;
     // Convert result into ResultSet
     try {
-      return CachedResultSet.deserializeFromJsonString(new String(result, StandardCharsets.UTF_8));
+      return CachedResultSet.deserializeFromByteArray(cachedResult);
     } catch (Exception e) {
       LOGGER.warning("Error de-serializing cached result: " + e.getMessage());
       return null; // Treat this as a cache miss
@@ -132,8 +125,8 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     String cacheQueryKey = getCacheQueryKey(queryStr);
     if (cacheQueryKey == null) return rs; // Treat this condition as un-cacheable
     CachedResultSet crs = new CachedResultSet(rs);
-    String jsonValue = crs.serializeIntoJsonString();
-    cacheConnection.writeToCache(cacheQueryKey, jsonValue.getBytes(StandardCharsets.UTF_8), expiry);
+    byte[] jsonString = crs.serializeIntoByteArray();
+    cacheConnection.writeToCache(cacheQueryKey, jsonString, expiry);
     crs.beforeFirst();
     return crs;
   }

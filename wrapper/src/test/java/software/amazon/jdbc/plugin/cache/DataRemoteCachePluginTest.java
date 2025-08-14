@@ -4,13 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.nio.charset.StandardCharsets;
 import java.sql.*;
 import java.util.Properties;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -55,7 +54,7 @@ public class DataRemoteCachePluginTest {
     when(mockTelemetryFactory.createCounter("remoteCache.cache.totalCalls")).thenReturn(mockTotalCallsCounter);
     when(mockResult1.getMetaData()).thenReturn(mockMetaData);
     when(mockMetaData.getColumnCount()).thenReturn(1);
-    when(mockMetaData.getColumnName(1)).thenReturn("fooName");
+    when(mockMetaData.getColumnLabel(1)).thenReturn("fooName");
     plugin = new DataRemoteCachePlugin(mockPluginService, props);
     plugin.setCacheConnection(mockCacheConn);
   }
@@ -139,7 +138,7 @@ public class DataRemoteCachePluginTest {
   }
 
   @Test
-  void test_execute_cachingMiss() throws Exception {
+  void test_execute_cachingMissAndHit() throws Exception {
     // Query is not cacheable
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.isInTransaction()).thenReturn(false);
@@ -160,49 +159,22 @@ public class DataRemoteCachePluginTest {
     assertTrue(rs.next());
     assertEquals("bar1", rs.getString("fooName"));
     assertFalse(rs.next());
-    verify(mockPluginService, times(2)).getCurrentConnection();
-    verify(mockPluginService).isInTransaction();
-    verify(mockCacheConn).readFromCache("public_user_select * from A");
+    rs.beforeFirst();
+    byte[] serializedTestResultSet = ((CachedResultSet)rs).serializeIntoByteArray();
+    when(mockCacheConn.readFromCache("public_user_select * from A")).thenReturn(serializedTestResultSet);
+    ResultSet rs2 = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
+        methodName, mockCallable, new String[]{" /* CacheTtl=50s */select * from A"});
+
+    assertTrue(rs2.next());
+    assertEquals("bar1", rs2.getString("fooName"));
+    assertFalse(rs2.next());
+    verify(mockPluginService, times(3)).getCurrentConnection();
+    verify(mockPluginService, times(2)).isInTransaction();
+    verify(mockCacheConn, times(2)).readFromCache("public_user_select * from A");
     verify(mockCallable).call();
-    verify(mockCacheConn).writeToCache("public_user_select * from A", "[{\"fooName\":\"bar1\"}]".getBytes(StandardCharsets.UTF_8), 100);
-    verify(mockTotalCallsCounter).inc();
+    verify(mockCacheConn).writeToCache(eq("public_user_select * from A"), any(), eq(100));
+    verify(mockTotalCallsCounter, times(2)).inc();
     verify(mockMissCounter).inc();
-  }
-
-  @Test
-  void test_execute_cachingHit() throws Exception {
-    final String cachedResult = "[{\"date\":\"2009-09-30\",\"code\":\"avata\"},{\"date\":\"2015-05-30\",\"code\":\"dracu\"}]";
-
-    // Query is cacheable
-    when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
-    when(mockPluginService.isInTransaction()).thenReturn(false);
-    when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
-    when(mockConnection.getSchema()).thenReturn("public");
-    when(mockDbMetadata.getUserName()).thenReturn("user");
-    when(mockCacheConn.readFromCache("public_user_select * from table")).thenReturn(cachedResult.getBytes());
-    when(mockCallable.call()).thenReturn(mockResult1);
-
-    // Result set contains 1 row
-    when(mockResult1.next()).thenReturn(true, false);
-    when(mockResult1.getObject(1)).thenReturn("bar1");
-
-    ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
-        methodName, mockCallable, new String[]{" /* CacheTtl=50s */select * from table"});
-
-    // Cached result set contains 2 rows
-    assertTrue(rs.next());
-    assertEquals("2009-09-30", rs.getString("date"));
-    assertEquals("avata", rs.getString("code"));
-    assertTrue(rs.next());
-    assertEquals("2015-05-30", rs.getString("date"));
-    assertEquals("dracu", rs.getString("code"));
-    assertFalse(rs.next());
-    verify(mockPluginService).getCurrentConnection();
-    verify(mockPluginService).isInTransaction();
-    verify(mockCacheConn).readFromCache("public_user_select * from table");
-    verify(mockCallable, never()).call();
-    verify(mockCacheConn, never()).writeToCache("public_user_select * from table", "[{\"fooName\":\"bar1\"}]".getBytes(StandardCharsets.UTF_8), 50);
-    verify(mockTotalCallsCounter).inc();
     verify(mockHitCounter).inc();
   }
 
@@ -231,7 +203,7 @@ public class DataRemoteCachePluginTest {
     verify(mockPluginService).isInTransaction();
     verify(mockCacheConn, never()).readFromCache(anyString());
     verify(mockCallable).call();
-    verify(mockCacheConn).writeToCache("public_user_select * from T", "[{\"fooName\":\"bar1\"}]".getBytes(StandardCharsets.UTF_8), 300);
+    verify(mockCacheConn).writeToCache(eq("public_user_select * from T"), any(), eq(300));
     verify(mockTotalCallsCounter, never()).inc();
     verify(mockHitCounter, never()).inc();
     verify(mockMissCounter, never()).inc();
