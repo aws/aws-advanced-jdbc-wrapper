@@ -25,8 +25,8 @@ repositories {
 
 dependencies {
     implementation("org.apache.httpcomponents:httpclient:4.5.14")
-    implementation("software.amazon.awssdk:rds:2.31.78")
-    implementation("software.amazon.awssdk:sts:2.31.78")
+    implementation("software.amazon.awssdk:rds:2.32.21")
+    implementation("software.amazon.awssdk:sts:2.32.21")
     implementation(project(":aws-advanced-jdbc-wrapper"))
 }
 
