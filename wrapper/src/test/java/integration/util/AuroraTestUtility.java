@@ -1805,7 +1805,6 @@ public class AuroraTestUtility {
             throw new UnsupportedOperationException(databaseEngine.toString());
         }
       case RDS_MULTI_AZ_CLUSTER:
-      case RDS_MULTI_AZ_INSTANCE:
         switch (databaseEngine) {
           case MYSQL:
             return "SELECT SUBSTRING_INDEX(endpoint, '.', 1) as id FROM mysql.rds_topology WHERE id=@@server_id";
