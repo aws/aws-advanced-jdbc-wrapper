@@ -172,6 +172,25 @@ public class BlueGreenDeploymentTests {
   private final ConcurrentHashMap<String, BlueGreenResults> results = new ConcurrentHashMap<>();
   private final ConcurrentLinkedDeque<Throwable> unhandledExceptions = new ConcurrentLinkedDeque<>();
 
+  /**
+   * NOTE: this test requires manual verification to fully verify proper B/G behavior.
+   * PASS criteria:
+   * - automatic check: test passes
+   * - manual check: test logs contain the switchover final summary table with the following events and similar time
+   * offset values:
+   * ----------------------------------------------------------------------------
+   * timestamp                         time offset (ms)                     event
+   * ----------------------------------------------------------------------------
+   *  2025-04-10T01:30:08.865783Z             -41746 ms               NOT_CREATED
+   *  2025-04-10T01:30:09.101513Z             -41510 ms                   CREATED
+   *  2025-04-10T01:30:49.779680Z               -829 ms               PREPARATION
+   *  2025-04-10T01:30:50.609146Z                  0 ms               IN_PROGRESS
+   *  2025-04-10T01:30:52.440775Z               1831 ms                      POST
+   *  2025-04-10T01:31:03.373311Z              12764 ms          Blue DNS updated
+   *  2025-04-10T01:32:07.738613Z              77131 ms         Green DNS removed
+   *  2025-04-10T01:32:19.221286Z              88616 ms                 COMPLETED
+   * ----------------------------------------------------------------------------
+   */
   @TestTemplate
   @ExtendWith(TestDriverProvider.class)
   public void testSwitchover(TestDriver testDriver) throws SQLException, InterruptedException {
