@@ -50,7 +50,6 @@ dependencies {
     optionalImplementation("io.opentelemetry:opentelemetry-sdk:1.59.0")
     optionalImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.59.0")
 
-    compileOnly("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.19.0")
     compileOnly("io.lettuce:lettuce-core:6.6.0.RELEASE")
     compileOnly("org.apache.commons:commons-pool2:2.11.1")
     compileOnly("org.checkerframework:checker-qual:3.49.5")
@@ -100,7 +99,6 @@ dependencies {
     testImplementation("org.apache.poi:poi-ooxml:5.5.1")
     testImplementation("org.slf4j:slf4j-simple:2.0.17")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
-    testImplementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.19.0")
     testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
     testImplementation("io.lettuce:lettuce-core:6.6.0.RELEASE")
     testImplementation("io.opentelemetry:opentelemetry-api:1.59.0")
@@ -112,7 +110,6 @@ dependencies {
     testImplementation("de.vandermeer:asciitable:0.3.2")
     testImplementation("org.hibernate:hibernate-core:5.6.15.Final") // the latest version compatible with Java 8
     testImplementation("jakarta.persistence:jakarta.persistence-api:2.2.3")
-    testImplementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.21.0")
 }
 
 repositories {
