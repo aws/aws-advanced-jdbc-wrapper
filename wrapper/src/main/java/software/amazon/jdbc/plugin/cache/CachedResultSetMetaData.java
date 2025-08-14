@@ -1,139 +1,171 @@
 package software.amazon.jdbc.plugin.cache;
 
+import java.io.Serializable;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 
-public class CachedResultSetMetaData implements ResultSetMetaData {
+class CachedResultSetMetaData implements ResultSetMetaData, Serializable {
+  protected final Field[] columns;
 
-  public static class Field {
-    // TODO: support binary format
-    private final String columnLabel;
-    private final String columnName;
-    public Field(String columnLabel, String columnName) {
-      this.columnLabel = columnLabel;
-      this.columnName = columnName;
-    }
+  protected static class Field implements Serializable {
+    String catalog;
+    String className;
+    String label;
+    String name;
+    String typeName;
+    int type;
+    int displaySize;
+    int precision;
+    String tableName;
+    int scale;
+    String schemaName;
+    boolean isAutoIncrement;
+    boolean isCaseSensitive;
+    boolean isCurrency;
+    boolean isDefinitelyWritable;
+    int isNullable;
+    boolean isReadOnly;
+    boolean isSearchable;
+    boolean isSigned;
+    boolean isWritable;
 
-    public String getColumnLabel() {
-      return columnLabel;
-    }
-
-    public String getColumnName() {
-      return columnName;
+    protected Field(final ResultSetMetaData srcMetadata, int column) throws SQLException {
+      catalog = srcMetadata.getCatalogName(column);
+      className = srcMetadata.getColumnClassName(column);
+      label = srcMetadata.getColumnLabel(column);
+      name = srcMetadata.getColumnName(column);
+      typeName = srcMetadata.getColumnTypeName(column);
+      type = srcMetadata.getColumnType(column);
+      displaySize = srcMetadata.getColumnDisplaySize(column);
+      precision = srcMetadata.getPrecision(column);
+      tableName = srcMetadata.getTableName(column);
+      scale = srcMetadata.getScale(column);
+      schemaName = srcMetadata.getSchemaName(column);
+      isAutoIncrement = srcMetadata.isAutoIncrement(column);
+      isCaseSensitive = srcMetadata.isCaseSensitive(column);
+      isCurrency = srcMetadata.isCurrency(column);
+      isDefinitelyWritable = srcMetadata.isDefinitelyWritable(column);
+      isNullable = srcMetadata.isNullable(column);
+      isReadOnly = srcMetadata.isReadOnly(column);
+      isSearchable = srcMetadata.isSearchable(column);
+      isSigned = srcMetadata.isSigned(column);
+      isWritable = srcMetadata.isWritable(column);
     }
   }
 
-  protected Field[] fields;
-
-  public CachedResultSetMetaData(Field[] fields) {
-    this.fields = fields;
+  CachedResultSetMetaData(Field[] columns) {
+    this.columns = columns;
   }
 
   @Override
   public int getColumnCount() throws SQLException {
-    return this.fields.length;
+    return columns.length;
+  }
+
+  private Field getColumns(final int column) throws SQLException {
+    if (column == 0 || column > columns.length)
+      throw new SQLException("Wrong column number: " + column);
+    return columns[column - 1];
   }
 
   @Override
   public boolean isAutoIncrement(int column) throws SQLException {
-    throw new UnsupportedOperationException();
+    return getColumns(column).isAutoIncrement;
   }
 
   @Override
   public boolean isCaseSensitive(int column) throws SQLException {
-    throw new UnsupportedOperationException();
+    return getColumns(column).isCaseSensitive;
   }
 
   @Override
   public boolean isSearchable(int column) throws SQLException {
-    throw new UnsupportedOperationException();
+    return getColumns(column).isSearchable;
   }
 
   @Override
   public boolean isCurrency(int column) throws SQLException {
-    throw new UnsupportedOperationException();
+    return getColumns(column).isCurrency;
   }
 
   @Override
   public int isNullable(int column) throws SQLException {
-    throw new UnsupportedOperationException();
+    return getColumns(column).isNullable;
   }
 
   @Override
   public boolean isSigned(int column) throws SQLException {
-    throw new UnsupportedOperationException();
+    return getColumns(column).isSigned;
   }
 
   @Override
   public int getColumnDisplaySize(int column) throws SQLException {
-    throw new UnsupportedOperationException();
+    return getColumns(column).displaySize;
   }
 
   @Override
   public String getColumnLabel(int column) throws SQLException {
-    return fields[column-1].getColumnLabel();
+    return getColumns(column).label;
   }
 
   @Override
   public String getColumnName(int column) throws SQLException {
-    return fields[column-1].getColumnName();
+    return getColumns(column).name;
   }
 
-  // TODO
   @Override
   public String getSchemaName(int column) throws SQLException {
-    throw new UnsupportedOperationException();
+    return getColumns(column).schemaName;
   }
 
   @Override
   public int getPrecision(int column) throws SQLException {
-    throw new UnsupportedOperationException();
+    return getColumns(column).precision;
   }
 
   @Override
   public int getScale(int column) throws SQLException {
-    throw new UnsupportedOperationException();
+    return getColumns(column).scale;
   }
 
-  // TODO
   @Override
   public String getTableName(int column) throws SQLException {
-    throw new UnsupportedOperationException();
+    return getColumns(column).tableName;
   }
 
   @Override
   public String getCatalogName(int column) throws SQLException {
-    throw new UnsupportedOperationException();
+    return getColumns(column).catalog;
   }
 
   @Override
   public int getColumnType(int column) throws SQLException {
-    throw new UnsupportedOperationException();
+    return getColumns(column).type;
   }
 
   @Override
   public String getColumnTypeName(int column) throws SQLException {
-    throw new UnsupportedOperationException();
+    return getColumns(column).typeName;
   }
 
   @Override
   public boolean isReadOnly(int column) throws SQLException {
-    return true;
+    return getColumns(column).isReadOnly;
   }
 
   @Override
   public boolean isWritable(int column) throws SQLException {
-    return false;
+    return getColumns(column).isWritable;
   }
 
   @Override
   public boolean isDefinitelyWritable(int column) throws SQLException {
-    return false;
+    return getColumns(column).isDefinitelyWritable;
   }
 
   @Override
   public String getColumnClassName(int column) throws SQLException {
-    throw new UnsupportedOperationException();
+    return getColumns(column).className;
   }
 
   @Override
