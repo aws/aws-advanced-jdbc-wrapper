@@ -52,10 +52,7 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 @MakeSureFirstInstanceWriter
 @EnableOnDatabaseEngineDeployment({
     DatabaseEngineDeployment.AURORA,
-    DatabaseEngineDeployment.RDS,
-    DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER,
-    DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE
-})
+    DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER})
 @DisableOnTestFeature({
     TestEnvironmentFeatures.PERFORMANCE,
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
