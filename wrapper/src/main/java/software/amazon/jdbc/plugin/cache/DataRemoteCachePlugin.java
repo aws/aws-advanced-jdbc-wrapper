@@ -29,7 +29,6 @@ import java.util.logging.Logger;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
@@ -39,6 +38,9 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(DataRemoteCachePlugin.class.getName());
+  private static final String QUERY_HINT_START_PATTERN = "/*+";
+  private static final String QUERY_HINT_END_PATTERN = "*/";
+  private static final String CACHE_PARAM_PATTERN = "CACHE_PARAM(";
   private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
       Arrays.asList(JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
           JdbcMethod.STATEMENT_EXECUTE.methodName,
@@ -52,6 +54,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
   private TelemetryCounter hitCounter;
   private TelemetryCounter missCounter;
   private TelemetryCounter totalCallsCounter;
+  private TelemetryCounter malformedHintCounter;
   private CacheConnection cacheConnection;
 
   public DataRemoteCachePlugin(final PluginService pluginService, final Properties properties) {
@@ -66,6 +69,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     this.hitCounter = telemetryFactory.createCounter("remoteCache.cache.hit");
     this.missCounter = telemetryFactory.createCounter("remoteCache.cache.miss");
     this.totalCallsCounter = telemetryFactory.createCounter("remoteCache.cache.totalCalls");
+    this.malformedHintCounter = telemetryFactory.createCounter("JdbcCacheMalformedQueryHint");
     this.cacheConnection = new CacheConnection(properties);
   }
 
@@ -133,33 +137,68 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
 
   /**
    * Determine the TTL based on an input query
-   * @param queryHint string. e.g. "NO CACHE", or "cacheTTL=100s"
+   * @param queryHint string. e.g. "CACHE_PARAM(ttl=100s, key=custom)"
    * @return TTL in seconds to cache the query.
    *         null if the query is not cacheable.
    */
   protected Integer getTtlForQuery(String queryHint) {
     // Empty query is not cacheable
     if (StringUtils.isNullOrEmpty(queryHint)) return null;
-    // Query longer than 16K is not cacheable
-    String[] tokens = queryHint.toLowerCase().split("cache");
-    if (tokens.length >= 2) {
-      // Handle "no cache".
-      if (!StringUtils.isNullOrEmpty(tokens[0]) && "no".equals(tokens[0])) return null;
-      // Handle "cacheTTL=Xs"
-      if (!StringUtils.isNullOrEmpty(tokens[1]) && tokens[1].startsWith("ttl=")) {
-        int endIndex = tokens[1].indexOf('s');
-        if (endIndex > 0) {
+    // Find CACHE_PARAM anywhere in the hint string (case insensitive)
+    String upperHint = queryHint.toUpperCase();
+    int cacheParamStart = upperHint.indexOf(CACHE_PARAM_PATTERN);
+    if (cacheParamStart == -1) return null;
+
+    // Find the matching closing parenthesis
+    int paramsStart = cacheParamStart + CACHE_PARAM_PATTERN.length();
+    int paramsEnd = upperHint.indexOf(")", paramsStart);
+    if (paramsEnd == -1) return null;
+
+    // Extract parameters between parentheses
+    String cacheParams = upperHint.substring(paramsStart, paramsEnd).trim();
+    // Empty parameters
+    if (StringUtils.isNullOrEmpty(cacheParams)) {
+      LOGGER.warning("Empty CACHE_PARAM parameters");
+      incrCounter(malformedHintCounter);
+      return null;
+    }
+
+    // Parse comma-separated parameters
+    String[] params = cacheParams.split(",");
+    Integer ttlValue = null;
+
+    for (String param : params) {
+      String[] keyValue = param.trim().split("=");
+      if (keyValue.length != 2) {
+        LOGGER.warning("Invalid caching parameter format: " + param);
+        incrCounter(malformedHintCounter);
+        return null;
+      }
+      String key = keyValue[0].trim();
+      String value = keyValue[1].trim();
+
+      if ("TTL".equals(key)) {
+        if (!value.endsWith("S")) {
+          LOGGER.warning("TTL must end with 's': " + value);
+          incrCounter(malformedHintCounter);
+          return null;
+        } else{
+          // Parse TTL value (e.g., "300s")
           try {
-            return Integer.parseInt(tokens[1].substring(4, endIndex));
-          } catch (Exception e) {
-            LOGGER.warning("Encountered exception when parsing Cache TTL: " + e.getMessage());
+            ttlValue = Integer.parseInt(value.substring(0, value.length() - 1));
+            // treat negative and 0 ttls as not cacheable
+            if (ttlValue <= 0) {
+              return null;
+            }
+          } catch (NumberFormatException e) {
+            LOGGER.warning(String.format("Invalid TTL format of %s for query %s", value, queryHint));
+            incrCounter(malformedHintCounter);
+            return null;
           }
         }
       }
     }
-
-    LOGGER.finest("Query hint " + queryHint + " indicates the query is not cacheable");
-    return null;
+    return ttlValue;
   }
 
   @Override
@@ -181,8 +220,9 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     String mainQuery = sql; // The main part of the query with the query hint prefix trimmed
     int endOfQueryHint = 0;
     Integer configuredQueryTtl = null;
-    if ((sql.length() < 16000) && sql.startsWith("/*")) {
-      endOfQueryHint = sql.indexOf("*/");
+    // Queries longer than 16KB is not cacheable
+    if ((sql.length() < 16000) && sql.startsWith(QUERY_HINT_START_PATTERN)) {
+      endOfQueryHint = sql.indexOf(QUERY_HINT_END_PATTERN);
       if (endOfQueryHint > 0) {
         configuredQueryTtl = getTtlForQuery(sql.substring(2, endOfQueryHint).trim());
         mainQuery = sql.substring(endOfQueryHint + 2).trim();
