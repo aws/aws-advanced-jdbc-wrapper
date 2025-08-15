@@ -639,6 +639,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   protected void failover(final HostSpec failedHost) throws SQLException {
     this.pluginService.setAvailability(failedHost.asAliases(), HostAvailability.NOT_AVAILABLE);
 
+    // TODO: instantiate ConnectionService here
+    //  After failover, retrieve the unavailable hosts from the handlers after replacing pluginService#setAvailability
     if (this.failoverMode == FailoverMode.STRICT_WRITER) {
       failoverWriter();
     } else {

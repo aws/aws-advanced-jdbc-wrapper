@@ -444,6 +444,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
 
       while (true) {
         try {
+          // TODO: replace with host list provider
           this.pluginService.forceRefreshHostList(this.currentReaderConnection);
           final List<HostSpec> topology = this.pluginService.getAllHosts();
 
@@ -506,6 +507,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
           // connect to the new writer
           this.currentConnection = this.connectionService.open(writerCandidate, this.props);
           this.pluginService = this.currentConnection.unwrap(PluginService.class);
+          // TODO: replace with a map that is shared between the two handlers
           this.pluginService.setAvailability(writerCandidate.asAliases(), HostAvailability.AVAILABLE);
           return true;
         } catch (final SQLException exception) {
