@@ -34,6 +34,7 @@ public class DataRemoteCachePluginTest {
   @Mock TelemetryCounter mockHitCounter;
   @Mock TelemetryCounter mockMissCounter;
   @Mock TelemetryCounter mockTotalCallsCounter;
+  @Mock TelemetryCounter mockMalformedHintCounter;
   @Mock ResultSet mockResult1;
   @Mock Statement mockStatement;
   @Mock ResultSetMetaData mockMetaData;
@@ -52,6 +53,7 @@ public class DataRemoteCachePluginTest {
     when(mockTelemetryFactory.createCounter("remoteCache.cache.hit")).thenReturn(mockHitCounter);
     when(mockTelemetryFactory.createCounter("remoteCache.cache.miss")).thenReturn(mockMissCounter);
     when(mockTelemetryFactory.createCounter("remoteCache.cache.totalCalls")).thenReturn(mockTotalCallsCounter);
+    when(mockTelemetryFactory.createCounter("JdbcCacheMalformedQueryHint")).thenReturn(mockMalformedHintCounter);
     when(mockResult1.getMetaData()).thenReturn(mockMetaData);
     when(mockMetaData.getColumnCount()).thenReturn(1);
     when(mockMetaData.getColumnLabel(1)).thenReturn("fooName");
@@ -66,36 +68,68 @@ public class DataRemoteCachePluginTest {
 
   @Test
   void test_getTTLFromQueryHint() throws Exception {
-    // Null and empty query string are not cacheable
+    // Null and empty query hint content are not cacheable
     assertNull(plugin.getTtlForQuery(null));
     assertNull(plugin.getTtlForQuery(""));
     assertNull(plugin.getTtlForQuery("    "));
-    // Some other query hint
-    assertNull(plugin.getTtlForQuery("/* cacheNotEnabled */ select * from T"));
-    // Rule set is empty. All select queries are cached with 300 seconds TTL
-    String selectQuery1 = "cachettl=300s";
-    String selectQuery2 = "  /*  CACHETTL=100s  */   SELECT ID from mytable2    ";
-    String selectQuery3 = "/*CacheTTL=35s*/select * from table3 where ID = 1 and name = 'tom'";
-    // Query hints that are not cacheable
-    String selectQueryNoHint = "select * from table4";
-    String selectQueryNoCache1 = "no cache";
-    String selectQueryNoCache2 = " /* NO CACHE */   SELECT count(*) FROM (select player_id from roster where id = 1 FOR UPDATE) really_long_name_alias";
-    String selectQueryNoCache3 = "/* cachettl=300 */ SELECT count(*) FROM (select player_id from roster where id = 1) really_long_name_alias";
+    // Valid CACHE_PARAM cases - these are the hint contents after /*+ and before */
+    assertEquals(300, plugin.getTtlForQuery("CACHE_PARAM(ttl=300s)"));
+    assertEquals(100, plugin.getTtlForQuery("CACHE_PARAM(ttl=100s)"));
+    assertEquals(35, plugin.getTtlForQuery("CACHE_PARAM(ttl=35s)"));
 
-    // Non select queries are not cacheable
-    String veryShortQuery = "BEGIN";
-    String insertQuery = "/* This is an insert query */ insert into mytable values (1, 2)";
-    String updateQuery = "/* Update query */ Update /* Another hint */ mytable set val = 1";
-    assertEquals(300, plugin.getTtlForQuery(selectQuery1));
-    assertEquals(100, plugin.getTtlForQuery(selectQuery2));
-    assertEquals(35, plugin.getTtlForQuery(selectQuery3));
-    assertNull(plugin.getTtlForQuery(selectQueryNoHint));
-    assertNull(plugin.getTtlForQuery(selectQueryNoCache1));
-    assertNull(plugin.getTtlForQuery(selectQueryNoCache2));
-    assertNull(plugin.getTtlForQuery(selectQueryNoCache3));
-    assertNull(plugin.getTtlForQuery(veryShortQuery));
-    assertNull(plugin.getTtlForQuery(insertQuery));
-    assertNull(plugin.getTtlForQuery(updateQuery));
+    // Case insensitive
+    assertEquals(200, plugin.getTtlForQuery("cache_param(ttl=200s)"));
+    assertEquals(150, plugin.getTtlForQuery("Cache_Param(ttl=150s)"));
+    assertEquals(200, plugin.getTtlForQuery("cache_param(tTl=200s)"));
+    assertEquals(150, plugin.getTtlForQuery("Cache_Param(ttl=150S)"));
+    assertEquals(200, plugin.getTtlForQuery("cache_param(TTL=200S)"));
+
+    // CACHE_PARAM anywhere in hint content (mixed with other hint directives)
+    assertEquals(250, plugin.getTtlForQuery("INDEX(table1 idx1) CACHE_PARAM(ttl=250s)"));
+    assertEquals(200, plugin.getTtlForQuery("CACHE_PARAM(ttl=200s) USE_NL(t1 t2)"));
+    assertEquals(180, plugin.getTtlForQuery("FIRST_ROWS(10) CACHE_PARAM(ttl=180s) PARALLEL(4)"));
+    assertEquals(200, plugin.getTtlForQuery("foo=bar,CACHE_PARAM(ttl=200s),baz=qux"));
+
+    // Whitespace handling
+    assertEquals(400, plugin.getTtlForQuery("CACHE_PARAM( ttl=400s )"));
+    assertEquals(500, plugin.getTtlForQuery("CACHE_PARAM(ttl = 500s)"));
+    assertEquals(200, plugin.getTtlForQuery("CACHE_PARAM( ttl = 200s , key = test )"));
+
+    // Invalid cases - no CACHE_PARAM in hint content
+    assertNull(plugin.getTtlForQuery("INDEX(table1 idx1)"));
+    assertNull(plugin.getTtlForQuery("FIRST_ROWS(100)"));
+    assertNull(plugin.getTtlForQuery("cachettl=300s")); // old format
+    assertNull(plugin.getTtlForQuery("NO_CACHE"));
+
+    // Missing parentheses
+    assertNull(plugin.getTtlForQuery("CACHE_PARAM ttl=300s"));
+    assertNull(plugin.getTtlForQuery("CACHE_PARAM(ttl=300s"));
+
+     // Multiple parameters (future-proofing)
+     assertEquals(300, plugin.getTtlForQuery("CACHE_PARAM(ttl=300s, key=test)"));
+
+    // Large TTL values should work
+    assertEquals(999999, plugin.getTtlForQuery("CACHE_PARAM(ttl=999999s)"));
+    assertEquals(86400, plugin.getTtlForQuery("CACHE_PARAM(ttl=86400s)")); // 24 hours
+  }
+
+  @Test
+  void test_getTTLFromQueryHint_MalformedHints() throws Exception {
+    // Test malformed cases
+    assertNull(plugin.getTtlForQuery("CACHE_PARAM()"));
+    assertNull(plugin.getTtlForQuery("CACHE_PARAM(ttl=abc)"));
+    assertNull(plugin.getTtlForQuery("CACHE_PARAM(ttl=300)")); // missing 's'
+
+    assertNull(plugin.getTtlForQuery("CACHE_PARAM(ttl=)"));
+    assertNull(plugin.getTtlForQuery("CACHE_PARAM(invalid_format)"));
+
+    // Invalid TTL values (negative and zero) does not count toward malformed hints
+    assertNull(plugin.getTtlForQuery("CACHE_PARAM(ttl=0s)"));
+    assertNull(plugin.getTtlForQuery("CACHE_PARAM(ttl=-10s)"));
+    assertNull(plugin.getTtlForQuery("CACHE_PARAM(ttl=-1s)"));
+
+    // Verify counter was incremented 8 times (5 original + 3 new)
+    verify(mockMalformedHintCounter, times(5)).inc();
   }
 
   @Test
@@ -125,7 +159,7 @@ public class DataRemoteCachePluginTest {
     when(mockCallable.call()).thenReturn(mockResult1);
 
     ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
-        methodName, mockCallable, new String[]{"/* cacheTTL=30s */ select * from T" + RandomStringUtils.randomAlphanumeric(15990)});
+        methodName, mockCallable, new String[]{"/* CACHE_PARAM(ttl=20s) */ select * from T" + RandomStringUtils.randomAlphanumeric(15990)});
 
     // Mock result set containing 1 row
     when(mockResult1.next()).thenReturn(true, true, false, false);
@@ -153,7 +187,7 @@ public class DataRemoteCachePluginTest {
     when(mockResult1.getObject(1)).thenReturn("bar1");
 
     ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
-        methodName, mockCallable, new String[]{"/*CACHETTL=100s*/ select * from A"});
+        methodName, mockCallable, new String[]{"/*+CACHE_PARAM(ttl=50s)*/ select * from A"});
 
     // Cached result set contains 1 row
     assertTrue(rs.next());
@@ -163,7 +197,7 @@ public class DataRemoteCachePluginTest {
     byte[] serializedTestResultSet = ((CachedResultSet)rs).serializeIntoByteArray();
     when(mockCacheConn.readFromCache("public_user_select * from A")).thenReturn(serializedTestResultSet);
     ResultSet rs2 = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
-        methodName, mockCallable, new String[]{" /* CacheTtl=50s */select * from A"});
+        methodName, mockCallable, new String[]{" /*+CACHE_PARAM(ttl=50s)*/select * from A"});
 
     assertTrue(rs2.next());
     assertEquals("bar1", rs2.getString("fooName"));
@@ -172,7 +206,7 @@ public class DataRemoteCachePluginTest {
     verify(mockPluginService, times(2)).isInTransaction();
     verify(mockCacheConn, times(2)).readFromCache("public_user_select * from A");
     verify(mockCallable).call();
-    verify(mockCacheConn).writeToCache(eq("public_user_select * from A"), any(), eq(100));
+    verify(mockCacheConn).writeToCache(eq("public_user_select * from A"), any(), eq(50));
     verify(mockTotalCallsCounter, times(2)).inc();
     verify(mockMissCounter).inc();
     verify(mockHitCounter).inc();
@@ -193,7 +227,7 @@ public class DataRemoteCachePluginTest {
     when(mockResult1.getObject(1)).thenReturn("bar1");
 
     ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
-        methodName, mockCallable, new String[]{"/* cacheTTL=300s */ select * from T"});
+        methodName, mockCallable, new String[]{"/*+ CACHE_PARAM(ttl=300s) */ select * from T"});
 
     // Cached result set contains 1 row
     assertTrue(rs.next());
@@ -210,6 +244,66 @@ public class DataRemoteCachePluginTest {
   }
 
   @Test
+  void test_transaction_cacheQuery_multiple_query_params() throws Exception {
+    // Query is cacheable
+    when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
+    when(mockPluginService.isInTransaction()).thenReturn(true);
+    when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+    when(mockConnection.getSchema()).thenReturn("public");
+    when(mockDbMetadata.getUserName()).thenReturn("user");
+    when(mockCallable.call()).thenReturn(mockResult1);
+
+    // Result set contains 1 row
+    when(mockResult1.next()).thenReturn(true, false);
+    when(mockResult1.getObject(1)).thenReturn("bar1");
+
+    ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement, methodName, mockCallable, new String[]{"/*+ CACHE_PARAM(ttl=300s, otherParam=abc) */ select * from T"});
+
+    // Cached result set contains 1 row
+    assertTrue(rs.next());
+    assertEquals("bar1", rs.getString("fooName"));
+    assertFalse(rs.next());
+    verify(mockPluginService).getCurrentConnection();
+    verify(mockPluginService).isInTransaction();
+    verify(mockCacheConn, never()).readFromCache(anyString());
+    verify(mockCallable).call();
+    verify(mockCacheConn).writeToCache(eq("public_user_select * from T"), any(), eq(300));
+    verify(mockTotalCallsCounter, never()).inc();
+    verify(mockHitCounter, never()).inc();
+    verify(mockMissCounter, never()).inc();
+  }
+
+   @Test
+   void test_transaction_cacheQuery_multiple_query_hints() throws Exception {// Query is cacheable
+    when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
+    when(mockPluginService.isInTransaction()).thenReturn(true);
+    when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+    when(mockConnection.getSchema()).thenReturn("public");
+    when(mockDbMetadata.getUserName()).thenReturn("user");
+    when(mockCallable.call()).thenReturn(mockResult1);
+
+    // Result set contains 1 row
+    when(mockResult1.next()).thenReturn(true, false);
+    when(mockResult1.getObject(1)).thenReturn("bar1");
+
+    ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
+    methodName, mockCallable, new String[]{"/*+ hello CACHE_PARAM(ttl=300s, otherParam=abc) world */ select * from T"});
+
+     // Cached result set contains 1 row
+     assertTrue(rs.next());
+     assertEquals("bar1", rs.getString("fooName"));
+     assertFalse(rs.next());
+     verify(mockPluginService).getCurrentConnection();
+     verify(mockPluginService).isInTransaction();
+     verify(mockCacheConn, never()).readFromCache(anyString());
+     verify(mockCallable).call();
+     verify(mockCacheConn).writeToCache(eq("public_user_select * from T"), any(), eq(300));
+     verify(mockTotalCallsCounter, never()).inc();
+     verify(mockHitCounter, never()).inc();
+     verify(mockMissCounter, never()).inc();
+   }
+
+    @Test
   void test_transaction_noCaching() throws Exception {
     // Query is not cacheable
     when(mockPluginService.isInTransaction()).thenReturn(true);
