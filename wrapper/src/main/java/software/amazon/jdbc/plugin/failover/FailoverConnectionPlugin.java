@@ -33,6 +33,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
+import software.amazon.jdbc.ConnectionProvider;
+import software.amazon.jdbc.DriverConnectionProvider;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
@@ -42,16 +44,20 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.TargetDriverHelper;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.connection.ConnectionService;
+import software.amazon.jdbc.util.connection.ConnectionServiceImpl;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -92,6 +98,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   private final Set<String> subscribedMethods;
   private final PluginService pluginService;
+  private final FullServicesContainer servicesContainer;
+  private final ConnectionService connectionService;
   protected final Properties properties;
   protected boolean enableFailoverSetting;
   protected boolean enableConnectFailover;
@@ -185,15 +193,16 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     PropertyDefinition.registerPluginProperties(FailoverConnectionPlugin.class);
   }
 
-  public FailoverConnectionPlugin(final PluginService pluginService, final Properties properties) {
-    this(pluginService, properties, new RdsUtils());
+  public FailoverConnectionPlugin(final FullServicesContainer servicesContainer, final Properties properties) {
+    this(servicesContainer, properties, new RdsUtils());
   }
 
   FailoverConnectionPlugin(
-      final PluginService pluginService,
+      final FullServicesContainer servicesContainer,
       final Properties properties,
       final RdsUtils rdsHelper) {
-    this.pluginService = pluginService;
+    this.servicesContainer = servicesContainer;
+    this.pluginService = servicesContainer.getPluginService();
     this.properties = properties;
     this.rdsHelper = rdsHelper;
 
@@ -221,6 +230,25 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.properties));
     }
     this.subscribedMethods = Collections.unmodifiableSet(methods);
+
+    try {
+      TargetDriverHelper helper = new TargetDriverHelper();
+      java.sql.Driver driver = helper.getTargetDriver(this.pluginService.getOriginalUrl(), properties);
+      final ConnectionProvider defaultConnectionProvider = new DriverConnectionProvider(driver);
+      this.connectionService = new ConnectionServiceImpl(
+          servicesContainer.getStorageService(),
+          servicesContainer.getMonitorService(),
+          servicesContainer.getTelemetryFactory(),
+          defaultConnectionProvider,
+          this.pluginService.getOriginalUrl(),
+          this.pluginService.getDriverProtocol(),
+          this.pluginService.getTargetDriverDialect(),
+          this.pluginService.getDialect(),
+          properties
+      );
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
+    }
 
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
     this.failoverWriterTriggeredCounter = telemetryFactory.createCounter("writerFailover.triggered.count");
@@ -316,7 +344,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
                 this.failoverMode == FailoverMode.STRICT_READER),
         () ->
             new ClusterAwareWriterFailoverHandler(
-                this.pluginService,
+                this.servicesContainer,
+                this.connectionService,
                 this.readerFailoverHandler,
                 this.properties,
                 this.failoverTimeoutMsSetting,
