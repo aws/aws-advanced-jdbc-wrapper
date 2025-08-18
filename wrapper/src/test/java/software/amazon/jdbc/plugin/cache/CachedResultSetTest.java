@@ -13,6 +13,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import java.net.URL;
+import java.net.MalformedURLException;
 
 import java.math.BigDecimal;
 
@@ -96,8 +98,8 @@ public class CachedResultSetTest {
   void setUpDefaultTestResultSet() throws SQLException {
     // Create the default CachedResultSet for testing
     when(mockResultSet.getMetaData()).thenReturn(mockResultSetMetadata);
-    when(mockResultSetMetadata.getColumnCount()).thenReturn(13);
-    for (int i = 0; i < 13; i++) {
+    when(mockResultSetMetadata.getColumnCount()).thenReturn(testColumnMetadata.length);
+    for (int i = 0; i < testColumnMetadata.length; i++) {
       mockGetMetadataFields(1+i, i);
       when(mockResultSet.getObject(1+i)).thenReturn(testColumnValues[i][0], testColumnValues[i][1]);
     }
@@ -368,10 +370,15 @@ public class CachedResultSetTest {
         4362000L,
         LocalTime.of(10, 20, 30),
         OffsetTime.of(12, 15, 30, 0, ZoneOffset.UTC),
+        new Timestamp(1755621000000L), // Date and time (GMT): Tuesday, August 19, 2025 4:30:00 PM
+        new Timestamp(1735713000000L), // Date and time (GMT): Wednesday, January 1, 2025 6:30:00 AM
+        new Timestamp(0L), // 1970-01-01 00:00:00 UTC (epoch)
+        new Timestamp(Timestamp.valueOf(LocalDateTime.now().plusYears(1).withHour(9).withMinute(30).withSecond(0).withNano(0)).getTime()), // Future Date: next year same date at 9:30 AM
         "15:34:20",
         "InvalidTime",
         null);
-    when(mockResultSet.next()).thenReturn(true, true, true, true, true, true, false);
+    when(mockResultSet.next()).thenReturn(true, true, true, true, true, true,
+        true, true, true, true, false);
     CachedResultSet cachedRs = new CachedResultSet(mockResultSet);
 
     // Time from a number
@@ -385,6 +392,32 @@ public class CachedResultSetTest {
     assertTrue(cachedRs.next());
     assertEquals(Time.valueOf("05:15:30"), cachedRs.getTime(1));
     assertEquals(Time.valueOf("05:15:30"), cachedRs.getTime(1, estCal));
+    // Time from Timestamp
+    assertTrue(cachedRs.next());
+    Timestamp timestampOne = new Timestamp(1755621000000L);
+    // Compare underlying millis
+    assertEquals(timestampOne.getTime(), cachedRs.getTime(1).getTime());
+    // Compare logical wall-clock time
+    assertEquals(LocalTime.of(9, 30, 0), cachedRs.getTime(1).toLocalTime());
+    assertEquals(LocalTime.of(6, 30, 0), cachedRs.getTime(1, estCal).toLocalTime());
+    // Time from Timestamp Edge Case
+    assertTrue(cachedRs.next());
+    Timestamp timestampTwo = new Timestamp(1735713000000L);
+    assertEquals(timestampTwo.getTime(), cachedRs.getTime(1).getTime());
+    assertEquals(LocalTime.of(22, 30, 0), cachedRs.getTime(1).toLocalTime());
+    assertEquals(LocalTime.of(19, 30, 0), cachedRs.getTime(1, estCal).toLocalTime());
+    // Epoch time of 0
+    assertTrue(cachedRs.next());
+    assertEquals(new Time(0), cachedRs.getTime(1));
+    assertEquals(0L, cachedRs.getTime(1).getTime());
+    assertEquals(LocalTime.of(16, 0, 0), cachedRs.getTime(1).toLocalTime());
+    assertEquals(LocalTime.of(13, 0, 0), cachedRs.getTime(1, estCal).toLocalTime());
+    // Future date
+    assertTrue(cachedRs.next());
+    Timestamp futureTimestamp = new Timestamp(Timestamp.valueOf(LocalDateTime.now().plusYears(1).withHour(9).withMinute(30).withSecond(0).withNano(0)).getTime());
+    assertEquals(futureTimestamp.getTime(), cachedRs.getTime(1).getTime());
+    assertEquals(LocalTime.of(9, 30, 0), cachedRs.getTime(1).toLocalTime());
+    assertEquals(LocalTime.of(6, 30, 0), cachedRs.getTime(1, estCal).toLocalTime());
     // Timestamp from String
     assertTrue(cachedRs.next());
     assertEquals(Time.valueOf("15:34:20"), cachedRs.getTime(1));
@@ -411,10 +444,16 @@ public class CachedResultSetTest {
         1515944311000L,
         -1000000000L,
         LocalDate.of(2010, 10, 30),
+        new Timestamp(1755621000000L), // Date and time (GMT): Tuesday, August 19, 2025 4:30:00 PM
+        new Timestamp(1735713000000L), // Date and time (GMT): Wednesday, January 1, 2025 6:30:00 AM
+        new Timestamp(1755673200000L), // Date and time (GMT): Wednesday, August 20, 2025 7:00:00 AM --> PDT Aug 20 12AM
+        new Timestamp(1735718400000L), // Date and time (GMT): Wednesday, January 1, 2025 8:00:00 AM --> PST Jan 1 12AM
+        new Timestamp(0L), // 1970-01-01 00:00:00 UTC (epoch)
         "2025-03-15",
         "InvalidDate",
         null);
-    when(mockResultSet.next()).thenReturn(true, true, true, true, true, true, true, false);
+    when(mockResultSet.next()).thenReturn(true, true, true, true, true, true, true,
+        true, true, true, true, false);
     CachedResultSet cachedRs = new CachedResultSet(mockResultSet);
 
     // Date from a number
@@ -424,9 +463,38 @@ public class CachedResultSetTest {
     assertTrue(cachedRs.next());
     assertEquals(new Date(-1000000000L), cachedRs.getDate(1));
     // Date from LocalDate
+
     assertTrue(cachedRs.next());
     assertEquals(Date.valueOf("2010-10-30"), cachedRs.getDate(1));
     assertEquals(Date.valueOf("2010-10-29"), cachedRs.getDate(1, estCal));
+    // Date from Timestamp
+    assertTrue(cachedRs.next());
+    Timestamp tsForDate1 = new Timestamp(1755621000000L);
+    assertEquals(new Date(tsForDate1.getTime()), cachedRs.getDate(1));
+    assertEquals(LocalDate.of(2025, 8, 19), cachedRs.getDate(1).toLocalDate());
+    assertEquals(LocalDate.of(2025, 8, 19), cachedRs.getDate(1, estCal).toLocalDate());
+    assertTrue(cachedRs.next());
+    Timestamp tsForDate2 = new Timestamp(1735713000000L);
+    assertEquals(new Date(tsForDate2.getTime()), cachedRs.getDate(1));
+    assertEquals(LocalDate.of(2024, 12, 31), cachedRs.getDate(1).toLocalDate());
+    assertEquals(LocalDate.of(2024, 12, 31), cachedRs.getDate(1, estCal).toLocalDate());
+    // Date from Timestamp Edge Case
+    assertTrue(cachedRs.next());
+    Timestamp tsForDate3 = new Timestamp(1755673200000L);
+    assertEquals(new Date(tsForDate3.getTime()), cachedRs.getDate(1));
+    assertEquals(LocalDate.of(2025,8,20), cachedRs.getDate(1).toLocalDate());
+    assertEquals(LocalDate.of(2025,8,19), cachedRs.getDate(1, estCal).toLocalDate());
+    assertTrue(cachedRs.next());
+    Timestamp tsForDate4 = new Timestamp(1735718400000L);
+    assertEquals(new Date(tsForDate4.getTime()), cachedRs.getDate(1));
+    assertEquals(LocalDate.of(2025,1,1), cachedRs.getDate(1).toLocalDate());
+    assertEquals(LocalDate.of(2024,12,31), cachedRs.getDate(1, estCal).toLocalDate());
+    assertTrue(cachedRs.next());
+    Timestamp tsForDate5 = new Timestamp(0L);
+    assertEquals(new Date(tsForDate5.getTime()), cachedRs.getDate(1));
+    assertEquals(new Date(0L), cachedRs.getDate(1));
+    assertEquals(LocalDate.of(1969,12,31), cachedRs.getDate(1).toLocalDate());
+    assertEquals(LocalDate.of(1969,12,31), cachedRs.getDate(1, estCal).toLocalDate());
     // Date from String
     assertTrue(cachedRs.next());
     assertEquals(Date.valueOf("2025-03-15"), cachedRs.getDate(1));
@@ -442,4 +510,293 @@ public class CachedResultSetTest {
     assertTrue(cachedRs.next());
     assertNull(cachedRs.getDate(1));
   }
+
+  @Test
+  void test_get_nstring() throws SQLException {
+    // Setup single column with String metadata
+    when(mockResultSet.getMetaData()).thenReturn(mockResultSetMetadata);
+    when(mockResultSetMetadata.getColumnCount()).thenReturn(1);
+    mockGetMetadataFields(1, 2);
+    when(mockResultSet.getObject(1)).thenReturn("test string", 123, null);
+    when(mockResultSet.next()).thenReturn(true, true, true, false);
+    CachedResultSet cachedRs = new CachedResultSet(mockResultSet);
+
+    // Test string value - both index and label versions
+    assertTrue(cachedRs.next());
+    assertEquals("test string", cachedRs.getNString(1));
+    assertFalse(cachedRs.wasNull());
+    assertEquals("test string", cachedRs.getNString("fieldString"));
+    assertFalse(cachedRs.wasNull());
+
+    // Test number conversion
+    assertTrue(cachedRs.next());
+    assertEquals("123", cachedRs.getNString(1));
+    assertFalse(cachedRs.wasNull());
+
+    // Test null handling
+    assertTrue(cachedRs.next());
+    assertNull(cachedRs.getNString(1));
+    assertTrue(cachedRs.wasNull());
+  }
+
+  @Test
+  void test_get_bytes() throws SQLException {
+    // Setup single column with String metadata
+    when(mockResultSet.getMetaData()).thenReturn(mockResultSetMetadata);
+    when(mockResultSetMetadata.getColumnCount()).thenReturn(1);
+    mockGetMetadataFields(1, 4);
+    // Test data
+    byte[] testBytes = {1, 2, 3, 4, 5};
+    when(mockResultSet.getObject(1)).thenReturn(testBytes, "not bytes", 123, null);
+    when(mockResultSet.next()).thenReturn(true, true, true, true, false);
+    CachedResultSet cachedRs = new CachedResultSet(mockResultSet);
+
+    // Test bytes values - both index and label versions
+    assertTrue(cachedRs.next());
+    assertArrayEquals(testBytes, cachedRs.getBytes(1));
+    assertFalse(cachedRs.wasNull());
+    assertArrayEquals(testBytes, cachedRs.getBytes("fieldByte"));
+    assertFalse(cachedRs.wasNull());
+
+    // Test non-byte array input (should convert to bytes)
+    assertTrue(cachedRs.next());
+    assertArrayEquals("not bytes".getBytes(), cachedRs.getBytes(1));
+    assertFalse(cachedRs.wasNull());
+
+    // Test number input (should convert to bytes)
+    assertTrue(cachedRs.next());
+    assertArrayEquals("123".getBytes(), cachedRs.getBytes(1));
+    assertFalse(cachedRs.wasNull());
+
+    // Test null handling
+    assertTrue(cachedRs.next());
+    assertNull(cachedRs.getBytes(1));
+    assertTrue(cachedRs.wasNull());
+  }
+
+  @Test
+  void test_get_boolean() throws SQLException {
+    // Setup single column with String metadata
+    when(mockResultSet.getMetaData()).thenReturn(mockResultSetMetadata);
+    when(mockResultSetMetadata.getColumnCount()).thenReturn(1);
+    mockGetMetadataFields(1, 3);
+    // Test data: boolean, numbers, strings, null
+    when(mockResultSet.getObject(1)).thenReturn(
+        true, false, 0, 1, -5, "true", "false", "invalid", null);
+    when(mockResultSet.next()).thenReturn(true, true, true, true, true, true, true, true, true, false);
+
+    CachedResultSet cachedRs = new CachedResultSet(mockResultSet);
+
+    // Test actual boolean values - both index and label versions
+    assertTrue(cachedRs.next());
+    assertTrue(cachedRs.getBoolean(1));
+    assertFalse(cachedRs.wasNull());
+    assertTrue(cachedRs.getBoolean("fieldBoolean"));
+
+    assertTrue(cachedRs.next());
+    assertFalse(cachedRs.getBoolean(1));
+    assertFalse(cachedRs.wasNull());
+
+    // Test number conversions: 0 = true, non-zero = false
+    assertTrue(cachedRs.next());
+    assertFalse(cachedRs.getBoolean(1)); // 0 → false
+
+    assertTrue(cachedRs.next());
+    assertTrue(cachedRs.getBoolean(1)); // 1 → true
+
+    assertTrue(cachedRs.next());
+    assertTrue(cachedRs.getBoolean(1)); // -5 → true
+
+    // Test string conversions
+    assertTrue(cachedRs.next());
+    assertTrue(cachedRs.getBoolean(1)); // "true" → true
+
+    assertTrue(cachedRs.next());
+    assertFalse(cachedRs.getBoolean(1)); // "false" → false
+
+    assertTrue(cachedRs.next());
+    assertFalse(cachedRs.getBoolean(1)); // "invalid" → false (parseBoolean)
+
+    // Test null handling
+    assertTrue(cachedRs.next());
+    assertFalse(cachedRs.getBoolean(1)); // null → false
+    assertTrue(cachedRs.wasNull());
+  }
+
+  @Test
+  void test_get_URL() throws SQLException {
+    // Setup single column with string metadata (URLs stored as strings)
+    when(mockResultSet.getMetaData()).thenReturn(mockResultSetMetadata);
+    when(mockResultSetMetadata.getColumnCount()).thenReturn(1);
+    mockGetMetadataFields(1, 2);
+
+    // Test data: URL object, valid URL string, invalid URL string, null
+    // URL object setup
+    URL testUrl = null;
+    try {
+      testUrl = new URL("https://example.com");
+    } catch (MalformedURLException e) {
+      fail("Test setup failed");
+    }
+
+    when(mockResultSet.getObject(1)).thenReturn(
+        testUrl, "https://valid.com", "invalid-url", null);
+    when(mockResultSet.next()).thenReturn(true, true, true, true, false);
+
+    CachedResultSet cachedRs = new CachedResultSet(mockResultSet);
+
+    // Test actual URL object - both index and label versions
+    assertTrue(cachedRs.next());
+    assertEquals(testUrl, cachedRs.getURL(1));
+    assertFalse(cachedRs.wasNull());
+    assertEquals(testUrl, cachedRs.getURL("fieldString"));
+
+    // Test valid URL string conversion
+    assertTrue(cachedRs.next());
+    URL validURL = null;
+    try {
+      validURL = new URL("https://valid.com");
+    } catch (MalformedURLException e) {
+      fail("Failed setting up new valid URL");
+    }
+    assertEquals(validURL, cachedRs.getURL(1));
+    assertFalse(cachedRs.wasNull());
+
+    // Test invalid URL string (should throw SQLException)
+    assertTrue(cachedRs.next());
+    assertThrows(SQLException.class, () -> cachedRs.getURL(1));
+
+    // Test null handling
+    assertTrue(cachedRs.next());
+    assertNull(cachedRs.getURL(1));
+    assertTrue(cachedRs.wasNull());
+  }
+
+  @Test
+  void test_get_object_with_index_and_type() throws SQLException {
+    // Setup single column with string metadata (mixed data types)
+    when(mockResultSet.getMetaData()).thenReturn(mockResultSetMetadata);
+    when(mockResultSetMetadata.getColumnCount()).thenReturn(1);
+    mockGetMetadataFields(1, 2);
+
+    // Test data: string, integer, boolean, null
+    when(mockResultSet.getObject(1)).thenReturn("test", 123, true, null);
+    when(mockResultSet.next()).thenReturn(true, true, true, true, false);
+
+    CachedResultSet cachedRs = new CachedResultSet(mockResultSet);
+
+    // Test valid type conversions
+    assertTrue(cachedRs.next());
+    assertEquals("test", cachedRs.getObject(1, String.class));
+    assertFalse(cachedRs.wasNull());
+
+    assertTrue(cachedRs.next());
+    assertEquals(Integer.valueOf(123), cachedRs.getObject(1, Integer.class));
+    assertFalse(cachedRs.wasNull());
+
+    assertTrue(cachedRs.next());
+    assertEquals(Boolean.TRUE, cachedRs.getObject(1, Boolean.class));
+    assertFalse(cachedRs.wasNull());
+
+    // Test null handling
+    assertTrue(cachedRs.next());
+    assertNull(cachedRs.getObject(1, String.class));
+    assertTrue(cachedRs.wasNull());
+
+    // Test invalid type conversion (should throw ClassCastException)
+    cachedRs.beforeFirst();
+    // Wraps around
+    assertTrue(cachedRs.next());
+    assertThrows(ClassCastException.class, () -> cachedRs.getObject(1, Integer.class));
+  }
+
+  @Test
+  void test_get_object_with_label_and_type() throws SQLException {
+    // Setup single column with string metadata (mixed data types)
+    when(mockResultSet.getMetaData()).thenReturn(mockResultSetMetadata);
+    when(mockResultSetMetadata.getColumnCount()).thenReturn(1);
+    mockGetMetadataFields(1, 2);
+
+    // Test data: string, integer, boolean, HashSet (unsupported type), null
+    HashSet<String> testSet = new HashSet<>();
+    testSet.add("item1");
+    testSet.add("item2");
+
+    when(mockResultSet.getObject(1)).thenReturn("test", 123, true, testSet, null);
+    when(mockResultSet.next()).thenReturn(true, true, true, true, true, false);
+
+    CachedResultSet cachedRs = new CachedResultSet(mockResultSet);
+
+    // Test valid type conversions
+    assertTrue(cachedRs.next());
+    assertEquals("test", cachedRs.getObject("fieldString", String.class));
+    assertFalse(cachedRs.wasNull());
+
+    assertTrue(cachedRs.next());
+    assertEquals(Integer.valueOf(123), cachedRs.getObject("fieldString", Integer.class));
+    assertFalse(cachedRs.wasNull());
+
+    assertTrue(cachedRs.next());
+    assertEquals(Boolean.TRUE, cachedRs.getObject("fieldString", Boolean.class));
+    assertFalse(cachedRs.wasNull());
+
+    // Test unsupported data type (HashSet) - should work with getObject()
+    assertTrue(cachedRs.next());
+    HashSet<String> retrievedSet = cachedRs.getObject("fieldString", HashSet.class);
+    assertEquals(testSet, retrievedSet);
+    assertFalse(cachedRs.wasNull());
+
+    // Test null handling
+    assertTrue(cachedRs.next());
+    assertNull(cachedRs.getObject("fieldString", String.class));
+    assertTrue(cachedRs.wasNull());
+
+    // Test invalid type conversion (should throw ClassCastException)
+    cachedRs.beforeFirst();
+    // Wraps around
+    assertTrue(cachedRs.next());
+    assertThrows(ClassCastException.class, () -> cachedRs.getObject(1, Integer.class));
+  }
+
+  @Test
+  void test_unwrap() throws SQLException {
+    when(mockResultSet.getMetaData()).thenReturn(mockResultSetMetadata);
+    when(mockResultSetMetadata.getColumnCount()).thenReturn(1);
+    mockGetMetadataFields(1, 2);
+
+    CachedResultSet cachedRs = new CachedResultSet(mockResultSet);
+
+    // Test valid unwrap to ResultSet interface
+    ResultSet unwrappedResultSet = cachedRs.unwrap(ResultSet.class);
+    assertSame(cachedRs, unwrappedResultSet);
+
+    // Test valid unwrap to CachedResultSet class
+    CachedResultSet unwrappedCachedResultSet = cachedRs.unwrap(CachedResultSet.class);
+    assertSame(cachedRs, unwrappedCachedResultSet);
+
+    // Test invalid unwrap attempts should throw SQLException
+    assertThrows(SQLException.class, () -> cachedRs.unwrap(String.class));
+    assertThrows(SQLException.class, () -> cachedRs.unwrap(Integer.class));
+  }
+
+  @Test
+  void test_is_wrapper_for() throws SQLException {
+    when(mockResultSet.getMetaData()).thenReturn(mockResultSetMetadata);
+    when(mockResultSetMetadata.getColumnCount()).thenReturn(1);
+    mockGetMetadataFields(1, 2);
+
+    CachedResultSet cachedRs = new CachedResultSet(mockResultSet);
+
+    // Test valid wrapper checks
+    assertTrue(cachedRs.isWrapperFor(ResultSet.class));
+    assertTrue(cachedRs.isWrapperFor(CachedResultSet.class));
+
+    // Test invalid wrapper checks
+    assertFalse(cachedRs.isWrapperFor(String.class));
+    assertFalse(cachedRs.isWrapperFor(Integer.class));
+
+    // Test null class parameter
+    assertFalse(cachedRs.isWrapperFor(null));
+  }
 }
+
