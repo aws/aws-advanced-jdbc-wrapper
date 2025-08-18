@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin.failover;
 import java.sql.SQLException;
 import java.util.List;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.util.connection.ConnectionService;
 
 /**
  * Interface for Writer Failover Process handler. This handler implements all necessary logic to try
@@ -33,5 +34,6 @@ public interface WriterFailoverHandler {
    * @return {@link WriterFailoverResult} The results of this process.
    * @throws SQLException indicating whether the failover attempt was successful.
    */
-  WriterFailoverResult failover(List<HostSpec> currentTopology) throws SQLException;
+  WriterFailoverResult failover(
+      ConnectionService connectionService, List<HostSpec> currentTopology) throws SQLException;
 }

@@ -99,7 +99,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private final Set<String> subscribedMethods;
   private final PluginService pluginService;
   private final FullServicesContainer servicesContainer;
-  private final ConnectionService connectionService;
+  private ConnectionService connectionService;
   protected final Properties properties;
   protected boolean enableFailoverSetting;
   protected boolean enableConnectFailover;
@@ -231,25 +231,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
     this.subscribedMethods = Collections.unmodifiableSet(methods);
 
-    try {
-      TargetDriverHelper helper = new TargetDriverHelper();
-      java.sql.Driver driver = helper.getTargetDriver(this.pluginService.getOriginalUrl(), properties);
-      final ConnectionProvider defaultConnectionProvider = new DriverConnectionProvider(driver);
-      this.connectionService = new ConnectionServiceImpl(
-          servicesContainer.getStorageService(),
-          servicesContainer.getMonitorService(),
-          servicesContainer.getTelemetryFactory(),
-          defaultConnectionProvider,
-          this.pluginService.getOriginalUrl(),
-          this.pluginService.getDriverProtocol(),
-          this.pluginService.getTargetDriverDialect(),
-          this.pluginService.getDialect(),
-          properties
-      );
-    } catch (SQLException e) {
-      throw new RuntimeException(e);
-    }
-
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
     this.failoverWriterTriggeredCounter = telemetryFactory.createCounter("writerFailover.triggered.count");
     this.failoverWriterSuccessCounter = telemetryFactory.createCounter("writerFailover.completed.success.count");
@@ -345,7 +326,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         () ->
             new ClusterAwareWriterFailoverHandler(
                 this.servicesContainer,
-                this.connectionService,
                 this.readerFailoverHandler,
                 this.properties,
                 this.failoverTimeoutMsSetting,
@@ -639,8 +619,26 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   protected void failover(final HostSpec failedHost) throws SQLException {
     this.pluginService.setAvailability(failedHost.asAliases(), HostAvailability.NOT_AVAILABLE);
 
-    // TODO: instantiate ConnectionService here
-    //  After failover, retrieve the unavailable hosts from the handlers after replacing pluginService#setAvailability
+
+    // TODO: After failover, retrieve the unavailable hosts from the handlers after replacing
+    //  pluginService#setAvailability
+    TargetDriverHelper helper = new TargetDriverHelper();
+    java.sql.Driver driver = helper.getTargetDriver(this.pluginService.getOriginalUrl(), properties);
+    final ConnectionProvider defaultConnectionProvider = new DriverConnectionProvider(driver);
+    if (this.connectionService == null) {
+      this.connectionService = new ConnectionServiceImpl(
+          servicesContainer.getStorageService(),
+          servicesContainer.getMonitorService(),
+          servicesContainer.getTelemetryFactory(),
+          defaultConnectionProvider,
+          this.pluginService.getOriginalUrl(),
+          this.pluginService.getDriverProtocol(),
+          this.pluginService.getTargetDriverDialect(),
+          this.pluginService.getDialect(),
+          properties
+      );
+    }
+
     if (this.failoverMode == FailoverMode.STRICT_WRITER) {
       failoverWriter();
     } else {
@@ -751,7 +749,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
     try {
       LOGGER.info(() -> Messages.get("Failover.startWriterFailover"));
-      final WriterFailoverResult failoverResult = this.writerFailoverHandler.failover(this.pluginService.getAllHosts());
+      final WriterFailoverResult failoverResult =
+          this.writerFailoverHandler.failover(this.connectionService, this.pluginService.getAllHosts());
       if (failoverResult != null) {
         final SQLException exception = failoverResult.getException();
         if (exception != null) {
