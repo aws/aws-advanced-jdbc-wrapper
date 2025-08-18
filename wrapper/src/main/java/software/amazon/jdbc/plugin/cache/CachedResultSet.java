@@ -38,6 +38,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Calendar;
+import java.util.TimeZone;
 
 public class CachedResultSet implements ResultSet {
 
@@ -68,6 +69,7 @@ public class CachedResultSet implements ResultSet {
   protected boolean wasNullFlag;
   private final CachedResultSetMetaData metadata;
   protected static final ZoneId defaultTimeZoneId = ZoneId.systemDefault();
+  protected static final TimeZone defaultTimeZone = TimeZone.getDefault();
   private final HashMap<String, Integer> columnNames;
   private volatile boolean closed;
 
@@ -178,7 +180,7 @@ public class CachedResultSet implements ResultSet {
     final Object val = checkAndGetColumnValue(columnIndex);
     if (val == null) return false;
     if (val instanceof Boolean) return (Boolean) val;
-    if (val instanceof Number) return ((Number) val).intValue() == 0;
+    if (val instanceof Number) return ((Number) val).intValue() != 0;
     return Boolean.parseBoolean(val.toString());
   }
 
@@ -251,7 +253,8 @@ public class CachedResultSet implements ResultSet {
     final Object val = checkAndGetColumnValue(columnIndex);
     if (val == null) return null;
     if (val instanceof byte[]) return (byte[]) val;
-    return new byte[0];
+    // Convert non-byte data to string, then to bytes (standard JDBC behavior)
+    return val.toString().getBytes();
   }
 
   private Date convertToDate(Object dateObj, Calendar cal) throws SQLException {
@@ -267,6 +270,14 @@ public class CachedResultSet implements ResultSet {
       ZonedDateTime originalZonedDateTime = localDateTime.atZone(cal.getTimeZone().toZoneId());
       ZonedDateTime targetZonedDateTime = originalZonedDateTime.withZoneSameInstant(defaultTimeZoneId);
       return Date.valueOf(targetZonedDateTime.toLocalDate());
+    }
+    if (dateObj instanceof Timestamp) {
+      Timestamp timestamp = (Timestamp) dateObj;
+      long millis = timestamp.getTime();
+      if (cal == null) return new Date(millis);
+      long adjustedMillis = millis - cal.getTimeZone().getOffset(millis)
+          + defaultTimeZone.getOffset(millis);
+      return new Date(adjustedMillis);
     }
 
     // Note: normally the user should properly store the Date object in the DB column and
@@ -301,6 +312,14 @@ public class CachedResultSet implements ResultSet {
     if (timeObj instanceof OffsetTime) {
       OffsetTime localTime = ((OffsetTime)timeObj).withOffsetSameInstant(OffsetDateTime.now().getOffset());
       return Time.valueOf(localTime.toLocalTime());
+    }
+    if (timeObj instanceof Timestamp) {
+      Timestamp timestamp = (Timestamp) timeObj;
+      long millis = timestamp.getTime();
+      if (cal == null) return new Time(millis);
+      long adjustedMillis = millis - cal.getTimeZone().getOffset(millis)
+          + defaultTimeZone.getOffset(millis);
+      return new Time(adjustedMillis);
     }
 
     // Note: normally the user should properly store the Time object in the DB column and
