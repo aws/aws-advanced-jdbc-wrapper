@@ -665,7 +665,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         failedHost = failedHostSpec;
       }
 
-      final ReaderFailoverResult result = readerFailoverHandler.failover(this.pluginService.getHosts(), failedHost);
+      final ReaderFailoverResult result = readerFailoverHandler.failover(
+          this.connectionService, this.pluginService.getHosts(), failedHost);
       if (result != null) {
         final SQLException exception = result.getException();
         if (exception != null) {

@@ -435,7 +435,8 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     private void connectToReader() throws InterruptedException {
       while (true) {
         try {
-          final ReaderFailoverResult connResult = readerFailoverHandler.getReaderConnection(this.currentTopology);
+          final ReaderFailoverResult connResult =
+              readerFailoverHandler.getReaderConnection(this.connectionService, this.currentTopology);
           if (isValidReaderConnection(connResult)) {
             this.currentReaderConnection = connResult.getConnection();
             this.currentReaderHost = connResult.getHost();
