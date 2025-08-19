@@ -135,25 +135,30 @@ To find all the documentation and concrete examples on how to use the AWS JDBC D
 
 #### Amazon RDS Blue/Green Deployments
 
-The AWS Advanced JDBC Wrapper **versions 2.6.0 and above** now include enhanced full support for Blue/Green Deployments. This support requires a minimum database version that includes a specific metadata table. This constraint **does not** apply to RDS MySQL.
+**Important: Service Dependency**
 
-**No action is required** if your database does not include the new metadata table -- the driver will continue to operate as before with no special blue/green functionality. If you have questions or encounter issues, please open an issue in this repository.
+Support for Blue/Green deployments using the AWS Advanced JDBC Wrapper requires specific metadata tables that are **not available in the current RDS and Aurora service**. Please contact your AWS account team for metadata release timelines.
 
-Supported RDS PostgreSQL Versions: `rds_tools v1.7 (17.1, 16.5, 15.9, 14.14, 13.17, 12.21)` and above.<br>
-Supported Aurora PostgreSQL Versions: Engine Release `17.5, 16.9, 15.13, 14.18, 13.21` and above.<br>
-Supported Aurora MySQL Versions: Engine Release `3.07` and above.
+**Limitations:**
 
-If your database version does **not** support this table, the driver will automatically detect its absence and fallback to its previous behaviour in wrapper versions <2.6.0. In this fallback mode, Blue/Green handling is subject to the same limitations listed below.
+- **Post-switchover failures:** After a Blue/Green switchover, the wrapper may not properly detect the new cluster topology, leading to failed failover attempts.
+- **Metadata inconsistencies:** Discrepancies between topology metadata and actual available endpoints prevent reliable operation.
+- **Version-specific issues:** Requirements vary between Aurora MySQL and Aurora PostgreSQL due to different internal systems.
 
-AWS Advanced JDBC Wrapper **versions earlier than 2.6.0** are not compatible with [AWS Blue/Green Deployments](https://docs.aws.amazon.com/whitepapers/latest/overview-deployment-options/bluegreen-deployments.html) and do not officially support them. However, the combination of the AWS Advanced JDBC Wrapper and the Failover Plugin has been validated for use with clusters that employ Blue/Green Deployments for these versions. While general basic connectivity to both Blue and Green clusters is always in place, some failover cases are not fully supported.
+**If You Must Use Blue/Green (Not Recommended for Production):**
 
-The limitations for versions earlier than 2.6.0 are:
-- After a Blue/Green switchover, the wrapper may not be able to properly detect the new topology and handle failover, as there are discrepancies between the metadata and the available endpoints.
-- The specific version requirements for Aurora MySQL versus Aurora PostgreSQL may vary, as the internal systems used by the wrapper can differ[^1].
+1. Enable the `enableGreenNodeReplacement` configuration parameter.
+2. Thoroughly test in non-production environments.
 
-For these earlier versions, users can consider utilizing the `enableGreenNodeReplacement` configuration parameter, which allows the driver to override incorrect topology metadata and try to connect to available new Blue endpoints.
+**Recommendation:**
 
-[^1]: Aurora MySQL requires v3.07 or later.
+We advise waiting for the RDS service update before enabling the Blue/Green Deployments plugin. If the metadata table does not exist, your application will continue to work; however, errors will be logged stating that relevant Blue/Green metadata cannot be found.
+
+When the RDS service update is released, the following service versions will provide support for Blue/Green Deployments:
+
+- Supported RDS PostgreSQL Versions: `rds_tools v1.7 (17.1, 16.5, 15.9, 14.14, 13.17, 12.21)` and above.
+- Supported Aurora PostgreSQL Versions: Engine Release `17.5, 16.9, 15.13, 14.18, 13.21` and above.
+- Supported Aurora MySQL Versions: Engine Release `3.07` and above.
 
 #### Amazon Aurora Global Databases
 
