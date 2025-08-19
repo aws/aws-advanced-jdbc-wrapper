@@ -33,12 +33,16 @@ import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PartialPluginService;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.dialect.HostListProviderSupplier;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.ExecutorFactory;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.connection.ConnectionService;
 
 /**
  * An implementation of ReaderFailoverHandler.
@@ -58,24 +62,25 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   protected static final int DEFAULT_READER_CONNECT_TIMEOUT = 30000; // 30 sec
   public static final ReaderFailoverResult FAILED_READER_FAILOVER_RESULT =
       new ReaderFailoverResult(null, null, false);
-  protected Properties initialConnectionProps;
+  protected Properties props;
   protected int maxFailoverTimeoutMs;
   protected int timeoutMs;
   protected boolean isStrictReaderRequired;
+  protected final FullServicesContainer servicesContainer;
   protected final PluginService pluginService;
 
   /**
    * ClusterAwareReaderFailoverHandler constructor.
    *
-   * @param pluginService          A provider for creating new connections.
-   * @param initialConnectionProps The initial connection properties to copy over to the new reader.
+   * @param servicesContainer          A provider for creating new connections.
+   * @param props The initial connection properties to copy over to the new reader.
    */
   public ClusterAwareReaderFailoverHandler(
-      final PluginService pluginService,
-      final Properties initialConnectionProps) {
+      final FullServicesContainer servicesContainer,
+      final Properties props) {
     this(
-        pluginService,
-        initialConnectionProps,
+        servicesContainer,
+        props,
         DEFAULT_FAILOVER_TIMEOUT,
         DEFAULT_READER_CONNECT_TIMEOUT,
         false);
@@ -84,21 +89,22 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   /**
    * ClusterAwareReaderFailoverHandler constructor.
    *
-   * @param pluginService              A provider for creating new connections.
-   * @param initialConnectionProps     The initial connection properties to copy over to the new reader.
+   * @param servicesContainer              A provider for creating new connections.
+   * @param props     The initial connection properties to copy over to the new reader.
    * @param maxFailoverTimeoutMs       Maximum allowed time for the entire reader failover process.
    * @param timeoutMs                  Maximum allowed time in milliseconds for each reader connection attempt during
    *                                   the reader failover process.
    * @param isStrictReaderRequired When true, it disables adding a writer to a list of nodes to connect
    */
   public ClusterAwareReaderFailoverHandler(
-      final PluginService pluginService,
-      final Properties initialConnectionProps,
+      final FullServicesContainer servicesContainer,
+      final Properties props,
       final int maxFailoverTimeoutMs,
       final int timeoutMs,
       final boolean isStrictReaderRequired) {
-    this.pluginService = pluginService;
-    this.initialConnectionProps = initialConnectionProps;
+    this.servicesContainer = servicesContainer;
+    this.pluginService = servicesContainer.getPluginService();
+    this.props = props;
     this.maxFailoverTimeoutMs = maxFailoverTimeoutMs;
     this.timeoutMs = timeoutMs;
     this.isStrictReaderRequired = isStrictReaderRequired;
@@ -124,7 +130,8 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
    * @return {@link ReaderFailoverResult} The results of this process.
    */
   @Override
-  public ReaderFailoverResult failover(final List<HostSpec> hosts, final HostSpec currentHost)
+  public ReaderFailoverResult failover(
+      final ConnectionService connectionService, final List<HostSpec> hosts, final HostSpec currentHost)
       throws SQLException {
     if (Utils.isNullOrEmpty(hosts)) {
       LOGGER.fine(() -> Messages.get("ClusterAwareReaderFailoverHandler.invalidTopology", new Object[] {"failover"}));
@@ -133,11 +140,13 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
 
     final ExecutorService executor =
         ExecutorFactory.newSingleThreadExecutor("failover");
-    final Future<ReaderFailoverResult> future = submitInternalFailoverTask(hosts, currentHost, executor);
+    final Future<ReaderFailoverResult> future =
+        submitInternalFailoverTask(connectionService, hosts, currentHost, executor);
     return getInternalFailoverResult(executor, future);
   }
 
   private Future<ReaderFailoverResult> submitInternalFailoverTask(
+      final ConnectionService connectionService,
       final List<HostSpec> hosts,
       final HostSpec currentHost,
       final ExecutorService executor) {
@@ -145,7 +154,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       ReaderFailoverResult result;
       try {
         while (true) {
-          result = failoverInternal(hosts, currentHost);
+          result = failoverInternal(connectionService, hosts, currentHost);
           if (result != null && result.isConnected()) {
             return result;
           }
@@ -190,6 +199,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   }
 
   protected ReaderFailoverResult failoverInternal(
+      final ConnectionService connectionService,
       final List<HostSpec> hosts,
       final HostSpec currentHost)
       throws SQLException {
@@ -197,7 +207,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       this.pluginService.setAvailability(currentHost.asAliases(), HostAvailability.NOT_AVAILABLE);
     }
     final List<HostSpec> hostsByPriority = getHostsByPriority(hosts);
-    return getConnectionFromHostGroup(hostsByPriority);
+    return getConnectionFromHostGroup(connectionService, hostsByPriority);
   }
 
   public List<HostSpec> getHostsByPriority(final List<HostSpec> hosts) {
@@ -239,7 +249,8 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
    * @return {@link ReaderFailoverResult} The results of this process.
    */
   @Override
-  public ReaderFailoverResult getReaderConnection(final List<HostSpec> hostList)
+  public ReaderFailoverResult getReaderConnection(
+      final ConnectionService connectionService, final List<HostSpec> hostList)
       throws SQLException {
     if (Utils.isNullOrEmpty(hostList)) {
       LOGGER.fine(
@@ -250,7 +261,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     }
 
     final List<HostSpec> hostsByPriority = getReaderHostsByPriority(hostList);
-    return getConnectionFromHostGroup(hostsByPriority);
+    return getConnectionFromHostGroup(connectionService, hostsByPriority);
   }
 
   public List<HostSpec> getReaderHostsByPriority(final List<HostSpec> hosts) {
@@ -291,7 +302,8 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     return hostsByPriority;
   }
 
-  private ReaderFailoverResult getConnectionFromHostGroup(final List<HostSpec> hosts)
+  private ReaderFailoverResult getConnectionFromHostGroup(
+      final ConnectionService connectionService, final List<HostSpec> hosts)
       throws SQLException {
     final ExecutorService executor =
         ExecutorFactory.newFixedThreadPool(2, "failover");
@@ -300,7 +312,8 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     try {
       for (int i = 0; i < hosts.size(); i += 2) {
         // submit connection attempt tasks in batches of 2
-        final ReaderFailoverResult result = getResultFromNextTaskBatch(hosts, executor, completionService, i);
+        final ReaderFailoverResult result =
+            getResultFromNextTaskBatch(connectionService, hosts, executor, completionService, i);
         if (result.isConnected() || result.getException() != null) {
           return result;
         }
@@ -323,15 +336,19 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   }
 
   private ReaderFailoverResult getResultFromNextTaskBatch(
+      final ConnectionService connectionService,
       final List<HostSpec> hosts,
       final ExecutorService executor,
       final CompletionService<ReaderFailoverResult> completionService,
       final int i) throws SQLException {
     ReaderFailoverResult result;
     final int numTasks = i + 1 < hosts.size() ? 2 : 1;
-    completionService.submit(new ConnectionAttemptTask(hosts.get(i), this.isStrictReaderRequired));
+    completionService.submit(
+        // TODO: are there performance concerns with creating a new plugin service this often?
+        new ConnectionAttemptTask(
+            connectionService, this.getNewPluginService(), hosts.get(i), this.props, this.isStrictReaderRequired));
     if (numTasks == 2) {
-      completionService.submit(new ConnectionAttemptTask(hosts.get(i + 1), this.isStrictReaderRequired));
+      completionService.submit(new ConnectionAttemptTask(connectionService, this.getNewPluginService(), hosts.get(i + 1), this.props, this.isStrictReaderRequired));
     }
     for (int taskNum = 0; taskNum < numTasks; taskNum++) {
       result = getNextResult(completionService);
@@ -372,13 +389,41 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     }
   }
 
-  private class ConnectionAttemptTask implements Callable<ReaderFailoverResult> {
+  private PluginService getNewPluginService() {
+    PartialPluginService partialPluginService = new PartialPluginService(
+        this.servicesContainer,
+        this.props,
+        this.pluginService.getOriginalUrl(),
+        this.pluginService.getDriverProtocol(),
+        this.pluginService.getTargetDriverDialect(),
+        this.pluginService.getDialect()
+    );
 
+    // TODO: can we clean this up, eg move to PartialPluginService constructor?
+    final HostListProviderSupplier supplier = this.pluginService.getDialect().getHostListProvider();
+    partialPluginService.setHostListProvider(
+        supplier.getProvider(this.props, this.pluginService.getOriginalUrl(), this.servicesContainer));
+
+    return partialPluginService;
+  }
+
+  private static class ConnectionAttemptTask implements Callable<ReaderFailoverResult> {
+    private final ConnectionService connectionService;
+    private final PluginService pluginService;
     private final HostSpec newHost;
+    private final Properties props;
     private final boolean isStrictReaderRequired;
 
-    private ConnectionAttemptTask(final HostSpec newHost, final boolean isStrictReaderRequired) {
+    private ConnectionAttemptTask(
+        final ConnectionService connectionService,
+        final PluginService pluginService,
+        final HostSpec newHost,
+        final Properties props,
+        final boolean isStrictReaderRequired) {
+      this.connectionService = connectionService;
+      this.pluginService = pluginService;
       this.newHost = newHost;
+      this.props = props;
       this.isStrictReaderRequired = isStrictReaderRequired;
     }
 
@@ -390,21 +435,19 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       LOGGER.fine(
           () -> Messages.get(
               "ClusterAwareReaderFailoverHandler.attemptingReaderConnection",
-              new Object[] {this.newHost.getUrl(), PropertyUtils.maskProperties(initialConnectionProps)}));
+              new Object[] {this.newHost.getUrl(), PropertyUtils.maskProperties(props)}));
 
       try {
         final Properties copy = new Properties();
-        copy.putAll(initialConnectionProps);
+        copy.putAll(props);
 
-        // TODO: assess whether multi-threaded access to the plugin service is safe. The same plugin service is used by
-        //  both the ConnectionWrapper and this ConnectionAttemptTask in separate threads.
-        final Connection conn = pluginService.forceConnect(this.newHost, copy);
-        pluginService.setAvailability(this.newHost.asAliases(), HostAvailability.AVAILABLE);
+        final Connection conn = this.connectionService.open(this.newHost, copy);
+        this.pluginService.setAvailability(this.newHost.asAliases(), HostAvailability.AVAILABLE);
 
         if (this.isStrictReaderRequired) {
           // need to ensure that new connection is a connection to a reader node
           try {
-            HostRole role = pluginService.getHostRole(conn);
+            HostRole role = this.pluginService.getHostRole(conn);
             if (!HostRole.READER.equals(role)) {
               LOGGER.fine(
                   Messages.get(
@@ -439,13 +482,13 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
         LOGGER.fine("New reader failover connection object: " + conn);
         return new ReaderFailoverResult(conn, this.newHost, true);
       } catch (final SQLException e) {
-        pluginService.setAvailability(newHost.asAliases(), HostAvailability.NOT_AVAILABLE);
+        this.pluginService.setAvailability(newHost.asAliases(), HostAvailability.NOT_AVAILABLE);
         LOGGER.fine(
             () -> Messages.get(
                 "ClusterAwareReaderFailoverHandler.failedReaderConnection",
                 new Object[] {this.newHost.getUrl()}));
         // Propagate exceptions that are not caused by network errors.
-        if (!pluginService.isNetworkException(e, pluginService.getTargetDriverDialect())) {
+        if (!this.pluginService.isNetworkException(e, this.pluginService.getTargetDriverDialect())) {
           return new ReaderFailoverResult(
               null,
               null,
