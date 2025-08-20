@@ -782,6 +782,19 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         return;
       }
 
+      Map<String, HostAvailability> hostAvailabilityMap = failoverResult.getHostAvailabilityMap();
+      if (hostAvailabilityMap != null && !hostAvailabilityMap.isEmpty()) {
+        List<HostSpec> allHosts = this.pluginService.getAllHosts();
+        for (HostSpec host : allHosts) {
+          for (String alias : host.getAliases()) {
+            HostAvailability availability = hostAvailabilityMap.get(alias);
+            if (availability != null) {
+              host.setAvailability(availability);
+            }
+          }
+        }
+      }
+
       this.pluginService.setCurrentConnection(failoverResult.getNewConnection(), writerHostSpec);
 
       LOGGER.fine(

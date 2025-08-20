@@ -19,7 +19,9 @@ package software.amazon.jdbc.plugin.failover;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Map;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.hostavailability.HostAvailability;
 
 /**
  * This class holds results of Writer Failover Process.
@@ -29,6 +31,7 @@ public class WriterFailoverResult {
   private final boolean isConnected;
   private final boolean isNewHost;
   private final List<HostSpec> topology;
+  private final Map<String, HostAvailability> hostAvailabilityMap;
   private final Connection newConnection;
   private final String taskName;
   private final SQLException exception;
@@ -37,21 +40,24 @@ public class WriterFailoverResult {
       final boolean isConnected,
       final boolean isNewHost,
       final List<HostSpec> topology,
+      final Map<String, HostAvailability> hostAvailabilityMap,
       final Connection newConnection,
       final String taskName) {
-    this(isConnected, isNewHost, topology, newConnection, taskName, null);
+    this(isConnected, isNewHost, topology, hostAvailabilityMap, newConnection, taskName, null);
   }
 
   public WriterFailoverResult(
       final boolean isConnected,
       final boolean isNewHost,
       final List<HostSpec> topology,
+      final Map<String, HostAvailability> hostAvailabilityMap,
       final Connection newConnection,
       final String taskName,
       final SQLException exception) {
     this.isConnected = isConnected;
     this.isNewHost = isNewHost;
     this.topology = topology;
+    this.hostAvailabilityMap = hostAvailabilityMap;
     this.newConnection = newConnection;
     this.taskName = taskName;
     this.exception = exception;
@@ -84,6 +90,10 @@ public class WriterFailoverResult {
    */
   public List<HostSpec> getTopology() {
     return this.topology;
+  }
+
+  public Map<String, HostAvailability> getHostAvailabilityMap() {
+    return this.hostAvailabilityMap;
   }
 
   /**
