@@ -672,6 +672,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         if (exception != null) {
           throw exception;
         }
+
+        updateHostAvailability(result.getHostAvailabilityMap());
       }
 
       if (result == null || !result.isConnected()) {
@@ -757,6 +759,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         if (exception != null) {
           throw exception;
         }
+
+        updateHostAvailability(failoverResult.getHostAvailabilityMap());
       }
 
       if (failoverResult == null || !failoverResult.isConnected()) {
@@ -780,19 +784,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
             Messages.get("Failover.newWriterNotAllowed",
                 new Object[] {writerHostSpec.getUrl(), Utils.logTopology(allowedHosts, "")}));
         return;
-      }
-
-      Map<String, HostAvailability> hostAvailabilityMap = failoverResult.getHostAvailabilityMap();
-      if (hostAvailabilityMap != null && !hostAvailabilityMap.isEmpty()) {
-        List<HostSpec> allHosts = this.pluginService.getAllHosts();
-        for (HostSpec host : allHosts) {
-          for (String alias : host.getAliases()) {
-            HostAvailability availability = hostAvailabilityMap.get(alias);
-            if (availability != null) {
-              host.setAvailability(availability);
-            }
-          }
-        }
       }
 
       this.pluginService.setCurrentConnection(failoverResult.getNewConnection(), writerHostSpec);
@@ -830,6 +821,20 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         telemetryContext.closeContext();
         if (this.telemetryFailoverAdditionalTopTraceSetting) {
           telemetryFactory.postCopy(telemetryContext, TelemetryTraceLevel.FORCE_TOP_LEVEL);
+        }
+      }
+    }
+  }
+
+  private void updateHostAvailability(Map<String, HostAvailability> hostAvailabilityMap) {
+    if (hostAvailabilityMap != null && !hostAvailabilityMap.isEmpty()) {
+      List<HostSpec> allHosts = this.pluginService.getAllHosts();
+      for (HostSpec host : allHosts) {
+        for (String alias : host.getAliases()) {
+          HostAvailability availability = hostAvailabilityMap.get(alias);
+          if (availability != null) {
+            host.setAvailability(availability);
+          }
         }
       }
     }
