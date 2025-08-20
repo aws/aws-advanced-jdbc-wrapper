@@ -60,7 +60,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
     TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
 @MakeSureFirstInstanceWriter
-@Order(19)
+@Order(21)
 public class HibernateTests {
   private static final Logger LOGGER = Logger.getLogger(HibernateTests.class.getName());
 

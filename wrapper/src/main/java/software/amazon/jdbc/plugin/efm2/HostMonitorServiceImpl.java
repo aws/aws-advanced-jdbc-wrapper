@@ -26,9 +26,11 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.CoreServicesContainer;
 import software.amazon.jdbc.util.ExecutorFactory;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.storage.SlidingExpirationCacheWithCleanupThread;
+import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -44,66 +46,32 @@ public class HostMonitorServiceImpl implements HostMonitorService {
           "monitorDisposalTime",
           "600000", // 10min
           "Interval in milliseconds for a monitor to be considered inactive and to be disposed.");
-
-  protected static final long CACHE_CLEANUP_NANO = TimeUnit.MINUTES.toNanos(1);
-
   protected static final Executor ABORT_EXECUTOR =
       ExecutorFactory.newSingleThreadExecutor("abort");
-  // TODO: remove and submit monitors to MonitorService instead
-  protected static final SlidingExpirationCacheWithCleanupThread<String, HostMonitor> monitors =
-      new SlidingExpirationCacheWithCleanupThread<>(
-          HostMonitor::canDispose,
-          (monitor) -> {
-            try {
-              monitor.close();
-            } catch (Exception ex) {
-              // ignore
-            }
-          },
-          CACHE_CLEANUP_NANO);
 
+  protected final FullServicesContainer serviceContainer;
   protected final PluginService pluginService;
-  protected final HostMonitorInitializer monitorInitializer;
+  protected final MonitorService coreMonitorService;
   protected final TelemetryFactory telemetryFactory;
   protected final TelemetryCounter abortedConnectionsCounter;
 
-  public HostMonitorServiceImpl(final @NonNull PluginService pluginService) {
-    this(
-        pluginService,
-        (hostSpec,
-            properties,
-            failureDetectionTimeMillis,
-            failureDetectionIntervalMillis,
-            failureDetectionCount,
-            abortedConnectionsCounter) ->
-            new HostMonitorImpl(
-                pluginService,
-                hostSpec,
-                properties,
-                failureDetectionTimeMillis,
-                failureDetectionIntervalMillis,
-                failureDetectionCount,
-                abortedConnectionsCounter));
-  }
-
-  HostMonitorServiceImpl(
-      final @NonNull PluginService pluginService,
-      final @NonNull HostMonitorInitializer monitorInitializer) {
-    this.pluginService = pluginService;
-    this.telemetryFactory = pluginService.getTelemetryFactory();
+  public HostMonitorServiceImpl(final @NonNull FullServicesContainer serviceContainer, Properties props) {
+    this.serviceContainer = serviceContainer;
+    this.coreMonitorService = serviceContainer.getMonitorService();
+    this.pluginService = serviceContainer.getPluginService();
+    this.telemetryFactory = serviceContainer.getTelemetryFactory();
     this.abortedConnectionsCounter = telemetryFactory.createCounter("efm2.connections.aborted");
-    this.monitorInitializer = monitorInitializer;
+
+    this.coreMonitorService.registerMonitorTypeIfAbsent(
+        HostMonitorImpl.class,
+        TimeUnit.MILLISECONDS.toNanos(MONITOR_DISPOSAL_TIME_MS.getLong(props)),
+        TimeUnit.MINUTES.toNanos(3),
+        null,
+        null);
   }
 
   public static void closeAllMonitors() {
-    monitors.getEntries().values().forEach(monitor -> {
-      try {
-        monitor.close();
-      } catch (Exception ex) {
-        // ignore
-      }
-    });
-    monitors.clear();
+    CoreServicesContainer.getInstance().getMonitorService().stopAndRemoveMonitors(HostMonitorImpl.class);
   }
 
   @Override
@@ -113,7 +81,7 @@ public class HostMonitorServiceImpl implements HostMonitorService {
       final Properties properties,
       final int failureDetectionTimeMillis,
       final int failureDetectionIntervalMillis,
-      final int failureDetectionCount) {
+      final int failureDetectionCount) throws SQLException {
 
     final HostMonitor monitor = this.getMonitor(
         hostSpec,
@@ -173,7 +141,7 @@ public class HostMonitorServiceImpl implements HostMonitorService {
       final Properties properties,
       final int failureDetectionTimeMillis,
       final int failureDetectionIntervalMillis,
-      final int failureDetectionCount) {
+      final int failureDetectionCount) throws SQLException {
 
     final String monitorKey = String.format("%d:%d:%d:%s",
         failureDetectionTimeMillis,
@@ -181,18 +149,24 @@ public class HostMonitorServiceImpl implements HostMonitorService {
         failureDetectionCount,
         hostSpec.getUrl());
 
-    final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(
-        MONITOR_DISPOSAL_TIME_MS.getLong(properties));
-
-    return monitors.computeIfAbsent(
+    return this.coreMonitorService.runIfAbsent(
+        HostMonitorImpl.class,
         monitorKey,
-        (key) -> monitorInitializer.createMonitor(
+        this.serviceContainer.getStorageService(),
+        this.telemetryFactory,
+        this.pluginService.getOriginalUrl(),
+        this.pluginService.getDriverProtocol(),
+        this.pluginService.getTargetDriverDialect(),
+        this.pluginService.getDialect(),
+        this.pluginService.getProperties(),
+        (connectionService, pluginService) -> new HostMonitorImpl(
+            connectionService,
+            pluginService.getTelemetryFactory(),
             hostSpec,
             properties,
             failureDetectionTimeMillis,
             failureDetectionIntervalMillis,
             failureDetectionCount,
-            this.abortedConnectionsCounter),
-        cacheExpirationNano);
+            this.abortedConnectionsCounter));
   }
 }
