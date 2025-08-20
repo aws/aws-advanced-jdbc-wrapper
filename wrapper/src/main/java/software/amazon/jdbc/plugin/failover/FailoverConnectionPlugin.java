@@ -619,13 +619,10 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   protected void failover(final HostSpec failedHost) throws SQLException {
     this.pluginService.setAvailability(failedHost.asAliases(), HostAvailability.NOT_AVAILABLE);
 
-
-    // TODO: After failover, retrieve the unavailable hosts from the handlers after replacing
-    //  pluginService#setAvailability
-    TargetDriverHelper helper = new TargetDriverHelper();
-    java.sql.Driver driver = helper.getTargetDriver(this.pluginService.getOriginalUrl(), properties);
-    final ConnectionProvider defaultConnectionProvider = new DriverConnectionProvider(driver);
     if (this.connectionService == null) {
+      TargetDriverHelper helper = new TargetDriverHelper();
+      java.sql.Driver driver = helper.getTargetDriver(this.pluginService.getOriginalUrl(), properties);
+      final ConnectionProvider defaultConnectionProvider = new DriverConnectionProvider(driver);
       this.connectionService = new ConnectionServiceImpl(
           servicesContainer.getStorageService(),
           servicesContainer.getMonitorService(),

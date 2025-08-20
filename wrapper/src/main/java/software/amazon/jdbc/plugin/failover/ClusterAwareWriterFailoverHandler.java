@@ -36,7 +36,6 @@ import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PartialPluginService;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.dialect.HostListProviderSupplier;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
@@ -186,7 +185,9 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
   }
 
   private PluginService getNewPluginService() {
-    PartialPluginService partialPluginService = new PartialPluginService(
+    // Each task should get its own PluginService since they execute concurrently and PluginService was not designed to
+    // be thread-safe.
+    return new PartialPluginService(
         this.servicesContainer,
         this.initialConnectionProps,
         this.pluginService.getOriginalUrl(),
@@ -194,13 +195,6 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
         this.pluginService.getTargetDriverDialect(),
         this.pluginService.getDialect()
     );
-
-    // TODO: can we clean this up, eg move to PartialPluginService constructor?
-    final HostListProviderSupplier supplier = this.pluginService.getDialect().getHostListProvider();
-    partialPluginService.setHostListProvider(
-        supplier.getProvider(this.initialConnectionProps, this.pluginService.getOriginalUrl(), this.servicesContainer));
-
-    return partialPluginService;
   }
 
   private WriterFailoverResult getNextResult(

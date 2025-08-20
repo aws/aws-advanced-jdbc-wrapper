@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin.failover;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +38,6 @@ import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PartialPluginService;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.dialect.HostListProviderSupplier;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
@@ -317,12 +317,15 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     final ExecutorService executor =
         ExecutorFactory.newFixedThreadPool(2, "failover");
     final CompletionService<ReaderFailoverResult> completionService = new ExecutorCompletionService<>(executor);
+    // The ConnectionAttemptTask threads should have their own plugin services since they execute concurrently and
+    // PluginService was not designed to be thread-safe.
+    List<PluginService> pluginServices = Arrays.asList(getNewPluginService(), getNewPluginService());
 
     try {
       for (int i = 0; i < hosts.size(); i += 2) {
         // submit connection attempt tasks in batches of 2
         final ReaderFailoverResult result =
-            getResultFromNextTaskBatch(connectionService, hosts, availabilityMap, executor, completionService, i);
+            getResultFromNextTaskBatch(connectionService, hosts, availabilityMap, executor, completionService, pluginServices, i);
         if (result.isConnected() || result.getException() != null) {
           return result;
         }
@@ -351,14 +354,14 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       final Map<String, HostAvailability> availabilityMap,
       final ExecutorService executor,
       final CompletionService<ReaderFailoverResult> completionService,
+      final List<PluginService> pluginServices,
       final int i) throws SQLException {
     ReaderFailoverResult result;
     final int numTasks = i + 1 < hosts.size() ? 2 : 1;
     completionService.submit(
-        // TODO: are there performance concerns with creating a new plugin service this often?
         new ConnectionAttemptTask(
             connectionService,
-            this.getNewPluginService(),
+            pluginServices.get(0),
             availabilityMap,
             hosts.get(i),
             this.props,
@@ -367,7 +370,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       completionService.submit(
           new ConnectionAttemptTask(
               connectionService,
-              this.getNewPluginService(),
+              pluginServices.get(1),
               availabilityMap,
               hosts.get(i + 1),
               this.props,
@@ -418,7 +421,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   }
 
   private PluginService getNewPluginService() {
-    PartialPluginService partialPluginService = new PartialPluginService(
+    return new PartialPluginService(
         this.servicesContainer,
         this.props,
         this.pluginService.getOriginalUrl(),
@@ -426,13 +429,6 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
         this.pluginService.getTargetDriverDialect(),
         this.pluginService.getDialect()
     );
-
-    // TODO: can we clean this up, eg move to PartialPluginService constructor?
-    final HostListProviderSupplier supplier = this.pluginService.getDialect().getHostListProvider();
-    partialPluginService.setHostListProvider(
-        supplier.getProvider(this.props, this.pluginService.getOriginalUrl(), this.servicesContainer));
-
-    return partialPluginService;
   }
 
   private static class ConnectionAttemptTask implements Callable<ReaderFailoverResult> {
