@@ -37,7 +37,7 @@ import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
-import software.amazon.jdbc.plugin.cache.DataCacheConnectionPlugin;
+import software.amazon.jdbc.plugin.cache.DataLocalCacheConnectionPlugin;
 import software.amazon.jdbc.plugin.OpenedConnectionTracker;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
 import software.amazon.jdbc.plugin.limitless.LimitlessRouterServiceImpl;
@@ -441,7 +441,7 @@ public class Driver implements java.sql.Driver {
     DialectManager.resetEndpointCache();
     CustomEndpointMonitorImpl.clearCache();
     OpenedConnectionTracker.clearCache();
-    DataCacheConnectionPlugin.clearCache();
+    DataLocalCacheConnectionPlugin.clearCache();
     LimitlessRouterServiceImpl.clearCache();
     RoundRobinHostSelector.clearCache();
   }

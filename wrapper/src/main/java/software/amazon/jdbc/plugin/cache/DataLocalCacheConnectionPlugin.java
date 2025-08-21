@@ -38,9 +38,9 @@ import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 
-public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
+public class DataLocalCacheConnectionPlugin extends AbstractConnectionPlugin {
 
-  private static final Logger LOGGER = Logger.getLogger(DataCacheConnectionPlugin.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(DataLocalCacheConnectionPlugin.class.getName());
 
   private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
       Arrays.asList(
@@ -61,7 +61,7 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
   protected final String dataCacheTriggerCondition;
 
   static {
-    PropertyDefinition.registerPluginProperties(DataCacheConnectionPlugin.class);
+    PropertyDefinition.registerPluginProperties(DataLocalCacheConnectionPlugin.class);
   }
 
   private final TelemetryFactory telemetryFactory;
@@ -70,7 +70,7 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
   private final TelemetryCounter totalCallsCounter;
   private final TelemetryGauge cacheSizeGauge;
 
-  public DataCacheConnectionPlugin(final PluginService pluginService, final Properties props) {
+  public DataLocalCacheConnectionPlugin(final PluginService pluginService, final Properties props) {
     this.telemetryFactory = pluginService.getTelemetryFactory();
     this.dataCacheTriggerCondition = DATA_CACHE_TRIGGER_CONDITION.getString(props);
 
@@ -120,7 +120,7 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
         }
         LOGGER.finest(
             () -> Messages.get(
-                "DataCacheConnectionPlugin.queryResultsCached",
+                "DataLocalCacheConnectionPlugin.queryResultsCached",
                 new Object[]{methodName, sql}));
       } else {
         if (this.hitCounter != null) {
