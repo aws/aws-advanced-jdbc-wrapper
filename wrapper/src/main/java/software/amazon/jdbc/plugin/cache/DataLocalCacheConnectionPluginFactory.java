@@ -21,10 +21,10 @@ import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 
-public class DataCacheConnectionPluginFactory implements ConnectionPluginFactory {
+public class DataLocalCacheConnectionPluginFactory implements ConnectionPluginFactory {
 
   @Override
   public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
-    return new DataCacheConnectionPlugin(servicesContainer.getPluginService(), props);
+    return new DataLocalCacheConnectionPlugin(servicesContainer.getPluginService(), props);
   }
 }

@@ -30,6 +30,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
+import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -89,13 +90,21 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     try {
       Connection currentConn = pluginService.getCurrentConnection();
       DatabaseMetaData metadata = currentConn.getMetaData();
+      // Fetch and record the schema name if the session state doesn't currently have it
+      SessionStateService sessionStateService = pluginService.getSessionStateService();
+      String schema = sessionStateService.getSchema().orElse(null);
+      if (schema == null) {
+        // Fetch the current schema name and store it in sessionStateService
+        schema = currentConn.getSchema();
+        sessionStateService.setSchema(schema);
+      }
+
       LOGGER.finest("DB driver protocol " + pluginService.getDriverProtocol()
-          + ", schema: " + currentConn.getSchema()
           + ", database product: " + metadata.getDatabaseProductName() + " " + metadata.getDatabaseProductVersion()
-          + ", user: " + metadata.getUserName()
+          + ", schema: " + schema + ", user: " + metadata.getUserName()
           + ", driver: " + metadata.getDriverName() + " " + metadata.getDriverVersion());
       // The cache key contains the schema name, user name, and the query string
-      String[] words = {currentConn.getSchema(), metadata.getUserName(), query};
+      String[] words = {schema, metadata.getUserName(), query};
       return String.join("_", words);
     } catch (SQLException e) {
       LOGGER.warning("Error getting session state: " + e.getMessage());

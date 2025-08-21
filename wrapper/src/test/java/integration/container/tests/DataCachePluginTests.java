@@ -40,7 +40,7 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.cache.CachedResultSet;
-import software.amazon.jdbc.plugin.cache.DataCacheConnectionPlugin;
+import software.amazon.jdbc.plugin.cache.DataLocalCacheConnectionPlugin;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
@@ -58,20 +58,20 @@ public class DataCachePluginTests {
 
   @BeforeEach
   public void beforeEach() {
-    DataCacheConnectionPlugin.clearCache();
+    DataLocalCacheConnectionPlugin.clearCache();
   }
 
   @TestTemplate
   public void testQueryCacheable() throws SQLException {
 
-    DataCacheConnectionPlugin.clearCache();
+    DataLocalCacheConnectionPlugin.clearCache();
 
     final Properties props = ConnectionStringHelper.getDefaultProperties();
     PropertyDefinition.CONNECT_TIMEOUT.set(props, "30000");
     PropertyDefinition.SOCKET_TIMEOUT.set(props, "30000");
 
     props.setProperty(PropertyDefinition.PLUGINS.name, "dataCache");
-    props.setProperty(DataCacheConnectionPlugin.DATA_CACHE_TRIGGER_CONDITION.name, ".*testTable.*");
+    props.setProperty(DataLocalCacheConnectionPlugin.DATA_CACHE_TRIGGER_CONDITION.name, ".*testTable.*");
 
     Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
 
@@ -174,14 +174,14 @@ public class DataCachePluginTests {
   @TestTemplate
   public void testQueryNotCacheable() throws SQLException {
 
-    DataCacheConnectionPlugin.clearCache();
+    DataLocalCacheConnectionPlugin.clearCache();
 
     final Properties props = ConnectionStringHelper.getDefaultProperties();
     PropertyDefinition.CONNECT_TIMEOUT.set(props, "30000");
     PropertyDefinition.SOCKET_TIMEOUT.set(props, "30000");
     props.setProperty(PropertyDefinition.PLUGINS.name, "dataCache");
     props.setProperty(
-        DataCacheConnectionPlugin.DATA_CACHE_TRIGGER_CONDITION.name, ".*WRONG_EXPRESSION.*");
+        DataLocalCacheConnectionPlugin.DATA_CACHE_TRIGGER_CONDITION.name, ".*WRONG_EXPRESSION.*");
 
     Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
 

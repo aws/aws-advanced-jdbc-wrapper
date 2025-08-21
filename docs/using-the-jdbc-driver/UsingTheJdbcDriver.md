@@ -248,7 +248,7 @@ The AWS Advanced JDBC Wrapper has several built-in plugins that are available to
 
 
 > [!NOTE]\
-> To see information logged by plugins such as `DataCacheConnectionPlugin` and `LogQueryConnectionPlugin`, see the [Logging](#logging) section.
+> To see information logged by plugins such as `DataLocalCacheConnectionPlugin` and `LogQueryConnectionPlugin`, see the [Logging](#logging) section.
 
 In addition to the built-in plugins, you can also create custom plugins more suitable for your needs.
 For more information, see [Custom Plugins](../development-guide/LoadablePlugins.md#using-custom-plugins).

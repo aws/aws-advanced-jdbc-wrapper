@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.sql.*;
+import java.util.Optional;
 import java.util.Properties;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.AfterEach;
@@ -20,6 +21,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -39,6 +41,7 @@ public class DataRemoteCachePluginTest {
   @Mock Statement mockStatement;
   @Mock ResultSetMetaData mockMetaData;
   @Mock Connection mockConnection;
+  @Mock SessionStateService mockSessionStateService;
   @Mock DatabaseMetaData mockDbMetadata;
   @Mock CacheConnection mockCacheConn;
   @Mock JdbcCallable mockCallable;
@@ -177,6 +180,8 @@ public class DataRemoteCachePluginTest {
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.isInTransaction()).thenReturn(false);
     when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.getSchema()).thenReturn(Optional.empty()).thenReturn(Optional.of("public"));
     when(mockConnection.getSchema()).thenReturn("public");
     when(mockDbMetadata.getUserName()).thenReturn("user");
     when(mockCacheConn.readFromCache("public_user_select * from A")).thenReturn(null);
@@ -205,6 +210,10 @@ public class DataRemoteCachePluginTest {
     verify(mockPluginService, times(3)).getCurrentConnection();
     verify(mockPluginService, times(2)).isInTransaction();
     verify(mockCacheConn, times(2)).readFromCache("public_user_select * from A");
+    verify(mockPluginService, times(3)).getSessionStateService();
+    verify(mockSessionStateService, times(3)).getSchema();
+    verify(mockConnection).getSchema();
+    verify(mockSessionStateService).setSchema("public");
     verify(mockCallable).call();
     verify(mockCacheConn).writeToCache(eq("public_user_select * from A"), any(), eq(50));
     verify(mockTotalCallsCounter, times(2)).inc();
@@ -218,6 +227,8 @@ public class DataRemoteCachePluginTest {
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.isInTransaction()).thenReturn(true);
     when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.getSchema()).thenReturn(Optional.empty());
     when(mockConnection.getSchema()).thenReturn("public");
     when(mockDbMetadata.getUserName()).thenReturn("user");
     when(mockCallable.call()).thenReturn(mockResult1);
@@ -235,6 +246,10 @@ public class DataRemoteCachePluginTest {
     assertFalse(rs.next());
     verify(mockPluginService).getCurrentConnection();
     verify(mockPluginService).isInTransaction();
+    verify(mockPluginService).getSessionStateService();
+    verify(mockSessionStateService).getSchema();
+    verify(mockConnection).getSchema();
+    verify(mockSessionStateService).setSchema("public");
     verify(mockCacheConn, never()).readFromCache(anyString());
     verify(mockCallable).call();
     verify(mockCacheConn).writeToCache(eq("public_user_select * from T"), any(), eq(300));
@@ -249,6 +264,8 @@ public class DataRemoteCachePluginTest {
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.isInTransaction()).thenReturn(true);
     when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.getSchema()).thenReturn(Optional.empty());
     when(mockConnection.getSchema()).thenReturn("public");
     when(mockDbMetadata.getUserName()).thenReturn("user");
     when(mockCallable.call()).thenReturn(mockResult1);
@@ -265,6 +282,10 @@ public class DataRemoteCachePluginTest {
     assertFalse(rs.next());
     verify(mockPluginService).getCurrentConnection();
     verify(mockPluginService).isInTransaction();
+    verify(mockPluginService).getSessionStateService();
+    verify(mockSessionStateService).getSchema();
+    verify(mockConnection).getSchema();
+    verify(mockSessionStateService).setSchema("public");
     verify(mockCacheConn, never()).readFromCache(anyString());
     verify(mockCallable).call();
     verify(mockCacheConn).writeToCache(eq("public_user_select * from T"), any(), eq(300));
@@ -275,19 +296,21 @@ public class DataRemoteCachePluginTest {
 
    @Test
    void test_transaction_cacheQuery_multiple_query_hints() throws Exception {// Query is cacheable
-    when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
-    when(mockPluginService.isInTransaction()).thenReturn(true);
-    when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
-    when(mockConnection.getSchema()).thenReturn("public");
-    when(mockDbMetadata.getUserName()).thenReturn("user");
-    when(mockCallable.call()).thenReturn(mockResult1);
+     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
+     when(mockPluginService.isInTransaction()).thenReturn(true);
+     when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+     when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+     when(mockSessionStateService.getSchema()).thenReturn(Optional.empty());
+     when(mockConnection.getSchema()).thenReturn("public");
+     when(mockDbMetadata.getUserName()).thenReturn("user");
+     when(mockCallable.call()).thenReturn(mockResult1);
 
-    // Result set contains 1 row
-    when(mockResult1.next()).thenReturn(true, false);
-    when(mockResult1.getObject(1)).thenReturn("bar1");
+     // Result set contains 1 row
+     when(mockResult1.next()).thenReturn(true, false);
+     when(mockResult1.getObject(1)).thenReturn("bar1");
 
-    ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
-    methodName, mockCallable, new String[]{"/*+ hello CACHE_PARAM(ttl=300s, otherParam=abc) world */ select * from T"});
+     ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
+     methodName, mockCallable, new String[]{"/*+ hello CACHE_PARAM(ttl=300s, otherParam=abc) world */ select * from T"});
 
      // Cached result set contains 1 row
      assertTrue(rs.next());
@@ -295,6 +318,10 @@ public class DataRemoteCachePluginTest {
      assertFalse(rs.next());
      verify(mockPluginService).getCurrentConnection();
      verify(mockPluginService).isInTransaction();
+     verify(mockPluginService).getSessionStateService();
+     verify(mockSessionStateService).getSchema();
+     verify(mockConnection).getSchema();
+     verify(mockSessionStateService).setSchema("public");
      verify(mockCacheConn, never()).readFromCache(anyString());
      verify(mockCallable).call();
      verify(mockCacheConn).writeToCache(eq("public_user_select * from T"), any(), eq(300));
