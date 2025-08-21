@@ -240,7 +240,7 @@ if (useJacoco) {
                         "software/amazon/jdbc/wrapper/*",
                         "software/amazon/jdbc/util/*",
                         "software/amazon/jdbc/profile/*",
-                        "software/amazon/jdbc/plugin/DataCacheConnectionPlugin*"
+                        "software/amazon/jdbc/plugin/cache/DataLocalCacheConnectionPlugin*"
                     )
                 }
             }))
@@ -255,7 +255,7 @@ if (useJacoco) {
                         "software/amazon/jdbc/wrapper/*",
                         "software/amazon/jdbc/util/*",
                         "software/amazon/jdbc/profile/*",
-                        "software/amazon/jdbc/plugin/DataCacheConnectionPlugin*"
+                        "software/amazon/jdbc/plugin/cache/DataLocalCacheConnectionPlugin*"
                     )
                 }
             }))
