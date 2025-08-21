@@ -19,7 +19,6 @@ package software.amazon.jdbc.plugin.failover;
 import java.sql.SQLException;
 import java.util.List;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.util.connection.ConnectionService;
 
 /**
  * Interface for Reader Failover Process handler. This handler implements all necessary logic to try
@@ -37,8 +36,7 @@ public interface ReaderFailoverHandler {
    * @return {@link ReaderFailoverResult} The results of this process.
    * @throws SQLException indicating whether the failover attempt was successful.
    */
-  ReaderFailoverResult failover(
-      ConnectionService connectionService, List<HostSpec> hosts, HostSpec currentHost) throws SQLException;
+  ReaderFailoverResult failover(List<HostSpec> hosts, HostSpec currentHost) throws SQLException;
 
   /**
    * Called to get any available reader connection. If no reader is available then result of process
@@ -48,6 +46,5 @@ public interface ReaderFailoverHandler {
    * @return {@link ReaderFailoverResult} The results of this process.
    * @throws SQLException if any error occurred while attempting a reader connection.
    */
-  ReaderFailoverResult getReaderConnection(
-      ConnectionService connectionService, List<HostSpec> hostList) throws SQLException;
+  ReaderFailoverResult getReaderConnection(List<HostSpec> hostList) throws SQLException;
 }

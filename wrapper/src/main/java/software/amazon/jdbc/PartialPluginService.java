@@ -125,6 +125,10 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
         ? this.configurationProfile.getExceptionHandler()
         : null;
 
+    servicesContainer.setHostListProviderService(this);
+    servicesContainer.setPluginService(this);
+    servicesContainer.setPluginManagerService(this);
+
     HostListProviderSupplier supplier = this.dbDialect.getHostListProvider();
     this.hostListProvider = supplier.getProvider(this.props, this.originalUrl, this.servicesContainer);
   }

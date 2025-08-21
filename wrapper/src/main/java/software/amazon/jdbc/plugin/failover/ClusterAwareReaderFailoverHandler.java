@@ -67,6 +67,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   protected int timeoutMs;
   protected boolean isStrictReaderRequired;
   protected final FullServicesContainer servicesContainer;
+  protected final ConnectionService connectionService;
   protected final PluginService pluginService;
 
   /**
@@ -77,9 +78,11 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
    */
   public ClusterAwareReaderFailoverHandler(
       final FullServicesContainer servicesContainer,
+      final ConnectionService connectionService,
       final Properties props) {
     this(
         servicesContainer,
+        connectionService,
         props,
         DEFAULT_FAILOVER_TIMEOUT,
         DEFAULT_READER_CONNECT_TIMEOUT,
@@ -98,11 +101,13 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
    */
   public ClusterAwareReaderFailoverHandler(
       final FullServicesContainer servicesContainer,
+      final ConnectionService connectionService,
       final Properties props,
       final int maxFailoverTimeoutMs,
       final int timeoutMs,
       final boolean isStrictReaderRequired) {
     this.servicesContainer = servicesContainer;
+    this.connectionService = connectionService;
     this.pluginService = servicesContainer.getPluginService();
     this.props = props;
     this.maxFailoverTimeoutMs = maxFailoverTimeoutMs;
@@ -130,8 +135,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
    * @return {@link ReaderFailoverResult} The results of this process.
    */
   @Override
-  public ReaderFailoverResult failover(
-      final ConnectionService connectionService, final List<HostSpec> hosts, final HostSpec currentHost)
+  public ReaderFailoverResult failover(final List<HostSpec> hosts, final HostSpec currentHost)
       throws SQLException {
     if (Utils.isNullOrEmpty(hosts)) {
       LOGGER.fine(() -> Messages.get("ClusterAwareReaderFailoverHandler.invalidTopology", new Object[] {"failover"}));
@@ -142,12 +146,11 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     final ExecutorService executor =
         ExecutorFactory.newSingleThreadExecutor("failover");
     final Future<ReaderFailoverResult> future =
-        submitInternalFailoverTask(connectionService, hosts, currentHost, executor, availabilityMap);
+        submitInternalFailoverTask(hosts, currentHost, executor, availabilityMap);
     return getInternalFailoverResult(executor, future, availabilityMap);
   }
 
   private Future<ReaderFailoverResult> submitInternalFailoverTask(
-      final ConnectionService connectionService,
       final List<HostSpec> hosts,
       final HostSpec currentHost,
       final ExecutorService executor,
@@ -156,7 +159,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       ReaderFailoverResult result;
       try {
         while (true) {
-          result = failoverInternal(connectionService, hosts, currentHost, availabilityMap);
+          result = failoverInternal(hosts, currentHost, availabilityMap);
           if (result != null && result.isConnected()) {
             return result;
           }
@@ -202,7 +205,6 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   }
 
   protected ReaderFailoverResult failoverInternal(
-      final ConnectionService connectionService,
       final List<HostSpec> hosts,
       final HostSpec currentHost,
       final Map<String, HostAvailability> availabilityMap)
@@ -213,7 +215,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     }
 
     final List<HostSpec> hostsByPriority = getHostsByPriority(hosts);
-    return getConnectionFromHostGroup(connectionService, hostsByPriority, availabilityMap);
+    return getConnectionFromHostGroup(hostsByPriority, availabilityMap);
   }
 
   public List<HostSpec> getHostsByPriority(final List<HostSpec> hosts) {
@@ -255,8 +257,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
    * @return {@link ReaderFailoverResult} The results of this process.
    */
   @Override
-  public ReaderFailoverResult getReaderConnection(
-      final ConnectionService connectionService, final List<HostSpec> hostList)
+  public ReaderFailoverResult getReaderConnection(final List<HostSpec> hostList)
       throws SQLException {
     if (Utils.isNullOrEmpty(hostList)) {
       LOGGER.fine(
@@ -268,7 +269,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
 
     final List<HostSpec> hostsByPriority = getReaderHostsByPriority(hostList);
     final Map<String, HostAvailability> availabilityMap = new ConcurrentHashMap<>();
-    return getConnectionFromHostGroup(connectionService, hostsByPriority, availabilityMap);
+    return getConnectionFromHostGroup(hostsByPriority, availabilityMap);
   }
 
   public List<HostSpec> getReaderHostsByPriority(final List<HostSpec> hosts) {
@@ -310,7 +311,6 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   }
 
   private ReaderFailoverResult getConnectionFromHostGroup(
-      final ConnectionService connectionService,
       final List<HostSpec> hosts,
       final Map<String, HostAvailability> availabilityMap)
       throws SQLException {
@@ -325,7 +325,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       for (int i = 0; i < hosts.size(); i += 2) {
         // submit connection attempt tasks in batches of 2
         final ReaderFailoverResult result =
-            getResultFromNextTaskBatch(connectionService, hosts, availabilityMap, executor, completionService, pluginServices, i);
+            getResultFromNextTaskBatch(hosts, availabilityMap, executor, completionService, pluginServices, i);
         if (result.isConnected() || result.getException() != null) {
           return result;
         }
@@ -349,7 +349,6 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   }
 
   private ReaderFailoverResult getResultFromNextTaskBatch(
-      final ConnectionService connectionService,
       final List<HostSpec> hosts,
       final Map<String, HostAvailability> availabilityMap,
       final ExecutorService executor,
@@ -360,7 +359,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     final int numTasks = i + 1 < hosts.size() ? 2 : 1;
     completionService.submit(
         new ConnectionAttemptTask(
-            connectionService,
+            this.connectionService,
             pluginServices.get(0),
             availabilityMap,
             hosts.get(i),
@@ -369,7 +368,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     if (numTasks == 2) {
       completionService.submit(
           new ConnectionAttemptTask(
-              connectionService,
+              this.connectionService,
               pluginServices.get(1),
               availabilityMap,
               hosts.get(i + 1),

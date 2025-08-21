@@ -68,10 +68,6 @@ public class ConnectionServiceImpl implements ConnectionService {
     );
 
     this.pluginService = partialPluginService;
-    servicesContainer.setHostListProviderService(partialPluginService);
-    servicesContainer.setPluginService(partialPluginService);
-    servicesContainer.setPluginManagerService(partialPluginService);
-
     this.pluginManager.init(servicesContainer, props, partialPluginService, null);
   }
 
