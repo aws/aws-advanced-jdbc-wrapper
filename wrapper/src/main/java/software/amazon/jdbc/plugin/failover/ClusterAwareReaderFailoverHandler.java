@@ -394,7 +394,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     }
   }
 
-  private PluginService getNewPluginService() {
+  protected PluginService getNewPluginService() {
     return new PartialPluginService(
         this.servicesContainer,
         this.props,
