@@ -189,7 +189,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     executorService.shutdown();
   }
 
-  private PluginService getNewPluginService() {
+  protected PluginService getNewPluginService() {
     // Each task should get its own PluginService since they execute concurrently and PluginService was not designed to
     // be thread-safe.
     return new PartialPluginService(
