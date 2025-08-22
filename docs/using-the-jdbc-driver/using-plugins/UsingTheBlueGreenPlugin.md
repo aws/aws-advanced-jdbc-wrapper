@@ -6,6 +6,9 @@ The [Blue/Green Deployment](https://docs.aws.amazon.com/whitepapers/latest/blue-
 
 The AWS JDBC Driver leverages the Blue/Green Deployment approach by intelligently managing traffic distribution between blue and green nodes, minimizing the impact of stale DNS data and connectivity disruptions on user applications.
 
+**Important: Service Dependency**
+
+Support for Blue/Green deployments using the AWS Advanced JDBC Wrapper requires specific metadata tables that are **not available in the current RDS and Aurora service**. Please contact your AWS account team for metadata release timelines.
 
 ## Prerequisites
 > [!WARNING]\
@@ -21,7 +24,6 @@ The AWS JDBC Driver leverages the Blue/Green Deployment approach by intelligentl
 > - AWS cluster and instance endpoints must be directly accessible from the client side
 > - Connecting to database nodes using CNAME aliases is not supported
 >
->
 > **Blue/Green Support Behaviour and Version Compatibility:**
 >
 > The AWS Advanced JDBC Wrapper now includes enhanced full support for Blue/Green Deployments. This support requires a minimum database version that includes a specific metadata table. This constraint **does not** apply to RDS MySQL.
@@ -33,8 +35,6 @@ The AWS JDBC Driver leverages the Blue/Green Deployment approach by intelligentl
 > Supported RDS PostgreSQL Versions: `rds_tools v1.7 (17.1, 16.5, 15.9, 14.14, 13.17, 12.21)` and above.<br>
 > Supported Aurora PostgreSQL Versions: Engine Release `17.5, 16.9, 15.13, 14.18, 13.21` and above.<br>
 > Supported Aurora MySQL Versions: Engine Release `3.07` and above.
-
-
 
 
 ## What is Blue/Green Deployment Plugin?
@@ -121,4 +121,3 @@ timestamp                         time offset (ms)                     event
 2025-04-23T17:42:26.536226Z             136547 ms                 COMPLETED
 ----------------------------------------------------------------------------
 ```
-
