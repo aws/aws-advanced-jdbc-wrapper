@@ -621,20 +621,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   protected void failover(final HostSpec failedHost) throws SQLException {
     this.pluginService.setAvailability(failedHost.asAliases(), HostAvailability.NOT_AVAILABLE);
     if (this.connectionService == null) {
-      TargetDriverHelper helper = new TargetDriverHelper();
-      java.sql.Driver driver = helper.getTargetDriver(this.pluginService.getOriginalUrl(), properties);
-      final ConnectionProvider defaultConnectionProvider = new DriverConnectionProvider(driver);
-      this.connectionService = new ConnectionServiceImpl(
-          servicesContainer.getStorageService(),
-          servicesContainer.getMonitorService(),
-          servicesContainer.getTelemetryFactory(),
-          defaultConnectionProvider,
-          this.pluginService.getOriginalUrl(),
-          this.pluginService.getDriverProtocol(),
-          this.pluginService.getTargetDriverDialect(),
-          this.pluginService.getDialect(),
-          properties
-      );
+      this.connectionService = getConnectionService();
     }
 
     if (this.failoverMode == FailoverMode.STRICT_WRITER) {
@@ -642,6 +629,23 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     } else {
       failoverReader(failedHost);
     }
+  }
+
+  protected ConnectionService getConnectionService() throws SQLException {
+    TargetDriverHelper helper = new TargetDriverHelper();
+    java.sql.Driver driver = helper.getTargetDriver(this.pluginService.getOriginalUrl(), properties);
+    final ConnectionProvider defaultConnectionProvider = new DriverConnectionProvider(driver);
+    return new ConnectionServiceImpl(
+        servicesContainer.getStorageService(),
+        servicesContainer.getMonitorService(),
+        servicesContainer.getTelemetryFactory(),
+        defaultConnectionProvider,
+        this.pluginService.getOriginalUrl(),
+        this.pluginService.getDriverProtocol(),
+        this.pluginService.getTargetDriverDialect(),
+        this.pluginService.getDialect(),
+        properties
+    );
   }
 
   protected void failoverReader(final HostSpec failedHostSpec) throws SQLException {
