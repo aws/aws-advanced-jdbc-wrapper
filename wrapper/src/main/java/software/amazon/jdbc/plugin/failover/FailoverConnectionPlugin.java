@@ -620,6 +620,23 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    */
   protected void failover(final HostSpec failedHost) throws SQLException {
     this.pluginService.setAvailability(failedHost.asAliases(), HostAvailability.NOT_AVAILABLE);
+    if (this.connectionService == null) {
+      TargetDriverHelper helper = new TargetDriverHelper();
+      java.sql.Driver driver = helper.getTargetDriver(this.pluginService.getOriginalUrl(), properties);
+      final ConnectionProvider defaultConnectionProvider = new DriverConnectionProvider(driver);
+      this.connectionService = new ConnectionServiceImpl(
+          servicesContainer.getStorageService(),
+          servicesContainer.getMonitorService(),
+          servicesContainer.getTelemetryFactory(),
+          defaultConnectionProvider,
+          this.pluginService.getOriginalUrl(),
+          this.pluginService.getDriverProtocol(),
+          this.pluginService.getTargetDriverDialect(),
+          this.pluginService.getDialect(),
+          properties
+      );
+    }
+
     if (this.failoverMode == FailoverMode.STRICT_WRITER) {
       failoverWriter();
     } else {
@@ -635,6 +652,13 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       this.failoverReaderTriggeredCounter.inc();
     }
 
+    if (this.readerFailoverHandler == null) {
+      if (this.readerFailoverHandlerSupplier == null) {
+        throw new SQLException(Messages.get("Failover.nullReaderFailoverHandlerSupplier"));
+      }
+      this.readerFailoverHandler = this.readerFailoverHandlerSupplier.apply(this.connectionService);
+    }
+
     final long failoverStartNano = System.nanoTime();
 
     try {
@@ -646,14 +670,14 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         failedHost = failedHostSpec;
       }
 
-      final ReaderFailoverResult result = readerFailoverHandler.failover(this.pluginService.getHosts(), failedHost);
+      final ReaderFailoverResult result = this.readerFailoverHandler.failover(this.pluginService.getHosts(), failedHost);
       if (result != null) {
         final SQLException exception = result.getException();
         if (exception != null) {
           throw exception;
         }
 
-        updateHostAvailability(result.getHostAvailabilityMap());
+        updateHostAvailability(this.readerFailoverHandler.getHostAvailabilityMap());
       }
 
       if (result == null || !result.isConnected()) {
@@ -693,6 +717,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       LOGGER.finest(() -> Messages.get(
           "Failover.readerFailoverElapsed",
           new Object[]{TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - failoverStartNano)}));
+      this.readerFailoverHandler = null;
       if (telemetryContext != null) {
         telemetryContext.closeContext();
         if (this.telemetryFailoverAdditionalTopTraceSetting) {
@@ -728,6 +753,13 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       this.failoverWriterTriggeredCounter.inc();
     }
 
+    if (this.writerFailoverHandler == null) {
+      if (this.writerFailoverHandlerSupplier == null) {
+        throw new SQLException(Messages.get("Failover.nullWriterFailoverHandlerSupplier"));
+      }
+      this.writerFailoverHandler = this.writerFailoverHandlerSupplier.apply(this.connectionService);
+    }
+
     long failoverStartTimeNano = System.nanoTime();
 
     try {
@@ -740,7 +772,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           throw exception;
         }
 
-        updateHostAvailability(failoverResult.getHostAvailabilityMap());
+        updateHostAvailability(this.writerFailoverHandler.getHostAvailabilityMap());
       }
 
       if (failoverResult == null || !failoverResult.isConnected()) {
@@ -797,6 +829,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       LOGGER.finest(() -> Messages.get(
           "Failover.writerFailoverElapsed",
           new Object[]{TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - failoverStartTimeNano)}));
+      this.writerFailoverHandler = null;
       if (telemetryContext != null) {
         telemetryContext.closeContext();
         if (this.telemetryFailoverAdditionalTopTraceSetting) {
@@ -807,15 +840,15 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   private void updateHostAvailability(Map<String, HostAvailability> hostAvailabilityMap) {
-    if (hostAvailabilityMap != null && !hostAvailabilityMap.isEmpty()) {
-      List<HostSpec> allHosts = this.pluginService.getAllHosts();
-      for (HostSpec host : allHosts) {
-        for (String alias : host.getAliases()) {
-          HostAvailability availability = hostAvailabilityMap.get(alias);
-          if (availability != null) {
-            host.setAvailability(availability);
-          }
-        }
+    if (hostAvailabilityMap == null || hostAvailabilityMap.isEmpty()) {
+      return;
+    }
+
+    List<HostSpec> allHosts = this.pluginService.getAllHosts();
+    for (HostSpec host : allHosts) {
+      HostAvailability availability = hostAvailabilityMap.get(host.getHost());
+      if (availability != null) {
+        host.setAvailability(availability);
       }
     }
   }
@@ -908,37 +941,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
-    if (this.connectionService == null) {
-      TargetDriverHelper helper = new TargetDriverHelper();
-      java.sql.Driver driver = helper.getTargetDriver(this.pluginService.getOriginalUrl(), properties);
-      final ConnectionProvider defaultConnectionProvider = new DriverConnectionProvider(driver);
-      this.connectionService = new ConnectionServiceImpl(
-          servicesContainer.getStorageService(),
-          servicesContainer.getMonitorService(),
-          servicesContainer.getTelemetryFactory(),
-          defaultConnectionProvider,
-          this.pluginService.getOriginalUrl(),
-          this.pluginService.getDriverProtocol(),
-          this.pluginService.getTargetDriverDialect(),
-          this.pluginService.getDialect(),
-          properties
-      );
-    }
-
     this.initFailoverMode();
-    if (this.readerFailoverHandler == null) {
-      if (this.readerFailoverHandlerSupplier == null) {
-        throw new SQLException(Messages.get("Failover.nullReaderFailoverHandlerSupplier"));
-      }
-      this.readerFailoverHandler = this.readerFailoverHandlerSupplier.apply(this.connectionService);
-    }
-
-    if (this.writerFailoverHandler == null) {
-      if (this.writerFailoverHandlerSupplier == null) {
-        throw new SQLException(Messages.get("Failover.nullWriterFailoverHandlerSupplier"));
-      }
-      this.writerFailoverHandler = this.writerFailoverHandlerSupplier.apply(this.connectionService);
-    }
 
     Connection conn = null;
     try {

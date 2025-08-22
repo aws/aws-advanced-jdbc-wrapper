@@ -18,9 +18,7 @@ package software.amazon.jdbc.plugin.failover;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.Map;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.hostavailability.HostAvailability;
 
 /**
  * This class holds results of Reader Failover Process.
@@ -32,27 +30,23 @@ public class ReaderFailoverResult {
   private final boolean isConnected;
   private final SQLException exception;
   private final HostSpec newHost;
-  private final Map<String, HostAvailability> hostAvailabilityMap;
 
   public ReaderFailoverResult(
       final Connection newConnection,
       final HostSpec newHost,
-      final boolean isConnected,
-      final Map<String, HostAvailability> hostAvailabilityMap) {
-    this(newConnection, newHost, isConnected, null, hostAvailabilityMap);
+      final boolean isConnected) {
+    this(newConnection, newHost, isConnected, null);
   }
 
   public ReaderFailoverResult(
       final Connection newConnection,
       final HostSpec newHost,
       final boolean isConnected,
-      final SQLException exception,
-      final Map<String, HostAvailability> hostAvailabilityMap) {
+      final SQLException exception) {
     this.newConnection = newConnection;
     this.newHost = newHost;
     this.isConnected = isConnected;
     this.exception = exception;
-    this.hostAvailabilityMap = hostAvailabilityMap;
   }
 
   /**
@@ -89,9 +83,5 @@ public class ReaderFailoverResult {
    */
   public SQLException getException() {
     return exception;
-  }
-
-  public Map<String, HostAvailability> getHostAvailabilityMap() {
-    return hostAvailabilityMap;
   }
 }

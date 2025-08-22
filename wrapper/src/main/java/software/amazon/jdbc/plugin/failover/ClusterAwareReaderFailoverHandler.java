@@ -60,15 +60,18 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
 
   private static final Logger LOGGER =
       Logger.getLogger(ClusterAwareReaderFailoverHandler.class.getName());
+  protected static final ReaderFailoverResult FAILED_READER_FAILOVER_RESULT =
+      new ReaderFailoverResult(null, null, false);
   protected static final int DEFAULT_FAILOVER_TIMEOUT = 60000; // 60 sec
   protected static final int DEFAULT_READER_CONNECT_TIMEOUT = 30000; // 30 sec
+  protected final Map<String, HostAvailability> hostAvailabilityMap = new ConcurrentHashMap<>();
+  protected final FullServicesContainer servicesContainer;
+  protected final ConnectionService connectionService;
+  protected final PluginService pluginService;
   protected Properties props;
   protected int maxFailoverTimeoutMs;
   protected int timeoutMs;
   protected boolean isStrictReaderRequired;
-  protected final FullServicesContainer servicesContainer;
-  protected final ConnectionService connectionService;
-  protected final PluginService pluginService;
 
   /**
    * ClusterAwareReaderFailoverHandler constructor.
@@ -115,6 +118,11 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     this.isStrictReaderRequired = isStrictReaderRequired;
   }
 
+  @Override
+  public Map<String, HostAvailability> getHostAvailabilityMap() {
+    return this.hostAvailabilityMap;
+  }
+
   /**
    * Set process timeout in millis. Entire process of connecting to a reader will be limited by this
    * time duration.
@@ -125,41 +133,29 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     this.timeoutMs = timeoutMs;
   }
 
-  /**
-   * Called to start Reader Failover Process. This process tries to connect to any reader. If no
-   * reader is available then driver may also try to connect to a writer host, down hosts, and the
-   * current reader host.
-   *
-   * @param hosts       Cluster current topology
-   * @param currentHost The currently connected host that has failed.
-   * @return {@link ReaderFailoverResult} The results of this process.
-   */
   @Override
   public ReaderFailoverResult failover(final List<HostSpec> hosts, final HostSpec currentHost)
       throws SQLException {
     if (Utils.isNullOrEmpty(hosts)) {
       LOGGER.fine(() -> Messages.get("ClusterAwareReaderFailoverHandler.invalidTopology", new Object[] {"failover"}));
-      return new ReaderFailoverResult(null, null, false, null, null);
+      return FAILED_READER_FAILOVER_RESULT;
     }
 
-    final Map<String, HostAvailability> availabilityMap = new ConcurrentHashMap<>();
     final ExecutorService executor =
         ExecutorFactory.newSingleThreadExecutor("failover");
-    final Future<ReaderFailoverResult> future =
-        submitInternalFailoverTask(hosts, currentHost, executor, availabilityMap);
-    return getInternalFailoverResult(executor, future, availabilityMap);
+    final Future<ReaderFailoverResult> future = submitInternalFailoverTask(hosts, currentHost, executor);
+    return getInternalFailoverResult(executor, future);
   }
 
   private Future<ReaderFailoverResult> submitInternalFailoverTask(
       final List<HostSpec> hosts,
       final HostSpec currentHost,
-      final ExecutorService executor,
-      final Map<String, HostAvailability> availabilityMap) {
+      final ExecutorService executor) {
     final Future<ReaderFailoverResult> future = executor.submit(() -> {
       ReaderFailoverResult result;
       try {
         while (true) {
-          result = failoverInternal(hosts, currentHost, availabilityMap);
+          result = failoverInternal(hosts, currentHost);
           if (result != null && result.isConnected()) {
             return result;
           }
@@ -167,9 +163,9 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
           TimeUnit.SECONDS.sleep(1);
         }
       } catch (final SQLException ex) {
-        return new ReaderFailoverResult(null, null, false, ex, availabilityMap);
+        return new ReaderFailoverResult(null, null, false, ex);
       } catch (final Exception ex) {
-        return new ReaderFailoverResult(null, null, false, new SQLException(ex), availabilityMap);
+        return new ReaderFailoverResult(null, null, false, new SQLException(ex));
       }
     });
     executor.shutdown();
@@ -178,14 +174,13 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
 
   private ReaderFailoverResult getInternalFailoverResult(
       final ExecutorService executor,
-      final Future<ReaderFailoverResult> future,
-      final Map<String, HostAvailability> availabilityMap) throws SQLException {
+      final Future<ReaderFailoverResult> future) throws SQLException {
     try {
       final ReaderFailoverResult result = future.get(this.maxFailoverTimeoutMs, TimeUnit.MILLISECONDS);
       if (result == null) {
         LOGGER.warning(
             Messages.get("ClusterAwareReaderFailoverHandler.timeout", new Object[] {this.maxFailoverTimeoutMs}));
-        return new ReaderFailoverResult(null, null, false, null, availabilityMap);
+        return FAILED_READER_FAILOVER_RESULT;
       }
 
       return result;
@@ -193,10 +188,10 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       Thread.currentThread().interrupt();
       throw new SQLException(Messages.get("ClusterAwareReaderFailoverHandler.interruptedThread"), "70100", e);
     } catch (final ExecutionException e) {
-      return new ReaderFailoverResult(null, null, false, null, availabilityMap);
+      return FAILED_READER_FAILOVER_RESULT;
     } catch (final TimeoutException e) {
       future.cancel(true);
-      return new ReaderFailoverResult(null, null, false, null, availabilityMap);
+      return FAILED_READER_FAILOVER_RESULT;
     } finally {
       if (!executor.isTerminated()) {
         executor.shutdownNow(); // terminate all remaining tasks
@@ -204,18 +199,15 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     }
   }
 
-  protected ReaderFailoverResult failoverInternal(
-      final List<HostSpec> hosts,
-      final HostSpec currentHost,
-      final Map<String, HostAvailability> availabilityMap)
+  protected ReaderFailoverResult failoverInternal(final List<HostSpec> hosts, final HostSpec currentHost)
       throws SQLException {
     if (currentHost != null) {
       this.pluginService.setAvailability(currentHost.asAliases(), HostAvailability.NOT_AVAILABLE);
-      availabilityMap.put(currentHost.getHost(), HostAvailability.NOT_AVAILABLE);
+      this.hostAvailabilityMap.put(currentHost.getHost(), HostAvailability.NOT_AVAILABLE);
     }
 
     final List<HostSpec> hostsByPriority = getHostsByPriority(hosts);
-    return getConnectionFromHostGroup(hostsByPriority, availabilityMap);
+    return getConnectionFromHostGroup(hostsByPriority);
   }
 
   public List<HostSpec> getHostsByPriority(final List<HostSpec> hosts) {
@@ -264,12 +256,11 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
           () -> Messages.get(
               "ClusterAwareReaderFailover.invalidTopology",
               new Object[] {"getReaderConnection"}));
-      return new ReaderFailoverResult(null, null, false, null, null);
+      return FAILED_READER_FAILOVER_RESULT;
     }
 
     final List<HostSpec> hostsByPriority = getReaderHostsByPriority(hostList);
-    final Map<String, HostAvailability> availabilityMap = new ConcurrentHashMap<>();
-    return getConnectionFromHostGroup(hostsByPriority, availabilityMap);
+    return getConnectionFromHostGroup(hostsByPriority);
   }
 
   public List<HostSpec> getReaderHostsByPriority(final List<HostSpec> hosts) {
@@ -291,11 +282,10 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     Collections.shuffle(activeReaders);
     Collections.shuffle(downHostList);
 
-    final List<HostSpec> hostsByPriority = new ArrayList<>();
-    hostsByPriority.addAll(activeReaders);
+    final List<HostSpec> hostsByPriority = new ArrayList<>(activeReaders);
+    final int numOfReaders = activeReaders.size() + downHostList.size();
     hostsByPriority.addAll(downHostList);
 
-    final int numOfReaders = activeReaders.size() + downHostList.size();
     if (writerHost == null) {
       return hostsByPriority;
     }
@@ -310,10 +300,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     return hostsByPriority;
   }
 
-  private ReaderFailoverResult getConnectionFromHostGroup(
-      final List<HostSpec> hosts,
-      final Map<String, HostAvailability> availabilityMap)
-      throws SQLException {
+  private ReaderFailoverResult getConnectionFromHostGroup(final List<HostSpec> hosts) throws SQLException {
     final ExecutorService executor =
         ExecutorFactory.newFixedThreadPool(2, "failover");
     final CompletionService<ReaderFailoverResult> completionService = new ExecutorCompletionService<>(executor);
@@ -325,7 +312,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       for (int i = 0; i < hosts.size(); i += 2) {
         // submit connection attempt tasks in batches of 2
         final ReaderFailoverResult result =
-            getResultFromNextTaskBatch(hosts, availabilityMap, executor, completionService, pluginServices, i);
+            getResultFromNextTaskBatch(hosts, executor, completionService, pluginServices, i);
         if (result.isConnected() || result.getException() != null) {
           return result;
         }
@@ -338,11 +325,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
         }
       }
 
-      return new ReaderFailoverResult(
-          null,
-          null,
-          false,
-          availabilityMap);
+      return new ReaderFailoverResult(null, null, false);
     } finally {
       executor.shutdownNow();
     }
@@ -350,7 +333,6 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
 
   private ReaderFailoverResult getResultFromNextTaskBatch(
       final List<HostSpec> hosts,
-      final Map<String, HostAvailability> availabilityMap,
       final ExecutorService executor,
       final CompletionService<ReaderFailoverResult> completionService,
       final List<PluginService> pluginServices,
@@ -361,7 +343,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
         new ConnectionAttemptTask(
             this.connectionService,
             pluginServices.get(0),
-            availabilityMap,
+            this.hostAvailabilityMap,
             hosts.get(i),
             this.props,
             this.isStrictReaderRequired));
@@ -370,14 +352,14 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
           new ConnectionAttemptTask(
               this.connectionService,
               pluginServices.get(1),
-              availabilityMap,
+              this.hostAvailabilityMap,
               hosts.get(i + 1),
               this.props,
               this.isStrictReaderRequired));
     }
 
     for (int taskNum = 0; taskNum < numTasks; taskNum++) {
-      result = getNextResult(completionService, availabilityMap);
+      result = getNextResult(completionService);
       if (result.isConnected()) {
         executor.shutdownNow();
         return result;
@@ -387,27 +369,20 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
         return result;
       }
     }
-    return new ReaderFailoverResult(
-        null,
-        null,
-        false,
-        availabilityMap);
+    return new ReaderFailoverResult(null, null, false);
   }
 
-  private ReaderFailoverResult getNextResult(
-      final CompletionService<ReaderFailoverResult> service,
-      final Map<String, HostAvailability> availabilityMap)
+  private ReaderFailoverResult getNextResult(final CompletionService<ReaderFailoverResult> service)
       throws SQLException {
-    ReaderFailoverResult failureResult = new ReaderFailoverResult(null, null, false, null, availabilityMap);
     try {
       final Future<ReaderFailoverResult> future = service.poll(this.timeoutMs, TimeUnit.MILLISECONDS);
       if (future == null) {
-        return failureResult;
+        return FAILED_READER_FAILOVER_RESULT;
       }
       final ReaderFailoverResult result = future.get();
-      return result == null ? failureResult : result;
+      return result == null ? FAILED_READER_FAILOVER_RESULT : result;
     } catch (final ExecutionException e) {
-      return failureResult;
+      return FAILED_READER_FAILOVER_RESULT;
     } catch (final InterruptedException e) {
       Thread.currentThread().interrupt();
       // "Thread was interrupted"
@@ -486,7 +461,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
                 // ignore
               }
 
-              return new ReaderFailoverResult(null, null, false, null, availabilityMap);
+              return FAILED_READER_FAILOVER_RESULT;
             }
           } catch (SQLException e) {
             LOGGER.fine(Messages.get("ClusterAwareReaderFailoverHandler.errorGettingHostRole", new Object[] {e}));
@@ -497,7 +472,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
               // ignore
             }
 
-            return new ReaderFailoverResult(null, null, false, null, availabilityMap);
+            return FAILED_READER_FAILOVER_RESULT;
           }
         }
 
@@ -506,7 +481,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
                 "ClusterAwareReaderFailoverHandler.successfulReaderConnection",
                 new Object[] {this.newHost.getUrl()}));
         LOGGER.fine("New reader failover connection object: " + conn);
-        return new ReaderFailoverResult(conn, this.newHost, true, this.availabilityMap);
+        return new ReaderFailoverResult(conn, this.newHost, true);
       } catch (final SQLException e) {
         this.availabilityMap.put(newHost.getHost(), HostAvailability.NOT_AVAILABLE);
         LOGGER.fine(
@@ -515,15 +490,10 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
                 new Object[] {this.newHost.getUrl()}));
         // Propagate exceptions that are not caused by network errors.
         if (!this.pluginService.isNetworkException(e, this.pluginService.getTargetDriverDialect())) {
-          return new ReaderFailoverResult(
-              null,
-              null,
-              false,
-              e,
-              this.availabilityMap);
+          return new ReaderFailoverResult(null, null, false, e);
         }
 
-        return new ReaderFailoverResult(null, null, false, null, availabilityMap);
+        return FAILED_READER_FAILOVER_RESULT;
       }
     }
   }
