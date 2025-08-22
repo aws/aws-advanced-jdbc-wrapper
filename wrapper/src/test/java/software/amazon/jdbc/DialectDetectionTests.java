@@ -76,8 +76,6 @@ public class DialectDetectionTests {
   @Mock private TargetDriverDialect mockTargetDriverDialect;
   @Mock private ResultSetMetaData mockResultSetMetaData;
   private final DialectManager dialectManager = new DialectManager(Mockito.mock(PluginService.class));
-  private final Properties props = new Properties();
-  private AutoCloseable closeable;
 
   @BeforeEach
   void setUp() throws SQLException {

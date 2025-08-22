@@ -68,6 +68,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
   private static final Logger LOGGER = Logger.getLogger(ConnectionPluginManager.class.getName());
 
+  public static final String EFFECTIVE_PLUGIN_CODES_PROPERTY = "46762024-847c-41c8-aa46-0c65e8560c89";
+
   protected static final Map<Class<? extends ConnectionPlugin>, String> pluginNameByClass =
       new HashMap<Class<? extends ConnectionPlugin>, String>() {
         {

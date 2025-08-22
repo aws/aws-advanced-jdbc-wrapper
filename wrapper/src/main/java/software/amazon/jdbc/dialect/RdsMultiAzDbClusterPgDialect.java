@@ -64,7 +64,7 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
   }
 
   @Override
-  public boolean isDialect(final Connection connection, , final Properties properties) {
+  public boolean isDialect(final Connection connection, final Properties properties) {
     try (Statement stmt = connection.createStatement();
         ResultSet rs = stmt.executeQuery(IS_RDS_CLUSTER_QUERY)) {
       return rs.next() && rs.getString(1) != null;
