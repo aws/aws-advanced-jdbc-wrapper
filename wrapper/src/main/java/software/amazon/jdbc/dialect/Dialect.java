@@ -49,6 +49,4 @@ public interface Dialect {
       final @NonNull HostSpec hostSpec);
 
   EnumSet<FailoverRestriction> getFailoverRestrictions();
-
-  void reportMetadata(final @NonNull Connection connection, final @NonNull Properties properties);
 }

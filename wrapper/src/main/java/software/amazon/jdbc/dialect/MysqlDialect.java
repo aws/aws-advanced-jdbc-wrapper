@@ -122,10 +122,4 @@ public class MysqlDialect implements Dialect {
   public EnumSet<FailoverRestriction> getFailoverRestrictions() {
     return NO_RESTRICTIONS;
   }
-
-  @Override
-  public void reportMetadata(@NonNull Connection connection, @NonNull Properties properties) {
-    // do nothing
-    // Driver metadata has been reported as connection attributes. Check prepareConnectProperties() above.
-  }
 }

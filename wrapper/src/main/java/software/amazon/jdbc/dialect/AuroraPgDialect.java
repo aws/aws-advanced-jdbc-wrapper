@@ -22,6 +22,9 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.ConnectionPluginManager;
+import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
@@ -142,5 +145,22 @@ public class AuroraPgDialect extends PgDialect implements AuroraLimitlessDialect
     } catch (SQLException ex) {
       return false;
     }
+  }
+
+  @Override
+  public void prepareConnectProperties(
+      final @NonNull Properties connectProperties,
+      final @NonNull String protocol,
+      final @NonNull HostSpec hostSpec) {
+
+    final String driverInfoOption = String.format(
+        "-c aurora.connection_str=_jdbc_wrapper_name:aws_jdbc_driver,_jdbc_wrapper_version:%s,_jdbc_wrapper_plugins:%s",
+        DriverInfo.DRIVER_VERSION,
+        connectProperties.getProperty(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY));
+    connectProperties.setProperty("options",
+        connectProperties.getProperty("options") == null
+            ? driverInfoOption
+            : connectProperties.getProperty("options") + " " + driverInfoOption);
+    connectProperties.remove(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY);
   }
 }

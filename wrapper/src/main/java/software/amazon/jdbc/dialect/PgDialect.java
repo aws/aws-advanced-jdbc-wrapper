@@ -114,10 +114,4 @@ public class PgDialect implements Dialect {
   public EnumSet<FailoverRestriction> getFailoverRestrictions() {
     return NO_RESTRICTIONS;
   }
-
-  @Override
-  public void reportMetadata(@NonNull Connection connection, @NonNull Properties properties) {
-    // We'd like to execute a query that includes a comment with a driver metadata.
-    this.isDialect(connection, properties);
-  }
 }

@@ -95,9 +95,4 @@ public class UnknownDialect implements Dialect {
   public EnumSet<FailoverRestriction> getFailoverRestrictions() {
     return NO_RESTRICTIONS;
   }
-
-  @Override
-  public void reportMetadata(@NonNull Connection connection, @NonNull Properties properties) {
-    // do nothing
-  }
 }

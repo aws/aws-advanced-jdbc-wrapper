@@ -75,7 +75,6 @@ public class DialectDetectionTests {
   @Mock private ConnectionPluginManager mockPluginManager;
   @Mock private TargetDriverDialect mockTargetDriverDialect;
   @Mock private ResultSetMetaData mockResultSetMetaData;
-  private final DialectManager dialectManager = new DialectManager(Mockito.mock(PluginService.class));
 
   @BeforeEach
   void setUp() throws SQLException {
