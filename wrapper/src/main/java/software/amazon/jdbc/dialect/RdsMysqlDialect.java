@@ -22,6 +22,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Properties;
 import software.amazon.jdbc.util.StringUtils;
 
 public class RdsMysqlDialect extends MysqlDialect implements BlueGreenDialect {
@@ -38,63 +39,49 @@ public class RdsMysqlDialect extends MysqlDialect implements BlueGreenDialect {
       DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER);
 
   @Override
-  public boolean isDialect(final Connection connection) {
-    if (super.isDialect(connection)) {
-      // MysqlDialect and RdsMysqlDialect use the same server version query to determine the dialect.
-      //
-      // For community Mysql:
+  public boolean isDialect(final Connection connection, final Properties properties) {
+    if (super.isDialect(connection, properties)) {
+      // If super.isDialect() returns true then there is no need to check other conditions.
+      return false;
+    }
+
+    try {
+
+      // For community Mysql (MysqlDialect):
       // SHOW VARIABLES LIKE 'version_comment'
       // | Variable_name   | value                                            |
       // |-----------------|--------------------------------------------------|
       // | version_comment | MySQL Community Server (GPL) |
       //
-      // For RDS MySQL:
+      // For RDS MySQL (RdsMysqlDialect):
       // SHOW VARIABLES LIKE 'version_comment'
       // | Variable_name   | value               |
       // |-----------------|---------------------|
       // | version_comment | Source distribution |
-      // If super.idDialect returns true there is no need to check for RdsMysqlDialect.
-      return false;
-    }
-    Statement stmt = null;
-    ResultSet rs = null;
-
-    try {
-      stmt = connection.createStatement();
-      rs = stmt.executeQuery(this.getServerVersionQuery());
-      if (!rs.next()) {
-        return false;
-      }
-      final String columnValue = rs.getString(2);
-      if (!"Source distribution".equalsIgnoreCase(columnValue)) {
-        return false;
-      }
-
-      rs.close();
-      rs = stmt.executeQuery("SHOW VARIABLES LIKE 'report_host'");
-      if (!rs.next()) {
-        return false;
-      }
-      final String reportHost = rs.getString(2); // get variable value; expected empty value
-      return StringUtils.isNullOrEmpty(reportHost);
-
-    } catch (final SQLException ex) {
-      // ignore
-    } finally {
-      if (stmt != null) {
-        try {
-          stmt.close();
-        } catch (SQLException ex) {
-          // ignore
+      // If super.isDialect returns true there is no need to check for RdsMysqlDialect.
+      //
+      try (Statement stmt = connection.createStatement();
+          ResultSet rs = stmt.executeQuery(this.getServerVersionQuery(properties))) {
+        if (!rs.next()) {
+          return false;
+        }
+        final String columnValue = rs.getString(2);
+        if (!"Source distribution".equalsIgnoreCase(columnValue)) {
+          return false;
         }
       }
-      if (rs != null) {
-        try {
-          rs.close();
-        } catch (SQLException ex) {
-          // ignore
+
+      try (Statement stmt = connection.createStatement();
+          ResultSet rs = stmt.executeQuery("SHOW VARIABLES LIKE 'report_host'")) {
+        if (!rs.next()) {
+          return false;
         }
+        final String reportHost = rs.getString(2); // get variable value; expected empty value
+        return StringUtils.isNullOrEmpty(reportHost);
       }
+
+    } catch (SQLException ex) {
+      // do nothing
     }
     return false;
   }
