@@ -129,6 +129,22 @@ allprojects {
                             system.set("GitHub issues")
                             url.set("https://github.com/aws/aws-advanced-jdbc-wrapper/issues")
                         }
+
+                        // Remove dependencies
+                        withXml {
+                            val sb = asString()
+                            var s = sb.toString()
+                            s = s.replace(
+                                Regex(
+                                    "<dependency>.*?</dependency>",
+                                    RegexOption.DOT_MATCHES_ALL
+                                ),
+                                ""
+                            )
+                            sb.setLength(0)
+                            sb.append(s)
+                            asNode()
+                        }
                     }
                 }
 
