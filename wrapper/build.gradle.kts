@@ -44,14 +44,14 @@ dependencies {
     optionalImplementation("com.mchange:c3p0:0.11.2")
     optionalImplementation("org.apache.httpcomponents:httpclient:4.5.14")
     optionalImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
+    optionalImplementation("org.apache.commons:commons-pool2:2.11.1")
     optionalImplementation("org.jsoup:jsoup:1.21.1")
     optionalImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
+    optionalImplementation("io.lettuce:lettuce-core:6.6.0.RELEASE")
     optionalImplementation("io.opentelemetry:opentelemetry-api:1.59.0")
     optionalImplementation("io.opentelemetry:opentelemetry-sdk:1.59.0")
     optionalImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.59.0")
 
-    compileOnly("io.lettuce:lettuce-core:6.6.0.RELEASE")
-    compileOnly("org.apache.commons:commons-pool2:2.11.1")
     compileOnly("org.checkerframework:checker-qual:3.49.5")
     compileOnly("com.mysql:mysql-connector-j:9.4.0")
     compileOnly("org.postgresql:postgresql:42.7.7")
@@ -110,6 +110,7 @@ dependencies {
     testImplementation("de.vandermeer:asciitable:0.3.2")
     testImplementation("org.hibernate:hibernate-core:5.6.15.Final") // the latest version compatible with Java 8
     testImplementation("jakarta.persistence:jakarta.persistence-api:2.2.3")
+    testImplementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.19.2")
 }
 
 repositories {
