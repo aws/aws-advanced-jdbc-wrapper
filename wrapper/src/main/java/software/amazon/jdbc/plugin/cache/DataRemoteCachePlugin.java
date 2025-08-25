@@ -26,9 +26,11 @@ import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
+import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.util.Messages;
@@ -41,7 +43,6 @@ import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
 public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(DataRemoteCachePlugin.class.getName());
-  private static final int MAX_CACHEABLE_QUERY_SIZE = 16000;
   private static final String QUERY_HINT_START_PATTERN = "/*+";
   private static final String QUERY_HINT_END_PATTERN = "*/";
   private static final String CACHE_PARAM_PATTERN = "CACHE_PARAM(";
@@ -55,6 +56,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
           JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
           JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName)));
 
+  private int maxCacheableQuerySize;
   private PluginService pluginService;
   private TelemetryFactory telemetryFactory;
   private TelemetryCounter cacheHitCounter;
@@ -63,6 +65,17 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
   private TelemetryCounter malformedHintCounter;
   private TelemetryCounter cacheBypassCounter;
   private CacheConnection cacheConnection;
+  private String dbUserName;
+
+  private static final AwsWrapperProperty CACHE_MAX_QUERY_SIZE =
+      new AwsWrapperProperty(
+          "cacheMaxQuerySize",
+          "16384",
+          "The max query size for remote caching");
+
+  static {
+    PropertyDefinition.registerPluginProperties(DataRemoteCachePlugin.class);
+  }
 
   public DataRemoteCachePlugin(final PluginService pluginService, final Properties properties) {
     try {
@@ -78,7 +91,9 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     this.totalQueryCounter = telemetryFactory.createCounter("JdbcCacheTotalQueryCount");
     this.malformedHintCounter = telemetryFactory.createCounter("JdbcCacheMalformedQueryHint");
     this.cacheBypassCounter = telemetryFactory.createCounter("JdbcCacheBypassCount");
+    this.maxCacheableQuerySize = CACHE_MAX_QUERY_SIZE.getInteger(properties);
     this.cacheConnection = new CacheConnection(properties);
+    this.dbUserName = PropertyDefinition.USER.getString(properties);
   }
 
   // Used for unit testing purposes only
@@ -93,25 +108,36 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
 
   private String getCacheQueryKey(String query) {
     // Check some basic session states. The important ones for caching include (but not limited to):
-    //   schema name, username which can affect the query result from the DB in addition to the query string
+    //  schema name, username which can affect the query result from the DB in addition to the query string
     try {
       Connection currentConn = pluginService.getCurrentConnection();
       DatabaseMetaData metadata = currentConn.getMetaData();
       // Fetch and record the schema name if the session state doesn't currently have it
       SessionStateService sessionStateService = pluginService.getSessionStateService();
+      String catalog = sessionStateService.getCatalog().orElse(null);
       String schema = sessionStateService.getSchema().orElse(null);
-      if (schema == null) {
+      if (catalog == null && schema == null) {
         // Fetch the current schema name and store it in sessionStateService
+        catalog = currentConn.getCatalog();
         schema = currentConn.getSchema();
-        sessionStateService.setSchema(schema);
+        if (catalog != null) sessionStateService.setCatalog(catalog);
+        if (schema != null) sessionStateService.setSchema(schema);
       }
 
+      if (dbUserName == null) {
+        // For MySQL, metadata username is actually <UserName>@<ip>. We just need the part before '@'.
+        dbUserName = metadata.getUserName();
+        int nameIndexEnd = dbUserName.indexOf('@');
+        if (nameIndexEnd > 0) {
+          dbUserName = dbUserName.substring(0, nameIndexEnd);
+        }
+      }
       LOGGER.finest("DB driver protocol " + pluginService.getDriverProtocol()
           + ", database product: " + metadata.getDatabaseProductName() + " " + metadata.getDatabaseProductVersion()
-          + ", schema: " + schema + ", user: " + metadata.getUserName()
+          + ", catalog: " + catalog + ", schema: " + schema + ", user: " + dbUserName
           + ", driver: " + metadata.getDriverName() + " " + metadata.getDriverVersion());
       // The cache key contains the schema name, user name, and the query string
-      String[] words = {schema, metadata.getUserName(), query};
+      String[] words = {catalog, schema, dbUserName, query};
       return String.join("_", words);
     } catch (SQLException e) {
       LOGGER.warning("Error getting session state: " + e.getMessage());
@@ -239,11 +265,11 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     int endOfQueryHint = 0;
     Integer configuredQueryTtl = null;
     // Queries longer than 16KB is not cacheable
-    if ((sql.length() < MAX_CACHEABLE_QUERY_SIZE) && sql.startsWith(QUERY_HINT_START_PATTERN)) {
+    if ((sql.length() < maxCacheableQuerySize) && sql.startsWith(QUERY_HINT_START_PATTERN)) {
       endOfQueryHint = sql.indexOf(QUERY_HINT_END_PATTERN);
       if (endOfQueryHint > 0) {
-        configuredQueryTtl = getTtlForQuery(sql.substring(2, endOfQueryHint).trim());
-        mainQuery = sql.substring(endOfQueryHint + 2).trim();
+        configuredQueryTtl = getTtlForQuery(sql.substring(QUERY_HINT_START_PATTERN.length(), endOfQueryHint).trim());
+        mainQuery = sql.substring(endOfQueryHint + QUERY_HINT_END_PATTERN.length()).trim();
       }
     }
 
