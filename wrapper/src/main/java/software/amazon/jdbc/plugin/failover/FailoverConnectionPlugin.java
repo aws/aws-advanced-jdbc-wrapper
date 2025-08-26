@@ -758,6 +758,14 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       this.failoverWriterTriggeredCounter.inc();
     }
 
+    // The writer failover handler uses the reader failover handler, so we need to make sure it has been instantiated.
+    if (this.readerFailoverHandler == null) {
+      if (this.readerFailoverHandlerSupplier == null) {
+        throw new SQLException(Messages.get("Failover.nullReaderFailoverHandlerSupplier"));
+      }
+      this.readerFailoverHandler = this.readerFailoverHandlerSupplier.apply(this.connectionService);
+    }
+
     if (this.writerFailoverHandler == null) {
       if (this.writerFailoverHandlerSupplier == null) {
         throw new SQLException(Messages.get("Failover.nullWriterFailoverHandlerSupplier"));
