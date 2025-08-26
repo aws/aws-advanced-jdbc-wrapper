@@ -22,8 +22,10 @@ import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.states.SessionStateService;
+import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
 public class DataRemoteCachePluginTest {
   private static final Properties props = new Properties();
@@ -33,10 +35,12 @@ public class DataRemoteCachePluginTest {
   private DataRemoteCachePlugin plugin;
   @Mock PluginService mockPluginService;
   @Mock TelemetryFactory mockTelemetryFactory;
-  @Mock TelemetryCounter mockHitCounter;
-  @Mock TelemetryCounter mockMissCounter;
-  @Mock TelemetryCounter mockTotalCallsCounter;
+  @Mock TelemetryCounter mockCacheHitCounter;
+  @Mock TelemetryCounter mockCacheMissCounter;
+  @Mock TelemetryCounter mockTotalQueryCounter;
   @Mock TelemetryCounter mockMalformedHintCounter;
+  @Mock TelemetryCounter mockCacheBypassCounter;
+  @Mock TelemetryContext mockTelemetryContext;
   @Mock ResultSet mockResult1;
   @Mock Statement mockStatement;
   @Mock ResultSetMetaData mockMetaData;
@@ -53,10 +57,12 @@ public class DataRemoteCachePluginTest {
     props.setProperty("cacheEndpointAddrRw", "localhost:6379");
 
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
-    when(mockTelemetryFactory.createCounter("remoteCache.cache.hit")).thenReturn(mockHitCounter);
-    when(mockTelemetryFactory.createCounter("remoteCache.cache.miss")).thenReturn(mockMissCounter);
-    when(mockTelemetryFactory.createCounter("remoteCache.cache.totalCalls")).thenReturn(mockTotalCallsCounter);
+    when(mockTelemetryFactory.createCounter("JdbcCachedQueryCount")).thenReturn(mockCacheHitCounter);
+    when(mockTelemetryFactory.createCounter("JdbcCacheMissCount")).thenReturn(mockCacheMissCounter);
+    when(mockTelemetryFactory.createCounter("JdbcCacheTotalQueryCount")).thenReturn(mockTotalQueryCounter);
     when(mockTelemetryFactory.createCounter("JdbcCacheMalformedQueryHint")).thenReturn(mockMalformedHintCounter);
+    when(mockTelemetryFactory.createCounter("JdbcCacheBypassCount")).thenReturn(mockCacheBypassCounter);
+    when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
     when(mockResult1.getMetaData()).thenReturn(mockMetaData);
     when(mockMetaData.getColumnCount()).thenReturn(1);
     when(mockMetaData.getColumnLabel(1)).thenReturn("fooName");
@@ -145,14 +151,19 @@ public class DataRemoteCachePluginTest {
         methodName, mockCallable, new String[]{"select * from mytable where ID = 2"});
 
     // Mock result set containing 1 row
-    when(mockResult1.next()).thenReturn(true, true, false, false);
+    when(mockResult1.next()).thenReturn(true, true, false);
     when(mockResult1.getObject(1)).thenReturn("bar1", "bar1");
     compareResults(mockResult1, rs);
     verify(mockPluginService).isInTransaction();
     verify(mockCallable).call();
-    verify(mockTotalCallsCounter, never()).inc();
-    verify(mockHitCounter, never()).inc();
-    verify(mockMissCounter, never()).inc();
+    verify(mockTotalQueryCounter, times(1)).inc();
+    verify(mockCacheHitCounter, never()).inc();
+    verify(mockCacheBypassCounter, times(1)).inc();
+    verify(mockCacheMissCounter, never()).inc();
+    // Verify TelemetryContext behavior for no-caching scenario
+    verify(mockTelemetryFactory).openTelemetryContext("jdbc-database-query", TelemetryTraceLevel.TOP_LEVEL);
+    verify(mockTelemetryFactory, never()).openTelemetryContext(eq("jdbc-cache-lookup"), any());
+    verify(mockTelemetryContext).closeContext();
   }
 
   @Test
@@ -165,13 +176,18 @@ public class DataRemoteCachePluginTest {
         methodName, mockCallable, new String[]{"/* CACHE_PARAM(ttl=20s) */ select * from T" + RandomStringUtils.randomAlphanumeric(15990)});
 
     // Mock result set containing 1 row
-    when(mockResult1.next()).thenReturn(true, true, false, false);
+    when(mockResult1.next()).thenReturn(true, true, false);
     when(mockResult1.getObject(1)).thenReturn("bar1", "bar1");
     compareResults(mockResult1, rs);
     verify(mockCallable).call();
-    verify(mockTotalCallsCounter, never()).inc();
-    verify(mockHitCounter, never()).inc();
-    verify(mockMissCounter, never()).inc();
+    verify(mockTotalQueryCounter, times(1)).inc();
+    verify(mockCacheHitCounter, never()).inc();
+    verify(mockCacheBypassCounter, times(1)).inc();
+    verify(mockCacheMissCounter, never()).inc();
+    // Verify TelemetryContext behavior for no-caching scenario
+    verify(mockTelemetryFactory).openTelemetryContext("jdbc-database-query", TelemetryTraceLevel.TOP_LEVEL);
+    verify(mockTelemetryFactory, never()).openTelemetryContext(eq("jdbc-cache-lookup"), any());
+    verify(mockTelemetryContext).closeContext();
   }
 
   @Test
@@ -198,9 +214,11 @@ public class DataRemoteCachePluginTest {
     assertTrue(rs.next());
     assertEquals("bar1", rs.getString("fooName"));
     assertFalse(rs.next());
+
     rs.beforeFirst();
     byte[] serializedTestResultSet = ((CachedResultSet)rs).serializeIntoByteArray();
     when(mockCacheConn.readFromCache("public_user_select * from A")).thenReturn(serializedTestResultSet);
+
     ResultSet rs2 = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
         methodName, mockCallable, new String[]{" /*+CACHE_PARAM(ttl=50s)*/select * from A"});
 
@@ -216,9 +234,19 @@ public class DataRemoteCachePluginTest {
     verify(mockSessionStateService).setSchema("public");
     verify(mockCallable).call();
     verify(mockCacheConn).writeToCache(eq("public_user_select * from A"), any(), eq(50));
-    verify(mockTotalCallsCounter, times(2)).inc();
-    verify(mockMissCounter).inc();
-    verify(mockHitCounter).inc();
+    verify(mockTotalQueryCounter, times(2)).inc();
+    verify(mockCacheMissCounter, times(1)).inc();
+    verify(mockCacheHitCounter, times(1)).inc();
+    verify(mockCacheBypassCounter, never()).inc();
+    // Verify TelemetryContext behavior for cache miss and hit scenario
+    // First call: Cache miss + Database call
+    verify(mockTelemetryFactory, times(2)).openTelemetryContext(eq("jdbc-cache-lookup"), eq(TelemetryTraceLevel.TOP_LEVEL));
+    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.TOP_LEVEL));
+    // Cache context calls: 1 miss (setSuccess(false)) + 1 hit (setSuccess(true))
+    verify(mockTelemetryContext, times(1)).setSuccess(false); // Cache miss
+    verify(mockTelemetryContext, times(1)).setSuccess(true);  // Cache hit
+    // Context closure: 2 cache contexts + 1 database context = 3 total
+    verify(mockTelemetryContext, times(3)).closeContext();
   }
 
   @Test
@@ -253,9 +281,16 @@ public class DataRemoteCachePluginTest {
     verify(mockCacheConn, never()).readFromCache(anyString());
     verify(mockCallable).call();
     verify(mockCacheConn).writeToCache(eq("public_user_select * from T"), any(), eq(300));
-    verify(mockTotalCallsCounter, never()).inc();
-    verify(mockHitCounter, never()).inc();
-    verify(mockMissCounter, never()).inc();
+    verify(mockTotalQueryCounter, times(1)).inc();
+    verify(mockCacheHitCounter, never()).inc();
+    verify(mockCacheMissCounter, never()).inc();
+    verify(mockCacheBypassCounter, times(1)).inc();
+    // Verify TelemetryContext behavior for transaction scenario
+    // In transaction: No cache lookup attempted, only database call
+    verify(mockTelemetryFactory, never()).openTelemetryContext(eq("jdbc-cache-lookup"), any());
+    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.TOP_LEVEL));
+    // Context closure: Only 1 database context
+    verify(mockTelemetryContext, times(1)).closeContext();
   }
 
   @Test
@@ -289,64 +324,169 @@ public class DataRemoteCachePluginTest {
     verify(mockCacheConn, never()).readFromCache(anyString());
     verify(mockCallable).call();
     verify(mockCacheConn).writeToCache(eq("public_user_select * from T"), any(), eq(300));
-    verify(mockTotalCallsCounter, never()).inc();
-    verify(mockHitCounter, never()).inc();
-    verify(mockMissCounter, never()).inc();
+    verify(mockTotalQueryCounter, times(1)).inc();
+    verify(mockCacheHitCounter, never()).inc();
+    verify(mockCacheMissCounter, never()).inc();
+    verify(mockCacheBypassCounter, times(1)).inc();
+    // Verify TelemetryContext behavior for transaction scenario
+    // In transaction: No cache lookup attempted, only database call
+    verify(mockTelemetryFactory, never()).openTelemetryContext(eq("jdbc-cache-lookup"), any());
+    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.TOP_LEVEL));
+    // Context closure: Only 1 database context
+    verify(mockTelemetryContext, times(1)).closeContext();
   }
 
-   @Test
-   void test_transaction_cacheQuery_multiple_query_hints() throws Exception {// Query is cacheable
-     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
-     when(mockPluginService.isInTransaction()).thenReturn(true);
-     when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
-     when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
-     when(mockSessionStateService.getSchema()).thenReturn(Optional.empty());
-     when(mockConnection.getSchema()).thenReturn("public");
-     when(mockDbMetadata.getUserName()).thenReturn("user");
-     when(mockCallable.call()).thenReturn(mockResult1);
-
-     // Result set contains 1 row
-     when(mockResult1.next()).thenReturn(true, false);
-     when(mockResult1.getObject(1)).thenReturn("bar1");
-
-     ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
-     methodName, mockCallable, new String[]{"/*+ hello CACHE_PARAM(ttl=300s, otherParam=abc) world */ select * from T"});
-
-     // Cached result set contains 1 row
-     assertTrue(rs.next());
-     assertEquals("bar1", rs.getString("fooName"));
-     assertFalse(rs.next());
-     verify(mockPluginService).getCurrentConnection();
-     verify(mockPluginService).isInTransaction();
-     verify(mockPluginService).getSessionStateService();
-     verify(mockSessionStateService).getSchema();
-     verify(mockConnection).getSchema();
-     verify(mockSessionStateService).setSchema("public");
-     verify(mockCacheConn, never()).readFromCache(anyString());
-     verify(mockCallable).call();
-     verify(mockCacheConn).writeToCache(eq("public_user_select * from T"), any(), eq(300));
-     verify(mockTotalCallsCounter, never()).inc();
-     verify(mockHitCounter, never()).inc();
-     verify(mockMissCounter, never()).inc();
-   }
-
-    @Test
+  @Test
   void test_transaction_noCaching() throws Exception {
     // Query is not cacheable
     when(mockPluginService.isInTransaction()).thenReturn(true);
     when(mockCallable.call()).thenReturn(mockResult1);
     ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
-        methodName, mockCallable, new String[]{"delete from mytable"});
+        "Statement.execute", mockCallable, new String[]{"delete from mytable"});
 
     // Mock result set containing 1 row
-    when(mockResult1.next()).thenReturn(true, true, false, false);
+    when(mockResult1.next()).thenReturn(true, true, false);
     when(mockResult1.getObject(1)).thenReturn("bar1", "bar1");
     compareResults(mockResult1, rs);
     verify(mockCacheConn, never()).readFromCache(anyString());
     verify(mockCallable).call();
-    verify(mockTotalCallsCounter, never()).inc();
-    verify(mockHitCounter, never()).inc();
-    verify(mockMissCounter, never()).inc();
+    verify(mockTotalQueryCounter, times(1)).inc();
+    verify(mockCacheHitCounter, never()).inc();
+    verify(mockCacheMissCounter, never()).inc();
+    verify(mockCacheBypassCounter, times(1)).inc();
+    // Verify TelemetryContext behavior for transaction scenario
+    // In transaction: No cache lookup attempted, only database call
+    verify(mockTelemetryFactory, never()).openTelemetryContext(eq("jdbc-cache-lookup"), any());
+    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.TOP_LEVEL));
+    // Context closure: Only 1 database context
+    verify(mockTelemetryContext, times(1)).closeContext();
+  }
+
+  @Test
+  void test_JdbcCacheBypassCount_malformed_hint() throws Exception {
+    // Setup - not in transaction with malformed cache hint
+    when(mockPluginService.isInTransaction()).thenReturn(false);
+    when(mockCallable.call()).thenReturn(mockResult1);
+
+    // Query with malformed cache hint - should increment both malformed and bypass counters
+    String queryWithMalformedHint = "/*+ CACHE_PARAM(ttl=invalid) */ SELECT * FROM users WHERE id = 123";
+    plugin.execute(ResultSet.class, SQLException.class, mockStatement,
+        methodName, mockCallable, new String[]{queryWithMalformedHint});
+    // Verify malformed counter incremented first
+    verify(mockMalformedHintCounter, times(1)).inc();
+    // Verify bypass counter incremented (because configuredQueryTtl becomes null)
+    verify(mockCacheBypassCounter, times(1)).inc();
+    // Verify cache flow counters were NOT called
+    verify(mockTotalQueryCounter, times(1)).inc();
+    verify(mockCacheHitCounter, never()).inc();
+    verify(mockCacheMissCounter, never()).inc();
+    // Verify TelemetryContext behavior for transaction scenario
+    // In transaction: No cache lookup attempted, only database call
+    verify(mockTelemetryFactory, never()).openTelemetryContext(eq("jdbc-cache-lookup"), any());
+    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.TOP_LEVEL));
+    // Context closure: Only 1 database context
+    verify(mockTelemetryContext, times(1)).closeContext();
+  }
+
+  @Test
+  void test_JdbcCacheBypassCount_double_bypass_prevention() throws Exception {
+    // Setup - query that meets MULTIPLE bypass conditions
+    when(mockPluginService.isInTransaction()).thenReturn(true); // Bypass condition #1
+    when(mockCallable.call()).thenReturn(mockResult1);
+
+    // Add mocks for caching flow (needed for transaction caching)
+    when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
+    when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+    when(mockConnection.getSchema()).thenReturn("public");
+    when(mockDbMetadata.getUserName()).thenReturn("testuser");
+
+    // Mock result set for caching
+    when(mockResult1.next()).thenReturn(true, false);
+    when(mockResult1.getObject(1)).thenReturn("testdata");
+
+    // Query that is BOTH too large AND in transaction - double bypass conditions
+    String largeQueryInTransaction = "/*+ CACHE_PARAM(ttl=300s) */ SELECT * FROM table WHERE data = '"
+        + RandomStringUtils.randomAlphanumeric(16000) + "'"; // >16KB AND in transaction
+
+    // Execute
+    plugin.execute(ResultSet.class, SQLException.class, mockStatement,
+        methodName, mockCallable, new String[]{largeQueryInTransaction});
+
+    // Verify bypass counter incremented EXACTLY ONCE (not twice)
+    verify(mockCacheBypassCounter, times(1)).inc();
+
+    // Verify cache flow counters were NOT called
+    verify(mockTotalQueryCounter, times(1)).inc();
+    verify(mockCacheHitCounter, never()).inc();
+    verify(mockCacheMissCounter, never()).inc();
+
+    // Verify malformed counter not called (hint is valid, just large query)
+    verify(mockMalformedHintCounter, never()).inc();
+    // Verify TelemetryContext behavior for transaction scenario
+    // In transaction: No cache lookup attempted, only database call
+    verify(mockTelemetryFactory, never()).openTelemetryContext(eq("jdbc-cache-lookup"), any());
+    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.TOP_LEVEL));
+    // Context closure: Only 1 database context
+    verify(mockTelemetryContext, times(1)).closeContext();
+  }
+
+  @Test
+  void test_execute_multipleCacheHits() throws Exception {
+    when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
+    when(mockPluginService.isInTransaction()).thenReturn(false);
+    when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.getSchema()).thenReturn(Optional.empty()).thenReturn(Optional.of("public"));
+    when(mockConnection.getSchema()).thenReturn("public");
+    when(mockDbMetadata.getUserName()).thenReturn("user");
+    when(mockCacheConn.readFromCache("public_user_select * from A")).thenReturn(null);
+    when(mockCallable.call()).thenReturn(mockResult1);
+
+    // Result set contains 1 row
+    when(mockResult1.next()).thenReturn(true, false);
+    when(mockResult1.getObject(1)).thenReturn("bar1");
+
+    ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
+        methodName, mockCallable, new String[]{"/*+CACHE_PARAM(ttl=50s)*/ select * from A"});
+
+    // Cached result set contains 1 row
+    assertTrue(rs.next());
+    assertEquals("bar1", rs.getString("fooName"));
+    assertFalse(rs.next());
+
+    rs.beforeFirst();
+    byte[] serializedTestResultSet = ((CachedResultSet)rs).serializeIntoByteArray();
+    when(mockCacheConn.readFromCache("public_user_select * from A")).thenReturn(serializedTestResultSet);
+
+    for (int i = 0; i < 10; i ++) {
+      ResultSet cur_rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
+          methodName, mockCallable, new String[]{" /*+CACHE_PARAM(ttl=50s)*/select * from A"});
+
+      assertTrue(cur_rs.next());
+      assertEquals("bar1", cur_rs.getString("fooName"));
+      assertFalse(cur_rs.next());
+    }
+
+    verify(mockPluginService, times(12)).getCurrentConnection();
+    verify(mockPluginService, times(11)).isInTransaction();
+    verify(mockCacheConn, times(11)).readFromCache("public_user_select * from A");
+    verify(mockPluginService, times(12)).getSessionStateService();
+    verify(mockSessionStateService, times(12)).getSchema();
+    verify(mockConnection).getSchema();
+    verify(mockSessionStateService).setSchema("public");
+    verify(mockCallable).call();
+    verify(mockCacheConn).writeToCache(eq("public_user_select * from A"), any(), eq(50));
+    verify(mockTotalQueryCounter, times(11)).inc();
+    verify(mockCacheMissCounter, times(1)).inc();
+    verify(mockCacheHitCounter, times(10)).inc();
+    verify(mockCacheBypassCounter, never()).inc();
+    // Verify TelemetryContext behavior for cache miss and hit scenario
+    verify(mockTelemetryFactory, times(11)).openTelemetryContext(eq("jdbc-cache-lookup"), eq(TelemetryTraceLevel.TOP_LEVEL));
+    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.TOP_LEVEL));
+    verify(mockTelemetryContext, times(1)).setSuccess(false); // Cache miss
+    verify(mockTelemetryContext, times(10)).setSuccess(true);  // Cache hit
+    // Context closure: 2 cache contexts + 1 database context = 3 total
+    verify(mockTelemetryContext, times(12)).closeContext();
   }
 
   void compareResults(final ResultSet expected, final ResultSet actual) throws SQLException {
