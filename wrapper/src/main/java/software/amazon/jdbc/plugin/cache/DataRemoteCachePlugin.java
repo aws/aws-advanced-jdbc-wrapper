@@ -36,12 +36,17 @@ import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryContext;
+import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
 public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(DataRemoteCachePlugin.class.getName());
+  private static final int MAX_CACHEABLE_QUERY_SIZE = 16000;
   private static final String QUERY_HINT_START_PATTERN = "/*+";
   private static final String QUERY_HINT_END_PATTERN = "*/";
   private static final String CACHE_PARAM_PATTERN = "CACHE_PARAM(";
+  private static final String TELEMETRY_CACHE_LOOKUP = "jdbc-cache-lookup";
+  private static final String TELEMETRY_DATABASE_QUERY = "jdbc-database-query";
   private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
       Arrays.asList(JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
           JdbcMethod.STATEMENT_EXECUTE.methodName,
@@ -52,10 +57,11 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
 
   private PluginService pluginService;
   private TelemetryFactory telemetryFactory;
-  private TelemetryCounter hitCounter;
-  private TelemetryCounter missCounter;
-  private TelemetryCounter totalCallsCounter;
+  private TelemetryCounter cacheHitCounter;
+  private TelemetryCounter cacheMissCounter;
+  private TelemetryCounter totalQueryCounter;
   private TelemetryCounter malformedHintCounter;
+  private TelemetryCounter cacheBypassCounter;
   private CacheConnection cacheConnection;
 
   public DataRemoteCachePlugin(final PluginService pluginService, final Properties properties) {
@@ -67,10 +73,11 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     }
     this.pluginService = pluginService;
     this.telemetryFactory = pluginService.getTelemetryFactory();
-    this.hitCounter = telemetryFactory.createCounter("remoteCache.cache.hit");
-    this.missCounter = telemetryFactory.createCounter("remoteCache.cache.miss");
-    this.totalCallsCounter = telemetryFactory.createCounter("remoteCache.cache.totalCalls");
+    this.cacheHitCounter = telemetryFactory.createCounter("JdbcCachedQueryCount");
+    this.cacheMissCounter = telemetryFactory.createCounter("JdbcCacheMissCount");
+    this.totalQueryCounter = telemetryFactory.createCounter("JdbcCacheTotalQueryCount");
     this.malformedHintCounter = telemetryFactory.createCounter("JdbcCacheMalformedQueryHint");
+    this.cacheBypassCounter = telemetryFactory.createCounter("JdbcCacheBypassCount");
     this.cacheConnection = new CacheConnection(properties);
   }
 
@@ -223,6 +230,8 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     boolean needToCache = false;
     final String sql = getQuery(jdbcMethodArgs);
 
+    TelemetryContext cacheContext = null;
+    TelemetryContext dbContext = null;
     // If the query is cacheable, we try to fetch the query result from the cache.
     boolean isInTransaction = pluginService.isInTransaction();
     // Get the query hint part in front of the query itself
@@ -230,7 +239,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     int endOfQueryHint = 0;
     Integer configuredQueryTtl = null;
     // Queries longer than 16KB is not cacheable
-    if ((sql.length() < 16000) && sql.startsWith(QUERY_HINT_START_PATTERN)) {
+    if ((sql.length() < MAX_CACHEABLE_QUERY_SIZE) && sql.startsWith(QUERY_HINT_START_PATTERN)) {
       endOfQueryHint = sql.indexOf(QUERY_HINT_END_PATTERN);
       if (endOfQueryHint > 0) {
         configuredQueryTtl = getTtlForQuery(sql.substring(2, endOfQueryHint).trim());
@@ -238,30 +247,60 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
       }
     }
 
+    incrCounter(totalQueryCounter);
+
     // Query result can be served from the cache if it has a configured TTL value, and it is
     // not executed in a transaction as a transaction typically need to return consistent results.
     if (!isInTransaction && (configuredQueryTtl != null)) {
-      incrCounter(totalCallsCounter);
-      result = fetchResultSetFromCache(mainQuery);
-      if (result == null) {
-        // Cache miss. Need to fetch result from the database
-        needToCache = true;
-        incrCounter(missCounter);
-        LOGGER.finest("Got a cache miss for SQL: " + sql);
-      } else {
-        LOGGER.finest("Got a cache hit for SQL: " + sql);
-        // Cache hit. Return the cached result
-        incrCounter(hitCounter);
-        try {
-          result.beforeFirst();
-        } catch (final SQLException ex) {
-          throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, ex);
+      cacheContext = telemetryFactory.openTelemetryContext(
+          TELEMETRY_CACHE_LOOKUP, TelemetryTraceLevel.TOP_LEVEL);
+      Exception cacheException = null;
+      try{
+        result = fetchResultSetFromCache(mainQuery);
+        if (result == null) {
+          // Cache miss. Need to fetch result from the database
+          needToCache = true;
+          incrCounter(cacheMissCounter);
+          LOGGER.finest("Got a cache miss for SQL: " + sql);
+        } else {
+          LOGGER.finest("Got a cache hit for SQL: " + sql);
+          // Cache hit. Return the cached result
+          incrCounter(cacheHitCounter);
+          try {
+            result.beforeFirst();
+          } catch (final SQLException ex) {
+            cacheException = ex;
+            throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, ex);
+          }
+          return resultClass.cast(result);
         }
-        return resultClass.cast(result);
+      } finally {
+        if (cacheContext != null) {
+          if (cacheException != null) {
+            cacheContext.setSuccess(false);
+            cacheContext.setException(cacheException);
+            cacheContext.closeContext();
+          } else if (!needToCache) { // Cache hit
+            cacheContext.setSuccess(true);
+            cacheContext.closeContext();
+          } else { // Cache miss - leave context open
+            cacheContext.setSuccess(false);
+          }
+        }
       }
+    } else {
+      incrCounter(cacheBypassCounter);
     }
 
-    result = (ResultSet) jdbcMethodFunc.call();
+    dbContext = telemetryFactory.openTelemetryContext(
+        TELEMETRY_DATABASE_QUERY, TelemetryTraceLevel.TOP_LEVEL);
+
+    try {
+      result = (ResultSet) jdbcMethodFunc.call();
+    } finally {
+      if (dbContext != null) dbContext.closeContext();
+      if (cacheContext != null) cacheContext.closeContext();
+    }
 
     // We need to cache the query result if we got a cache miss for the query result,
     // or the query is cacheable and executed inside a transaction.
