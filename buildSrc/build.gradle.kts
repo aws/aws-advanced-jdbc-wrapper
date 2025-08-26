@@ -29,7 +29,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.igormaznitsa:jcp:7.0.5")
+    implementation("com.igormaznitsa:jcp:7.2.1")
 }
 
 tasks {
