@@ -61,7 +61,7 @@ public class DefaultTelemetryFactory implements TelemetryFactory {
         this.metricsTelemetryFactory = null;
       } else {
         throw new RuntimeException(
-            telemetryTracesBackend + " is not a valid metrics backend. Available options: OTLP, NONE.");
+            telemetryMetricsBackend + " is not a valid metrics backend. Available options: OTLP, NONE.");
       }
     } else {
       this.metricsTelemetryFactory = null;
