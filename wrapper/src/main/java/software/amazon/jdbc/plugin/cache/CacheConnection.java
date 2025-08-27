@@ -35,10 +35,10 @@ public class CacheConnection {
   private final String cacheRoServerAddr; // read-only cache server
   private MessageDigest msgHashDigest = null;
 
-  private static final int DEFAULT_POOL_SIZE  = 10;
-  private static final int DEFAULT_POOL_MAX_IDLE = 10;
+  private static final int DEFAULT_POOL_SIZE  = 20;
+  private static final int DEFAULT_POOL_MAX_IDLE = 20;
   private static final int DEFAULT_POOL_MIN_IDLE = 0;
-  private static final long DEFAULT_MAX_BORROW_WAIT_MS = 50;
+  private static final long DEFAULT_MAX_BORROW_WAIT_MS = 100;
 
   private static final ReentrantLock READ_LOCK = new ReentrantLock();
   private static final ReentrantLock WRITE_LOCK = new ReentrantLock();
@@ -233,7 +233,7 @@ public class CacheConnection {
           .whenComplete((result, exception) -> handleCompletedCacheWrite(finalConn, exception));
     } catch (Exception e) {
       // Failed to trigger the async write to the cache, return the cache connection to the pool as broken
-      LOGGER.warning("Failed to write to cache: " + e.getMessage());
+      LOGGER.warning("Unable to start writing to cache: " + e.getMessage());
       if (conn != null && writeConnectionPool != null) {
         try {
           returnConnectionBackToPool(conn, true, false);
