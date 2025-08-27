@@ -89,7 +89,12 @@ public class CachedResultSet implements ResultSet {
     while (resultSet.next()) {
       final CachedRow row = new CachedRow(numColumns);
       for (int i = 1; i <= numColumns; ++i) {
-        row.put(i, resultSet.getObject(i));
+        Object rowObj = resultSet.getObject(i);
+        // For SQLXML object, convert into CachedSQLXML object that is serializable
+        if (rowObj instanceof SQLXML) {
+          rowObj = new CachedSQLXML(((SQLXML)rowObj).getString());
+        }
+        row.put(i, rowObj);
       }
       rows.add(row);
     }
@@ -1143,12 +1148,15 @@ public class CachedResultSet implements ResultSet {
 
   @Override
   public SQLXML getSQLXML(final int columnIndex) throws SQLException {
-    throw new UnsupportedOperationException();
+    Object val = checkAndGetColumnValue(columnIndex);
+    if (val == null) return null;
+    if (val instanceof SQLXML) return (SQLXML) val;
+    return new CachedSQLXML(val.toString());
   }
 
   @Override
   public SQLXML getSQLXML(final String columnLabel) throws SQLException {
-    throw new UnsupportedOperationException();
+    return getSQLXML(checkAndGetColumnIndex(columnLabel));
   }
 
   @Override

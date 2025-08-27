@@ -23,8 +23,8 @@ public class CachedResultSetTest {
   @Mock ResultSet mockResultSet;
   @Mock ResultSetMetaData mockResultSetMetadata;
   private AutoCloseable closeable;
-  private static Calendar estCal = Calendar.getInstance(TimeZone.getTimeZone("America/New_York"));
-  private TimeZone defaultTimeZone = TimeZone.getDefault();
+  private static final Calendar estCal = Calendar.getInstance(TimeZone.getTimeZone("America/New_York"));
+  private final TimeZone defaultTimeZone = TimeZone.getDefault();
 
   // Column values: label, name, typeName, type, displaySize, precision, tableName,
   // scale, schemaName, isAutoIncrement, isCaseSensitive, isCurrency, isDefinitelyWritable,
@@ -42,7 +42,8 @@ public class CachedResultSetTest {
       {"fieldBigDecimal", "fieldBigDecimal", "BigDecimal", Types.DECIMAL, 10, 2, "table", 1, "public", false, false, false, false, 0, true, true, false, false},
       {"fieldDate", "fieldDate", "Date", Types.DATE, 10, 2, "table", 1, "public", false, false, false, false, 1, true, true, false, false},
       {"fieldTime", "fieldTime", "Time", Types.TIME, 10, 2, "table", 1, "public", false, false, false, false, 1, true, true, false, false},
-      {"fieldDateTime", "fieldDateTime", "Timestamp", Types.TIMESTAMP, 10, 2, "table", 1, "public", false, false, false, false, 0, true, true, false, false}
+      {"fieldDateTime", "fieldDateTime", "Timestamp", Types.TIMESTAMP, 10, 2, "table", 1, "public", false, false, false, false, 0, true, true, false, false},
+      {"fieldSqlXml", "fieldSqlXml", "SqlXml", Types.SQLXML, 100, 1, "table", 1, "public", false, false, false, false, 0, true, true, false, false}
   };
 
   private static final Object [][] testColumnValues = {
@@ -58,7 +59,8 @@ public class CachedResultSetTest {
       {new BigDecimal("15.33"), new BigDecimal("-12.45")},
       {Date.valueOf("2025-03-15"), Date.valueOf("1102-01-15")},
       {Time.valueOf("22:54:00"), Time.valueOf("01:10:00")},
-      {Timestamp.valueOf("2025-03-15 22:54:00"), Timestamp.valueOf("1950-01-18 21:50:05")}
+      {Timestamp.valueOf("2025-03-15 22:54:00"), Timestamp.valueOf("1950-01-18 21:50:05")},
+      {new CachedSQLXML("<root><item>A</item></root>"), new CachedSQLXML("<root><element1>Value A</element1><element2>Value B</element2></root>")}
   };
 
   private void mockGetMetadataFields(int column, int testMetadataCol) throws SQLException {
@@ -201,6 +203,12 @@ public class CachedResultSetTest {
     assertFalse(rs.wasNull());
     assertEquals(testColumnValues[12][row], rs.getTimestamp("fieldDateTime"));
     assertEquals(13, rs.findColumn("fieldDateTime"));
+    assertFalse(rs.wasNull());
+    String sqlXmlString = ((SQLXML)testColumnValues[13][row]).getString();
+    assertEquals(sqlXmlString, rs.getSQLXML(14).getString()); // fieldSqlXml
+    assertFalse(rs.wasNull());
+    assertEquals(sqlXmlString, rs.getSQLXML("fieldSqlXml").getString());
+    assertEquals(14, rs.findColumn("fieldSqlXml"));
     assertFalse(rs.wasNull());
     verifyNonexistingField(rs);
   }
@@ -671,6 +679,61 @@ public class CachedResultSetTest {
     assertNull(cachedRs.getURL(1));
     assertTrue(cachedRs.wasNull());
   }
+
+  @Test
+  void test_get_sql_xml() throws SQLException {
+    String longXml =
+        "<product>\n" +
+        "        <manufacturer>TechCorp</manufacturer>\n" +
+        "<specs>\n" +
+        "            <cpu>Intel i7</cpu>\n" +
+        "            <ram>16GB</ram>\n" +
+        "            <storage>512GB SSD</storage>\n" +
+        "</specs>\n" +
+        "        <price>1200.00</price>\n" +
+        "</product>";
+    SQLXML testXml = new CachedSQLXML("<book><title>PostgreSQL Guide</title><author>John Doe</author></book>");
+    SQLXML testXml2 = new CachedSQLXML(longXml);
+    SQLXML invalidXml = new CachedSQLXML("<root>A<blah>");
+    // Setup single column with string metadata (URLs stored as strings)
+    when(mockResultSet.getMetaData()).thenReturn(mockResultSetMetadata);
+    when(mockResultSetMetadata.getColumnCount()).thenReturn(1);
+    mockGetMetadataFields(1, 13);
+    when(mockResultSet.getObject(1)).thenReturn(testXml, testXml2, invalidXml, "invalid-xml", null);
+    when(mockResultSet.next()).thenReturn(true, true, true, true, true, false);
+
+    CachedResultSet cachedRs = new CachedResultSet(mockResultSet);
+
+    // Test actual SQLXML objects - both index and label versions
+    assertTrue(cachedRs.next());
+    assertEquals(testXml.getString(), cachedRs.getSQLXML(1).getString());
+    assertFalse(cachedRs.wasNull());
+    assertEquals(testXml.getString(), cachedRs.getSQLXML("fieldSqlXml").getString());
+
+    assertTrue(cachedRs.next());
+    assertEquals(testXml2.getString(), cachedRs.getSQLXML(1).getString());
+    assertFalse(cachedRs.wasNull());
+    assertEquals(testXml2.getString(), cachedRs.getSQLXML("fieldSqlXml").getString());
+
+    assertTrue(cachedRs.next());
+    assertEquals(invalidXml.getString(), cachedRs.getSQLXML(1).getString());
+    assertFalse(cachedRs.wasNull());
+    assertEquals(invalidXml.getString(), cachedRs.getSQLXML("fieldSqlXml").getString());
+
+    assertTrue(cachedRs.next());
+    assertEquals("invalid-xml", cachedRs.getSQLXML(1).getString());
+    assertEquals("invalid-xml", cachedRs.getSQLXML("fieldSqlXml").getString());
+    assertFalse(cachedRs.wasNull());
+
+    assertTrue(cachedRs.next());
+    assertNull(cachedRs.getSQLXML(1));
+    assertTrue(cachedRs.wasNull());
+    assertNull(cachedRs.getSQLXML("fieldSqlXml"));
+    assertTrue(cachedRs.wasNull());
+
+    assertFalse(cachedRs.next());
+  }
+
 
   @Test
   void test_get_object_with_index_and_type() throws SQLException {
