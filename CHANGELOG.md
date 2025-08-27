@@ -12,11 +12,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Fix a bug where the incorrect variable was being used in the RuntimeException when an invalid metrics backend is configured ([PR #1516](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1516)).
 
 ### :crab: Changed
-- Update Blue/Green Plugin [documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheBlueGreenPlugin.md) to specify wrapper versions in the known limitation section ([PR #1490](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1490)).
+- Update Blue/Green Plugin [documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheBlueGreenPlugin.md) to specify wrapper versions in the known limitation section and clarify compatibility within the current service landscape ([PR #1490](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1490)), ([PR #1512](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1512)).
 - Adapt EFM2, Limitless, and Fastest Response plugins to use StorageService, MonitorService, and ConnectionService ([PR #1495](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1495)).
-- Add comment clarifying pass criteria for the Blue/Green integration tests ([PR #1507](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1507)).
 - Revise [README](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/README.md) intro to focus on the universal benefits of using the wrapper library ([PR #1508](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1508)).
-- Updated Blue/Green Plugin [documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheBlueGreenPlugin.md) to clarify Blue/Green compatibility within the current service landscape ([PR #1512](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1512)).
 - Removed pom dependencies ([PR #1517](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1517)).
 
 ## [2.6.2] - 2025-07-31
