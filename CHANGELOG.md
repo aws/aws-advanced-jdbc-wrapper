@@ -3,6 +3,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [2.6.3] - 2025-08-28
+
+### :magic_wand: Added
+- Add support for pgvector ([PR #1494](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1494)).
+
+### :bug: Fixed
+- Fix a bug where the incorrect variable was being used in the RuntimeException when an invalid metrics backend is configured ([PR #1516](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1516)).
+
+### :crab: Changed
+- Update Blue/Green Plugin [documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheBlueGreenPlugin.md) to specify wrapper versions in the known limitation section ([PR #1490](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1490)).
+- Adapt EFM2, Limitless, and Fastest Response plugins to use StorageService, MonitorService, and ConnectionService ([PR #1495](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1495)).
+- Add comment clarifying pass criteria for the Blue/Green integration tests ([PR #1507](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1507)).
+- Revise [README](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/README.md) intro to focus on the universal benefits of using the wrapper library ([PR #1508](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1508)).
+- Updated Blue/Green Plugin [documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheBlueGreenPlugin.md) to clarify Blue/Green compatibility within the current service landscape ([PR #1512](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1512)).
+- Removed pom dependencies ([PR #1517](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1517)).
+
 ## [2.6.2] - 2025-07-31
 
 ### :crab: Changed
@@ -484,6 +500,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[2.6.3]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.2...2.6.3
 [2.6.2]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.1...2.6.2
 [2.6.1]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.0...2.6.1
 [2.6.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.5.6...2.6.0
