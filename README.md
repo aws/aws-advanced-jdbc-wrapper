@@ -1,9 +1,8 @@
 # Amazon Web Services (AWS) JDBC Driver
 [![build_status](https://github.com/aws/aws-advanced-jdbc-wrapper/actions/workflows/main.yml/badge.svg)](https://github.com/aws/aws-advanced-jdbc-wrapper/actions/workflows/main.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/software.amazon.jdbc/aws-advanced-jdbc-wrapper/badge.svg)](https://maven-badges.herokuapp.com/maven-central/software.amazon.jdbc/aws-advanced-jdbc-wrapper)
+[![Maven Central](https://img.shields.io/maven-central/v/software.amazon.jdbc/aws-advanced-jdbc-wrapper)](https://central.sonatype.com/artifact/software.amazon.jdbc/aws-advanced-jdbc-wrapper)
 [![Javadoc](https://javadoc.io/badge2/software.amazon.jdbc/aws-advanced-jdbc-wrapper/javadoc.svg)](https://javadoc.io/doc/software.amazon.jdbc/aws-advanced-jdbc-wrapper)
-[![Qodana](https://github.com/aws/aws-advanced-jdbc-wrapper/actions/workflows/code_quality.yml/badge.svg)](https://github.com/aws/aws-advanced-jdbc-wrapper/actions/workflows/code_quality.yml)
 
 The **Amazon Web Services (AWS) JDBC Driver** has been redesigned as an advanced JDBC wrapper.
 
