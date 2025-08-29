@@ -420,16 +420,17 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       return;
     }
 
-    if (this.readerHostSpec != null && !hosts.contains(this.readerHostSpec)) {
-      // The old reader cannot be used anymore because it is no longer in the list of allowed hosts.
-      LOGGER.finest(String.format("ASDF old reader cannot be used, reader host spec: %s", this.readerHostSpec));
-      LOGGER.finest(Utils.logTopology(hosts, "ASDF: "));
+    if (this.readerHostSpec != null && !Utils.containsUrl(hosts, this.readerHostSpec.getUrl())) {
+      // The previous reader cannot be used anymore because it is no longer in the list of allowed hosts.
+      LOGGER.finest(
+          Messages.get(
+              "ReadWriteSplittingPlugin.previousReaderNotAllowed",
+              new Object[] {this.readerHostSpec, Utils.logTopology(hosts, "")}));
       closeConnectionIfIdle(this.readerConnection);
     }
 
     this.inReadWriteSplit = true;
     if (!isConnectionUsable(this.readerConnection)) {
-      LOGGER.finest(String.format("ASDF reader connection not usable, value: %s, isClosed: %s", this.readerConnection, this.readerConnection == null ? "<null>" : this.readerConnection.isClosed()));
       initializeReaderConnection(hosts);
     } else {
       try {
