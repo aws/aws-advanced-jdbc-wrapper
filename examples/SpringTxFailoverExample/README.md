@@ -4,7 +4,7 @@ In this tutorial, you will set up a Spring Boot application using the AWS JDBC D
 
 > Note: this tutorial was written using the following technologies:
 >    - Spring Boot 2.7.0
->    - AWS JDBC Driver 2.6.2
+>    - AWS JDBC Driver 2.6.3
 >    - Postgresql 42.5.4
 >    - Java 8
 
@@ -102,7 +102,7 @@ dependencies {
 	implementation("org.springframework.retry:spring-retry:1.3.4")
 	implementation("org.springframework:spring-aspects:5.3.29")
 	implementation("org.postgresql:postgresql:42.5.4")
-	implementation("software.amazon.awssdk:rds:2.32.21")
+	implementation("software.amazon.awssdk:rds:2.32.29")
 	implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:latest")
 }
 ```

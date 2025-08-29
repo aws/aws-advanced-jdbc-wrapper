@@ -76,8 +76,9 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   /**
    * ClusterAwareReaderFailoverHandler constructor.
    *
-   * @param servicesContainer          A provider for creating new connections.
-   * @param props The initial connection properties to copy over to the new reader.
+   * @param servicesContainer the service container for the services required by this class.
+   * @param connectionService the service to use to create new connections during failover.
+   * @param props             the initial connection properties to copy over to the new reader.
    */
   public ClusterAwareReaderFailoverHandler(
       final FullServicesContainer servicesContainer,
@@ -93,12 +94,13 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   /**
    * ClusterAwareReaderFailoverHandler constructor.
    *
-   * @param servicesContainer              A provider for creating new connections.
-   * @param props     The initial connection properties to copy over to the new reader.
-   * @param maxFailoverTimeoutMs       Maximum allowed time for the entire reader failover process.
-   * @param timeoutMs                  Maximum allowed time in milliseconds for each reader connection attempt during
-   *                                   the reader failover process.
-   * @param isStrictReaderRequired When true, it disables adding a writer to a list of nodes to connect
+   * @param servicesContainer      the service container for the services required by this class.
+   * @param connectionService      the service to use to create new connections during failover.
+   * @param props                  the initial connection properties to copy over to the new reader.
+   * @param maxFailoverTimeoutMs   maximum allowed time for the entire reader failover process.
+   * @param timeoutMs              maximum allowed time in milliseconds for each reader connection attempt during
+   *                               the reader failover process.
+   * @param isStrictReaderRequired when true, it disables adding a writer to a list of nodes to connect
    */
   public ClusterAwareReaderFailoverHandler(
       final FullServicesContainer servicesContainer,
@@ -290,7 +292,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
 
     boolean shouldIncludeWriter = numOfReaders == 0
         || this.pluginService.getDialect().getFailoverRestrictions()
-            .contains(FailoverRestriction.ENABLE_WRITER_IN_TASK_B);
+        .contains(FailoverRestriction.ENABLE_WRITER_IN_TASK_B);
     if (shouldIncludeWriter) {
       hostsByPriority.add(writerHost);
     }
