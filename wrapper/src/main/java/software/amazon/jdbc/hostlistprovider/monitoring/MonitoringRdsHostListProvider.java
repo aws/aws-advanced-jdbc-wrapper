@@ -32,7 +32,6 @@ import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 
@@ -92,13 +91,11 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
         this.pluginService.getTargetDriverDialect(),
         this.pluginService.getDialect(),
         this.properties,
-        (ConnectionService connectionService, PluginService monitorPluginService) -> new ClusterTopologyMonitorImpl(
+        (servicesContainer) -> new ClusterTopologyMonitorImpl(
+            this.servicesContainer,
             this.clusterId,
-            this.servicesContainer.getStorageService(),
-            connectionService,
             this.initialHostSpec,
             this.properties,
-            this.servicesContainer.getHostListProviderService(),
             this.clusterInstanceTemplate,
             this.refreshRateNano,
             this.highRefreshRateNano,
@@ -138,7 +135,7 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
           this.pluginService.getTargetDriverDialect(),
           this.pluginService.getDialect(),
           this.properties,
-          (connectionService, pluginService) -> existingMonitor);
+          (servicesContainer) -> existingMonitor);
       assert monitorService.get(ClusterTopologyMonitorImpl.class, this.clusterId) == existingMonitor;
       existingMonitor.setClusterId(this.clusterId);
       monitorService.remove(ClusterTopologyMonitorImpl.class, oldClusterId);

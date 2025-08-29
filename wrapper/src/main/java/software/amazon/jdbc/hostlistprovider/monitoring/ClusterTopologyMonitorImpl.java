@@ -49,14 +49,17 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.util.ExecutorFactory;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.ServiceContainerUtility;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
+import software.amazon.jdbc.util.monitoring.Monitor;
 import software.amazon.jdbc.util.storage.StorageService;
 
 public class ClusterTopologyMonitorImpl extends AbstractMonitor implements ClusterTopologyMonitor {
@@ -80,15 +83,13 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
   protected final long refreshRateNano;
   protected final long highRefreshRateNano;
+  protected final FullServicesContainer servicesContainer;
   protected final Properties properties;
   protected final Properties monitoringProperties;
   protected final HostSpec initialHostSpec;
-  protected final StorageService storageService;
-  protected final ConnectionService connectionService;
   protected final String topologyQuery;
   protected final String nodeIdQuery;
   protected final String writerTopologyQuery;
-  protected final HostListProviderService hostListProviderService;
   protected final HostSpec clusterInstanceTemplate;
 
   protected String clusterId;
@@ -109,12 +110,10 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected final AtomicReference<List<HostSpec>> nodeThreadsLatestTopology = new AtomicReference<>(null);
 
   public ClusterTopologyMonitorImpl(
+      final FullServicesContainer servicesContainer,
       final String clusterId,
-      final StorageService storageService,
-      final ConnectionService connectionService,
       final HostSpec initialHostSpec,
       final Properties properties,
-      final HostListProviderService hostListProviderService,
       final HostSpec clusterInstanceTemplate,
       final long refreshRateNano,
       final long highRefreshRateNano,
@@ -124,9 +123,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     super(monitorTerminationTimeoutSec);
 
     this.clusterId = clusterId;
-    this.storageService = storageService;
-    this.connectionService = connectionService;
-    this.hostListProviderService = hostListProviderService;
+    this.servicesContainer = servicesContainer;
     this.initialHostSpec = initialHostSpec;
     this.clusterInstanceTemplate = clusterInstanceTemplate;
     this.properties = properties;
@@ -251,7 +248,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   }
 
   private List<HostSpec> getStoredHosts() {
-    Topology topology = storageService.get(Topology.class, this.clusterId);
+    Topology topology = this.servicesContainer.getStorageService().get(Topology.class, this.clusterId);
     return topology == null ? null : topology.getHosts();
   }
 
@@ -480,8 +477,23 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
         || !this.isVerifiedWriterConnection;
   }
 
-  protected Runnable getNodeMonitoringWorker(final HostSpec hostSpec, final @Nullable HostSpec writerHostSpec) {
-    return new NodeMonitoringWorker(this, hostSpec, writerHostSpec);
+  protected Runnable getNodeMonitoringWorker(
+      final HostSpec hostSpec, final @Nullable HostSpec writerHostSpec)
+      throws SQLException {
+    return new NodeMonitoringWorker(this.getNewServicesContainer(), this, hostSpec, writerHostSpec);
+  }
+
+  protected FullServicesContainer getNewServicesContainer() throws SQLException {
+    return ServiceContainerUtility.createServiceContainer(
+        this.servicesContainer.getStorageService(),
+        this.servicesContainer.getMonitorService(),
+        this.servicesContainer.getTelemetryFactory(),
+        this.servicesContainer.getPluginService().getOriginalUrl(),
+        this.servicesContainer.getPluginService().getDriverProtocol(),
+        this.servicesContainer.getPluginService().getTargetDriverDialect(),
+        this.servicesContainer.getPluginService().getDialect(),
+        this.properties
+    );
   }
 
   protected List<HostSpec> openAnyConnectionAndUpdateTopology() {
@@ -492,7 +504,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
       // open a new connection
       try {
-        conn = this.connectionService.open(this.initialHostSpec, this.monitoringProperties);
+        conn = this.servicesContainer.getPluginService().forceConnect(this.initialHostSpec, this.monitoringProperties);
       } catch (SQLException ex) {
         // can't connect
         return null;
@@ -625,7 +637,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
   protected void updateTopologyCache(final @NonNull List<HostSpec> hosts) {
     synchronized (this.requestToUpdateTopology) {
-      storageService.set(this.clusterId, new Topology(hosts));
+      this.servicesContainer.getStorageService().set(this.clusterId, new Topology(hosts));
       synchronized (this.topologyUpdated) {
         this.requestToUpdateTopology.set(false);
 
@@ -769,7 +781,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
         ? this.clusterInstanceTemplate.getPort()
         : this.initialHostSpec.getPort();
 
-    final HostSpec hostSpec = this.hostListProviderService.getHostSpecBuilder()
+    final HostSpec hostSpec = this.servicesContainer.getHostListProviderService().getHostSpecBuilder()
         .host(endpoint)
         .port(port)
         .role(isWriter ? HostRole.WRITER : HostRole.READER)
@@ -791,16 +803,19 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
     private static final Logger LOGGER = Logger.getLogger(NodeMonitoringWorker.class.getName());
 
+    protected final FullServicesContainer servicesContainer;
     protected final ClusterTopologyMonitorImpl monitor;
     protected final HostSpec hostSpec;
     protected final @Nullable HostSpec writerHostSpec;
     protected boolean writerChanged = false;
 
     public NodeMonitoringWorker(
+        final FullServicesContainer servicesContainer,
         final ClusterTopologyMonitorImpl monitor,
         final HostSpec hostSpec,
         final @Nullable HostSpec writerHostSpec
     ) {
+      this.servicesContainer = servicesContainer;
       this.monitor = monitor;
       this.hostSpec = hostSpec;
       this.writerHostSpec = writerHostSpec;
@@ -818,7 +833,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
           if (connection == null) {
 
             try {
-              connection = this.monitor.connectionService.open(
+              connection = this.servicesContainer.getPluginService().forceConnect(
                   hostSpec, this.monitor.monitoringProperties);
             } catch (SQLException ex) {
               // A problem occurred while connecting. We will try again on the next iteration.
