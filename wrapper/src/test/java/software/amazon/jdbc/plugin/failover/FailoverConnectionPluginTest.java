@@ -19,11 +19,13 @@ package software.amazon.jdbc.plugin.failover;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -60,8 +62,10 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.SqlState;
+import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -79,6 +83,8 @@ class FailoverConnectionPluginTest {
       new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
           .host("reader1").port(1234).role(HostRole.READER).build());
 
+  @Mock FullServicesContainer mockContainer;
+  @Mock ConnectionService mockConnectionService;
   @Mock PluginService mockPluginService;
   @Mock Connection mockConnection;
   @Mock HostSpec mockHostSpec;
@@ -98,7 +104,7 @@ class FailoverConnectionPluginTest {
 
 
   private final Properties properties = new Properties();
-  private FailoverConnectionPlugin plugin;
+  private FailoverConnectionPlugin spyPlugin;
   private AutoCloseable closeable;
 
   @AfterEach
@@ -110,6 +116,7 @@ class FailoverConnectionPluginTest {
   void init() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
 
+    when(mockContainer.getPluginService()).thenReturn(mockPluginService);
     when(mockPluginService.getHostListProvider()).thenReturn(mockHostListProvider);
     when(mockHostListProvider.getRdsUrlType()).thenReturn(RdsUrlType.RDS_WRITER_CLUSTER);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
@@ -143,7 +150,7 @@ class FailoverConnectionPluginTest {
     final Map<String, EnumSet<NodeChangeOptions>> changes = new HashMap<>();
 
     initializePlugin();
-    plugin.notifyNodeListChanged(changes);
+    spyPlugin.notifyNodeListChanged(changes);
 
     verify(mockPluginService, never()).getCurrentHostSpec();
     verify(mockHostSpec, never()).getAliases();
@@ -156,7 +163,7 @@ class FailoverConnectionPluginTest {
     changes.put("instance/", EnumSet.of(NodeChangeOptions.NODE_ADDED));
 
     initializePlugin();
-    plugin.notifyNodeListChanged(changes);
+    spyPlugin.notifyNodeListChanged(changes);
 
     when(mockHostSpec.getUrl()).thenReturn("cluster-url/");
     when(mockHostSpec.getAliases()).thenReturn(new HashSet<>(Collections.singletonList("instance")));
@@ -170,20 +177,20 @@ class FailoverConnectionPluginTest {
     initializePlugin();
 
     // Test updateTopology with failover disabled
-    plugin.setRdsUrlType(RdsUrlType.RDS_PROXY);
-    plugin.updateTopology(false);
+    spyPlugin.setRdsUrlType(RdsUrlType.RDS_PROXY);
+    spyPlugin.updateTopology(false);
     verify(mockPluginService, never()).forceRefreshHostList();
     verify(mockPluginService, never()).refreshHostList();
 
     // Test updateTopology with no connection
     when(mockPluginService.getCurrentHostSpec()).thenReturn(null);
-    plugin.updateTopology(false);
+    spyPlugin.updateTopology(false);
     verify(mockPluginService, never()).forceRefreshHostList();
     verify(mockPluginService, never()).refreshHostList();
 
     // Test updateTopology with closed connection
     when(mockConnection.isClosed()).thenReturn(true);
-    plugin.updateTopology(false);
+    spyPlugin.updateTopology(false);
     verify(mockPluginService, never()).forceRefreshHostList();
     verify(mockPluginService, never()).refreshHostList();
   }
@@ -198,9 +205,9 @@ class FailoverConnectionPluginTest {
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host").build()));
     when(mockConnection.isClosed()).thenReturn(false);
     initializePlugin();
-    plugin.setRdsUrlType(RdsUrlType.RDS_INSTANCE);
+    spyPlugin.setRdsUrlType(RdsUrlType.RDS_INSTANCE);
 
-    plugin.updateTopology(forceUpdate);
+    spyPlugin.updateTopology(forceUpdate);
     if (forceUpdate) {
       verify(mockPluginService, atLeastOnce()).forceRefreshHostList();
     } else {
@@ -213,7 +220,6 @@ class FailoverConnectionPluginTest {
     when(mockPluginService.isInTransaction()).thenReturn(true);
 
     initializePlugin();
-    final FailoverConnectionPlugin spyPlugin = spy(plugin);
     doThrow(FailoverSuccessSQLException.class).when(spyPlugin).failoverWriter();
     spyPlugin.failoverMode = FailoverMode.STRICT_WRITER;
 
@@ -226,7 +232,6 @@ class FailoverConnectionPluginTest {
     when(mockPluginService.isInTransaction()).thenReturn(false);
 
     initializePlugin();
-    final FailoverConnectionPlugin spyPlugin = spy(plugin);
     doThrow(FailoverSuccessSQLException.class).when(spyPlugin).failoverReader(eq(mockHostSpec));
     spyPlugin.failoverMode = FailoverMode.READER_OR_WRITER;
 
@@ -243,13 +248,13 @@ class FailoverConnectionPluginTest {
     when(mockReaderResult.getHost()).thenReturn(defaultHosts.get(1));
 
     initializePlugin();
-    plugin.initHostProvider(
+    spyPlugin.initHostProvider(
         mockHostListProviderService,
         mockInitHostProviderFunc,
-        () -> mockReaderFailoverHandler,
-        () -> mockWriterFailoverHandler);
+        (connectionService) -> mockReaderFailoverHandler,
+        (connectionService) -> mockWriterFailoverHandler);
 
-    final FailoverConnectionPlugin spyPlugin = spy(plugin);
+    final FailoverConnectionPlugin spyPlugin = spy(this.spyPlugin);
     doNothing().when(spyPlugin).updateTopology(true);
 
     assertThrows(FailoverSuccessSQLException.class, () -> spyPlugin.failoverReader(mockHostSpec));
@@ -272,13 +277,13 @@ class FailoverConnectionPluginTest {
     when(mockReaderResult.getHost()).thenReturn(hostSpec);
 
     initializePlugin();
-    plugin.initHostProvider(
+    spyPlugin.initHostProvider(
         mockHostListProviderService,
         mockInitHostProviderFunc,
-        () -> mockReaderFailoverHandler,
-        () -> mockWriterFailoverHandler);
+        (connectionService) -> mockReaderFailoverHandler,
+        (connectionService) -> mockWriterFailoverHandler);
 
-    assertThrows(SQLException.class, () -> plugin.failoverReader(null));
+    assertThrows(SQLException.class, () -> spyPlugin.failoverReader(null));
     verify(mockReaderFailoverHandler).failover(eq(hosts), eq(null));
   }
 
@@ -294,13 +299,13 @@ class FailoverConnectionPluginTest {
     when(mockWriterResult.getException()).thenReturn(new SQLException());
 
     initializePlugin();
-    plugin.initHostProvider(
+    spyPlugin.initHostProvider(
         mockHostListProviderService,
         mockInitHostProviderFunc,
-        () -> mockReaderFailoverHandler,
-        () -> mockWriterFailoverHandler);
+        (connectionService) -> mockReaderFailoverHandler,
+        (connectionService) -> mockWriterFailoverHandler);
 
-    assertThrows(SQLException.class, () -> plugin.failoverWriter());
+    assertThrows(SQLException.class, () -> spyPlugin.failoverWriter());
     verify(mockWriterFailoverHandler).failover(eq(hosts));
   }
 
@@ -316,13 +321,13 @@ class FailoverConnectionPluginTest {
     when(mockWriterResult.isConnected()).thenReturn(false);
 
     initializePlugin();
-    plugin.initHostProvider(
+    spyPlugin.initHostProvider(
         mockHostListProviderService,
         mockInitHostProviderFunc,
-        () -> mockReaderFailoverHandler,
-        () -> mockWriterFailoverHandler);
+        (connectionService) -> mockReaderFailoverHandler,
+        (connectionService) -> mockWriterFailoverHandler);
 
-    final SQLException exception = assertThrows(SQLException.class, () -> plugin.failoverWriter());
+    final SQLException exception = assertThrows(SQLException.class, () -> spyPlugin.failoverWriter());
     assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), exception.getSQLState());
 
     verify(mockWriterFailoverHandler).failover(eq(hosts));
@@ -335,13 +340,13 @@ class FailoverConnectionPluginTest {
     when(mockHostSpec.getAliases()).thenReturn(new HashSet<>(Arrays.asList("alias1", "alias2")));
 
     initializePlugin();
-    plugin.initHostProvider(
+    spyPlugin.initHostProvider(
         mockHostListProviderService,
         mockInitHostProviderFunc,
-        () -> mockReaderFailoverHandler,
-        () -> mockWriterFailoverHandler);
+        (connectionService) -> mockReaderFailoverHandler,
+        (connectionService) -> mockWriterFailoverHandler);
 
-    final SQLException exception = assertThrows(FailoverSuccessSQLException.class, () -> plugin.failoverWriter());
+    final SQLException exception = assertThrows(FailoverSuccessSQLException.class, () -> spyPlugin.failoverWriter());
     assertEquals(SqlState.COMMUNICATION_LINK_CHANGED.getState(), exception.getSQLState());
 
     verify(mockWriterFailoverHandler).failover(eq(defaultHosts));
@@ -351,7 +356,7 @@ class FailoverConnectionPluginTest {
   void test_invalidCurrentConnection_withNoConnection() {
     when(mockPluginService.getCurrentConnection()).thenReturn(null);
     initializePlugin();
-    plugin.invalidateCurrentConnection();
+    spyPlugin.invalidateCurrentConnection();
 
     verify(mockPluginService, never()).getCurrentHostSpec();
   }
@@ -364,12 +369,12 @@ class FailoverConnectionPluginTest {
     when(mockHostSpec.getRole()).thenReturn(HostRole.READER);
 
     initializePlugin();
-    plugin.invalidateCurrentConnection();
+    spyPlugin.invalidateCurrentConnection();
     verify(mockConnection).rollback();
 
     // Assert SQL exceptions thrown during rollback do not get propagated.
     doThrow(new SQLException()).when(mockConnection).rollback();
-    assertDoesNotThrow(() -> plugin.invalidateCurrentConnection());
+    assertDoesNotThrow(() -> spyPlugin.invalidateCurrentConnection());
   }
 
   @Test
@@ -380,7 +385,7 @@ class FailoverConnectionPluginTest {
     when(mockHostSpec.getRole()).thenReturn(HostRole.READER);
 
     initializePlugin();
-    plugin.invalidateCurrentConnection();
+    spyPlugin.invalidateCurrentConnection();
 
     verify(mockPluginService).isInTransaction();
   }
@@ -394,10 +399,10 @@ class FailoverConnectionPluginTest {
     when(mockHostSpec.getRole()).thenReturn(HostRole.READER);
 
     initializePlugin();
-    plugin.invalidateCurrentConnection();
+    spyPlugin.invalidateCurrentConnection();
 
     doThrow(new SQLException()).when(mockConnection).close();
-    assertDoesNotThrow(() -> plugin.invalidateCurrentConnection());
+    assertDoesNotThrow(() -> spyPlugin.invalidateCurrentConnection());
 
     verify(mockConnection, times(2)).isClosed();
     verify(mockConnection, times(2)).close();
@@ -408,7 +413,7 @@ class FailoverConnectionPluginTest {
     properties.setProperty(FailoverConnectionPlugin.ENABLE_CLUSTER_AWARE_FAILOVER.name, "false");
     initializePlugin();
 
-    plugin.execute(
+    spyPlugin.execute(
         ResultSet.class,
         SQLException.class,
         MONITOR_METHOD_INVOKE_ON,
@@ -423,7 +428,7 @@ class FailoverConnectionPluginTest {
   @Test
   void test_execute_withDirectExecute() throws SQLException {
     initializePlugin();
-    plugin.execute(
+    spyPlugin.execute(
         ResultSet.class,
         SQLException.class,
         MONITOR_METHOD_INVOKE_ON,
@@ -435,8 +440,15 @@ class FailoverConnectionPluginTest {
   }
 
   private void initializePlugin() {
-    plugin = new FailoverConnectionPlugin(mockPluginService, properties);
-    plugin.setWriterFailoverHandler(mockWriterFailoverHandler);
-    plugin.setReaderFailoverHandler(mockReaderFailoverHandler);
+    spyPlugin = spy(new FailoverConnectionPlugin(mockContainer, properties));
+    spyPlugin.setWriterFailoverHandler(mockWriterFailoverHandler);
+    spyPlugin.setReaderFailoverHandler(mockReaderFailoverHandler);
+
+    try {
+      doReturn(mockConnectionService).when(spyPlugin).getConnectionService();
+    } catch (SQLException e) {
+      fail(
+          "Encountered exception when trying to stub FailoverConnectionPlugin#getConnectionService: " + e.getMessage());
+    }
   }
 }
