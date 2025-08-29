@@ -316,18 +316,16 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     initHostProvider(
         hostListProviderService,
         initHostProviderFunc,
-        (connectionService) ->
+        () ->
             new ClusterAwareReaderFailoverHandler(
                 this.servicesContainer,
-                connectionService,
                 this.properties,
                 this.failoverTimeoutMsSetting,
                 this.failoverReaderConnectTimeoutMsSetting,
                 this.failoverMode == FailoverMode.STRICT_READER),
-        (connectionService) ->
+        () ->
             new ClusterAwareWriterFailoverHandler(
                 this.servicesContainer,
-                connectionService,
                 this.readerFailoverHandler,
                 this.properties,
                 this.failoverTimeoutMsSetting,

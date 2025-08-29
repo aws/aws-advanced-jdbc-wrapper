@@ -81,11 +81,9 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
    */
   public ClusterAwareReaderFailoverHandler(
       final FullServicesContainer servicesContainer,
-      final ConnectionService connectionService,
       final Properties props) {
     this(
         servicesContainer,
-        connectionService,
         props,
         DEFAULT_FAILOVER_TIMEOUT,
         DEFAULT_READER_CONNECT_TIMEOUT,

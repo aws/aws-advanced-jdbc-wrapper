@@ -16,7 +16,17 @@
 
 package software.amazon.jdbc.util;
 
+import java.sql.SQLException;
+import java.util.Properties;
 import java.util.concurrent.locks.ReentrantLock;
+import software.amazon.jdbc.ConnectionPluginManager;
+import software.amazon.jdbc.ConnectionProvider;
+import software.amazon.jdbc.PartialPluginService;
+import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.monitoring.MonitorService;
+import software.amazon.jdbc.util.storage.StorageService;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class ServiceContainerUtility {
   private static volatile ServiceContainerUtility instance;
@@ -45,7 +55,42 @@ public class ServiceContainerUtility {
     return instance;
   }
 
-  public static FullServicesContainer createServiceContainer() {
+  public static FullServicesContainer createServiceContainer(
+      StorageService storageService,
+      MonitorService monitorService,
+      TelemetryFactory telemetryFactory,
+      ConnectionProvider connectionProvider,
+      String originalUrl,
+      String targetDriverProtocol,
+      TargetDriverDialect driverDialect,
+      Dialect dbDialect,
+      Properties props) throws SQLException {
+    FullServicesContainer
+        servicesContainer = new FullServicesContainerImpl(storageService, monitorService, telemetryFactory);
+    ConnectionPluginManager pluginManager = new ConnectionPluginManager(
+        connectionProvider,
+        null,
+        null,
+        telemetryFactory);
+    servicesContainer.setConnectionPluginManager(pluginManager);
 
+    PartialPluginService partialPluginService = new PartialPluginService(
+        servicesContainer,
+        props,
+        originalUrl,
+        targetDriverProtocol,
+        driverDialect,
+        dbDialect
+    );
+
+    pluginManager.init(servicesContainer, props, partialPluginService, null);
+    return new FullServicesContainerImpl(
+        storageService,
+        monitorService,
+        telemetryFactory,
+        pluginManager,
+        partialPluginService,
+        partialPluginService,
+        partialPluginService);
   }
 }
