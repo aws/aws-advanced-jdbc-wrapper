@@ -77,6 +77,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
    * ClusterAwareReaderFailoverHandler constructor.
    *
    * @param servicesContainer the service container for the services required by this class.
+   * @param connectionService the service to use to create new connections during failover.
    * @param props             the initial connection properties to copy over to the new reader.
    */
   public ClusterAwareReaderFailoverHandler(
@@ -96,6 +97,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
    * ClusterAwareReaderFailoverHandler constructor.
    *
    * @param servicesContainer      the service container for the services required by this class.
+   * @param connectionService      the service to use to create new connections during failover.
    * @param props                  the initial connection properties to copy over to the new reader.
    * @param maxFailoverTimeoutMs   maximum allowed time for the entire reader failover process.
    * @param timeoutMs              maximum allowed time in milliseconds for each reader connection attempt during
@@ -292,7 +294,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
 
     boolean shouldIncludeWriter = numOfReaders == 0
         || this.pluginService.getDialect().getFailoverRestrictions()
-            .contains(FailoverRestriction.ENABLE_WRITER_IN_TASK_B);
+        .contains(FailoverRestriction.ENABLE_WRITER_IN_TASK_B);
     if (shouldIncludeWriter) {
       hostsByPriority.add(writerHost);
     }
