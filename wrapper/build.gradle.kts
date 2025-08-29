@@ -32,20 +32,19 @@ if (useJacoco) {
 }
 
 dependencies {
-    implementation("org.checkerframework:checker-qual:3.49.5")
+    compileOnly("org.checkerframework:checker-qual:3.49.5")
     compileOnly("org.apache.httpcomponents:httpclient:4.5.14")
-    compileOnly("software.amazon.awssdk:rds:2.32.25")
-    compileOnly("software.amazon.awssdk:auth:2.32.25") // Required for IAM (light implementation)
-    compileOnly("software.amazon.awssdk:http-client-spi:2.32.25") // Required for IAM (light implementation)
-    compileOnly("software.amazon.awssdk:sts:2.32.25")
+    compileOnly("software.amazon.awssdk:rds:2.32.29")
+    compileOnly("software.amazon.awssdk:auth:2.32.29") // Required for IAM (light implementation)
+    compileOnly("software.amazon.awssdk:http-client-spi:2.32.29") // Required for IAM (light implementation)
+    compileOnly("software.amazon.awssdk:sts:2.32.29")
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     compileOnly("com.mchange:c3p0:0.11.0")
-    compileOnly("software.amazon.awssdk:secretsmanager:2.32.25")
+    compileOnly("software.amazon.awssdk:secretsmanager:2.32.29")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.19.0")
     compileOnly("com.mysql:mysql-connector-j:9.3.0")
     compileOnly("org.postgresql:postgresql:42.7.7")
     compileOnly("org.mariadb.jdbc:mariadb-java-client:3.5.3")
-    compileOnly("org.osgi:org.osgi.core:6.0.0")
     compileOnly("org.osgi:org.osgi.core:6.0.0")
     compileOnly("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
     compileOnly("io.opentelemetry:opentelemetry-api:1.52.0")
@@ -54,6 +53,7 @@ dependencies {
     compileOnly("org.jsoup:jsoup:1.21.1")
     compileOnly("org.jetbrains.kotlin:kotlin-stdlib:2.1.21")
 
+    testImplementation("org.checkerframework:checker-qual:3.49.5")
     testImplementation("org.junit.platform:junit-platform-commons:1.13.4")
     testImplementation("org.junit.platform:junit-platform-engine:1.13.3")
     testImplementation("org.junit.platform:junit-platform-launcher:1.13.4")
@@ -70,12 +70,12 @@ dependencies {
     testImplementation("com.mchange:c3p0:0.11.0")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
-    testImplementation("software.amazon.awssdk:rds:2.32.25")
-    testImplementation("software.amazon.awssdk:auth:2.32.25") // Required for IAM (light implementation)
-    testImplementation("software.amazon.awssdk:http-client-spi:2.32.25") // Required for IAM (light implementation)
-    testImplementation("software.amazon.awssdk:ec2:2.32.25")
-    testImplementation("software.amazon.awssdk:secretsmanager:2.32.25")
-    testImplementation("software.amazon.awssdk:sts:2.32.25")
+    testImplementation("software.amazon.awssdk:rds:2.32.29", )
+    testImplementation("software.amazon.awssdk:auth:2.32.29") // Required for IAM (light implementation)
+    testImplementation("software.amazon.awssdk:http-client-spi:2.32.29") // Required for IAM (light implementation)
+    testImplementation("software.amazon.awssdk:ec2:2.32.29")
+    testImplementation("software.amazon.awssdk:secretsmanager:2.32.29")
+    testImplementation("software.amazon.awssdk:sts:2.32.29")
     // Note: all org.testcontainers dependencies should have the same version
     testImplementation("org.testcontainers:testcontainers:1.21.2")
     testImplementation("org.testcontainers:mysql:1.21.2")
