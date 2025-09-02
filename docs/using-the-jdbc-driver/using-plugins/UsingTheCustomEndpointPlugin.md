@@ -26,3 +26,11 @@ The Custom Endpoint Plugin adds support for RDS custom endpoints. When the Custo
 | `customEndpointMonitorExpirationMs`  | Integer |    No    | Controls how long a monitor should run without use before expiring and being removed, in milliseconds.                                                                                                                                                                                                                               | `900000` (15 minutes) | `600000`      |
 | `waitForCustomEndpointInfo`          | Boolean |    No    | Controls whether to wait for custom endpoint info to become available before connecting or executing a method. Waiting is only necessary if a connection to a given custom endpoint has not been opened or used recently. Note that disabling this may result in occasional connections to instances outside of the custom endpoint. | `true`                | `true`        |
 | `waitForCustomEndpointInfoTimeoutMs` | Integer |    No    | Controls the maximum amount of time that the plugin will wait for custom endpoint info to be made available by the custom endpoint monitor, in milliseconds.                                                                                                                                                                         | `5000`                | `7000`        |
+
+### Use IAM authentication with the Custom Endpoint Plugin
+
+When using IAM authentication make sure that IAM user has `rds:DescribeDBClusterEndpoints` permission granted. You may see a corresponding exception in the driver logs if IAM user doesn't have this permission:
+
+```
+software.amazon.awssdk.services.rds.model.RdsException: User: arn:aws:sts:...:assumed-role/.... is not authorized to perform: rds:DescribeDBClusterEndpoints on resource: arn:aws:rds:.... because no identity-based policy allows the rds:DescribeDBClusterEndpoints action (Service: Rds, Status Code: 403, Request ID: ...) 
+```
