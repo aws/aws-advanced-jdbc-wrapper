@@ -475,14 +475,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   }
 
   private HostSpec getWriter(final @NonNull List<HostSpec> hosts) throws SQLException {
-    HostSpec writerHost = null;
-    for (final HostSpec hostSpec : hosts) {
-      if (HostRole.WRITER.equals(hostSpec.getRole())) {
-        writerHost = hostSpec;
-        break;
-      }
-    }
-
+    HostSpec writerHost = Utils.getWriter(hosts);
     if (writerHost == null) {
       logAndThrowException(Messages.get("ReadWriteSplittingPlugin.noWriterFound"));
     }

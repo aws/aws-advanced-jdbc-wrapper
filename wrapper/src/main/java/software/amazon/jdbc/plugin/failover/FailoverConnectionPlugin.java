@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.DriverConnectionProvider;
@@ -450,23 +450,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
   }
 
-  private HostSpec getCurrentWriter() throws SQLException {
-    final List<HostSpec> topology = this.pluginService.getAllHosts();
-    if (topology == null) {
-      return null;
-    }
-    return getWriter(topology);
-  }
-
-  private HostSpec getWriter(final @NonNull List<HostSpec> hosts) {
-    for (final HostSpec hostSpec : hosts) {
-      if (hostSpec.getRole() == HostRole.WRITER) {
-        return hostSpec;
-      }
-    }
-    return null;
-  }
-
   protected void updateTopology(final boolean forceUpdate) throws SQLException {
     final Connection connection = this.pluginService.getCurrentConnection();
     if (!isFailoverEnabled() || connection == null || connection.isClosed()) {
@@ -618,8 +601,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @param failedHost The host with network errors.
    * @throws SQLException if an error occurs
    */
-  protected void failover(final HostSpec failedHost) throws SQLException {
-    this.pluginService.setAvailability(failedHost.asAliases(), HostAvailability.NOT_AVAILABLE);
+  protected void failover(@Nullable final HostSpec failedHost) throws SQLException {
+    if (failedHost != null) {
+      this.pluginService.setAvailability(failedHost.asAliases(), HostAvailability.NOT_AVAILABLE);
+    }
+
     if (this.connectionService == null) {
       this.connectionService = getConnectionService();
     }
@@ -794,7 +780,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
 
       List<HostSpec> hosts = failoverResult.getTopology();
-      final HostSpec writerHostSpec = getWriter(hosts);
+      final HostSpec writerHostSpec = Utils.getWriter(hosts);
       if (writerHostSpec == null) {
         throwFailoverFailedException(
             Messages.get(
@@ -898,9 +884,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
     if (this.pluginService.getCurrentConnection() == null && !shouldAttemptReaderConnection()) {
       try {
-        connectTo(getCurrentWriter());
+        connectTo(Utils.getWriter(this.pluginService.getAllHosts()));
       } catch (final SQLException e) {
-        failover(getCurrentWriter());
+        failover(Utils.getWriter(this.pluginService.getAllHosts()));
       }
     } else {
       failover(this.pluginService.getCurrentHostSpec());

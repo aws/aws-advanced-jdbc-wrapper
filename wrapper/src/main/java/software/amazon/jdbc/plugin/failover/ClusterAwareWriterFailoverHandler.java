@@ -32,13 +32,13 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PartialPluginService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainerImpl;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.Utils;
@@ -145,25 +145,12 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     }
   }
 
-  private static HostSpec getWriter(final List<HostSpec> topology) {
-    if (topology == null || topology.isEmpty()) {
-      return null;
-    }
-
-    for (final HostSpec host : topology) {
-      if (host.getRole() == HostRole.WRITER) {
-        return host;
-      }
-    }
-    return null;
-  }
-
   private void submitTasks(
       final List<HostSpec> currentTopology,
       final ExecutorService executorService,
       final CompletionService<WriterFailoverResult> completionService,
-      final boolean singleTask) {
-    final HostSpec writerHost = getWriter(currentTopology);
+      final boolean singleTask) throws SQLException {
+    final HostSpec writerHost = Utils.getWriter(currentTopology);
     if (!singleTask) {
       completionService.submit(
           new ReconnectToWriterHandler(
@@ -189,11 +176,18 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     executorService.shutdown();
   }
 
-  protected PluginService getNewPluginService() {
-    // Each task should get its own PluginService since they execute concurrently and PluginService was not designed to
-    // be thread-safe.
+  // Each task should get its own PluginService since they execute concurrently and PluginService was not designed to
+  // be thread-safe.
+  protected PluginService getNewPluginService() throws SQLException {
+    FullServicesContainer newServicesContainer = new FullServicesContainerImpl(
+        this.servicesContainer.getStorageService(),
+        this.servicesContainer.getMonitorService(),
+        this.servicesContainer.getTelemetryFactory()
+    );
+
     return new PartialPluginService(
-        this.servicesContainer,
+        newServicesContainer,
+        this.pluginService.getDefaultConnectionProvider(),
         this.initialConnectionProps,
         this.pluginService.getOriginalUrl(),
         this.pluginService.getDriverProtocol(),
@@ -248,7 +242,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
       return;
     }
 
-    final HostSpec writerHost = getWriter(topology);
+    final HostSpec writerHost = Utils.getWriter(topology);
     final String newWriterHost = writerHost == null ? null : writerHost.getUrl();
     if (result.isNewHost()) {
       LOGGER.fine(
@@ -357,7 +351,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     }
 
     private boolean isCurrentHostWriter(final List<HostSpec> latestTopology) {
-      final HostSpec latestWriter = getWriter(latestTopology);
+      final HostSpec latestWriter = Utils.getWriter(latestTopology);
       final Set<String> latestWriterAllAliases = latestWriter.asAliases();
       final Set<String> currentAliases = this.originalWriterHost.asAliases();
 
@@ -494,7 +488,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
 
             } else {
               this.currentTopology = topology;
-              final HostSpec writerCandidate = getWriter(this.currentTopology);
+              final HostSpec writerCandidate = Utils.getWriter(this.currentTopology);
 
               if (allowOldWriter || !isSame(writerCandidate, this.originalWriterHost)) {
                 // new writer is available, and it's different from the previous writer

@@ -41,6 +41,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainerImpl;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.Utils;
@@ -396,9 +397,16 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     }
   }
 
-  protected PluginService getNewPluginService() {
+  protected PluginService getNewPluginService() throws SQLException {
+    FullServicesContainer newServicesContainer = new FullServicesContainerImpl(
+        this.servicesContainer.getStorageService(),
+        this.servicesContainer.getMonitorService(),
+        this.servicesContainer.getTelemetryFactory()
+    );
+
     return new PartialPluginService(
-        this.servicesContainer,
+        newServicesContainer,
+        this.pluginService.getDefaultConnectionProvider(),
         this.props,
         this.pluginService.getOriginalUrl(),
         this.pluginService.getDriverProtocol(),

@@ -83,13 +83,15 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
 
   public PartialPluginService(
       @NonNull final FullServicesContainer servicesContainer,
+      @NonNull final ConnectionProvider defaultConnectionProvider,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
       @NonNull final String targetDriverProtocol,
       @NonNull final TargetDriverDialect targetDriverDialect,
-      @NonNull final Dialect dbDialect) {
+      @NonNull final Dialect dbDialect) throws SQLException {
     this(
         servicesContainer,
+        defaultConnectionProvider,
         new ExceptionManager(),
         props,
         originalUrl,
@@ -101,15 +103,15 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
 
   public PartialPluginService(
       @NonNull final FullServicesContainer servicesContainer,
+      @NonNull final ConnectionProvider defaultConnectionProvider,
       @NonNull final ExceptionManager exceptionManager,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
       @NonNull final String targetDriverProtocol,
       @NonNull final TargetDriverDialect targetDriverDialect,
       @NonNull final Dialect dbDialect,
-      @Nullable final ConfigurationProfile configurationProfile) {
+      @Nullable final ConfigurationProfile configurationProfile) throws SQLException {
     this.servicesContainer = servicesContainer;
-    this.pluginManager = servicesContainer.getConnectionPluginManager();
     this.props = props;
     this.originalUrl = originalUrl;
     this.driverProtocol = targetDriverProtocol;
@@ -117,6 +119,11 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
     this.dbDialect = dbDialect;
     this.configurationProfile = configurationProfile;
     this.exceptionManager = exceptionManager;
+
+    this.pluginManager = new ConnectionPluginManager(
+        defaultConnectionProvider, null, null, servicesContainer.getTelemetryFactory());
+    this.pluginManager.init(this.servicesContainer, this.props, this, this.configurationProfile);
+    this.servicesContainer.setConnectionPluginManager(pluginManager);
     this.connectionProviderManager = new ConnectionProviderManager(
         this.pluginManager.getDefaultConnProvider(),
         this.pluginManager.getEffectiveConnProvider());
@@ -149,7 +156,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
           throw new RuntimeException(Messages.get("PluginServiceImpl.hostListEmpty"));
         }
 
-        this.currentHostSpec = this.getWriter(this.getAllHosts());
+        this.currentHostSpec = Utils.getWriter(this.getAllHosts());
         final List<HostSpec> allowedHosts = this.getHosts();
         if (!Utils.containsUrl(allowedHosts, this.currentHostSpec.getUrl())) {
           throw new RuntimeException(
@@ -215,19 +222,15 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
     return this.hostListProvider.getHostRole(conn);
   }
 
-  private HostSpec getWriter(final @NonNull List<HostSpec> hosts) {
-    for (final HostSpec hostSpec : hosts) {
-      if (hostSpec.getRole() == HostRole.WRITER) {
-        return hostSpec;
-      }
-    }
-    return null;
-  }
-
   @Override
   @Deprecated
   public ConnectionProvider getConnectionProvider() {
     return this.pluginManager.defaultConnProvider;
+  }
+
+  @Override
+  public ConnectionProvider getDefaultConnectionProvider() {
+    return this.connectionProviderManager.getDefaultProvider();
   }
 
   public boolean isPooledConnectionProvider(HostSpec host, Properties props) {

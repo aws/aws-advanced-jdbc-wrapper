@@ -19,7 +19,6 @@ package software.amazon.jdbc.util.connection;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
-import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PartialPluginService;
@@ -33,8 +32,6 @@ import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class ConnectionServiceImpl implements ConnectionService {
-  protected final String targetDriverProtocol;
-  protected final ConnectionPluginManager pluginManager;
   protected final PluginService pluginService;
 
   public ConnectionServiceImpl(
@@ -47,33 +44,22 @@ public class ConnectionServiceImpl implements ConnectionService {
       TargetDriverDialect driverDialect,
       Dialect dbDialect,
       Properties props) throws SQLException {
-    this.targetDriverProtocol = targetDriverProtocol;
-
     FullServicesContainer
         servicesContainer = new FullServicesContainerImpl(storageService, monitorService, telemetryFactory);
-    this.pluginManager = new ConnectionPluginManager(
-        connectionProvider,
-        null,
-        null,
-        telemetryFactory);
-    servicesContainer.setConnectionPluginManager(this.pluginManager);
-
-    PartialPluginService partialPluginService = new PartialPluginService(
+    this.pluginService = new PartialPluginService(
         servicesContainer,
+        connectionProvider,
         props,
         originalUrl,
-        this.targetDriverProtocol,
+        targetDriverProtocol,
         driverDialect,
         dbDialect
     );
-
-    this.pluginService = partialPluginService;
-    this.pluginManager.init(servicesContainer, props, partialPluginService, null);
   }
 
   @Override
   public Connection open(HostSpec hostSpec, Properties props) throws SQLException {
-    return this.pluginManager.forceConnect(this.targetDriverProtocol, hostSpec, props, true, null);
+    return this.pluginService.forceConnect(hostSpec, props);
   }
 
   @Override
