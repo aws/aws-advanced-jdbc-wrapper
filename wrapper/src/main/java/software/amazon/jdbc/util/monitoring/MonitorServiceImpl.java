@@ -31,8 +31,6 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionProvider;
-import software.amazon.jdbc.DriverConnectionProvider;
-import software.amazon.jdbc.TargetDriverHelper;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.hostlistprovider.monitoring.ClusterTopologyMonitorImpl;
@@ -181,6 +179,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       Object key,
       StorageService storageService,
       TelemetryFactory telemetryFactory,
+      ConnectionProvider defaultConnectionProvider,
       String originalUrl,
       String driverProtocol,
       TargetDriverDialect driverDialect,
@@ -202,6 +201,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
         getConnectionService(
             storageService,
             telemetryFactory,
+            defaultConnectionProvider,
             originalUrl,
             driverProtocol,
             driverDialect,
@@ -224,12 +224,15 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
         Messages.get("MonitorServiceImpl.unexpectedMonitorClass", new Object[] {monitorClass, monitor}));
   }
 
-  protected ConnectionService getConnectionService(StorageService storageService,
-      TelemetryFactory telemetryFactory, String originalUrl, String driverProtocol, TargetDriverDialect driverDialect,
-      Dialect dbDialect, Properties originalProps) throws SQLException {
-    TargetDriverHelper helper = new TargetDriverHelper();
-    java.sql.Driver driver = helper.getTargetDriver(originalUrl, originalProps);
-    final ConnectionProvider defaultConnectionProvider = new DriverConnectionProvider(driver);
+  protected ConnectionService getConnectionService(
+      StorageService storageService,
+      TelemetryFactory telemetryFactory,
+      ConnectionProvider defaultConnectionProvider,
+      String originalUrl,
+      String driverProtocol,
+      TargetDriverDialect driverDialect,
+      Dialect dbDialect,
+      Properties originalProps) throws SQLException {
     final Properties propsCopy = PropertyUtils.copyProperties(originalProps);
     return new ConnectionServiceImpl(
         storageService,

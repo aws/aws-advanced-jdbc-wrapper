@@ -33,8 +33,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
-import software.amazon.jdbc.ConnectionProvider;
-import software.amazon.jdbc.DriverConnectionProvider;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
@@ -44,7 +42,6 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.TargetDriverHelper;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
@@ -618,14 +615,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   protected ConnectionService getConnectionService() throws SQLException {
-    TargetDriverHelper helper = new TargetDriverHelper();
-    java.sql.Driver driver = helper.getTargetDriver(this.pluginService.getOriginalUrl(), properties);
-    final ConnectionProvider defaultConnectionProvider = new DriverConnectionProvider(driver);
     return new ConnectionServiceImpl(
         servicesContainer.getStorageService(),
         servicesContainer.getMonitorService(),
         servicesContainer.getTelemetryFactory(),
-        defaultConnectionProvider,
+        this.pluginService.getDefaultConnectionProvider(),
         this.pluginService.getOriginalUrl(),
         this.pluginService.getDriverProtocol(),
         this.pluginService.getTargetDriverDialect(),

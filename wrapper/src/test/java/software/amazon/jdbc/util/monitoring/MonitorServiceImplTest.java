@@ -38,6 +38,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
@@ -49,6 +50,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 class MonitorServiceImplTest {
   @Mock StorageService mockStorageService;
   @Mock ConnectionService mockConnectionService;
+  @Mock ConnectionProvider mockConnectionProvider;
   @Mock TelemetryFactory mockTelemetryFactory;
   @Mock TargetDriverDialect mockTargetDriverDialect;
   @Mock Dialect mockDbDialect;
@@ -64,7 +66,7 @@ class MonitorServiceImplTest {
 
     try {
       doReturn(mockConnectionService).when(spyMonitorService)
-          .getConnectionService(any(), any(), any(), any(), any(), any(), any());
+          .getConnectionService(any(), any(), any(), any(), any(), any(), any(), any());
     } catch (SQLException e) {
       Assertions.fail(
           "Encountered exception while stubbing MonitorServiceImpl#getConnectionService: " + e.getMessage());
@@ -92,6 +94,7 @@ class MonitorServiceImplTest {
         key,
         mockStorageService,
         mockTelemetryFactory,
+        mockConnectionProvider,
         "jdbc:postgresql://somehost/somedb",
         "someProtocol",
         mockTargetDriverDialect,
@@ -135,6 +138,7 @@ class MonitorServiceImplTest {
         key,
         mockStorageService,
         mockTelemetryFactory,
+        mockConnectionProvider,
         "jdbc:postgresql://somehost/somedb",
         "someProtocol",
         mockTargetDriverDialect,
@@ -180,6 +184,7 @@ class MonitorServiceImplTest {
         key,
         mockStorageService,
         mockTelemetryFactory,
+        mockConnectionProvider,
         "jdbc:postgresql://somehost/somedb",
         "someProtocol",
         mockTargetDriverDialect,
@@ -212,6 +217,7 @@ class MonitorServiceImplTest {
         "testMonitor",
         mockStorageService,
         mockTelemetryFactory,
+        mockConnectionProvider,
         "jdbc:postgresql://somehost/somedb",
         "someProtocol",
         mockTargetDriverDialect,
@@ -241,6 +247,7 @@ class MonitorServiceImplTest {
         key,
         mockStorageService,
         mockTelemetryFactory,
+        mockConnectionProvider,
         "jdbc:postgresql://somehost/somedb",
         "someProtocol",
         mockTargetDriverDialect,
@@ -275,6 +282,7 @@ class MonitorServiceImplTest {
         key,
         mockStorageService,
         mockTelemetryFactory,
+        mockConnectionProvider,
         "jdbc:postgresql://somehost/somedb",
         "someProtocol",
         mockTargetDriverDialect,

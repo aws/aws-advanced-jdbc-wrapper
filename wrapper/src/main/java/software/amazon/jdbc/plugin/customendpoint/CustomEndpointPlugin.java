@@ -217,6 +217,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
         this.customEndpointHostSpec.getUrl(),
         this.servicesContainer.getStorageService(),
         this.pluginService.getTelemetryFactory(),
+        this.pluginService.getDefaultConnectionProvider(),
         this.pluginService.getOriginalUrl(),
         this.pluginService.getDriverProtocol(),
         this.pluginService.getTargetDriverDialect(),

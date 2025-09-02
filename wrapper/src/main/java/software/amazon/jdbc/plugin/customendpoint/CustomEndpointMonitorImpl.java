@@ -24,11 +24,13 @@ import java.util.function.BiFunction;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import software.amazon.awssdk.http.HttpStatusCode;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.awssdk.services.rds.model.DBClusterEndpoint;
 import software.amazon.awssdk.services.rds.model.DescribeDbClusterEndpointsResponse;
 import software.amazon.awssdk.services.rds.model.Filter;
+import software.amazon.awssdk.services.rds.model.RdsException;
 import software.amazon.jdbc.AllowedAndBlockedHosts;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.Messages;
@@ -49,13 +51,14 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
   // Keys are custom endpoint URLs, values are information objects for the associated custom endpoint.
   protected static final CacheMap<String, CustomEndpointInfo> customEndpointInfoCache = new CacheMap<>();
   protected static final long CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(5);
+  protected static final long UNAUTHORIZED_SLEEP_SEC = TimeUnit.MINUTES.toSeconds(5);
   protected static final long MONITOR_TERMINATION_TIMEOUT_SEC = 30;
 
   protected final RdsClient rdsClient;
   protected final HostSpec customEndpointHostSpec;
   protected final String endpointIdentifier;
   protected final Region region;
-  protected final long refreshRateNano;
+  protected long refreshRateNano;
   protected final StorageService storageService;
 
   private final TelemetryCounter infoChangedCounter;
@@ -168,12 +171,30 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
           TimeUnit.NANOSECONDS.sleep(sleepDuration);
         } catch (InterruptedException e) {
           throw e;
+        } catch (RdsException ex) {
+          LOGGER.log(Level.SEVERE,
+              Messages.get(
+                  "CustomEndpointMonitorImpl.exception",
+                  new Object[] {this.customEndpointHostSpec.getUrl()}), ex);
+
+          if (ex.isThrottlingException()) {
+            this.refreshRateNano *= 2; // Reduce the refresh rate.
+            TimeUnit.NANOSECONDS.sleep(this.refreshRateNano);
+          } else if (ex.statusCode() == HttpStatusCode.UNAUTHORIZED || ex.statusCode() == HttpStatusCode.FORBIDDEN) {
+            // User has no permissions to get custom endpoint details.
+            // Reduce the refresh rate.
+            TimeUnit.SECONDS.sleep(UNAUTHORIZED_SLEEP_SEC);
+          } else {
+            TimeUnit.NANOSECONDS.sleep(this.refreshRateNano);
+          }
         } catch (Exception e) {
           // If the exception is not an InterruptedException, log it and continue monitoring.
           LOGGER.log(Level.SEVERE,
               Messages.get(
                   "CustomEndpointMonitorImpl.exception",
                   new Object[] {this.customEndpointHostSpec.getUrl()}), e);
+
+          TimeUnit.NANOSECONDS.sleep(this.refreshRateNano);
         }
       }
     } catch (InterruptedException e) {
