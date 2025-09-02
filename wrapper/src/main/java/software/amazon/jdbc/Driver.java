@@ -240,7 +240,8 @@ public class Driver implements java.sql.Driver {
       }
 
       FullServicesContainer
-          servicesContainer = new FullServicesContainerImpl(storageService, monitorService, telemetryFactory);
+          servicesContainer = new FullServicesContainerImpl(
+              storageService, monitorService, defaultConnectionProvider, telemetryFactory);
 
       return new ConnectionWrapper(
           servicesContainer,

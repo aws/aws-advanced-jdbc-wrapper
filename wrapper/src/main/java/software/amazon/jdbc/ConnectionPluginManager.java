@@ -180,8 +180,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       final FullServicesContainer servicesContainer,
       final Properties props,
       final PluginManagerService pluginManagerService,
-      @Nullable ConfigurationProfile configurationProfile)
-      throws SQLException {
+      @Nullable ConfigurationProfile configurationProfile) {
 
     this.props = props;
     this.servicesContainer = servicesContainer;

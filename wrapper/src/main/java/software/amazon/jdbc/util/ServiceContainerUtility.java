@@ -60,20 +60,18 @@ public class ServiceContainerUtility {
   public static FullServicesContainer createServiceContainer(
       StorageService storageService,
       MonitorService monitorService,
+      ConnectionProvider connectionProvider,
       TelemetryFactory telemetryFactory,
       String originalUrl,
       String targetDriverProtocol,
       TargetDriverDialect driverDialect,
       Dialect dbDialect,
-      Properties props) throws SQLException {
-    final TargetDriverHelper helper = new TargetDriverHelper();
-    final java.sql.Driver driver = helper.getTargetDriver(originalUrl, props);
-    final ConnectionProvider connProvider = new DriverConnectionProvider(driver);
-
+      Properties props) {
     FullServicesContainer
-        servicesContainer = new FullServicesContainerImpl(storageService, monitorService, telemetryFactory);
+        servicesContainer = new FullServicesContainerImpl(
+            storageService, monitorService, connectionProvider, telemetryFactory);
     ConnectionPluginManager pluginManager = new ConnectionPluginManager(
-        connProvider,
+        connectionProvider,
         null,
         null,
         telemetryFactory);
@@ -92,6 +90,7 @@ public class ServiceContainerUtility {
     return new FullServicesContainerImpl(
         storageService,
         monitorService,
+        connectionProvider,
         telemetryFactory,
         pluginManager,
         partialPluginService,

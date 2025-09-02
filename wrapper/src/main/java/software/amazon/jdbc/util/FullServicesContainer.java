@@ -17,6 +17,7 @@
 package software.amazon.jdbc.util;
 
 import software.amazon.jdbc.ConnectionPluginManager;
+import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
@@ -35,6 +36,8 @@ public interface FullServicesContainer {
   StorageService getStorageService();
 
   MonitorService getMonitorService();
+
+  ConnectionProvider getDefaultConnectionProvider();
 
   TelemetryFactory getTelemetryFactory();
 

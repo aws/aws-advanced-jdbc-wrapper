@@ -50,7 +50,8 @@ public class ConnectionServiceImpl implements ConnectionService {
     this.targetDriverProtocol = targetDriverProtocol;
 
     FullServicesContainer
-        servicesContainer = new FullServicesContainerImpl(storageService, monitorService, telemetryFactory);
+        servicesContainer = new FullServicesContainerImpl(
+            storageService, monitorService, connectionProvider, telemetryFactory);
     this.pluginManager = new ConnectionPluginManager(
         connectionProvider,
         null,

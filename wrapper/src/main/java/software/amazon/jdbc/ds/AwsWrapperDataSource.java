@@ -282,7 +282,8 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
       final @Nullable ConfigurationProfile configurationProfile,
       final TelemetryFactory telemetryFactory) throws SQLException {
     FullServicesContainer
-        servicesContainer = new FullServicesContainerImpl(storageService, monitorService, telemetryFactory);
+        servicesContainer = new FullServicesContainerImpl(
+            storageService, monitorService, defaultProvider, telemetryFactory);
     return new ConnectionWrapper(
         servicesContainer,
         props,
