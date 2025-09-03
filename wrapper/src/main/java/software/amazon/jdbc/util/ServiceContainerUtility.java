@@ -21,9 +21,7 @@ import java.util.Properties;
 import java.util.concurrent.locks.ReentrantLock;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
-import software.amazon.jdbc.DriverConnectionProvider;
 import software.amazon.jdbc.PartialPluginService;
-import software.amazon.jdbc.TargetDriverHelper;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.monitoring.MonitorService;
@@ -66,7 +64,7 @@ public class ServiceContainerUtility {
       String targetDriverProtocol,
       TargetDriverDialect driverDialect,
       Dialect dbDialect,
-      Properties props) {
+      Properties props) throws SQLException {
     FullServicesContainer
         servicesContainer = new FullServicesContainerImpl(
             storageService, monitorService, connectionProvider, telemetryFactory);

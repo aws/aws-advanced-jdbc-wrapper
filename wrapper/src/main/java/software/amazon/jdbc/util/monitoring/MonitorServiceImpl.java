@@ -16,7 +16,6 @@
 
 package software.amazon.jdbc.util.monitoring;
 
-import java.sql.SQLException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -185,7 +184,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       TargetDriverDialect driverDialect,
       Dialect dbDialect,
       Properties originalProps,
-      MonitorInitializer initializer) throws SQLException {
+      MonitorInitializer initializer) {
     CacheContainer cacheContainer = monitorCaches.get(monitorClass);
     if (cacheContainer == null) {
       Supplier<CacheContainer> supplier = defaultSuppliers.get(monitorClass);
@@ -198,17 +197,14 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
     }
 
     final FullServicesContainer servicesContainer = getNewServicesContainer(
-        storageService, telemetryFactory, originalUrl, driverProtocol, driverDialect, dbDialect, originalProps);
-    final ConnectionService connectionService =
-        getConnectionService(
-            storageService,
-            telemetryFactory,
-            defaultConnectionProvider,
-            originalUrl,
-            driverProtocol,
-            driverDialect,
-            dbDialect,
-            originalProps);
+        storageService,
+        defaultConnectionProvider,
+        telemetryFactory,
+        originalUrl,
+        driverProtocol,
+        driverDialect,
+        dbDialect,
+        originalProps);
 
     Monitor monitor = cacheContainer.getCache().computeIfAbsent(key, k -> {
       MonitorItem monitorItem = new MonitorItem(() -> initializer.createMonitor(servicesContainer));
@@ -226,16 +222,18 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
 
   protected FullServicesContainer getNewServicesContainer(
       StorageService storageService,
+      ConnectionProvider connectionProvider,
       TelemetryFactory telemetryFactory,
       String originalUrl,
       String driverProtocol,
       TargetDriverDialect driverDialect,
       Dialect dbDialect,
-      Properties originalProps) throws SQLException {
+      Properties originalProps) {
     final Properties propsCopy = PropertyUtils.copyProperties(originalProps);
     return ServiceContainerUtility.createServiceContainer(
         storageService,
         this,
+        connectionProvider,
         telemetryFactory,
         originalUrl,
         driverProtocol,
