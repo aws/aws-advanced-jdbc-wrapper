@@ -34,6 +34,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
+import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PartialPluginService;
@@ -404,15 +405,20 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
         this.servicesContainer.getTelemetryFactory()
     );
 
-    return new PartialPluginService(
+    ConnectionPluginManager pluginManager = new ConnectionPluginManager(
+        this.pluginService.getDefaultConnectionProvider(), null, null, servicesContainer.getTelemetryFactory());
+    newServicesContainer.setConnectionPluginManager(pluginManager);
+    PartialPluginService pluginService = new PartialPluginService(
         newServicesContainer,
-        this.pluginService.getDefaultConnectionProvider(),
         this.props,
         this.pluginService.getOriginalUrl(),
         this.pluginService.getDriverProtocol(),
         this.pluginService.getTargetDriverDialect(),
         this.pluginService.getDialect()
     );
+
+    pluginManager.init(newServicesContainer, this.props, pluginService, null);
+    return pluginService;
   }
 
   private static class ConnectionAttemptTask implements Callable<ReaderFailoverResult> {

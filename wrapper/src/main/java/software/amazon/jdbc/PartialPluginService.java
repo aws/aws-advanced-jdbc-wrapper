@@ -83,15 +83,13 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
 
   public PartialPluginService(
       @NonNull final FullServicesContainer servicesContainer,
-      @NonNull final ConnectionProvider defaultConnectionProvider,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
       @NonNull final String targetDriverProtocol,
       @NonNull final TargetDriverDialect targetDriverDialect,
-      @NonNull final Dialect dbDialect) throws SQLException {
+      @NonNull final Dialect dbDialect) {
     this(
         servicesContainer,
-        defaultConnectionProvider,
         new ExceptionManager(),
         props,
         originalUrl,
@@ -103,15 +101,19 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
 
   public PartialPluginService(
       @NonNull final FullServicesContainer servicesContainer,
-      @NonNull final ConnectionProvider defaultConnectionProvider,
       @NonNull final ExceptionManager exceptionManager,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
       @NonNull final String targetDriverProtocol,
       @NonNull final TargetDriverDialect targetDriverDialect,
       @NonNull final Dialect dbDialect,
-      @Nullable final ConfigurationProfile configurationProfile) throws SQLException {
+      @Nullable final ConfigurationProfile configurationProfile) {
     this.servicesContainer = servicesContainer;
+    this.servicesContainer.setHostListProviderService(this);
+    this.servicesContainer.setPluginService(this);
+    this.servicesContainer.setPluginManagerService(this);
+
+    this.pluginManager = servicesContainer.getConnectionPluginManager();
     this.props = props;
     this.originalUrl = originalUrl;
     this.driverProtocol = targetDriverProtocol;
@@ -120,10 +122,6 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
     this.configurationProfile = configurationProfile;
     this.exceptionManager = exceptionManager;
 
-    this.pluginManager = new ConnectionPluginManager(
-        defaultConnectionProvider, null, null, servicesContainer.getTelemetryFactory());
-    this.pluginManager.init(this.servicesContainer, this.props, this, this.configurationProfile);
-    this.servicesContainer.setConnectionPluginManager(pluginManager);
     this.connectionProviderManager = new ConnectionProviderManager(
         this.pluginManager.getDefaultConnProvider(),
         this.pluginManager.getEffectiveConnProvider());
@@ -131,10 +129,6 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
     this.exceptionHandler = this.configurationProfile != null && this.configurationProfile.getExceptionHandler() != null
         ? this.configurationProfile.getExceptionHandler()
         : null;
-
-    servicesContainer.setHostListProviderService(this);
-    servicesContainer.setPluginService(this);
-    servicesContainer.setPluginManagerService(this);
 
     HostListProviderSupplier supplier = this.dbDialect.getHostListProvider();
     this.hostListProvider = supplier.getProvider(this.props, this.originalUrl, this.servicesContainer);

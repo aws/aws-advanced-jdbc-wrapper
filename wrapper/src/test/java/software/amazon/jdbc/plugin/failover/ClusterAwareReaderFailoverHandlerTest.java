@@ -364,7 +364,7 @@ class ClusterAwareReaderFailoverHandlerTest {
   }
 
   @Test
-  public void testHostFailoverStrictReaderEnabled() throws SQLException{
+  public void testHostFailoverStrictReaderEnabled() throws SQLException {
     final HostSpec writer = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("writer").port(1234).role(HostRole.WRITER).build();
     final HostSpec reader = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
