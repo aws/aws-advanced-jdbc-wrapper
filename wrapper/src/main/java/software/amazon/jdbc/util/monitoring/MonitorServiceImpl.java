@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.util.monitoring;
 
+import java.sql.SQLException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -184,7 +185,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       TargetDriverDialect driverDialect,
       Dialect dbDialect,
       Properties originalProps,
-      MonitorInitializer initializer) {
+      MonitorInitializer initializer) throws SQLException {
     CacheContainer cacheContainer = monitorCaches.get(monitorClass);
     if (cacheContainer == null) {
       Supplier<CacheContainer> supplier = defaultSuppliers.get(monitorClass);
@@ -228,7 +229,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       String driverProtocol,
       TargetDriverDialect driverDialect,
       Dialect dbDialect,
-      Properties originalProps) {
+      Properties originalProps) throws SQLException {
     final Properties propsCopy = PropertyUtils.copyProperties(originalProps);
     return ServiceContainerUtility.createServiceContainer(
         storageService,

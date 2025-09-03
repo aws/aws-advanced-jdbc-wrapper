@@ -141,7 +141,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
       final List<HostSpec> currentTopology,
       final ExecutorService executorService,
       final CompletionService<WriterFailoverResult> completionService,
-      final boolean singleTask) {
+      final boolean singleTask) throws SQLException {
     final HostSpec writerHost = Utils.getWriter(currentTopology);
     if (!singleTask) {
       completionService.submit(
@@ -166,7 +166,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     executorService.shutdown();
   }
 
-  protected FullServicesContainer getNewServicesContainer() {
+  protected FullServicesContainer getNewServicesContainer() throws SQLException {
     // Each task should get its own FullServicesContainer since they execute concurrently and PluginService was not
     // designed to be thread-safe.
     return ServiceContainerUtility.createServiceContainer(

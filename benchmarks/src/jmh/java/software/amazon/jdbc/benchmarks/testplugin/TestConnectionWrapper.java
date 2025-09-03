@@ -25,7 +25,6 @@ import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -45,8 +44,7 @@ public class TestConnectionWrapper extends ConnectionWrapper {
       @NonNull final HostListProviderService hostListProviderService,
       @NonNull final PluginManagerService pluginManagerService,
       @NonNull final StorageService storageService,
-      @NonNull final MonitorService monitorService,
-      @NonNull final ConnectionService connectionService)
+      @NonNull final MonitorService monitorService)
       throws SQLException {
     super(
         props,
@@ -58,6 +56,7 @@ public class TestConnectionWrapper extends ConnectionWrapper {
         pluginService,
         hostListProviderService,
         pluginManagerService,
-        storageService, monitorService, connectionService);
+        storageService,
+        monitorService);
   }
 }

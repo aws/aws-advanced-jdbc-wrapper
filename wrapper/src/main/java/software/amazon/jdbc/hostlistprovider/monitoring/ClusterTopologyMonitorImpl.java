@@ -270,7 +270,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   }
 
   @Override
-  public void monitor() {
+  public void monitor() throws Exception {
     try {
       LOGGER.finest(() -> Messages.get(
           "ClusterTopologyMonitorImpl.startMonitoringThread",
@@ -302,15 +302,27 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
             if (hosts != null && !this.isVerifiedWriterConnection) {
               for (HostSpec hostSpec : hosts) {
+                // A list is used to store the exception since lambdas require references to outer variables to be
+                // final. This allows us to identify if an error occurred while creating the node monitoring worker.
+                final List<Exception> exceptionList = new ArrayList<>();
                 this.submittedNodes.computeIfAbsent(hostSpec.getHost(),
                     (key) -> {
                       final ExecutorService nodeExecutorServiceCopy = this.nodeExecutorService;
                       if (nodeExecutorServiceCopy != null) {
-                        this.nodeExecutorService.submit(
-                            this.getNodeMonitoringWorker(hostSpec, this.writerHostSpec.get()));
+                        try {
+                          this.nodeExecutorService.submit(
+                              this.getNodeMonitoringWorker(hostSpec, this.writerHostSpec.get()));
+                        } catch (SQLException e) {
+                          exceptionList.add(e);
+                          return null;
+                        }
                       }
                       return true;
                     });
+
+                if (!exceptionList.isEmpty()) {
+                  throw exceptionList.get(0);
+                }
               }
               // It's not possible to call shutdown() on this.nodeExecutorService since more node may be added later.
             }
@@ -351,12 +363,25 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
               List<HostSpec> hosts = this.nodeThreadsLatestTopology.get();
               if (hosts != null && !this.nodeThreadsStop.get()) {
                 for (HostSpec hostSpec : hosts) {
+                  // A list is used to store the exception since lambdas require references to outer variables to be
+                  // final. This allows us to identify if an error occurred while creating the node monitoring worker.
+                  final List<Exception> exceptionList = new ArrayList<>();
                   this.submittedNodes.computeIfAbsent(hostSpec.getHost(),
                       (key) -> {
-                        this.nodeExecutorService.submit(
-                            this.getNodeMonitoringWorker(hostSpec, this.writerHostSpec.get()));
+                        try {
+                          this.nodeExecutorService.submit(
+                              this.getNodeMonitoringWorker(hostSpec, this.writerHostSpec.get()));
+                        } catch (SQLException e) {
+                          exceptionList.add(e);
+                          return null;
+                        }
+
                         return true;
                       });
+
+                  if (!exceptionList.isEmpty()) {
+                    throw exceptionList.get(0);
+                  }
                 }
                 // It's not possible to call shutdown() on this.nodeExecutorService since more node may be added later.
               }
@@ -416,6 +441,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
             ex);
       }
 
+      throw ex;
     } finally {
       this.stop.set(true);
       this.shutdownNodeExecutorService();
@@ -474,11 +500,11 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   }
 
   protected Runnable getNodeMonitoringWorker(
-      final HostSpec hostSpec, final @Nullable HostSpec writerHostSpec) {
+      final HostSpec hostSpec, final @Nullable HostSpec writerHostSpec) throws SQLException {
     return new NodeMonitoringWorker(this.getNewServicesContainer(), this, hostSpec, writerHostSpec);
   }
 
-  protected FullServicesContainer getNewServicesContainer() {
+  protected FullServicesContainer getNewServicesContainer() throws SQLException {
     return ServiceContainerUtility.createServiceContainer(
         this.servicesContainer.getStorageService(),
         this.servicesContainer.getMonitorService(),
