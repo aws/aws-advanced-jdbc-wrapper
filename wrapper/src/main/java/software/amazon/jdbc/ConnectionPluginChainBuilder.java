@@ -148,7 +148,7 @@ public class ConnectionPluginChainBuilder {
       final ConnectionProvider effectiveConnProvider,
       final PluginManagerService pluginManagerService,
       final Properties props,
-      @Nullable ConfigurationProfile configurationProfile) {
+      @Nullable ConfigurationProfile configurationProfile) throws SQLException {
 
     List<ConnectionPlugin> plugins;
     List<ConnectionPluginFactory> pluginFactories;

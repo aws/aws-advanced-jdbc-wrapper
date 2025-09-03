@@ -34,14 +34,12 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
-import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.FullServicesContainerImpl;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.ServiceContainerUtility;
@@ -367,10 +365,11 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     return new ReaderFailoverResult(null, null, false);
   }
 
-  protected FullServicesContainer getNewServicesContainer() throws SQLException {
+  protected FullServicesContainer getNewServicesContainer() {
     return ServiceContainerUtility.createServiceContainer(
         this.servicesContainer.getStorageService(),
         this.servicesContainer.getMonitorService(),
+        this.pluginService.getDefaultConnectionProvider(),
         this.servicesContainer.getTelemetryFactory(),
         this.pluginService.getOriginalUrl(),
         this.pluginService.getDriverProtocol(),
@@ -400,29 +399,6 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
           "70100",
           e);
     }
-  }
-
-  protected PluginService getNewPluginService() throws SQLException {
-    FullServicesContainer newServicesContainer = new FullServicesContainerImpl(
-        this.servicesContainer.getStorageService(),
-        this.servicesContainer.getMonitorService(),
-        this.servicesContainer.getTelemetryFactory()
-    );
-
-    ConnectionPluginManager pluginManager = new ConnectionPluginManager(
-        this.pluginService.getDefaultConnectionProvider(), null, null, servicesContainer.getTelemetryFactory());
-    newServicesContainer.setConnectionPluginManager(pluginManager);
-    PartialPluginService pluginService = new PartialPluginService(
-        newServicesContainer,
-        this.props,
-        this.pluginService.getOriginalUrl(),
-        this.pluginService.getDriverProtocol(),
-        this.pluginService.getTargetDriverDialect(),
-        this.pluginService.getDialect()
-    );
-
-    pluginManager.init(newServicesContainer, this.props, pluginService, null);
-    return pluginService;
   }
 
   private static class ConnectionAttemptTask implements Callable<ReaderFailoverResult> {

@@ -32,13 +32,11 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.FullServicesContainerImpl;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.ServiceContainerUtility;
@@ -143,7 +141,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
       final List<HostSpec> currentTopology,
       final ExecutorService executorService,
       final CompletionService<WriterFailoverResult> completionService,
-      final boolean singleTask) throws SQLException {
+      final boolean singleTask) {
     final HostSpec writerHost = Utils.getWriter(currentTopology);
     if (!singleTask) {
       completionService.submit(
@@ -168,27 +166,13 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     executorService.shutdown();
   }
 
-  // Each task should get its own PluginService since they execute concurrently and PluginService was not designed to
-  // be thread-safe.
-  protected PluginService getNewPluginService() throws SQLException {
-    FullServicesContainer newServicesContainer = new FullServicesContainerImpl(
-        this.servicesContainer.getStorageService(),
-        this.servicesContainer.getMonitorService(),
-        this.servicesContainer.getTelemetryFactory()
-    );
-
-    ConnectionPluginManager pluginManager = new ConnectionPluginManager(
-        this.pluginService.getDefaultConnectionProvider(), null, null, servicesContainer.getTelemetryFactory());
-    newServicesContainer.setConnectionPluginManager(pluginManager);
-    PartialPluginService pluginService = new PartialPluginService(
-        newServicesContainer,
-        this.initialConnectionProps,
-  protected FullServicesContainer getNewServicesContainer() throws SQLException {
+  protected FullServicesContainer getNewServicesContainer() {
     // Each task should get its own FullServicesContainer since they execute concurrently and PluginService was not
     // designed to be thread-safe.
     return ServiceContainerUtility.createServiceContainer(
         this.servicesContainer.getStorageService(),
         this.servicesContainer.getMonitorService(),
+        this.pluginService.getDefaultConnectionProvider(),
         this.servicesContainer.getTelemetryFactory(),
         this.pluginService.getOriginalUrl(),
         this.pluginService.getDriverProtocol(),
@@ -196,9 +180,6 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
         this.pluginService.getDialect(),
         this.initialConnectionProps
     );
-
-    pluginManager.init(newServicesContainer, this.initialConnectionProps, pluginService, null);
-    return pluginService;
   }
 
   private WriterFailoverResult getNextResult(
@@ -353,6 +334,10 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
 
     private boolean isCurrentHostWriter(final List<HostSpec> latestTopology) {
       final HostSpec latestWriter = Utils.getWriter(latestTopology);
+      if (latestWriter == null) {
+        return false;
+      }
+
       final Set<String> latestWriterAllAliases = latestWriter.asAliases();
       final Set<String> currentAliases = this.originalWriterHost.asAliases();
 

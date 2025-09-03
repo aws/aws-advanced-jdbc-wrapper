@@ -223,9 +223,9 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
         this.pluginService.getTargetDriverDialect(),
         this.pluginService.getDialect(),
         this.props,
-        (connectionService, pluginService) -> new CustomEndpointMonitorImpl(
-            this.servicesContainer.getStorageService(),
-            this.servicesContainer.getTelemetryFactory(),
+        (servicesContainer) -> new CustomEndpointMonitorImpl(
+            servicesContainer.getStorageService(),
+            servicesContainer.getTelemetryFactory(),
             this.customEndpointHostSpec,
             this.customEndpointId,
             this.region,

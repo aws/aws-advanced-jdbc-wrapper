@@ -598,29 +598,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       this.pluginService.setAvailability(failedHost.asAliases(), HostAvailability.NOT_AVAILABLE);
     }
 
-    if (this.connectionService == null) {
-      this.connectionService = getConnectionService();
-    }
-
     if (this.failoverMode == FailoverMode.STRICT_WRITER) {
       failoverWriter();
     } else {
       failoverReader(failedHost);
     }
-  }
-
-  protected ConnectionService getConnectionService() throws SQLException {
-    return new ConnectionServiceImpl(
-        servicesContainer.getStorageService(),
-        servicesContainer.getMonitorService(),
-        servicesContainer.getTelemetryFactory(),
-        this.pluginService.getDefaultConnectionProvider(),
-        this.pluginService.getOriginalUrl(),
-        this.pluginService.getDriverProtocol(),
-        this.pluginService.getTargetDriverDialect(),
-        this.pluginService.getDialect(),
-        properties
-    );
   }
 
   protected void failoverReader(final HostSpec failedHostSpec) throws SQLException {

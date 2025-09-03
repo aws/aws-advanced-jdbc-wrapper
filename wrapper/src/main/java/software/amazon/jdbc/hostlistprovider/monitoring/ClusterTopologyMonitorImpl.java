@@ -42,7 +42,6 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
@@ -57,10 +56,7 @@ import software.amazon.jdbc.util.ServiceContainerUtility;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
-import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
-import software.amazon.jdbc.util.monitoring.Monitor;
-import software.amazon.jdbc.util.storage.StorageService;
 
 public class ClusterTopologyMonitorImpl extends AbstractMonitor implements ClusterTopologyMonitor {
 
@@ -478,15 +474,15 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   }
 
   protected Runnable getNodeMonitoringWorker(
-      final HostSpec hostSpec, final @Nullable HostSpec writerHostSpec)
-      throws SQLException {
+      final HostSpec hostSpec, final @Nullable HostSpec writerHostSpec) {
     return new NodeMonitoringWorker(this.getNewServicesContainer(), this, hostSpec, writerHostSpec);
   }
 
-  protected FullServicesContainer getNewServicesContainer() throws SQLException {
+  protected FullServicesContainer getNewServicesContainer() {
     return ServiceContainerUtility.createServiceContainer(
         this.servicesContainer.getStorageService(),
         this.servicesContainer.getMonitorService(),
+        this.servicesContainer.getDefaultConnectionProvider(),
         this.servicesContainer.getTelemetryFactory(),
         this.servicesContainer.getPluginService().getOriginalUrl(),
         this.servicesContainer.getPluginService().getDriverProtocol(),
