@@ -30,6 +30,7 @@ import java.util.function.Supplier;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.hostlistprovider.monitoring.ClusterTopologyMonitorImpl;
@@ -178,6 +179,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       Object key,
       StorageService storageService,
       TelemetryFactory telemetryFactory,
+      ConnectionProvider defaultConnectionProvider,
       String originalUrl,
       String driverProtocol,
       TargetDriverDialect driverDialect,
@@ -197,6 +199,17 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
 
     final FullServicesContainer servicesContainer = getNewServicesContainer(
         storageService, telemetryFactory, originalUrl, driverProtocol, driverDialect, dbDialect, originalProps);
+    final ConnectionService connectionService =
+        getConnectionService(
+            storageService,
+            telemetryFactory,
+            defaultConnectionProvider,
+            originalUrl,
+            driverProtocol,
+            driverDialect,
+            dbDialect,
+            originalProps);
+
     Monitor monitor = cacheContainer.getCache().computeIfAbsent(key, k -> {
       MonitorItem monitorItem = new MonitorItem(() -> initializer.createMonitor(servicesContainer));
       monitorItem.getMonitor().start();

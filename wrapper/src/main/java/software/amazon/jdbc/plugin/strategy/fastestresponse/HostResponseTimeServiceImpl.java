@@ -80,6 +80,7 @@ public class HostResponseTimeServiceImpl implements HostResponseTimeService {
                 hostSpec.getUrl(),
                 servicesContainer.getStorageService(),
                 servicesContainer.getTelemetryFactory(),
+                this.pluginService.getDefaultConnectionProvider(),
                 this.pluginService.getOriginalUrl(),
                 this.pluginService.getDriverProtocol(),
                 this.pluginService.getTargetDriverDialect(),

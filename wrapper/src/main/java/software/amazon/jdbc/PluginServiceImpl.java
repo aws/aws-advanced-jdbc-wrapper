@@ -180,7 +180,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
           throw new RuntimeException(Messages.get("PluginServiceImpl.hostListEmpty"));
         }
 
-        this.currentHostSpec = this.getWriter(this.getAllHosts());
+        this.currentHostSpec = Utils.getWriter(this.getAllHosts());
         final List<HostSpec> allowedHosts = this.getHosts();
         if (!Utils.containsUrl(allowedHosts, this.currentHostSpec.getUrl())) {
           throw new RuntimeException(
@@ -243,19 +243,15 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     return this.hostListProvider.getHostRole(conn);
   }
 
-  private HostSpec getWriter(final @NonNull List<HostSpec> hosts) {
-    for (final HostSpec hostSpec : hosts) {
-      if (hostSpec.getRole() == HostRole.WRITER) {
-        return hostSpec;
-      }
-    }
-    return null;
-  }
-
   @Override
   @Deprecated
   public ConnectionProvider getConnectionProvider() {
     return this.pluginManager.defaultConnProvider;
+  }
+
+  @Override
+  public ConnectionProvider getDefaultConnectionProvider() {
+    return this.connectionProviderManager.getDefaultProvider();
   }
 
   public boolean isPooledConnectionProvider(HostSpec host, Properties props) {

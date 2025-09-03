@@ -109,6 +109,10 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
       @NonNull final Dialect dbDialect,
       @Nullable final ConfigurationProfile configurationProfile) {
     this.servicesContainer = servicesContainer;
+    this.servicesContainer.setHostListProviderService(this);
+    this.servicesContainer.setPluginService(this);
+    this.servicesContainer.setPluginManagerService(this);
+
     this.pluginManager = servicesContainer.getConnectionPluginManager();
     this.props = props;
     this.originalUrl = originalUrl;
@@ -117,6 +121,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
     this.dbDialect = dbDialect;
     this.configurationProfile = configurationProfile;
     this.exceptionManager = exceptionManager;
+
     this.connectionProviderManager = new ConnectionProviderManager(
         this.pluginManager.getDefaultConnProvider(),
         this.pluginManager.getEffectiveConnProvider());
@@ -124,10 +129,6 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
     this.exceptionHandler = this.configurationProfile != null && this.configurationProfile.getExceptionHandler() != null
         ? this.configurationProfile.getExceptionHandler()
         : null;
-
-    servicesContainer.setHostListProviderService(this);
-    servicesContainer.setPluginService(this);
-    servicesContainer.setPluginManagerService(this);
 
     HostListProviderSupplier supplier = this.dbDialect.getHostListProvider();
     this.hostListProvider = supplier.getProvider(this.props, this.originalUrl, this.servicesContainer);
@@ -149,7 +150,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
           throw new RuntimeException(Messages.get("PluginServiceImpl.hostListEmpty"));
         }
 
-        this.currentHostSpec = this.getWriter(this.getAllHosts());
+        this.currentHostSpec = Utils.getWriter(this.getAllHosts());
         final List<HostSpec> allowedHosts = this.getHosts();
         if (!Utils.containsUrl(allowedHosts, this.currentHostSpec.getUrl())) {
           throw new RuntimeException(
@@ -215,19 +216,15 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
     return this.hostListProvider.getHostRole(conn);
   }
 
-  private HostSpec getWriter(final @NonNull List<HostSpec> hosts) {
-    for (final HostSpec hostSpec : hosts) {
-      if (hostSpec.getRole() == HostRole.WRITER) {
-        return hostSpec;
-      }
-    }
-    return null;
-  }
-
   @Override
   @Deprecated
   public ConnectionProvider getConnectionProvider() {
     return this.pluginManager.defaultConnProvider;
+  }
+
+  @Override
+  public ConnectionProvider getDefaultConnectionProvider() {
+    return this.connectionProviderManager.getDefaultProvider();
   }
 
   public boolean isPooledConnectionProvider(HostSpec host, Properties props) {
