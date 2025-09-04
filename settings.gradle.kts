@@ -18,7 +18,6 @@ rootProject.name = "aws-advanced-jdbc-wrapper"
 
 include(
     "aws-advanced-jdbc-wrapper",
-    "aws-advanced-jdbc-wrapper-bundle",
     "benchmarks",
     "hibernate",
     "hikari",
@@ -35,7 +34,6 @@ include(
 )
 
 project(":aws-advanced-jdbc-wrapper").projectDir = file("wrapper")
-project(":aws-advanced-jdbc-wrapper-bundle").projectDir = file("aws-advanced-jdbc-wrapper-bundle")
 project(":hibernate").projectDir = file("examples/HibernateExample")
 project(":hikari").projectDir = file("examples/HikariExample")
 project(":dbcp").projectDir = file("examples/DBCPExample")
