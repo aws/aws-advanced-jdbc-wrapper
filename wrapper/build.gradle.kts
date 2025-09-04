@@ -23,6 +23,7 @@ plugins {
     id("com.github.vlsi.gradle-extensions")
     id("com.github.vlsi.ide")
     id("com.kncept.junit.reporter")
+    id("com.gradleup.shadow") version "8.3.5" // 8.3.5 is the last version that is compatible with Java 8
 }
 
 var useJacoco = (!project.hasProperty("jacocoEnabled") || project.property("jacocoEnabled").toString().toBoolean())
@@ -32,26 +33,35 @@ if (useJacoco) {
 }
 
 dependencies {
+
+    optionalImplementation("software.amazon.awssdk:rds:2.32.29")
+    optionalImplementation("software.amazon.awssdk:auth:2.32.29") // Required for IAM (light implementation)
+    optionalImplementation("software.amazon.awssdk:http-client-spi:2.32.29") // Required for IAM (light implementation)
+    optionalImplementation("software.amazon.awssdk:sts:2.32.29")
+    optionalImplementation("software.amazon.awssdk:secretsmanager:2.32.29")
+    optionalImplementation("com.fasterxml.jackson.core:jackson-databind:2.19.0")
+    optionalImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
+    optionalImplementation("com.mchange:c3p0:0.11.0")
+    optionalImplementation("org.apache.httpcomponents:httpclient:4.5.14")
+    optionalImplementation("com.fasterxml.jackson.core:jackson-databind:2.19.0")
+    optionalImplementation("org.jsoup:jsoup:1.21.1")
+    optionalImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
+    optionalImplementation("io.opentelemetry:opentelemetry-api:1.52.0")
+    optionalImplementation("io.opentelemetry:opentelemetry-sdk:1.52.0")
+    optionalImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.52.0")
+
     compileOnly("org.checkerframework:checker-qual:3.49.5")
-    compileOnly("org.apache.httpcomponents:httpclient:4.5.14")
-    compileOnly("software.amazon.awssdk:rds:2.32.29")
-    compileOnly("software.amazon.awssdk:auth:2.32.29") // Required for IAM (light implementation)
-    compileOnly("software.amazon.awssdk:http-client-spi:2.32.29") // Required for IAM (light implementation)
-    compileOnly("software.amazon.awssdk:sts:2.32.29")
-    compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
-    compileOnly("com.mchange:c3p0:0.11.0")
-    compileOnly("software.amazon.awssdk:secretsmanager:2.32.29")
-    compileOnly("com.fasterxml.jackson.core:jackson-databind:2.19.0")
     compileOnly("com.mysql:mysql-connector-j:9.3.0")
     compileOnly("org.postgresql:postgresql:42.7.7")
     compileOnly("org.mariadb.jdbc:mariadb-java-client:3.5.3")
     compileOnly("org.osgi:org.osgi.core:6.0.0")
-    compileOnly("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
-    compileOnly("io.opentelemetry:opentelemetry-api:1.52.0")
-    compileOnly("io.opentelemetry:opentelemetry-sdk:1.52.0")
-    compileOnly("io.opentelemetry:opentelemetry-sdk-metrics:1.52.0")
-    compileOnly("org.jsoup:jsoup:1.21.1")
     compileOnly("org.jetbrains.kotlin:kotlin-stdlib:2.1.21")
+
+    // The following dependency will be included in federated-auth bundle jar.
+    federatedAuthBundleImplementation("org.apache.httpcomponents:httpclient:4.5.14")
+    federatedAuthBundleImplementation("software.amazon.awssdk:rds:2.32.29")
+    federatedAuthBundleImplementation("software.amazon.awssdk:sts:2.32.29")
+    federatedAuthBundleImplementation("org.jsoup:jsoup:1.21.1")
 
     testImplementation("org.checkerframework:checker-qual:3.49.5")
     testImplementation("org.junit.platform:junit-platform-commons:1.13.4")
@@ -257,6 +267,32 @@ tasks.jar {
         if (driverFile.createNewFile()) {
             driverFile.writeText("software.amazon.jdbc.Driver")
         }
+    }
+}
+
+configurations {
+    federatedAuthBundleImplementation {
+        isCanBeResolved = true
+    }
+}
+
+tasks.shadowJar {
+
+    configurations = listOf(project.configurations.federatedAuthBundleImplementation.get())
+    from(sourceSets.main.get().output)
+
+    archiveBaseName.set("aws-advanced-jdbc-wrapper")
+    archiveClassifier.set("bundle-federated-auth")
+
+    mergeServiceFiles("META-INF")
+
+    relocate("au", "shaded.au")
+    relocate("com", "shaded.com")
+    relocate("io", "shaded.io")
+    relocate("org", "shaded.org")
+
+    relocate("software", "shaded.software") {
+        exclude("software.amazon.jdbc.**")
     }
 }
 

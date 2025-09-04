@@ -135,6 +135,7 @@ public class HostMonitorServiceImpl implements HostMonitorService {
    * @param failureDetectionIntervalMillis A failure detection interval in millis.
    * @param failureDetectionCount A failure detection count.
    * @return A {@link HostMonitorImpl} object associated with a specific server.
+   * @throws SQLException if there's errors getting or creating a monitor
    */
   protected HostMonitor getMonitor(
       final HostSpec hostSpec,
