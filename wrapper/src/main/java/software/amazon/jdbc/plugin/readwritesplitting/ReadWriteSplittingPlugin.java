@@ -420,7 +420,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       return;
     }
 
-    if (this.readerHostSpec != null && !hosts.contains(this.readerHostSpec)) {
+    if (this.readerHostSpec != null && !Utils.containsHostAndPort(hosts, this.readerHostSpec.getHostAndPort())) {
       // The old reader cannot be used anymore because it is no longer in the list of allowed hosts.
       closeConnectionIfIdle(this.readerConnection);
     }

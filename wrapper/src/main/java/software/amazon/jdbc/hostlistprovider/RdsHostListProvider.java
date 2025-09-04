@@ -27,13 +27,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Properties;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -318,11 +316,6 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       return;
     }
 
-    final Set<String> primaryClusterHostUrls = new HashSet<>();
-    for (final HostSpec hostSpec : primaryClusterHosts) {
-      primaryClusterHostUrls.add(hostSpec.getUrl());
-    }
-
     Map<String, Topology> entries = this.servicesContainer.getStorageService().getEntries(Topology.class);
     if (entries == null) {
       return;
@@ -342,7 +335,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
 
       // The entry is non-primary
       for (final HostSpec host : clusterHosts) {
-        if (primaryClusterHostUrls.contains(host.getUrl())) {
+        if (Utils.containsHostAndPort(primaryClusterHosts, host.getHostAndPort())) {
           // Instance on this cluster matches with one of the instance on primary cluster
           // Suggest the primary clusterId to this entry
           suggestedPrimaryClusterIdCache.put(clusterId, this.clusterId,

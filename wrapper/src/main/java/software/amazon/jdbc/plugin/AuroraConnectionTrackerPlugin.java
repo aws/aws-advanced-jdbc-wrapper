@@ -165,7 +165,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
     if (this.currentWriter == null) {
       this.currentWriter = hostSpecAfterFailover;
       this.needUpdateCurrentWriter = false;
-    } else if (!this.currentWriter.getUrl().equals(hostSpecAfterFailover.getUrl())) {
+    } else if (!this.currentWriter.getHostAndPort().equals(hostSpecAfterFailover.getHostAndPort())) {
       // the writer's changed
       tracker.invalidateAllConnections(this.currentWriter);
       tracker.logOpenedConnections();
