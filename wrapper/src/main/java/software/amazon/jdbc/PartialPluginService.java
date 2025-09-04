@@ -510,8 +510,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
       final HostSpec hostSpec,
       final Properties props)
       throws SQLException {
-    throw new UnsupportedOperationException(
-        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"forceConnect"}));
+    return this.forceConnect(hostSpec, props, null);
   }
 
   @Override
@@ -520,8 +519,8 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
       final Properties props,
       final @Nullable ConnectionPlugin pluginToSkip)
       throws SQLException {
-    throw new UnsupportedOperationException(
-        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"forceConnect"}));
+    return this.pluginManager.forceConnect(
+        this.driverProtocol, hostSpec, props, true, pluginToSkip);
   }
 
   private void updateHostAvailability(final List<HostSpec> hosts) {
