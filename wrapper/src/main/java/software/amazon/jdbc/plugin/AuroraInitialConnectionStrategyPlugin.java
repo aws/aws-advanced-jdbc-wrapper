@@ -37,6 +37,7 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.WrapperUtils;
 
 public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlugin {
@@ -187,7 +188,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
       writerCandidate = null;
 
       try {
-        writerCandidate = this.getWriter();
+        writerCandidate = Utils.getWriter(this.pluginService.getAllHosts());
 
         if (writerCandidate == null || this.rdsUtils.isRdsClusterDns(writerCandidate.getHost())) {
 
@@ -360,15 +361,6 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     } catch (InterruptedException ex) {
       // ignore
     }
-  }
-
-  private HostSpec getWriter() {
-    for (final HostSpec host : this.pluginService.getAllHosts()) {
-      if (host.getRole() == HostRole.WRITER) {
-        return host;
-      }
-    }
-    return null;
   }
 
   private HostSpec getReader(final Properties props) throws SQLException {

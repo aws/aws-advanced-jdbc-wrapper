@@ -55,6 +55,7 @@ public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListP
         this.clusterId,
         this.servicesContainer.getStorageService(),
         this.pluginService.getTelemetryFactory(),
+        this.pluginService.getDefaultConnectionProvider(),
         this.originalUrl,
         this.pluginService.getDriverProtocol(),
         this.pluginService.getTargetDriverDialect(),

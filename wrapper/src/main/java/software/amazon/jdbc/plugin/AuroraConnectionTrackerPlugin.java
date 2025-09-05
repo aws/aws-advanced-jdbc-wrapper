@@ -21,15 +21,12 @@ import java.sql.SQLException;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
@@ -38,6 +35,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.Utils;
 
 public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
 
@@ -156,7 +154,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
         // do nothing
       }
     }
-    final HostSpec hostSpecAfterFailover = this.getWriter(this.pluginService.getAllHosts());
+    final HostSpec hostSpecAfterFailover = Utils.getWriter(this.pluginService.getAllHosts());
 
     if (this.currentWriter == null) {
       this.currentWriter = hostSpecAfterFailover;
@@ -174,7 +172,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
 
   private void rememberWriter() {
     if (this.currentWriter == null || this.needUpdateCurrentWriter) {
-      this.currentWriter = this.getWriter(this.pluginService.getAllHosts());
+      this.currentWriter = Utils.getWriter(this.pluginService.getAllHosts());
       this.needUpdateCurrentWriter = false;
     }
   }
@@ -190,14 +188,5 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
         this.needUpdateCurrentWriter = true;
       }
     }
-  }
-
-  private HostSpec getWriter(final @NonNull List<HostSpec> hosts) {
-    for (final HostSpec hostSpec : hosts) {
-      if (hostSpec.getRole() == HostRole.WRITER) {
-        return hostSpec;
-      }
-    }
-    return null;
   }
 }

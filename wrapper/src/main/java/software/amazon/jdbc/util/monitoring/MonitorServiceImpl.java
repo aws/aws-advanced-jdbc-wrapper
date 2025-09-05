@@ -31,8 +31,6 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionProvider;
-import software.amazon.jdbc.DriverConnectionProvider;
-import software.amazon.jdbc.TargetDriverHelper;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.hostlistprovider.monitoring.ClusterTopologyMonitorImpl;
@@ -42,6 +40,7 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.connection.ConnectionServiceImpl;
 import software.amazon.jdbc.util.events.DataAccessEvent;
 import software.amazon.jdbc.util.events.Event;
@@ -180,6 +179,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       Object key,
       StorageService storageService,
       TelemetryFactory telemetryFactory,
+      ConnectionProvider defaultConnectionProvider,
       String originalUrl,
       String driverProtocol,
       TargetDriverDialect driverDialect,
@@ -197,20 +197,16 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       cacheContainer = monitorCaches.computeIfAbsent(monitorClass, k -> supplier.get());
     }
 
-    TargetDriverHelper helper = new TargetDriverHelper();
-    java.sql.Driver driver = helper.getTargetDriver(originalUrl, originalProps);
-    final ConnectionProvider defaultConnectionProvider = new DriverConnectionProvider(driver);
-    final Properties propsCopy = PropertyUtils.copyProperties(originalProps);
-    final ConnectionServiceImpl connectionService = new ConnectionServiceImpl(
-        storageService,
-        this,
-        telemetryFactory,
-        defaultConnectionProvider,
-        originalUrl,
-        driverProtocol,
-        driverDialect,
-        dbDialect,
-        propsCopy);
+    final ConnectionService connectionService =
+        getConnectionService(
+            storageService,
+            telemetryFactory,
+            defaultConnectionProvider,
+            originalUrl,
+            driverProtocol,
+            driverDialect,
+            dbDialect,
+            originalProps);
 
     Monitor monitor = cacheContainer.getCache().computeIfAbsent(key, k -> {
       MonitorItem monitorItem = new MonitorItem(() -> initializer.createMonitor(
@@ -226,6 +222,28 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
 
     throw new IllegalStateException(
         Messages.get("MonitorServiceImpl.unexpectedMonitorClass", new Object[] {monitorClass, monitor}));
+  }
+
+  protected ConnectionService getConnectionService(
+      StorageService storageService,
+      TelemetryFactory telemetryFactory,
+      ConnectionProvider defaultConnectionProvider,
+      String originalUrl,
+      String driverProtocol,
+      TargetDriverDialect driverDialect,
+      Dialect dbDialect,
+      Properties originalProps) throws SQLException {
+    final Properties propsCopy = PropertyUtils.copyProperties(originalProps);
+    return new ConnectionServiceImpl(
+        storageService,
+        this,
+        telemetryFactory,
+        defaultConnectionProvider,
+        originalUrl,
+        driverProtocol,
+        driverDialect,
+        dbDialect,
+        propsCopy);
   }
 
   @Override
