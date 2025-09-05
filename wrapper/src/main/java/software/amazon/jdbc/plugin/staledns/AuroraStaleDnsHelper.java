@@ -139,11 +139,11 @@ public class AuroraStaleDnsHelper {
       }
 
       final List<HostSpec> allowedHosts = this.pluginService.getHosts();
-      if (!Utils.containsUrl(allowedHosts, this.writerHostSpec.getUrl())) {
+      if (!Utils.containsHostAndPort(allowedHosts, this.writerHostSpec.getHostAndPort())) {
         throw new SQLException(
             Messages.get("AuroraStaleDnsHelper.currentWriterNotAllowed",
                 new Object[] {
-                    this.writerHostSpec == null ? "<null>" : this.writerHostSpec.getUrl(),
+                    this.writerHostSpec == null ? "<null>" : this.writerHostSpec.getHostAndPort(),
                     Utils.logTopology(allowedHosts, "")})
         );
       }

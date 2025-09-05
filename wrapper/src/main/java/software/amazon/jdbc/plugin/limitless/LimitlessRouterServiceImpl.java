@@ -109,7 +109,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       }
     }
 
-    if (context.getLimitlessRouters().contains(context.getHostSpec())) {
+    if (Utils.containsHostAndPort(context.getLimitlessRouters(), context.getHostSpec().getHostAndPort())) {
       LOGGER.finest(Messages.get(
           "LimitlessRouterServiceImpl.connectWithHost",
           new Object[] {context.getHostSpec().getHost()}));

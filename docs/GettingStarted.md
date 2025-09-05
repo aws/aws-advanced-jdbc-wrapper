@@ -25,7 +25,7 @@ dependencies {
 
 ### Direct Download and Installation
 
-You can use pre-compiled packages that can be downloaded directly from [GitHub Releases](https://github.com/aws/aws-advanced-jdbc-wrapper/releases) or [Maven Central](https://search.maven.org/search?q=g:software.amazon.jdbc) to install the AWS JDBC Driver. After downloading the AWS JDBC Driver, install it by including the .jar file in the application's CLASSPATH.
+You can use pre-compiled packages that can be downloaded directly from [GitHub Releases](https://github.com/aws/aws-advanced-jdbc-wrapper/releases) or [Maven Central](https://central.sonatype.com/artifact/software.amazon.jdbc/aws-advanced-jdbc-wrapper) to install the AWS JDBC Driver. After downloading the AWS JDBC Driver, install it by including the .jar file in the application's CLASSPATH.
 
 For example, the following command uses wget to download the wrapper:
 
@@ -43,7 +43,7 @@ export CLASSPATH=$CLASSPATH:/home/userx/libs/aws-advanced-jdbc-wrapper-2.6.3.jar
 
 ### As a Maven Dependency
 
-You can use [Maven's dependency management](https://search.maven.org/search?q=g:software.amazon.jdbc) to obtain the AWS JDBC Driver by adding the following configuration to the application's Project Object Model (POM) file:
+You can use [Maven's dependency management](https://central.sonatype.com/artifact/software.amazon.jdbc/aws-advanced-jdbc-wrapper) to obtain the AWS JDBC Driver by adding the following configuration to the application's Project Object Model (POM) file:
 
 ```xml
 <dependencies>
@@ -57,7 +57,7 @@ You can use [Maven's dependency management](https://search.maven.org/search?q=g:
 
 ### As a Gradle Dependency
 
-You can use [Gradle's dependency management](https://search.maven.org/search?q=g:software.amazon.jdbc) to obtain the AWS JDBC Driver by adding the following configuration to the application's ```build.gradle``` file:
+You can use [Gradle's dependency management](https://central.sonatype.com/artifact/software.amazon.jdbc/aws-advanced-jdbc-wrapper) to obtain the AWS JDBC Driver by adding the following configuration to the application's ```build.gradle``` file:
 
 ```gradle
 dependencies {

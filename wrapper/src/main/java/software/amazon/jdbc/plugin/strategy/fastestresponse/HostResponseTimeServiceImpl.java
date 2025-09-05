@@ -20,15 +20,13 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import java.util.Set;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.storage.SlidingExpirationCacheWithCleanupThread;
+import software.amazon.jdbc.util.Utils;
 
 public class HostResponseTimeServiceImpl implements HostResponseTimeService {
 
@@ -66,13 +64,13 @@ public class HostResponseTimeServiceImpl implements HostResponseTimeService {
 
   @Override
   public void setHosts(final @NonNull List<HostSpec> hosts) {
-    Set<String> oldHosts = this.hosts.stream().map(HostSpec::getUrl).collect(Collectors.toSet());
+    List<HostSpec> oldHosts = this.hosts;
     this.hosts = hosts;
 
     // Going through all hosts in the topology and trying to find new ones.
     this.hosts.stream()
         // hostSpec is not in the set of hosts that already being monitored
-        .filter(hostSpec -> !oldHosts.contains(hostSpec.getUrl()))
+        .filter(hostSpec -> !Utils.containsHostAndPort(oldHosts, hostSpec.getHostAndPort()))
         .forEach(hostSpec -> {
           try {
             this.servicesContainer.getMonitorService().runIfAbsent(
