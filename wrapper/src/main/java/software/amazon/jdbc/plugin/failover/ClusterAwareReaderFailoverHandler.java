@@ -19,7 +19,6 @@ package software.amazon.jdbc.plugin.failover;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -308,15 +307,11 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     final ExecutorService executor =
         ExecutorFactory.newFixedThreadPool(2, "failover");
     final CompletionService<ReaderFailoverResult> completionService = new ExecutorCompletionService<>(executor);
-    // The ConnectionAttemptTask threads should have their own plugin services since they execute concurrently and
-    // PluginService was not designed to be thread-safe.
-    List<PluginService> pluginServices = Arrays.asList(getNewPluginService(), getNewPluginService());
-
     try {
       for (int i = 0; i < hosts.size(); i += 2) {
         // submit connection attempt tasks in batches of 2
         final ReaderFailoverResult result =
-            getResultFromNextTaskBatch(hosts, executor, completionService, pluginServices, i);
+            getResultFromNextTaskBatch(hosts, executor, completionService, i);
         if (result.isConnected() || result.getException() != null) {
           return result;
         }
@@ -339,14 +334,13 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       final List<HostSpec> hosts,
       final ExecutorService executor,
       final CompletionService<ReaderFailoverResult> completionService,
-      final List<PluginService> pluginServices,
       final int i) throws SQLException {
     ReaderFailoverResult result;
     final int numTasks = i + 1 < hosts.size() ? 2 : 1;
     completionService.submit(
         new ConnectionAttemptTask(
             this.connectionService,
-            pluginServices.get(0),
+            getNewPluginService(),
             this.hostAvailabilityMap,
             hosts.get(i),
             this.props,
@@ -355,7 +349,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       completionService.submit(
           new ConnectionAttemptTask(
               this.connectionService,
-              pluginServices.get(1),
+              getNewPluginService(),
               this.hostAvailabilityMap,
               hosts.get(i + 1),
               this.props,
@@ -398,6 +392,8 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     }
   }
 
+  // Each task should get its own PluginService since they execute concurrently and PluginService was not designed to
+  // be thread-safe.
   protected PluginService getNewPluginService() throws SQLException {
     FullServicesContainer newServicesContainer = new FullServicesContainerImpl(
         this.servicesContainer.getStorageService(),
