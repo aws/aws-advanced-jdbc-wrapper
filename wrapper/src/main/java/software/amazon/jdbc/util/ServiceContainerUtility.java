@@ -85,14 +85,6 @@ public class ServiceContainerUtility {
     );
 
     pluginManager.init(servicesContainer, props, partialPluginService, null);
-    return new FullServicesContainerImpl(
-        storageService,
-        monitorService,
-        connectionProvider,
-        telemetryFactory,
-        pluginManager,
-        partialPluginService,
-        partialPluginService,
-        partialPluginService);
+    return servicesContainer;
   }
 }
