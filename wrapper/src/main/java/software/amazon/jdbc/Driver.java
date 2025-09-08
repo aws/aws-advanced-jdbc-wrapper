@@ -58,11 +58,11 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectManager;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.CoreServiceContainer;
 import software.amazon.jdbc.util.DriverInfo;
-import software.amazon.jdbc.util.ServiceContainer;
-import software.amazon.jdbc.util.StandardServiceContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.ServiceUtility;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.monitoring.MonitorService;
@@ -110,6 +110,7 @@ public class Driver implements java.sql.Driver {
 
   private final StorageService storageService;
   private final MonitorService monitorService;
+  private final ConnectionUrlParser urlParser = new ConnectionUrlParser();
 
   public Driver() {
     this(CoreServiceContainer.getInstance());
@@ -239,9 +240,16 @@ public class Driver implements java.sql.Driver {
         effectiveConnectionProvider = configurationProfile.getConnectionProvider();
       }
 
-      ServiceContainer
-          serviceContainer = new StandardServiceContainer(
-              storageService, monitorService, defaultConnectionProvider, telemetryFactory);
+      String targetDriverProtocol = urlParser.getProtocol(driverUrl);
+      ServiceContainer serviceContainer = ServiceUtility.getInstance().createStandardServiceContainer(
+          storageService,
+          monitorService,
+          defaultConnectionProvider,
+          telemetryFactory,
+          driverUrl,
+          targetDriverProtocol,
+          targetDriverDialect,
+          props);
 
       return new ConnectionWrapper(
           serviceContainer,
@@ -250,8 +258,8 @@ public class Driver implements java.sql.Driver {
           defaultConnectionProvider,
           effectiveConnectionProvider,
           targetDriverDialect,
+          targetDriverProtocol,
           configurationProfile);
-
     } catch (Exception ex) {
       if (context != null) {
         context.setException(ex);

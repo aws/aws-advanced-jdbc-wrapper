@@ -45,17 +45,15 @@ import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.HostListProviderSupplier;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.ConnectionUrlParser;
-import software.amazon.jdbc.util.ServiceContainer;
-import software.amazon.jdbc.util.StandardServiceContainer;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.SqlState;
+import software.amazon.jdbc.util.StandardServiceContainer;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.monitoring.MonitorService;
@@ -78,8 +76,6 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
   protected @Nullable Throwable openConnectionStacktrace;
 
-  protected final ConnectionUrlParser connectionUrlParser = new ConnectionUrlParser();
-
   public ConnectionWrapper(
       @NonNull final ServiceContainer serviceContainer,
       @NonNull final Properties props,
@@ -87,6 +83,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       @NonNull final ConnectionProvider defaultConnectionProvider,
       @Nullable final ConnectionProvider effectiveConnectionProvider,
       @NonNull final TargetDriverDialect driverDialect,
+      @NonNull final String targetDriverProtocol,
       @Nullable final ConfigurationProfile configurationProfile)
       throws SQLException {
 
@@ -95,7 +92,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     }
 
     this.originalUrl = url;
-    this.targetDriverProtocol = connectionUrlParser.getProtocol(url);
+    this.targetDriverProtocol = targetDriverProtocol;
     this.configurationProfile = configurationProfile;
 
     final ConnectionPluginManager pluginManager =
@@ -104,17 +101,6 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
             effectiveConnectionProvider,
             this,
             serviceContainer.getTelemetryFactory());
-    serviceContainer.setConnectionPluginManager(pluginManager);
-    final PluginServiceImpl pluginService = new PluginServiceImpl(
-        serviceContainer,
-        props,
-        url,
-        this.targetDriverProtocol,
-        driverDialect,
-        this.configurationProfile);
-    serviceContainer.setHostListProviderService(pluginService);
-    serviceContainer.setPluginService(pluginService);
-    serviceContainer.setPluginManagerService(pluginService);
 
     init(props, serviceContainer, defaultConnectionProvider, driverDialect);
 
