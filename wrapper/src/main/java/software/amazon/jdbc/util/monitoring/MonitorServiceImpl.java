@@ -41,7 +41,7 @@ import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
-import software.amazon.jdbc.util.ServiceContainerUtility;
+import software.amazon.jdbc.util.ServiceUtility;
 import software.amazon.jdbc.util.events.DataAccessEvent;
 import software.amazon.jdbc.util.events.Event;
 import software.amazon.jdbc.util.events.EventPublisher;
@@ -231,7 +231,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       Dialect dbDialect,
       Properties originalProps) throws SQLException {
     final Properties propsCopy = PropertyUtils.copyProperties(originalProps);
-    return ServiceContainerUtility.createServiceContainer(
+    return ServiceUtility.getInstance().createServiceContainer(
         storageService,
         this,
         connectionProvider,

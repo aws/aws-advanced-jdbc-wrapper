@@ -39,7 +39,7 @@ import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
-import software.amazon.jdbc.util.ServiceContainerUtility;
+import software.amazon.jdbc.util.ServiceUtility;
 import software.amazon.jdbc.util.Utils;
 
 /**
@@ -169,7 +169,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
   protected FullServicesContainer getNewServicesContainer() throws SQLException {
     // Each task should get its own FullServicesContainer since they execute concurrently and PluginService was not
     // designed to be thread-safe.
-    return ServiceContainerUtility.createServiceContainer(
+    return ServiceUtility.getInstance().createServiceContainer(
         this.servicesContainer.getStorageService(),
         this.servicesContainer.getMonitorService(),
         this.pluginService.getDefaultConnectionProvider(),

@@ -41,7 +41,7 @@ import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
-import software.amazon.jdbc.util.ServiceContainerUtility;
+import software.amazon.jdbc.util.ServiceUtility;
 import software.amazon.jdbc.util.Utils;
 
 /**
@@ -359,7 +359,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   }
 
   protected FullServicesContainer getNewServicesContainer() throws SQLException {
-    return ServiceContainerUtility.createServiceContainer(
+    return ServiceUtility.getInstance().createServiceContainer(
         this.servicesContainer.getStorageService(),
         this.servicesContainer.getMonitorService(),
         this.pluginService.getDefaultConnectionProvider(),

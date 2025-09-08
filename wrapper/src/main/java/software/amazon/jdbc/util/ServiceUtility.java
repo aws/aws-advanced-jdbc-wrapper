@@ -28,17 +28,17 @@ import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
-public class ServiceContainerUtility {
-  private static volatile ServiceContainerUtility instance;
+public class ServiceUtility {
+  private static volatile ServiceUtility instance;
   private static final ReentrantLock initLock = new ReentrantLock();
 
-  private ServiceContainerUtility() {
+  private ServiceUtility() {
     if (instance != null) {
       throw new IllegalStateException("ServiceContainerUtility singleton instance already exists.");
     }
   }
 
-  public static ServiceContainerUtility getInstance() {
+  public static ServiceUtility getInstance() {
     if (instance != null) {
       return instance;
     }
@@ -46,7 +46,7 @@ public class ServiceContainerUtility {
     initLock.lock();
     try {
       if (instance == null) {
-        instance = new ServiceContainerUtility();
+        instance = new ServiceUtility();
       }
     } finally {
       initLock.unlock();
@@ -55,7 +55,7 @@ public class ServiceContainerUtility {
     return instance;
   }
 
-  public static FullServicesContainer createServiceContainer(
+  public FullServicesContainer createServiceContainer(
       StorageService storageService,
       MonitorService monitorService,
       ConnectionProvider connectionProvider,

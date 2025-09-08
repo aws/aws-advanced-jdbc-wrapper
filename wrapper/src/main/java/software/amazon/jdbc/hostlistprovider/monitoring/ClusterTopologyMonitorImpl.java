@@ -52,7 +52,7 @@ import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.ServiceContainerUtility;
+import software.amazon.jdbc.util.ServiceUtility;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
@@ -505,7 +505,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   }
 
   protected FullServicesContainer getNewServicesContainer() throws SQLException {
-    return ServiceContainerUtility.createServiceContainer(
+    return ServiceUtility.getInstance().createServiceContainer(
         this.servicesContainer.getStorageService(),
         this.servicesContainer.getMonitorService(),
         this.servicesContainer.getDefaultConnectionProvider(),
