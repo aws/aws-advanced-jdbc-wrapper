@@ -51,7 +51,7 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPluginFa
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPluginFactory;
 import software.amazon.jdbc.profile.ConfigurationProfile;
-import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
@@ -143,7 +143,7 @@ public class ConnectionPluginChainBuilder {
   }
 
   public List<ConnectionPlugin> getPlugins(
-      final FullServicesContainer servicesContainer,
+      final ServiceContainer serviceContainer,
       final ConnectionProvider defaultConnProvider,
       final ConnectionProvider effectiveConnProvider,
       final PluginManagerService pluginManagerService,
@@ -218,11 +218,11 @@ public class ConnectionPluginChainBuilder {
       // make a chain of connection plugins
       plugins = new ArrayList<>(pluginFactories.size() + 1);
       for (final ConnectionPluginFactory factory : pluginFactories) {
-        if (factory instanceof ServicesContainerPluginFactory) {
-          ServicesContainerPluginFactory servicesContainerPluginFactory = (ServicesContainerPluginFactory) factory;
-          plugins.add(servicesContainerPluginFactory.getInstance(servicesContainer, props));
+        if (factory instanceof ServiceContainerPluginFactory) {
+          ServiceContainerPluginFactory serviceContainerPluginFactory = (ServiceContainerPluginFactory) factory;
+          plugins.add(serviceContainerPluginFactory.getInstance(serviceContainer, props));
         } else {
-          plugins.add(factory.getInstance(servicesContainer.getPluginService(), props));
+          plugins.add(factory.getInstance(serviceContainer.getPluginService(), props));
         }
       }
     } else {
@@ -231,7 +231,7 @@ public class ConnectionPluginChainBuilder {
 
     // add default connection plugin to the tail
     final ConnectionPlugin defaultPlugin = new DefaultConnectionPlugin(
-        servicesContainer.getPluginService(),
+        serviceContainer.getPluginService(),
         defaultConnProvider,
         effectiveConnProvider,
         pluginManagerService);

@@ -40,7 +40,7 @@ import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.bluegreen.routing.ConnectRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.ExecuteRouting;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
-import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -73,7 +73,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
     PropertyDefinition.registerPluginProperties(BlueGreenConnectionPlugin.class);
   }
 
-  protected final FullServicesContainer servicesContainer;
+  protected final ServiceContainer serviceContainer;
   protected final StorageService storageService;
   protected final PluginService pluginService;
   protected final Properties props;
@@ -93,19 +93,19 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
   protected final Set<String> subscribedMethods;
 
   public BlueGreenConnectionPlugin(
-      final @NonNull FullServicesContainer servicesContainer,
+      final @NonNull ServiceContainer serviceContainer,
       final @NonNull Properties props) {
-    this(servicesContainer, props, BlueGreenStatusProvider::new);
+    this(serviceContainer, props, BlueGreenStatusProvider::new);
   }
 
   public BlueGreenConnectionPlugin(
-      final @NonNull FullServicesContainer servicesContainer,
+      final @NonNull ServiceContainer serviceContainer,
       final @NonNull Properties props,
       final @NonNull BlueGreenProviderSupplier providerSupplier) {
 
-    this.servicesContainer = servicesContainer;
-    this.storageService = servicesContainer.getStorageService();
-    this.pluginService = servicesContainer.getPluginService();
+    this.serviceContainer = serviceContainer;
+    this.storageService = serviceContainer.getStorageService();
+    this.pluginService = serviceContainer.getPluginService();
     this.props = props;
     this.telemetryFactory = pluginService.getTelemetryFactory();
     this.providerSupplier = providerSupplier;
@@ -314,7 +314,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
   protected void initProvider() {
     provider.computeIfAbsent(this.bgdId,
-        (key) -> this.providerSupplier.create(this.servicesContainer, this.props, this.bgdId));
+        (key) -> this.providerSupplier.create(this.serviceContainer, this.props, this.bgdId));
   }
 
   // For testing purposes

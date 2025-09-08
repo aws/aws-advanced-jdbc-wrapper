@@ -53,7 +53,7 @@ import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.ExecutorFactory;
-import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
@@ -69,7 +69,7 @@ public class BlueGreenStatusMonitor {
   // Add more versions here if needed.
   protected static final Set<String> knownVersions = new HashSet<>(Collections.singletonList(latestKnownVersion));
   protected final BlueGreenDialect blueGreenDialect;
-  protected final FullServicesContainer servicesContainer;
+  protected final ServiceContainer serviceContainer;
   protected final PluginService pluginService;
   protected final String bgdId;
   protected final Properties props;
@@ -126,7 +126,7 @@ public class BlueGreenStatusMonitor {
       final @NonNull BlueGreenRole role,
       final @NonNull String bgdId,
       final @NonNull HostSpec initialHostSpec,
-      final @NonNull FullServicesContainer servicesContainer,
+      final @NonNull ServiceContainer serviceContainer,
       final @NonNull Properties props,
       final @NonNull Map<BlueGreenIntervalRate, Long> statusCheckIntervalMap,
       final @Nullable OnBlueGreenStatusChange onBlueGreenStatusChangeFunc) {
@@ -134,8 +134,8 @@ public class BlueGreenStatusMonitor {
     this.role = role;
     this.bgdId = bgdId;
     this.initialHostSpec = initialHostSpec;
-    this.servicesContainer = servicesContainer;
-    this.pluginService = servicesContainer.getPluginService();
+    this.serviceContainer = serviceContainer;
+    this.pluginService = serviceContainer.getPluginService();
     this.props = props;
     this.statusCheckIntervalMap = statusCheckIntervalMap;
     this.onBlueGreenStatusChangeFunc = onBlueGreenStatusChangeFunc;
@@ -619,7 +619,7 @@ public class BlueGreenStatusMonitor {
           .getProvider(
               hostListProperties,
               hostListProviderUrl,
-              this.servicesContainer);
+              this.serviceContainer);
     } else {
       LOGGER.warning(() -> Messages.get("bgd.hostSpecNull"));
     }

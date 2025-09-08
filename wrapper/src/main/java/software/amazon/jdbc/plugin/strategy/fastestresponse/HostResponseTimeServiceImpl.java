@@ -26,9 +26,8 @@ import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.storage.SlidingExpirationCacheWithCleanupThread;
 
 public class HostResponseTimeServiceImpl implements HostResponseTimeService {
 
@@ -38,17 +37,17 @@ public class HostResponseTimeServiceImpl implements HostResponseTimeService {
   protected int intervalMs;
   protected List<HostSpec> hosts = new ArrayList<>();
 
-  protected final @NonNull FullServicesContainer servicesContainer;
+  protected final @NonNull ServiceContainer serviceContainer;
   protected final @NonNull PluginService pluginService;
 
   protected final @NonNull Properties props;
 
   public HostResponseTimeServiceImpl(
-      final @NonNull FullServicesContainer servicesContainer,
+      final @NonNull ServiceContainer serviceContainer,
       final @NonNull Properties props,
       int intervalMs) {
-    this.servicesContainer = servicesContainer;
-    this.pluginService = servicesContainer.getPluginService();
+    this.serviceContainer = serviceContainer;
+    this.pluginService = serviceContainer.getPluginService();
     this.props = props;
     this.intervalMs = intervalMs;
   }
@@ -56,7 +55,7 @@ public class HostResponseTimeServiceImpl implements HostResponseTimeService {
   @Override
   public int getResponseTime(HostSpec hostSpec) {
     final NodeResponseTimeMonitor monitor =
-        this.servicesContainer.getMonitorService().get(NodeResponseTimeMonitor.class, hostSpec.getUrl());
+        this.serviceContainer.getMonitorService().get(NodeResponseTimeMonitor.class, hostSpec.getUrl());
     if (monitor == null) {
       return Integer.MAX_VALUE;
     }
@@ -75,18 +74,18 @@ public class HostResponseTimeServiceImpl implements HostResponseTimeService {
         .filter(hostSpec -> !oldHosts.contains(hostSpec.getUrl()))
         .forEach(hostSpec -> {
           try {
-            this.servicesContainer.getMonitorService().runIfAbsent(
+            this.serviceContainer.getMonitorService().runIfAbsent(
                 NodeResponseTimeMonitor.class,
                 hostSpec.getUrl(),
-                servicesContainer.getStorageService(),
-                servicesContainer.getTelemetryFactory(),
-                servicesContainer.getDefaultConnectionProvider(),
+                serviceContainer.getStorageService(),
+                serviceContainer.getTelemetryFactory(),
+                serviceContainer.getDefaultConnectionProvider(),
                 this.pluginService.getOriginalUrl(),
                 this.pluginService.getDriverProtocol(),
                 this.pluginService.getTargetDriverDialect(),
                 this.pluginService.getDialect(),
                 this.props,
-                (servicesContainer) ->
+                (serviceContainer) ->
                     new NodeResponseTimeMonitor(pluginService, hostSpec, this.props,
                         this.intervalMs));
           } catch (SQLException e) {

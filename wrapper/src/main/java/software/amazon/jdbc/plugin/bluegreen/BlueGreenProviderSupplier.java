@@ -17,10 +17,10 @@
 package software.amazon.jdbc.plugin.bluegreen;
 
 import java.util.Properties;
-import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.ServiceContainer;
 
 @FunctionalInterface
 public interface BlueGreenProviderSupplier {
 
-  BlueGreenStatusProvider create(FullServicesContainer servicesContainer, Properties props, String bgdId);
+  BlueGreenStatusProvider create(ServiceContainer serviceContainer, Properties props, String bgdId);
 }

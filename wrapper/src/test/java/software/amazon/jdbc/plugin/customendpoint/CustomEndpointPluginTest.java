@@ -47,7 +47,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -63,7 +63,7 @@ public class CustomEndpointPluginTest {
   private final HostSpec writerClusterHost = hostSpecBuilder.host(writerClusterUrl).build();
   private final HostSpec host = hostSpecBuilder.host(customEndpointUrl).build();
 
-  @Mock private FullServicesContainer mockServicesContainer;
+  @Mock private ServiceContainer mockServiceContainer;
   @Mock private PluginService mockPluginService;
   @Mock private MonitorService mockMonitorService;
   @Mock private BiFunction<HostSpec, Region, RdsClient> mockRdsClientFunc;
@@ -80,9 +80,9 @@ public class CustomEndpointPluginTest {
   public void init() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
 
-    when(mockServicesContainer.getPluginService()).thenReturn(mockPluginService);
-    when(mockServicesContainer.getMonitorService()).thenReturn(mockMonitorService);
-    when(mockServicesContainer.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
+    when(mockServiceContainer.getPluginService()).thenReturn(mockPluginService);
+    when(mockServiceContainer.getMonitorService()).thenReturn(mockMonitorService);
+    when(mockServiceContainer.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.createCounter(any(String.class))).thenReturn(mockTelemetryCounter);
     when(mockMonitor.hasCustomEndpointInfo()).thenReturn(true);
     when(mockPluginService.getTargetDriverDialect()).thenReturn(mockTargetDriverDialect);
@@ -96,7 +96,7 @@ public class CustomEndpointPluginTest {
   }
 
   private CustomEndpointPlugin getSpyPlugin() throws SQLException {
-    CustomEndpointPlugin plugin = new CustomEndpointPlugin(mockServicesContainer, props, mockRdsClientFunc);
+    CustomEndpointPlugin plugin = new CustomEndpointPlugin(mockServiceContainer, props, mockRdsClientFunc);
     CustomEndpointPlugin spyPlugin = spy(plugin);
     doReturn(mockMonitor).when(spyPlugin).createMonitorIfAbsent(any(Properties.class));
     return spyPlugin;

@@ -52,7 +52,7 @@ import software.amazon.jdbc.plugin.bluegreen.routing.SubstituteConnectRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.SuspendConnectRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.SuspendExecuteRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.SuspendUntilCorrespondingNodeFoundConnectRouting;
-import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
@@ -121,7 +121,7 @@ public class BlueGreenStatusProvider {
   protected final long switchoverTimeoutNano;
   protected final boolean suspendNewBlueConnectionsWhenInProgress;
 
-  protected final FullServicesContainer servicesContainer;
+  protected final ServiceContainer serviceContainer;
   protected final StorageService storageService;
   protected final PluginService pluginService;
   protected final Properties props;
@@ -130,13 +130,13 @@ public class BlueGreenStatusProvider {
   protected final RdsUtils rdsUtils = new RdsUtils();
 
   public BlueGreenStatusProvider(
-      final @NonNull FullServicesContainer servicesContainer,
+      final @NonNull ServiceContainer serviceContainer,
       final @NonNull Properties props,
       final @NonNull String bgdId) {
 
-    this.servicesContainer = servicesContainer;
-    this.storageService = servicesContainer.getStorageService();
-    this.pluginService = servicesContainer.getPluginService();
+    this.serviceContainer = serviceContainer;
+    this.storageService = serviceContainer.getStorageService();
+    this.pluginService = serviceContainer.getPluginService();
     this.props = props;
     this.bgdId = bgdId;
 
@@ -162,7 +162,7 @@ public class BlueGreenStatusProvider {
             BlueGreenRole.SOURCE,
             this.bgdId,
             this.pluginService.getCurrentHostSpec(),
-            this.servicesContainer,
+            this.serviceContainer,
             this.getMonitoringProperties(),
             statusCheckIntervalMap,
             this::prepareStatus);
@@ -171,7 +171,7 @@ public class BlueGreenStatusProvider {
             BlueGreenRole.TARGET,
             this.bgdId,
             this.pluginService.getCurrentHostSpec(),
-            this.servicesContainer,
+            this.serviceContainer,
             this.getMonitoringProperties(),
             statusCheckIntervalMap,
             this::prepareStatus);

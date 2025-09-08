@@ -19,7 +19,7 @@ package software.amazon.jdbc.hostlistprovider.monitoring;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.logging.Logger;
-import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.ServiceContainer;
 
 public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListProvider {
 
@@ -31,7 +31,7 @@ public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListP
   public MonitoringRdsMultiAzHostListProvider(
       final Properties properties,
       final String originalUrl,
-      final FullServicesContainer servicesContainer,
+      final ServiceContainer serviceContainer,
       final String topologyQuery,
       final String nodeIdQuery,
       final String isReaderQuery,
@@ -40,7 +40,7 @@ public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListP
     super(
         properties,
         originalUrl,
-        servicesContainer,
+        serviceContainer,
         topologyQuery,
         nodeIdQuery,
         isReaderQuery,
@@ -51,18 +51,18 @@ public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListP
 
   @Override
   protected ClusterTopologyMonitor initMonitor() throws SQLException {
-    return this.servicesContainer.getMonitorService().runIfAbsent(MultiAzClusterTopologyMonitorImpl.class,
+    return this.serviceContainer.getMonitorService().runIfAbsent(MultiAzClusterTopologyMonitorImpl.class,
         this.clusterId,
-        this.servicesContainer.getStorageService(),
-        this.servicesContainer.getTelemetryFactory(),
-        this.servicesContainer.getDefaultConnectionProvider(),
+        this.serviceContainer.getStorageService(),
+        this.serviceContainer.getTelemetryFactory(),
+        this.serviceContainer.getDefaultConnectionProvider(),
         this.originalUrl,
         this.pluginService.getDriverProtocol(),
         this.pluginService.getTargetDriverDialect(),
         this.pluginService.getDialect(),
         this.properties,
-        (servicesContainer) -> new MultiAzClusterTopologyMonitorImpl(
-            servicesContainer,
+        (serviceContainer) -> new MultiAzClusterTopologyMonitorImpl(
+            serviceContainer,
             this.clusterId,
             this.initialHostSpec,
             this.properties,

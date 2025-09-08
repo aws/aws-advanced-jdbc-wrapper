@@ -21,19 +21,19 @@ import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.ServiceContainer;
 
 public class TestPluginServiceImpl extends PluginServiceImpl {
 
   public TestPluginServiceImpl(
-      @NonNull FullServicesContainer servicesContainer,
+      @NonNull ServiceContainer serviceContainer,
       @NonNull Properties props,
       @NonNull String originalUrl,
       String targetDriverProtocol,
       @NonNull final TargetDriverDialect targetDriverDialect)
       throws SQLException {
 
-    super(servicesContainer, props, originalUrl, targetDriverProtocol, targetDriverDialect);
+    super(serviceContainer, props, originalUrl, targetDriverProtocol, targetDriverDialect);
   }
 
   public static void clearHostAvailabilityCache() {

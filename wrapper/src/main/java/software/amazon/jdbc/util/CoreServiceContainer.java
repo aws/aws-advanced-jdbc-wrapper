@@ -27,22 +27,22 @@ import software.amazon.jdbc.util.storage.StorageServiceImpl;
  * A singleton container object used to instantiate and access core universal services. This class should be used
  * instead of directly instantiating core services so that only one instance of each service is instantiated.
  *
- * @see FullServicesContainer for a container that holds both connection-specific services and core universal
+ * @see ServiceContainer for a container that holds both connection-specific services and core universal
  *     services.
  */
-public class CoreServicesContainer {
-  private static final CoreServicesContainer INSTANCE = new CoreServicesContainer();
+public class CoreServiceContainer {
+  private static final CoreServiceContainer INSTANCE = new CoreServiceContainer();
 
   private final MonitorService monitorService;
   private final StorageService storageService;
 
-  private CoreServicesContainer() {
+  private CoreServiceContainer() {
     EventPublisher eventPublisher = new BatchingEventPublisher();
     this.storageService = new StorageServiceImpl(eventPublisher);
     this.monitorService = new MonitorServiceImpl(eventPublisher);
   }
 
-  public static CoreServicesContainer getInstance() {
+  public static CoreServiceContainer getInstance() {
     return INSTANCE;
   }
 

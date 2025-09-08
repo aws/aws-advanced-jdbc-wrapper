@@ -36,7 +36,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.ExecutorFactory;
-import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.ServiceUtility;
@@ -56,7 +56,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
       new WriterFailoverResult(false, false, null, null, "None");
 
   protected final Properties initialConnectionProps;
-  protected final FullServicesContainer servicesContainer;
+  protected final ServiceContainer serviceContainer;
   protected final PluginService pluginService;
   protected final ReaderFailoverHandler readerFailoverHandler;
   protected final Map<String, HostAvailability> hostAvailabilityMap = new ConcurrentHashMap<>();
@@ -65,24 +65,24 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
   protected int reconnectWriterIntervalMs = 5000; // 5 sec
 
   public ClusterAwareWriterFailoverHandler(
-      final FullServicesContainer servicesContainer,
+      final ServiceContainer serviceContainer,
       final ReaderFailoverHandler readerFailoverHandler,
       final Properties initialConnectionProps) {
-    this.servicesContainer = servicesContainer;
-    this.pluginService = servicesContainer.getPluginService();
+    this.serviceContainer = serviceContainer;
+    this.pluginService = serviceContainer.getPluginService();
     this.readerFailoverHandler = readerFailoverHandler;
     this.initialConnectionProps = initialConnectionProps;
   }
 
   public ClusterAwareWriterFailoverHandler(
-      final FullServicesContainer servicesContainer,
+      final ServiceContainer serviceContainer,
       final ReaderFailoverHandler readerFailoverHandler,
       final Properties initialConnectionProps,
       final int failoverTimeoutMs,
       final int readTopologyIntervalMs,
       final int reconnectWriterIntervalMs) {
     this(
-        servicesContainer,
+        serviceContainer,
         readerFailoverHandler,
         initialConnectionProps);
     this.maxFailoverTimeoutMs = failoverTimeoutMs;
@@ -146,7 +146,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     if (!singleTask) {
       completionService.submit(
           new ReconnectToWriterHandler(
-              this.getNewServicesContainer(),
+              this.getNewServiceContainer(),
               this.hostAvailabilityMap,
               writerHost,
               this.initialConnectionProps,
@@ -155,7 +155,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
 
     completionService.submit(
         new WaitForNewWriterHandler(
-            this.getNewServicesContainer(),
+            this.getNewServiceContainer(),
             this.hostAvailabilityMap,
             this.readerFailoverHandler,
             writerHost,
@@ -166,14 +166,13 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     executorService.shutdown();
   }
 
-  protected FullServicesContainer getNewServicesContainer() throws SQLException {
-    // Each task should get its own FullServicesContainer since they execute concurrently and PluginService was not
-    // designed to be thread-safe.
-    return ServiceUtility.getInstance().createServiceContainer(
-        this.servicesContainer.getStorageService(),
-        this.servicesContainer.getMonitorService(),
+  protected ServiceContainer getNewServiceContainer() throws SQLException {
+    // Each task gets its own service container since they execute concurrently and PluginService is not thread-safe.
+    return ServiceUtility.getInstance().createMinimalServiceContainer(
+        this.serviceContainer.getStorageService(),
+        this.serviceContainer.getMonitorService(),
         this.pluginService.getDefaultConnectionProvider(),
-        this.servicesContainer.getTelemetryFactory(),
+        this.serviceContainer.getTelemetryFactory(),
         this.pluginService.getOriginalUrl(),
         this.pluginService.getDriverProtocol(),
         this.pluginService.getTargetDriverDialect(),
@@ -262,12 +261,12 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     private final int reconnectWriterIntervalMs;
 
     public ReconnectToWriterHandler(
-        final FullServicesContainer servicesContainer,
+        final ServiceContainer serviceContainer,
         final Map<String, HostAvailability> availabilityMap,
         final HostSpec originalWriterHost,
         final Properties props,
         final int reconnectWriterIntervalMs) {
-      this.pluginService = servicesContainer.getPluginService();
+      this.pluginService = serviceContainer.getPluginService();
       this.availabilityMap = availabilityMap;
       this.originalWriterHost = originalWriterHost;
       this.props = props;
@@ -363,14 +362,14 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     private Connection currentReaderConnection;
 
     public WaitForNewWriterHandler(
-        final FullServicesContainer servicesContainer,
+        final ServiceContainer serviceContainer,
         final Map<String, HostAvailability> availabilityMap,
         final ReaderFailoverHandler readerFailoverHandler,
         final HostSpec originalWriterHost,
         final Properties props,
         final int readTopologyIntervalMs,
         final List<HostSpec> currentTopology) {
-      this.pluginService = servicesContainer.getPluginService();
+      this.pluginService = serviceContainer.getPluginService();
       this.availabilityMap = availabilityMap;
       this.readerFailoverHandler = readerFailoverHandler;
       this.originalWriterHost = originalWriterHost;

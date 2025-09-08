@@ -47,9 +47,9 @@ import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectManager;
 import software.amazon.jdbc.util.ConnectionUrlParser;
-import software.amazon.jdbc.util.CoreServicesContainer;
-import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.FullServicesContainerImpl;
+import software.amazon.jdbc.util.CoreServiceContainer;
+import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.StandardServiceContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.SqlState;
@@ -98,12 +98,12 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
   private int loginTimeout = 0;
 
   public AwsWrapperDataSource() {
-    this(CoreServicesContainer.getInstance());
+    this(CoreServiceContainer.getInstance());
   }
 
-  public AwsWrapperDataSource(CoreServicesContainer coreServicesContainer) {
-    this.storageService = coreServicesContainer.getStorageService();
-    this.monitorService = coreServicesContainer.getMonitorService();
+  public AwsWrapperDataSource(CoreServiceContainer coreServiceContainer) {
+    this.storageService = coreServiceContainer.getStorageService();
+    this.monitorService = coreServiceContainer.getMonitorService();
   }
 
   @Override
@@ -281,11 +281,11 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
       final @NonNull TargetDriverDialect targetDriverDialect,
       final @Nullable ConfigurationProfile configurationProfile,
       final TelemetryFactory telemetryFactory) throws SQLException {
-    FullServicesContainer
-        servicesContainer = new FullServicesContainerImpl(
+    ServiceContainer
+        serviceContainer = new StandardServiceContainer(
             storageService, monitorService, defaultProvider, telemetryFactory);
     return new ConnectionWrapper(
-        servicesContainer,
+        serviceContainer,
         props,
         url,
         defaultProvider,

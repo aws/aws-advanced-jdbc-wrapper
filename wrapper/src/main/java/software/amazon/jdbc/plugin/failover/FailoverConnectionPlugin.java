@@ -46,7 +46,7 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
@@ -93,7 +93,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   private final Set<String> subscribedMethods;
   private final PluginService pluginService;
-  private final FullServicesContainer servicesContainer;
+  private final ServiceContainer serviceContainer;
   protected final Properties properties;
   protected boolean enableFailoverSetting;
   protected boolean enableConnectFailover;
@@ -187,16 +187,16 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     PropertyDefinition.registerPluginProperties(FailoverConnectionPlugin.class);
   }
 
-  public FailoverConnectionPlugin(final FullServicesContainer servicesContainer, final Properties properties) {
-    this(servicesContainer, properties, new RdsUtils());
+  public FailoverConnectionPlugin(final ServiceContainer serviceContainer, final Properties properties) {
+    this(serviceContainer, properties, new RdsUtils());
   }
 
   FailoverConnectionPlugin(
-      final FullServicesContainer servicesContainer,
+      final ServiceContainer serviceContainer,
       final Properties properties,
       final RdsUtils rdsHelper) {
-    this.servicesContainer = servicesContainer;
-    this.pluginService = servicesContainer.getPluginService();
+    this.serviceContainer = serviceContainer;
+    this.pluginService = serviceContainer.getPluginService();
     this.properties = properties;
     this.rdsHelper = rdsHelper;
 
@@ -312,14 +312,14 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         initHostProviderFunc,
         () ->
             new ClusterAwareReaderFailoverHandler(
-                this.servicesContainer,
+                this.serviceContainer,
                 this.properties,
                 this.failoverTimeoutMsSetting,
                 this.failoverReaderConnectTimeoutMsSetting,
                 this.failoverMode == FailoverMode.STRICT_READER),
         () ->
             new ClusterAwareWriterFailoverHandler(
-                this.servicesContainer,
+                this.serviceContainer,
                 this.readerFailoverHandler,
                 this.properties,
                 this.failoverTimeoutMsSetting,

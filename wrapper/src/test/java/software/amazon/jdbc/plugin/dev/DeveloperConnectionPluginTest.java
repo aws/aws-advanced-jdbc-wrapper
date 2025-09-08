@@ -42,8 +42,8 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.DialectCodes;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.FullServicesContainerImpl;
+import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.StandardServiceContainer;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -52,7 +52,7 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 @SuppressWarnings({"resource"})
 public class DeveloperConnectionPluginTest {
-  private FullServicesContainer servicesContainer;
+  private ServiceContainer serviceContainer;
   @Mock StorageService mockStorageService;
   @Mock MonitorService mockMonitorService;
   @Mock ConnectionProvider mockConnectionProvider;
@@ -73,7 +73,7 @@ public class DeveloperConnectionPluginTest {
   @BeforeEach
   void init() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
-    servicesContainer = new FullServicesContainerImpl(
+    serviceContainer = new StandardServiceContainer(
         mockStorageService, mockMonitorService, mockConnectionProvider, mockTelemetryFactory);
 
     when(mockConnectionProvider.connect(any(), any(), any(), any(), any())).thenReturn(mockConnection);
@@ -92,7 +92,7 @@ public class DeveloperConnectionPluginTest {
     props.put(PropertyDefinition.PLUGINS.name, "dev");
     props.put(DialectManager.DIALECT.name, DialectCodes.PG);
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        servicesContainer,
+        serviceContainer,
         props,
         "any-protocol://any-host/",
         mockConnectionProvider,
@@ -121,7 +121,7 @@ public class DeveloperConnectionPluginTest {
     props.put(PropertyDefinition.PLUGINS.name, "dev");
     props.put(DialectManager.DIALECT.name, DialectCodes.PG);
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        servicesContainer,
+        serviceContainer,
         props,
         "any-protocol://any-host/",
         mockConnectionProvider,
@@ -150,7 +150,7 @@ public class DeveloperConnectionPluginTest {
     props.put(PropertyDefinition.PLUGINS.name, "dev");
     props.put(DialectManager.DIALECT.name, DialectCodes.PG);
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        servicesContainer,
+        serviceContainer,
         props,
         "any-protocol://any-host/",
         mockConnectionProvider,
@@ -179,7 +179,7 @@ public class DeveloperConnectionPluginTest {
     props.put(PropertyDefinition.PLUGINS.name, "dev");
     props.put(DialectManager.DIALECT.name, DialectCodes.PG);
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        servicesContainer,
+        serviceContainer,
         props,
         "any-protocol://any-host/",
         mockConnectionProvider,
@@ -210,7 +210,7 @@ public class DeveloperConnectionPluginTest {
     props.put(PropertyDefinition.PLUGINS.name, "dev");
     props.put(DialectManager.DIALECT.name, DialectCodes.PG);
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        servicesContainer,
+        serviceContainer,
         props,
         "any-protocol://any-host/",
         mockConnectionProvider,
@@ -239,7 +239,7 @@ public class DeveloperConnectionPluginTest {
     props.put(PropertyDefinition.PLUGINS.name, "dev");
     props.put(DialectManager.DIALECT.name, DialectCodes.PG);
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        servicesContainer,
+        serviceContainer,
         props,
         "any-protocol://any-host/",
         mockConnectionProvider,
@@ -278,7 +278,7 @@ public class DeveloperConnectionPluginTest {
     Throwable thrownException = assertThrows(
         SQLException.class,
         () -> new ConnectionWrapper(
-            servicesContainer,
+            serviceContainer,
             props,
             "any-protocol://any-host/",
             mockConnectionProvider,
@@ -289,7 +289,7 @@ public class DeveloperConnectionPluginTest {
 
     assertDoesNotThrow(
         () -> new ConnectionWrapper(
-            servicesContainer,
+            serviceContainer,
             props,
             "any-protocol://any-host/",
             mockConnectionProvider,
@@ -309,7 +309,7 @@ public class DeveloperConnectionPluginTest {
 
     assertDoesNotThrow(
         () -> new ConnectionWrapper(
-            servicesContainer,
+            serviceContainer,
             props,
             "any-protocol://any-host/",
             mockConnectionProvider,
@@ -334,7 +334,7 @@ public class DeveloperConnectionPluginTest {
     Throwable thrownException = assertThrows(
         SQLException.class,
         () -> new ConnectionWrapper(
-            servicesContainer,
+            serviceContainer,
             props,
             "any-protocol://any-host/",
             mockConnectionProvider,
@@ -345,7 +345,7 @@ public class DeveloperConnectionPluginTest {
 
     assertDoesNotThrow(
         () -> new ConnectionWrapper(
-            servicesContainer,
+            serviceContainer,
             props,
             "any-protocol://any-host/",
             mockConnectionProvider,

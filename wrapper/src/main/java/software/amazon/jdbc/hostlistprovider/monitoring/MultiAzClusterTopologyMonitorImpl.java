@@ -26,7 +26,7 @@ import java.util.Properties;
 import java.util.logging.Logger;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.StringUtils;
 
 public class MultiAzClusterTopologyMonitorImpl extends ClusterTopologyMonitorImpl {
@@ -37,7 +37,7 @@ public class MultiAzClusterTopologyMonitorImpl extends ClusterTopologyMonitorImp
   protected final String fetchWriterNodeColumnName;
 
   public MultiAzClusterTopologyMonitorImpl(
-      final FullServicesContainer servicesContainer,
+      final ServiceContainer serviceContainer,
       final String clusterId,
       final HostSpec initialHostSpec,
       final Properties properties,
@@ -51,7 +51,7 @@ public class MultiAzClusterTopologyMonitorImpl extends ClusterTopologyMonitorImp
       final String fetchWriterNodeQuery,
       final String fetchWriterNodeColumnName) {
     super(
-        servicesContainer,
+        serviceContainer,
         clusterId,
         initialHostSpec,
         properties,

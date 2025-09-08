@@ -22,12 +22,12 @@ import java.util.Properties;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.PartialPluginService;
+import software.amazon.jdbc.MinimalPluginService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.FullServicesContainerImpl;
+import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.StandardServiceContainer;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -49,18 +49,18 @@ public class ConnectionServiceImpl implements ConnectionService {
       Properties props) throws SQLException {
     this.targetDriverProtocol = targetDriverProtocol;
 
-    FullServicesContainer
-        servicesContainer = new FullServicesContainerImpl(
+    ServiceContainer
+        serviceContainer = new StandardServiceContainer(
             storageService, monitorService, connectionProvider, telemetryFactory);
     this.pluginManager = new ConnectionPluginManager(
         connectionProvider,
         null,
         null,
         telemetryFactory);
-    servicesContainer.setConnectionPluginManager(this.pluginManager);
+    serviceContainer.setConnectionPluginManager(this.pluginManager);
 
-    PartialPluginService partialPluginService = new PartialPluginService(
-        servicesContainer,
+    MinimalPluginService minimalPluginService = new MinimalPluginService(
+        serviceContainer,
         props,
         originalUrl,
         this.targetDriverProtocol,
@@ -68,8 +68,8 @@ public class ConnectionServiceImpl implements ConnectionService {
         dbDialect
     );
 
-    this.pluginService = partialPluginService;
-    this.pluginManager.init(servicesContainer, props, partialPluginService, null);
+    this.pluginService = minimalPluginService;
+    this.pluginManager.init(serviceContainer, props, minimalPluginService, null);
   }
 
   @Override

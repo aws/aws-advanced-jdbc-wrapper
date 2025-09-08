@@ -26,9 +26,9 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.util.CoreServicesContainer;
+import software.amazon.jdbc.util.CoreServiceContainer;
 import software.amazon.jdbc.util.ExecutorFactory;
-import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -49,13 +49,13 @@ public class HostMonitorServiceImpl implements HostMonitorService {
   protected static final Executor ABORT_EXECUTOR =
       ExecutorFactory.newSingleThreadExecutor("abort");
 
-  protected final FullServicesContainer serviceContainer;
+  protected final ServiceContainer serviceContainer;
   protected final PluginService pluginService;
   protected final MonitorService coreMonitorService;
   protected final TelemetryFactory telemetryFactory;
   protected final TelemetryCounter abortedConnectionsCounter;
 
-  public HostMonitorServiceImpl(final @NonNull FullServicesContainer serviceContainer, Properties props) {
+  public HostMonitorServiceImpl(final @NonNull ServiceContainer serviceContainer, Properties props) {
     this.serviceContainer = serviceContainer;
     this.coreMonitorService = serviceContainer.getMonitorService();
     this.pluginService = serviceContainer.getPluginService();
@@ -71,7 +71,7 @@ public class HostMonitorServiceImpl implements HostMonitorService {
   }
 
   public static void closeAllMonitors() {
-    CoreServicesContainer.getInstance().getMonitorService().stopAndRemoveMonitors(HostMonitorImpl.class);
+    CoreServiceContainer.getInstance().getMonitorService().stopAndRemoveMonitors(HostMonitorImpl.class);
   }
 
   @Override
@@ -160,8 +160,8 @@ public class HostMonitorServiceImpl implements HostMonitorService {
         this.pluginService.getTargetDriverDialect(),
         this.pluginService.getDialect(),
         this.pluginService.getProperties(),
-        (servicesContainer) -> new HostMonitorImpl(
-            servicesContainer,
+        (serviceContainer) -> new HostMonitorImpl(
+            serviceContainer,
             hostSpec,
             properties,
             failureDetectionTimeMillis,

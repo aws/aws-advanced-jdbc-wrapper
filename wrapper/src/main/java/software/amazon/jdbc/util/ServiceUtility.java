@@ -21,7 +21,7 @@ import java.util.Properties;
 import java.util.concurrent.locks.ReentrantLock;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
-import software.amazon.jdbc.PartialPluginService;
+import software.amazon.jdbc.MinimalPluginService;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.monitoring.MonitorService;
@@ -55,7 +55,7 @@ public class ServiceUtility {
     return instance;
   }
 
-  public FullServicesContainer createServiceContainer(
+  public ServiceContainer createStandardServiceContainer(
       StorageService storageService,
       MonitorService monitorService,
       ConnectionProvider connectionProvider,
@@ -65,18 +65,18 @@ public class ServiceUtility {
       TargetDriverDialect driverDialect,
       Dialect dbDialect,
       Properties props) throws SQLException {
-    FullServicesContainer
-        servicesContainer = new FullServicesContainerImpl(
-            storageService, monitorService, connectionProvider, telemetryFactory);
+    ServiceContainer
+        serviceContainer = new StandardServiceContainer(
+        storageService, monitorService, connectionProvider, telemetryFactory);
     ConnectionPluginManager pluginManager = new ConnectionPluginManager(
         connectionProvider,
         null,
         null,
         telemetryFactory);
-    servicesContainer.setConnectionPluginManager(pluginManager);
+    serviceContainer.setConnectionPluginManager(pluginManager);
 
-    PartialPluginService partialPluginService = new PartialPluginService(
-        servicesContainer,
+    MinimalPluginService minimalPluginService = new MinimalPluginService(
+        serviceContainer,
         props,
         originalUrl,
         targetDriverProtocol,
@@ -84,7 +84,40 @@ public class ServiceUtility {
         dbDialect
     );
 
-    pluginManager.init(servicesContainer, props, partialPluginService, null);
-    return servicesContainer;
+    pluginManager.init(serviceContainer, props, minimalPluginService, null);
+    return serviceContainer;
+  }
+
+  public ServiceContainer createMinimalServiceContainer(
+      StorageService storageService,
+      MonitorService monitorService,
+      ConnectionProvider connectionProvider,
+      TelemetryFactory telemetryFactory,
+      String originalUrl,
+      String targetDriverProtocol,
+      TargetDriverDialect driverDialect,
+      Dialect dbDialect,
+      Properties props) throws SQLException {
+    ServiceContainer
+        serviceContainer = new StandardServiceContainer(
+            storageService, monitorService, connectionProvider, telemetryFactory);
+    ConnectionPluginManager pluginManager = new ConnectionPluginManager(
+        connectionProvider,
+        null,
+        null,
+        telemetryFactory);
+    serviceContainer.setConnectionPluginManager(pluginManager);
+
+    MinimalPluginService minimalPluginService = new MinimalPluginService(
+        serviceContainer,
+        props,
+        originalUrl,
+        targetDriverProtocol,
+        driverDialect,
+        dbDialect
+    );
+
+    pluginManager.init(serviceContainer, props, minimalPluginService, null);
+    return serviceContainer;
   }
 }

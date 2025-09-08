@@ -17,23 +17,23 @@
 package software.amazon.jdbc;
 
 import java.util.Properties;
-import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.ServiceContainer;
 
 /**
- * A factory for plugins that utilizes a {@link FullServicesContainer}. This interface extends
+ * A factory for plugins that utilizes a {@link ServiceContainer}. This interface extends
  * {@link ConnectionPluginFactory} to provide additional flexibility in plugin instantiation while maintaining backward
  * compatibility.
  *
- * <p>Implementations of this interface can access all services in the {@link FullServicesContainer} when creating
+ * <p>Implementations of this interface can access all services in the {@link ServiceContainer} when creating
  * connection plugins, rather than being limited to just the {@link PluginService}</p>
  */
-public interface ServicesContainerPluginFactory extends ConnectionPluginFactory {
+public interface ServiceContainerPluginFactory extends ConnectionPluginFactory {
   /**
    * Get an instance of a {@link ConnectionPlugin}.
    *
-   * @param servicesContainer the service container containing the services to be used by the {@link ConnectionPlugin}.
+   * @param serviceContainer the service container containing the services to be used by the {@link ConnectionPlugin}.
    * @param props             to be used by the {@link ConnectionPlugin}.
    * @return an instance of a {@link ConnectionPlugin}.
    */
-  ConnectionPlugin getInstance(FullServicesContainer servicesContainer, Properties props);
+  ConnectionPlugin getInstance(ServiceContainer serviceContainer, Properties props);
 }

@@ -56,10 +56,10 @@ import software.amazon.jdbc.states.TransferSessionStateOnSwitchCallable;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectManager;
 import software.amazon.jdbc.util.ConnectionUrlParser;
-import software.amazon.jdbc.util.CoreServicesContainer;
+import software.amazon.jdbc.util.CoreServiceContainer;
 import software.amazon.jdbc.util.DriverInfo;
-import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.FullServicesContainerImpl;
+import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.StandardServiceContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
@@ -112,12 +112,12 @@ public class Driver implements java.sql.Driver {
   private final MonitorService monitorService;
 
   public Driver() {
-    this(CoreServicesContainer.getInstance());
+    this(CoreServiceContainer.getInstance());
   }
 
-  public Driver(CoreServicesContainer coreServicesContainer) {
-    this.storageService = coreServicesContainer.getStorageService();
-    this.monitorService = coreServicesContainer.getMonitorService();
+  public Driver(CoreServiceContainer coreServiceContainer) {
+    this.storageService = coreServiceContainer.getStorageService();
+    this.monitorService = coreServiceContainer.getMonitorService();
   }
 
   public static void register() throws SQLException {
@@ -239,12 +239,12 @@ public class Driver implements java.sql.Driver {
         effectiveConnectionProvider = configurationProfile.getConnectionProvider();
       }
 
-      FullServicesContainer
-          servicesContainer = new FullServicesContainerImpl(
+      ServiceContainer
+          serviceContainer = new StandardServiceContainer(
               storageService, monitorService, defaultConnectionProvider, telemetryFactory);
 
       return new ConnectionWrapper(
-          servicesContainer,
+          serviceContainer,
           props,
           driverUrl,
           defaultConnectionProvider,
@@ -419,7 +419,7 @@ public class Driver implements java.sql.Driver {
   }
 
   public static void clearCaches() {
-    CoreServicesContainer.getInstance().getStorageService().clearAll();
+    CoreServiceContainer.getInstance().getStorageService().clearAll();
     RdsUtils.clearCache();
     RdsHostListProvider.clearAll();
     PluginServiceImpl.clearCache();
@@ -438,7 +438,7 @@ public class Driver implements java.sql.Driver {
   }
 
   public static void releaseResources() {
-    CoreServicesContainer.getInstance().getMonitorService().stopAndRemoveAll();
+    CoreServiceContainer.getInstance().getMonitorService().stopAndRemoveAll();
     HostMonitorThreadContainer.releaseInstance();
     ConnectionProviderManager.releaseResources();
     HikariPoolsHolder.closeAllPools();

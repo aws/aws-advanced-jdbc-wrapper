@@ -68,7 +68,7 @@ import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -95,7 +95,7 @@ public class ConnectionPluginManagerBenchmarks {
 
   @Mock ConnectionProvider mockConnectionProvider;
   @Mock ConnectionWrapper mockConnectionWrapper;
-  @Mock FullServicesContainer mockServicesContainer;
+  @Mock ServiceContainer mockServiceContainer;
   @Mock PluginService mockPluginService;
   @Mock PluginManagerService mockPluginManagerService;
   @Mock TelemetryFactory mockTelemetryFactory;
@@ -140,7 +140,7 @@ public class ConnectionPluginManagerBenchmarks {
     when(mockResultSet.getString(eq(FIELD_SESSION_ID))).thenReturn(WRITER_SESSION_ID);
     when(mockResultSet.getString(eq(FIELD_SERVER_ID)))
         .thenReturn("myInstance1.domain.com", "myInstance2.domain.com", "myInstance3.domain.com");
-    when(mockServicesContainer.getPluginService()).thenReturn(mockPluginService);
+    when(mockServiceContainer.getPluginService()).thenReturn(mockPluginService);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
 
@@ -166,11 +166,11 @@ public class ConnectionPluginManagerBenchmarks {
         null,
         mockConnectionWrapper,
         telemetryFactory);
-    pluginManager.init(mockServicesContainer, propertiesWithPlugins, mockPluginManagerService, configurationProfile);
+    pluginManager.init(mockServiceContainer, propertiesWithPlugins, mockPluginManagerService, configurationProfile);
 
     pluginManagerWithNoPlugins = new ConnectionPluginManager(mockConnectionProvider, null,
         mockConnectionWrapper, telemetryFactory);
-    pluginManagerWithNoPlugins.init(mockServicesContainer, propertiesWithoutPlugins, mockPluginManagerService, null);
+    pluginManagerWithNoPlugins.init(mockServiceContainer, propertiesWithoutPlugins, mockPluginManagerService, null);
   }
 
   @TearDown(Level.Iteration)
@@ -182,7 +182,7 @@ public class ConnectionPluginManagerBenchmarks {
   public ConnectionPluginManager initConnectionPluginManagerWithNoPlugins() throws SQLException {
     final ConnectionPluginManager manager = new ConnectionPluginManager(mockConnectionProvider, null,
         mockConnectionWrapper, mockTelemetryFactory);
-    manager.init(mockServicesContainer, propertiesWithoutPlugins, mockPluginManagerService, configurationProfile);
+    manager.init(mockServiceContainer, propertiesWithoutPlugins, mockPluginManagerService, configurationProfile);
     return manager;
   }
 
@@ -190,7 +190,7 @@ public class ConnectionPluginManagerBenchmarks {
   public ConnectionPluginManager initConnectionPluginManagerWithPlugins() throws SQLException {
     final ConnectionPluginManager manager = new ConnectionPluginManager(mockConnectionProvider, null,
         mockConnectionWrapper, mockTelemetryFactory);
-    manager.init(mockServicesContainer, propertiesWithPlugins, mockPluginManagerService, configurationProfile);
+    manager.init(mockServiceContainer, propertiesWithPlugins, mockPluginManagerService, configurationProfile);
     return manager;
   }
 
