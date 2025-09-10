@@ -65,7 +65,7 @@ dependencies {
 
     testImplementation("org.checkerframework:checker-qual:3.49.5")
     testImplementation("org.junit.platform:junit-platform-commons:1.13.4")
-    testImplementation("org.junit.platform:junit-platform-engine:1.13.3")
+    testImplementation("org.junit.platform:junit-platform-engine:1.13.4")
     testImplementation("org.junit.platform:junit-platform-launcher:1.13.4")
     testImplementation("org.junit.platform:junit-platform-suite-engine:1.13.4")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.13.1")
