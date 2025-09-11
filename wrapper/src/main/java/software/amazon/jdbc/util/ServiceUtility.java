@@ -19,16 +19,19 @@ package software.amazon.jdbc.util;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.concurrent.locks.ReentrantLock;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.MinimalPluginService;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 public class ServiceUtility {
   private static volatile ServiceUtility instance;
@@ -60,16 +63,20 @@ public class ServiceUtility {
   public ServiceContainer createStandardServiceContainer(
       StorageService storageService,
       MonitorService monitorService,
+      ConnectionWrapper connectionWrapper,
       ConnectionProvider defaultConnectionProvider,
+      ConnectionProvider effectiveConnectionProvider,
       TelemetryFactory telemetryFactory,
       String originalUrl,
       String targetDriverProtocol,
       TargetDriverDialect driverDialect,
-      Properties props) throws SQLException {
+      Properties props,
+      @Nullable ConfigurationProfile configurationProfile) throws SQLException {
     ServiceContainer serviceContainer =
         new StandardServiceContainer(storageService, monitorService, defaultConnectionProvider, telemetryFactory);
-    ConnectionPluginManager pluginManager =
-        new ConnectionPluginManager(defaultConnectionProvider, null, null, telemetryFactory);
+
+    ConnectionPluginManager pluginManager = new ConnectionPluginManager(
+        defaultConnectionProvider, effectiveConnectionProvider, connectionWrapper, telemetryFactory);
     serviceContainer.setConnectionPluginManager(pluginManager);
 
     PluginServiceImpl pluginServiceImpl = new PluginServiceImpl(
@@ -78,14 +85,14 @@ public class ServiceUtility {
         originalUrl,
         targetDriverProtocol,
         driverDialect,
-        null
+        configurationProfile
     );
 
     serviceContainer.setHostListProviderService(pluginServiceImpl);
     serviceContainer.setPluginService(pluginServiceImpl);
     serviceContainer.setPluginManagerService(pluginServiceImpl);
 
-    pluginManager.init(serviceContainer, props, pluginServiceImpl, null);
+    pluginManager.init(serviceContainer, props, pluginServiceImpl, configurationProfile);
     return serviceContainer;
   }
 

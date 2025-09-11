@@ -40,16 +40,13 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
-import software.amazon.jdbc.HostListProvider;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
-import software.amazon.jdbc.dialect.HostListProviderSupplier;
 import software.amazon.jdbc.profile.ConfigurationProfile;
-import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.SqlState;
@@ -77,32 +74,15 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   protected @Nullable Throwable openConnectionStacktrace;
 
   public ConnectionWrapper(
-      @NonNull final ServiceContainer serviceContainer,
       @NonNull final Properties props,
       @NonNull final String url,
-      @NonNull final ConnectionProvider defaultConnectionProvider,
-      @Nullable final ConnectionProvider effectiveConnectionProvider,
-      @NonNull final TargetDriverDialect driverDialect,
       @NonNull final String targetDriverProtocol,
       @Nullable final ConfigurationProfile configurationProfile)
       throws SQLException {
-
-    if (StringUtils.isNullOrEmpty(url)) {
-      throw new IllegalArgumentException("url");
-    }
-
     this.originalUrl = url;
     this.targetDriverProtocol = targetDriverProtocol;
     this.configurationProfile = configurationProfile;
-
-    final ConnectionPluginManager pluginManager =
-        new ConnectionPluginManager(
-            defaultConnectionProvider,
-            effectiveConnectionProvider,
-            this,
-            serviceContainer.getTelemetryFactory());
-
-    init(props, serviceContainer, defaultConnectionProvider, driverDialect);
+    init(props);
 
     if (PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(props)) {
       this.openConnectionStacktrace = new Throwable(Messages.get("ConnectionWrapper.unclosedConnectionInstantiated"));
@@ -114,7 +94,6 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       @NonNull final Properties props,
       @NonNull final String url,
       @NonNull final ConnectionProvider defaultConnectionProvider,
-      @NonNull final TargetDriverDialect driverDialect,
       @NonNull final ConnectionPluginManager connectionPluginManager,
       @NonNull final TelemetryFactory telemetryFactory,
       @NonNull final PluginService pluginService,
@@ -139,32 +118,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         pluginManagerService
     );
 
-    init(props, serviceContainer, defaultConnectionProvider, driverDialect);
+    init(props);
   }
 
-  protected void init(final Properties props,
-      final ServiceContainer serviceContainer,
-      final ConnectionProvider defaultConnectionProvider,
-      final TargetDriverDialect driverDialect) throws SQLException {
-    this.pluginManager = serviceContainer.getConnectionPluginManager();
-    this.telemetryFactory = serviceContainer.getTelemetryFactory();
-    this.pluginService = serviceContainer.getPluginService();
-    this.hostListProviderService = serviceContainer.getHostListProviderService();
-    this.pluginManagerService = serviceContainer.getPluginManagerService();
-
-    this.pluginManager.init(serviceContainer, props, pluginManagerService, this.configurationProfile);
-
-    final HostListProviderSupplier supplier = this.pluginService.getDialect().getHostListProvider();
-    if (supplier != null) {
-      final HostListProvider provider = supplier.getProvider(props, this.originalUrl, serviceContainer);
-      hostListProviderService.setHostListProvider(provider);
-    }
-
-    this.pluginManager.initHostProvider(
-        this.targetDriverProtocol, this.originalUrl, props, this.hostListProviderService);
-
+  protected void init(final Properties props) throws SQLException {
     this.pluginService.refreshHostList();
-
     if (this.pluginService.getCurrentConnection() == null) {
       final Connection conn =
           this.pluginManager.connect(
