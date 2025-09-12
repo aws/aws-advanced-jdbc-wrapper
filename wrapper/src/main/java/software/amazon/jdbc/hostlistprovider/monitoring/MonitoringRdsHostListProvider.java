@@ -125,6 +125,8 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
 
   @Override
   protected void clusterIdChanged(final String oldClusterId) throws SQLException {
+    super.clusterIdChanged(oldClusterId);
+
     MonitorService monitorService = this.servicesContainer.getMonitorService();
     final ClusterTopologyMonitorImpl existingMonitor =
         monitorService.get(ClusterTopologyMonitorImpl.class, oldClusterId);

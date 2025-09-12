@@ -285,8 +285,6 @@ class RdsMultiAzDbClusterListProviderTest {
     provider2.init();
 
     assertEquals(provider1.clusterId, provider2.clusterId);
-    assertTrue(provider1.isPrimaryClusterId);
-    assertTrue(provider2.isPrimaryClusterId);
 
     final List<HostSpec> topologyProvider2 = provider2.refresh(Mockito.mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider2);
@@ -332,8 +330,6 @@ class RdsMultiAzDbClusterListProviderTest {
     provider2.init();
 
     assertEquals(provider1.clusterId, provider2.clusterId);
-    assertTrue(provider1.isPrimaryClusterId);
-    assertTrue(provider2.isPrimaryClusterId);
 
     final List<HostSpec> topologyProvider2 = provider2.refresh(Mockito.mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider2);
@@ -385,20 +381,17 @@ class RdsMultiAzDbClusterListProviderTest {
     final List<HostSpec> topologyProvider2 = provider2.refresh(Mockito.mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider2);
 
-    assertNotEquals(provider1.clusterId, provider2.clusterId);
-    assertFalse(provider1.isPrimaryClusterId);
-    assertTrue(provider2.isPrimaryClusterId);
-    assertEquals(2, storageService.size(Topology.class));
-    assertEquals("cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com",
-        RdsMultiAzDbClusterListProvider.suggestedPrimaryClusterIdCache.get(provider1.clusterId));
+    assertEquals(provider1.clusterId, provider2.clusterId);
+    assertEquals(1, storageService.size(Topology.class));
+    assertEquals(provider1.clusterId,
+        RdsMultiAzDbClusterListProvider.clusterIdByHostAndPort.get(
+            "cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com"));
 
     // RdsMultiAzDbClusterListProvider.logCache();
 
     topologyProvider1 = provider1.forceRefresh(Mockito.mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider1);
     assertEquals(provider1.clusterId, provider2.clusterId);
-    assertTrue(provider1.isPrimaryClusterId);
-    assertTrue(provider2.isPrimaryClusterId);
 
     // RdsMultiAzDbClusterListProvider.logCache();
   }

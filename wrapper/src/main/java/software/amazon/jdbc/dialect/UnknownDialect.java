@@ -31,6 +31,8 @@ import software.amazon.jdbc.plugin.failover.FailoverRestriction;
 public class UnknownDialect implements Dialect {
 
   private static final List<String> dialectUpdateCandidates = Arrays.asList(
+      DialectCodes.GLOBAL_AURORA_PG,
+      DialectCodes.GLOBAL_AURORA_MYSQL,
       DialectCodes.AURORA_PG,
       DialectCodes.AURORA_MYSQL,
       DialectCodes.RDS_MULTI_AZ_PG_CLUSTER,

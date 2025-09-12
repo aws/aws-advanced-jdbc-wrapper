@@ -305,16 +305,14 @@ class RdsHostListProviderTest {
     final List<HostSpec> topologyProvider1 = provider1.refresh(mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider1);
 
-    RdsHostListProvider provider2 =
-        Mockito.spy(getRdsHostListProvider("jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));
-    provider2.init();
-
-    assertEquals(provider1.clusterId, provider2.clusterId);
-    assertTrue(provider1.isPrimaryClusterId);
-    assertTrue(provider2.isPrimaryClusterId);
+    RdsHostListProvider provider2 = Mockito.spy(
+        getRdsHostListProvider("jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));
+    doReturn(topologyClusterA).when(provider2).queryForTopology(any(Connection.class));
 
     final List<HostSpec> topologyProvider2 = provider2.refresh(mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider2);
+
+    assertEquals(provider1.clusterId, provider2.clusterId);
 
     assertEquals(1, storageService.size(Topology.class));
   }
@@ -355,8 +353,6 @@ class RdsHostListProviderTest {
     provider2.init();
 
     assertEquals(provider1.clusterId, provider2.clusterId);
-    assertTrue(provider1.isPrimaryClusterId);
-    assertTrue(provider2.isPrimaryClusterId);
 
     final List<HostSpec> topologyProvider2 = provider2.refresh(mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider2);
@@ -397,29 +393,24 @@ class RdsHostListProviderTest {
 
     // RdsHostListProvider.logCache();
 
-    RdsHostListProvider provider2 =
-        Mockito.spy(getRdsHostListProvider("jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));
-    provider2.init();
+    RdsHostListProvider provider2 = Mockito.spy(
+        getRdsHostListProvider("jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));
 
     doAnswer(a -> topologyClusterA).when(provider2).queryForTopology(any(Connection.class));
 
     final List<HostSpec> topologyProvider2 = provider2.refresh(mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider2);
 
-    assertNotEquals(provider1.clusterId, provider2.clusterId);
-    assertFalse(provider1.isPrimaryClusterId);
-    assertTrue(provider2.isPrimaryClusterId);
-    assertEquals(2, storageService.size(Topology.class));
-    assertEquals("cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com",
-        RdsHostListProvider.suggestedPrimaryClusterIdCache.get(provider1.clusterId));
+    assertEquals(provider1.clusterId, provider2.clusterId);
+    assertEquals(1, storageService.size(Topology.class));
+    assertEquals(provider1.clusterId,
+        RdsHostListProvider.clusterIdByHostAndPort.get("cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com"));
 
     // RdsHostListProvider.logCache();
 
     topologyProvider1 = provider1.forceRefresh(mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider1);
     assertEquals(provider1.clusterId, provider2.clusterId);
-    assertTrue(provider1.isPrimaryClusterId);
-    assertTrue(provider2.isPrimaryClusterId);
 
     // RdsHostListProvider.logCache();
   }
@@ -608,11 +599,8 @@ class RdsHostListProviderTest {
 
   @Test
   void testClusterUrlUsedAsDefaultClusterId() throws SQLException {
-    String readerClusterUrl = "mycluster.cluster-ro-XYZ.us-east-1.rds.amazonaws.com";
-    String expectedClusterId = "mycluster.cluster-XYZ.us-east-1.rds.amazonaws.com:1234";
-    String connectionString = "jdbc:someprotocol://" + readerClusterUrl + ":1234/test";
+    String connectionString = "jdbc:someprotocol://mycluster.cluster-ro-XYZ.us-east-1.rds.amazonaws.com:1234/test";
     RdsHostListProvider provider1 = Mockito.spy(getRdsHostListProvider(connectionString));
-    assertEquals(expectedClusterId, provider1.getClusterId());
 
     List<HostSpec> mockTopology =
         Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host").build());
@@ -622,7 +610,7 @@ class RdsHostListProviderTest {
     verify(provider1, times(1)).queryForTopology(mockConnection);
 
     RdsHostListProvider provider2 = Mockito.spy(getRdsHostListProvider(connectionString));
-    assertEquals(expectedClusterId, provider2.getClusterId());
+    assertEquals(provider1.getClusterId(), provider2.getClusterId());
     assertEquals(mockTopology, provider2.getStoredTopology());
     verify(provider2, never()).queryForTopology(mockConnection);
   }
