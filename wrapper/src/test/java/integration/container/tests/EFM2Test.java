@@ -23,10 +23,8 @@ import integration.DatabaseEngine;
 import integration.DatabaseEngineDeployment;
 import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
-import integration.container.TestDriver;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
-import integration.container.condition.DisableOnTestDriver;
 import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnTestFeature;
@@ -90,8 +88,6 @@ public class EFM2Test {
 
   @TestTemplate
   @ExtendWith(TestDriverProvider.class)
-  // TODO: test fails because EFM monitor's isValid call is freezing for MARIADB, investigate why
-  @DisableOnTestDriver(TestDriver.MARIADB)
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void test_efmNetworkFailureDetection() throws SQLException {
     int failureDelayMs = 10000;
