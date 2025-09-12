@@ -68,7 +68,7 @@ Please note that the sample code inside the AWS JDBC Driver project will use the
 
 ## Step 3: Configure the Datasource
 
-In the `application.yml` file, configure Hikari and AWS JDBC Driver as its driver.
+In the `application.yml` file, configure Hikari and AWS JDBC Driver as its driver. 
 
 ```yaml
 spring:
@@ -84,6 +84,18 @@ spring:
       exception-override-class-name: software.amazon.jdbc.util.HikariCPSQLException
 ```
 Note that in Spring Boot 2 and 3, Hikari is the default DataSource implementation. So, a bean explicitly specifying Hikari as a Datasource is not needed.
+Note also that data-source-properties can also be configured by parameters of jdbc url: 
+```yaml
+spring:
+  datasource:
+    url: jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/database-name?wrapperPlugins=failover,efm2&wrappeDialect=aurora-pg
+    username: some_username
+    password: some_password
+    driver-class-name: software.amazon.jdbc.Driver
+    hikari:
+      exception-override-class-name: software.amazon.jdbc.util.HikariCPSQLException
+```
+
 
 Optionally, you may like to add in Hikari specific configurations like the following.
 ```yaml
