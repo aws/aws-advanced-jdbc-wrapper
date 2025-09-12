@@ -20,7 +20,11 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Properties;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.ConnectionPluginManager;
+import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
@@ -65,72 +69,36 @@ public class AuroraPgDialect extends PgDialect implements AuroraLimitlessDialect
       "SELECT 'get_blue_green_fast_switchover_metadata'::regproc";
 
   @Override
-  public boolean isDialect(final Connection connection) {
-    if (!super.isDialect(connection)) {
+  public boolean isDialect(final Connection connection, final Properties properties) {
+    if (!super.isDialect(connection, properties)) {
       return false;
     }
 
-    Statement stmt = null;
-    ResultSet rs = null;
-    boolean hasExtensions = false;
-    boolean hasTopology = false;
     try {
-      stmt = connection.createStatement();
-      rs = stmt.executeQuery(extensionsSql);
-      if (rs.next()) {
+      try (Statement stmt = connection.createStatement();
+          ResultSet rs = stmt.executeQuery(extensionsSql)) {
+        if (!rs.next()) {
+          return false;
+        }
         final boolean auroraUtils = rs.getBoolean("aurora_stat_utils");
         LOGGER.finest(() -> String.format("auroraUtils: %b", auroraUtils));
-        if (auroraUtils) {
-          hasExtensions = true;
+        if (!auroraUtils) {
+          return false;
         }
+      }
+
+      try (Statement stmt = connection.createStatement();
+          ResultSet rs = stmt.executeQuery(topologySql)) {
+        if (rs.next()) {
+          LOGGER.finest(() -> "hasTopology: true");
+          return true;
+        }
+        LOGGER.finest(() -> "hasTopology: false");
       }
     } catch (SQLException ex) {
-      // ignore
-    } finally {
-      if (stmt != null) {
-        try {
-          stmt.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
-      if (rs != null) {
-        try {
-          rs.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
+      // do nothing
     }
-    if (!hasExtensions) {
-      return false;
-    }
-    try {
-      stmt = connection.createStatement();
-      rs = stmt.executeQuery(topologySql);
-      if (rs.next()) {
-        LOGGER.finest(() -> "hasTopology: true");
-        hasTopology = true;
-      }
-    } catch (final SQLException ex) {
-      // ignore
-    } finally {
-      if (stmt != null) {
-        try {
-          stmt.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
-      if (rs != null) {
-        try {
-          rs.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
-    }
-    return hasExtensions && hasTopology;
+    return false;
   }
 
   @Override
@@ -177,5 +145,22 @@ public class AuroraPgDialect extends PgDialect implements AuroraLimitlessDialect
     } catch (SQLException ex) {
       return false;
     }
+  }
+
+  @Override
+  public void prepareConnectProperties(
+      final @NonNull Properties connectProperties,
+      final @NonNull String protocol,
+      final @NonNull HostSpec hostSpec) {
+
+    final String driverInfoOption = String.format(
+        "-c aurora.connection_str=_jdbc_wrapper_name:aws_jdbc_driver,_jdbc_wrapper_version:%s,_jdbc_wrapper_plugins:%s",
+        DriverInfo.DRIVER_VERSION,
+        connectProperties.getProperty(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY));
+    connectProperties.setProperty("options",
+        connectProperties.getProperty("options") == null
+            ? driverInfoOption
+            : connectProperties.getProperty("options") + " " + driverInfoOption);
+    connectProperties.remove(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY);
   }
 }

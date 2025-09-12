@@ -32,16 +32,21 @@ public interface Dialect {
 
   String getHostAliasQuery();
 
-  String getServerVersionQuery();
+  // The query should return two column:
+  // - parameter name
+  // - parameter value with a database version
+  String getServerVersionQuery(final Properties properties);
 
-  boolean isDialect(Connection connection);
+  boolean isDialect(final Connection connection, final Properties properties);
 
   List</* dialect code */ String> getDialectUpdateCandidates();
 
   HostListProviderSupplier getHostListProvider();
 
   void prepareConnectProperties(
-      final @NonNull Properties connectProperties, final @NonNull String protocol, final @NonNull HostSpec hostSpec);
+      final @NonNull Properties connectProperties,
+      final @NonNull String protocol,
+      final @NonNull HostSpec hostSpec);
 
   EnumSet<FailoverRestriction> getFailoverRestrictions();
 }
