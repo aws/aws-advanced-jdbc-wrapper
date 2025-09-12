@@ -784,7 +784,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
 
       final List<HostSpec> allowedHosts = this.pluginService.getHosts();
-      if (!Utils.containsUrl(allowedHosts, writerHostSpec.getUrl())) {
+      if (!Utils.containsHostAndPort(allowedHosts, writerHostSpec.getHostAndPort())) {
         throwFailoverFailedException(
             Messages.get("Failover.newWriterNotAllowed",
                 new Object[] {writerHostSpec.getUrl(), Utils.logTopology(allowedHosts, "")}));
