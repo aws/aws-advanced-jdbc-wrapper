@@ -20,6 +20,7 @@ import java.sql.SQLException;
 import java.util.Properties;
 import java.util.Set;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.storage.StorageService;
@@ -53,18 +54,20 @@ public interface MonitorService {
    * Creates and starts the given monitor if it does not already exist and stores it under the given monitor type and
    * key. If the monitor already exists, its expiration time will be renewed, even if it was already expired.
    *
-   * @param monitorClass     the concrete class of the monitor, eg `CustomEndpointMonitorImpl.class`.
-   * @param key              the key for the monitor, eg
-   *                         "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
-   * @param storageService   the storage service for the monitor to use.
-   * @param telemetryFactory the telemetry factory for creating telemetry data.
-   * @param originalUrl      the URL of the original database connection.
-   * @param driverProtocol   the protocol for the underlying target driver.
-   * @param driverDialect    the target driver dialect.
-   * @param dbDialect        the database dialect.
-   * @param originalProps    the properties of the original database connection.
-   * @param initializer      an initializer function to use to create the monitor if it does not already exist.
-   * @param <T>              the type of the monitor.
+   * @param monitorClass              the concrete class of the monitor, eg `CustomEndpointMonitorImpl.class`.
+   * @param key                       the key for the monitor, eg
+   *                                  "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
+   * @param storageService            the storage service for the monitor to use.
+   * @param telemetryFactory          the telemetry factory for creating telemetry data.
+   * @param defaultConnectionProvider the connection provider to use to create new connections if the monitor
+   *                                  requires it.
+   * @param originalUrl               the URL of the original database connection.
+   * @param driverProtocol            the protocol for the underlying target driver.
+   * @param driverDialect             the target driver dialect.
+   * @param dbDialect                 the database dialect.
+   * @param originalProps             the properties of the original database connection.
+   * @param initializer               an initializer function to use to create the monitor if it does not already exist.
+   * @param <T>                       the type of the monitor.
    * @return the new or existing monitor.
    * @throws SQLException if an error occurs while trying to create the monitor.
    */
@@ -73,6 +76,7 @@ public interface MonitorService {
       Object key,
       StorageService storageService,
       TelemetryFactory telemetryFactory,
+      ConnectionProvider defaultConnectionProvider,
       String originalUrl,
       String driverProtocol,
       TargetDriverDialect driverDialect,

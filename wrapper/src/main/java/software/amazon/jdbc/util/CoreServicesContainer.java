@@ -33,8 +33,8 @@ import software.amazon.jdbc.util.storage.StorageServiceImpl;
 public class CoreServicesContainer {
   private static final CoreServicesContainer INSTANCE = new CoreServicesContainer();
 
-  private final StorageService storageService;
   private final MonitorService monitorService;
+  private final StorageService storageService;
 
   private CoreServicesContainer() {
     EventPublisher eventPublisher = new BatchingEventPublisher();

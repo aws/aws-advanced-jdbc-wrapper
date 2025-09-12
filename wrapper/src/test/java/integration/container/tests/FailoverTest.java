@@ -328,7 +328,7 @@ public class FailoverTest {
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getClusterEndpointPort();
 
     final Properties props = initDefaultProxiedProps();
-    props.setProperty(PropertyDefinition.PLUGINS.name, "auroraConnectionTracker,failover");
+    props.setProperty(PropertyDefinition.PLUGINS.name, "auroraConnectionTracker," + getFailoverPlugin());
 
     for (int i = 0; i < IDLE_CONNECTIONS_NUM; i++) {
       // Keep references to 5 idle connections created using the cluster endpoints.

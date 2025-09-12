@@ -19,6 +19,7 @@ package software.amazon.jdbc.util;
 import java.util.Collection;
 import java.util.List;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 
 public class Utils {
@@ -38,6 +39,19 @@ public class Utils {
     }
 
     return false;
+  }
+
+  public static @Nullable HostSpec getWriter(final List<HostSpec> topology) {
+    if (topology == null || topology.isEmpty()) {
+      return null;
+    }
+
+    for (final HostSpec host : topology) {
+      if (host.getRole() == HostRole.WRITER) {
+        return host;
+      }
+    }
+    return null;
   }
 
   public static String logTopology(final @Nullable List<HostSpec> hosts) {

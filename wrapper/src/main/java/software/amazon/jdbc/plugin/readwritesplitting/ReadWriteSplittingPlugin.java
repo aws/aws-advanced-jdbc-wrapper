@@ -422,6 +422,10 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
 
     if (this.readerHostSpec != null && !Utils.containsHostAndPort(hosts, this.readerHostSpec.getHostAndPort())) {
       // The old reader cannot be used anymore because it is no longer in the list of allowed hosts.
+      LOGGER.finest(
+          Messages.get(
+              "ReadWriteSplittingPlugin.previousReaderNotAllowed",
+              new Object[] {this.readerHostSpec, Utils.logTopology(hosts, "")}));
       closeConnectionIfIdle(this.readerConnection);
     }
 
@@ -471,14 +475,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   }
 
   private HostSpec getWriter(final @NonNull List<HostSpec> hosts) throws SQLException {
-    HostSpec writerHost = null;
-    for (final HostSpec hostSpec : hosts) {
-      if (HostRole.WRITER.equals(hostSpec.getRole())) {
-        writerHost = hostSpec;
-        break;
-      }
-    }
-
+    HostSpec writerHost = Utils.getWriter(hosts);
     if (writerHost == null) {
       logAndThrowException(Messages.get("ReadWriteSplittingPlugin.noWriterFound"));
     }

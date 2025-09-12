@@ -32,7 +32,9 @@ public class ReaderFailoverResult {
   private final HostSpec newHost;
 
   public ReaderFailoverResult(
-      final Connection newConnection, final HostSpec newHost, final boolean isConnected) {
+      final Connection newConnection,
+      final HostSpec newHost,
+      final boolean isConnected) {
     this(newConnection, newHost, isConnected, null);
   }
 

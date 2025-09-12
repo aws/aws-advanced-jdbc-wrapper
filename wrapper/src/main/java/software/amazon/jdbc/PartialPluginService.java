@@ -36,6 +36,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.dialect.HostListProviderSupplier;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.hostavailability.HostAvailability;
@@ -108,6 +109,10 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
       @NonNull final Dialect dbDialect,
       @Nullable final ConfigurationProfile configurationProfile) {
     this.servicesContainer = servicesContainer;
+    this.servicesContainer.setHostListProviderService(this);
+    this.servicesContainer.setPluginService(this);
+    this.servicesContainer.setPluginManagerService(this);
+
     this.pluginManager = servicesContainer.getConnectionPluginManager();
     this.props = props;
     this.originalUrl = originalUrl;
@@ -116,6 +121,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
     this.dbDialect = dbDialect;
     this.configurationProfile = configurationProfile;
     this.exceptionManager = exceptionManager;
+
     this.connectionProviderManager = new ConnectionProviderManager(
         this.pluginManager.getDefaultConnProvider(),
         this.pluginManager.getEffectiveConnProvider());
@@ -123,6 +129,9 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
     this.exceptionHandler = this.configurationProfile != null && this.configurationProfile.getExceptionHandler() != null
         ? this.configurationProfile.getExceptionHandler()
         : null;
+
+    HostListProviderSupplier supplier = this.dbDialect.getHostListProvider();
+    this.hostListProvider = supplier.getProvider(this.props, this.originalUrl, this.servicesContainer);
   }
 
   @Override
@@ -141,7 +150,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
           throw new RuntimeException(Messages.get("PluginServiceImpl.hostListEmpty"));
         }
 
-        this.currentHostSpec = this.getWriter(this.getAllHosts());
+        this.currentHostSpec = Utils.getWriter(this.getAllHosts());
         final List<HostSpec> allowedHosts = this.getHosts();
         if (!Utils.containsHostAndPort(allowedHosts, this.currentHostSpec.getHostAndPort())) {
           throw new RuntimeException(
@@ -207,19 +216,15 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
     return this.hostListProvider.getHostRole(conn);
   }
 
-  private HostSpec getWriter(final @NonNull List<HostSpec> hosts) {
-    for (final HostSpec hostSpec : hosts) {
-      if (hostSpec.getRole() == HostRole.WRITER) {
-        return hostSpec;
-      }
-    }
-    return null;
-  }
-
   @Override
   @Deprecated
   public ConnectionProvider getConnectionProvider() {
     return this.pluginManager.defaultConnProvider;
+  }
+
+  @Override
+  public ConnectionProvider getDefaultConnectionProvider() {
+    return this.connectionProviderManager.getDefaultProvider();
   }
 
   public boolean isPooledConnectionProvider(HostSpec host, Properties props) {

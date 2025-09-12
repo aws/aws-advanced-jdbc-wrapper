@@ -326,6 +326,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
           limitlessRouterMonitorKey,
           this.servicesContainer.getStorageService(),
           this.servicesContainer.getTelemetryFactory(),
+          this.pluginService.getDefaultConnectionProvider(),
           this.pluginService.getOriginalUrl(),
           this.pluginService.getDriverProtocol(),
           this.pluginService.getTargetDriverDialect(),

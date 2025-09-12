@@ -18,7 +18,9 @@ package software.amazon.jdbc.plugin.failover;
 
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Map;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.hostavailability.HostAvailability;
 
 /**
  * Interface for Writer Failover Process handler. This handler implements all necessary logic to try
@@ -34,4 +36,12 @@ public interface WriterFailoverHandler {
    * @throws SQLException indicating whether the failover attempt was successful.
    */
   WriterFailoverResult failover(List<HostSpec> currentTopology) throws SQLException;
+
+  /**
+   * Get the host availability map for the failover handler. This map will be populated with host availability
+   * information during the failover process and can be used to determine which hosts are available.
+   *
+   * @return the host availability map for the failover handler.
+   */
+  Map<String, HostAvailability> getHostAvailabilityMap();
 }

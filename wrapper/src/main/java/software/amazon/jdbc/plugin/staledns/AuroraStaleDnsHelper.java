@@ -99,7 +99,7 @@ public class AuroraStaleDnsHelper {
     LOGGER.finest(() -> Utils.logTopology(this.pluginService.getAllHosts()));
 
     if (this.writerHostSpec == null) {
-      final HostSpec writerCandidate = this.getWriter();
+      final HostSpec writerCandidate = Utils.getWriter(this.pluginService.getAllHosts());
       if (writerCandidate != null && this.rdsUtils.isRdsClusterDns(writerCandidate.getHost())) {
         return null;
       }
@@ -180,14 +180,5 @@ public class AuroraStaleDnsHelper {
         this.writerHostAddress = null;
       }
     }
-  }
-
-  private HostSpec getWriter() {
-    for (final HostSpec host : this.pluginService.getAllHosts()) {
-      if (host.getRole() == HostRole.WRITER) {
-        return host;
-      }
-    }
-    return null;
   }
 }

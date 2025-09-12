@@ -28,10 +28,10 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Supplier;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
@@ -46,12 +46,15 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.connection.ConnectionService;
+import software.amazon.jdbc.util.connection.ConnectionServiceImpl;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -92,6 +95,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   private final Set<String> subscribedMethods;
   private final PluginService pluginService;
+  private final FullServicesContainer servicesContainer;
+  private ConnectionService connectionService;
   protected final Properties properties;
   protected boolean enableFailoverSetting;
   protected boolean enableConnectFailover;
@@ -114,8 +119,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private RdsUrlType rdsUrlType = null;
   private HostListProviderService hostListProviderService;
   private final AuroraStaleDnsHelper staleDnsHelper;
-  private Supplier<WriterFailoverHandler> writerFailoverHandlerSupplier;
-  private Supplier<ReaderFailoverHandler> readerFailoverHandlerSupplier;
+  private Function<ConnectionService, WriterFailoverHandler> writerFailoverHandlerSupplier;
+  private Function<ConnectionService, ReaderFailoverHandler> readerFailoverHandlerSupplier;
 
   public static final AwsWrapperProperty FAILOVER_CLUSTER_TOPOLOGY_REFRESH_RATE_MS =
       new AwsWrapperProperty(
@@ -185,15 +190,16 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     PropertyDefinition.registerPluginProperties(FailoverConnectionPlugin.class);
   }
 
-  public FailoverConnectionPlugin(final PluginService pluginService, final Properties properties) {
-    this(pluginService, properties, new RdsUtils());
+  public FailoverConnectionPlugin(final FullServicesContainer servicesContainer, final Properties properties) {
+    this(servicesContainer, properties, new RdsUtils());
   }
 
   FailoverConnectionPlugin(
-      final PluginService pluginService,
+      final FullServicesContainer servicesContainer,
       final Properties properties,
       final RdsUtils rdsHelper) {
-    this.pluginService = pluginService;
+    this.servicesContainer = servicesContainer;
+    this.pluginService = servicesContainer.getPluginService();
     this.properties = properties;
     this.rdsHelper = rdsHelper;
 
@@ -307,16 +313,18 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     initHostProvider(
         hostListProviderService,
         initHostProviderFunc,
-        () ->
+        (connectionService) ->
             new ClusterAwareReaderFailoverHandler(
-                this.pluginService,
+                this.servicesContainer,
+                connectionService,
                 this.properties,
                 this.failoverTimeoutMsSetting,
                 this.failoverReaderConnectTimeoutMsSetting,
                 this.failoverMode == FailoverMode.STRICT_READER),
-        () ->
+        (connectionService) ->
             new ClusterAwareWriterFailoverHandler(
-                this.pluginService,
+                this.servicesContainer,
+                connectionService,
                 this.readerFailoverHandler,
                 this.properties,
                 this.failoverTimeoutMsSetting,
@@ -327,8 +335,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   void initHostProvider(
       final HostListProviderService hostListProviderService,
       final JdbcCallable<Void, SQLException> initHostProviderFunc,
-      final Supplier<ReaderFailoverHandler> readerFailoverHandlerSupplier,
-      final Supplier<WriterFailoverHandler> writerFailoverHandlerSupplier)
+      final Function<ConnectionService, ReaderFailoverHandler> readerFailoverHandlerSupplier,
+      final Function<ConnectionService, WriterFailoverHandler> writerFailoverHandlerSupplier)
       throws SQLException {
     this.readerFailoverHandlerSupplier = readerFailoverHandlerSupplier;
     this.writerFailoverHandlerSupplier = writerFailoverHandlerSupplier;
@@ -437,23 +445,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
       throw new SQLException(reason, SqlState.CONNECTION_NOT_OPEN.getState());
     }
-  }
-
-  private HostSpec getCurrentWriter() throws SQLException {
-    final List<HostSpec> topology = this.pluginService.getAllHosts();
-    if (topology == null) {
-      return null;
-    }
-    return getWriter(topology);
-  }
-
-  private HostSpec getWriter(final @NonNull List<HostSpec> hosts) {
-    for (final HostSpec hostSpec : hosts) {
-      if (hostSpec.getRole() == HostRole.WRITER) {
-        return hostSpec;
-      }
-    }
-    return null;
   }
 
   protected void updateTopology(final boolean forceUpdate) throws SQLException {
@@ -607,8 +598,14 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @param failedHost The host with network errors.
    * @throws SQLException if an error occurs
    */
-  protected void failover(final HostSpec failedHost) throws SQLException {
-    this.pluginService.setAvailability(failedHost.asAliases(), HostAvailability.NOT_AVAILABLE);
+  protected void failover(@Nullable final HostSpec failedHost) throws SQLException {
+    if (failedHost != null) {
+      this.pluginService.setAvailability(failedHost.asAliases(), HostAvailability.NOT_AVAILABLE);
+    }
+
+    if (this.connectionService == null) {
+      this.connectionService = getConnectionService();
+    }
 
     if (this.failoverMode == FailoverMode.STRICT_WRITER) {
       failoverWriter();
@@ -617,12 +614,33 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
   }
 
+  protected ConnectionService getConnectionService() throws SQLException {
+    return new ConnectionServiceImpl(
+        servicesContainer.getStorageService(),
+        servicesContainer.getMonitorService(),
+        servicesContainer.getTelemetryFactory(),
+        this.pluginService.getDefaultConnectionProvider(),
+        this.pluginService.getOriginalUrl(),
+        this.pluginService.getDriverProtocol(),
+        this.pluginService.getTargetDriverDialect(),
+        this.pluginService.getDialect(),
+        properties
+    );
+  }
+
   protected void failoverReader(final HostSpec failedHostSpec) throws SQLException {
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
         TELEMETRY_READER_FAILOVER, TelemetryTraceLevel.NESTED);
     if (this.failoverReaderTriggeredCounter != null) {
       this.failoverReaderTriggeredCounter.inc();
+    }
+
+    if (this.readerFailoverHandler == null) {
+      if (this.readerFailoverHandlerSupplier == null) {
+        throw new SQLException(Messages.get("Failover.nullReaderFailoverHandlerSupplier"));
+      }
+      this.readerFailoverHandler = this.readerFailoverHandlerSupplier.apply(this.connectionService);
     }
 
     final long failoverStartNano = System.nanoTime();
@@ -636,12 +654,15 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         failedHost = failedHostSpec;
       }
 
-      final ReaderFailoverResult result = readerFailoverHandler.failover(this.pluginService.getHosts(), failedHost);
+      final ReaderFailoverResult result =
+          this.readerFailoverHandler.failover(this.pluginService.getHosts(), failedHost);
       if (result != null) {
         final SQLException exception = result.getException();
         if (exception != null) {
           throw exception;
         }
+
+        updateHostAvailability(this.readerFailoverHandler.getHostAvailabilityMap());
       }
 
       if (result == null || !result.isConnected()) {
@@ -681,6 +702,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       LOGGER.finest(() -> Messages.get(
           "Failover.readerFailoverElapsed",
           new Object[]{TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - failoverStartNano)}));
+      this.readerFailoverHandler = null;
       if (telemetryContext != null) {
         telemetryContext.closeContext();
         if (this.telemetryFailoverAdditionalTopTraceSetting) {
@@ -716,16 +738,34 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       this.failoverWriterTriggeredCounter.inc();
     }
 
+    // The writer failover handler uses the reader failover handler, so we need to make sure it has been instantiated.
+    if (this.readerFailoverHandler == null) {
+      if (this.readerFailoverHandlerSupplier == null) {
+        throw new SQLException(Messages.get("Failover.nullReaderFailoverHandlerSupplier"));
+      }
+      this.readerFailoverHandler = this.readerFailoverHandlerSupplier.apply(this.connectionService);
+    }
+
+    if (this.writerFailoverHandler == null) {
+      if (this.writerFailoverHandlerSupplier == null) {
+        throw new SQLException(Messages.get("Failover.nullWriterFailoverHandlerSupplier"));
+      }
+      this.writerFailoverHandler = this.writerFailoverHandlerSupplier.apply(this.connectionService);
+    }
+
     long failoverStartTimeNano = System.nanoTime();
 
     try {
       LOGGER.info(() -> Messages.get("Failover.startWriterFailover"));
-      final WriterFailoverResult failoverResult = this.writerFailoverHandler.failover(this.pluginService.getAllHosts());
+      final WriterFailoverResult failoverResult =
+          this.writerFailoverHandler.failover(this.pluginService.getAllHosts());
       if (failoverResult != null) {
         final SQLException exception = failoverResult.getException();
         if (exception != null) {
           throw exception;
         }
+
+        updateHostAvailability(this.writerFailoverHandler.getHostAvailabilityMap());
       }
 
       if (failoverResult == null || !failoverResult.isConnected()) {
@@ -734,7 +774,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
 
       List<HostSpec> hosts = failoverResult.getTopology();
-      final HostSpec writerHostSpec = getWriter(hosts);
+      final HostSpec writerHostSpec = Utils.getWriter(hosts);
       if (writerHostSpec == null) {
         throwFailoverFailedException(
             Messages.get(
@@ -782,11 +822,26 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       LOGGER.finest(() -> Messages.get(
           "Failover.writerFailoverElapsed",
           new Object[]{TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - failoverStartTimeNano)}));
+      this.writerFailoverHandler = null;
       if (telemetryContext != null) {
         telemetryContext.closeContext();
         if (this.telemetryFailoverAdditionalTopTraceSetting) {
           telemetryFactory.postCopy(telemetryContext, TelemetryTraceLevel.FORCE_TOP_LEVEL);
         }
+      }
+    }
+  }
+
+  private void updateHostAvailability(Map<String, HostAvailability> hostAvailabilityMap) {
+    if (hostAvailabilityMap == null || hostAvailabilityMap.isEmpty()) {
+      return;
+    }
+
+    List<HostSpec> allHosts = this.pluginService.getAllHosts();
+    for (HostSpec host : allHosts) {
+      HostAvailability availability = hostAvailabilityMap.get(host.getHost());
+      if (availability != null) {
+        host.setAvailability(availability);
       }
     }
   }
@@ -823,9 +878,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
     if (this.pluginService.getCurrentConnection() == null && !shouldAttemptReaderConnection()) {
       try {
-        connectTo(getCurrentWriter());
+        connectTo(Utils.getWriter(this.pluginService.getAllHosts()));
       } catch (final SQLException e) {
-        failover(getCurrentWriter());
+        failover(Utils.getWriter(this.pluginService.getAllHosts()));
       }
     } else {
       failover(this.pluginService.getCurrentHostSpec());
@@ -879,21 +934,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
-
     this.initFailoverMode();
-    if (this.readerFailoverHandler == null) {
-      if (this.readerFailoverHandlerSupplier == null) {
-        throw new SQLException(Messages.get("Failover.nullReaderFailoverHandlerSupplier"));
-      }
-      this.readerFailoverHandler = this.readerFailoverHandlerSupplier.get();
-    }
-
-    if (this.writerFailoverHandler == null) {
-      if (this.writerFailoverHandlerSupplier == null) {
-        throw new SQLException(Messages.get("Failover.nullWriterFailoverHandlerSupplier"));
-      }
-      this.writerFailoverHandler = this.writerFailoverHandlerSupplier.get();
-    }
 
     Connection conn = null;
     try {
