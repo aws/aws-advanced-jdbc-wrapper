@@ -420,8 +420,8 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       return;
     }
 
-    if (this.readerHostSpec != null && !Utils.containsUrl(hosts, this.readerHostSpec.getUrl())) {
-      // The previous reader cannot be used anymore because it is no longer in the list of allowed hosts.
+    if (this.readerHostSpec != null && !Utils.containsHostAndPort(hosts, this.readerHostSpec.getHostAndPort())) {
+      // The old reader cannot be used anymore because it is no longer in the list of allowed hosts.
       LOGGER.finest(
           Messages.get(
               "ReadWriteSplittingPlugin.previousReaderNotAllowed",

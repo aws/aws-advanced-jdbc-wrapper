@@ -3,6 +3,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [2.6.4] - 2025-08-28
+
+### :bug: Fixed
+- Handle unauthorized exceptions while getting custom endpoint details ([PR #1521](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1521)).
+- Fix invalid POM file and optional dependencies ([PR #1524](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1524)).
+- Use HostSpec#getUrl() to check for matching hosts instead of HostSpec#equals() ([PR #1523](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1523)).
+
+### :crab: Changed
+- Update AWS SDK to 2.33.5 to address CVE-2025-58056 vulnerability ([PR #1528](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1528)).
+
 ## [2.6.3] - 2025-08-28
 
 ### :magic_wand: Added
@@ -498,6 +508,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[2.6.4]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.3...2.6.4
 [2.6.3]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.2...2.6.3
 [2.6.2]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.1...2.6.2
 [2.6.1]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.0...2.6.1

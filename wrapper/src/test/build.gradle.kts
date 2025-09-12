@@ -41,9 +41,9 @@ dependencies {
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
-    testImplementation("software.amazon.awssdk:ec2:2.32.29")
-    testImplementation("software.amazon.awssdk:rds:2.32.29")
-    testImplementation("software.amazon.awssdk:sts:2.32.29")
+    testImplementation("software.amazon.awssdk:ec2:2.33.5")
+    testImplementation("software.amazon.awssdk:rds:2.33.5")
+    testImplementation("software.amazon.awssdk:sts:2.33.5")
     // Note: all org.testcontainers dependencies should have the same version
     testImplementation("org.testcontainers:testcontainers:1.20.4")
     testImplementation("org.testcontainers:mysql:1.20.4")
