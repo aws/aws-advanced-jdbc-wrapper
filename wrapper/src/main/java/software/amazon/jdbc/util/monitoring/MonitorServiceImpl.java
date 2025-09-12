@@ -199,7 +199,8 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       cacheContainer = monitorCaches.computeIfAbsent(monitorClass, k -> supplier.get());
     }
 
-    // We need to determine whetherLambdas require references to outer variables to be final.
+    // Lambdas require references to outer variables to be final. We use this variable to check whether a SQLException
+    // occurred while attempting to create the monitor.
     final List<SQLException> exceptionList = new ArrayList<>(1);
     MonitorItem monitorItem = cacheContainer.getCache().computeIfAbsent(key, k -> {
       try {
