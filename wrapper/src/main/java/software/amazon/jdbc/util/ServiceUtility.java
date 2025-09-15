@@ -84,6 +84,10 @@ public class ServiceUtility {
         dbDialect
     );
 
+    servicesContainer.setHostListProviderService(partialPluginService);
+    servicesContainer.setPluginService(partialPluginService);
+    servicesContainer.setPluginManagerService(partialPluginService);
+
     pluginManager.init(servicesContainer, props, partialPluginService, null);
     return servicesContainer;
   }

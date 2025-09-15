@@ -68,6 +68,10 @@ public class ConnectionServiceImpl implements ConnectionService {
         dbDialect
     );
 
+    servicesContainer.setHostListProviderService(partialPluginService);
+    servicesContainer.setPluginService(partialPluginService);
+    servicesContainer.setPluginManagerService(partialPluginService);
+
     this.pluginService = partialPluginService;
     this.pluginManager.init(servicesContainer, props, partialPluginService, null);
   }
