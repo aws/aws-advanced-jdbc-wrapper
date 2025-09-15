@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.util.connection;
 
+import com.mchange.v2.util.PropertiesUtils;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
@@ -28,15 +29,26 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.FullServicesContainerImpl;
+import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
+/**
+ * @deprecated This class is deprecated and will be removed in a future version. Use
+ * {@link software.amazon.jdbc.util.ServiceUtility#createServiceContainer} followed by
+ * {@link PluginService#forceConnect} instead.
+ */
+@Deprecated
 public class ConnectionServiceImpl implements ConnectionService {
   protected final String targetDriverProtocol;
   protected final ConnectionPluginManager pluginManager;
   protected final PluginService pluginService;
 
+  /**
+   * @deprecated Use {@link software.amazon.jdbc.util.ServiceUtility#createServiceContainer} instead.
+   */
+  @Deprecated
   public ConnectionServiceImpl(
       StorageService storageService,
       MonitorService monitorService,
@@ -58,9 +70,10 @@ public class ConnectionServiceImpl implements ConnectionService {
         telemetryFactory);
     servicesContainer.setConnectionPluginManager(this.pluginManager);
 
+    Properties propsCopy = PropertyUtils.copyProperties(props);
     PartialPluginService partialPluginService = new PartialPluginService(
         servicesContainer,
-        props,
+        propsCopy,
         originalUrl,
         this.targetDriverProtocol,
         driverDialect,
@@ -72,15 +85,17 @@ public class ConnectionServiceImpl implements ConnectionService {
     servicesContainer.setPluginManagerService(partialPluginService);
 
     this.pluginService = partialPluginService;
-    this.pluginManager.init(servicesContainer, props, partialPluginService, null);
+    this.pluginManager.init(servicesContainer, propsCopy, partialPluginService, null);
   }
 
   @Override
+  @Deprecated
   public Connection open(HostSpec hostSpec, Properties props) throws SQLException {
     return this.pluginManager.forceConnect(this.targetDriverProtocol, hostSpec, props, true, null);
   }
 
   @Override
+  @Deprecated
   public PluginService getPluginService() {
     return this.pluginService;
   }
