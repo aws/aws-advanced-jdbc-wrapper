@@ -16,7 +16,6 @@
 
 package software.amazon.jdbc.util.connection;
 
-import com.mchange.v2.util.PropertiesUtils;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
