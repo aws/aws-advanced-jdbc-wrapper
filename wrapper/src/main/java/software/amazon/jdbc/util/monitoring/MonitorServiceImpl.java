@@ -17,9 +17,11 @@
 package software.amazon.jdbc.util.monitoring;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -38,6 +40,7 @@ import software.amazon.jdbc.hostlistprovider.monitoring.MultiAzClusterTopologyMo
 import software.amazon.jdbc.plugin.strategy.fastestresponse.NodeResponseTimeMonitor;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ExecutorFactory;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
@@ -197,22 +200,34 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       cacheContainer = monitorCaches.computeIfAbsent(monitorClass, k -> supplier.get());
     }
 
-    final FullServicesContainer servicesContainer = getNewServicesContainer(
-        storageService,
-        defaultConnectionProvider,
-        telemetryFactory,
-        originalUrl,
-        driverProtocol,
-        driverDialect,
-        dbDialect,
-        originalProps);
+    // Lambdas require references to outer variables to be final. We use this variable to check whether a SQLException
+    // occurred while attempting to create the monitor.
+    final List<SQLException> exceptionList = new ArrayList<>(1);
+    MonitorItem monitorItem = cacheContainer.getCache().computeIfAbsent(key, k -> {
+      try {
+        final FullServicesContainer servicesContainer = getNewServicesContainer(
+            storageService,
+            defaultConnectionProvider,
+            telemetryFactory,
+            originalUrl,
+            driverProtocol,
+            driverDialect,
+            dbDialect,
+            originalProps);
+        final MonitorItem monitorItemInner = new MonitorItem(() -> initializer.createMonitor(servicesContainer));
+        monitorItemInner.getMonitor().start();
+        return monitorItemInner;
+      } catch (SQLException e) {
+        exceptionList.add(e);
+        return null;
+      }
+    });
 
-    Monitor monitor = cacheContainer.getCache().computeIfAbsent(key, k -> {
-      MonitorItem monitorItem = new MonitorItem(() -> initializer.createMonitor(servicesContainer));
-      monitorItem.getMonitor().start();
-      return monitorItem;
-    }).getMonitor();
+    if (!exceptionList.isEmpty()) {
+      throw exceptionList.get(0);
+    }
 
+    Monitor monitor = monitorItem.getMonitor();
     if (monitorClass.isInstance(monitor)) {
       return monitorClass.cast(monitor);
     }

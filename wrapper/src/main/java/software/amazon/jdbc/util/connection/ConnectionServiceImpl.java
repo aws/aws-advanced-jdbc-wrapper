@@ -49,9 +49,8 @@ public class ConnectionServiceImpl implements ConnectionService {
       Properties props) throws SQLException {
     this.targetDriverProtocol = targetDriverProtocol;
 
-    FullServicesContainer
-        servicesContainer = new FullServicesContainerImpl(
-            storageService, monitorService, connectionProvider, telemetryFactory);
+    FullServicesContainer servicesContainer =
+        new FullServicesContainerImpl(storageService, monitorService, connectionProvider, telemetryFactory);
     this.pluginManager = new ConnectionPluginManager(
         connectionProvider,
         null,

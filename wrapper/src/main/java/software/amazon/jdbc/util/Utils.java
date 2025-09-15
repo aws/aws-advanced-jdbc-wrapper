@@ -27,9 +27,13 @@ public class Utils {
     return c == null || c.isEmpty();
   }
 
-  public static boolean containsUrl(final List<HostSpec> hosts, String url) {
+  public static boolean containsHostAndPort(final Collection<HostSpec> hosts, String hostAndPort) {
+    if (Utils.isNullOrEmpty(hosts)) {
+      return false;
+    }
+
     for (final HostSpec hostSpec : hosts) {
-      if (hostSpec.getUrl().equals(url)) {
+      if (hostSpec.getHostAndPort().equals(hostAndPort)) {
         return true;
       }
     }

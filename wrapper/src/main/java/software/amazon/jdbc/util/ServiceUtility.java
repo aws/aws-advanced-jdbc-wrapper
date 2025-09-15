@@ -65,14 +65,10 @@ public class ServiceUtility {
       TargetDriverDialect driverDialect,
       Dialect dbDialect,
       Properties props) throws SQLException {
-    FullServicesContainer
-        servicesContainer = new FullServicesContainerImpl(
-            storageService, monitorService, connectionProvider, telemetryFactory);
+    FullServicesContainer servicesContainer =
+        new FullServicesContainerImpl(storageService, monitorService, connectionProvider, telemetryFactory);
     ConnectionPluginManager pluginManager = new ConnectionPluginManager(
-        connectionProvider,
-        null,
-        null,
-        telemetryFactory);
+        connectionProvider, null, null, telemetryFactory);
     servicesContainer.setConnectionPluginManager(pluginManager);
 
     PartialPluginService partialPluginService = new PartialPluginService(

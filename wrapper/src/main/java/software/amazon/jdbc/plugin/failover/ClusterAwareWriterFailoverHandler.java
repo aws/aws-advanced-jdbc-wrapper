@@ -498,7 +498,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
         return false;
       }
 
-      return hostSpec1.getUrl().equals(hostSpec2.getUrl());
+      return hostSpec1.getHostAndPort().equals(hostSpec2.getHostAndPort());
     }
 
     private boolean connectToWriter(final HostSpec writerCandidate) {

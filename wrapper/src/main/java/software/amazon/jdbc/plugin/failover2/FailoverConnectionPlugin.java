@@ -560,7 +560,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
 
       final List<HostSpec> allowedHosts = this.pluginService.getHosts();
-      if (!Utils.containsUrl(allowedHosts, writerCandidate.getUrl())) {
+      if (!Utils.containsHostAndPort(allowedHosts, writerCandidate.getHostAndPort())) {
         if (this.failoverWriterFailedCounter != null) {
           this.failoverWriterFailedCounter.inc();
         }

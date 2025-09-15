@@ -239,9 +239,8 @@ public class Driver implements java.sql.Driver {
         effectiveConnectionProvider = configurationProfile.getConnectionProvider();
       }
 
-      FullServicesContainer
-          servicesContainer = new FullServicesContainerImpl(
-              storageService, monitorService, defaultConnectionProvider, telemetryFactory);
+      FullServicesContainer servicesContainer =
+          new FullServicesContainerImpl(storageService, monitorService, defaultConnectionProvider, telemetryFactory);
 
       return new ConnectionWrapper(
           servicesContainer,
