@@ -54,8 +54,8 @@ class MonitorServiceImplTest {
   @Mock TargetDriverDialect mockTargetDriverDialect;
   @Mock Dialect mockDbDialect;
   @Mock EventPublisher mockPublisher;
-  String URL = "jdbc:postgresql://somehost/somedb";
-  String PROTOCOL = "someProtocol";
+  String url = "jdbc:postgresql://somehost/somedb";
+  String protocol = "someProtocol";
   Properties props = new Properties();
   MonitorServiceImpl spyMonitorService;
   private AutoCloseable closeable;
@@ -69,8 +69,8 @@ class MonitorServiceImplTest {
         eq(mockStorageService),
         eq(mockConnectionProvider),
         eq(mockTelemetryFactory),
-        eq(URL),
-        eq(PROTOCOL),
+        eq(url),
+        eq(protocol),
         eq(mockTargetDriverDialect),
         eq(mockDbDialect),
         eq(props));
@@ -98,8 +98,8 @@ class MonitorServiceImplTest {
         mockStorageService,
         mockTelemetryFactory,
         mockConnectionProvider,
-        URL,
-        PROTOCOL,
+        url,
+        protocol,
         mockTargetDriverDialect,
         mockDbDialect,
         props,
@@ -142,8 +142,8 @@ class MonitorServiceImplTest {
         mockStorageService,
         mockTelemetryFactory,
         mockConnectionProvider,
-        URL,
-        PROTOCOL,
+        url,
+        protocol,
         mockTargetDriverDialect,
         mockDbDialect,
         props,
@@ -188,8 +188,8 @@ class MonitorServiceImplTest {
         mockStorageService,
         mockTelemetryFactory,
         mockConnectionProvider,
-        URL,
-        PROTOCOL,
+        url,
+        protocol,
         mockTargetDriverDialect,
         mockDbDialect,
         props,
@@ -221,8 +221,8 @@ class MonitorServiceImplTest {
         mockStorageService,
         mockTelemetryFactory,
         mockConnectionProvider,
-        URL,
-        PROTOCOL,
+        url,
+        protocol,
         mockTargetDriverDialect,
         mockDbDialect,
         props,
@@ -251,8 +251,8 @@ class MonitorServiceImplTest {
         mockStorageService,
         mockTelemetryFactory,
         mockConnectionProvider,
-        URL,
-        PROTOCOL,
+        url,
+        protocol,
         mockTargetDriverDialect,
         mockDbDialect,
         props,
@@ -286,8 +286,8 @@ class MonitorServiceImplTest {
         mockStorageService,
         mockTelemetryFactory,
         mockConnectionProvider,
-        URL,
-        PROTOCOL,
+        url,
+        protocol,
         mockTargetDriverDialect,
         mockDbDialect,
         props,
