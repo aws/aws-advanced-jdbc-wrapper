@@ -51,7 +51,7 @@ dependencies {
     optionalImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.52.0")
 
     compileOnly("org.checkerframework:checker-qual:3.49.5")
-    compileOnly("com.mysql:mysql-connector-j:9.3.0")
+    compileOnly("com.mysql:mysql-connector-j:9.4.0")
     compileOnly("org.postgresql:postgresql:42.7.7")
     compileOnly("org.mariadb.jdbc:mariadb-java-client:3.5.6")
     compileOnly("org.osgi:org.osgi.core:6.0.0")
@@ -74,7 +74,7 @@ dependencies {
 
     testImplementation("org.apache.commons:commons-dbcp2:2.13.0")
     testImplementation("org.postgresql:postgresql:42.7.7")
-    testImplementation("com.mysql:mysql-connector-j:9.3.0")
+    testImplementation("com.mysql:mysql-connector-j:9.4.0")
     testImplementation("org.mariadb.jdbc:mariadb-java-client:3.5.6")
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     testImplementation("com.mchange:c3p0:0.11.0")
