@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.openMocks;
 
+import java.lang.annotation.Target;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -69,6 +70,7 @@ import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.connection.ConnectionContext;
 import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -88,8 +90,9 @@ public class ConnectionPluginManagerBenchmarks {
   private static final String WRITER_SESSION_ID = "MASTER_SESSION_ID";
   private static final String FIELD_SERVER_ID = "SERVER_ID";
   private static final String FIELD_SESSION_ID = "SESSION_ID";
-  private Properties propertiesWithoutPlugins;
-  private Properties propertiesWithPlugins;
+  private static final String url = "protocol//url";
+  private ConnectionContext pluginsContext;
+  private ConnectionContext noPluginsContext;
   private ConnectionPluginManager pluginManager;
   private ConnectionPluginManager pluginManagerWithNoPlugins;
 
@@ -98,6 +101,7 @@ public class ConnectionPluginManagerBenchmarks {
   @Mock FullServicesContainer mockServicesContainer;
   @Mock PluginService mockPluginService;
   @Mock PluginManagerService mockPluginManagerService;
+  @Mock TargetDriverDialect mockDriverDialect;
   @Mock TelemetryFactory mockTelemetryFactory;
   @Mock HostListProviderService mockHostListProvider;
   @Mock Connection mockConnection;
@@ -153,24 +157,26 @@ public class ConnectionPluginManagerBenchmarks {
         .withPluginFactories(pluginFactories)
         .build();
 
-    propertiesWithoutPlugins = new Properties();
-    propertiesWithoutPlugins.setProperty(PropertyDefinition.PLUGINS.name, "");
+    Properties noPluginsProps = new Properties();
+    noPluginsProps.setProperty(PropertyDefinition.PLUGINS.name, "");
+    this.noPluginsContext = new ConnectionContext(url, mockDriverDialect, noPluginsProps);
 
-    propertiesWithPlugins = new Properties();
-    propertiesWithPlugins.setProperty(PropertyDefinition.PROFILE_NAME.name, "benchmark");
-    propertiesWithPlugins.setProperty(PropertyDefinition.ENABLE_TELEMETRY.name, "false");
+    Properties pluginsProps = new Properties();
+    pluginsProps.setProperty(PropertyDefinition.PROFILE_NAME.name, "benchmark");
+    pluginsProps.setProperty(PropertyDefinition.ENABLE_TELEMETRY.name, "false");
+    this.pluginsContext = new ConnectionContext(url, mockDriverDialect, pluginsProps);
 
-    TelemetryFactory telemetryFactory = new DefaultTelemetryFactory(propertiesWithPlugins);
+    TelemetryFactory telemetryFactory = new DefaultTelemetryFactory(pluginsProps);
 
     pluginManager = new ConnectionPluginManager(mockConnectionProvider,
         null,
         mockConnectionWrapper,
         telemetryFactory);
-    pluginManager.init(mockServicesContainer, propertiesWithPlugins, mockPluginManagerService, configurationProfile);
+    pluginManager.init(mockServicesContainer, pluginsProps, mockPluginManagerService, configurationProfile);
 
     pluginManagerWithNoPlugins = new ConnectionPluginManager(mockConnectionProvider, null,
         mockConnectionWrapper, telemetryFactory);
-    pluginManagerWithNoPlugins.init(mockServicesContainer, propertiesWithoutPlugins, mockPluginManagerService, null);
+    pluginManagerWithNoPlugins.init(mockServicesContainer, noPluginsProps, mockPluginManagerService, null);
   }
 
   @TearDown(Level.Iteration)
@@ -182,7 +188,7 @@ public class ConnectionPluginManagerBenchmarks {
   public ConnectionPluginManager initConnectionPluginManagerWithNoPlugins() throws SQLException {
     final ConnectionPluginManager manager = new ConnectionPluginManager(mockConnectionProvider, null,
         mockConnectionWrapper, mockTelemetryFactory);
-    manager.init(mockServicesContainer, propertiesWithoutPlugins, mockPluginManagerService, configurationProfile);
+    manager.init(mockServicesContainer, this.noPluginsContext.getProps(), mockPluginManagerService, configurationProfile);
     return manager;
   }
 
@@ -190,7 +196,7 @@ public class ConnectionPluginManagerBenchmarks {
   public ConnectionPluginManager initConnectionPluginManagerWithPlugins() throws SQLException {
     final ConnectionPluginManager manager = new ConnectionPluginManager(mockConnectionProvider, null,
         mockConnectionWrapper, mockTelemetryFactory);
-    manager.init(mockServicesContainer, propertiesWithPlugins, mockPluginManagerService, configurationProfile);
+    manager.init(mockServicesContainer, this.pluginsContext.getProps(), mockPluginManagerService, configurationProfile);
     return manager;
   }
 
@@ -199,7 +205,7 @@ public class ConnectionPluginManagerBenchmarks {
     return pluginManager.connect(
         "driverProtocol",
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host").build(),
-        propertiesWithPlugins,
+        this.pluginsContext.getProps(),
         true,
         null);
   }
@@ -209,7 +215,7 @@ public class ConnectionPluginManagerBenchmarks {
     return pluginManagerWithNoPlugins.connect(
         "driverProtocol",
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host").build(),
-        propertiesWithoutPlugins,
+        this.noPluginsContext.getProps(),
         true,
         null);
   }
@@ -240,21 +246,13 @@ public class ConnectionPluginManagerBenchmarks {
 
   @Benchmark
   public ConnectionPluginManager initHostProvidersWithPlugins() throws SQLException {
-    pluginManager.initHostProvider(
-        "protocol",
-        "url",
-        propertiesWithPlugins,
-        mockHostListProvider);
+    pluginManager.initHostProvider(this.pluginsContext, mockHostListProvider);
     return pluginManager;
   }
 
   @Benchmark
   public ConnectionPluginManager initHostProvidersWithNoPlugins() throws SQLException {
-    pluginManagerWithNoPlugins.initHostProvider(
-        "protocol",
-        "url",
-        propertiesWithoutPlugins,
-        mockHostListProvider);
+    pluginManagerWithNoPlugins.initHostProvider(this.noPluginsContext, mockHostListProvider);
     return pluginManager;
   }
 

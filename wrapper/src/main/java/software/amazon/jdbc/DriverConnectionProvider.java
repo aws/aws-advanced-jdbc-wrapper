@@ -35,6 +35,7 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.connection.ConnectionContext;
 
 /**
  * This class is a basic implementation of {@link ConnectionProvider} interface. It creates and
@@ -63,20 +64,8 @@ public class DriverConnectionProvider implements ConnectionProvider {
     this.targetDriverClassName = driver.getClass().getName();
   }
 
-  /**
-   * Indicates whether this ConnectionProvider can provide connections for the given host and
-   * properties. Some ConnectionProvider implementations may not be able to handle certain URL
-   * types or properties.
-   *
-   * @param protocol The connection protocol (example "jdbc:mysql://")
-   * @param hostSpec The HostSpec containing the host-port information for the host to connect to
-   * @param props    The Properties to use for the connection
-   * @return true if this ConnectionProvider can provide connections for the given URL, otherwise
-   *         return false
-   */
   @Override
-  public boolean acceptsUrl(
-      @NonNull String protocol, @NonNull HostSpec hostSpec, @NonNull Properties props) {
+  public boolean acceptsUrl(@NonNull ConnectionContext connectionContext, @NonNull HostSpec hostSpec) {
     return true;
   }
 

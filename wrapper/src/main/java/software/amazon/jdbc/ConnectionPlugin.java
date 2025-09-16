@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import software.amazon.jdbc.util.connection.ConnectionContext;
 
 /**
  * Interface for connection plugins. This class implements ways to execute a JDBC method and to clean up resources used
@@ -136,9 +137,7 @@ public interface ConnectionPlugin {
       throws SQLException, UnsupportedOperationException;
 
   void initHostProvider(
-      final String driverProtocol,
-      final String initialUrl,
-      final Properties props,
+      final ConnectionContext connectionContext,
       final HostListProviderService hostListProviderService,
       final JdbcCallable<Void, SQLException> initHostProviderFunc)
       throws SQLException;

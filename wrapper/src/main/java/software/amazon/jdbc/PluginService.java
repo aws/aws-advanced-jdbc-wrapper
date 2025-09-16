@@ -29,6 +29,7 @@ import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.connection.ConnectionContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
@@ -80,6 +81,12 @@ public interface PluginService extends ExceptionHandler {
   List<HostSpec> getHosts();
 
   HostSpec getInitialConnectionHostSpec();
+
+  /**
+   * Get the {@link ConnectionContext} for the current original connection.
+   * @return the {@link ConnectionContext} for the current original connection.
+   */
+  ConnectionContext getConnectionContext();
 
   String getOriginalUrl();
 

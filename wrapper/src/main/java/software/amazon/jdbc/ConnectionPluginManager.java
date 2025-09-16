@@ -52,6 +52,7 @@ import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.connection.ConnectionContext;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
@@ -553,10 +554,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
   }
 
   public void initHostProvider(
-      final String driverProtocol,
-      final String initialUrl,
-      final Properties props,
-      final HostListProviderService hostListProviderService)
+      final ConnectionContext connectionContext, final HostListProviderService hostListProviderService)
       throws SQLException {
     TelemetryContext context = this.telemetryFactory.openTelemetryContext(
         "initHostProvider", TelemetryTraceLevel.NESTED);
@@ -566,8 +564,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
           JdbcMethod.INITHOSTPROVIDER,
           (PluginPipeline<Void, SQLException>)
               (plugin, func) -> {
-                plugin.initHostProvider(
-                    driverProtocol, initialUrl, props, hostListProviderService, func);
+                plugin.initHostProvider(connectionContext, hostListProviderService, func);
                 return null;
               },
           () -> {

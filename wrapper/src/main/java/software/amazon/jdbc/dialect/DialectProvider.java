@@ -21,12 +21,10 @@ import java.sql.SQLException;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.util.connection.ConnectionContext;
 
 public interface DialectProvider {
-  Dialect getDialect(
-      final @NonNull String driverProtocol,
-      final @NonNull String url,
-      final @NonNull Properties props) throws SQLException;
+  Dialect getDialect(final @NonNull ConnectionContext connectionContext) throws SQLException;
 
   Dialect getDialect(
       final @NonNull String originalUrl,

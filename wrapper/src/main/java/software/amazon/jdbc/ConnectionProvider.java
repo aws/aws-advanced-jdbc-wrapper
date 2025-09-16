@@ -22,8 +22,10 @@ import java.util.List;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.units.qual.N;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.connection.ConnectionContext;
 
 /**
  * Implement this interface in order to handle the physical connection creation process.
@@ -34,14 +36,12 @@ public interface ConnectionProvider {
    * properties. Some ConnectionProvider implementations may not be able to handle certain URL
    * types or properties.
    *
-   * @param protocol the connection protocol (example "jdbc:mysql://")
+   * @param connectionContext the connection info for the original connection.
    * @param hostSpec the HostSpec containing the host-port information for the host to connect to
-   * @param props    the Properties to use for the connection
    * @return true if this ConnectionProvider can provide connections for the given URL, otherwise
    *         return false
    */
-  boolean acceptsUrl(
-      @NonNull String protocol, @NonNull HostSpec hostSpec, @NonNull Properties props);
+  boolean acceptsUrl(@NonNull ConnectionContext connectionContext, @NonNull HostSpec hostSpec);
 
   /**
    * Indicates whether the selection strategy is supported by the connection provider.

@@ -43,6 +43,7 @@ import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.connection.ConnectionContext;
 import software.amazon.jdbc.util.storage.SlidingExpirationCache;
 
 public class HikariPooledConnectionProvider implements PooledConnectionProvider,
@@ -204,10 +205,9 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
 
 
   @Override
-  public boolean acceptsUrl(
-      @NonNull String protocol, @NonNull HostSpec hostSpec, @NonNull Properties props) {
+  public boolean acceptsUrl(@NonNull ConnectionContext connectionContext, @NonNull HostSpec hostSpec) {
     if (this.acceptsUrlFunc != null) {
-      return this.acceptsUrlFunc.acceptsUrl(hostSpec, props);
+      return this.acceptsUrlFunc.acceptsUrl(hostSpec, connectionContext.getProps());
     }
 
     final RdsUrlType urlType = rdsUtils.identifyRdsType(hostSpec.getHost());

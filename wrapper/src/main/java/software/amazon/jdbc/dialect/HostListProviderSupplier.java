@@ -16,15 +16,14 @@
 
 package software.amazon.jdbc.dialect;
 
-import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostListProvider;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.connection.ConnectionContext;
 
 @FunctionalInterface
 public interface HostListProviderSupplier {
   @NonNull HostListProvider getProvider(
-      final @NonNull Properties properties,
-      final String initialUrl,
+      final @NonNull ConnectionContext connectionContext,
       final @NonNull FullServicesContainer servicesContainer);
 }

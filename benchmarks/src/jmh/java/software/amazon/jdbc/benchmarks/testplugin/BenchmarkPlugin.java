@@ -37,6 +37,7 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.util.connection.ConnectionContext;
 
 public class BenchmarkPlugin implements ConnectionPlugin, CanReleaseResources {
   final List<String> resources = new ArrayList<>();
@@ -93,10 +94,11 @@ public class BenchmarkPlugin implements ConnectionPlugin, CanReleaseResources {
   }
 
   @Override
-  public void initHostProvider(String driverProtocol, String initialUrl, Properties props,
+  public void initHostProvider(
+      ConnectionContext connectionContext,
       HostListProviderService hostListProviderService,
       JdbcCallable<Void, SQLException> initHostProviderFunc) {
-    LOGGER.finer(() -> String.format("initHostProvider=''%s''", initialUrl));
+    LOGGER.finer(() -> String.format("initHostProvider=''%s''", connectionContext.getUrl()));
     resources.add("initHostProvider");
   }
 

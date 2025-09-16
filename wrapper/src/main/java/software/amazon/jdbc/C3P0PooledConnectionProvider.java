@@ -35,6 +35,7 @@ import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.connection.ConnectionContext;
 import software.amazon.jdbc.util.storage.SlidingExpirationCache;
 
 public class C3P0PooledConnectionProvider implements PooledConnectionProvider, CanReleaseResources {
@@ -55,7 +56,7 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
   protected static final long poolExpirationCheckNanos = TimeUnit.MINUTES.toNanos(30);
 
   @Override
-  public boolean acceptsUrl(@NonNull String protocol, @NonNull HostSpec hostSpec, @NonNull Properties props) {
+  public boolean acceptsUrl(@NonNull ConnectionContext connectionContext, @NonNull HostSpec hostSpec) {
     return true;
   }
 
