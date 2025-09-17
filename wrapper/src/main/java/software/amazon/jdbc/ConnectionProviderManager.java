@@ -207,23 +207,21 @@ public class ConnectionProviderManager {
 
   public void initConnection(
       final @Nullable Connection connection,
-      final @NonNull String protocol,
-      final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props) throws SQLException {
+      final @NonNull ConnectionContext connectionContext,
+      final @NonNull HostSpec hostSpec) throws SQLException {
 
     final ConnectionInitFunc connectionInitFunc = Driver.getConnectionInitFunc();
     if (connectionInitFunc == null) {
       return;
     }
 
-    connectionInitFunc.initConnection(connection, protocol, hostSpec, props);
+    connectionInitFunc.initConnection(connection, connectionContext, hostSpec);
   }
 
   public interface ConnectionInitFunc {
     void initConnection(
         final @Nullable Connection connection,
-        final @NonNull String protocol,
-        final @NonNull HostSpec hostSpec,
-        final @NonNull Properties props) throws SQLException;
+        final @NonNull ConnectionContext connectionContext,
+        final @NonNull HostSpec hostSpec) throws SQLException;
   }
 }

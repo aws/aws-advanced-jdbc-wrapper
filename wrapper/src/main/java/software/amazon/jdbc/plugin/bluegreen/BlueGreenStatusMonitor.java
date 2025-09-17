@@ -57,6 +57,7 @@ import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.connection.ConnectionContext;
 
 public class BlueGreenStatusMonitor {
 
@@ -598,7 +599,8 @@ public class BlueGreenStatusMonitor {
       return;
     }
 
-    final Properties hostListProperties = PropertyUtils.copyProperties(this.props);
+    final ConnectionContext originalContext = this.pluginService.getConnectionContext();
+    final Properties hostListProperties = originalContext.getPropsCopy();
 
     // Need to instantiate a separate HostListProvider with
     // a special unique clusterId to avoid interference with other HostListProviders opened for this cluster.
@@ -610,16 +612,14 @@ public class BlueGreenStatusMonitor {
     LOGGER.finest(() -> Messages.get("bgd.createHostListProvider",
             new Object[] {this.role, RdsHostListProvider.CLUSTER_ID.getString(hostListProperties)}));
 
-    String protocol = this.connectionUrlParser.getProtocol(this.pluginService.getOriginalUrl());
     final HostSpec connectionHostSpecCopy = this.connectionHostSpec.get();
     if (connectionHostSpecCopy != null) {
-      String hostListProviderUrl = String.format("%s%s/", protocol, connectionHostSpecCopy.getHostAndPort());
-      this.hostListProvider = this.pluginService.getDialect()
-          .getHostListProvider()
-          .getProvider(
-              hostListProperties,
-              hostListProviderUrl,
-              this.servicesContainer);
+      String hostListProviderUrl =
+          String.format("%s%s/", originalContext.getProtocol(), connectionHostSpecCopy.getHostAndPort());
+      ConnectionContext newContext = new ConnectionContext(
+          hostListProviderUrl, originalContext.getProtocol(), originalContext.getDriverDialect(), hostListProperties);
+      this.hostListProvider =
+          this.pluginService.getDialect().getHostListProvider().getProvider(newContext, this.servicesContainer);
     } else {
       LOGGER.warning(() -> Messages.get("bgd.hostSpecNull"));
     }

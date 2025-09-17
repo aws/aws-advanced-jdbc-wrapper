@@ -156,11 +156,7 @@ public class HostMonitorServiceImpl implements HostMonitorService {
         this.serviceContainer.getStorageService(),
         this.telemetryFactory,
         this.pluginService.getDefaultConnectionProvider(),
-        this.pluginService.getOriginalUrl(),
-        this.pluginService.getDriverProtocol(),
-        this.pluginService.getTargetDriverDialect(),
-        this.pluginService.getDialect(),
-        this.pluginService.getProperties(),
+        this.pluginService.getConnectionContext(),
         (servicesContainer) -> new HostMonitorImpl(
             servicesContainer,
             hostSpec,

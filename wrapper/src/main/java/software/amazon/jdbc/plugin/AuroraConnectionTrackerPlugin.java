@@ -36,6 +36,7 @@ import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.connection.ConnectionContext;
 
 public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
 
@@ -82,8 +83,11 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
   }
 
   @Override
-  public Connection connect(final String driverProtocol, final HostSpec hostSpec, final Properties props,
-      final boolean isInitialConnection, final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
+  public Connection connect(
+      final ConnectionContext connectionContext,
+      final HostSpec hostSpec,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
 
     final Connection conn = connectFunc.call();
 

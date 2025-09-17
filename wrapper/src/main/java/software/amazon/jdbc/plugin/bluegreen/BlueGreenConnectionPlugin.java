@@ -42,6 +42,7 @@ import software.amazon.jdbc.plugin.bluegreen.routing.ExecuteRouting;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.connection.ConnectionContext;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -126,9 +127,8 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
   @Override
   public Connection connect(
-      final String driverProtocol,
+      final ConnectionContext connectionContext,
       final HostSpec hostSpec,
-      final Properties props,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {

@@ -17,9 +17,9 @@
 package software.amazon.jdbc.hostlistprovider.monitoring;
 
 import java.sql.SQLException;
-import java.util.Properties;
 import java.util.logging.Logger;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.connection.ConnectionContext;
 
 public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListProvider {
 
@@ -29,8 +29,7 @@ public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListP
   protected final String fetchWriterNodeColumnName;
 
   public MonitoringRdsMultiAzHostListProvider(
-      final Properties properties,
-      final String originalUrl,
+      final ConnectionContext connectionContext,
       final FullServicesContainer servicesContainer,
       final String topologyQuery,
       final String nodeIdQuery,
@@ -38,8 +37,7 @@ public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListP
       final String fetchWriterNodeQuery,
       final String fetchWriterNodeColumnName) {
     super(
-        properties,
-        originalUrl,
+        connectionContext,
         servicesContainer,
         topologyQuery,
         nodeIdQuery,
@@ -51,22 +49,18 @@ public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListP
 
   @Override
   protected ClusterTopologyMonitor initMonitor() throws SQLException {
-    return this.servicesContainer.getMonitorService().runIfAbsent(MultiAzClusterTopologyMonitorImpl.class,
+    return this.servicesContainer.getMonitorService().runIfAbsent(
+        MultiAzClusterTopologyMonitorImpl.class,
         this.clusterId,
         this.servicesContainer.getStorageService(),
         this.servicesContainer.getTelemetryFactory(),
         this.servicesContainer.getDefaultConnectionProvider(),
-        this.originalUrl,
-        this.pluginService.getDriverProtocol(),
-        this.pluginService.getTargetDriverDialect(),
-        this.pluginService.getDialect(),
-        this.properties,
+        this.connectionContext,
         (servicesContainer) -> new MultiAzClusterTopologyMonitorImpl(
             servicesContainer,
             this.clusterId,
             this.initialHostSpec,
             this.properties,
-            this.hostListProviderService,
             this.clusterInstanceTemplate,
             this.refreshRateNano,
             this.highRefreshRateNano,

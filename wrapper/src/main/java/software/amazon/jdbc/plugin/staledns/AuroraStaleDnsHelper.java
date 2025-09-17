@@ -23,7 +23,6 @@ import java.sql.SQLException;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.logging.Logger;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
@@ -34,6 +33,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.connection.ConnectionContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -61,9 +61,8 @@ public class AuroraStaleDnsHelper {
   public Connection getVerifiedConnection(
       final boolean isInitialConnection,
       final HostListProviderService hostListProviderService,
-      final String driverProtocol,
+      final ConnectionContext connectionContext,
       final HostSpec hostSpec,
-      final Properties props,
       final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
 
     if (!this.rdsUtils.isWriterClusterDns(hostSpec.getHost())) {
@@ -148,7 +147,7 @@ public class AuroraStaleDnsHelper {
         );
       }
 
-      final Connection writerConn = this.pluginService.connect(this.writerHostSpec, props);
+      final Connection writerConn = this.pluginService.connect(this.writerHostSpec, connectionContext.getPropsCopy());
       if (isInitialConnection) {
         hostListProviderService.setInitialConnectionHostSpec(this.writerHostSpec);
       }

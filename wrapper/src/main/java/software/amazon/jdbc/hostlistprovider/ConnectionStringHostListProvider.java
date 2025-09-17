@@ -21,11 +21,9 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Properties;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
-import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
@@ -62,7 +60,7 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
       final @NonNull HostListProviderService hostListProviderService,
       final @NonNull ConnectionUrlParser connectionUrlParser) {
     this.connectionContext = connectionContext;
-    this.isSingleWriterConnectionString = SINGLE_WRITER_CONNECTION_STRING.getBoolean(connectionContext.getProps());
+    this.isSingleWriterConnectionString = SINGLE_WRITER_CONNECTION_STRING.getBoolean(connectionContext.getPropsCopy());
     this.connectionUrlParser = connectionUrlParser;
     this.hostListProviderService = hostListProviderService;
   }

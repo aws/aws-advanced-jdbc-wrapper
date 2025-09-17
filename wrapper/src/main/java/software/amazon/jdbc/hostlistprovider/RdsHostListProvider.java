@@ -55,6 +55,7 @@ import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.connection.ConnectionContext;
 import software.amazon.jdbc.util.storage.CacheMap;
 
 public class RdsHostListProvider implements DynamicHostListProvider {
@@ -94,7 +95,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
 
   protected final FullServicesContainer servicesContainer;
   protected final HostListProviderService hostListProviderService;
-  protected final String originalUrl;
+  protected final ConnectionContext connectionContext;
   protected final String topologyQuery;
   protected final String nodeIdQuery;
   protected final String isReaderQuery;
@@ -123,14 +124,12 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   }
 
   public RdsHostListProvider(
-      final Properties properties,
-      final String originalUrl,
+      final ConnectionContext connectionContext,
       final FullServicesContainer servicesContainer,
       final String topologyQuery,
       final String nodeIdQuery,
       final String isReaderQuery) {
-    this.properties = properties;
-    this.originalUrl = originalUrl;
+    this.connectionContext = connectionContext;
     this.servicesContainer = servicesContainer;
     this.hostListProviderService = servicesContainer.getHostListProviderService();
     this.topologyQuery = topologyQuery;
@@ -151,11 +150,11 @@ public class RdsHostListProvider implements DynamicHostListProvider {
 
       // initial topology is based on connection string
       this.initialHostList =
-          connectionUrlParser.getHostsFromConnectionUrl(this.originalUrl, false,
+          connectionUrlParser.getHostsFromConnectionUrl(this.connectionContext.getUrl(), false,
               this.hostListProviderService::getHostSpecBuilder);
       if (this.initialHostList == null || this.initialHostList.isEmpty()) {
         throw new SQLException(Messages.get("RdsHostListProvider.parsedListEmpty",
-            new Object[] {this.originalUrl}));
+            new Object[] {this.connectionContext.getUrl()}));
       }
       this.initialHostSpec = this.initialHostList.get(0);
       this.hostListProviderService.setInitialConnectionHostSpec(this.initialHostSpec);
@@ -297,9 +296,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       if (key.equals(url)) {
         return new ClusterSuggestedResult(url, isPrimaryCluster);
       }
-      if (hosts == null) {
-        continue;
-      }
+
       for (final HostSpec host : hosts) {
         if (host.getHostAndPort().equals(url)) {
           LOGGER.finest(() -> Messages.get("RdsHostListProvider.suggestedClusterId",

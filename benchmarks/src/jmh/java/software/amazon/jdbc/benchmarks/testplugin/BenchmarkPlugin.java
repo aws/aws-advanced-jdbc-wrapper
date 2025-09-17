@@ -24,7 +24,6 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
 import software.amazon.jdbc.ConnectionPlugin;
@@ -59,18 +58,21 @@ public class BenchmarkPlugin implements ConnectionPlugin, CanReleaseResources {
   }
 
   @Override
-  public Connection connect(String driverProtocol, HostSpec hostSpec, Properties props,
-      boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc)
-      throws SQLException {
+  public Connection connect(
+      final ConnectionContext connectionContext,
+      final HostSpec hostSpec,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
     LOGGER.finer(() -> String.format("connect=''%s''", hostSpec.getHost()));
     resources.add("connect");
     return connectFunc.call();
   }
 
   @Override
-  public Connection forceConnect(String driverProtocol, HostSpec hostSpec, Properties props,
-      boolean isInitialConnection, JdbcCallable<Connection, SQLException> forceConnectFunc)
-      throws SQLException {
+  public Connection forceConnect(
+      ConnectionContext connectionContext,
+      HostSpec hostSpec,
+      boolean isInitialConnection, JdbcCallable<Connection, SQLException> forceConnectFunc) throws SQLException {
     LOGGER.finer(() -> String.format("forceConnect=''%s''", hostSpec.getHost()));
     resources.add("forceConnect");
     return forceConnectFunc.call();

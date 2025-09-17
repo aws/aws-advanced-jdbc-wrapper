@@ -30,11 +30,8 @@ import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.exceptions.SQLLoginException;
-import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -95,23 +92,16 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
   /**
    * Called once per connection that needs to be created.
    *
-   * @param protocol The connection protocol (example "jdbc:mysql://")
+   * @param connectionContext the connection info for the original connection.
    * @param hostSpec The HostSpec containing the host-port information for the host to connect to
-   * @param props The Properties to use for the connection
    * @return {@link Connection} resulting from the given connection information
    * @throws SQLException if an error occurs
    */
   @Override
   public Connection connect(
-      final @NonNull String protocol,
-      final @NonNull Dialect dialect,
-      final @NonNull TargetDriverDialect targetDriverDialect,
-      final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props)
-      throws SQLException {
-
-    final Properties copy = PropertyUtils.copyProperties(props);
-    dialect.prepareConnectProperties(copy, protocol, hostSpec);
+      final @NonNull ConnectionContext connectionContext, final @NonNull HostSpec hostSpec) throws SQLException {
+    final Properties copy = connectionContext.getPropsCopy();
+    connectionContext.getDbDialect().prepareConnectProperties(copy, connectionContext.getProtocol(), hostSpec);
 
     Connection conn;
 
@@ -120,7 +110,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       LOGGER.finest(() -> "Use a separate DataSource object to create a connection.");
       // use a new data source instance to instantiate a connection
       final DataSource ds = createDataSource();
-      conn = this.openConnection(ds, protocol, targetDriverDialect, hostSpec, copy);
+      conn = this.openConnection(ds, connectionContext, hostSpec, copy);
 
     } else {
 
@@ -129,7 +119,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       this.lock.lock();
       LOGGER.finest(() -> "Use main DataSource object to create a connection.");
       try {
-        conn = this.openConnection(this.dataSource, protocol, targetDriverDialect, hostSpec, copy);
+        conn = this.openConnection(this.dataSource, connectionContext, hostSpec, copy);
       } finally {
         this.lock.unlock();
       }
@@ -144,16 +134,15 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
 
   protected Connection openConnection(
       final @NonNull DataSource ds,
-      final @NonNull String protocol,
-      final @NonNull TargetDriverDialect targetDriverDialect,
+      final @NonNull ConnectionContext connectionContext,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props)
       throws SQLException {
     final boolean enableGreenNodeReplacement = PropertyDefinition.ENABLE_GREEN_NODE_REPLACEMENT.getBoolean(props);
     try {
-      targetDriverDialect.prepareDataSource(
+      connectionContext.getDriverDialect().prepareDataSource(
           ds,
-          protocol,
+          connectionContext.getProtocol(),
           hostSpec,
           props);
       return ds.getConnection();
@@ -202,9 +191,9 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
           .host(fixedHost)
           .build();
 
-      targetDriverDialect.prepareDataSource(
+      connectionContext.getDriverDialect().prepareDataSource(
           this.dataSource,
-          protocol,
+          connectionContext.getProtocol(),
           connectionHostSpec,
           props);
 

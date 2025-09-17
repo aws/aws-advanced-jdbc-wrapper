@@ -35,9 +35,7 @@ import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
-import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
-import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
@@ -207,7 +205,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   @Override
   public boolean acceptsUrl(@NonNull ConnectionContext connectionContext, @NonNull HostSpec hostSpec) {
     if (this.acceptsUrlFunc != null) {
-      return this.acceptsUrlFunc.acceptsUrl(hostSpec, connectionContext.getProps());
+      return this.acceptsUrlFunc.acceptsUrl(hostSpec, connectionContext.getPropsCopy());
     }
 
     final RdsUrlType urlType = rdsUtils.identifyRdsType(hostSpec.getHost());
@@ -240,18 +238,12 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   }
 
   @Override
-  public Connection connect(
-      @NonNull String protocol,
-      @NonNull Dialect dialect,
-      @NonNull TargetDriverDialect targetDriverDialect,
-      @NonNull HostSpec hostSpec,
-      @NonNull Properties props)
+  public Connection connect(@NonNull ConnectionContext connectionContext, @NonNull HostSpec hostSpec)
       throws SQLException {
-
-    final Properties copy = PropertyUtils.copyProperties(props);
+    final Properties propsCopy = connectionContext.getPropsCopy();
     HostSpec connectionHostSpec = hostSpec;
 
-    if (PropertyDefinition.ENABLE_GREEN_NODE_REPLACEMENT.getBoolean(props)
+    if (PropertyDefinition.ENABLE_GREEN_NODE_REPLACEMENT.getBoolean(propsCopy)
         && rdsUtils.isRdsDns(hostSpec.getHost())
         && rdsUtils.isGreenInstance(hostSpec.getHost())) {
 
@@ -275,15 +267,16 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     }
 
     final HostSpec finalHostSpec = connectionHostSpec;
-    dialect.prepareConnectProperties(copy, protocol, finalHostSpec);
+    connectionContext.getDbDialect().prepareConnectProperties(
+        propsCopy, connectionContext.getProtocol(), finalHostSpec);
 
     final HikariDataSource ds = (HikariDataSource) HikariPoolsHolder.databasePools.computeIfAbsent(
-        Pair.create(hostSpec.getUrl(), getPoolKey(finalHostSpec, copy)),
-        (lambdaPoolKey) -> createHikariDataSource(protocol, finalHostSpec, copy, targetDriverDialect),
+        Pair.create(hostSpec.getUrl(), getPoolKey(finalHostSpec, propsCopy)),
+        (lambdaPoolKey) -> createHikariDataSource(connectionContext, finalHostSpec, propsCopy),
         poolExpirationCheckNanos
     );
 
-    ds.setPassword(copy.getProperty(PropertyDefinition.PASSWORD.name));
+    ds.setPassword(propsCopy.getProperty(PropertyDefinition.PASSWORD.name));
 
     return ds.getConnection();
   }
@@ -308,29 +301,27 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   /**
    * Configures the default required settings for the internal connection pool.
    *
-   * @param config          the {@link HikariConfig} to configure. By default, this method sets the
-   *                        jdbcUrl, exceptionOverrideClassName, username, and password. The
-   *                        HikariConfig passed to this method should be created via a
-   *                        {@link HikariPoolConfigurator}, which allows the user to specify any
-   *                        additional configuration properties.
-   * @param protocol        the driver protocol that should be used to form connections
-   * @param hostSpec        the host details used to form the connection
-   * @param connectionProps the connection properties
-   * @param targetDriverDialect the target driver dialect {@link TargetDriverDialect}
+   * @param config              the {@link HikariConfig} to configure. By default, this method sets the
+   *                            jdbcUrl, exceptionOverrideClassName, username, and password. The
+   *                            HikariConfig passed to this method should be created via a
+   *                            {@link HikariPoolConfigurator}, which allows the user to specify any
+   *                            additional configuration properties.
+   * @param connectionContext   the connection info for the original connection.
+   * @param hostSpec            the host details used to form the connection
+   * @param connectionProps     the connection properties
    */
   protected void configurePool(
       final HikariConfig config,
-      final String protocol,
+      final ConnectionContext connectionContext,
       final HostSpec hostSpec,
-      final Properties connectionProps,
-      final @NonNull TargetDriverDialect targetDriverDialect) {
+      final Properties connectionProps) {
 
     final Properties copy = PropertyUtils.copyProperties(connectionProps);
 
     ConnectInfo connectInfo;
     try {
-      connectInfo = targetDriverDialect.prepareConnectInfo(
-          protocol, hostSpec, copy);
+      connectInfo = connectionContext.getDriverDialect().prepareConnectInfo(
+          connectionContext.getProtocol(), hostSpec, copy);
     } catch (SQLException ex) {
       throw new RuntimeException(ex);
     }
@@ -379,7 +370,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   public Set<String> getHosts() {
     return Collections.unmodifiableSet(
         HikariPoolsHolder.databasePools.getEntries().keySet().stream()
-            .map(poolKey -> (String) poolKey.getValue1())
+            .map(Pair::getValue1)
             .collect(Collectors.toSet()));
   }
 
@@ -388,7 +379,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
    *
    * @return a set containing every key associated with an active connection pool
    */
-  public Set<Pair> getKeys() {
+  public Set<Pair<String, String>> getKeys() {
     return HikariPoolsHolder.databasePools.getEntries().keySet();
   }
 
@@ -416,18 +407,17 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   }
 
   HikariDataSource createHikariDataSource(
-      final String protocol,
+      final ConnectionContext connectionContext,
       final HostSpec hostSpec,
-      final Properties props,
-      final @NonNull TargetDriverDialect targetDriverDialect) {
+      final Properties props) {
 
     HikariConfig config = poolConfigurator.configurePool(hostSpec, props);
-    configurePool(config, protocol, hostSpec, props, targetDriverDialect);
+    configurePool(config, connectionContext, hostSpec, props);
     return new HikariDataSource(config);
   }
 
   // For testing purposes only
-  void setDatabasePools(SlidingExpirationCache<Pair, AutoCloseable> connectionPools) {
+  void setDatabasePools(SlidingExpirationCache<Pair<String, String>, AutoCloseable> connectionPools) {
     HikariPoolsHolder.databasePools = connectionPools;
   }
 }

@@ -24,7 +24,6 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Properties;
 import java.util.logging.Logger;
-import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.StringUtils;
@@ -41,7 +40,6 @@ public class MultiAzClusterTopologyMonitorImpl extends ClusterTopologyMonitorImp
       final String clusterId,
       final HostSpec initialHostSpec,
       final Properties properties,
-      final HostListProviderService hostListProviderService,
       final HostSpec clusterInstanceTemplate,
       final long refreshRateNano,
       final long highRefreshRateNano,

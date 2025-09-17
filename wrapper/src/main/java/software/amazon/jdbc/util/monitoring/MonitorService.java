@@ -17,12 +17,10 @@
 package software.amazon.jdbc.util.monitoring;
 
 import java.sql.SQLException;
-import java.util.Properties;
 import java.util.Set;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionProvider;
-import software.amazon.jdbc.dialect.Dialect;
-import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.connection.ConnectionContext;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -61,11 +59,7 @@ public interface MonitorService {
    * @param telemetryFactory          the telemetry factory for creating telemetry data.
    * @param defaultConnectionProvider the connection provider to use to create new connections if the monitor
    *                                  requires it.
-   * @param originalUrl               the URL of the original database connection.
-   * @param driverProtocol            the protocol for the underlying target driver.
-   * @param driverDialect             the target driver dialect.
-   * @param dbDialect                 the database dialect.
-   * @param originalProps             the properties of the original database connection.
+   * @param connectionContext         the connection info for the original connection.
    * @param initializer               an initializer function to use to create the monitor if it does not already exist.
    * @param <T>                       the type of the monitor.
    * @return the new or existing monitor.
@@ -77,11 +71,7 @@ public interface MonitorService {
       StorageService storageService,
       TelemetryFactory telemetryFactory,
       ConnectionProvider defaultConnectionProvider,
-      String originalUrl,
-      String driverProtocol,
-      TargetDriverDialect driverDialect,
-      Dialect dbDialect,
-      Properties originalProps,
+      ConnectionContext connectionContext,
       MonitorInitializer initializer) throws SQLException;
 
   /**

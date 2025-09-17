@@ -23,7 +23,7 @@ import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.PropertyUtils;
 
 public class ConnectionContext {
-  protected final static ConnectionUrlParser connectionUrlParser = new ConnectionUrlParser();
+  protected static final ConnectionUrlParser connectionUrlParser = new ConnectionUrlParser();
   protected final String url;
   protected final String protocol;
   protected final TargetDriverDialect driverDialect;
@@ -31,8 +31,12 @@ public class ConnectionContext {
   protected Dialect dbDialect;
 
   public ConnectionContext(String url, TargetDriverDialect driverDialect, Properties props) {
+    this(url, connectionUrlParser.getProtocol(url), driverDialect, props);
+  }
+
+  public ConnectionContext(String url, String protocol, TargetDriverDialect driverDialect, Properties props) {
     this.url = url;
-    this.protocol = connectionUrlParser.getProtocol(url);
+    this.protocol = protocol;
     this.driverDialect = driverDialect;
     this.props = props;
   }
@@ -49,7 +53,7 @@ public class ConnectionContext {
     return driverDialect;
   }
 
-  public Properties getProps() {
+  public Properties getPropsCopy() {
     return PropertyUtils.copyProperties(props);
   }
 

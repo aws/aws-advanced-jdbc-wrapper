@@ -131,7 +131,7 @@ public class DialectManager implements DialectProvider {
       return this.dialect;
     }
 
-    final String userDialectSetting = DIALECT.getString(connectionContext.getProps());
+    final String userDialectSetting = DIALECT.getString(connectionContext.getPropsCopy());
     final String dialectCode = !StringUtils.isNullOrEmpty(userDialectSetting)
         ? userDialectSetting
         : knownEndpointDialects.get(connectionContext.getUrl());

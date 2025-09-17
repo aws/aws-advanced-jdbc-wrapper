@@ -51,7 +51,6 @@ import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.HostListProviderSupplier;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.FullServicesContainerImpl;
 import software.amazon.jdbc.util.Messages;
@@ -167,14 +166,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     this.pluginManager.initHostProvider(this.connectionContext, this.hostListProviderService);
     this.pluginService.refreshHostList();
     if (this.pluginService.getCurrentConnection() == null) {
-      final Connection conn =
-          this.pluginManager.connect(
-              this.connectionContext.getProtocol(),
-              this.pluginService.getInitialConnectionHostSpec(),
-              props,
-              true,
-              null);
-
+      final Connection conn = this.pluginManager.connect(
+          this.connectionContext, this.pluginService.getInitialConnectionHostSpec(), true, null);
       if (conn == null) {
         throw new SQLException(Messages.get("ConnectionWrapper.connectionNotOpen"), SqlState.UNKNOWN_STATE.getState());
       }

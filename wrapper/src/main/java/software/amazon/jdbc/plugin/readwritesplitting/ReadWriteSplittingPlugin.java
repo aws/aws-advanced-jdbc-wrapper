@@ -44,6 +44,7 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.connection.ConnectionContext;
 
 public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     implements CanReleaseResources {
@@ -124,25 +125,20 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
 
   @Override
   public void initHostProvider(
-      final String driverProtocol,
-      final String initialUrl,
-      final Properties props,
+      final ConnectionContext connectionContext,
       final HostListProviderService hostListProviderService,
       final JdbcCallable<Void, SQLException> initHostProviderFunc)
       throws SQLException {
-
     this.hostListProviderService = hostListProviderService;
     initHostProviderFunc.call();
   }
 
   @Override
   public Connection connect(
-      final String driverProtocol,
+      final ConnectionContext connectionContext,
       final HostSpec hostSpec,
-      final Properties props,
       final boolean isInitialConnection,
-      final @NonNull JdbcCallable<Connection, SQLException> connectFunc)
-      throws SQLException {
+      final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
 
     if (!pluginService.acceptsStrategy(hostSpec.getRole(), this.readerSelectorStrategy)) {
       throw new UnsupportedOperationException(

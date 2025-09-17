@@ -17,23 +17,17 @@
 package integration.container.aurora;
 
 import java.sql.SQLException;
-import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.PluginServiceImpl;
-import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.connection.ConnectionContext;
 
 public class TestPluginServiceImpl extends PluginServiceImpl {
 
   public TestPluginServiceImpl(
-      @NonNull FullServicesContainer servicesContainer,
-      @NonNull Properties props,
-      @NonNull String originalUrl,
-      String targetDriverProtocol,
-      @NonNull final TargetDriverDialect targetDriverDialect)
+      @NonNull FullServicesContainer servicesContainer, @NonNull ConnectionContext connectionContext)
       throws SQLException {
-
-    super(servicesContainer, props, originalUrl, targetDriverProtocol, targetDriverDialect);
+    super(servicesContainer, connectionContext);
   }
 
   public static void clearHostAvailabilityCache() {

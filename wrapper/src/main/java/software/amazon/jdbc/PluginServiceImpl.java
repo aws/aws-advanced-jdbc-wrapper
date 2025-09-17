@@ -125,7 +125,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
     this.sessionStateService = sessionStateService != null
         ? sessionStateService
-        : new SessionStateServiceImpl(this, this.connectionContext.getProps());
+        : new SessionStateServiceImpl(this, this.connectionContext.getPropsCopy());
 
     this.exceptionHandler = this.configurationProfile != null && this.configurationProfile.getExceptionHandler() != null
         ? this.configurationProfile.getExceptionHandler()
@@ -291,7 +291,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
             this.setInTransaction(false);
 
             if (isInTransaction
-                && PropertyDefinition.ROLLBACK_ON_SWITCH.getBoolean(this.connectionContext.getProps())) {
+                && PropertyDefinition.ROLLBACK_ON_SWITCH.getBoolean(this.connectionContext.getPropsCopy())) {
               try {
                 oldConnection.rollback();
               } catch (final SQLException e) {
@@ -592,7 +592,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       final @Nullable ConnectionPlugin pluginToSkip)
       throws SQLException {
     return this.pluginManager.connect(
-        this.connectionContext.getProtocol(), hostSpec, props, this.currentConnection == null, pluginToSkip);
+        this.connectionContext, hostSpec, this.currentConnection == null, pluginToSkip);
   }
 
   @Override
@@ -610,7 +610,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       final @Nullable ConnectionPlugin pluginToSkip)
       throws SQLException {
     return this.pluginManager.forceConnect(
-        this.connectionContext.getProtocol(), hostSpec, props, this.currentConnection == null, pluginToSkip);
+        this.connectionContext, hostSpec, this.currentConnection == null, pluginToSkip);
   }
 
   private void updateHostAvailability(final List<HostSpec> hosts) {
@@ -747,12 +747,12 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   @Override
   public HostSpecBuilder getHostSpecBuilder() {
-    return new HostSpecBuilder(new HostAvailabilityStrategyFactory().create(this.connectionContext.getProps()));
+    return new HostSpecBuilder(new HostAvailabilityStrategyFactory().create(this.connectionContext.getPropsCopy()));
   }
 
   @Override
   public Properties getProperties() {
-    return this.connectionContext.getProps();
+    return this.connectionContext.getPropsCopy();
   }
 
   public TelemetryFactory getTelemetryFactory() {

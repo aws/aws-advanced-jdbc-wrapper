@@ -170,7 +170,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    * <p>The {@link DefaultConnectionPlugin} will always be initialized and attached as the last
    * connection plugin in the chain.
    *
-   * @param servicesContainer     the service container for the services required by this class.
+   * @param servicesContainer    the service container for the services required by this class.
    * @param props                the configuration of the connection
    * @param pluginManagerService a reference to a plugin manager service
    * @param configurationProfile a profile configuration defined by the user
@@ -354,7 +354,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
         throw WrapperUtils.wrapExceptionIfNeeded(
             exceptionClass,
             new SQLException(
-                Messages.get("ConnectionPluginManager.invokedAgainstOldConnection", new Object[]{methodInvokeOn})));
+                Messages.get("ConnectionPluginManager.invokedAgainstOldConnection", new Object[] {methodInvokeOn})));
       }
     }
 
@@ -371,7 +371,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    * Establishes a connection to the given host using the given driver protocol and properties. If a
    * non-default {@link ConnectionProvider} has been set with
    * {@link Driver#setCustomConnectionProvider(ConnectionProvider)} and
-   * {@link ConnectionProvider#acceptsUrl(String, HostSpec, Properties)} returns true for the given
+   * {@link ConnectionProvider#acceptsUrl(ConnectionContext, HostSpec)} returns true for the given
    * protocol, host, and properties, the connection will be created by the non-default
    * ConnectionProvider. Otherwise, the connection will be created by the default
    * ConnectionProvider. The default ConnectionProvider will be {@link DriverConnectionProvider} for
@@ -379,9 +379,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    * {@link DataSourceConnectionProvider} for connections requested via an
    * {@link software.amazon.jdbc.ds.AwsWrapperDataSource}.
    *
-   * @param driverProtocol      the driver protocol that should be used to establish the connection
+   * @param connectionContext   the connection info for the original connection
    * @param hostSpec            the host details for the desired connection
-   * @param props               the connection properties
    * @param isInitialConnection a boolean indicating whether the current {@link Connection} is
    *                            establishing an initial physical connection to the database or has
    *                            already established a physical connection in the past
@@ -391,9 +390,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    *                      host
    */
   public Connection connect(
-      final String driverProtocol,
+      final ConnectionContext connectionContext,
       final HostSpec hostSpec,
-      final Properties props,
       final boolean isInitialConnection,
       final @Nullable ConnectionPlugin pluginToSkip)
       throws SQLException {
@@ -405,7 +403,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       return executeWithSubscribedPlugins(
           JdbcMethod.CONNECT,
           (plugin, func) ->
-              plugin.connect(driverProtocol, hostSpec, props, isInitialConnection, func),
+              plugin.connect(connectionContext, hostSpec, isInitialConnection, func),
           () -> {
             throw new SQLException("Shouldn't be called.");
           },
@@ -430,9 +428,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    * requested via the {@link java.sql.DriverManager} and {@link DataSourceConnectionProvider} for
    * connections requested via an {@link software.amazon.jdbc.ds.AwsWrapperDataSource}.
    *
-   * @param driverProtocol      the driver protocol that should be used to establish the connection
+   * @param connectionContext   the connection info for the original connection.
    * @param hostSpec            the host details for the desired connection
-   * @param props               the connection properties
    * @param isInitialConnection a boolean indicating whether the current {@link Connection} is
    *                            establishing an initial physical connection to the database or has
    *                            already established a physical connection in the past
@@ -442,9 +439,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    *                      host
    */
   public Connection forceConnect(
-      final String driverProtocol,
+      final ConnectionContext connectionContext,
       final HostSpec hostSpec,
-      final Properties props,
       final boolean isInitialConnection,
       final @Nullable ConnectionPlugin pluginToSkip)
       throws SQLException {
@@ -453,7 +449,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       return executeWithSubscribedPlugins(
           JdbcMethod.FORCECONNECT,
           (plugin, func) ->
-              plugin.forceConnect(driverProtocol, hostSpec, props, isInitialConnection, func),
+              plugin.forceConnect(connectionContext, hostSpec, isInitialConnection, func),
           () -> {
             throw new SQLException("Shouldn't be called.");
           },

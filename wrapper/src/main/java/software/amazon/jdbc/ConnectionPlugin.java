@@ -21,7 +21,6 @@ import java.sql.SQLException;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import software.amazon.jdbc.util.connection.ConnectionContext;
 
@@ -46,7 +45,7 @@ public interface ConnectionPlugin {
    * Establishes a connection to the given host using the given driver protocol and properties. If a
    * non-default {@link ConnectionProvider} has been set with
    * {@link Driver#setCustomConnectionProvider(ConnectionProvider)} and
-   * {@link ConnectionProvider#acceptsUrl(String, HostSpec, Properties)} returns true for the given
+   * {@link ConnectionProvider#acceptsUrl(ConnectionContext, HostSpec)} returns true for the given
    * protocol, host, and properties, the connection will be created by the non-default
    * ConnectionProvider. Otherwise, the connection will be created by the default
    * ConnectionProvider. The default ConnectionProvider will be {@link DriverConnectionProvider} for
@@ -54,9 +53,8 @@ public interface ConnectionPlugin {
    * {@link DataSourceConnectionProvider} for connections requested via an
    * {@link software.amazon.jdbc.ds.AwsWrapperDataSource}.
    *
-   * @param driverProtocol      the driver protocol that should be used to establish the connection
+   * @param connectionContext   the connection info for the original connection
    * @param hostSpec            the host details for the desired connection
-   * @param props               the connection properties
    * @param isInitialConnection a boolean indicating whether the current {@link Connection} is
    *                            establishing an initial physical connection to the database or has
    *                            already established a physical connection in the past
@@ -67,9 +65,8 @@ public interface ConnectionPlugin {
    *                      host
    */
   Connection connect(
-      final String driverProtocol,
+      final ConnectionContext connectionContext,
       final HostSpec hostSpec,
-      final Properties props,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException;
@@ -83,9 +80,8 @@ public interface ConnectionPlugin {
    * requested via the {@link java.sql.DriverManager} and {@link DataSourceConnectionProvider} for
    * connections requested via an {@link software.amazon.jdbc.ds.AwsWrapperDataSource}.
    *
-   * @param driverProtocol      the driver protocol that should be used to establish the connection
+   * @param connectionContext   the connection info for the original connection.
    * @param hostSpec            the host details for the desired connection
-   * @param props               the connection properties
    * @param isInitialConnection a boolean indicating whether the current {@link Connection} is
    *                            establishing an initial physical connection to the database or has
    *                            already established a physical connection in the past
@@ -96,9 +92,8 @@ public interface ConnectionPlugin {
    *                      host
    */
   Connection forceConnect(
-      final String driverProtocol,
+      final ConnectionContext connectionContext,
       final HostSpec hostSpec,
-      final Properties props,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException;

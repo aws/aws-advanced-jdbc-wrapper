@@ -35,6 +35,7 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.connection.ConnectionContext;
 
 public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
 
@@ -103,12 +104,10 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
 
   @Override
   public Connection connect(
-      final String driverProtocol,
+      final ConnectionContext connectionContext,
       final HostSpec hostSpec,
-      final Properties props,
       final boolean isInitialConnection,
-      final JdbcCallable<Connection, SQLException> connectFunc)
-      throws SQLException {
+      final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
 
     Connection conn = null;
 
@@ -131,7 +130,7 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
 
     final LimitlessConnectionContext context = new LimitlessConnectionContext(
         hostSpec,
-        props,
+        connectionContext.getPropsCopy(),
         conn,
         connectFunc,
         null,

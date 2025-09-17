@@ -28,10 +28,8 @@ import java.util.Properties;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.exceptions.SQLLoginException;
 import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
-import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
@@ -91,31 +89,19 @@ public class DriverConnectionProvider implements ConnectionProvider {
   /**
    * Called once per connection that needs to be created.
    *
-   * @param protocol The connection protocol (example "jdbc:mysql://")
-   * @param dialect The database dialect
-   * @param targetDriverDialect The target driver dialect
+   * @param connectionContext the connection info for the original connection.
    * @param hostSpec The HostSpec containing the host-port information for the host to connect to
-   * @param props The Properties to use for the connection
    * @return {@link Connection} resulting from the given connection information
    * @throws SQLException if an error occurs
    */
   @Override
-  public Connection connect(
-      final @NonNull String protocol,
-      final @NonNull Dialect dialect,
-      final @NonNull TargetDriverDialect targetDriverDialect,
-      final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props)
+  public Connection connect(final @NonNull ConnectionContext connectionContext, final @NonNull HostSpec hostSpec)
       throws SQLException {
+    final Properties copy = connectionContext.getPropsCopy();
+    final ConnectInfo connectInfo =
+        connectionContext.getDriverDialect().prepareConnectInfo(connectionContext.getProtocol(), hostSpec, copy);
 
-    //     LOGGER.finest(() -> PropertyUtils.logProperties(
-    //         PropertyUtils.maskProperties(props), "Connecting with properties: \n"));
-
-    final Properties copy = PropertyUtils.copyProperties(props);
-    dialect.prepareConnectProperties(copy, protocol, hostSpec);
-
-    final ConnectInfo connectInfo = targetDriverDialect.prepareConnectInfo(protocol, hostSpec, copy);
-
+    connectionContext.getDbDialect().prepareConnectProperties(copy, connectionContext.getProtocol(), hostSpec);
     LOGGER.finest(() -> "Connecting to " + connectInfo.url
         + PropertyUtils.logProperties(
             PropertyUtils.maskProperties(connectInfo.props),
@@ -127,7 +113,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
 
     } catch (Throwable throwable) {
 
-      if (!PropertyDefinition.ENABLE_GREEN_NODE_REPLACEMENT.getBoolean(props)) {
+      if (!PropertyDefinition.ENABLE_GREEN_NODE_REPLACEMENT.getBoolean(copy)) {
         throw throwable;
       }
 
@@ -172,7 +158,8 @@ public class DriverConnectionProvider implements ConnectionProvider {
           .host(fixedHost)
           .build();
 
-      final ConnectInfo fixedConnectInfo = targetDriverDialect.prepareConnectInfo(protocol, connectionHostSpec, copy);
+      final ConnectInfo fixedConnectInfo = connectionContext.getDriverDialect().prepareConnectInfo(
+          connectionContext.getProtocol(), connectionHostSpec, copy);
 
       LOGGER.finest(() -> "Connecting to " + fixedConnectInfo.url
           + " after correcting the hostname from " + originalHost

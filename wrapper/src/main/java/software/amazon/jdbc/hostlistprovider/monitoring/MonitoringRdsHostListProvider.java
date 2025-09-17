@@ -19,7 +19,6 @@ package software.amazon.jdbc.hostlistprovider.monitoring;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
@@ -32,6 +31,7 @@ import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.connection.ConnectionContext;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 
@@ -56,14 +56,13 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
   protected final String writerTopologyQuery;
 
   public MonitoringRdsHostListProvider(
-      final Properties properties,
-      final String originalUrl,
+      final ConnectionContext connectionContext,
       final FullServicesContainer servicesContainer,
       final String topologyQuery,
       final String nodeIdQuery,
       final String isReaderQuery,
       final String writerTopologyQuery) {
-    super(properties, originalUrl, servicesContainer, topologyQuery, nodeIdQuery, isReaderQuery);
+    super(connectionContext, servicesContainer, topologyQuery, nodeIdQuery, isReaderQuery);
     this.servicesContainer = servicesContainer;
     this.pluginService = servicesContainer.getPluginService();
     this.writerTopologyQuery = writerTopologyQuery;
@@ -87,11 +86,7 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
         this.servicesContainer.getStorageService(),
         this.servicesContainer.getTelemetryFactory(),
         this.servicesContainer.getDefaultConnectionProvider(),
-        this.originalUrl,
-        this.pluginService.getDriverProtocol(),
-        this.pluginService.getTargetDriverDialect(),
-        this.pluginService.getDialect(),
-        this.properties,
+        this.connectionContext,
         (servicesContainer) -> new ClusterTopologyMonitorImpl(
             this.servicesContainer,
             this.clusterId,
@@ -132,11 +127,7 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
           this.servicesContainer.getStorageService(),
           this.servicesContainer.getTelemetryFactory(),
           this.servicesContainer.getDefaultConnectionProvider(),
-          this.originalUrl,
-          this.pluginService.getDriverProtocol(),
-          this.pluginService.getTargetDriverDialect(),
-          this.pluginService.getDialect(),
-          this.properties,
+          this.connectionContext,
           (servicesContainer) -> existingMonitor);
       assert monitorService.get(ClusterTopologyMonitorImpl.class, this.clusterId) == existingMonitor;
       existingMonitor.setClusterId(this.clusterId);

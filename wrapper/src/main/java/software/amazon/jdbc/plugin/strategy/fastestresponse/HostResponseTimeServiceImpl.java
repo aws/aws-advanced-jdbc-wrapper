@@ -79,11 +79,7 @@ public class HostResponseTimeServiceImpl implements HostResponseTimeService {
                 servicesContainer.getStorageService(),
                 servicesContainer.getTelemetryFactory(),
                 servicesContainer.getDefaultConnectionProvider(),
-                this.pluginService.getOriginalUrl(),
-                this.pluginService.getDriverProtocol(),
-                this.pluginService.getTargetDriverDialect(),
-                this.pluginService.getDialect(),
-                this.props,
+                this.pluginService.getConnectionContext(),
                 (servicesContainer) ->
                     new NodeResponseTimeMonitor(pluginService, hostSpec, this.props, this.intervalMs));
           } catch (SQLException e) {

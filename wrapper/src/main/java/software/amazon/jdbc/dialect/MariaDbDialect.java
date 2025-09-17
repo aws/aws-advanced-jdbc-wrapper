@@ -104,8 +104,8 @@ public class MariaDbDialect implements Dialect {
   }
 
   public HostListProviderSupplier getHostListProvider() {
-    return (properties, initialUrl, servicesContainer) ->
-        new ConnectionStringHostListProvider(properties, initialUrl, servicesContainer.getHostListProviderService());
+    return (connectionContext, servicesContainer) ->
+        new ConnectionStringHostListProvider(connectionContext, servicesContainer.getHostListProviderService());
   }
 
   @Override
