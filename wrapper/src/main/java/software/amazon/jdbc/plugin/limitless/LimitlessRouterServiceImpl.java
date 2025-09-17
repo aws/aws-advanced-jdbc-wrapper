@@ -37,6 +37,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.RoundRobinHostSelector;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.HostSelectorUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.monitoring.MonitorErrorResponse;
@@ -126,7 +127,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       return;
     }
 
-    RoundRobinHostSelector.setRoundRobinHostWeightPairsProperty(
+    HostSelectorUtils.setHostWeightPairsProperty(RoundRobinHostSelector.ROUND_ROBIN_HOST_WEIGHT_PAIRS,
         context.getProps(),
         context.getLimitlessRouters());
     HostSpec selectedHostSpec;
