@@ -104,8 +104,8 @@ public class WeightedRandomHostSelector implements HostSelector {
         return entry.getKey();
       }
     }
-    // TODO: proper messaging
-    throw new SQLException(Messages.get("HostSelector.TODO", new Object[] {role}));
+
+    throw new SQLException(Messages.get("HostSelector.weightedRandomUnableToGetHost", new Object[] {role}));
   }
 
   private Map<String, Integer> getHostWeightPairMap(final String hostWeightMapString) throws SQLException {
@@ -124,7 +124,6 @@ public class WeightedRandomHostSelector implements HostSelector {
     for (final String hostWeightPair : hostWeightPairs) {
       final Matcher matcher = HOST_WEIGHT_PAIRS_PATTERN.matcher(hostWeightPair);
       if (!matcher.matches()) {
-        // TODO: add this message
         throw new SQLException(Messages.get("HostSelector.weightedRandomInvalidHostWeightPairs"));
       }
 
