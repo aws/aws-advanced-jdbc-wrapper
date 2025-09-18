@@ -423,7 +423,6 @@ public class Driver implements java.sql.Driver {
     RdsHostListProvider.clearAll();
     PluginServiceImpl.clearCache();
     DialectManager.resetEndpointCache();
-    MonitoringRdsHostListProvider.clearCache();
     CustomEndpointMonitorImpl.clearCache();
     OpenedConnectionTracker.clearCache();
     AwsSecretsManagerCacheHolder.clearCache();
