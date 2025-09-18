@@ -147,7 +147,7 @@ public class AuroraStaleDnsHelper {
         );
       }
 
-      final Connection writerConn = this.pluginService.connect(this.writerHostSpec, connectionContext.getPropsCopy());
+      final Connection writerConn = this.pluginService.connect(this.writerHostSpec, connectionContext.getProps());
       if (isInitialConnection) {
         hostListProviderService.setInitialConnectionHostSpec(this.writerHostSpec);
       }

@@ -600,7 +600,7 @@ public class BlueGreenStatusMonitor {
     }
 
     final ConnectionContext originalContext = this.pluginService.getConnectionContext();
-    final Properties hostListProperties = originalContext.getPropsCopy();
+    final Properties hostListProperties = originalContext.getProps();
 
     // Need to instantiate a separate HostListProvider with
     // a special unique clusterId to avoid interference with other HostListProviders opened for this cluster.

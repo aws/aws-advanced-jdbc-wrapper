@@ -734,7 +734,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     this.initFailoverMode();
 
     Connection conn = null;
-    Properties props = connectionContext.getPropsCopy();
+    Properties props = connectionContext.getProps();
     if (!ENABLE_CONNECT_FAILOVER.getBoolean(props)) {
       return this.staleDnsHelper.getVerifiedConnection(
           isInitialConnection, this.hostListProviderService, connectionContext, hostSpec, connectFunc);

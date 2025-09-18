@@ -118,7 +118,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       ConnectionContext connectionContext,
       HostSpec hostSpec,
       JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
-    Properties props = connectionContext.getPropsCopy();
+    Properties props = connectionContext.getProps();
     if (StringUtils.isNullOrEmpty(PropertyDefinition.USER.getString(props))) {
       throw new SQLException(PropertyDefinition.USER.name + " is null or empty.");
     }

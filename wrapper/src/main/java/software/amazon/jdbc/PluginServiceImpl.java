@@ -125,7 +125,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
     this.sessionStateService = sessionStateService != null
         ? sessionStateService
-        : new SessionStateServiceImpl(this, this.connectionContext.getPropsCopy());
+        : new SessionStateServiceImpl(this, this.connectionContext.getProps());
 
     this.exceptionHandler = this.configurationProfile != null && this.configurationProfile.getExceptionHandler() != null
         ? this.configurationProfile.getExceptionHandler()
@@ -291,7 +291,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
             this.setInTransaction(false);
 
             if (isInTransaction
-                && PropertyDefinition.ROLLBACK_ON_SWITCH.getBoolean(this.connectionContext.getPropsCopy())) {
+                && PropertyDefinition.ROLLBACK_ON_SWITCH.getBoolean(this.connectionContext.getProps())) {
               try {
                 oldConnection.rollback();
               } catch (final SQLException e) {
@@ -747,12 +747,12 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   @Override
   public HostSpecBuilder getHostSpecBuilder() {
-    return new HostSpecBuilder(new HostAvailabilityStrategyFactory().create(this.connectionContext.getPropsCopy()));
+    return new HostSpecBuilder(new HostAvailabilityStrategyFactory().create(this.connectionContext.getProps()));
   }
 
   @Override
   public Properties getProperties() {
-    return this.connectionContext.getPropsCopy();
+    return this.connectionContext.getProps();
   }
 
   public TelemetryFactory getTelemetryFactory() {

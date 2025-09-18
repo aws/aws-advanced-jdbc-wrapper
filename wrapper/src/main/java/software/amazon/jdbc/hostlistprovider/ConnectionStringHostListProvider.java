@@ -60,7 +60,7 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
       final @NonNull HostListProviderService hostListProviderService,
       final @NonNull ConnectionUrlParser connectionUrlParser) {
     this.connectionContext = connectionContext;
-    this.isSingleWriterConnectionString = SINGLE_WRITER_CONNECTION_STRING.getBoolean(connectionContext.getPropsCopy());
+    this.isSingleWriterConnectionString = SINGLE_WRITER_CONNECTION_STRING.getBoolean(connectionContext.getProps());
     this.connectionUrlParser = connectionUrlParser;
     this.hostListProviderService = hostListProviderService;
   }

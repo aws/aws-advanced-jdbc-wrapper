@@ -190,7 +190,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
-    return connectInternal(hostSpec, connectionContext.getPropsCopy(), connectFunc);
+    return connectInternal(hostSpec, connectionContext.getProps(), connectFunc);
   }
 
   private Connection connectInternal(HostSpec hostSpec, Properties props,
@@ -231,7 +231,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
-    return connectInternal(hostSpec, connectionContext.getPropsCopy(), forceConnectFunc);
+    return connectInternal(hostSpec, connectionContext.getProps(), forceConnectFunc);
   }
 
   /**

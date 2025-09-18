@@ -71,7 +71,7 @@ public class ServiceUtility {
     servicesContainer.setPluginService(partialPluginService);
     servicesContainer.setPluginManagerService(partialPluginService);
 
-    pluginManager.init(servicesContainer, connectionContext.getPropsCopy(), partialPluginService, null);
+    pluginManager.init(servicesContainer, connectionContext.getProps(), partialPluginService, null);
     return servicesContainer;
   }
 }

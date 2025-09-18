@@ -157,7 +157,7 @@ public class FederatedAuthPlugin extends AbstractConnectionPlugin {
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
-    return connectInternal(hostSpec, connectionContext.getPropsCopy(), connectFunc);
+    return connectInternal(hostSpec, connectionContext.getProps(), connectFunc);
   }
 
   @Override
@@ -167,7 +167,7 @@ public class FederatedAuthPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection,
       final @NonNull JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
-    return connectInternal(hostSpec, connectionContext.getPropsCopy(), forceConnectFunc);
+    return connectInternal(hostSpec, connectionContext.getProps(), forceConnectFunc);
   }
 
   private Connection connectInternal(

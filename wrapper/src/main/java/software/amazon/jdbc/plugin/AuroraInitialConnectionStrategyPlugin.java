@@ -139,7 +139,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
     final RdsUrlType type = this.rdsUtils.identifyRdsType(hostSpec.getHost());
-    final Properties props = connectionContext.getPropsCopy();
+    final Properties props = connectionContext.getProps();
     if (type == RdsUrlType.RDS_WRITER_CLUSTER
         || isInitialConnection && this.verifyOpenedConnectionType == VerifyOpenedConnectionType.WRITER) {
       Connection writerCandidateConn = this.getVerifiedWriterConnection(props, isInitialConnection, connectFunc);

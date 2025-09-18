@@ -130,7 +130,7 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
 
     final LimitlessConnectionContext context = new LimitlessConnectionContext(
         hostSpec,
-        connectionContext.getPropsCopy(),
+        connectionContext.getProps(),
         conn,
         connectFunc,
         null,

@@ -72,7 +72,7 @@ public class ConnectionServiceImpl implements ConnectionService {
     servicesContainer.setPluginManagerService(partialPluginService);
 
     this.pluginService = partialPluginService;
-    this.pluginManager.init(servicesContainer, this.connectionContext.getPropsCopy(), partialPluginService, null);
+    this.pluginManager.init(servicesContainer, this.connectionContext.getProps(), partialPluginService, null);
   }
 
   @Override

@@ -97,11 +97,11 @@ public class DriverConnectionProvider implements ConnectionProvider {
   @Override
   public Connection connect(final @NonNull ConnectionContext connectionContext, final @NonNull HostSpec hostSpec)
       throws SQLException {
-    final Properties copy = connectionContext.getPropsCopy();
+    final Properties propsCopy = PropertyUtils.copyProperties(connectionContext.getProps());
     final ConnectInfo connectInfo =
-        connectionContext.getDriverDialect().prepareConnectInfo(connectionContext.getProtocol(), hostSpec, copy);
+        connectionContext.getDriverDialect().prepareConnectInfo(connectionContext.getProtocol(), hostSpec, propsCopy);
 
-    connectionContext.getDbDialect().prepareConnectProperties(copy, connectionContext.getProtocol(), hostSpec);
+    connectionContext.getDbDialect().prepareConnectProperties(propsCopy, connectionContext.getProtocol(), hostSpec);
     LOGGER.finest(() -> "Connecting to " + connectInfo.url
         + PropertyUtils.logProperties(
             PropertyUtils.maskProperties(connectInfo.props),
@@ -113,7 +113,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
 
     } catch (Throwable throwable) {
 
-      if (!PropertyDefinition.ENABLE_GREEN_NODE_REPLACEMENT.getBoolean(copy)) {
+      if (!PropertyDefinition.ENABLE_GREEN_NODE_REPLACEMENT.getBoolean(propsCopy)) {
         throw throwable;
       }
 
@@ -159,7 +159,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
           .build();
 
       final ConnectInfo fixedConnectInfo = connectionContext.getDriverDialect().prepareConnectInfo(
-          connectionContext.getProtocol(), connectionHostSpec, copy);
+          connectionContext.getProtocol(), connectionHostSpec, propsCopy);
 
       LOGGER.finest(() -> "Connecting to " + fixedConnectInfo.url
           + " after correcting the hostname from " + originalHost

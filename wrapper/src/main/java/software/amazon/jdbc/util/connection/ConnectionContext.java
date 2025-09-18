@@ -20,7 +20,6 @@ import java.util.Properties;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ConnectionUrlParser;
-import software.amazon.jdbc.util.PropertyUtils;
 
 public class ConnectionContext {
   protected static final ConnectionUrlParser connectionUrlParser = new ConnectionUrlParser();
@@ -53,8 +52,8 @@ public class ConnectionContext {
     return driverDialect;
   }
 
-  public Properties getPropsCopy() {
-    return PropertyUtils.copyProperties(props);
+  public Properties getProps() {
+    return props;
   }
 
   public Dialect getDbDialect() {

@@ -205,7 +205,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   @Override
   public boolean acceptsUrl(@NonNull ConnectionContext connectionContext, @NonNull HostSpec hostSpec) {
     if (this.acceptsUrlFunc != null) {
-      return this.acceptsUrlFunc.acceptsUrl(hostSpec, connectionContext.getPropsCopy());
+      return this.acceptsUrlFunc.acceptsUrl(hostSpec, connectionContext.getProps());
     }
 
     final RdsUrlType urlType = rdsUtils.identifyRdsType(hostSpec.getHost());
@@ -240,7 +240,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   @Override
   public Connection connect(@NonNull ConnectionContext connectionContext, @NonNull HostSpec hostSpec)
       throws SQLException {
-    final Properties propsCopy = connectionContext.getPropsCopy();
+    final Properties propsCopy = PropertyUtils.copyProperties(connectionContext.getProps());
     HostSpec connectionHostSpec = hostSpec;
 
     if (PropertyDefinition.ENABLE_GREEN_NODE_REPLACEMENT.getBoolean(propsCopy)
@@ -315,7 +315,6 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
       final ConnectionContext connectionContext,
       final HostSpec hostSpec,
       final Properties connectionProps) {
-
     final Properties copy = PropertyUtils.copyProperties(connectionProps);
 
     ConnectInfo connectInfo;

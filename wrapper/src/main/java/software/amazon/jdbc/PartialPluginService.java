@@ -624,12 +624,12 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
 
   @Override
   public HostSpecBuilder getHostSpecBuilder() {
-    return new HostSpecBuilder(new HostAvailabilityStrategyFactory().create(this.connectionContext.getPropsCopy()));
+    return new HostSpecBuilder(new HostAvailabilityStrategyFactory().create(this.connectionContext.getProps()));
   }
 
   @Override
   public Properties getProperties() {
-    return this.connectionContext.getPropsCopy();
+    return this.connectionContext.getProps();
   }
 
   public TelemetryFactory getTelemetryFactory() {

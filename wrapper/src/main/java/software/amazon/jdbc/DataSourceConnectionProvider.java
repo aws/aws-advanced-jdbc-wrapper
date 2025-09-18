@@ -32,6 +32,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.exceptions.SQLLoginException;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -100,8 +101,8 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
   @Override
   public Connection connect(
       final @NonNull ConnectionContext connectionContext, final @NonNull HostSpec hostSpec) throws SQLException {
-    final Properties copy = connectionContext.getPropsCopy();
-    connectionContext.getDbDialect().prepareConnectProperties(copy, connectionContext.getProtocol(), hostSpec);
+    final Properties propsCopy = PropertyUtils.copyProperties(connectionContext.getProps());
+    connectionContext.getDbDialect().prepareConnectProperties(propsCopy, connectionContext.getProtocol(), hostSpec);
 
     Connection conn;
 
@@ -110,7 +111,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       LOGGER.finest(() -> "Use a separate DataSource object to create a connection.");
       // use a new data source instance to instantiate a connection
       final DataSource ds = createDataSource();
-      conn = this.openConnection(ds, connectionContext, hostSpec, copy);
+      conn = this.openConnection(ds, connectionContext, hostSpec, propsCopy);
 
     } else {
 
@@ -119,7 +120,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       this.lock.lock();
       LOGGER.finest(() -> "Use main DataSource object to create a connection.");
       try {
-        conn = this.openConnection(this.dataSource, connectionContext, hostSpec, copy);
+        conn = this.openConnection(this.dataSource, connectionContext, hostSpec, propsCopy);
       } finally {
         this.lock.unlock();
       }
