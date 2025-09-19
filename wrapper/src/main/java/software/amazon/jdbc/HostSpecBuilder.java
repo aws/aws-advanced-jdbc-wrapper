@@ -17,7 +17,6 @@
 package software.amazon.jdbc;
 
 import java.sql.Timestamp;
-import java.time.Instant;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;

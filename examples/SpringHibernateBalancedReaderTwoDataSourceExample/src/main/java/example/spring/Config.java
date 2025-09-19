@@ -16,10 +16,7 @@
 
 package example.spring;
 
-import com.zaxxer.hikari.HikariConfig;
-import java.util.Arrays;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 import javax.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
 import org.hibernate.exception.JDBCConnectionException;
@@ -40,10 +37,6 @@ import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
-import software.amazon.jdbc.HikariPooledConnectionProvider;
-import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
-import software.amazon.jdbc.profile.ConfigurationProfilePresetCodes;
 
 @Configuration
 @EnableTransactionManagement
