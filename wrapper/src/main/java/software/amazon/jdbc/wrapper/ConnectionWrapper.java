@@ -1091,7 +1091,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
   @Override
   public <T> T unwrap(final Class<T> iface) throws SQLException {
-    T result = this.pluginManager.unwrap(iface);
+    T result = this.pluginService.unwrap(iface);
     if (result != null) {
       return result;
     }
