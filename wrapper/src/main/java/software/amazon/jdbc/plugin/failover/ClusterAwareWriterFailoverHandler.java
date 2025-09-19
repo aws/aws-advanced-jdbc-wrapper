@@ -169,7 +169,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
   protected FullServicesContainer getNewServicesContainer() throws SQLException {
     // Each task should get its own FullServicesContainer since they execute concurrently and PluginService was not
     // designed to be thread-safe.
-    return ServiceUtility.getInstance().createServiceContainer(
+    return ServiceUtility.getInstance().createMinimalServiceContainer(
         this.servicesContainer.getStorageService(),
         this.servicesContainer.getMonitorService(),
         this.pluginService.getDefaultConnectionProvider(),

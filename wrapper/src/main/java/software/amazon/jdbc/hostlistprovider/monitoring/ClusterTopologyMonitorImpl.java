@@ -505,7 +505,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   }
 
   protected FullServicesContainer getNewServicesContainer() throws SQLException {
-    return ServiceUtility.getInstance().createServiceContainer(
+    return ServiceUtility.getInstance().createMinimalServiceContainer(
         this.servicesContainer.getStorageService(),
         this.servicesContainer.getMonitorService(),
         this.servicesContainer.getDefaultConnectionProvider(),

@@ -72,6 +72,7 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
   private static final String SERVER_NAME = "serverName";
   private static final String SERVER_PORT = "serverPort";
 
+  private final ConnectionUrlParser urlParser = new ConnectionUrlParser();
   private final StorageService storageService;
   private final MonitorService monitorService;
 
@@ -285,12 +286,9 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
         servicesContainer = new FullServicesContainerImpl(
             storageService, monitorService, defaultProvider, telemetryFactory);
     return new ConnectionWrapper(
-        servicesContainer,
         props,
         url,
-        defaultProvider,
-        effectiveProvider,
-        targetDriverDialect,
+        this.urlParser.getProtocol(url),
         configurationProfile);
   }
 

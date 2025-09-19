@@ -359,7 +359,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   }
 
   protected FullServicesContainer getNewServicesContainer() throws SQLException {
-    return ServiceUtility.getInstance().createServiceContainer(
+    return ServiceUtility.getInstance().createMinimalServiceContainer(
         this.servicesContainer.getStorageService(),
         this.servicesContainer.getMonitorService(),
         this.pluginService.getDefaultConnectionProvider(),

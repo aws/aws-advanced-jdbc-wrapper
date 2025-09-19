@@ -231,7 +231,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       Dialect dbDialect,
       Properties originalProps) throws SQLException {
     final Properties propsCopy = PropertyUtils.copyProperties(originalProps);
-    return ServiceUtility.getInstance().createServiceContainer(
+    return ServiceUtility.getInstance().createMinimalServiceContainer(
         storageService,
         this,
         connectionProvider,

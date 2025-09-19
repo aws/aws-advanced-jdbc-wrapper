@@ -174,7 +174,6 @@ public class PluginBenchmarks {
         props,
         connString,
         mockConnectionProvider,
-        mockTargetDriverDialect,
         mockConnectionPluginManager,
         mockTelemetryFactory,
         mockPluginService,

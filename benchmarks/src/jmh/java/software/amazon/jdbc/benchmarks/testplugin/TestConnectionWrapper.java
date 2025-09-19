@@ -24,7 +24,7 @@ import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -32,12 +32,12 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 // Test class allowing for mocks to be used with ConnectionWrapper logic
 public class TestConnectionWrapper extends ConnectionWrapper {
+  protected final ConnectionUrlParser urlParser = new ConnectionUrlParser();
 
   public TestConnectionWrapper(
       @NonNull final Properties props,
       @NonNull final String url,
       @NonNull final ConnectionProvider defaultConnectionProvider,
-      @NonNull final TargetDriverDialect driverDialect,
       @NonNull final ConnectionPluginManager connectionPluginManager,
       @NonNull final TelemetryFactory telemetryFactory,
       @NonNull final PluginService pluginService,
@@ -50,7 +50,6 @@ public class TestConnectionWrapper extends ConnectionWrapper {
         props,
         url,
         defaultConnectionProvider,
-        driverDialect,
         connectionPluginManager,
         telemetryFactory,
         pluginService,
