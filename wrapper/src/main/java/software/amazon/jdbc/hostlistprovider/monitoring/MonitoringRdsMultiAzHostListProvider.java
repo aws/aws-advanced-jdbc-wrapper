@@ -60,7 +60,7 @@ public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListP
             servicesContainer,
             this.clusterId,
             this.initialHostSpec,
-            this.properties,
+            this.connectionContext.getProps(),
             this.clusterInstanceTemplate,
             this.refreshRateNano,
             this.highRefreshRateNano,

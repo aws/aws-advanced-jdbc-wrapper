@@ -67,7 +67,7 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
     this.pluginService = servicesContainer.getPluginService();
     this.writerTopologyQuery = writerTopologyQuery;
     this.highRefreshRateNano = TimeUnit.MILLISECONDS.toNanos(
-        CLUSTER_TOPOLOGY_HIGH_REFRESH_RATE_MS.getLong(this.properties));
+        CLUSTER_TOPOLOGY_HIGH_REFRESH_RATE_MS.getLong(this.connectionContext.getProps()));
   }
 
   public static void clearCache() {
@@ -91,7 +91,7 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
             this.servicesContainer,
             this.clusterId,
             this.initialHostSpec,
-            this.properties,
+            this.connectionContext.getProps(),
             this.clusterInstanceTemplate,
             this.refreshRateNano,
             this.highRefreshRateNano,

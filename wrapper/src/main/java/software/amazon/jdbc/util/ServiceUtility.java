@@ -17,6 +17,7 @@
 package software.amazon.jdbc.util;
 
 import java.sql.SQLException;
+import java.util.Properties;
 import java.util.concurrent.locks.ReentrantLock;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
@@ -71,7 +72,8 @@ public class ServiceUtility {
     servicesContainer.setPluginService(partialPluginService);
     servicesContainer.setPluginManagerService(partialPluginService);
 
-    pluginManager.init(servicesContainer, connectionContext.getProps(), partialPluginService, null);
+    Properties propsCopy = PropertyUtils.copyProperties(connectionContext.getProps());
+    pluginManager.init(servicesContainer, propsCopy, partialPluginService, null);
     return servicesContainer;
   }
 }

@@ -117,8 +117,6 @@ public class RdsHostListProvider implements DynamicHostListProvider {
 
   protected volatile boolean isInitialized = false;
 
-  protected Properties properties;
-
   static {
     PropertyDefinition.registerPluginProperties(RdsHostListProvider.class);
   }
@@ -161,11 +159,12 @@ public class RdsHostListProvider implements DynamicHostListProvider {
 
       this.clusterId = UUID.randomUUID().toString();
       this.isPrimaryClusterId = false;
+      Properties props = this.connectionContext.getProps();
       this.refreshRateNano =
-          TimeUnit.MILLISECONDS.toNanos(CLUSTER_TOPOLOGY_REFRESH_RATE_MS.getInteger(properties));
+          TimeUnit.MILLISECONDS.toNanos(CLUSTER_TOPOLOGY_REFRESH_RATE_MS.getInteger(props));
 
       HostSpecBuilder hostSpecBuilder = this.hostListProviderService.getHostSpecBuilder();
-      String clusterInstancePattern = CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties);
+      String clusterInstancePattern = CLUSTER_INSTANCE_HOST_PATTERN.getString(props);
       if (clusterInstancePattern != null) {
         this.clusterInstanceTemplate =
             ConnectionUrlParser.parseHostPortPair(clusterInstancePattern, () -> hostSpecBuilder);
@@ -182,7 +181,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
 
       this.rdsUrlType = rdsHelper.identifyRdsType(this.initialHostSpec.getHost());
 
-      final String clusterIdSetting = CLUSTER_ID.getString(this.properties);
+      final String clusterIdSetting = CLUSTER_ID.getString(props);
       if (!StringUtils.isNullOrEmpty(clusterIdSetting)) {
         this.clusterId = clusterIdSetting;
       } else if (rdsUrlType == RdsUrlType.RDS_PROXY) {
