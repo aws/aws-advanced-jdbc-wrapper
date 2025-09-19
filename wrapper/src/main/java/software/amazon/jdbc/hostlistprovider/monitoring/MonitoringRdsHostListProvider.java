@@ -31,7 +31,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.hostlistprovider.Topology;
-import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 
@@ -50,7 +50,7 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
     PropertyDefinition.registerPluginProperties(MonitoringRdsHostListProvider.class);
   }
 
-  protected final ServiceContainer serviceContainer;
+  protected final FullServicesContainer servicesContainer;
   protected final PluginService pluginService;
   protected final long highRefreshRateNano;
   protected final String writerTopologyQuery;
@@ -58,14 +58,14 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
   public MonitoringRdsHostListProvider(
       final Properties properties,
       final String originalUrl,
-      final ServiceContainer serviceContainer,
+      final FullServicesContainer servicesContainer,
       final String topologyQuery,
       final String nodeIdQuery,
       final String isReaderQuery,
       final String writerTopologyQuery) {
-    super(properties, originalUrl, serviceContainer, topologyQuery, nodeIdQuery, isReaderQuery);
-    this.serviceContainer = serviceContainer;
-    this.pluginService = serviceContainer.getPluginService();
+    super(properties, originalUrl, servicesContainer, topologyQuery, nodeIdQuery, isReaderQuery);
+    this.servicesContainer = servicesContainer;
+    this.pluginService = servicesContainer.getPluginService();
     this.writerTopologyQuery = writerTopologyQuery;
     this.highRefreshRateNano = TimeUnit.MILLISECONDS.toNanos(
         CLUSTER_TOPOLOGY_HIGH_REFRESH_RATE_MS.getLong(this.properties));
@@ -81,19 +81,19 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
   }
 
   protected ClusterTopologyMonitor initMonitor() throws SQLException {
-    return this.serviceContainer.getMonitorService().runIfAbsent(
+    return this.servicesContainer.getMonitorService().runIfAbsent(
         ClusterTopologyMonitorImpl.class,
         this.clusterId,
-        this.serviceContainer.getStorageService(),
-        this.serviceContainer.getTelemetryFactory(),
-        this.serviceContainer.getDefaultConnectionProvider(),
+        this.servicesContainer.getStorageService(),
+        this.servicesContainer.getTelemetryFactory(),
+        this.servicesContainer.getDefaultConnectionProvider(),
         this.originalUrl,
         this.pluginService.getDriverProtocol(),
         this.pluginService.getTargetDriverDialect(),
         this.pluginService.getDialect(),
         this.properties,
-        (serviceContainer) -> new ClusterTopologyMonitorImpl(
-            this.serviceContainer,
+        (servicesContainer) -> new ClusterTopologyMonitorImpl(
+            this.servicesContainer,
             this.clusterId,
             this.initialHostSpec,
             this.properties,
@@ -107,7 +107,7 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
 
   @Override
   protected List<HostSpec> queryForTopology(final Connection conn) throws SQLException {
-    ClusterTopologyMonitor monitor = this.serviceContainer.getMonitorService()
+    ClusterTopologyMonitor monitor = this.servicesContainer.getMonitorService()
         .get(ClusterTopologyMonitorImpl.class, this.clusterId);
     if (monitor == null) {
       monitor = this.initMonitor();
@@ -122,28 +122,28 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
 
   @Override
   protected void clusterIdChanged(final String oldClusterId) throws SQLException {
-    MonitorService monitorService = this.serviceContainer.getMonitorService();
+    MonitorService monitorService = this.servicesContainer.getMonitorService();
     final ClusterTopologyMonitorImpl existingMonitor =
         monitorService.get(ClusterTopologyMonitorImpl.class, oldClusterId);
     if (existingMonitor != null) {
-      this.serviceContainer.getMonitorService().runIfAbsent(
+      this.servicesContainer.getMonitorService().runIfAbsent(
           ClusterTopologyMonitorImpl.class,
           this.clusterId,
-          this.serviceContainer.getStorageService(),
-          this.serviceContainer.getTelemetryFactory(),
-          this.serviceContainer.getDefaultConnectionProvider(),
+          this.servicesContainer.getStorageService(),
+          this.servicesContainer.getTelemetryFactory(),
+          this.servicesContainer.getDefaultConnectionProvider(),
           this.originalUrl,
           this.pluginService.getDriverProtocol(),
           this.pluginService.getTargetDriverDialect(),
           this.pluginService.getDialect(),
           this.properties,
-          (serviceContainer) -> existingMonitor);
+          (servicesContainer) -> existingMonitor);
       assert monitorService.get(ClusterTopologyMonitorImpl.class, this.clusterId) == existingMonitor;
       existingMonitor.setClusterId(this.clusterId);
       monitorService.remove(ClusterTopologyMonitorImpl.class, oldClusterId);
     }
 
-    final StorageService storageService = this.serviceContainer.getStorageService();
+    final StorageService storageService = this.servicesContainer.getStorageService();
     final Topology existingTopology = storageService.get(Topology.class, oldClusterId);
     final List<HostSpec> existingHosts = existingTopology == null ? null : existingTopology.getHosts();
     if (existingHosts != null) {
@@ -156,7 +156,7 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
       throws SQLException, TimeoutException {
 
     ClusterTopologyMonitor monitor =
-        this.serviceContainer.getMonitorService().get(ClusterTopologyMonitorImpl.class, this.clusterId);
+        this.servicesContainer.getMonitorService().get(ClusterTopologyMonitorImpl.class, this.clusterId);
     if (monitor == null) {
       monitor = this.initMonitor();
     }

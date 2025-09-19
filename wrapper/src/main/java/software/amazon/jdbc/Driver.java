@@ -56,12 +56,12 @@ import software.amazon.jdbc.states.TransferSessionStateOnSwitchCallable;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectManager;
 import software.amazon.jdbc.util.ConnectionUrlParser;
-import software.amazon.jdbc.util.CoreServiceContainer;
+import software.amazon.jdbc.util.CoreServicesContainer;
 import software.amazon.jdbc.util.DriverInfo;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.ServiceUtility;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -113,12 +113,12 @@ public class Driver implements java.sql.Driver {
   private final ConnectionUrlParser urlParser = new ConnectionUrlParser();
 
   public Driver() {
-    this(CoreServiceContainer.getInstance());
+    this(CoreServicesContainer.getInstance());
   }
 
-  public Driver(CoreServiceContainer coreServiceContainer) {
-    this.storageService = coreServiceContainer.getStorageService();
-    this.monitorService = coreServiceContainer.getMonitorService();
+  public Driver(CoreServicesContainer coreServicesContainer) {
+    this.storageService = coreServicesContainer.getStorageService();
+    this.monitorService = coreServicesContainer.getMonitorService();
   }
 
   public static void register() throws SQLException {
@@ -243,7 +243,7 @@ public class Driver implements java.sql.Driver {
       String targetDriverProtocol = urlParser.getProtocol(driverUrl);
       ConnectionWrapper connectionWrapper =
           new ConnectionWrapper(props, url, targetDriverProtocol, configurationProfile);
-      ServiceContainer serviceContainer = ServiceUtility.getInstance().createStandardServiceContainer(
+      FullServicesContainer servicesContainer = ServiceUtility.getInstance().createStandardServiceContainer(
           storageService,
           monitorService,
           connectionWrapper,
@@ -424,7 +424,7 @@ public class Driver implements java.sql.Driver {
   }
 
   public static void clearCaches() {
-    CoreServiceContainer.getInstance().getStorageService().clearAll();
+    CoreServicesContainer.getInstance().getStorageService().clearAll();
     RdsUtils.clearCache();
     RdsHostListProvider.clearAll();
     PluginServiceImpl.clearCache();
@@ -443,7 +443,7 @@ public class Driver implements java.sql.Driver {
   }
 
   public static void releaseResources() {
-    CoreServiceContainer.getInstance().getMonitorService().stopAndRemoveAll();
+    CoreServicesContainer.getInstance().getMonitorService().stopAndRemoveAll();
     HostMonitorThreadContainer.releaseInstance();
     ConnectionProviderManager.releaseResources();
     HikariPoolsHolder.closeAllPools();

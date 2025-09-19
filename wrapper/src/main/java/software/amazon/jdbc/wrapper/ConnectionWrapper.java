@@ -47,10 +47,10 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.profile.ConfigurationProfile;
+import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainerImpl;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.ServiceContainer;
 import software.amazon.jdbc.util.SqlState;
-import software.amazon.jdbc.util.StandardServiceContainer;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.monitoring.MonitorService;
@@ -107,7 +107,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       throw new IllegalArgumentException("url");
     }
 
-    ServiceContainer serviceContainer = new StandardServiceContainer(
+    FullServicesContainer servicesContainer = new FullServicesContainerImpl(
         storageService,
         monitorService,
         defaultConnectionProvider,

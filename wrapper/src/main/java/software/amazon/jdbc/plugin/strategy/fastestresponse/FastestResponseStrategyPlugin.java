@@ -39,7 +39,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.RandomHostSelector;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
-import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.storage.CacheMap;
 
 public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
@@ -82,12 +82,12 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
   }
 
   public FastestResponseStrategyPlugin(
-      final ServiceContainer serviceContainer,
+      final FullServicesContainer servicesContainer,
       final @NonNull Properties properties) {
-    this(serviceContainer.getPluginService(),
+    this(servicesContainer.getPluginService(),
         properties,
         new HostResponseTimeServiceImpl(
-            serviceContainer,
+            servicesContainer,
             properties,
             RESPONSE_MEASUREMENT_INTERVAL_MILLIS.getInteger(properties)));
   }

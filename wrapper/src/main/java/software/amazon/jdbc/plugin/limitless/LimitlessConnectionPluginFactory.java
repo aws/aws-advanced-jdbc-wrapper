@@ -19,20 +19,20 @@ package software.amazon.jdbc.plugin.limitless;
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.ServiceContainerPluginFactory;
-import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.ServicesContainerPluginFactory;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 
-public class LimitlessConnectionPluginFactory implements ServiceContainerPluginFactory {
+public class LimitlessConnectionPluginFactory implements ServicesContainerPluginFactory {
   @Override
   public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
     throw new UnsupportedOperationException(
         Messages.get(
-            "ServiceContainerPluginFactory.serviceContainerRequired", new Object[] {"LimitlessConnectionPlugin"}));
+            "ServicesContainerPluginFactory.servicesContainerRequired", new Object[] {"LimitlessConnectionPlugin"}));
   }
 
   @Override
-  public ConnectionPlugin getInstance(final ServiceContainer serviceContainer, final Properties props) {
-    return new LimitlessConnectionPlugin(serviceContainer, props);
+  public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
+    return new LimitlessConnectionPlugin(servicesContainer, props);
   }
 }

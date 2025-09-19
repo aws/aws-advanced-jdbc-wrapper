@@ -19,20 +19,20 @@ package software.amazon.jdbc.plugin.failover;
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.ServiceContainerPluginFactory;
-import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.ServicesContainerPluginFactory;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 
-public class FailoverConnectionPluginFactory implements ServiceContainerPluginFactory {
+public class FailoverConnectionPluginFactory implements ServicesContainerPluginFactory {
   @Override
   public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
     throw new UnsupportedOperationException(
         Messages.get(
-            "ServiceContainerPluginFactory.serviceContainerRequired", new Object[] {"FailoverConnectionPlugin"}));
+            "ServicesContainerPluginFactory.servicesContainerRequired", new Object[] {"FailoverConnectionPlugin"}));
   }
 
   @Override
-  public ConnectionPlugin getInstance(final ServiceContainer serviceContainer, final Properties props) {
-    return new FailoverConnectionPlugin(serviceContainer, props);
+  public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
+    return new FailoverConnectionPlugin(servicesContainer, props);
   }
 }

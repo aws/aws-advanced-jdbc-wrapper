@@ -16,9 +16,9 @@
 
 package software.amazon.jdbc.util.monitoring;
 
-import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 
 @FunctionalInterface
 public interface MonitorInitializer {
-  Monitor createMonitor(ServiceContainer serviceContainer);
+  Monitor createMonitor(FullServicesContainer servicesContainer);
 }

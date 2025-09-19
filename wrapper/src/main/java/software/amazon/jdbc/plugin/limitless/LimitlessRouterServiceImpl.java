@@ -36,7 +36,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.RoundRobinHostSelector;
 import software.amazon.jdbc.hostavailability.HostAvailability;
-import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.monitoring.MonitorErrorResponse;
@@ -52,7 +52,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
   protected static final Map<String, ReentrantLock> forceGetLimitlessRoutersLockMap = new ConcurrentHashMap<>();
   protected static final Set<MonitorErrorResponse> monitorErrorResponses =
       new HashSet<>(Collections.singletonList(MonitorErrorResponse.RECREATE));
-  protected final ServiceContainer serviceContainer;
+  protected final FullServicesContainer servicesContainer;
   protected final PluginService pluginService;
   protected final LimitlessQueryHelper queryHelper;
 
@@ -61,20 +61,20 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
   }
 
   public LimitlessRouterServiceImpl(
-      final @NonNull ServiceContainer serviceContainer,
+      final @NonNull FullServicesContainer servicesContainer,
       final @NonNull Properties props) {
-    this(serviceContainer, new LimitlessQueryHelper(serviceContainer.getPluginService()), props);
+    this(servicesContainer, new LimitlessQueryHelper(servicesContainer.getPluginService()), props);
   }
 
   public LimitlessRouterServiceImpl(
-      final @NonNull ServiceContainer serviceContainer,
+      final @NonNull FullServicesContainer servicesContainer,
       final @NonNull LimitlessQueryHelper queryHelper,
       final @NonNull Properties props) {
-    this.serviceContainer = serviceContainer;
-    this.pluginService = serviceContainer.getPluginService();
+    this.servicesContainer = servicesContainer;
+    this.pluginService = servicesContainer.getPluginService();
     this.queryHelper = queryHelper;
 
-    this.serviceContainer.getStorageService().registerItemClassIfAbsent(
+    this.servicesContainer.getStorageService().registerItemClassIfAbsent(
         LimitlessRouters.class,
         true,
         TimeUnit.MILLISECONDS.toNanos(MONITOR_DISPOSAL_TIME_MS.getLong(props)),
@@ -82,7 +82,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
         null
     );
 
-    this.serviceContainer.getMonitorService().registerMonitorTypeIfAbsent(
+    this.servicesContainer.getMonitorService().registerMonitorTypeIfAbsent(
         LimitlessRouterMonitor.class,
         TimeUnit.MILLISECONDS.toNanos(MONITOR_DISPOSAL_TIME_MS.getLong(props)),
         TimeUnit.MINUTES.toNanos(3),
@@ -170,7 +170,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
   }
 
   protected List<HostSpec> getLimitlessRouters(final String clusterId) {
-    LimitlessRouters routers = this.serviceContainer.getStorageService().get(LimitlessRouters.class, clusterId);
+    LimitlessRouters routers = this.servicesContainer.getStorageService().get(LimitlessRouters.class, clusterId);
     return routers == null ? null : routers.getHosts();
   }
 
@@ -299,7 +299,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       if (!Utils.isNullOrEmpty(newRouterList)) {
         context.setLimitlessRouters(newRouterList);
         LimitlessRouters newRouters = new LimitlessRouters(newRouterList);
-        this.serviceContainer.getStorageService().set(
+        this.servicesContainer.getStorageService().set(
             this.pluginService.getHostListProvider().getClusterId(),
             newRouters);
       } else {
@@ -321,19 +321,19 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
 
     try {
       final String limitlessRouterMonitorKey = pluginService.getHostListProvider().getClusterId();
-      this.serviceContainer.getMonitorService().runIfAbsent(
+      this.servicesContainer.getMonitorService().runIfAbsent(
           LimitlessRouterMonitor.class,
           limitlessRouterMonitorKey,
-          this.serviceContainer.getStorageService(),
-          this.serviceContainer.getTelemetryFactory(),
+          this.servicesContainer.getStorageService(),
+          this.servicesContainer.getTelemetryFactory(),
           this.pluginService.getDefaultConnectionProvider(),
           this.pluginService.getOriginalUrl(),
           this.pluginService.getDriverProtocol(),
           this.pluginService.getTargetDriverDialect(),
           this.pluginService.getDialect(),
           props,
-          (serviceContainer) -> new LimitlessRouterMonitor(
-                  serviceContainer,
+          (servicesContainer) -> new LimitlessRouterMonitor(
+                  servicesContainer,
                   hostSpec,
                   limitlessRouterMonitorKey,
                   props,

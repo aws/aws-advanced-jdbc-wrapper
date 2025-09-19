@@ -38,7 +38,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.ExecutorFactory;
-import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.ServiceUtility;
@@ -63,7 +63,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   protected static final int DEFAULT_FAILOVER_TIMEOUT = 60000; // 60 sec
   protected static final int DEFAULT_READER_CONNECT_TIMEOUT = 30000; // 30 sec
   protected final Map<String, HostAvailability> hostAvailabilityMap = new ConcurrentHashMap<>();
-  protected final ServiceContainer serviceContainer;
+  protected final FullServicesContainer servicesContainer;
   protected final PluginService pluginService;
   protected Properties props;
   protected int maxFailoverTimeoutMs;
@@ -73,14 +73,14 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   /**
    * ClusterAwareReaderFailoverHandler constructor.
    *
-   * @param serviceContainer the service container for the services required by this class.
+   * @param servicesContainer the service container for the services required by this class.
    * @param props             the initial connection properties to copy over to the new reader.
    */
   public ClusterAwareReaderFailoverHandler(
-      final ServiceContainer serviceContainer,
+      final FullServicesContainer servicesContainer,
       final Properties props) {
     this(
-        serviceContainer,
+        servicesContainer,
         props,
         DEFAULT_FAILOVER_TIMEOUT,
         DEFAULT_READER_CONNECT_TIMEOUT,
@@ -90,7 +90,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   /**
    * ClusterAwareReaderFailoverHandler constructor.
    *
-   * @param serviceContainer      the service container for the services required by this class.
+   * @param servicesContainer      the service container for the services required by this class.
    * @param props                  the initial connection properties to copy over to the new reader.
    * @param maxFailoverTimeoutMs   maximum allowed time for the entire reader failover process.
    * @param timeoutMs              maximum allowed time in milliseconds for each reader connection attempt during
@@ -98,13 +98,13 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
    * @param isStrictReaderRequired when true, it disables adding a writer to a list of nodes to connect
    */
   public ClusterAwareReaderFailoverHandler(
-      final ServiceContainer serviceContainer,
+      final FullServicesContainer servicesContainer,
       final Properties props,
       final int maxFailoverTimeoutMs,
       final int timeoutMs,
       final boolean isStrictReaderRequired) {
-    this.serviceContainer = serviceContainer;
-    this.pluginService = serviceContainer.getPluginService();
+    this.servicesContainer = servicesContainer;
+    this.pluginService = servicesContainer.getPluginService();
     this.props = props;
     this.maxFailoverTimeoutMs = maxFailoverTimeoutMs;
     this.timeoutMs = timeoutMs;
@@ -329,7 +329,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     final int numTasks = i + 1 < hosts.size() ? 2 : 1;
     completionService.submit(
         new ConnectionAttemptTask(
-            getNewServiceContainer(),
+            getNewServicesContainer(),
             this.hostAvailabilityMap,
             hosts.get(i),
             this.props,
@@ -337,7 +337,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     if (numTasks == 2) {
       completionService.submit(
           new ConnectionAttemptTask(
-              getNewServiceContainer(),
+              getNewServicesContainer(),
               this.hostAvailabilityMap,
               hosts.get(i + 1),
               this.props,
@@ -358,12 +358,12 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     return new ReaderFailoverResult(null, null, false);
   }
 
-  protected ServiceContainer getNewServiceContainer() throws SQLException {
-    return ServiceUtility.getInstance().createMinimalServiceContainer(
-        this.serviceContainer.getStorageService(),
-        this.serviceContainer.getMonitorService(),
+  protected FullServicesContainer getNewServicesContainer() throws SQLException {
+    return ServiceUtility.getInstance().createServiceContainer(
+        this.servicesContainer.getStorageService(),
+        this.servicesContainer.getMonitorService(),
         this.pluginService.getDefaultConnectionProvider(),
-        this.serviceContainer.getTelemetryFactory(),
+        this.servicesContainer.getTelemetryFactory(),
         this.pluginService.getOriginalUrl(),
         this.pluginService.getDriverProtocol(),
         this.pluginService.getTargetDriverDialect(),
@@ -402,12 +402,12 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     private final boolean isStrictReaderRequired;
 
     private ConnectionAttemptTask(
-        final ServiceContainer serviceContainer,
+        final FullServicesContainer servicesContainer,
         final Map<String, HostAvailability> availabilityMap,
         final HostSpec newHost,
         final Properties props,
         final boolean isStrictReaderRequired) {
-      this.pluginService = serviceContainer.getPluginService();
+      this.pluginService = servicesContainer.getPluginService();
       this.availabilityMap = availabilityMap;
       this.newHost = newHost;
       this.props = props;

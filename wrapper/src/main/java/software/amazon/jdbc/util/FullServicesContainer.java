@@ -30,9 +30,9 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
  * both connection-specific services required by plugins and monitors as well as core universal services such
  * as {@link MonitorService} and {@link StorageService}.
  *
- * @see CoreServiceContainer
+ * @see CoreServicesContainer
  */
-public interface ServiceContainer {
+public interface FullServicesContainer {
   StorageService getStorageService();
 
   MonitorService getMonitorService();

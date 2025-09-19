@@ -45,7 +45,7 @@ import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.storage.CacheMap;
@@ -57,14 +57,14 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
  * by the {@link PluginService} interface. The methods that are not expected to be called will log a warning or throw an
  * {@link UnsupportedOperationException} when called.
  */
-public class MinimalPluginService implements PluginService, CanReleaseResources, HostListProviderService,
+public class PartialPluginService implements PluginService, CanReleaseResources, HostListProviderService,
     PluginManagerService {
 
   private static final Logger LOGGER = Logger.getLogger(PluginServiceImpl.class.getName());
   protected static final long DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(5);
 
   protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache = new CacheMap<>();
-  protected final ServiceContainer serviceContainer;
+  protected final FullServicesContainer servicesContainer;
   protected final ConnectionPluginManager pluginManager;
   protected final Properties props;
   protected volatile HostListProvider hostListProvider;
@@ -81,15 +81,15 @@ public class MinimalPluginService implements PluginService, CanReleaseResources,
   protected @Nullable final ConfigurationProfile configurationProfile;
   protected final ConnectionProviderManager connectionProviderManager;
 
-  public MinimalPluginService(
-      @NonNull final ServiceContainer serviceContainer,
+  public PartialPluginService(
+      @NonNull final FullServicesContainer servicesContainer,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
       @NonNull final String targetDriverProtocol,
       @NonNull final TargetDriverDialect targetDriverDialect,
       @NonNull final Dialect dbDialect) {
     this(
-        serviceContainer,
+        servicesContainer,
         new ExceptionManager(),
         props,
         originalUrl,
@@ -99,8 +99,8 @@ public class MinimalPluginService implements PluginService, CanReleaseResources,
         null);
   }
 
-  public MinimalPluginService(
-      @NonNull final ServiceContainer serviceContainer,
+  public PartialPluginService(
+      @NonNull final FullServicesContainer servicesContainer,
       @NonNull final ExceptionManager exceptionManager,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
@@ -108,12 +108,12 @@ public class MinimalPluginService implements PluginService, CanReleaseResources,
       @NonNull final TargetDriverDialect targetDriverDialect,
       @NonNull final Dialect dbDialect,
       @Nullable final ConfigurationProfile configurationProfile) {
-    this.serviceContainer = serviceContainer;
-    this.serviceContainer.setHostListProviderService(this);
-    this.serviceContainer.setPluginService(this);
-    this.serviceContainer.setPluginManagerService(this);
+    this.servicesContainer = servicesContainer;
+    this.servicesContainer.setHostListProviderService(this);
+    this.servicesContainer.setPluginService(this);
+    this.servicesContainer.setPluginManagerService(this);
 
-    this.pluginManager = serviceContainer.getConnectionPluginManager();
+    this.pluginManager = servicesContainer.getConnectionPluginManager();
     this.props = props;
     this.originalUrl = originalUrl;
     this.driverProtocol = targetDriverProtocol;
@@ -131,13 +131,13 @@ public class MinimalPluginService implements PluginService, CanReleaseResources,
         : null;
 
     HostListProviderSupplier supplier = this.dbDialect.getHostListProvider();
-    this.hostListProvider = supplier.getProvider(this.props, this.originalUrl, this.serviceContainer);
+    this.hostListProvider = supplier.getProvider(this.props, this.originalUrl, this.servicesContainer);
   }
 
   @Override
   public Connection getCurrentConnection() {
     throw new UnsupportedOperationException(
-        Messages.get("MinimalPluginService.unexpectedMethodCall", new Object[] {"getCurrentConnection"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getCurrentConnection"}));
   }
 
   @Override
@@ -190,25 +190,25 @@ public class MinimalPluginService implements PluginService, CanReleaseResources,
   @Override
   public void setAllowedAndBlockedHosts(AllowedAndBlockedHosts allowedAndBlockedHosts) {
     throw new UnsupportedOperationException(
-        Messages.get("MinimalPluginService.unexpectedMethodCall", new Object[] {"setAllowedAndBlockedHosts"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"setAllowedAndBlockedHosts"}));
   }
 
   @Override
   public boolean acceptsStrategy(HostRole role, String strategy) throws SQLException {
     throw new UnsupportedOperationException(
-        Messages.get("MinimalPluginService.unexpectedMethodCall", new Object[] {"acceptsStrategy"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"acceptsStrategy"}));
   }
 
   @Override
   public HostSpec getHostSpecByStrategy(HostRole role, String strategy) throws SQLException {
     throw new UnsupportedOperationException(
-        Messages.get("MinimalPluginService.unexpectedMethodCall", new Object[] {"getHostSpecByStrategy"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getHostSpecByStrategy"}));
   }
 
   @Override
   public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy) throws SQLException {
     throw new UnsupportedOperationException(
-        Messages.get("MinimalPluginService.unexpectedMethodCall", new Object[] {"getHostSpecByStrategy"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getHostSpecByStrategy"}));
   }
 
   @Override
@@ -242,7 +242,7 @@ public class MinimalPluginService implements PluginService, CanReleaseResources,
   public void setCurrentConnection(
       final @NonNull Connection connection, final @NonNull HostSpec hostSpec) throws SQLException {
     throw new UnsupportedOperationException(
-        Messages.get("MinimalPluginService.unexpectedMethodCall", new Object[] {"setCurrentConnection"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"setCurrentConnection"}));
   }
 
   @Override
@@ -252,7 +252,7 @@ public class MinimalPluginService implements PluginService, CanReleaseResources,
       @Nullable final ConnectionPlugin skipNotificationForThisPlugin)
       throws SQLException {
     throw new UnsupportedOperationException(
-        Messages.get("MinimalPluginService.unexpectedMethodCall", new Object[] {"setCurrentConnection"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"setCurrentConnection"}));
   }
 
   protected EnumSet<NodeChangeOptions> compare(
@@ -296,7 +296,7 @@ public class MinimalPluginService implements PluginService, CanReleaseResources,
 
   @Override
   public List<HostSpec> getHosts() {
-    AllowedAndBlockedHosts hostPermissions = this.serviceContainer.getStorageService().get(
+    AllowedAndBlockedHosts hostPermissions = this.servicesContainer.getStorageService().get(
         AllowedAndBlockedHosts.class, this.initialConnectionHostSpec.getUrl());
     if (hostPermissions == null) {
       return this.allHosts;
@@ -364,7 +364,7 @@ public class MinimalPluginService implements PluginService, CanReleaseResources,
   @Override
   public boolean isInTransaction() {
     throw new UnsupportedOperationException(
-        Messages.get("MinimalPluginService.unexpectedMethodCall", new Object[] {"isInTransaction"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"isInTransaction"}));
   }
 
   @Override
@@ -492,7 +492,7 @@ public class MinimalPluginService implements PluginService, CanReleaseResources,
   @Override
   public Connection connect(final HostSpec hostSpec, final Properties props) throws SQLException {
     throw new UnsupportedOperationException(
-        Messages.get("MinimalPluginService.unexpectedMethodCall", new Object[] {"connect"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"connect"}));
   }
 
   @Override
@@ -502,7 +502,7 @@ public class MinimalPluginService implements PluginService, CanReleaseResources,
       final @Nullable ConnectionPlugin pluginToSkip)
       throws SQLException {
     throw new UnsupportedOperationException(
-        Messages.get("MinimalPluginService.unexpectedMethodCall", new Object[] {"connect"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"connect"}));
   }
 
   @Override
@@ -535,7 +535,7 @@ public class MinimalPluginService implements PluginService, CanReleaseResources,
   @Override
   public void releaseResources() {
     throw new UnsupportedOperationException(
-        Messages.get("MinimalPluginService.unexpectedMethodCall", new Object[] {"releaseResources"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"releaseResources"}));
   }
 
   @Override
@@ -654,7 +654,7 @@ public class MinimalPluginService implements PluginService, CanReleaseResources,
   @Override
   public @NonNull SessionStateService getSessionStateService() {
     throw new UnsupportedOperationException(
-        Messages.get("MinimalPluginService.unexpectedMethodCall", new Object[] {"getSessionStateService"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getSessionStateService"}));
   }
 
   public <T> T getPlugin(final Class<T> pluginClazz) {
@@ -669,25 +669,25 @@ public class MinimalPluginService implements PluginService, CanReleaseResources,
   @Override
   public <T> void setStatus(Class<T> clazz, @Nullable T status, boolean clusterBound) {
     throw new UnsupportedOperationException(
-        Messages.get("MinimalPluginService.unexpectedMethodCall", new Object[] {"setStatus"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"setStatus"}));
   }
 
   @Override
   public <T> void setStatus(Class<T> clazz, @Nullable T status, String key) {
     throw new UnsupportedOperationException(
-        Messages.get("MinimalPluginService.unexpectedMethodCall", new Object[] {"setStatus"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"setStatus"}));
   }
 
   @Override
   public <T> T getStatus(@NonNull Class<T> clazz, boolean clusterBound) {
     throw new UnsupportedOperationException(
-        Messages.get("MinimalPluginService.unexpectedMethodCall", new Object[] {"getStatus"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getStatus"}));
   }
 
   @Override
   public <T> T getStatus(@NonNull Class<T> clazz, String key) {
     throw new UnsupportedOperationException(
-        Messages.get("MinimalPluginService.unexpectedMethodCall", new Object[] {"getStatus"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getStatus"}));
   }
 
   public boolean isPluginInUse(final Class<? extends ConnectionPlugin> pluginClazz) {

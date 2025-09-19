@@ -28,6 +28,7 @@ import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,14 +42,14 @@ import software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class ConnectionPluginChainBuilderTests {
 
   @Mock ConnectionProvider mockConnectionProvider;
-  @Mock ServiceContainer mockServiceContainer;
+  @Mock FullServicesContainer mockServicesContainer;
   @Mock PluginService mockPluginService;
   @Mock PluginManagerService mockPluginManagerService;
   @Mock TelemetryFactory mockTelemetryFactory;
@@ -65,8 +66,8 @@ public class ConnectionPluginChainBuilderTests {
   @BeforeEach
   void beforeEach() {
     closeable = MockitoAnnotations.openMocks(this);
-    when(mockServiceContainer.getPluginService()).thenReturn(mockPluginService);
-    when(mockServiceContainer.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
+    when(mockServicesContainer.getPluginService()).thenReturn(mockPluginService);
+    when(mockServicesContainer.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
     when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
@@ -81,7 +82,7 @@ public class ConnectionPluginChainBuilderTests {
     props.put(PropertyDefinition.PLUGINS.name, "iam,efm2,failover");
 
     List<ConnectionPlugin> result = builder.getPlugins(
-        mockServiceContainer,
+        mockServicesContainer,
         mockConnectionProvider,
         null,
         mockPluginManagerService,
@@ -104,7 +105,7 @@ public class ConnectionPluginChainBuilderTests {
     props.put(PropertyDefinition.AUTO_SORT_PLUGIN_ORDER.name, "false");
 
     List<ConnectionPlugin> result = builder.getPlugins(
-        mockServiceContainer,
+        mockServicesContainer,
         mockConnectionProvider,
         null,
         mockPluginManagerService,
@@ -126,7 +127,7 @@ public class ConnectionPluginChainBuilderTests {
     props.put(PropertyDefinition.PLUGINS.name, "dev,iam,executionTime,connectTime,efm2,failover");
 
     List<ConnectionPlugin> result = builder.getPlugins(
-        mockServiceContainer,
+        mockServicesContainer,
         mockConnectionProvider,
         null,
         mockPluginManagerService,

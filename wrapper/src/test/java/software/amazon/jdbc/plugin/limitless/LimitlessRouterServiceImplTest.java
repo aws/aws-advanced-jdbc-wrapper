@@ -48,8 +48,8 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.RoundRobinHostSelector;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
-import software.amazon.jdbc.util.ServiceContainer;
-import software.amazon.jdbc.util.StandardServiceContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.FullServicesContainerImpl;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
@@ -72,7 +72,7 @@ class LimitlessRouterServiceImplTest {
   private static final HostSpec hostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
       .host("some-instance").role(HostRole.WRITER).build();
   private static Properties props;
-  private ServiceContainer serviceContainer;
+  private FullServicesContainer servicesContainer;
   private StorageService storageService;
   private AutoCloseable closeable;
 
@@ -86,9 +86,9 @@ class LimitlessRouterServiceImplTest {
     when(mockHostListProvider.getClusterId()).thenReturn(CLUSTER_ID);
 
     this.storageService = new StorageServiceImpl(mockEventPublisher);
-    serviceContainer = new StandardServiceContainer(
+    servicesContainer = new FullServicesContainerImpl(
         this.storageService, mockMonitorService, mockConnectionProvider, mockTelemetryFactory);
-    serviceContainer.setPluginService(mockPluginService);
+    servicesContainer.setPluginService(mockPluginService);
   }
 
   @AfterEach
@@ -110,7 +110,7 @@ class LimitlessRouterServiceImplTest {
         null
     );
     final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        this.serviceContainer, mockQueryHelper, props);
+        this.servicesContainer, mockQueryHelper, props);
 
     assertThrows(SQLException.class, () -> limitlessRouterService.establishConnection(inputContext));
   }
@@ -127,7 +127,7 @@ class LimitlessRouterServiceImplTest {
         null
     );
     final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        this.serviceContainer, mockQueryHelper, props);
+        this.servicesContainer, mockQueryHelper, props);
 
     limitlessRouterService.establishConnection(inputContext);
 
@@ -146,7 +146,7 @@ class LimitlessRouterServiceImplTest {
             .build());
     final LimitlessRouters routers = new LimitlessRouters(routerList);
     final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        this.serviceContainer, mockQueryHelper, props);
+        this.servicesContainer, mockQueryHelper, props);
     this.storageService.set(CLUSTER_ID, routers);
 
     final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
@@ -186,7 +186,7 @@ class LimitlessRouterServiceImplTest {
         null
     );
     final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        this.serviceContainer, mockQueryHelper, props);
+        this.servicesContainer, mockQueryHelper, props);
 
     limitlessRouterService.establishConnection(inputContext);
 
@@ -210,7 +210,7 @@ class LimitlessRouterServiceImplTest {
     final HostSpec selectedRouter = routerList.get(2);
     final LimitlessRouters routers = new LimitlessRouters(routerList);
     final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        this.serviceContainer, mockQueryHelper, props);
+        this.servicesContainer, mockQueryHelper, props);
     this.storageService.set(CLUSTER_ID, routers);
 
     when(mockPluginService.getHostSpecByStrategy(any(), any(), any())).thenReturn(selectedRouter);
@@ -257,7 +257,7 @@ class LimitlessRouterServiceImplTest {
         null
     );
     final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        this.serviceContainer, mockQueryHelper, props);
+        this.servicesContainer, mockQueryHelper, props);
 
     limitlessRouterService.establishConnection(inputContext);
 
@@ -281,7 +281,7 @@ class LimitlessRouterServiceImplTest {
             .availability(HostAvailability.AVAILABLE).build());
     final LimitlessRouters routers = new LimitlessRouters(routerList);
     final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        this.serviceContainer, mockQueryHelper, props);
+        this.servicesContainer, mockQueryHelper, props);
     this.storageService.set(CLUSTER_ID, routers);
     final HostSpec selectedRouter = routerList.get(2);
     final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
@@ -334,7 +334,7 @@ class LimitlessRouterServiceImplTest {
         null
     );
     final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        this.serviceContainer, mockQueryHelper, props);
+        this.servicesContainer, mockQueryHelper, props);
 
     limitlessRouterService.establishConnection(inputContext);
 
@@ -359,7 +359,7 @@ class LimitlessRouterServiceImplTest {
             .build());
     final LimitlessRouters routers = new LimitlessRouters(routerList);
     final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        this.serviceContainer, mockQueryHelper, props);
+        this.servicesContainer, mockQueryHelper, props);
     this.storageService.set(CLUSTER_ID, routers);
     final HostSpec selectedRouter = routerList.get(2);
     when(mockPluginService.getHostSpecByStrategy(any(), any(), any())).thenReturn(null, selectedRouter);
@@ -397,7 +397,7 @@ class LimitlessRouterServiceImplTest {
             .build());
     final LimitlessRouters routers = new LimitlessRouters(routerList);
     final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        this.serviceContainer, mockQueryHelper, props);
+        this.servicesContainer, mockQueryHelper, props);
     this.storageService.set(CLUSTER_ID, routers);
     final HostSpec selectedRouter = routerList.get(1);
     final HostSpec selectedRouterForRetry = routerList.get(2);
@@ -441,7 +441,7 @@ class LimitlessRouterServiceImplTest {
             .availability(HostAvailability.AVAILABLE).build());
     final LimitlessRouters routers = new LimitlessRouters(routerList);
     final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        this.serviceContainer, mockQueryHelper, props);
+        this.servicesContainer, mockQueryHelper, props);
     this.storageService.set(CLUSTER_ID, routers);
 
     final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(

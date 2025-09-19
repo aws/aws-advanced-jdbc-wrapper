@@ -94,13 +94,13 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
 
   @Override
   public HostListProviderSupplier getHostListProvider() {
-    return (properties, initialUrl, serviceContainer) -> {
-      final PluginService pluginService = serviceContainer.getPluginService();
+    return (properties, initialUrl, servicesContainer) -> {
+      final PluginService pluginService = servicesContainer.getPluginService();
       if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {
         return new MonitoringRdsMultiAzHostListProvider(
             properties,
             initialUrl,
-            serviceContainer,
+            servicesContainer,
             TOPOLOGY_QUERY,
             NODE_ID_QUERY,
             IS_READER_QUERY,
@@ -111,7 +111,7 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
         return new RdsMultiAzDbClusterListProvider(
             properties,
             initialUrl,
-            serviceContainer,
+            servicesContainer,
             TOPOLOGY_QUERY,
             NODE_ID_QUERY,
             IS_READER_QUERY,

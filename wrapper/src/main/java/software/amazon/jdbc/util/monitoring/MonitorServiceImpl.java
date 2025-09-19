@@ -38,7 +38,7 @@ import software.amazon.jdbc.hostlistprovider.monitoring.MultiAzClusterTopologyMo
 import software.amazon.jdbc.plugin.strategy.fastestresponse.NodeResponseTimeMonitor;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ExecutorFactory;
-import software.amazon.jdbc.util.ServiceContainer;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.ServiceUtility;
@@ -197,7 +197,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       cacheContainer = monitorCaches.computeIfAbsent(monitorClass, k -> supplier.get());
     }
 
-    final ServiceContainer serviceContainer = getNewserviceContainer(
+    final FullServicesContainer servicesContainer = getNewServicesContainer(
         storageService,
         defaultConnectionProvider,
         telemetryFactory,
@@ -208,7 +208,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
         originalProps);
 
     Monitor monitor = cacheContainer.getCache().computeIfAbsent(key, k -> {
-      MonitorItem monitorItem = new MonitorItem(() -> initializer.createMonitor(serviceContainer));
+      MonitorItem monitorItem = new MonitorItem(() -> initializer.createMonitor(servicesContainer));
       monitorItem.getMonitor().start();
       return monitorItem;
     }).getMonitor();
@@ -221,7 +221,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
         Messages.get("MonitorServiceImpl.unexpectedMonitorClass", new Object[] {monitorClass, monitor}));
   }
 
-  protected ServiceContainer getNewserviceContainer(
+  protected FullServicesContainer getNewServicesContainer(
       StorageService storageService,
       ConnectionProvider connectionProvider,
       TelemetryFactory telemetryFactory,
@@ -231,7 +231,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       Dialect dbDialect,
       Properties originalProps) throws SQLException {
     final Properties propsCopy = PropertyUtils.copyProperties(originalProps);
-    return ServiceUtility.getInstance().createMinimalServiceContainer(
+    return ServiceUtility.getInstance().createServiceContainer(
         storageService,
         this,
         connectionProvider,
