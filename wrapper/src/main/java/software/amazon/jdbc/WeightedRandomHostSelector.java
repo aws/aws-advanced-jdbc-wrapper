@@ -45,7 +45,14 @@ public class WeightedRandomHostSelector implements HostSelector {
   private Map<String, Integer> cachedHostWeightMap;
   private String cachedHostWeightMapString;
   private Random random;
-  private Callable<Integer> randomFunc;
+
+  public WeightedRandomHostSelector() {
+    this(new Random());
+  }
+
+  public WeightedRandomHostSelector(final Random random) {
+    this.random = random;
+  }
 
   public HostSpec getHost(
       @NonNull List<HostSpec> hosts,
@@ -66,7 +73,7 @@ public class WeightedRandomHostSelector implements HostSelector {
       throw new SQLException(Messages.get("HostSelector.noHostsMatchingRole", new Object[] {role}));
     }
 
-    final Map<HostSpec, NumberRange> hostWeightRangeMap = new HashMap<>();
+    final Map<String, NumberRange> hostWeightRangeMap = new HashMap<>();
     int counter = 1;
     for (HostSpec host : eligibleHosts) {
       if (!hostWeightMap.containsKey(host.getHost())) {
@@ -76,32 +83,24 @@ public class WeightedRandomHostSelector implements HostSelector {
       if (hostWeight > 0) {
         final int rangeStart = counter;
         final int rangeEnd = counter + hostWeight - 1;
-        hostWeightRangeMap.put(host, new NumberRange(rangeStart, rangeEnd));
+        hostWeightRangeMap.put(host.getHost(), new NumberRange(rangeStart, rangeEnd));
         counter = counter + hostWeight;
       } else {
-        hostWeightRangeMap.put(host, new NumberRange(counter, counter));
+        hostWeightRangeMap.put(host.getHost(), new NumberRange(counter, counter));
         counter++;
       }
     }
 
-    // Check random number is in host weigh range map
     if (this.random == null) {
       this.random = new Random();
     }
     int randomInt = this.random.nextInt(counter);
 
-    // This block is for testing purposes
-    if (this.randomFunc != null) {
-      try {
-        randomInt = this.randomFunc.call();
-      } catch (Exception e) {
-        // This should not happen
-      }
-    }
-
-    for (final Entry<HostSpec, NumberRange> entry : hostWeightRangeMap.entrySet()) {
-      if (hostWeightRangeMap.get(entry.getKey()).isInRange(randomInt)) {
-        return entry.getKey();
+    // Check random number is in host weigh range map
+    for (final HostSpec host : eligibleHosts) {
+      if (hostWeightRangeMap.containsKey(host.getHost())
+          && hostWeightRangeMap.get(host.getHost()).isInRange(randomInt)) {
+        return host;
       }
     }
 
@@ -146,10 +145,6 @@ public class WeightedRandomHostSelector implements HostSelector {
     this.cachedHostWeightMap = hostWeightMap;
     this.cachedHostWeightMapString = hostWeightMapString;
     return hostWeightMap;
-  }
-
-  public void setRandomFunc(final Callable<Integer> randomFunc) {
-    this.randomFunc = randomFunc;
   }
 
   private static class NumberRange {
