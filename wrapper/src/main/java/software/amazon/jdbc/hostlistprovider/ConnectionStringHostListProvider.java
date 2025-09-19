@@ -71,12 +71,12 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
     }
     this.hostList.addAll(
         this.connectionUrlParser.getHostsFromConnectionUrl(
-            this.connectionContext.getUrl(),
+            this.connectionContext.getInitialConnectionString(),
             this.isSingleWriterConnectionString,
             () -> this.hostListProviderService.getHostSpecBuilder()));
     if (this.hostList.isEmpty()) {
       throw new SQLException(Messages.get("ConnectionStringHostListProvider.parsedListEmpty",
-          new Object[] {this.connectionContext.getUrl()}));
+          new Object[] {this.connectionContext.getInitialConnectionString()}));
     }
     this.hostListProviderService.setInitialConnectionHostSpec(this.hostList.get(0));
     this.isInitialized = true;

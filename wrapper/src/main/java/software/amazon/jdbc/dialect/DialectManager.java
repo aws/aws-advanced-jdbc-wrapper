@@ -134,7 +134,7 @@ public class DialectManager implements DialectProvider {
     final String userDialectSetting = DIALECT.getString(connectionContext.getProps());
     final String dialectCode = !StringUtils.isNullOrEmpty(userDialectSetting)
         ? userDialectSetting
-        : knownEndpointDialects.get(connectionContext.getUrl());
+        : knownEndpointDialects.get(connectionContext.getInitialConnectionString());
 
     if (!StringUtils.isNullOrEmpty(dialectCode)) {
       final Dialect userDialect = knownDialectsByCode.get(dialectCode);
@@ -153,15 +153,15 @@ public class DialectManager implements DialectProvider {
       throw new IllegalArgumentException("protocol");
     }
 
-    String host = connectionContext.getUrl();
+    String connectionString = connectionContext.getInitialConnectionString();
     final List<HostSpec> hosts = this.connectionUrlParser.getHostsFromConnectionUrl(
-            connectionContext.getUrl(), true, pluginService::getHostSpecBuilder);
+            connectionContext.getInitialConnectionString(), true, pluginService::getHostSpecBuilder);
     if (!Utils.isNullOrEmpty(hosts)) {
-      host = hosts.get(0).getHost();
+      connectionString = hosts.get(0).getHost();
     }
 
     if (connectionContext.getProtocol().contains("mysql")) {
-      RdsUrlType type = this.rdsHelper.identifyRdsType(host);
+      RdsUrlType type = this.rdsHelper.identifyRdsType(connectionString);
       if (type.isRdsCluster()) {
         this.canUpdate = true;
         this.dialectCode = DialectCodes.AURORA_MYSQL;
@@ -183,7 +183,7 @@ public class DialectManager implements DialectProvider {
     }
 
     if (connectionContext.getProtocol().contains("postgresql")) {
-      RdsUrlType type = this.rdsHelper.identifyRdsType(host);
+      RdsUrlType type = this.rdsHelper.identifyRdsType(connectionString);
       if (RdsUrlType.RDS_AURORA_LIMITLESS_DB_SHARD_GROUP.equals(type)) {
         this.canUpdate = false;
         this.dialectCode = DialectCodes.AURORA_PG;

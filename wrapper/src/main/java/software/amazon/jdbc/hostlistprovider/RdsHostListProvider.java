@@ -148,11 +148,11 @@ public class RdsHostListProvider implements DynamicHostListProvider {
 
       // initial topology is based on connection string
       this.initialHostList =
-          connectionUrlParser.getHostsFromConnectionUrl(this.connectionContext.getUrl(), false,
+          connectionUrlParser.getHostsFromConnectionUrl(this.connectionContext.getInitialConnectionString(), false,
               this.hostListProviderService::getHostSpecBuilder);
       if (this.initialHostList == null || this.initialHostList.isEmpty()) {
         throw new SQLException(Messages.get("RdsHostListProvider.parsedListEmpty",
-            new Object[] {this.connectionContext.getUrl()}));
+            new Object[] {this.connectionContext.getInitialConnectionString()}));
       }
       this.initialHostSpec = this.initialHostList.get(0);
       this.hostListProviderService.setInitialConnectionHostSpec(this.initialHostSpec);

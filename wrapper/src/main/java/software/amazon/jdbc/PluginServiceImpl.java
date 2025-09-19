@@ -191,7 +191,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   @Override
   public String getOriginalUrl() {
-    return this.connectionContext.getUrl();
+    return this.connectionContext.getInitialConnectionString();
   }
 
   @Override

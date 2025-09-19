@@ -23,41 +23,42 @@ import software.amazon.jdbc.util.ConnectionUrlParser;
 
 public class ConnectionContext {
   protected static final ConnectionUrlParser connectionUrlParser = new ConnectionUrlParser();
-  protected final String url;
+  protected final String initialConnectionString;
   protected final String protocol;
   protected final TargetDriverDialect driverDialect;
   protected final Properties props;
   protected Dialect dbDialect;
 
-  public ConnectionContext(String url, TargetDriverDialect driverDialect, Properties props) {
-    this(url, connectionUrlParser.getProtocol(url), driverDialect, props);
+  public ConnectionContext(String initialConnectionString, TargetDriverDialect driverDialect, Properties props) {
+    this(initialConnectionString, connectionUrlParser.getProtocol(initialConnectionString), driverDialect, props);
   }
 
-  public ConnectionContext(String url, String protocol, TargetDriverDialect driverDialect, Properties props) {
-    this.url = url;
+  public ConnectionContext(
+      String initialConnectionString, String protocol, TargetDriverDialect driverDialect, Properties props) {
+    this.initialConnectionString = initialConnectionString;
     this.protocol = protocol;
     this.driverDialect = driverDialect;
     this.props = props;
   }
 
-  public String getUrl() {
-    return url;
+  public String getInitialConnectionString() {
+    return this.initialConnectionString;
   }
 
   public String getProtocol() {
-    return protocol;
+    return this.protocol;
   }
 
   public TargetDriverDialect getDriverDialect() {
-    return driverDialect;
+    return this.driverDialect;
   }
 
   public Properties getProps() {
-    return props;
+    return this.props;
   }
 
   public Dialect getDbDialect() {
-    return dbDialect;
+    return this.dbDialect;
   }
 
   public void setDbDialect(Dialect dbDialect) {

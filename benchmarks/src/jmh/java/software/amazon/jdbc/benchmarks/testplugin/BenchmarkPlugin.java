@@ -100,7 +100,7 @@ public class BenchmarkPlugin implements ConnectionPlugin, CanReleaseResources {
       ConnectionContext connectionContext,
       HostListProviderService hostListProviderService,
       JdbcCallable<Void, SQLException> initHostProviderFunc) {
-    LOGGER.finer(() -> String.format("initHostProvider=''%s''", connectionContext.getUrl()));
+    LOGGER.finer(() -> String.format("initHostProvider=''%s''", connectionContext.getInitialConnectionString()));
     resources.add("initHostProvider");
   }
 
