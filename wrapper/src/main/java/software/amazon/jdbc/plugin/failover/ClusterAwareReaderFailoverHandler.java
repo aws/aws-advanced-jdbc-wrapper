@@ -364,7 +364,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
         this.servicesContainer.getMonitorService(),
         this.pluginService.getDefaultConnectionProvider(),
         this.servicesContainer.getTelemetryFactory(),
-        this.pluginService.getConnectionContext()
+        this.pluginService.getConnectionInfo()
     );
   }
 

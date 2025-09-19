@@ -39,7 +39,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
  */
 @Deprecated
 public class ConnectionServiceImpl implements ConnectionService {
-  protected final ConnectionContext connectionContext;
+  protected final ConnectionInfo connectionInfo;
   protected final ConnectionPluginManager pluginManager;
   protected final PluginService pluginService;
 
@@ -54,8 +54,8 @@ public class ConnectionServiceImpl implements ConnectionService {
       MonitorService monitorService,
       TelemetryFactory telemetryFactory,
       ConnectionProvider connectionProvider,
-      ConnectionContext connectionContext) throws SQLException {
-    this.connectionContext = connectionContext;
+      ConnectionInfo connectionInfo) throws SQLException {
+    this.connectionInfo = connectionInfo;
 
     FullServicesContainer servicesContainer =
         new FullServicesContainerImpl(storageService, monitorService, connectionProvider, telemetryFactory);
@@ -65,20 +65,20 @@ public class ConnectionServiceImpl implements ConnectionService {
         null,
         telemetryFactory);
     servicesContainer.setConnectionPluginManager(this.pluginManager);
-    PartialPluginService partialPluginService = new PartialPluginService(servicesContainer, this.connectionContext);
+    PartialPluginService partialPluginService = new PartialPluginService(servicesContainer, this.connectionInfo);
 
     servicesContainer.setHostListProviderService(partialPluginService);
     servicesContainer.setPluginService(partialPluginService);
     servicesContainer.setPluginManagerService(partialPluginService);
 
     this.pluginService = partialPluginService;
-    this.pluginManager.init(servicesContainer, this.connectionContext.getProps(), partialPluginService, null);
+    this.pluginManager.init(servicesContainer, this.connectionInfo.getProps(), partialPluginService, null);
   }
 
   @Override
   @Deprecated
   public Connection open(HostSpec hostSpec, Properties props) throws SQLException {
-    return this.pluginManager.forceConnect(this.connectionContext, hostSpec, true, null);
+    return this.pluginManager.forceConnect(this.connectionInfo, hostSpec, true, null);
   }
 
   @Override

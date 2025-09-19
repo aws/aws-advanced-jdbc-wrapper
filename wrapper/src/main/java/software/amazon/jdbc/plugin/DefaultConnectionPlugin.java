@@ -45,7 +45,7 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.WrapperUtils;
-import software.amazon.jdbc.util.connection.ConnectionContext;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
@@ -154,20 +154,20 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public Connection connect(
-      final ConnectionContext connectionContext,
+      final ConnectionInfo connectionInfo,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
 
-    ConnectionProvider connProvider = this.connProviderManager.getConnectionProvider(connectionContext, hostSpec);
+    ConnectionProvider connProvider = this.connProviderManager.getConnectionProvider(connectionInfo, hostSpec);
 
     // It's guaranteed that this plugin is always the last in plugin chain so connectFunc can be
     // ignored.
-    return connectInternal(connectionContext, hostSpec, connProvider, isInitialConnection);
+    return connectInternal(connectionInfo, hostSpec, connProvider, isInitialConnection);
   }
 
   private Connection connectInternal(
-      final ConnectionContext connectionContext,
+      final ConnectionInfo connectionInfo,
       final HostSpec hostSpec,
       final ConnectionProvider connProvider,
       final boolean isInitialConnection) throws SQLException {
@@ -177,14 +177,14 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
     Connection conn;
     try {
-      conn = connProvider.connect(connectionContext, hostSpec);
+      conn = connProvider.connect(connectionInfo, hostSpec);
     } finally {
       if (telemetryContext != null) {
         telemetryContext.closeContext();
       }
     }
 
-    this.connProviderManager.initConnection(conn, connectionContext, hostSpec);
+    this.connProviderManager.initConnection(conn, connectionInfo, hostSpec);
 
     this.pluginService.setAvailability(hostSpec.asAliases(), HostAvailability.AVAILABLE);
     if (isInitialConnection) {
@@ -196,7 +196,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public Connection forceConnect(
-      final ConnectionContext connectionContext,
+      final ConnectionInfo connectionInfo,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> forceConnectFunc)
@@ -204,7 +204,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
     // It's guaranteed that this plugin is always the last in plugin chain so forceConnectFunc can be
     // ignored.
-    return connectInternal(connectionContext, hostSpec, this.defaultConnProvider, isInitialConnection);
+    return connectInternal(connectionInfo, hostSpec, this.defaultConnProvider, isInitialConnection);
   }
 
   @Override
@@ -242,7 +242,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public void initHostProvider(
-      final ConnectionContext connectionContext,
+      final ConnectionInfo connectionInfo,
       final HostListProviderService hostListProviderService,
       final JdbcCallable<Void, SQLException> initHostProviderFunc)
       throws SQLException {

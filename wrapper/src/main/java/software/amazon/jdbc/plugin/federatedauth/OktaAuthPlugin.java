@@ -40,7 +40,7 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.RegionUtils;
 import software.amazon.jdbc.util.StringUtils;
-import software.amazon.jdbc.util.connection.ConnectionContext;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryGauge;
@@ -134,21 +134,21 @@ public class OktaAuthPlugin extends AbstractConnectionPlugin {
 
   @Override
   public Connection connect(
-      final ConnectionContext connectionContext,
+      final ConnectionInfo connectionInfo,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
-    return connectInternal(hostSpec, connectionContext.getProps(), connectFunc);
+    return connectInternal(hostSpec, connectionInfo.getProps(), connectFunc);
   }
 
   @Override
   public Connection forceConnect(
-      ConnectionContext connectionContext,
+      ConnectionInfo connectionInfo,
       HostSpec hostSpec,
       boolean isInitialConnection,
       JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
-    return connectInternal(hostSpec, connectionContext.getProps(), forceConnectFunc);
+    return connectInternal(hostSpec, connectionInfo.getProps(), forceConnectFunc);
   }
 
   private Connection connectInternal(final HostSpec hostSpec, final Properties props,

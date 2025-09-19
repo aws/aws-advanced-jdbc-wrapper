@@ -36,7 +36,7 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
-import software.amazon.jdbc.util.connection.ConnectionContext;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 
 public class BenchmarkPlugin implements ConnectionPlugin, CanReleaseResources {
   final List<String> resources = new ArrayList<>();
@@ -59,7 +59,7 @@ public class BenchmarkPlugin implements ConnectionPlugin, CanReleaseResources {
 
   @Override
   public Connection connect(
-      final ConnectionContext connectionContext,
+      final ConnectionInfo connectionInfo,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
@@ -70,7 +70,7 @@ public class BenchmarkPlugin implements ConnectionPlugin, CanReleaseResources {
 
   @Override
   public Connection forceConnect(
-      ConnectionContext connectionContext,
+      ConnectionInfo connectionInfo,
       HostSpec hostSpec,
       boolean isInitialConnection, JdbcCallable<Connection, SQLException> forceConnectFunc) throws SQLException {
     LOGGER.finer(() -> String.format("forceConnect=''%s''", hostSpec.getHost()));
@@ -97,10 +97,10 @@ public class BenchmarkPlugin implements ConnectionPlugin, CanReleaseResources {
 
   @Override
   public void initHostProvider(
-      ConnectionContext connectionContext,
+      ConnectionInfo connectionInfo,
       HostListProviderService hostListProviderService,
       JdbcCallable<Void, SQLException> initHostProviderFunc) {
-    LOGGER.finer(() -> String.format("initHostProvider=''%s''", connectionContext.getInitialConnectionString()));
+    LOGGER.finer(() -> String.format("initHostProvider=''%s''", connectionInfo.getInitialConnectionString()));
     resources.add("initHostProvider");
   }
 

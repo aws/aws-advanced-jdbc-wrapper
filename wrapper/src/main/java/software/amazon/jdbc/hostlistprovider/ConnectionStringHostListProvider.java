@@ -29,7 +29,7 @@ import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.connection.ConnectionContext;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 
 public class ConnectionStringHostListProvider implements StaticHostListProvider {
 
@@ -39,7 +39,7 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
   private boolean isInitialized = false;
   private final boolean isSingleWriterConnectionString;
   private final ConnectionUrlParser connectionUrlParser;
-  private final ConnectionContext connectionContext;
+  private final ConnectionInfo connectionInfo;
   private final HostListProviderService hostListProviderService;
 
   public static final AwsWrapperProperty SINGLE_WRITER_CONNECTION_STRING =
@@ -50,17 +50,17 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
               + "cluster has only one writer. The writer must be the first host in the connection string");
 
   public ConnectionStringHostListProvider(
-      final @NonNull ConnectionContext connectionContext,
+      final @NonNull ConnectionInfo connectionInfo,
       final @NonNull HostListProviderService hostListProviderService) {
-    this(connectionContext, hostListProviderService, new ConnectionUrlParser());
+    this(connectionInfo, hostListProviderService, new ConnectionUrlParser());
   }
 
   ConnectionStringHostListProvider(
-      final @NonNull ConnectionContext connectionContext,
+      final @NonNull ConnectionInfo connectionInfo,
       final @NonNull HostListProviderService hostListProviderService,
       final @NonNull ConnectionUrlParser connectionUrlParser) {
-    this.connectionContext = connectionContext;
-    this.isSingleWriterConnectionString = SINGLE_WRITER_CONNECTION_STRING.getBoolean(connectionContext.getProps());
+    this.connectionInfo = connectionInfo;
+    this.isSingleWriterConnectionString = SINGLE_WRITER_CONNECTION_STRING.getBoolean(connectionInfo.getProps());
     this.connectionUrlParser = connectionUrlParser;
     this.hostListProviderService = hostListProviderService;
   }
@@ -71,12 +71,12 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
     }
     this.hostList.addAll(
         this.connectionUrlParser.getHostsFromConnectionUrl(
-            this.connectionContext.getInitialConnectionString(),
+            this.connectionInfo.getInitialConnectionString(),
             this.isSingleWriterConnectionString,
             () -> this.hostListProviderService.getHostSpecBuilder()));
     if (this.hostList.isEmpty()) {
       throw new SQLException(Messages.get("ConnectionStringHostListProvider.parsedListEmpty",
-          new Object[] {this.connectionContext.getInitialConnectionString()}));
+          new Object[] {this.connectionInfo.getInitialConnectionString()}));
     }
     this.hostListProviderService.setInitialConnectionHostSpec(this.hostList.get(0));
     this.isInitialized = true;

@@ -32,7 +32,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.connection.ConnectionContext;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 
 public class RdsMultiAzDbClusterListProvider extends RdsHostListProvider {
   private final String fetchWriterNodeQuery;
@@ -40,7 +40,7 @@ public class RdsMultiAzDbClusterListProvider extends RdsHostListProvider {
   static final Logger LOGGER = Logger.getLogger(RdsMultiAzDbClusterListProvider.class.getName());
 
   public RdsMultiAzDbClusterListProvider(
-      final ConnectionContext connectionContext,
+      final ConnectionInfo connectionInfo,
       final FullServicesContainer servicesContainer,
       final String topologyQuery,
       final String nodeIdQuery,
@@ -49,7 +49,7 @@ public class RdsMultiAzDbClusterListProvider extends RdsHostListProvider {
       final String fetchWriterNodeQueryHeader
   ) {
     super(
-        connectionContext,
+        connectionInfo,
         servicesContainer,
         topologyQuery,
         nodeIdQuery,

@@ -52,7 +52,7 @@ import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.WrapperUtils;
-import software.amazon.jdbc.util.connection.ConnectionContext;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
@@ -371,7 +371,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    * Establishes a connection to the given host using the given driver protocol and properties. If a
    * non-default {@link ConnectionProvider} has been set with
    * {@link Driver#setCustomConnectionProvider(ConnectionProvider)} and
-   * {@link ConnectionProvider#acceptsUrl(ConnectionContext, HostSpec)} returns true for the given
+   * {@link ConnectionProvider#acceptsUrl(ConnectionInfo, HostSpec)} returns true for the given
    * protocol, host, and properties, the connection will be created by the non-default
    * ConnectionProvider. Otherwise, the connection will be created by the default
    * ConnectionProvider. The default ConnectionProvider will be {@link DriverConnectionProvider} for
@@ -379,7 +379,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    * {@link DataSourceConnectionProvider} for connections requested via an
    * {@link software.amazon.jdbc.ds.AwsWrapperDataSource}.
    *
-   * @param connectionContext   the connection info for the original connection
+   * @param connectionInfo   the connection info for the original connection
    * @param hostSpec            the host details for the desired connection
    * @param isInitialConnection a boolean indicating whether the current {@link Connection} is
    *                            establishing an initial physical connection to the database or has
@@ -390,7 +390,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    *                      host
    */
   public Connection connect(
-      final ConnectionContext connectionContext,
+      final ConnectionInfo connectionInfo,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final @Nullable ConnectionPlugin pluginToSkip)
@@ -403,7 +403,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       return executeWithSubscribedPlugins(
           JdbcMethod.CONNECT,
           (plugin, func) ->
-              plugin.connect(connectionContext, hostSpec, isInitialConnection, func),
+              plugin.connect(connectionInfo, hostSpec, isInitialConnection, func),
           () -> {
             throw new SQLException("Shouldn't be called.");
           },
@@ -428,7 +428,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    * requested via the {@link java.sql.DriverManager} and {@link DataSourceConnectionProvider} for
    * connections requested via an {@link software.amazon.jdbc.ds.AwsWrapperDataSource}.
    *
-   * @param connectionContext   the connection info for the original connection.
+   * @param connectionInfo   the connection info for the original connection.
    * @param hostSpec            the host details for the desired connection
    * @param isInitialConnection a boolean indicating whether the current {@link Connection} is
    *                            establishing an initial physical connection to the database or has
@@ -439,7 +439,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    *                      host
    */
   public Connection forceConnect(
-      final ConnectionContext connectionContext,
+      final ConnectionInfo connectionInfo,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final @Nullable ConnectionPlugin pluginToSkip)
@@ -449,7 +449,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       return executeWithSubscribedPlugins(
           JdbcMethod.FORCECONNECT,
           (plugin, func) ->
-              plugin.forceConnect(connectionContext, hostSpec, isInitialConnection, func),
+              plugin.forceConnect(connectionInfo, hostSpec, isInitialConnection, func),
           () -> {
             throw new SQLException("Shouldn't be called.");
           },
@@ -550,7 +550,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
   }
 
   public void initHostProvider(
-      final ConnectionContext connectionContext, final HostListProviderService hostListProviderService)
+      final ConnectionInfo connectionInfo, final HostListProviderService hostListProviderService)
       throws SQLException {
     TelemetryContext context = this.telemetryFactory.openTelemetryContext(
         "initHostProvider", TelemetryTraceLevel.NESTED);
@@ -560,7 +560,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
           JdbcMethod.INITHOSTPROVIDER,
           (PluginPipeline<Void, SQLException>)
               (plugin, func) -> {
-                plugin.initHostProvider(connectionContext, hostListProviderService, func);
+                plugin.initHostProvider(connectionInfo, hostListProviderService, func);
                 return null;
               },
           () -> {

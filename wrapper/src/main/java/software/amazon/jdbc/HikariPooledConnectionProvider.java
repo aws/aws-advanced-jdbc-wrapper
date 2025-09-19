@@ -41,7 +41,7 @@ import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.connection.ConnectionContext;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 import software.amazon.jdbc.util.storage.SlidingExpirationCache;
 
 public class HikariPooledConnectionProvider implements PooledConnectionProvider,
@@ -203,9 +203,9 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
 
 
   @Override
-  public boolean acceptsUrl(@NonNull ConnectionContext connectionContext, @NonNull HostSpec hostSpec) {
+  public boolean acceptsUrl(@NonNull ConnectionInfo connectionInfo, @NonNull HostSpec hostSpec) {
     if (this.acceptsUrlFunc != null) {
-      return this.acceptsUrlFunc.acceptsUrl(hostSpec, connectionContext.getProps());
+      return this.acceptsUrlFunc.acceptsUrl(hostSpec, connectionInfo.getProps());
     }
 
     final RdsUrlType urlType = rdsUtils.identifyRdsType(hostSpec.getHost());
@@ -238,9 +238,9 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   }
 
   @Override
-  public Connection connect(@NonNull ConnectionContext connectionContext, @NonNull HostSpec hostSpec)
+  public Connection connect(@NonNull ConnectionInfo connectionInfo, @NonNull HostSpec hostSpec)
       throws SQLException {
-    final Properties propsCopy = PropertyUtils.copyProperties(connectionContext.getProps());
+    final Properties propsCopy = PropertyUtils.copyProperties(connectionInfo.getProps());
     HostSpec connectionHostSpec = hostSpec;
 
     if (PropertyDefinition.ENABLE_GREEN_NODE_REPLACEMENT.getBoolean(propsCopy)
@@ -267,12 +267,12 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     }
 
     final HostSpec finalHostSpec = connectionHostSpec;
-    connectionContext.getDbDialect().prepareConnectProperties(
-        propsCopy, connectionContext.getProtocol(), finalHostSpec);
+    connectionInfo.getDbDialect().prepareConnectProperties(
+        propsCopy, connectionInfo.getProtocol(), finalHostSpec);
 
     final HikariDataSource ds = (HikariDataSource) HikariPoolsHolder.databasePools.computeIfAbsent(
         Pair.create(hostSpec.getUrl(), getPoolKey(finalHostSpec, propsCopy)),
-        (lambdaPoolKey) -> createHikariDataSource(connectionContext, finalHostSpec, propsCopy),
+        (lambdaPoolKey) -> createHikariDataSource(connectionInfo, finalHostSpec, propsCopy),
         poolExpirationCheckNanos
     );
 
@@ -306,21 +306,21 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
    *                            HikariConfig passed to this method should be created via a
    *                            {@link HikariPoolConfigurator}, which allows the user to specify any
    *                            additional configuration properties.
-   * @param connectionContext   the connection info for the original connection.
+   * @param connectionInfo   the connection info for the original connection.
    * @param hostSpec            the host details used to form the connection
    * @param connectionProps     the connection properties
    */
   protected void configurePool(
       final HikariConfig config,
-      final ConnectionContext connectionContext,
+      final ConnectionInfo connectionInfo,
       final HostSpec hostSpec,
       final Properties connectionProps) {
     final Properties copy = PropertyUtils.copyProperties(connectionProps);
 
     ConnectInfo connectInfo;
     try {
-      connectInfo = connectionContext.getDriverDialect().prepareConnectInfo(
-          connectionContext.getProtocol(), hostSpec, copy);
+      connectInfo = connectionInfo.getDriverDialect().prepareConnectInfo(
+          connectionInfo.getProtocol(), hostSpec, copy);
     } catch (SQLException ex) {
       throw new RuntimeException(ex);
     }
@@ -406,12 +406,12 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   }
 
   HikariDataSource createHikariDataSource(
-      final ConnectionContext connectionContext,
+      final ConnectionInfo connectionInfo,
       final HostSpec hostSpec,
       final Properties props) {
 
     HikariConfig config = poolConfigurator.configurePool(hostSpec, props);
-    configurePool(config, connectionContext, hostSpec, props);
+    configurePool(config, connectionInfo, hostSpec, props);
     return new HikariDataSource(config);
   }
 

@@ -57,7 +57,7 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
-import software.amazon.jdbc.util.connection.ConnectionContext;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -66,7 +66,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
   private static final Logger LOGGER = Logger.getLogger(ConnectionWrapper.class.getName());
 
-  protected ConnectionContext connectionContext;
+  protected ConnectionInfo connectionInfo;
   protected ConnectionPluginManager pluginManager;
   protected TelemetryFactory telemetryFactory;
   protected PluginService pluginService;
@@ -91,7 +91,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       throw new IllegalArgumentException("url");
     }
 
-    this.connectionContext = new ConnectionContext(url, driverDialect, props);
+    this.connectionInfo = new ConnectionInfo(url, driverDialect, props);
     this.configurationProfile = configurationProfile;
 
     final ConnectionPluginManager pluginManager =
@@ -103,7 +103,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     servicesContainer.setConnectionPluginManager(pluginManager);
 
     final PluginServiceImpl pluginService =
-        new PluginServiceImpl(servicesContainer, this.connectionContext, this.configurationProfile);
+        new PluginServiceImpl(servicesContainer, this.connectionInfo, this.configurationProfile);
     servicesContainer.setHostListProviderService(pluginService);
     servicesContainer.setPluginService(pluginService);
     servicesContainer.setPluginManagerService(pluginService);
@@ -159,15 +159,15 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
     final HostListProviderSupplier supplier = this.pluginService.getDialect().getHostListProvider();
     if (supplier != null) {
-      final HostListProvider provider = supplier.getProvider(this.connectionContext, servicesContainer);
+      final HostListProvider provider = supplier.getProvider(this.connectionInfo, servicesContainer);
       hostListProviderService.setHostListProvider(provider);
     }
 
-    this.pluginManager.initHostProvider(this.connectionContext, this.hostListProviderService);
+    this.pluginManager.initHostProvider(this.connectionInfo, this.hostListProviderService);
     this.pluginService.refreshHostList();
     if (this.pluginService.getCurrentConnection() == null) {
       final Connection conn = this.pluginManager.connect(
-          this.connectionContext, this.pluginService.getInitialConnectionHostSpec(), true, null);
+          this.connectionInfo, this.pluginService.getInitialConnectionHostSpec(), true, null);
       if (conn == null) {
         throw new SQLException(Messages.get("ConnectionWrapper.connectionNotOpen"), SqlState.UNKNOWN_STATE.getState());
       }

@@ -34,7 +34,7 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
-import software.amazon.jdbc.util.connection.ConnectionContext;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 import software.amazon.jdbc.util.storage.SlidingExpirationCache;
 
 public class C3P0PooledConnectionProvider implements PooledConnectionProvider, CanReleaseResources {
@@ -55,7 +55,7 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
   protected static final long poolExpirationCheckNanos = TimeUnit.MINUTES.toNanos(30);
 
   @Override
-  public boolean acceptsUrl(@NonNull ConnectionContext connectionContext, @NonNull HostSpec hostSpec) {
+  public boolean acceptsUrl(@NonNull ConnectionInfo connectionInfo, @NonNull HostSpec hostSpec) {
     return true;
   }
 
@@ -79,14 +79,14 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
 
   @Override
   public Connection connect(
-      @NonNull ConnectionContext connectionContext, @NonNull HostSpec hostSpec) throws SQLException {
-    Dialect dialect = connectionContext.getDbDialect();
-    Properties propsCopy = PropertyUtils.copyProperties(connectionContext.getProps());
-    dialect.prepareConnectProperties(propsCopy, connectionContext.getProtocol(), hostSpec);
+      @NonNull ConnectionInfo connectionInfo, @NonNull HostSpec hostSpec) throws SQLException {
+    Dialect dialect = connectionInfo.getDbDialect();
+    Properties propsCopy = PropertyUtils.copyProperties(connectionInfo.getProps());
+    dialect.prepareConnectProperties(propsCopy, connectionInfo.getProtocol(), hostSpec);
 
     final ComboPooledDataSource ds = databasePools.computeIfAbsent(
         hostSpec.getUrl(),
-        (key) -> createDataSource(connectionContext, hostSpec, propsCopy),
+        (key) -> createDataSource(connectionInfo, hostSpec, propsCopy),
         poolExpirationCheckNanos
     );
 
@@ -96,14 +96,14 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
   }
 
   protected ComboPooledDataSource createDataSource(
-      @NonNull ConnectionContext connectionContext,
+      @NonNull ConnectionInfo connectionInfo,
       @NonNull HostSpec hostSpec,
       @NonNull Properties props) {
     ConnectInfo connectInfo;
 
     try {
-      connectInfo = connectionContext.getDriverDialect()
-          .prepareConnectInfo(connectionContext.getProtocol(), hostSpec, props);
+      connectInfo = connectionInfo.getDriverDialect()
+          .prepareConnectInfo(connectionInfo.getProtocol(), hostSpec, props);
     } catch (SQLException ex) {
       throw new RuntimeException(ex);
     }

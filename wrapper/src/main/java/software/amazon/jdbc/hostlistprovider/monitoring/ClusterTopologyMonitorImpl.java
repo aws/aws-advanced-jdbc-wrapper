@@ -510,7 +510,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
         this.servicesContainer.getMonitorService(),
         this.servicesContainer.getDefaultConnectionProvider(),
         this.servicesContainer.getTelemetryFactory(),
-        this.servicesContainer.getPluginService().getConnectionContext()
+        this.servicesContainer.getPluginService().getConnectionInfo()
     );
   }
 

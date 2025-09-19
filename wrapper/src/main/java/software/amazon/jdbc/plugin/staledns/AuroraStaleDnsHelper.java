@@ -33,7 +33,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.Utils;
-import software.amazon.jdbc.util.connection.ConnectionContext;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -61,7 +61,7 @@ public class AuroraStaleDnsHelper {
   public Connection getVerifiedConnection(
       final boolean isInitialConnection,
       final HostListProviderService hostListProviderService,
-      final ConnectionContext connectionContext,
+      final ConnectionInfo connectionInfo,
       final HostSpec hostSpec,
       final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
 
@@ -147,7 +147,7 @@ public class AuroraStaleDnsHelper {
         );
       }
 
-      final Connection writerConn = this.pluginService.connect(this.writerHostSpec, connectionContext.getProps());
+      final Connection writerConn = this.pluginService.connect(this.writerHostSpec, connectionInfo.getProps());
       if (isInitialConnection) {
         hostListProviderService.setInitialConnectionHostSpec(this.writerHostSpec);
       }

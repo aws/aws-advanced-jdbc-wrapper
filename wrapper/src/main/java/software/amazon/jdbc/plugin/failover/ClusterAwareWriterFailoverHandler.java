@@ -174,7 +174,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
         this.servicesContainer.getMonitorService(),
         this.pluginService.getDefaultConnectionProvider(),
         this.servicesContainer.getTelemetryFactory(),
-        this.pluginService.getConnectionContext()
+        this.pluginService.getConnectionInfo()
     );
   }
 

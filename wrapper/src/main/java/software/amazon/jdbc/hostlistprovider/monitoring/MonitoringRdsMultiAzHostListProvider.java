@@ -19,7 +19,7 @@ package software.amazon.jdbc.hostlistprovider.monitoring;
 import java.sql.SQLException;
 import java.util.logging.Logger;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.connection.ConnectionContext;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 
 public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListProvider {
 
@@ -29,7 +29,7 @@ public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListP
   protected final String fetchWriterNodeColumnName;
 
   public MonitoringRdsMultiAzHostListProvider(
-      final ConnectionContext connectionContext,
+      final ConnectionInfo connectionInfo,
       final FullServicesContainer servicesContainer,
       final String topologyQuery,
       final String nodeIdQuery,
@@ -37,7 +37,7 @@ public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListP
       final String fetchWriterNodeQuery,
       final String fetchWriterNodeColumnName) {
     super(
-        connectionContext,
+        connectionInfo,
         servicesContainer,
         topologyQuery,
         nodeIdQuery,
@@ -55,12 +55,12 @@ public class MonitoringRdsMultiAzHostListProvider extends MonitoringRdsHostListP
         this.servicesContainer.getStorageService(),
         this.servicesContainer.getTelemetryFactory(),
         this.servicesContainer.getDefaultConnectionProvider(),
-        this.connectionContext,
+        this.connectionInfo,
         (servicesContainer) -> new MultiAzClusterTopologyMonitorImpl(
             servicesContainer,
             this.clusterId,
             this.initialHostSpec,
-            this.connectionContext.getProps(),
+            this.connectionInfo.getProps(),
             this.clusterInstanceTemplate,
             this.refreshRateNano,
             this.highRefreshRateNano,

@@ -23,7 +23,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -41,7 +40,7 @@ import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ServiceUtility;
-import software.amazon.jdbc.util.connection.ConnectionContext;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 import software.amazon.jdbc.util.events.DataAccessEvent;
 import software.amazon.jdbc.util.events.Event;
 import software.amazon.jdbc.util.events.EventPublisher;
@@ -180,7 +179,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       StorageService storageService,
       TelemetryFactory telemetryFactory,
       ConnectionProvider defaultConnectionProvider,
-      ConnectionContext connectionContext,
+      ConnectionInfo connectionInfo,
       MonitorInitializer initializer) throws SQLException {
     CacheContainer cacheContainer = monitorCaches.get(monitorClass);
     if (cacheContainer == null) {
@@ -202,7 +201,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
             storageService,
             defaultConnectionProvider,
             telemetryFactory,
-            connectionContext);
+            connectionInfo);
         final MonitorItem monitorItemInner = new MonitorItem(() -> initializer.createMonitor(servicesContainer));
         monitorItemInner.getMonitor().start();
         return monitorItemInner;
@@ -229,13 +228,13 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       StorageService storageService,
       ConnectionProvider connectionProvider,
       TelemetryFactory telemetryFactory,
-      ConnectionContext connectionContext) throws SQLException {
+      ConnectionInfo connectionInfo) throws SQLException {
     return ServiceUtility.getInstance().createServiceContainer(
         storageService,
         this,
         connectionProvider,
         telemetryFactory,
-        connectionContext
+        connectionInfo
     );
   }
 

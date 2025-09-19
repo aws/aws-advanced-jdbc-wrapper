@@ -323,7 +323,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
           this.servicesContainer.getStorageService(),
           this.servicesContainer.getTelemetryFactory(),
           this.pluginService.getDefaultConnectionProvider(),
-          this.pluginService.getConnectionContext(),
+          this.pluginService.getConnectionInfo(),
           (servicesContainer) -> new LimitlessRouterMonitor(
                   servicesContainer,
                   hostSpec,

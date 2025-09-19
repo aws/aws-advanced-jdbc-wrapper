@@ -53,7 +53,7 @@ import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.WrapperUtils;
-import software.amazon.jdbc.util.connection.ConnectionContext;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -302,7 +302,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   @Override
   public void initHostProvider(
-      final ConnectionContext connectionContext,
+      final ConnectionInfo connectionInfo,
       final HostListProviderService hostListProviderService,
       final JdbcCallable<Void, SQLException> initHostProviderFunc)
       throws SQLException {
@@ -904,7 +904,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   @Override
   public Connection connect(
-      final ConnectionContext connectionContext,
+      final ConnectionInfo connectionInfo,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
@@ -913,7 +913,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     Connection conn = null;
     try {
       conn = this.staleDnsHelper.getVerifiedConnection(
-          isInitialConnection, this.hostListProviderService, connectionContext, hostSpec, connectFunc);
+          isInitialConnection, this.hostListProviderService, connectionInfo, hostSpec, connectFunc);
     } catch (final SQLException e) {
       if (!this.enableConnectFailover || !shouldExceptionTriggerConnectionSwitch(e)) {
         throw e;

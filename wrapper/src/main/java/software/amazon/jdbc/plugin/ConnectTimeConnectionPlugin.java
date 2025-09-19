@@ -26,7 +26,7 @@ import java.util.logging.Logger;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.connection.ConnectionContext;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 
 public class ConnectTimeConnectionPlugin extends AbstractConnectionPlugin {
 
@@ -44,7 +44,7 @@ public class ConnectTimeConnectionPlugin extends AbstractConnectionPlugin {
 
   @Override
   public Connection connect(
-      ConnectionContext connectionContext,
+      ConnectionInfo connectionInfo,
       HostSpec hostSpec,
       boolean isInitialConnection,
       JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
@@ -63,7 +63,7 @@ public class ConnectTimeConnectionPlugin extends AbstractConnectionPlugin {
 
   @Override
   public Connection forceConnect(
-      ConnectionContext connectionContext,
+      ConnectionInfo connectionInfo,
       HostSpec hostSpec,
       boolean isInitialConnection,
       JdbcCallable<Connection, SQLException> forceConnectFunc) throws SQLException {

@@ -35,7 +35,7 @@ import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.Utils;
-import software.amazon.jdbc.util.connection.ConnectionContext;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 import software.amazon.jdbc.util.storage.CacheMap;
 
 public class DialectManager implements DialectProvider {
@@ -119,7 +119,7 @@ public class DialectManager implements DialectProvider {
   }
 
   @Override
-  public Dialect getDialect(final @NonNull ConnectionContext connectionContext) throws SQLException {
+  public Dialect getDialect(final @NonNull ConnectionInfo connectionInfo) throws SQLException {
     this.canUpdate = false;
     this.dialect = null;
 
@@ -131,10 +131,10 @@ public class DialectManager implements DialectProvider {
       return this.dialect;
     }
 
-    final String userDialectSetting = DIALECT.getString(connectionContext.getProps());
+    final String userDialectSetting = DIALECT.getString(connectionInfo.getProps());
     final String dialectCode = !StringUtils.isNullOrEmpty(userDialectSetting)
         ? userDialectSetting
-        : knownEndpointDialects.get(connectionContext.getInitialConnectionString());
+        : knownEndpointDialects.get(connectionInfo.getInitialConnectionString());
 
     if (!StringUtils.isNullOrEmpty(dialectCode)) {
       final Dialect userDialect = knownDialectsByCode.get(dialectCode);
@@ -149,18 +149,18 @@ public class DialectManager implements DialectProvider {
       }
     }
 
-    if (StringUtils.isNullOrEmpty(connectionContext.getProtocol())) {
+    if (StringUtils.isNullOrEmpty(connectionInfo.getProtocol())) {
       throw new IllegalArgumentException("protocol");
     }
 
-    String connectionString = connectionContext.getInitialConnectionString();
+    String connectionString = connectionInfo.getInitialConnectionString();
     final List<HostSpec> hosts = this.connectionUrlParser.getHostsFromConnectionUrl(
-            connectionContext.getInitialConnectionString(), true, pluginService::getHostSpecBuilder);
+            connectionInfo.getInitialConnectionString(), true, pluginService::getHostSpecBuilder);
     if (!Utils.isNullOrEmpty(hosts)) {
       connectionString = hosts.get(0).getHost();
     }
 
-    if (connectionContext.getProtocol().contains("mysql")) {
+    if (connectionInfo.getProtocol().contains("mysql")) {
       RdsUrlType type = this.rdsHelper.identifyRdsType(connectionString);
       if (type.isRdsCluster()) {
         this.canUpdate = true;
@@ -182,7 +182,7 @@ public class DialectManager implements DialectProvider {
       return this.dialect;
     }
 
-    if (connectionContext.getProtocol().contains("postgresql")) {
+    if (connectionInfo.getProtocol().contains("postgresql")) {
       RdsUrlType type = this.rdsHelper.identifyRdsType(connectionString);
       if (RdsUrlType.RDS_AURORA_LIMITLESS_DB_SHARD_GROUP.equals(type)) {
         this.canUpdate = false;
@@ -210,7 +210,7 @@ public class DialectManager implements DialectProvider {
       return this.dialect;
     }
 
-    if (connectionContext.getProtocol().contains("mariadb")) {
+    if (connectionInfo.getProtocol().contains("mariadb")) {
       this.canUpdate = true;
       this.dialectCode = DialectCodes.MARIADB;
       this.dialect = knownDialectsByCode.get(DialectCodes.MARIADB);

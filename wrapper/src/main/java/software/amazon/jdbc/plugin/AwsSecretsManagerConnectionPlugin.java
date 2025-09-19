@@ -50,7 +50,7 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RegionUtils;
 import software.amazon.jdbc.util.StringUtils;
-import software.amazon.jdbc.util.connection.ConnectionContext;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -185,12 +185,12 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
 
   @Override
   public Connection connect(
-      final ConnectionContext connectionContext,
+      final ConnectionInfo connectionInfo,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
-    return connectInternal(hostSpec, connectionContext.getProps(), connectFunc);
+    return connectInternal(hostSpec, connectionInfo.getProps(), connectFunc);
   }
 
   private Connection connectInternal(HostSpec hostSpec, Properties props,
@@ -226,12 +226,12 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
 
   @Override
   public Connection forceConnect(
-      final ConnectionContext connectionContext,
+      final ConnectionInfo connectionInfo,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
-    return connectInternal(hostSpec, connectionContext.getProps(), forceConnectFunc);
+    return connectInternal(hostSpec, connectionInfo.getProps(), forceConnectFunc);
   }
 
   /**

@@ -18,13 +18,12 @@ package software.amazon.jdbc.dialect;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.util.connection.ConnectionContext;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 
 public interface DialectProvider {
-  Dialect getDialect(final @NonNull ConnectionContext connectionContext) throws SQLException;
+  Dialect getDialect(final @NonNull ConnectionInfo connectionInfo) throws SQLException;
 
   Dialect getDialect(
       final @NonNull String originalUrl,

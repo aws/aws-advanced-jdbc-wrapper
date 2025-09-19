@@ -21,7 +21,7 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 
-public class ConnectionContext {
+public class ConnectionInfo {
   protected static final ConnectionUrlParser connectionUrlParser = new ConnectionUrlParser();
   protected final String initialConnectionString;
   protected final String protocol;
@@ -29,11 +29,11 @@ public class ConnectionContext {
   protected final Properties props;
   protected Dialect dbDialect;
 
-  public ConnectionContext(String initialConnectionString, TargetDriverDialect driverDialect, Properties props) {
+  public ConnectionInfo(String initialConnectionString, TargetDriverDialect driverDialect, Properties props) {
     this(initialConnectionString, connectionUrlParser.getProtocol(initialConnectionString), driverDialect, props);
   }
 
-  public ConnectionContext(
+  public ConnectionInfo(
       String initialConnectionString, String protocol, TargetDriverDialect driverDialect, Properties props) {
     this.initialConnectionString = initialConnectionString;
     this.protocol = protocol;

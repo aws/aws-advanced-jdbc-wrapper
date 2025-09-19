@@ -55,7 +55,7 @@ import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
-import software.amazon.jdbc.util.connection.ConnectionContext;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 import software.amazon.jdbc.util.storage.CacheMap;
 
 public class RdsHostListProvider implements DynamicHostListProvider {
@@ -95,7 +95,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
 
   protected final FullServicesContainer servicesContainer;
   protected final HostListProviderService hostListProviderService;
-  protected final ConnectionContext connectionContext;
+  protected final ConnectionInfo connectionInfo;
   protected final String topologyQuery;
   protected final String nodeIdQuery;
   protected final String isReaderQuery;
@@ -122,12 +122,12 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   }
 
   public RdsHostListProvider(
-      final ConnectionContext connectionContext,
+      final ConnectionInfo connectionInfo,
       final FullServicesContainer servicesContainer,
       final String topologyQuery,
       final String nodeIdQuery,
       final String isReaderQuery) {
-    this.connectionContext = connectionContext;
+    this.connectionInfo = connectionInfo;
     this.servicesContainer = servicesContainer;
     this.hostListProviderService = servicesContainer.getHostListProviderService();
     this.topologyQuery = topologyQuery;
@@ -148,18 +148,18 @@ public class RdsHostListProvider implements DynamicHostListProvider {
 
       // initial topology is based on connection string
       this.initialHostList =
-          connectionUrlParser.getHostsFromConnectionUrl(this.connectionContext.getInitialConnectionString(), false,
+          connectionUrlParser.getHostsFromConnectionUrl(this.connectionInfo.getInitialConnectionString(), false,
               this.hostListProviderService::getHostSpecBuilder);
       if (this.initialHostList == null || this.initialHostList.isEmpty()) {
         throw new SQLException(Messages.get("RdsHostListProvider.parsedListEmpty",
-            new Object[] {this.connectionContext.getInitialConnectionString()}));
+            new Object[] {this.connectionInfo.getInitialConnectionString()}));
       }
       this.initialHostSpec = this.initialHostList.get(0);
       this.hostListProviderService.setInitialConnectionHostSpec(this.initialHostSpec);
 
       this.clusterId = UUID.randomUUID().toString();
       this.isPrimaryClusterId = false;
-      Properties props = this.connectionContext.getProps();
+      Properties props = this.connectionInfo.getProps();
       this.refreshRateNano =
           TimeUnit.MILLISECONDS.toNanos(CLUSTER_TOPOLOGY_REFRESH_RATE_MS.getInteger(props));
 
