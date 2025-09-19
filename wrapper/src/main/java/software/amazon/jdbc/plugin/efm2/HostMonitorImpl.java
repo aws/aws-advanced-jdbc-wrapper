@@ -33,9 +33,9 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.ExecutorFactory;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
-import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -59,7 +59,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
   private final Queue<WeakReference<HostMonitorConnectionContext>> activeContexts = new ConcurrentLinkedQueue<>();
   private final Map<Long, Queue<WeakReference<HostMonitorConnectionContext>>> newContexts =
       new ConcurrentHashMap<>();
-  private final ConnectionService connectionService;
+  private final FullServicesContainer servicesContainer;
   private final TelemetryFactory telemetryFactory;
   private final Properties properties;
   private final HostSpec hostSpec;
@@ -78,8 +78,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
   /**
    * Store the monitoring configuration for a connection.
    *
-   * @param connectionService         The service to use to create the monitoring connection.
-   * @param telemetryFactory          The telemetry factory to use to create telemetry data.
+   * @param servicesContainer          The telemetry factory to use to create telemetry data.
    * @param hostSpec                  The {@link HostSpec} of the server this {@link HostMonitorImpl}
    *                                  instance is monitoring.
    * @param properties                The {@link Properties} containing additional monitoring
@@ -90,8 +89,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
    * @param abortedConnectionsCounter Aborted connection telemetry counter.
    */
   public HostMonitorImpl(
-      final @NonNull ConnectionService connectionService,
-      final @NonNull TelemetryFactory telemetryFactory,
+      final @NonNull FullServicesContainer servicesContainer,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties properties,
       final int failureDetectionTimeMillis,
@@ -99,9 +97,8 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
       final int failureDetectionCount,
       final TelemetryCounter abortedConnectionsCounter) {
     super(TERMINATION_TIMEOUT_SEC, ExecutorFactory.newFixedThreadPool(2, "efm2-monitor"));
-
-    this.connectionService = connectionService;
-    this.telemetryFactory = telemetryFactory;
+    this.servicesContainer = servicesContainer;
+    this.telemetryFactory = servicesContainer.getTelemetryFactory();
     this.hostSpec = hostSpec;
     this.properties = properties;
     this.failureDetectionTimeNano = TimeUnit.MILLISECONDS.toNanos(failureDetectionTimeMillis);
@@ -317,7 +314,8 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
                 });
 
         LOGGER.finest(() -> "Opening a monitoring connection to " + this.hostSpec.getUrl());
-        this.monitoringConn = this.connectionService.open(this.hostSpec, monitoringConnProperties);
+        this.monitoringConn =
+            this.servicesContainer.getPluginService().forceConnect(this.hostSpec, monitoringConnProperties);
         LOGGER.finest(() -> "Opened monitoring connection: " + this.monitoringConn);
         return true;
       }

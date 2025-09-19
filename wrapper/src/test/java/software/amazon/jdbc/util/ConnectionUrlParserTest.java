@@ -32,7 +32,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
-import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 
 class ConnectionUrlParserTest {

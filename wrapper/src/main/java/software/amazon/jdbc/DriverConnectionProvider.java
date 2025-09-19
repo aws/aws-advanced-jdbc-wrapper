@@ -28,13 +28,12 @@ import java.util.Properties;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.exceptions.SQLLoginException;
 import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
-import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 
 /**
  * This class is a basic implementation of {@link ConnectionProvider} interface. It creates and
@@ -63,20 +62,8 @@ public class DriverConnectionProvider implements ConnectionProvider {
     this.targetDriverClassName = driver.getClass().getName();
   }
 
-  /**
-   * Indicates whether this ConnectionProvider can provide connections for the given host and
-   * properties. Some ConnectionProvider implementations may not be able to handle certain URL
-   * types or properties.
-   *
-   * @param protocol The connection protocol (example "jdbc:mysql://")
-   * @param hostSpec The HostSpec containing the host-port information for the host to connect to
-   * @param props    The Properties to use for the connection
-   * @return true if this ConnectionProvider can provide connections for the given URL, otherwise
-   *         return false
-   */
   @Override
-  public boolean acceptsUrl(
-      @NonNull String protocol, @NonNull HostSpec hostSpec, @NonNull Properties props) {
+  public boolean acceptsUrl(@NonNull ConnectionInfo connectionInfo, @NonNull HostSpec hostSpec) {
     return true;
   }
 
@@ -102,31 +89,19 @@ public class DriverConnectionProvider implements ConnectionProvider {
   /**
    * Called once per connection that needs to be created.
    *
-   * @param protocol The connection protocol (example "jdbc:mysql://")
-   * @param dialect The database dialect
-   * @param targetDriverDialect The target driver dialect
+   * @param connectionInfo the connection info for the original connection.
    * @param hostSpec The HostSpec containing the host-port information for the host to connect to
-   * @param props The Properties to use for the connection
    * @return {@link Connection} resulting from the given connection information
    * @throws SQLException if an error occurs
    */
   @Override
-  public Connection connect(
-      final @NonNull String protocol,
-      final @NonNull Dialect dialect,
-      final @NonNull TargetDriverDialect targetDriverDialect,
-      final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props)
+  public Connection connect(final @NonNull ConnectionInfo connectionInfo, final @NonNull HostSpec hostSpec)
       throws SQLException {
+    final Properties propsCopy = PropertyUtils.copyProperties(connectionInfo.getProps());
+    final ConnectInfo connectInfo =
+        connectionInfo.getDriverDialect().prepareConnectInfo(connectionInfo.getProtocol(), hostSpec, propsCopy);
 
-    //     LOGGER.finest(() -> PropertyUtils.logProperties(
-    //         PropertyUtils.maskProperties(props), "Connecting with properties: \n"));
-
-    final Properties copy = PropertyUtils.copyProperties(props);
-    dialect.prepareConnectProperties(copy, protocol, hostSpec);
-
-    final ConnectInfo connectInfo = targetDriverDialect.prepareConnectInfo(protocol, hostSpec, copy);
-
+    connectionInfo.getDbDialect().prepareConnectProperties(propsCopy, connectionInfo.getProtocol(), hostSpec);
     LOGGER.finest(() -> "Connecting to " + connectInfo.url
         + PropertyUtils.logProperties(
             PropertyUtils.maskProperties(connectInfo.props),
@@ -138,7 +113,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
 
     } catch (Throwable throwable) {
 
-      if (!PropertyDefinition.ENABLE_GREEN_NODE_REPLACEMENT.getBoolean(props)) {
+      if (!PropertyDefinition.ENABLE_GREEN_NODE_REPLACEMENT.getBoolean(propsCopy)) {
         throw throwable;
       }
 
@@ -183,7 +158,8 @@ public class DriverConnectionProvider implements ConnectionProvider {
           .host(fixedHost)
           .build();
 
-      final ConnectInfo fixedConnectInfo = targetDriverDialect.prepareConnectInfo(protocol, connectionHostSpec, copy);
+      final ConnectInfo fixedConnectInfo = connectionInfo.getDriverDialect().prepareConnectInfo(
+          connectionInfo.getProtocol(), connectionHostSpec, propsCopy);
 
       LOGGER.finest(() -> "Connecting to " + fixedConnectInfo.url
           + " after correcting the hostname from " + originalHost
