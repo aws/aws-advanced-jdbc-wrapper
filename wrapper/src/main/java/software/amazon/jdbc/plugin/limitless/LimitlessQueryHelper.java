@@ -96,7 +96,7 @@ public class LimitlessQueryHelper {
     final String hostName = resultSet.getString(1);
     final float cpu = resultSet.getFloat(2);
 
-    long weight = Math.round(10 - cpu * 10);
+    long weight = (long) (10 - Math.floor(10 * cpu));
 
     if (weight < 1 || weight > 10) {
       weight = 1; // default to 1
