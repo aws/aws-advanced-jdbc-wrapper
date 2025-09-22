@@ -21,10 +21,9 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Random;
-import java.util.concurrent.Callable;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -45,6 +44,8 @@ public class WeightedRandomHostSelector implements HostSelector {
   private Map<String, Integer> cachedHostWeightMap;
   private String cachedHostWeightMapString;
   private Random random;
+
+  private final ReentrantLock lock = new ReentrantLock();
 
   public WeightedRandomHostSelector() {
     this(new Random());
@@ -108,43 +109,48 @@ public class WeightedRandomHostSelector implements HostSelector {
   }
 
   private Map<String, Integer> getHostWeightPairMap(final String hostWeightMapString) throws SQLException {
-    if (this.cachedHostWeightMapString != null
-        && this.cachedHostWeightMapString.trim().equals(hostWeightMapString.trim())
-        && this.cachedHostWeightMap != null
-        && !this.cachedHostWeightMap.isEmpty()) {
-      return this.cachedHostWeightMap;
-    }
-
-    final Map<String, Integer> hostWeightMap = new HashMap<>();
-    if (hostWeightMapString == null || hostWeightMapString.trim().isEmpty()) {
-      return hostWeightMap;
-    }
-    final String[] hostWeightPairs = hostWeightMapString.split(",");
-    for (final String hostWeightPair : hostWeightPairs) {
-      final Matcher matcher = HOST_WEIGHT_PAIRS_PATTERN.matcher(hostWeightPair);
-      if (!matcher.matches()) {
-        throw new SQLException(Messages.get("HostSelector.weightedRandomInvalidHostWeightPairs"));
+    try {
+      lock.lock();
+      if (this.cachedHostWeightMapString != null
+          && this.cachedHostWeightMapString.trim().equals(hostWeightMapString.trim())
+          && this.cachedHostWeightMap != null
+          && !this.cachedHostWeightMap.isEmpty()) {
+        return this.cachedHostWeightMap;
       }
 
-      final String hostName = matcher.group("host").trim();
-      final String hostWeight = matcher.group("weight").trim();
-      if (hostName.isEmpty() || hostWeight.isEmpty()) {
-        throw new SQLException(Messages.get("HostSelector.weightedRandomInvalidHostWeightPairs"));
+      final Map<String, Integer> hostWeightMap = new HashMap<>();
+      if (hostWeightMapString == null || hostWeightMapString.trim().isEmpty()) {
+        return hostWeightMap;
       }
-
-      try {
-        final int weight = Integer.parseInt(hostWeight);
-        if (weight < DEFAULT_WEIGHT) {
+      final String[] hostWeightPairs = hostWeightMapString.split(",");
+      for (final String hostWeightPair : hostWeightPairs) {
+        final Matcher matcher = HOST_WEIGHT_PAIRS_PATTERN.matcher(hostWeightPair);
+        if (!matcher.matches()) {
           throw new SQLException(Messages.get("HostSelector.weightedRandomInvalidHostWeightPairs"));
         }
-        hostWeightMap.put(hostName, weight);
-      } catch (NumberFormatException e) {
-        throw new SQLException(Messages.get("HostSelector.roundRobinInvalidHostWeightPairs"));
+
+        final String hostName = matcher.group("host").trim();
+        final String hostWeight = matcher.group("weight").trim();
+        if (hostName.isEmpty() || hostWeight.isEmpty()) {
+          throw new SQLException(Messages.get("HostSelector.weightedRandomInvalidHostWeightPairs"));
+        }
+
+        try {
+          final int weight = Integer.parseInt(hostWeight);
+          if (weight < DEFAULT_WEIGHT) {
+            throw new SQLException(Messages.get("HostSelector.weightedRandomInvalidHostWeightPairs"));
+          }
+          hostWeightMap.put(hostName, weight);
+        } catch (NumberFormatException e) {
+          throw new SQLException(Messages.get("HostSelector.roundRobinInvalidHostWeightPairs"));
+        }
       }
+      this.cachedHostWeightMap = hostWeightMap;
+      this.cachedHostWeightMapString = hostWeightMapString;
+      return hostWeightMap;
+    } finally {
+      lock.unlock();
     }
-    this.cachedHostWeightMap = hostWeightMap;
-    this.cachedHostWeightMapString = hostWeightMapString;
-    return hostWeightMap;
   }
 
   private static class NumberRange {
