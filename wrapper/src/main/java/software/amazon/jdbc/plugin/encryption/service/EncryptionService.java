@@ -1,0 +1,469 @@
+package software.amazon.jdbc.service;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.crypto.Cipher;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.math.BigDecimal;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.Arrays;
+
+/**
+ * Service for encrypting and decrypting data using AES-256-GCM algorithm.
+ * Supports multiple data types and provides secure memory handling.
+ */
+public class EncryptionService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(EncryptionService.class);
+    
+    // Algorithm constants
+    private static final String DEFAULT_ALGORITHM = "AES-256-GCM";
+    private static final String AES_GCM_TRANSFORMATION = "AES/GCM/NoPadding";
+    private static final int GCM_IV_LENGTH = 12; // 96 bits
+    private static final int GCM_TAG_LENGTH = 16; // 128 bits
+    
+    // Supported algorithms
+    private static final String[] SUPPORTED_ALGORITHMS = {
+        "AES-256-GCM",
+        "AES-128-GCM"
+    };
+    
+    private final SecureRandom secureRandom;
+    
+    /**
+     * Creates a new EncryptionService instance.
+     */
+    public EncryptionService() {
+        this.secureRandom = new SecureRandom();
+    }
+    
+    /**
+     * Encrypts a value using the specified data key and algorithm.
+     *
+     * @param value the value to encrypt
+     * @param dataKey the encryption key
+     * @param algorithm the encryption algorithm to use
+     * @return the encrypted data as byte array
+     * @throws EncryptionException if encryption fails
+     */
+    public byte[] encrypt(Object value, byte[] dataKey, String algorithm) throws EncryptionException {
+        if (value == null) {
+            return null;
+        }
+        
+        validateAlgorithm(algorithm);
+        validateDataKey(dataKey, algorithm);
+        
+        try {
+            // Convert value to bytes based on type
+            byte[] plaintext = serializeValue(value);
+            
+            // Generate random IV
+            byte[] iv = new byte[GCM_IV_LENGTH];
+            secureRandom.nextBytes(iv);
+            
+            // Create cipher
+            Cipher cipher = Cipher.getInstance(AES_GCM_TRANSFORMATION);
+            SecretKeySpec keySpec = new SecretKeySpec(dataKey, "AES");
+            GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH * 8, iv);
+            cipher.init(Cipher.ENCRYPT_MODE, keySpec, gcmSpec);
+            
+            // Encrypt the data
+            byte[] ciphertext = cipher.doFinal(plaintext);
+            
+            // Combine IV + ciphertext for storage
+            ByteBuffer buffer = ByteBuffer.allocate(1 + iv.length + ciphertext.length);
+            buffer.put(getTypeMarker(value));
+            buffer.put(iv);
+            buffer.put(ciphertext);
+            
+            // Clear sensitive data
+            Arrays.fill(plaintext, (byte) 0);
+            Arrays.fill(iv, (byte) 0);
+            
+            return buffer.array();
+            
+        } catch (Exception e) {
+            logger.error("Encryption failed for value type: {}", value.getClass().getSimpleName(), e);
+            throw EncryptionException.encryptionFailed("Failed to encrypt value", e)
+                .withDataType(value.getClass().getSimpleName())
+                .withAlgorithm(algorithm)
+                .withOperation("ENCRYPT");
+        }
+    }
+    
+    /**
+     * Decrypts encrypted data using the specified data key and algorithm.
+     *
+     * @param encryptedValue the encrypted data
+     * @param dataKey the decryption key
+     * @param algorithm the encryption algorithm used
+     * @param targetType the expected type of the decrypted value
+     * @return the decrypted value
+     * @throws EncryptionException if decryption fails
+     */
+    public Object decrypt(byte[] encryptedValue, byte[] dataKey, String algorithm, Class<?> targetType) 
+            throws EncryptionException {
+        if (encryptedValue == null) {
+            return null;
+        }
+        
+        validateAlgorithm(algorithm);
+        validateDataKey(dataKey, algorithm);
+        
+        if (encryptedValue.length < 1 + GCM_IV_LENGTH + GCM_TAG_LENGTH) {
+            throw EncryptionException.decryptionFailed("Invalid encrypted data length", null)
+                .withAlgorithm(algorithm)
+                .withDataType(targetType.getSimpleName())
+                .withContext("dataLength", encryptedValue.length)
+                .withContext("minimumLength", 1 + GCM_IV_LENGTH + GCM_TAG_LENGTH);
+        }
+        
+        try {
+            ByteBuffer buffer = ByteBuffer.wrap(encryptedValue);
+            
+            // Extract type marker
+            byte typeMarker = buffer.get();
+            
+            // Extract IV
+            byte[] iv = new byte[GCM_IV_LENGTH];
+            buffer.get(iv);
+            
+            // Extract ciphertext
+            byte[] ciphertext = new byte[buffer.remaining()];
+            buffer.get(ciphertext);
+            
+            // Create cipher
+            Cipher cipher = Cipher.getInstance(AES_GCM_TRANSFORMATION);
+            SecretKeySpec keySpec = new SecretKeySpec(dataKey, "AES");
+            GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH * 8, iv);
+            cipher.init(Cipher.DECRYPT_MODE, keySpec, gcmSpec);
+            
+            // Decrypt the data
+            byte[] plaintext = cipher.doFinal(ciphertext);
+            
+            // Deserialize based on type marker and target type
+            Object result = deserializeValue(plaintext, typeMarker, targetType);
+            
+            // Clear sensitive data
+            Arrays.fill(plaintext, (byte) 0);
+            Arrays.fill(iv, (byte) 0);
+            
+            return result;
+            
+        } catch (Exception e) {
+            logger.error("Decryption failed for target type: {}", targetType.getSimpleName(), e);
+            throw EncryptionException.decryptionFailed("Failed to decrypt value", e)
+                .withDataType(targetType.getSimpleName())
+                .withAlgorithm(algorithm)
+                .withOperation("DECRYPT");
+        }
+    }
+    
+    /**
+     * Returns the default encryption algorithm.
+     *
+     * @return the default algorithm name
+     */
+    public String getDefaultAlgorithm() {
+        return DEFAULT_ALGORITHM;
+    }
+    
+    /**
+     * Checks if the specified algorithm is supported.
+     *
+     * @param algorithm the algorithm to check
+     * @return true if supported, false otherwise
+     */
+    public boolean isAlgorithmSupported(String algorithm) {
+        if (algorithm == null) {
+            return false;
+        }
+        return Arrays.asList(SUPPORTED_ALGORITHMS).contains(algorithm);
+    }
+    
+    /**
+     * Validates that the algorithm is supported.
+     */
+    private void validateAlgorithm(String algorithm) throws EncryptionException {
+        if (!isAlgorithmSupported(algorithm)) {
+            throw EncryptionException.invalidAlgorithm(algorithm);
+        }
+    }
+    
+    /**
+     * Validates the data key for the specified algorithm.
+     */
+    private void validateDataKey(byte[] dataKey, String algorithm) throws EncryptionException {
+        if (dataKey == null) {
+            throw EncryptionException.invalidKey("Data key cannot be null")
+                .withAlgorithm(algorithm);
+        }
+        
+        int expectedKeyLength = getExpectedKeyLength(algorithm);
+        if (dataKey.length != expectedKeyLength) {
+            throw EncryptionException.invalidKey(
+                String.format("Invalid key length for %s: expected %d bytes, got %d", 
+                    algorithm, expectedKeyLength, dataKey.length))
+                .withAlgorithm(algorithm)
+                .withContext("expectedLength", expectedKeyLength)
+                .withContext("actualLength", dataKey.length);
+        }
+    }
+    
+    /**
+     * Gets the expected key length for the algorithm.
+     */
+    private int getExpectedKeyLength(String algorithm) {
+        switch (algorithm) {
+            case "AES-256-GCM":
+                return 32; // 256 bits
+            case "AES-128-GCM":
+                return 16; // 128 bits
+            default:
+                throw new IllegalArgumentException("Unknown algorithm: " + algorithm);
+        }
+    }
+    
+    /**
+     * Serializes a value to bytes based on its type.
+     */
+    private byte[] serializeValue(Object value) throws Exception {
+        if (value instanceof String) {
+            return ((String) value).getBytes(StandardCharsets.UTF_8);
+        } else if (value instanceof Integer) {
+            return ByteBuffer.allocate(4).putInt((Integer) value).array();
+        } else if (value instanceof Long) {
+            return ByteBuffer.allocate(8).putLong((Long) value).array();
+        } else if (value instanceof Double) {
+            return ByteBuffer.allocate(8).putDouble((Double) value).array();
+        } else if (value instanceof Float) {
+            return ByteBuffer.allocate(4).putFloat((Float) value).array();
+        } else if (value instanceof Boolean) {
+            return new byte[]{(Boolean) value ? (byte) 1 : (byte) 0};
+        } else if (value instanceof BigDecimal) {
+            return ((BigDecimal) value).toString().getBytes(StandardCharsets.UTF_8);
+        } else if (value instanceof Date) {
+            return ByteBuffer.allocate(8).putLong(((Date) value).getTime()).array();
+        } else if (value instanceof Time) {
+            return ByteBuffer.allocate(8).putLong(((Time) value).getTime()).array();
+        } else if (value instanceof Timestamp) {
+            return ByteBuffer.allocate(8).putLong(((Timestamp) value).getTime()).array();
+        } else if (value instanceof LocalDate) {
+            return ((LocalDate) value).toString().getBytes(StandardCharsets.UTF_8);
+        } else if (value instanceof LocalTime) {
+            return ((LocalTime) value).toString().getBytes(StandardCharsets.UTF_8);
+        } else if (value instanceof LocalDateTime) {
+            return ((LocalDateTime) value).toString().getBytes(StandardCharsets.UTF_8);
+        } else if (value instanceof byte[]) {
+            return (byte[]) value;
+        } else {
+            // Fallback to Java serialization for complex objects
+            try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                 ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+                oos.writeObject(value);
+                return baos.toByteArray();
+            }
+        }
+    }
+    
+    /**
+     * Gets a type marker byte for the value type.
+     */
+    private byte getTypeMarker(Object value) {
+        if (value instanceof String) return 1;
+        if (value instanceof Integer) return 2;
+        if (value instanceof Long) return 3;
+        if (value instanceof Double) return 4;
+        if (value instanceof Float) return 5;
+        if (value instanceof Boolean) return 6;
+        if (value instanceof BigDecimal) return 7;
+        if (value instanceof Date) return 8;
+        if (value instanceof Time) return 9;
+        if (value instanceof Timestamp) return 10;
+        if (value instanceof LocalDate) return 11;
+        if (value instanceof LocalTime) return 12;
+        if (value instanceof LocalDateTime) return 13;
+        if (value instanceof byte[]) return 14;
+        return 99; // Generic object serialization
+    }
+    
+    /**
+     * Deserializes bytes to the appropriate type.
+     */
+    private Object deserializeValue(byte[] data, byte typeMarker, Class<?> targetType) throws Exception {
+        switch (typeMarker) {
+            case 1: // String
+                String str = new String(data, StandardCharsets.UTF_8);
+                return convertToTargetType(str, targetType);
+                
+            case 2: // Integer
+                if (data.length != 4) throw EncryptionException.decryptionFailed("Invalid Integer data length", null)
+                    .withContext("expectedLength", 4).withContext("actualLength", data.length);
+                int intVal = ByteBuffer.wrap(data).getInt();
+                return convertToTargetType(intVal, targetType);
+                
+            case 3: // Long
+                if (data.length != 8) throw EncryptionException.decryptionFailed("Invalid Long data length", null)
+                    .withContext("expectedLength", 8).withContext("actualLength", data.length);
+                long longVal = ByteBuffer.wrap(data).getLong();
+                return convertToTargetType(longVal, targetType);
+                
+            case 4: // Double
+                if (data.length != 8) throw EncryptionException.decryptionFailed("Invalid Double data length", null)
+                    .withContext("expectedLength", 8).withContext("actualLength", data.length);
+                double doubleVal = ByteBuffer.wrap(data).getDouble();
+                return convertToTargetType(doubleVal, targetType);
+                
+            case 5: // Float
+                if (data.length != 4) throw EncryptionException.decryptionFailed("Invalid Float data length", null)
+                    .withContext("expectedLength", 4).withContext("actualLength", data.length);
+                float floatVal = ByteBuffer.wrap(data).getFloat();
+                return convertToTargetType(floatVal, targetType);
+                
+            case 6: // Boolean
+                if (data.length != 1) throw EncryptionException.decryptionFailed("Invalid Boolean data length", null)
+                    .withContext("expectedLength", 1).withContext("actualLength", data.length);
+                boolean boolVal = data[0] == 1;
+                return convertToTargetType(boolVal, targetType);
+                
+            case 7: // BigDecimal
+                String decStr = new String(data, StandardCharsets.UTF_8);
+                BigDecimal decVal = new BigDecimal(decStr);
+                return convertToTargetType(decVal, targetType);
+                
+            case 8: // Date
+                if (data.length != 8) throw EncryptionException.decryptionFailed("Invalid Date data length", null)
+                    .withContext("expectedLength", 8).withContext("actualLength", data.length);
+                long dateTime = ByteBuffer.wrap(data).getLong();
+                Date dateVal = new Date(dateTime);
+                return convertToTargetType(dateVal, targetType);
+                
+            case 9: // Time
+                if (data.length != 8) throw EncryptionException.decryptionFailed("Invalid Time data length", null)
+                    .withContext("expectedLength", 8).withContext("actualLength", data.length);
+                long timeTime = ByteBuffer.wrap(data).getLong();
+                Time timeVal = new Time(timeTime);
+                return convertToTargetType(timeVal, targetType);
+                
+            case 10: // Timestamp
+                if (data.length != 8) throw EncryptionException.decryptionFailed("Invalid Timestamp data length", null)
+                    .withContext("expectedLength", 8).withContext("actualLength", data.length);
+                long tsTime = ByteBuffer.wrap(data).getLong();
+                Timestamp tsVal = new Timestamp(tsTime);
+                return convertToTargetType(tsVal, targetType);
+                
+            case 11: // LocalDate
+                String ldStr = new String(data, StandardCharsets.UTF_8);
+                LocalDate ldVal = LocalDate.parse(ldStr);
+                return convertToTargetType(ldVal, targetType);
+                
+            case 12: // LocalTime
+                String ltStr = new String(data, StandardCharsets.UTF_8);
+                LocalTime ltVal = LocalTime.parse(ltStr);
+                return convertToTargetType(ltVal, targetType);
+                
+            case 13: // LocalDateTime
+                String ldtStr = new String(data, StandardCharsets.UTF_8);
+                LocalDateTime ldtVal = LocalDateTime.parse(ldtStr);
+                return convertToTargetType(ldtVal, targetType);
+                
+            case 14: // byte[]
+                return convertToTargetType(data, targetType);
+                
+            case 99: // Generic object
+                try (ByteArrayInputStream bais = new ByteArrayInputStream(data);
+                     ObjectInputStream ois = new ObjectInputStream(bais)) {
+                    Object obj = ois.readObject();
+                    return convertToTargetType(obj, targetType);
+                }
+                
+            default:
+                throw EncryptionException.decryptionFailed("Unknown type marker: " + typeMarker, null)
+                    .withContext("typeMarker", typeMarker);
+        }
+    }
+    
+    /**
+     * Converts a value to the target type if possible.
+     */
+    private Object convertToTargetType(Object value, Class<?> targetType) throws EncryptionException {
+        if (value == null || targetType == null) {
+            return value;
+        }
+        
+        // If already the correct type, return as-is
+        if (targetType.isAssignableFrom(value.getClass())) {
+            return value;
+        }
+        
+        // Handle Object.class target type (return as-is)
+        if (targetType == Object.class) {
+            return value;
+        }
+        
+        // Handle String conversions
+        if (targetType == String.class) {
+            return value.toString();
+        }
+        
+        // Handle numeric conversions
+        if (value instanceof Number) {
+            Number num = (Number) value;
+            if (targetType == Integer.class || targetType == int.class) {
+                return num.intValue();
+            } else if (targetType == Long.class || targetType == long.class) {
+                return num.longValue();
+            } else if (targetType == Double.class || targetType == double.class) {
+                return num.doubleValue();
+            } else if (targetType == Float.class || targetType == float.class) {
+                return num.floatValue();
+            } else if (targetType == BigDecimal.class) {
+                return BigDecimal.valueOf(num.doubleValue());
+            }
+        }
+        
+        // Handle String to numeric conversions
+        if (value instanceof String) {
+            String str = (String) value;
+            try {
+                if (targetType == Integer.class || targetType == int.class) {
+                    return Integer.valueOf(str);
+                } else if (targetType == Long.class || targetType == long.class) {
+                    return Long.valueOf(str);
+                } else if (targetType == Double.class || targetType == double.class) {
+                    return Double.valueOf(str);
+                } else if (targetType == Float.class || targetType == float.class) {
+                    return Float.valueOf(str);
+                } else if (targetType == BigDecimal.class) {
+                    return new BigDecimal(str);
+                } else if (targetType == Boolean.class || targetType == boolean.class) {
+                    return Boolean.valueOf(str);
+                }
+            } catch (NumberFormatException e) {
+                throw EncryptionException.typeConversionFailed("String", targetType.getSimpleName(), e)
+                    .withContext("stringValue", str.length() > 50 ? str.substring(0, 47) + "..." : str);
+            }
+        }
+        
+        // If no conversion is possible, throw an exception
+        throw EncryptionException.typeConversionFailed(
+            value.getClass().getSimpleName(), 
+            targetType.getSimpleName(), 
+            null);
+    }
+}
