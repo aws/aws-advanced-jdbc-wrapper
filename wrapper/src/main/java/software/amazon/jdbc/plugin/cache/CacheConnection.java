@@ -116,7 +116,7 @@ public class CacheConnection {
       String[] hostnameAndPort = serverAddr.split(":");
       RedisURI redisUriCluster = RedisURI.Builder.redis(hostnameAndPort[0])
           .withPort(Integer.parseInt(hostnameAndPort[1]))
-          .withSsl(useSSL).withVerifyPeer(false).withLibraryName("aws-jdbc-lettuce").build();
+          .withSsl(useSSL).withVerifyPeer(false).withLibraryName("aws-sql-jdbc-lettuce").build();
 
       RedisClient client = RedisClient.create(resources, redisUriCluster);
       GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> pool = new GenericObjectPool<>(

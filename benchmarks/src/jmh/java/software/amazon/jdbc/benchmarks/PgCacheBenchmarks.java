@@ -1,6 +1,7 @@
 package software.amazon.jdbc.benchmarks;
 
 import org.openjdk.jmh.annotations.*;
+import org.openjdk.jmh.infra.Blackhole;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -89,36 +90,54 @@ public class PgCacheBenchmarks {
     }
   }
 
-  private void validateResultSet(ResultSet rs) throws SQLException {
+  private void validateResultSet(ResultSet rs, Blackhole b) throws SQLException {
     while (rs.next()) {
-      assert rs.getInt(1) >= 0;
-      assert rs.getInt(2) >= 0;
-      assert rs.getString(3) != null;
-      assert rs.getString(4) != null;
-      assert rs.getDouble(5) >= 0.0;
-      assert rs.getDate(6) != null;
-      assert rs.getTime(7) != null;
-      assert rs.getTime(8) != null;
-      assert rs.getTimestamp(9) != null;
-      assert rs.getTimestamp(10) != null;
-      assert !rs.wasNull();
+      b.consume(rs.getInt(1));
+      b.consume(rs.getInt(2));
+      b.consume(rs.getString(3));
+      b.consume(rs.getString(4));
+      b.consume(rs.getDouble(5));
+      b.consume(rs.getDate(6));
+      b.consume(rs.getTime(7));
+      b.consume(rs.getTime(8));
+      b.consume(rs.getTimestamp(9));
+      b.consume(rs.getTimestamp(10));
+      b.consume(rs.wasNull());
     }
   }
 
   @Benchmark
-  public void runBenchmarkPrimaryKeyLookup() throws SQLException {
+  public void runBenchmarkPrimaryKeyLookupNoCaching(Blackhole b) throws SQLException {
     try (Statement stmt = connection.createStatement();
-         ResultSet rs = stmt.executeQuery("/*+ CACHE_PARAM(ttl=172800s) */ SELECT * FROM test where id = " + counter)) {
-         validateResultSet(rs);
+         ResultSet rs = stmt.executeQuery("SELECT * FROM test where id = " + counter)) {
+      validateResultSet(rs, b);
     }
     counter++;
   }
 
   @Benchmark
-  public void runBenchmarkNonIndexedLookup() throws SQLException {
+  public void runBenchmarkNonIndexedLookupNoCaching(Blackhole b) throws SQLException {
+    try (Statement stmt = connection.createStatement();
+         ResultSet rs = stmt.executeQuery("SELECT * FROM test where int_col = " + counter*10)) {
+      validateResultSet(rs, b);
+    }
+    counter++;
+  }
+
+  @Benchmark
+  public void runBenchmarkPrimaryKeyLookupWithCaching(Blackhole b) throws SQLException {
+    try (Statement stmt = connection.createStatement();
+         ResultSet rs = stmt.executeQuery("/*+ CACHE_PARAM(ttl=172800s) */ SELECT * FROM test where id = " + counter)) {
+         validateResultSet(rs, b);
+    }
+    counter++;
+  }
+
+  @Benchmark
+  public void runBenchmarkNonIndexedLookupWithCaching(Blackhole b) throws SQLException {
     try (Statement stmt = connection.createStatement();
          ResultSet rs = stmt.executeQuery("/*+ CACHE_PARAM(ttl=172800s) */ SELECT * FROM test where int_col = " + counter*10)) {
-      validateResultSet(rs);
+      validateResultSet(rs, b);
     }
     counter++;
   }

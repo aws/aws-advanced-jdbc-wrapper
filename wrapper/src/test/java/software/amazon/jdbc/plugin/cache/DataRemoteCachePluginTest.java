@@ -197,10 +197,12 @@ public class DataRemoteCachePluginTest {
     when(mockPluginService.isInTransaction()).thenReturn(false);
     when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
     when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
-    when(mockSessionStateService.getSchema()).thenReturn(Optional.empty()).thenReturn(Optional.of("public"));
-    when(mockConnection.getSchema()).thenReturn("public");
-    when(mockDbMetadata.getUserName()).thenReturn("user");
-    when(mockCacheConn.readFromCache("public_user_select * from A")).thenReturn(null);
+    when(mockSessionStateService.getCatalog()).thenReturn(Optional.empty()).thenReturn(Optional.of("mysql"));
+    when(mockSessionStateService.getSchema()).thenReturn(Optional.empty());
+    when(mockConnection.getCatalog()).thenReturn("mysql");
+    when(mockConnection.getSchema()).thenReturn(null);
+    when(mockDbMetadata.getUserName()).thenReturn("user1@1.1.1.1");
+    when(mockCacheConn.readFromCache("mysql_null_user1_select * from A")).thenReturn(null);
     when(mockCallable.call()).thenReturn(mockResult1);
 
     // Result set contains 1 row
@@ -217,7 +219,7 @@ public class DataRemoteCachePluginTest {
 
     rs.beforeFirst();
     byte[] serializedTestResultSet = ((CachedResultSet)rs).serializeIntoByteArray();
-    when(mockCacheConn.readFromCache("public_user_select * from A")).thenReturn(serializedTestResultSet);
+    when(mockCacheConn.readFromCache("mysql_null_user1_select * from A")).thenReturn(serializedTestResultSet);
 
     ResultSet rs2 = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
         methodName, mockCallable, new String[]{" /*+CACHE_PARAM(ttl=50s)*/select * from A"});
@@ -227,13 +229,15 @@ public class DataRemoteCachePluginTest {
     assertFalse(rs2.next());
     verify(mockPluginService, times(3)).getCurrentConnection();
     verify(mockPluginService, times(2)).isInTransaction();
-    verify(mockCacheConn, times(2)).readFromCache("public_user_select * from A");
+    verify(mockCacheConn, times(2)).readFromCache("mysql_null_user1_select * from A");
     verify(mockPluginService, times(3)).getSessionStateService();
+    verify(mockSessionStateService, times(3)).getCatalog();
     verify(mockSessionStateService, times(3)).getSchema();
+    verify(mockConnection).getCatalog();
     verify(mockConnection).getSchema();
-    verify(mockSessionStateService).setSchema("public");
+    verify(mockSessionStateService).setCatalog("mysql");
     verify(mockCallable).call();
-    verify(mockCacheConn).writeToCache(eq("public_user_select * from A"), any(), eq(50));
+    verify(mockCacheConn).writeToCache(eq("mysql_null_user1_select * from A"), any(), eq(50));
     verify(mockTotalQueryCounter, times(2)).inc();
     verify(mockCacheMissCounter, times(1)).inc();
     verify(mockCacheHitCounter, times(1)).inc();
@@ -256,7 +260,9 @@ public class DataRemoteCachePluginTest {
     when(mockPluginService.isInTransaction()).thenReturn(true);
     when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
     when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.getCatalog()).thenReturn(Optional.empty());
     when(mockSessionStateService.getSchema()).thenReturn(Optional.empty());
+    when(mockConnection.getCatalog()).thenReturn("postgres");
     when(mockConnection.getSchema()).thenReturn("public");
     when(mockDbMetadata.getUserName()).thenReturn("user");
     when(mockCallable.call()).thenReturn(mockResult1);
@@ -276,11 +282,14 @@ public class DataRemoteCachePluginTest {
     verify(mockPluginService).isInTransaction();
     verify(mockPluginService).getSessionStateService();
     verify(mockSessionStateService).getSchema();
+    verify(mockSessionStateService).getCatalog();
     verify(mockConnection).getSchema();
+    verify(mockConnection).getCatalog();
     verify(mockSessionStateService).setSchema("public");
+    verify(mockSessionStateService).setCatalog("postgres");
     verify(mockCacheConn, never()).readFromCache(anyString());
     verify(mockCallable).call();
-    verify(mockCacheConn).writeToCache(eq("public_user_select * from T"), any(), eq(300));
+    verify(mockCacheConn).writeToCache(eq("postgres_public_user_select * from T"), any(), eq(300));
     verify(mockTotalQueryCounter, times(1)).inc();
     verify(mockCacheHitCounter, never()).inc();
     verify(mockCacheMissCounter, never()).inc();
@@ -300,9 +309,11 @@ public class DataRemoteCachePluginTest {
     when(mockPluginService.isInTransaction()).thenReturn(true);
     when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
     when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.getCatalog()).thenReturn(Optional.empty());
     when(mockSessionStateService.getSchema()).thenReturn(Optional.empty());
-    when(mockConnection.getSchema()).thenReturn("public");
-    when(mockDbMetadata.getUserName()).thenReturn("user");
+    when(mockConnection.getCatalog()).thenReturn(null);
+    when(mockConnection.getSchema()).thenReturn("mysql");
+    when(mockDbMetadata.getUserName()).thenReturn("user@127.0.0.1");
     when(mockCallable.call()).thenReturn(mockResult1);
 
     // Result set contains 1 row
@@ -318,12 +329,14 @@ public class DataRemoteCachePluginTest {
     verify(mockPluginService).getCurrentConnection();
     verify(mockPluginService).isInTransaction();
     verify(mockPluginService).getSessionStateService();
+    verify(mockSessionStateService).getCatalog();
     verify(mockSessionStateService).getSchema();
     verify(mockConnection).getSchema();
-    verify(mockSessionStateService).setSchema("public");
+    verify(mockConnection).getCatalog();
+    verify(mockSessionStateService).setSchema("mysql");
     verify(mockCacheConn, never()).readFromCache(anyString());
     verify(mockCallable).call();
-    verify(mockCacheConn).writeToCache(eq("public_user_select * from T"), any(), eq(300));
+    verify(mockCacheConn).writeToCache(eq("null_mysql_user_select * from T"), any(), eq(300));
     verify(mockTotalQueryCounter, times(1)).inc();
     verify(mockCacheHitCounter, never()).inc();
     verify(mockCacheMissCounter, never()).inc();
@@ -406,7 +419,7 @@ public class DataRemoteCachePluginTest {
 
     // Query that is BOTH too large AND in transaction - double bypass conditions
     String largeQueryInTransaction = "/*+ CACHE_PARAM(ttl=300s) */ SELECT * FROM table WHERE data = '"
-        + RandomStringUtils.randomAlphanumeric(16000) + "'"; // >16KB AND in transaction
+        + RandomStringUtils.randomAlphanumeric(16384) + "'"; // >16KB AND in transaction
 
     // Execute
     plugin.execute(ResultSet.class, SQLException.class, mockStatement,
@@ -436,10 +449,12 @@ public class DataRemoteCachePluginTest {
     when(mockPluginService.isInTransaction()).thenReturn(false);
     when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
     when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.getCatalog()).thenReturn(Optional.empty());
     when(mockSessionStateService.getSchema()).thenReturn(Optional.empty()).thenReturn(Optional.of("public"));
     when(mockConnection.getSchema()).thenReturn("public");
+    when(mockConnection.getCatalog()).thenReturn(null);
     when(mockDbMetadata.getUserName()).thenReturn("user");
-    when(mockCacheConn.readFromCache("public_user_select * from A")).thenReturn(null);
+    when(mockCacheConn.readFromCache("null_public_user_select * from A")).thenReturn(null);
     when(mockCallable.call()).thenReturn(mockResult1);
 
     // Result set contains 1 row
@@ -456,7 +471,7 @@ public class DataRemoteCachePluginTest {
 
     rs.beforeFirst();
     byte[] serializedTestResultSet = ((CachedResultSet)rs).serializeIntoByteArray();
-    when(mockCacheConn.readFromCache("public_user_select * from A")).thenReturn(serializedTestResultSet);
+    when(mockCacheConn.readFromCache("null_public_user_select * from A")).thenReturn(serializedTestResultSet);
 
     for (int i = 0; i < 10; i ++) {
       ResultSet cur_rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
@@ -469,13 +484,15 @@ public class DataRemoteCachePluginTest {
 
     verify(mockPluginService, times(12)).getCurrentConnection();
     verify(mockPluginService, times(11)).isInTransaction();
-    verify(mockCacheConn, times(11)).readFromCache("public_user_select * from A");
+    verify(mockCacheConn, times(11)).readFromCache("null_public_user_select * from A");
     verify(mockPluginService, times(12)).getSessionStateService();
+    verify(mockSessionStateService, times(12)).getCatalog();
     verify(mockSessionStateService, times(12)).getSchema();
     verify(mockConnection).getSchema();
+    verify(mockConnection).getCatalog();
     verify(mockSessionStateService).setSchema("public");
     verify(mockCallable).call();
-    verify(mockCacheConn).writeToCache(eq("public_user_select * from A"), any(), eq(50));
+    verify(mockCacheConn).writeToCache(eq("null_public_user_select * from A"), any(), eq(50));
     verify(mockTotalQueryCounter, times(11)).inc();
     verify(mockCacheMissCounter, times(1)).inc();
     verify(mockCacheHitCounter, times(10)).inc();
