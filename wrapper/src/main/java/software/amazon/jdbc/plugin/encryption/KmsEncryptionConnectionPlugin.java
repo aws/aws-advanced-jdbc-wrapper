@@ -25,7 +25,30 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
     private final KmsEncryptionPlugin encryptionPlugin;
     private final PluginService pluginService;
 
-    /**
+  public static final String KMS_ENCRYPTION_PLUGIN_CODE = "kmsEncryption";
+
+  // Plugin configuration properties
+  public static final AwsWrapperProperty KMS_KEY_ID = new AwsWrapperProperty(
+      "kmsKeyId",
+      null,
+      "AWS KMS Key ID or ARN for encryption operations");
+
+  public static final AwsWrapperProperty KMS_REGION = new AwsWrapperProperty(
+      "kmsRegion",
+      null,
+      "AWS region for KMS operations");
+
+  public static final AwsWrapperProperty ENCRYPTION_METADATA_TABLE = new AwsWrapperProperty(
+      "encryptionMetadataTable",
+      "encryption_metadata",
+      "Table name for storing encryption metadata");
+
+  public static final AwsWrapperProperty ENABLE_AUDIT_LOGGING = new AwsWrapperProperty(
+      "enableAuditLogging",
+      "false",
+      "Enable audit logging for encryption operations");
+
+  /**
      * Constructor that creates the encryption plugin with PluginService.
      *
      * @param pluginService The PluginService instance from AWS JDBC Wrapper
