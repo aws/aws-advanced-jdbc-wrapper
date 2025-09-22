@@ -82,17 +82,20 @@ public class SessionStateField<T> {
       return false;
     }
     if (this.value.isPresent()) {
-      // it's necessary to restore pristine value only if current session value is not the same as pristine value.
+      // it's necessary to restore pristine value only if current session value is not the same as
+      // pristine value.
       return !(this.value.get().equals(this.pristineValue.get()));
     }
 
-    // it's inconclusive if the current value is the same as pristine value, so we need to take the safest path.
+    // it's inconclusive if the current value is the same as pristine value, so we need to take the
+    // safest path.
     return true;
   }
 
   @Override
   public String toString() {
-    return String.format("%s -> %s",
+    return String.format(
+        "%s -> %s",
         pristineValue.isPresent() ? pristineValue.get() : "(blank)",
         value.isPresent() ? value.get() : "(blank)");
   }

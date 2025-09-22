@@ -28,8 +28,8 @@ import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
 import software.amazon.jdbc.util.StringUtils;
 
 /**
- * An object representing connection info for a given host. Modifiable fields are thread-safe to support sharing this
- * object with the EFM monitor thread.
+ * An object representing connection info for a given host. Modifiable fields are thread-safe to
+ * support sharing this object with the EFM monitor thread.
  */
 public class HostSpec {
 
@@ -55,8 +55,15 @@ public class HostSpec {
       final HostAvailability availability,
       final HostAvailabilityStrategy hostAvailabilityStrategy) {
 
-    this(host, port, hostId, role, availability, DEFAULT_WEIGHT,
-        Timestamp.from(Instant.now()), hostAvailabilityStrategy);
+    this(
+        host,
+        port,
+        hostId,
+        role,
+        availability,
+        DEFAULT_WEIGHT,
+        Timestamp.from(Instant.now()),
+        hostAvailabilityStrategy);
   }
 
   HostSpec(
@@ -84,10 +91,15 @@ public class HostSpec {
    * Creates a copy of the passed in {@link HostSpec} but with the specified role.
    *
    * @param copyHost the host whose details to copy.
-   * @param role     the role of this host (writer or reader).
+   * @param role the role of this host (writer or reader).
    */
   public HostSpec(final HostSpec copyHost, final HostRole role) {
-    this(copyHost.getHost(), copyHost.getPort(), copyHost.getHostId(), role, copyHost.getAvailability(),
+    this(
+        copyHost.getHost(),
+        copyHost.getPort(),
+        copyHost.getHostId(),
+        role,
+        copyHost.getAvailability(),
         copyHost.getHostAvailabilityStrategy());
   }
 
@@ -154,24 +166,28 @@ public class HostSpec {
       return;
     }
 
-    Arrays.asList(alias).forEach(x -> {
-      if (!StringUtils.isNullOrEmpty(x)) {
-        this.aliases.add(x);
-        this.allAliases.add(x);
-      }
-    });
+    Arrays.asList(alias)
+        .forEach(
+            x -> {
+              if (!StringUtils.isNullOrEmpty(x)) {
+                this.aliases.add(x);
+                this.allAliases.add(x);
+              }
+            });
   }
 
   public void removeAlias(final String... alias) {
     if (alias == null || alias.length < 1) {
       return;
     }
-    Arrays.asList(alias).forEach(x -> {
-      if (!StringUtils.isNullOrEmpty(x)) {
-        this.aliases.remove(x);
-        this.allAliases.remove(x);
-      }
-    });
+    Arrays.asList(alias)
+        .forEach(
+            x -> {
+              if (!StringUtils.isNullOrEmpty(x)) {
+                this.aliases.remove(x);
+                this.allAliases.remove(x);
+              }
+            });
   }
 
   public void resetAliases() {
@@ -205,9 +221,16 @@ public class HostSpec {
   }
 
   public String toString() {
-    return String.format("HostSpec@%s [hostId=%s, host=%s, port=%d, %s, %s, weight=%d, %s]",
+    return String.format(
+        "HostSpec@%s [hostId=%s, host=%s, port=%d, %s, %s, weight=%d, %s]",
         Integer.toHexString(System.identityHashCode(this)),
-        this.hostId, this.host, this.port, this.role, this.availability, this.weight, this.lastUpdateTime);
+        this.hostId,
+        this.host,
+        this.port,
+        this.role,
+        this.availability,
+        this.weight,
+        this.lastUpdateTime);
   }
 
   @Override

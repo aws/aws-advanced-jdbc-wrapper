@@ -50,8 +50,7 @@ public class HostMonitorServiceImpl implements HostMonitorService {
           "monitorDisposalTime",
           "600000", // 10min
           "Interval in milliseconds for a monitor to be considered inactive and to be disposed.");
-  protected static final Executor ABORT_EXECUTOR =
-      ExecutorFactory.newSingleThreadExecutor("abort");
+  protected static final Executor ABORT_EXECUTOR = ExecutorFactory.newSingleThreadExecutor("abort");
 
   protected final FullServicesContainer serviceContainer;
   protected final PluginService pluginService;
@@ -64,7 +63,8 @@ public class HostMonitorServiceImpl implements HostMonitorService {
 
   protected HostMonitorKey monitorKey;
 
-  public HostMonitorServiceImpl(final @NonNull FullServicesContainer serviceContainer, final Properties props) {
+  public HostMonitorServiceImpl(
+      final @NonNull FullServicesContainer serviceContainer, final Properties props) {
     this.serviceContainer = serviceContainer;
     this.coreMonitorService = serviceContainer.getMonitorService();
     this.pluginService = serviceContainer.getPluginService();
@@ -84,24 +84,25 @@ public class HostMonitorServiceImpl implements HostMonitorService {
   }
 
   public static void closeAllMonitors() {
-    CoreServicesContainer.getInstance().getMonitorService().stopAndRemoveMonitors(HostMonitorImpl.class);
+    CoreServicesContainer.getInstance()
+        .getMonitorService()
+        .stopAndRemoveMonitors(HostMonitorImpl.class);
   }
 
   @Override
   public HostMonitorConnectionContext startMonitoring(
-      final Connection connectionToAbort,
-      final HostSpec hostSpec,
-      final Properties properties) throws SQLException {
+      final Connection connectionToAbort, final HostSpec hostSpec, final Properties properties)
+      throws SQLException {
     final HostMonitor monitor = this.getMonitor(hostSpec, properties);
-    final HostMonitorConnectionContext context = new HostMonitorConnectionContext(connectionToAbort);
+    final HostMonitorConnectionContext context =
+        new HostMonitorConnectionContext(connectionToAbort);
     monitor.startMonitoring(context);
     return context;
   }
 
   @Override
   public void stopMonitoring(
-      @NonNull final HostMonitorConnectionContext context,
-      @NonNull Connection connectionToAbort) {
+      @NonNull final HostMonitorConnectionContext context, @NonNull Connection connectionToAbort) {
 
     if (context.shouldAbort()) {
       context.setInactive();
@@ -114,9 +115,10 @@ public class HostMonitorServiceImpl implements HostMonitorService {
       } catch (final SQLException sqlEx) {
         // ignore
         LOGGER.finest(
-            () -> Messages.get(
-                "HostMonitorConnectionContext.exceptionAbortingConnection",
-                new Object[] {sqlEx.getMessage()}));
+            () ->
+                Messages.get(
+                    "HostMonitorConnectionContext.exceptionAbortingConnection",
+                    new Object[] {sqlEx.getMessage()}));
       }
     } else {
       context.setInactive();
@@ -136,20 +138,20 @@ public class HostMonitorServiceImpl implements HostMonitorService {
    * @return A {@link HostMonitorImpl} object associated with a specific server.
    * @throws SQLException if there's errors getting or creating a monitor
    */
-  protected HostMonitor getMonitor(
-      final HostSpec hostSpec,
-      final Properties properties) throws SQLException {
+  protected HostMonitor getMonitor(final HostSpec hostSpec, final Properties properties)
+      throws SQLException {
     String hostUrl = hostSpec.getUrl();
     if (this.monitorKey == null || !hostUrl.equals(this.monitorKey.getUrl())) {
       // The URL being monitored has changed, so we need to recalculate the monitor key.
-      this.monitorKey = new HostMonitorKey(
-          hostUrl,
-          String.format("%d:%d:%d:%s",
-              this.failureDetectionTimeMillis,
-              this.failureDetectionIntervalMillis,
-              this.failureDetectionCount,
-              hostUrl)
-      );
+      this.monitorKey =
+          new HostMonitorKey(
+              hostUrl,
+              String.format(
+                  "%d:%d:%d:%s",
+                  this.failureDetectionTimeMillis,
+                  this.failureDetectionIntervalMillis,
+                  this.failureDetectionCount,
+                  hostUrl));
     }
 
     return this.coreMonitorService.runIfAbsent(
@@ -157,14 +159,15 @@ public class HostMonitorServiceImpl implements HostMonitorService {
         this.monitorKey.getKeyValue(),
         this.serviceContainer,
         this.pluginService.getProperties(),
-        (servicesContainer) -> new HostMonitorImpl(
-            servicesContainer,
-            hostSpec,
-            properties,
-            this.failureDetectionTimeMillis,
-            this.failureDetectionIntervalMillis,
-            this.failureDetectionCount,
-            this.abortedConnectionsCounter));
+        (servicesContainer) ->
+            new HostMonitorImpl(
+                servicesContainer,
+                hostSpec,
+                properties,
+                this.failureDetectionTimeMillis,
+                this.failureDetectionIntervalMillis,
+                this.failureDetectionCount,
+                this.abortedConnectionsCounter));
   }
 
   protected static class HostMonitorKey {

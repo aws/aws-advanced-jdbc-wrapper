@@ -40,8 +40,7 @@ public class LimitlessConnectionContext {
       final Connection connection,
       final JdbcCallable<Connection, SQLException> connectFunc,
       final List<HostSpec> limitlessRouters,
-      final ConnectionPlugin plugin
-  ) {
+      final ConnectionPlugin plugin) {
     this.hostSpec = hostSpec;
     this.props = props;
     this.connection = connection;

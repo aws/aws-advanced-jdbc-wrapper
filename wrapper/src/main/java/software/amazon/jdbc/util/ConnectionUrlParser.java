@@ -38,7 +38,8 @@ public class ConnectionUrlParser {
   static final String HOST_PORT_SEPARATOR = ":";
   static final Pattern CONNECTION_STRING_PATTERN =
       Pattern.compile(
-          "(?<protocol>[\\w(\\-)?+:%]+)\\s*" // Driver protocol. "word1:word2:..." or "word1-word2:word3:..."
+          "(?<protocol>[\\w(\\-)?+:%]+)\\s*" // Driver protocol. "word1:word2:..." or
+              // "word1-word2:word3:..."
               + "(?://(?<hosts>[^/?#]*))?\\s*" // Optional list of host(s) starting with // and
               // follows by any char except "/", "?" or "#"
               + "(?:[/?#].*)?"); // Anything starting with either "/", "?" or "#"
@@ -51,9 +52,10 @@ public class ConnectionUrlParser {
   static final Pattern EMPTY_STRING_IN_QUOTATIONS = Pattern.compile("\"(\\s*)\"");
   private static final RdsUtils rdsUtils = new RdsUtils();
 
-  public List<HostSpec> getHostsFromConnectionUrl(final String initialConnection,
-                                                  final boolean singleWriterConnectionString,
-                                                  final Supplier<HostSpecBuilder> hostSpecBuilderSupplier) {
+  public List<HostSpec> getHostsFromConnectionUrl(
+      final String initialConnection,
+      final boolean singleWriterConnectionString,
+      final Supplier<HostSpecBuilder> hostSpecBuilderSupplier) {
     final List<HostSpec> hostsList = new ArrayList<>();
     final Matcher matcher = CONNECTION_STRING_PATTERN.matcher(initialConnection);
     if (!matcher.matches()) {
@@ -81,41 +83,43 @@ public class ConnectionUrlParser {
     return hostsList;
   }
 
-  public static HostSpec parseHostPortPair(final String url, final Supplier<HostSpecBuilder> hostSpecBuilderSupplier) {
+  public static HostSpec parseHostPortPair(
+      final String url, final Supplier<HostSpecBuilder> hostSpecBuilderSupplier) {
     final String[] hostPortPair = url.split(HOST_PORT_SEPARATOR, 2);
     final RdsUrlType urlType = rdsUtils.identifyRdsType(hostPortPair[0]);
-    // Assign HostRole of READER if using the reader cluster URL, otherwise assume a HostRole of WRITER
-    final HostRole hostRole = RdsUrlType.RDS_READER_CLUSTER.equals(urlType) ? HostRole.READER : HostRole.WRITER;
+    // Assign HostRole of READER if using the reader cluster URL, otherwise assume a HostRole of
+    // WRITER
+    final HostRole hostRole =
+        RdsUrlType.RDS_READER_CLUSTER.equals(urlType) ? HostRole.READER : HostRole.WRITER;
     return getHostSpec(hostPortPair, hostRole, hostSpecBuilderSupplier.get());
   }
 
-  public static HostSpec parseHostPortPair(final String url, final HostRole role,
+  public static HostSpec parseHostPortPair(
+      final String url,
+      final HostRole role,
       final Supplier<HostSpecBuilder> hostSpecBuilderSupplier) {
     final String[] hostPortPair = url.split(HOST_PORT_SEPARATOR, 2);
     return getHostSpec(hostPortPair, role, hostSpecBuilderSupplier.get());
   }
 
   /**
-   * Parse strings in the following formats:
-   * "url", for example: "instance-1.XYZ.us-east-2.rds.amazonaws.com"
-   * "url:port", for example: "instance-1.XYZ.us-east-2.rds.amazonaws.com:9999"
-   * "[region_name]url", for example: "us-east-2:instance-1.any-domain.com"
-   * "[region_name]url:port", for example: "us-east-2:instance-1.any-domain.com:9999"
+   * Parse strings in the following formats: "url", for example:
+   * "instance-1.XYZ.us-east-2.rds.amazonaws.com" "url:port", for example:
+   * "instance-1.XYZ.us-east-2.rds.amazonaws.com:9999" "[region_name]url", for example:
+   * "us-east-2:instance-1.any-domain.com" "[region_name]url:port", for example:
+   * "us-east-2:instance-1.any-domain.com:9999"
    *
    * @param urlWithRegionPrefix Url with region prexix
    * @param hostSpecBuilderSupplier A host builder supplier
    * @return A pair of region and HostSpec
    */
   public static Pair<String, HostSpec> parseHostPortPairWithRegionPrefix(
-      final String urlWithRegionPrefix,
-      final Supplier<HostSpecBuilder> hostSpecBuilderSupplier) {
+      final String urlWithRegionPrefix, final Supplier<HostSpecBuilder> hostSpecBuilderSupplier) {
 
     final Matcher matcher = URL_WITH_REGION_PATTERN.matcher(urlWithRegionPrefix);
     if (!matcher.find()) {
       throw new IllegalArgumentException(
-          Messages.get(
-              "ConnectionUrlParser.cantParseUrl",
-              new Object[] {urlWithRegionPrefix}));
+          Messages.get("ConnectionUrlParser.cantParseUrl", new Object[] {urlWithRegionPrefix}));
     }
     String awsRegion = matcher.group("region");
     final String host = matcher.group("domain");
@@ -123,9 +127,7 @@ public class ConnectionUrlParser {
 
     if (StringUtils.isNullOrEmpty(host)) {
       throw new IllegalArgumentException(
-          Messages.get(
-              "ConnectionUrlParser.cantParseHost",
-              new Object[] {urlWithRegionPrefix}));
+          Messages.get("ConnectionUrlParser.cantParseHost", new Object[] {urlWithRegionPrefix}));
     }
 
     if (StringUtils.isNullOrEmpty(awsRegion)) {
@@ -133,23 +135,24 @@ public class ConnectionUrlParser {
       if (StringUtils.isNullOrEmpty(awsRegion)) {
         throw new IllegalArgumentException(
             Messages.get(
-                "ConnectionUrlParser.cantParseAwsRegion",
-                new Object[] {urlWithRegionPrefix}));
+                "ConnectionUrlParser.cantParseAwsRegion", new Object[] {urlWithRegionPrefix}));
       }
     }
 
     final RdsUrlType urlType = rdsUtils.identifyRdsType(host);
 
-    // Assign HostRole of READER if using the reader cluster URL, otherwise assume a HostRole of WRITER
-    final HostRole hostRole = RdsUrlType.RDS_READER_CLUSTER.equals(urlType) ? HostRole.READER : HostRole.WRITER;
-    final String[] hostPortPair = StringUtils.isNullOrEmpty(port)
-        ? new String[] { host }
-        : new String[] { host, port };
-    return Pair.create(awsRegion, getHostSpec(hostPortPair, hostRole, hostSpecBuilderSupplier.get()));
+    // Assign HostRole of READER if using the reader cluster URL, otherwise assume a HostRole of
+    // WRITER
+    final HostRole hostRole =
+        RdsUrlType.RDS_READER_CLUSTER.equals(urlType) ? HostRole.READER : HostRole.WRITER;
+    final String[] hostPortPair =
+        StringUtils.isNullOrEmpty(port) ? new String[] {host} : new String[] {host, port};
+    return Pair.create(
+        awsRegion, getHostSpec(hostPortPair, hostRole, hostSpecBuilderSupplier.get()));
   }
 
-  private static HostSpec getHostSpec(final String[] hostPortPair, final HostRole hostRole,
-      final HostSpecBuilder hostSpecBuilder) {
+  private static HostSpec getHostSpec(
+      final String[] hostPortPair, final HostRole hostRole, final HostSpecBuilder hostSpecBuilder) {
     String hostId = rdsUtils.getRdsInstanceId(hostPortPair[0]);
 
     if (hostPortPair.length > 1) {
@@ -241,7 +244,8 @@ public class ConnectionUrlParser {
       }
 
       // Special handling for empty parameters in the form of [param=\"\"]
-      // Empty parameters would have extra quotations after splitting, i.e. [param, """"], instead of [param, ""]
+      // Empty parameters would have extra quotations after splitting, i.e. [param, """"], instead
+      // of [param, ""]
       final Matcher matcher = EMPTY_STRING_IN_QUOTATIONS.matcher(currentParameterValue);
       if (matcher.matches()) {
         currentParameterValue = "";
@@ -265,7 +269,8 @@ public class ConnectionUrlParser {
     String caseSensitiveSettingStr = props.getProperty(PropertyDefinition.CASE_SENSITIVE.name);
     if (caseSensitiveSettingStr == null) {
       // try low case
-      caseSensitiveSettingStr = props.getProperty(PropertyDefinition.CASE_SENSITIVE.name.toLowerCase());
+      caseSensitiveSettingStr =
+          props.getProperty(PropertyDefinition.CASE_SENSITIVE.name.toLowerCase());
     }
     if (caseSensitiveSettingStr == null) {
       caseSensitiveSettingStr = PropertyDefinition.CASE_SENSITIVE.defaultValue;
@@ -282,7 +287,8 @@ public class ConnectionUrlParser {
       // Try to find a property in case-insensitive manner.
       // Search by "someAwsWrapperPropertyName" -> "someAwsWrapperPropertyName"
       // Search by "someawswrapperpropertyname" -> "someAwsWrapperPropertyName"
-      AwsWrapperProperty awsWrapperProperty = PropertyDefinition.byNameIgnoreCase(entry.getKey().toString());
+      AwsWrapperProperty awsWrapperProperty =
+          PropertyDefinition.byNameIgnoreCase(entry.getKey().toString());
       if (awsWrapperProperty != null) {
         // Use name from AwsWrapperProperty (camel-case): "someAwsWrapperPropertyName"
         props.setProperty(awsWrapperProperty.name, entry.getValue().toString());
@@ -302,9 +308,7 @@ public class ConnectionUrlParser {
       return StringUtils.decode(url);
     } catch (final IllegalArgumentException e) {
       LOGGER.fine(
-          () -> Messages.get(
-              "Driver.urlParsingFailed",
-              new Object[] {url, e.getMessage()}));
+          () -> Messages.get("Driver.urlParsingFailed", new Object[] {url, e.getMessage()}));
     }
 
     // Attempt to use the original value for connection.
@@ -315,9 +319,7 @@ public class ConnectionUrlParser {
     final int index = url.indexOf("//");
     if (index < 0) {
       throw new IllegalArgumentException(
-          Messages.get(
-              "ConnectionUrlParser.protocolNotFound",
-              new Object[] {url}));
+          Messages.get("ConnectionUrlParser.protocolNotFound", new Object[] {url}));
     }
     return url.substring(0, index + 2);
   }

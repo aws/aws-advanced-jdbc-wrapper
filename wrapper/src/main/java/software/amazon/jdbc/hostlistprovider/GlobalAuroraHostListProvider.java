@@ -49,7 +49,9 @@ public class GlobalAuroraHostListProvider extends RdsHostListProvider {
   }
 
   public GlobalAuroraHostListProvider(
-      GlobalAuroraTopologyUtils topologyUtils, Properties properties, String originalUrl,
+      GlobalAuroraTopologyUtils topologyUtils,
+      Properties properties,
+      String originalUrl,
       FullServicesContainer servicesContainer) {
     super(topologyUtils, properties, originalUrl, servicesContainer);
     this.topologyUtils = topologyUtils;
@@ -61,31 +63,36 @@ public class GlobalAuroraHostListProvider extends RdsHostListProvider {
 
     String instanceTemplates = GLOBAL_CLUSTER_INSTANCE_HOST_PATTERNS.getString(properties);
     this.instanceTemplatesByRegion =
-        this.topologyUtils.parseInstanceTemplates(instanceTemplates, this::validateHostPatternSetting);
+        this.topologyUtils.parseInstanceTemplates(
+            instanceTemplates, this::validateHostPatternSetting);
   }
 
   protected ClusterTopologyMonitor getOrCreateMonitor() throws SQLException {
-    return this.servicesContainer.getMonitorService().runIfAbsent(
-        ClusterTopologyMonitorImpl.class,
-        this.clusterId,
-        this.servicesContainer,
-        this.properties,
-        (servicesContainer) ->
-            new GlobalAuroraTopologyMonitor(
-                servicesContainer,
-                this.topologyUtils,
-                this.clusterId,
-                this.initialHostSpec,
-                this.properties,
-                this.instanceTemplate,
-                this.refreshRateNano,
-                this.highRefreshRateNano,
-                this.instanceTemplatesByRegion));
+    return this.servicesContainer
+        .getMonitorService()
+        .runIfAbsent(
+            ClusterTopologyMonitorImpl.class,
+            this.clusterId,
+            this.servicesContainer,
+            this.properties,
+            (servicesContainer) ->
+                new GlobalAuroraTopologyMonitor(
+                    servicesContainer,
+                    this.topologyUtils,
+                    this.clusterId,
+                    this.initialHostSpec,
+                    this.properties,
+                    this.instanceTemplate,
+                    this.refreshRateNano,
+                    this.highRefreshRateNano,
+                    this.instanceTemplatesByRegion));
   }
 
   @Override
-  public List<HostSpec> getCurrentTopology(Connection conn, HostSpec initialHostSpec) throws SQLException {
+  public List<HostSpec> getCurrentTopology(Connection conn, HostSpec initialHostSpec)
+      throws SQLException {
     init();
-    return this.topologyUtils.queryForTopology(conn, initialHostSpec, this.instanceTemplatesByRegion);
+    return this.topologyUtils.queryForTopology(
+        conn, initialHostSpec, this.instanceTemplatesByRegion);
   }
 }

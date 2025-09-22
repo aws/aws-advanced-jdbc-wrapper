@@ -138,8 +138,9 @@ class HostHostMonitorConnectionContextTest {
 
     spyContext.updateConnectionStatus("test-node", statusCheckStartTime, currentTime, isValid);
 
-    verify(spyContext).setConnectionValid(eq("test-node"), eq(isValid), eq(statusCheckStartTime),
-        eq(currentTime));
+    verify(spyContext)
+        .setConnectionValid(
+            eq("test-node"), eq(isValid), eq(statusCheckStartTime), eq(currentTime));
   }
 
   @Test
@@ -152,8 +153,8 @@ class HostHostMonitorConnectionContextTest {
 
     spyContext.updateConnectionStatus("test-node", statusCheckStartTime, currentTime, true);
 
-    verify(spyContext, never()).setConnectionValid(eq("test-node"), eq(true),
-        eq(statusCheckStartTime), eq(currentTime));
+    verify(spyContext, never())
+        .setConnectionValid(eq("test-node"), eq(true), eq(statusCheckStartTime), eq(currentTime));
   }
 
   @Test
@@ -167,7 +168,8 @@ class HostHostMonitorConnectionContextTest {
             FAILURE_DETECTION_COUNT,
             abortedConnectionsCounter);
 
-    doThrow(new SQLException("unexpected SQLException during abort")).when(connectionToAbort)
+    doThrow(new SQLException("unexpected SQLException during abort"))
+        .when(connectionToAbort)
         .close();
 
     // An exception will be thrown inside this call, but it should not be propagated.

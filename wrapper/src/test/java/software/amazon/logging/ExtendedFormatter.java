@@ -1,4 +1,4 @@
-//CHECKSTYLE:OFF
+// CHECKSTYLE:OFF
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -17,7 +17,7 @@
  *
  * Modifications Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  */
-//CHECKSTYLE:ON
+// CHECKSTYLE:ON
 
 package software.amazon.logging;
 
@@ -36,18 +36,13 @@ import java.util.logging.SimpleFormatter;
 public class ExtendedFormatter extends SimpleFormatter {
 
   /**
-   * Format string arguments are presented below.
-   * - ( 1$) the timestamp
-   * - ( 2$) the source
-   * - ( 3$) the logger name
-   * - ( 4$) the log level
-   * - ( 5$) the log message
-   * - ( 6$) the throwable and its backtrace, if any
-   * - ( 7$) the thread name
-   * - ( 8$) the thread ID
+   * Format string arguments are presented below. - ( 1$) the timestamp - ( 2$) the source - ( 3$)
+   * the logger name - ( 4$) the log level - ( 5$) the log message - ( 6$) the throwable and its
+   * backtrace, if any - ( 7$) the thread name - ( 8$) the thread ID
    */
-  private static final String format = LogManager.getLogManager()
-      .getProperty(ExtendedFormatter.class.getName() + ".format");
+  private static final String format =
+      LogManager.getLogManager().getProperty(ExtendedFormatter.class.getName() + ".format");
+
   private final Date dat = new Date();
   private static final int THREAD_NAME_CACHE_SIZE = 10000;
   private static final String UNKNOWN_THREAD_NAME = "Unknown-";
@@ -88,7 +83,8 @@ public class ExtendedFormatter extends SimpleFormatter {
       threadName = getThreadName(record.getThreadID());
     }
 
-    return String.format(format,
+    return String.format(
+        format,
         dat,
         source,
         record.getLoggerName(),

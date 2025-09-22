@@ -21,7 +21,8 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * A container class that holds a cache value together with the time at which the value should be considered expired.
+ * A container class that holds a cache value together with the time at which the value should be
+ * considered expired.
  */
 public class CacheItem<V> {
   protected final @NonNull V item;
@@ -31,7 +32,7 @@ public class CacheItem<V> {
   /**
    * Constructs a CacheItem.
    *
-   * @param item                the item value.
+   * @param item the item value.
    * @param expirationTimeNanos the time at which the CacheItem should be considered expired.
    */
   protected CacheItem(final @NonNull V item, final long expirationTimeNanos) {
@@ -43,13 +44,15 @@ public class CacheItem<V> {
   /**
    * Constructs a CacheItem.
    *
-   * @param item                the item value.
+   * @param item the item value.
    * @param expirationTimeNanos the time at which the CacheItem should be considered expired.
-   * @param shouldDisposeFunc   a function defining whether an expired item should be disposed. If null, items will
-   *                            always be disposed when expired.
+   * @param shouldDisposeFunc a function defining whether an expired item should be disposed. If
+   *     null, items will always be disposed when expired.
    */
   protected CacheItem(
-      final @NonNull V item, final long expirationTimeNanos, @Nullable final ShouldDisposeFunc<V> shouldDisposeFunc) {
+      final @NonNull V item,
+      final long expirationTimeNanos,
+      @Nullable final ShouldDisposeFunc<V> shouldDisposeFunc) {
     this.item = item;
     this.expirationTimeNanos = expirationTimeNanos;
     this.shouldDisposeFunc = shouldDisposeFunc;
@@ -67,21 +70,23 @@ public class CacheItem<V> {
   /**
    * Renews a cache item's expiration time.
    *
-   * @param timeToLiveNanos the duration that the item should sit in the cache before being considered expired, in
-   *                        nanoseconds.
+   * @param timeToLiveNanos the duration that the item should sit in the cache before being
+   *     considered expired, in nanoseconds.
    */
   protected void extendExpiration(long timeToLiveNanos) {
     this.expirationTimeNanos = System.nanoTime() + timeToLiveNanos;
   }
 
   /**
-   * Determines if a cache item should be cleaned up. An item should be cleaned up if it has past its expiration time
-   * and the {@link ShouldDisposeFunc} (if defined) indicates that it should be cleaned up.
+   * Determines if a cache item should be cleaned up. An item should be cleaned up if it has past
+   * its expiration time and the {@link ShouldDisposeFunc} (if defined) indicates that it should be
+   * cleaned up.
    *
    * @return true if the cache item should be cleaned up. Otherwise, returns false.
    */
   protected boolean shouldCleanup() {
-    final boolean isExpired = this.expirationTimeNanos != 0 && System.nanoTime() > this.expirationTimeNanos;
+    final boolean isExpired =
+        this.expirationTimeNanos != 0 && System.nanoTime() > this.expirationTimeNanos;
     if (shouldDisposeFunc != null) {
       return isExpired && shouldDisposeFunc.shouldDispose(this.item);
     }

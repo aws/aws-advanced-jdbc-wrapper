@@ -27,7 +27,6 @@ import software.amazon.jdbc.exceptions.MultiAzDbClusterPgExceptionHandler;
 import software.amazon.jdbc.hostlistprovider.MultiAzTopologyUtils;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.hostlistprovider.TopologyUtils;
-import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.DriverInfo;
 
 public class MultiAzClusterPgDialect extends PgDialect implements MultiAzClusterDialect {
@@ -35,21 +34,24 @@ public class MultiAzClusterPgDialect extends PgDialect implements MultiAzCluster
   protected static final String IS_RDS_CLUSTER_QUERY =
       "SELECT multi_az_db_cluster_source_dbi_resource_id FROM rds_tools.multi_az_db_cluster_source_dbi_resource_id()";
   protected static final String TOPOLOGY_QUERY =
-      "SELECT id, endpoint, port FROM rds_tools.show_topology('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
+      "SELECT id, endpoint, port FROM rds_tools.show_topology('aws_jdbc_driver-"
+          + DriverInfo.DRIVER_VERSION
+          + "')";
 
   // This query returns both instanceId and instanceName.
   // For example: "db-WQFQKBTL2LQUPIEFIFBGENS4ZQ", "test-multiaz-instance-1"
   protected static final String INSTANCE_ID_QUERY =
       "SELECT id, SUBSTRING(endpoint FROM 0 FOR POSITION('.' IN endpoint))"
-      + " FROM rds_tools.show_topology()"
-      + " WHERE id OPERATOR(pg_catalog.=) rds_tools.dbi_resource_id()";
+          + " FROM rds_tools.show_topology()"
+          + " WHERE id OPERATOR(pg_catalog.=) rds_tools.dbi_resource_id()";
   // For reader instances, this query should return a writer instance ID.
   // For a writer instance, this query should return no data.
   protected static final String WRITER_ID_QUERY =
       "SELECT multi_az_db_cluster_source_dbi_resource_id FROM rds_tools.multi_az_db_cluster_source_dbi_resource_id()"
           + " WHERE multi_az_db_cluster_source_dbi_resource_id OPERATOR(pg_catalog.!=)"
           + " (SELECT dbi_resource_id FROM rds_tools.dbi_resource_id())";
-  protected static final String WRITER_ID_QUERY_COLUMN_NAME = "multi_az_db_cluster_source_dbi_resource_id";
+  protected static final String WRITER_ID_QUERY_COLUMN_NAME =
+      "multi_az_db_cluster_source_dbi_resource_id";
   protected static final String IS_READER_QUERY = "SELECT pg_catalog.pg_is_in_recovery()";
 
   private static MultiAzDbClusterPgExceptionHandler exceptionHandler;
@@ -57,7 +59,7 @@ public class MultiAzClusterPgDialect extends PgDialect implements MultiAzCluster
   @Override
   public boolean isDialect(final Connection connection) {
     try (Statement stmt = connection.createStatement();
-         ResultSet rs = stmt.executeQuery(IS_RDS_CLUSTER_QUERY)) {
+        ResultSet rs = stmt.executeQuery(IS_RDS_CLUSTER_QUERY)) {
       return rs.next() && rs.getString(1) != null;
     } catch (final SQLException ex) {
       return false;
@@ -81,7 +83,8 @@ public class MultiAzClusterPgDialect extends PgDialect implements MultiAzCluster
   public HostListProviderSupplier getHostListProviderSupplier() {
     return (properties, initialUrl, servicesContainer) -> {
       final PluginService pluginService = servicesContainer.getPluginService();
-      final TopologyUtils topologyUtils = new MultiAzTopologyUtils(this, pluginService.getHostSpecBuilder());
+      final TopologyUtils topologyUtils =
+          new MultiAzTopologyUtils(this, pluginService.getHostSpecBuilder());
       return new RdsHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
     };
   }

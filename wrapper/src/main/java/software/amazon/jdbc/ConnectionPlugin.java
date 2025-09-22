@@ -27,8 +27,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 
 /**
- * Interface for connection plugins. This class implements ways to execute a JDBC method and to clean up resources used
- * before closing the plugin.
+ * Interface for connection plugins. This class implements ways to execute a JDBC method and to
+ * clean up resources used before closing the plugin.
  */
 public interface ConnectionPlugin {
 
@@ -45,27 +45,27 @@ public interface ConnectionPlugin {
 
   /**
    * Establishes a connection to the given host using the given driver protocol and properties. If a
-   * non-default {@link ConnectionProvider} has been set with
-   * {@link Driver#setCustomConnectionProvider(ConnectionProvider)} and
-   * {@link ConnectionProvider#acceptsUrl(String, HostSpec, Properties)} returns true for the given
+   * non-default {@link ConnectionProvider} has been set with {@link
+   * Driver#setCustomConnectionProvider(ConnectionProvider)} and {@link
+   * ConnectionProvider#acceptsUrl(String, HostSpec, Properties)} returns true for the given
    * protocol, host, and properties, the connection will be created by the non-default
    * ConnectionProvider. Otherwise, the connection will be created by the default
    * ConnectionProvider. The default ConnectionProvider will be {@link DriverConnectionProvider} for
-   * connections requested via the {@link java.sql.DriverManager} and
-   * {@link DataSourceConnectionProvider} for connections requested via an
-   * {@link software.amazon.jdbc.ds.AwsWrapperDataSource}.
+   * connections requested via the {@link java.sql.DriverManager} and {@link
+   * DataSourceConnectionProvider} for connections requested via an {@link
+   * software.amazon.jdbc.ds.AwsWrapperDataSource}.
    *
-   * @param driverProtocol      the driver protocol that should be used to establish the connection
-   * @param hostSpec            the host details for the desired connection
-   * @param props               the connection properties
+   * @param driverProtocol the driver protocol that should be used to establish the connection
+   * @param hostSpec the host details for the desired connection
+   * @param props the connection properties
    * @param isInitialConnection a boolean indicating whether the current {@link Connection} is
-   *                            establishing an initial physical connection to the database or has
-   *                            already established a physical connection in the past
-   * @param connectFunc         the function to call to continue the connect request down the
-   *                            connect pipeline
+   *     establishing an initial physical connection to the database or has already established a
+   *     physical connection in the past
+   * @param connectFunc the function to call to continue the connect request down the connect
+   *     pipeline
    * @return a {@link Connection} to the requested host
    * @throws SQLException if there was an error establishing a {@link Connection} to the requested
-   *                      host
+   *     host
    */
   Connection connect(
       final String driverProtocol,
@@ -77,24 +77,25 @@ public interface ConnectionPlugin {
 
   /**
    * Establishes a connection to the given host using the given driver protocol and properties. This
-   * call differs from {@link ConnectionPlugin#connect} in that the default
-   * {@link ConnectionProvider} will be used to establish the connection even if a non-default
-   * ConnectionProvider has been set via {@link Driver#setCustomConnectionProvider(ConnectionProvider)}.
-   * The default ConnectionProvider will be {@link DriverConnectionProvider} for connections
-   * requested via the {@link java.sql.DriverManager} and {@link DataSourceConnectionProvider} for
-   * connections requested via an {@link software.amazon.jdbc.ds.AwsWrapperDataSource}.
+   * call differs from {@link ConnectionPlugin#connect} in that the default {@link
+   * ConnectionProvider} will be used to establish the connection even if a non-default
+   * ConnectionProvider has been set via {@link
+   * Driver#setCustomConnectionProvider(ConnectionProvider)}. The default ConnectionProvider will be
+   * {@link DriverConnectionProvider} for connections requested via the {@link
+   * java.sql.DriverManager} and {@link DataSourceConnectionProvider} for connections requested via
+   * an {@link software.amazon.jdbc.ds.AwsWrapperDataSource}.
    *
-   * @param driverProtocol      the driver protocol that should be used to establish the connection
-   * @param hostSpec            the host details for the desired connection
-   * @param props               the connection properties
+   * @param driverProtocol the driver protocol that should be used to establish the connection
+   * @param hostSpec the host details for the desired connection
+   * @param props the connection properties
    * @param isInitialConnection a boolean indicating whether the current {@link Connection} is
-   *                            establishing an initial physical connection to the database or has
-   *                            already established a physical connection in the past
-   * @param forceConnectFunc    the function to call to continue the forceConnect request down the
-   *                            forceConnect pipeline
+   *     establishing an initial physical connection to the database or has already established a
+   *     physical connection in the past
+   * @param forceConnectFunc the function to call to continue the forceConnect request down the
+   *     forceConnect pipeline
    * @return a {@link Connection} to the requested host
    * @throws SQLException if there was an error establishing a {@link Connection} to the requested
-   *                      host
+   *     host
    */
   Connection forceConnect(
       final String driverProtocol,
@@ -108,33 +109,32 @@ public interface ConnectionPlugin {
    * Returns a boolean indicating if this {@link ConnectionPlugin} implements the specified host
    * selection strategy for the given role in {@link #getHostSpecByStrategy}.
    *
-   * @param role     the desired host role
+   * @param role the desired host role
    * @param strategy the strategy that should be used to pick a host (eg "random")
-   * @return true if this {@link ConnectionPlugin} supports the selection of a host with the requested role and strategy
-   *     via {@link #getHostSpecByStrategy}. Otherwise, return false.
+   * @return true if this {@link ConnectionPlugin} supports the selection of a host with the
+   *     requested role and strategy via {@link #getHostSpecByStrategy}. Otherwise, return false.
    */
   boolean acceptsStrategy(final @Nullable HostRole role, final String strategy);
 
   /**
    * Selects a {@link HostSpec} with the requested role from available hosts using the requested
-   * strategy. {@link #acceptsStrategy} should be called first to evaluate if this
-   * {@link ConnectionPlugin} supports the selection of a host with the requested role and
-   * strategy.
+   * strategy. {@link #acceptsStrategy} should be called first to evaluate if this {@link
+   * ConnectionPlugin} supports the selection of a host with the requested role and strategy.
    *
-   * @param role     the desired role of the host - either a writer or a reader
+   * @param role the desired role of the host - either a writer or a reader
    * @param strategy the strategy that should be used to select a {@link HostSpec} from the
-   *                 available hosts (eg "random")
+   *     available hosts (eg "random")
    * @return a {@link HostSpec} with the requested role
-   * @throws SQLException                  if the available hosts do not contain any hosts matching
-   *                                       the requested role or an error occurs while selecting a
-   *                                       host
+   * @throws SQLException if the available hosts do not contain any hosts matching the requested
+   *     role or an error occurs while selecting a host
    * @throws UnsupportedOperationException if this {@link ConnectionPlugin} does not support the
-   *                                       requested strategy
+   *     requested strategy
    */
   HostSpec getHostSpecByStrategy(final @Nullable HostRole role, final String strategy)
       throws SQLException, UnsupportedOperationException;
 
-  HostSpec getHostSpecByStrategy(final List<HostSpec> hosts, final @Nullable HostRole role, final String strategy)
+  HostSpec getHostSpecByStrategy(
+      final List<HostSpec> hosts, final @Nullable HostRole role, final String strategy)
       throws SQLException, UnsupportedOperationException;
 
   void initHostProvider(

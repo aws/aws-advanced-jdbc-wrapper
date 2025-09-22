@@ -34,8 +34,12 @@ import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 
 public class HighestWeightHostSelectorTest {
 
-  private static final HostSpec highestWeightHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-      .host("instance-highest-weight").role(HostRole.WRITER).weight(Long.MAX_VALUE).build();
+  private static final HostSpec highestWeightHostSpec =
+      new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+          .host("instance-highest-weight")
+          .role(HostRole.WRITER)
+          .weight(Long.MAX_VALUE)
+          .build();
 
   private static HighestWeightHostSelector highestWeightHostSelector;
   private static Properties props = new Properties();
@@ -48,32 +52,53 @@ public class HighestWeightHostSelectorTest {
   @Test
   void testGetHost_emptyHostList() {
     final List<HostSpec> emptyHostList = Collections.emptyList();
-    assertThrows(SQLException.class, () -> highestWeightHostSelector.getHost(emptyHostList, HostRole.WRITER, props));
+    assertThrows(
+        SQLException.class,
+        () -> highestWeightHostSelector.getHost(emptyHostList, HostRole.WRITER, props));
   }
 
   @Test
   void testGetHost_noEligibleHosts() {
-    final List<HostSpec> noEligibleHostsList = Arrays.asList(
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-1").role(HostRole.READER).build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-2").role(HostRole.READER).build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3").role(HostRole.READER).build()
-    );
-    assertThrows(SQLException.class,
+    final List<HostSpec> noEligibleHostsList =
+        Arrays.asList(
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("instance-1")
+                .role(HostRole.READER)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("instance-2")
+                .role(HostRole.READER)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("instance-3")
+                .role(HostRole.READER)
+                .build());
+    assertThrows(
+        SQLException.class,
         () -> highestWeightHostSelector.getHost(noEligibleHostsList, HostRole.WRITER, props));
   }
 
   @Test
   void testGetHost() throws SQLException {
 
-    final List<HostSpec> hostList = Arrays.asList(
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-1").role(HostRole.WRITER).weight(-100)
-            .build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-2").role(HostRole.WRITER).weight(0)
-            .build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3").role(HostRole.WRITER).weight(100)
-            .build(),
-        highestWeightHostSpec
-    );
+    final List<HostSpec> hostList =
+        Arrays.asList(
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("instance-1")
+                .role(HostRole.WRITER)
+                .weight(-100)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("instance-2")
+                .role(HostRole.WRITER)
+                .weight(0)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("instance-3")
+                .role(HostRole.WRITER)
+                .weight(100)
+                .build(),
+            highestWeightHostSpec);
 
     final HostSpec actualHost = highestWeightHostSelector.getHost(hostList, HostRole.WRITER, props);
 

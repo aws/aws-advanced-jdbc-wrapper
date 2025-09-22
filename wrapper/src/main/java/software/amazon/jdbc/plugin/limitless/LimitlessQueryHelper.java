@@ -47,7 +47,8 @@ public class LimitlessQueryHelper {
     this.pluginService = pluginService;
   }
 
-  public List<HostSpec> queryForLimitlessRouters(final Connection conn, final int hostPortToMap) throws SQLException {
+  public List<HostSpec> queryForLimitlessRouters(final Connection conn, final int hostPortToMap)
+      throws SQLException {
     int networkTimeout = -1;
     try {
       networkTimeout = conn.getNetworkTimeout();
@@ -56,19 +57,24 @@ public class LimitlessQueryHelper {
         conn.setNetworkTimeout(networkTimeoutExecutor, DEFAULT_QUERY_TIMEOUT_MS);
       }
     } catch (SQLException e) {
-      LOGGER.warning(() -> Messages.get("LimitlessRouterMonitor.getNetworkTimeoutError",
-          new Object[] {e.getMessage()}));
+      LOGGER.warning(
+          () ->
+              Messages.get(
+                  "LimitlessRouterMonitor.getNetworkTimeoutError", new Object[] {e.getMessage()}));
     }
 
     final Dialect dialect = this.pluginService.getDialect();
     if (!(dialect instanceof AuroraLimitlessDialect)) {
-      throw new UnsupportedOperationException(Messages.get("LimitlessQueryHelper.unsupportedDialectOrDatabase",
-          new Object[] {dialect}));
+      throw new UnsupportedOperationException(
+          Messages.get(
+              "LimitlessQueryHelper.unsupportedDialectOrDatabase", new Object[] {dialect}));
     }
 
     try (final Statement stmt = conn.createStatement();
-         final ResultSet resultSet = stmt.executeQuery(
-             ((AuroraLimitlessDialect) this.pluginService.getDialect()).getLimitlessRouterEndpointQuery())) {
+        final ResultSet resultSet =
+            stmt.executeQuery(
+                ((AuroraLimitlessDialect) this.pluginService.getDialect())
+                    .getLimitlessRouterEndpointQuery())) {
       return mapResultSetToHostSpecList(resultSet, hostPortToMap);
     } catch (final SQLSyntaxErrorException e) {
       throw new SQLException(Messages.get("LimitlessRouterMonitor.invalidQuery"), e);
@@ -80,8 +86,7 @@ public class LimitlessQueryHelper {
   }
 
   protected List<HostSpec> mapResultSetToHostSpecList(
-      final ResultSet resultSet,
-      final int hostPortToMap) throws SQLException {
+      final ResultSet resultSet, final int hostPortToMap) throws SQLException {
 
     List<HostSpec> hosts = new ArrayList<>();
     while (resultSet.next()) {
@@ -92,7 +97,8 @@ public class LimitlessQueryHelper {
     return hosts;
   }
 
-  protected HostSpec createHost(final ResultSet resultSet, final int hostPortToMap) throws SQLException {
+  protected HostSpec createHost(final ResultSet resultSet, final int hostPortToMap)
+      throws SQLException {
     final String hostName = resultSet.getString(1);
     final float cpu = resultSet.getFloat(2);
 
@@ -100,12 +106,14 @@ public class LimitlessQueryHelper {
 
     if (weight < 1 || weight > 10) {
       weight = 1; // default to 1
-      LOGGER.warning(() -> Messages.get(
-          "LimitlessRouterMonitor.invalidRouterLoad",
-          new Object[] {hostName, cpu}));
+      LOGGER.warning(
+          () ->
+              Messages.get(
+                  "LimitlessRouterMonitor.invalidRouterLoad", new Object[] {hostName, cpu}));
     }
 
-    return this.pluginService.getHostSpecBuilder()
+    return this.pluginService
+        .getHostSpecBuilder()
         .host(hostName)
         .port(hostPortToMap)
         .role(HostRole.WRITER)

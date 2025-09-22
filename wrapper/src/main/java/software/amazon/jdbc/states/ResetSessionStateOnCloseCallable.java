@@ -21,6 +21,7 @@ import java.sql.SQLException;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 public interface ResetSessionStateOnCloseCallable {
-  boolean apply(final @NonNull SessionState sessionState, final @NonNull Connection connectionToClose)
+  boolean apply(
+      final @NonNull SessionState sessionState, final @NonNull Connection connectionToClose)
       throws SQLException;
 }

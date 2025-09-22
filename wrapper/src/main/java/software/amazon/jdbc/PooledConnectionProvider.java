@@ -17,5 +17,4 @@
 package software.amazon.jdbc;
 
 // A marker interface for providers that use connection pools to return requested Connections
-public interface PooledConnectionProvider extends ConnectionProvider {
-}
+public interface PooledConnectionProvider extends ConnectionProvider {}

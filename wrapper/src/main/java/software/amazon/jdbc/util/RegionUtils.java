@@ -24,14 +24,15 @@ public class RegionUtils {
   protected static final RdsUtils rdsUtils = new RdsUtils();
 
   /**
-   * Determines the AWS region from the given parameters. If the region is defined in the properties, that region will
-   * be used. Otherwise, attempts to determine the region from the passed in host.
+   * Determines the AWS region from the given parameters. If the region is defined in the
+   * properties, that region will be used. Otherwise, attempts to determine the region from the
+   * passed in host.
    *
-   * @param host    The host from which to extract the region if it is not defined in the properties.
-   * @param props   The connection properties for the connection being established.
+   * @param host The host from which to extract the region if it is not defined in the properties.
+   * @param props The connection properties for the connection being established.
    * @param propKey The key name of the region property.
-   * @return The AWS region defined by the properties or extracted from the host, or null if the region was not
-   *     defined in the properties and could not be determined from the {@code host}.
+   * @return The AWS region defined by the properties or extracted from the host, or null if the
+   *     region was not defined in the properties and could not be determined from the {@code host}.
    */
   @Nullable
   public Region getRegion(String host, Properties props, String propKey) {
@@ -42,9 +43,10 @@ public class RegionUtils {
   /**
    * Determines the AWS region from the given properties.
    *
-   * @param props   The connection properties for the connection being established.
+   * @param props The connection properties for the connection being established.
    * @param propKey The key name of the region property.
-   * @return The AWS region defined by the properties, or null if the region was not defined in the properties.
+   * @return The AWS region defined by the properties, or null if the region was not defined in the
+   *     properties.
    */
   @Nullable
   public Region getRegion(Properties props, String propKey) {
@@ -60,7 +62,8 @@ public class RegionUtils {
    * Determines the AWS region from the given region string.
    *
    * @param regionString The connection properties for the connection being established.
-   * @return The AWS region of the given region string, or null if the given string was null or empty.
+   * @return The AWS region of the given region string, or null if the given string was null or
+   *     empty.
    */
   public Region getRegionFromRegionString(String regionString) {
     if (StringUtils.isNullOrEmpty(regionString)) {
@@ -70,9 +73,7 @@ public class RegionUtils {
     final Region region = Region.of(regionString);
     if (!Region.regions().contains(region)) {
       throw new RuntimeException(
-          Messages.get(
-              "AwsSdk.unsupportedRegion",
-              new Object[] {regionString}));
+          Messages.get("AwsSdk.unsupportedRegion", new Object[] {regionString}));
     }
 
     return region;

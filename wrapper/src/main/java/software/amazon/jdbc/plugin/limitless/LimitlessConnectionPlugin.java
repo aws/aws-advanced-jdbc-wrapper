@@ -40,39 +40,45 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
 
   private static final Logger LOGGER = Logger.getLogger(LimitlessConnectionPlugin.class.getName());
 
-  public static final AwsWrapperProperty WAIT_FOR_ROUTER_INFO = new AwsWrapperProperty(
-      "limitlessWaitForTransactionRouterInfo",
-      "true",
-      "If the cache of transaction router info is empty and a new connection is made, this property toggles whether "
-          + "the plugin will wait and synchronously fetch transaction router info before selecting a transaction "
-          + "router to connect to, or to fall back to using the provided DB Shard Group endpoint URL.");
-  public static final AwsWrapperProperty GET_ROUTER_RETRY_INTERVAL_MILLIS = new AwsWrapperProperty(
-      "limitlessGetTransactionRouterInfoRetryIntervalMs",
-      "300",
-      "Interval in millis between retries fetching Limitless Transaction Router information.");
-  public static final AwsWrapperProperty GET_ROUTER_MAX_RETRIES = new AwsWrapperProperty(
-      "limitlessGetTransactionRouterInfoMaxRetries",
-      "5",
-      "Max number of connection retries fetching Limitless Transaction Router information.");
-  public static final AwsWrapperProperty INTERVAL_MILLIS = new AwsWrapperProperty(
-      "limitlessTransactionRouterMonitorIntervalMs",
-      "7500",
-      "Interval in millis between polling for Limitless Transaction Routers to the database.");
-  public static final AwsWrapperProperty MAX_RETRIES = new AwsWrapperProperty(
-      "limitlessConnectMaxRetries",
-      "5",
-      "Max number of connection retries the Limitless Connection Plugin will attempt.");
+  public static final AwsWrapperProperty WAIT_FOR_ROUTER_INFO =
+      new AwsWrapperProperty(
+          "limitlessWaitForTransactionRouterInfo",
+          "true",
+          "If the cache of transaction router info is empty and a new connection is made, this property toggles whether "
+              + "the plugin will wait and synchronously fetch transaction router info before selecting a transaction "
+              + "router to connect to, or to fall back to using the provided DB Shard Group endpoint URL.");
+  public static final AwsWrapperProperty GET_ROUTER_RETRY_INTERVAL_MILLIS =
+      new AwsWrapperProperty(
+          "limitlessGetTransactionRouterInfoRetryIntervalMs",
+          "300",
+          "Interval in millis between retries fetching Limitless Transaction Router information.");
+  public static final AwsWrapperProperty GET_ROUTER_MAX_RETRIES =
+      new AwsWrapperProperty(
+          "limitlessGetTransactionRouterInfoMaxRetries",
+          "5",
+          "Max number of connection retries fetching Limitless Transaction Router information.");
+  public static final AwsWrapperProperty INTERVAL_MILLIS =
+      new AwsWrapperProperty(
+          "limitlessTransactionRouterMonitorIntervalMs",
+          "7500",
+          "Interval in millis between polling for Limitless Transaction Routers to the database.");
+  public static final AwsWrapperProperty MAX_RETRIES =
+      new AwsWrapperProperty(
+          "limitlessConnectMaxRetries",
+          "5",
+          "Max number of connection retries the Limitless Connection Plugin will attempt.");
 
   protected final PluginService pluginService;
   protected final Properties properties;
   private final Supplier<LimitlessRouterService> limitlessRouterServiceSupplier;
   private LimitlessRouterService limitlessRouterService;
   private static final Set<String> subscribedMethods =
-      Collections.unmodifiableSet(new HashSet<String>() {
-        {
-          add("connect");
-        }
-      });
+      Collections.unmodifiableSet(
+          new HashSet<String>() {
+            {
+              add("connect");
+            }
+          });
 
   static {
     PropertyDefinition.registerPluginProperties(LimitlessConnectionPlugin.class);
@@ -84,9 +90,9 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   public LimitlessConnectionPlugin(
-      final FullServicesContainer servicesContainer,
-      final @NonNull Properties properties) {
-    this(servicesContainer.getPluginService(),
+      final FullServicesContainer servicesContainer, final @NonNull Properties properties) {
+    this(
+        servicesContainer.getPluginService(),
         properties,
         () -> new LimitlessRouterServiceImpl(servicesContainer, properties));
   }
@@ -99,7 +105,6 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
     this.properties = properties;
     this.limitlessRouterServiceSupplier = limitlessRouterServiceSupplier;
   }
-
 
   @Override
   public Connection connect(
@@ -117,9 +122,10 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
       conn = connectFunc.call();
       final Dialect refreshedDialect = this.pluginService.getDialect();
       if (!(refreshedDialect instanceof AuroraLimitlessDialect)) {
-        throw new UnsupportedOperationException(Messages.get(
-            "LimitlessConnectionPlugin.unsupportedDialectOrDatabase",
-            new Object[] {refreshedDialect}));
+        throw new UnsupportedOperationException(
+            Messages.get(
+                "LimitlessConnectionPlugin.unsupportedDialectOrDatabase",
+                new Object[] {refreshedDialect}));
       }
     }
 
@@ -129,21 +135,16 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
           hostSpec, properties, INTERVAL_MILLIS.getInteger(properties));
     }
 
-    final LimitlessConnectionContext context = new LimitlessConnectionContext(
-        hostSpec,
-        props,
-        conn,
-        connectFunc,
-        null,
-        this);
+    final LimitlessConnectionContext context =
+        new LimitlessConnectionContext(hostSpec, props, conn, connectFunc, null, this);
     this.limitlessRouterService.establishConnection(context);
 
     if (context.getConnection() != null) {
       return context.getConnection();
     }
-    throw new SQLException(Messages.get(
-        "LimitlessConnectionPlugin.failedToConnectToHost",
-        new Object[] {hostSpec.getHost()}));
+    throw new SQLException(
+        Messages.get(
+            "LimitlessConnectionPlugin.failedToConnectToHost", new Object[] {hostSpec.getHost()}));
   }
 
   private void initLimitlessRouterMonitorService() {

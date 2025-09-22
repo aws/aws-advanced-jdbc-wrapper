@@ -68,20 +68,38 @@ class ClusterAwareReaderFailoverHandlerTest {
 
   private AutoCloseable closeable;
   private final Properties properties = new Properties();
-  private final List<HostSpec> defaultHosts = Arrays.asList(
-      new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-          .host("writer").port(1234).role(HostRole.WRITER).build(),
-      new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-          .host("reader1").port(1234).role(HostRole.READER).build(),
-      new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-          .host("reader2").port(1234).role(HostRole.READER).build(),
-      new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-          .host("reader3").port(1234).role(HostRole.READER).build(),
-      new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-          .host("reader4").port(1234).role(HostRole.READER).build(),
-      new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-          .host("reader5").port(1234).role(HostRole.READER).build()
-  );
+  private final List<HostSpec> defaultHosts =
+      Arrays.asList(
+          new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+              .host("writer")
+              .port(1234)
+              .role(HostRole.WRITER)
+              .build(),
+          new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+              .host("reader1")
+              .port(1234)
+              .role(HostRole.READER)
+              .build(),
+          new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+              .host("reader2")
+              .port(1234)
+              .role(HostRole.READER)
+              .build(),
+          new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+              .host("reader3")
+              .port(1234)
+              .role(HostRole.READER)
+              .build(),
+          new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+              .host("reader4")
+              .port(1234)
+              .role(HostRole.READER)
+              .build(),
+          new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+              .host("reader5")
+              .port(1234)
+              .role(HostRole.READER)
+              .build());
 
   @BeforeEach
   void setUp() {
@@ -110,8 +128,7 @@ class ClusterAwareReaderFailoverHandlerTest {
     for (int i = 0; i < hosts.size(); i++) {
       if (i != successHostIndex) {
         final SQLException exception = new SQLException("exception", "08S01", null);
-        when(mockPluginService.forceConnect(hosts.get(i), properties))
-            .thenThrow(exception);
+        when(mockPluginService.forceConnect(hosts.get(i), properties)).thenThrow(exception);
         when(mockPluginService.isNetworkException(exception, null)).thenReturn(true);
       } else {
         when(mockPluginService.forceConnect(hosts.get(i), properties)).thenReturn(mockConnection);
@@ -132,7 +149,8 @@ class ClusterAwareReaderFailoverHandlerTest {
 
     final HostSpec successHost = hosts.get(successHostIndex);
     final Map<String, HostAvailability> availabilityMap = target.getHostAvailabilityMap();
-    Set<String> unavailableHosts = getHostsWithGivenAvailability(availabilityMap, HostAvailability.NOT_AVAILABLE);
+    Set<String> unavailableHosts =
+        getHostsWithGivenAvailability(availabilityMap, HostAvailability.NOT_AVAILABLE);
     assertTrue(unavailableHosts.size() >= 4);
     assertEquals(HostAvailability.AVAILABLE, availabilityMap.get(successHost.getHost()));
   }
@@ -157,10 +175,12 @@ class ClusterAwareReaderFailoverHandlerTest {
     final int currentHostIndex = 2;
     for (HostSpec host : hosts) {
       when(mockPluginService.forceConnect(host, properties))
-          .thenAnswer((Answer<Connection>) invocation -> {
-            Thread.sleep(20000);
-            return mockConnection;
-          });
+          .thenAnswer(
+              (Answer<Connection>)
+                  invocation -> {
+                    Thread.sleep(20000);
+                    return mockConnection;
+                  });
     }
 
     hosts.get(2).setAvailability(HostAvailability.NOT_AVAILABLE);
@@ -189,8 +209,9 @@ class ClusterAwareReaderFailoverHandlerTest {
 
   private ClusterAwareReaderFailoverHandler getSpyFailoverHandler(
       int maxFailoverTimeoutMs, int timeoutMs, boolean isStrictReaderRequired) throws SQLException {
-    ClusterAwareReaderFailoverHandler handler = new ClusterAwareReaderFailoverHandler(
-        mockContainer, properties, maxFailoverTimeoutMs, timeoutMs, isStrictReaderRequired);
+    ClusterAwareReaderFailoverHandler handler =
+        new ClusterAwareReaderFailoverHandler(
+            mockContainer, properties, maxFailoverTimeoutMs, timeoutMs, isStrictReaderRequired);
     ClusterAwareReaderFailoverHandler spyHandler = spy(handler);
     doReturn(mockTask1Container, mockTask2Container).when(spyHandler).newServicesContainer();
     return spyHandler;
@@ -219,7 +240,8 @@ class ClusterAwareReaderFailoverHandlerTest {
     // even number of connection attempts
     // first connection attempt to return succeeds, second attempt cancelled
     // expected test result: successful connection for host at index 2
-    final List<HostSpec> hosts = defaultHosts.subList(0, 3); // 2 connection attempts (writer not attempted)
+    final List<HostSpec> hosts =
+        defaultHosts.subList(0, 3); // 2 connection attempts (writer not attempted)
     final HostSpec slowHost = hosts.get(1);
     final HostSpec fastHost = hosts.get(2);
     when(mockPluginService.forceConnect(slowHost, properties))
@@ -232,7 +254,8 @@ class ClusterAwareReaderFailoverHandlerTest {
     when(mockPluginService.forceConnect(eq(fastHost), eq(properties))).thenReturn(mockConnection);
 
     Dialect mockDialect = Mockito.mock(Dialect.class);
-    when(mockDialect.getFailoverRestrictions()).thenReturn(EnumSet.noneOf(FailoverRestriction.class));
+    when(mockDialect.getFailoverRestrictions())
+        .thenReturn(EnumSet.noneOf(FailoverRestriction.class));
     when(mockPluginService.getDialect()).thenReturn(mockDialect);
 
     final ReaderFailoverHandler target = getSpyFailoverHandler();
@@ -243,7 +266,8 @@ class ClusterAwareReaderFailoverHandlerTest {
     assertEquals(hosts.get(2), result.getHost());
 
     Map<String, HostAvailability> availabilityMap = target.getHostAvailabilityMap();
-    assertTrue(getHostsWithGivenAvailability(availabilityMap, HostAvailability.NOT_AVAILABLE).isEmpty());
+    assertTrue(
+        getHostsWithGivenAvailability(availabilityMap, HostAvailability.NOT_AVAILABLE).isEmpty());
     assertEquals(HostAvailability.AVAILABLE, availabilityMap.get(fastHost.getHost()));
   }
 
@@ -252,11 +276,14 @@ class ClusterAwareReaderFailoverHandlerTest {
     // odd number of connection attempts
     // first connection attempt to return fails
     // expected test result: failure to get reader
-    final List<HostSpec> hosts = defaultHosts.subList(0, 4); // 3 connection attempts (writer not attempted)
-    when(mockPluginService.forceConnect(any(), eq(properties))).thenThrow(new SQLException("exception", "08S01", null));
+    final List<HostSpec> hosts =
+        defaultHosts.subList(0, 4); // 3 connection attempts (writer not attempted)
+    when(mockPluginService.forceConnect(any(), eq(properties)))
+        .thenThrow(new SQLException("exception", "08S01", null));
 
     Dialect mockDialect = Mockito.mock(Dialect.class);
-    when(mockDialect.getFailoverRestrictions()).thenReturn(EnumSet.noneOf(FailoverRestriction.class));
+    when(mockDialect.getFailoverRestrictions())
+        .thenReturn(EnumSet.noneOf(FailoverRestriction.class));
     when(mockPluginService.getDialect()).thenReturn(mockDialect);
 
     final ReaderFailoverHandler target = getSpyFailoverHandler();
@@ -272,7 +299,8 @@ class ClusterAwareReaderFailoverHandlerTest {
     // connection attempts time out before they can succeed
     // first connection attempt to return times out
     // expected test result: failure to get reader
-    final List<HostSpec> hosts = defaultHosts.subList(0, 3); // 2 connection attempts (writer not attempted)
+    final List<HostSpec> hosts =
+        defaultHosts.subList(0, 3); // 2 connection attempts (writer not attempted)
     when(mockPluginService.forceConnect(any(), eq(properties)))
         .thenAnswer(
             (Answer<Connection>)
@@ -286,7 +314,8 @@ class ClusterAwareReaderFailoverHandlerTest {
                 });
 
     Dialect mockDialect = Mockito.mock(Dialect.class);
-    when(mockDialect.getFailoverRestrictions()).thenReturn(EnumSet.noneOf(FailoverRestriction.class));
+    when(mockDialect.getFailoverRestrictions())
+        .thenReturn(EnumSet.noneOf(FailoverRestriction.class));
     when(mockPluginService.getDialect()).thenReturn(mockDialect);
 
     final ClusterAwareReaderFailoverHandler target = getSpyFailoverHandler(60000, 1000, false);
@@ -317,8 +346,7 @@ class ClusterAwareReaderFailoverHandlerTest {
     }
 
     // expecting a writer
-    while (i < hostsByPriority.size()
-        && hostsByPriority.get(i).getRole() == HostRole.WRITER) {
+    while (i < hostsByPriority.size() && hostsByPriority.get(i).getRole() == HostRole.WRITER) {
       i++;
     }
 
@@ -340,7 +368,8 @@ class ClusterAwareReaderFailoverHandlerTest {
     originalHosts.get(5).setAvailability(HostAvailability.NOT_AVAILABLE);
 
     Dialect mockDialect = Mockito.mock(Dialect.class);
-    when(mockDialect.getFailoverRestrictions()).thenReturn(EnumSet.noneOf(FailoverRestriction.class));
+    when(mockDialect.getFailoverRestrictions())
+        .thenReturn(EnumSet.noneOf(FailoverRestriction.class));
     when(mockPluginService.getDialect()).thenReturn(mockDialect);
 
     final ClusterAwareReaderFailoverHandler target = getSpyFailoverHandler();
@@ -367,14 +396,23 @@ class ClusterAwareReaderFailoverHandlerTest {
 
   @Test
   public void testHostFailoverStrictReaderEnabled() throws SQLException {
-    final HostSpec writer = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host("writer").port(1234).role(HostRole.WRITER).build();
-    final HostSpec reader = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host("reader1").port(1234).role(HostRole.READER).build();
+    final HostSpec writer =
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("writer")
+            .port(1234)
+            .role(HostRole.WRITER)
+            .build();
+    final HostSpec reader =
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("reader1")
+            .port(1234)
+            .role(HostRole.READER)
+            .build();
     final List<HostSpec> hosts = Arrays.asList(writer, reader);
 
     Dialect mockDialect = Mockito.mock(Dialect.class);
-    when(mockDialect.getFailoverRestrictions()).thenReturn(EnumSet.noneOf(FailoverRestriction.class));
+    when(mockDialect.getFailoverRestrictions())
+        .thenReturn(EnumSet.noneOf(FailoverRestriction.class));
     when(mockPluginService.getDialect()).thenReturn(mockDialect);
 
     final ClusterAwareReaderFailoverHandler target =
@@ -386,7 +424,8 @@ class ClusterAwareReaderFailoverHandlerTest {
     List<HostSpec> hostsByPriority = target.getHostsByPriority(hosts);
     assertEquals(expectedHostsByPriority, hostsByPriority);
 
-    // Should pick the reader even if unavailable. The writer will be prioritized over the unavailable reader.
+    // Should pick the reader even if unavailable. The writer will be prioritized over the
+    // unavailable reader.
     reader.setAvailability(HostAvailability.NOT_AVAILABLE);
     expectedHostsByPriority = Arrays.asList(writer, reader);
 

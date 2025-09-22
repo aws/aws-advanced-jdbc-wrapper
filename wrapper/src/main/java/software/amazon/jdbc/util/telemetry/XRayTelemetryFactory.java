@@ -20,8 +20,7 @@ public class XRayTelemetryFactory implements TelemetryFactory {
 
   @Override
   public TelemetryContext openTelemetryContext(
-      final String name,
-      final TelemetryTraceLevel traceLevel) {
+      final String name, final TelemetryTraceLevel traceLevel) {
     return new XRayTelemetryContext(name, traceLevel);
   }
 
@@ -48,5 +47,4 @@ public class XRayTelemetryFactory implements TelemetryFactory {
   public boolean inUse() {
     return true;
   }
-
 }

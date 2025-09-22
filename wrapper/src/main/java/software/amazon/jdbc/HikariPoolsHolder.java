@@ -29,18 +29,19 @@ public class HikariPoolsHolder {
             } catch (Exception ex) {
               // ignore
             }
-          }
-      );
+          });
 
   public static void closeAllPools() {
-    databasePools.getEntries().forEach((poolKey, pool) -> {
-      try {
-        pool.close();
-      } catch (Exception ex) {
-        // ignore
-      }
-    });
+    databasePools
+        .getEntries()
+        .forEach(
+            (poolKey, pool) -> {
+              try {
+                pool.close();
+              } catch (Exception ex) {
+                // ignore
+              }
+            });
     databasePools.clear();
-
   }
 }

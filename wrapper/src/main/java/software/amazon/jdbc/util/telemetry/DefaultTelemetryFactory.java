@@ -36,8 +36,10 @@ public class DefaultTelemetryFactory implements TelemetryFactory {
   public DefaultTelemetryFactory(final Properties properties) {
     this.enableTelemetry = PropertyDefinition.ENABLE_TELEMETRY.getBoolean(properties);
     this.telemetryTracesBackend = PropertyDefinition.TELEMETRY_TRACES_BACKEND.getString(properties);
-    this.telemetryMetricsBackend = PropertyDefinition.TELEMETRY_METRICS_BACKEND.getString(properties);
-    this.telemetrySubmitTopLevel = PropertyDefinition.TELEMETRY_SUBMIT_TOPLEVEL.getBoolean(properties);
+    this.telemetryMetricsBackend =
+        PropertyDefinition.TELEMETRY_METRICS_BACKEND.getString(properties);
+    this.telemetrySubmitTopLevel =
+        PropertyDefinition.TELEMETRY_SUBMIT_TOPLEVEL.getBoolean(properties);
 
     if (enableTelemetry) {
       if ("otlp".equalsIgnoreCase(telemetryTracesBackend)) {
@@ -48,7 +50,8 @@ public class DefaultTelemetryFactory implements TelemetryFactory {
         this.tracesTelemetryFactory = null;
       } else {
         throw new RuntimeException(
-            telemetryTracesBackend + " is not a valid tracing backend. Available options: OTLP, XRAY, NONE.");
+            telemetryTracesBackend
+                + " is not a valid tracing backend. Available options: OTLP, XRAY, NONE.");
       }
     } else {
       this.tracesTelemetryFactory = null;
@@ -61,18 +64,20 @@ public class DefaultTelemetryFactory implements TelemetryFactory {
         this.metricsTelemetryFactory = null;
       } else {
         throw new RuntimeException(
-            telemetryMetricsBackend + " is not a valid metrics backend. Available options: OTLP, NONE.");
+            telemetryMetricsBackend
+                + " is not a valid metrics backend. Available options: OTLP, NONE.");
       }
     } else {
       this.metricsTelemetryFactory = null;
     }
 
-    this.telemetryInUse = this.tracesTelemetryFactory != null
-        || this.metricsTelemetryFactory != null;
+    this.telemetryInUse =
+        this.tracesTelemetryFactory != null || this.metricsTelemetryFactory != null;
   }
 
   @Override
-  public TelemetryContext openTelemetryContext(final String name, final TelemetryTraceLevel traceLevel) {
+  public TelemetryContext openTelemetryContext(
+      final String name, final TelemetryTraceLevel traceLevel) {
     if (this.tracesTelemetryFactory == null) {
       return null;
     }

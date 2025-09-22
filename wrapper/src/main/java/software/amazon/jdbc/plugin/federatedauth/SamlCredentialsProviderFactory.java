@@ -32,22 +32,23 @@ import software.amazon.awssdk.services.sts.model.AssumeRoleWithSamlRequest;
 public abstract class SamlCredentialsProviderFactory implements CredentialsProviderFactory {
 
   @Override
-  public AwsCredentialsProvider getAwsCredentialsProvider(final String host, final Region region,
-      final @NonNull Properties props)
-      throws SQLException {
+  public AwsCredentialsProvider getAwsCredentialsProvider(
+      final String host, final Region region, final @NonNull Properties props) throws SQLException {
 
     final String samlAssertion = getSamlAssertion(props);
 
-    final AssumeRoleWithSamlRequest assumeRoleWithSamlRequest =  AssumeRoleWithSamlRequest.builder()
-        .samlAssertion(samlAssertion)
-        .roleArn(IAM_ROLE_ARN.getString(props))
-        .principalArn(IAM_IDP_ARN.getString(props))
-        .build();
+    final AssumeRoleWithSamlRequest assumeRoleWithSamlRequest =
+        AssumeRoleWithSamlRequest.builder()
+            .samlAssertion(samlAssertion)
+            .roleArn(IAM_ROLE_ARN.getString(props))
+            .principalArn(IAM_IDP_ARN.getString(props))
+            .build();
 
-    final StsClient stsClient = StsClient.builder()
-        .credentialsProvider(AnonymousCredentialsProvider.create())
-        .region(region)
-        .build();
+    final StsClient stsClient =
+        StsClient.builder()
+            .credentialsProvider(AnonymousCredentialsProvider.create())
+            .region(region)
+            .build();
 
     return StsAssumeRoleWithSamlCredentialsProvider.builder()
         .refreshRequest(assumeRoleWithSamlRequest)

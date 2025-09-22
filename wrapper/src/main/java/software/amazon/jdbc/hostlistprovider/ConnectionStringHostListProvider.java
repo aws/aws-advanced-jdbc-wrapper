@@ -33,7 +33,8 @@ import software.amazon.jdbc.util.Messages;
 
 public class ConnectionStringHostListProvider implements StaticHostListProvider {
 
-  private static final Logger LOGGER = Logger.getLogger(ConnectionStringHostListProvider.class.getName());
+  private static final Logger LOGGER =
+      Logger.getLogger(ConnectionStringHostListProvider.class.getName());
 
   final List<HostSpec> hostList = new ArrayList<>();
   private boolean isInitialized = false;
@@ -73,11 +74,14 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
       return;
     }
     this.hostList.addAll(
-        this.connectionUrlParser.getHostsFromConnectionUrl(this.initialUrl, this.isSingleWriterConnectionString,
+        this.connectionUrlParser.getHostsFromConnectionUrl(
+            this.initialUrl,
+            this.isSingleWriterConnectionString,
             this.hostListProviderService::getHostSpecBuilder));
     if (this.hostList.isEmpty()) {
-      throw new SQLException(Messages.get("ConnectionStringHostListProvider.parsedListEmpty",
-          new Object[] {this.initialUrl}));
+      throw new SQLException(
+          Messages.get(
+              "ConnectionStringHostListProvider.parsedListEmpty", new Object[] {this.initialUrl}));
     }
 
     this.hostListProviderService.setInitialConnectionHostSpec(this.hostList.get(0));
@@ -85,7 +89,8 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
   }
 
   @Override
-  public List<HostSpec> getCurrentTopology(Connection conn, HostSpec initialHostSpec) throws SQLException {
+  public List<HostSpec> getCurrentTopology(Connection conn, HostSpec initialHostSpec)
+      throws SQLException {
     init();
     return Collections.unmodifiableList(hostList);
   }
@@ -111,7 +116,8 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
 
   @Override
   public HostRole getHostRole(Connection connection) {
-    throw new UnsupportedOperationException("ConnectionStringHostListProvider does not support getHostRole");
+    throw new UnsupportedOperationException(
+        "ConnectionStringHostListProvider does not support getHostRole");
   }
 
   @Override

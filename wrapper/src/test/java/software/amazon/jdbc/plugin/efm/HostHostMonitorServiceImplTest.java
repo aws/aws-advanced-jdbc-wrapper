@@ -92,7 +92,8 @@ class HostHostMonitorServiceImplTest {
     doReturn(task).when(executorService).submit(any(HostMonitor.class));
 
     threadContainer = HostMonitorThreadContainer.getInstance(executorServiceInitializer);
-    monitorService = new HostMonitorServiceImpl(pluginService, monitorInitializer, executorServiceInitializer);
+    monitorService =
+        new HostMonitorServiceImpl(pluginService, monitorInitializer, executorServiceInitializer);
   }
 
   @AfterEach
@@ -192,10 +193,14 @@ class HostHostMonitorServiceImplTest {
     final Set<String> keysB = new HashSet<>(Collections.singletonList("monitorB"));
 
     // Populate threadContainer with MonitorA and MonitorB
-    monitorService.getMonitor(keysA,
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("test").build(), new Properties());
-    monitorService.getMonitor(keysB,
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("test").build(), new Properties());
+    monitorService.getMonitor(
+        keysA,
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("test").build(),
+        new Properties());
+    monitorService.getMonitor(
+        keysB,
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("test").build(),
+        new Properties());
 
     monitorService.stopMonitoringForAllConnections(keysA);
     verify(monitorA).clearContexts();

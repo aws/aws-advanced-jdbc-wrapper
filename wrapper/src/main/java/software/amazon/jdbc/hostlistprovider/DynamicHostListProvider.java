@@ -16,7 +16,9 @@
 
 package software.amazon.jdbc.hostlistprovider;
 
-// A marker interface for providers that can fetch a host list reflecting the current database topology.
-// Examples include providers for Aurora or Multi-AZ clusters, where the cluster topology, status, and instance roles
+// A marker interface for providers that can fetch a host list reflecting the current database
+// topology.
+// Examples include providers for Aurora or Multi-AZ clusters, where the cluster topology, status,
+// and instance roles
 // change over time.
-public interface DynamicHostListProvider extends HostListProvider { }
+public interface DynamicHostListProvider extends HostListProvider {}

@@ -47,51 +47,66 @@ import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
- * A plugin that analyzes custom endpoints for custom endpoint information and custom endpoint changes, such as adding
- * or removing an instance in the custom endpoint.
+ * A plugin that analyzes custom endpoints for custom endpoint information and custom endpoint
+ * changes, such as adding or removing an instance in the custom endpoint.
  */
 public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointPlugin.class.getName());
-  protected static final String TELEMETRY_WAIT_FOR_INFO_COUNTER = "customEndpoint.waitForInfo.counter";
+  protected static final String TELEMETRY_WAIT_FOR_INFO_COUNTER =
+      "customEndpoint.waitForInfo.counter";
   protected static final RegionUtils regionUtils = new RegionUtils();
   protected static final EnumSet<MonitorErrorResponse> monitorErrorResponses =
       EnumSet.of(MonitorErrorResponse.RECREATE);
 
-  public static final AwsWrapperProperty CUSTOM_ENDPOINT_INFO_REFRESH_RATE_MS = new AwsWrapperProperty(
-      "customEndpointInfoRefreshRateMs", "30000",
-      "Controls how frequently custom endpoint monitors fetch custom endpoint info, in milliseconds.");
+  public static final AwsWrapperProperty CUSTOM_ENDPOINT_INFO_REFRESH_RATE_MS =
+      new AwsWrapperProperty(
+          "customEndpointInfoRefreshRateMs",
+          "30000",
+          "Controls how frequently custom endpoint monitors fetch custom endpoint info, in milliseconds.");
 
-  public static final AwsWrapperProperty CUSTOM_ENDPOINT_INFO_REFRESH_RATE_BACKOFF_FACTOR = new AwsWrapperProperty(
-      "customEndpointInfoRefreshRateBackoffFactor", "2",
-      "Controls the exponential backoff factor for the custom endpoint monitor. In the event the custom "
-          + "endpoint monitor encounters a throttling exception from the AWS RDS SDK, the refresh time between fetches "
-          + "for custom endpoint info will increase by this factor. When a successful call is made, it will decrease "
-          + "by the same factor");
+  public static final AwsWrapperProperty CUSTOM_ENDPOINT_INFO_REFRESH_RATE_BACKOFF_FACTOR =
+      new AwsWrapperProperty(
+          "customEndpointInfoRefreshRateBackoffFactor",
+          "2",
+          "Controls the exponential backoff factor for the custom endpoint monitor. In the event the custom "
+              + "endpoint monitor encounters a throttling exception from the AWS RDS SDK, the refresh time between fetches "
+              + "for custom endpoint info will increase by this factor. When a successful call is made, it will decrease "
+              + "by the same factor");
 
-  public static final AwsWrapperProperty CUSTOM_ENDPOINT_INFO_MAX_REFRESH_RATE_MS = new AwsWrapperProperty(
-      "customEndpointInfoMaxRefreshRateMs", "300000",
-      "Controls the maximum time the custom endpoint monitor will wait in between fetches for custom endpoint "
-          + "info, in milliseconds.");
+  public static final AwsWrapperProperty CUSTOM_ENDPOINT_INFO_MAX_REFRESH_RATE_MS =
+      new AwsWrapperProperty(
+          "customEndpointInfoMaxRefreshRateMs",
+          "300000",
+          "Controls the maximum time the custom endpoint monitor will wait in between fetches for custom endpoint "
+              + "info, in milliseconds.");
 
-  public static final AwsWrapperProperty WAIT_FOR_CUSTOM_ENDPOINT_INFO = new AwsWrapperProperty(
-      "waitForCustomEndpointInfo", "true",
-      "Controls whether to wait for custom endpoint info to become available before connecting or executing a "
-          + "method. Waiting is only necessary if a connection to a given custom endpoint has not been opened or used "
-          + "recently. Note that disabling this may result in occasional connections to instances outside of the "
-          + "custom endpoint.");
+  public static final AwsWrapperProperty WAIT_FOR_CUSTOM_ENDPOINT_INFO =
+      new AwsWrapperProperty(
+          "waitForCustomEndpointInfo",
+          "true",
+          "Controls whether to wait for custom endpoint info to become available before connecting or executing a "
+              + "method. Waiting is only necessary if a connection to a given custom endpoint has not been opened or used "
+              + "recently. Note that disabling this may result in occasional connections to instances outside of the "
+              + "custom endpoint.");
 
-  public static final AwsWrapperProperty WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS = new AwsWrapperProperty(
-      "waitForCustomEndpointInfoTimeoutMs", "5000",
-      "Controls the maximum amount of time that the plugin will wait for custom endpoint info to be made "
-          + "available by the custom endpoint monitor, in milliseconds.");
+  public static final AwsWrapperProperty WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS =
+      new AwsWrapperProperty(
+          "waitForCustomEndpointInfoTimeoutMs",
+          "5000",
+          "Controls the maximum amount of time that the plugin will wait for custom endpoint info to be made "
+              + "available by the custom endpoint monitor, in milliseconds.");
 
-  public static final AwsWrapperProperty CUSTOM_ENDPOINT_MONITOR_IDLE_EXPIRATION_MS = new AwsWrapperProperty(
-      "customEndpointMonitorExpirationMs", String.valueOf(TimeUnit.MINUTES.toMillis(15)),
-      "Controls how long a monitor should run without use before expiring and being removed, in milliseconds.");
+  public static final AwsWrapperProperty CUSTOM_ENDPOINT_MONITOR_IDLE_EXPIRATION_MS =
+      new AwsWrapperProperty(
+          "customEndpointMonitorExpirationMs",
+          String.valueOf(TimeUnit.MINUTES.toMillis(15)),
+          "Controls how long a monitor should run without use before expiring and being removed, in milliseconds.");
 
-  public static final AwsWrapperProperty REGION_PROPERTY = new AwsWrapperProperty(
-      "customEndpointRegion", null,
-      "The region of the cluster's custom endpoints. If not specified, the region will be parsed from the URL.");
+  public static final AwsWrapperProperty REGION_PROPERTY =
+      new AwsWrapperProperty(
+          "customEndpointRegion",
+          null,
+          "The region of the cluster's custom endpoints. If not specified, the region will be parsed from the URL.");
 
   static {
     PropertyDefinition.registerPluginProperties(CustomEndpointPlugin.class);
@@ -117,9 +132,10 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
    * Constructs a new CustomEndpointPlugin instance.
    *
    * @param servicesContainer The service container for the services required by this class.
-   * @param props            The properties that the custom endpoint plugin should use.
+   * @param props The properties that the custom endpoint plugin should use.
    */
-  public CustomEndpointPlugin(final FullServicesContainer servicesContainer, final Properties props) {
+  public CustomEndpointPlugin(
+      final FullServicesContainer servicesContainer, final Properties props) {
     this(
         servicesContainer,
         props,
@@ -134,8 +150,8 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
    * Constructs a new CustomEndpointPlugin instance.
    *
    * @param servicesContainer The service container for the services required by this class.
-   * @param props            The properties that the custom endpoint plugin should use.
-   * @param rdsClientFunc    The function to call to obtain an {@link RdsClient} instance.
+   * @param props The properties that the custom endpoint plugin should use.
+   * @param rdsClientFunc The function to call to obtain an {@link RdsClient} instance.
    */
   public CustomEndpointPlugin(
       final FullServicesContainer servicesContainer,
@@ -149,24 +165,28 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     this.rdsClientFunc = rdsClientFunc;
 
     this.shouldWaitForInfo = WAIT_FOR_CUSTOM_ENDPOINT_INFO.getBoolean(this.props);
-    this.waitOnCachedInfoDurationMs = WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS.getInteger(this.props);
-    this.idleMonitorExpirationMs = CUSTOM_ENDPOINT_MONITOR_IDLE_EXPIRATION_MS.getInteger(this.props);
+    this.waitOnCachedInfoDurationMs =
+        WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS.getInteger(this.props);
+    this.idleMonitorExpirationMs =
+        CUSTOM_ENDPOINT_MONITOR_IDLE_EXPIRATION_MS.getInteger(this.props);
 
     TelemetryFactory telemetryFactory = servicesContainer.getTelemetryFactory();
     this.waitForInfoCounter = telemetryFactory.createCounter(TELEMETRY_WAIT_FOR_INFO_COUNTER);
 
     final HashSet<String> methods = new HashSet<>();
     methods.add(JdbcMethod.CONNECT.methodName);
-    methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.props));
+    methods.addAll(
+        this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.props));
     this.subscribedMethods = Collections.unmodifiableSet(methods);
 
-    this.servicesContainer.getMonitorService().registerMonitorTypeIfAbsent(
-        CustomEndpointMonitorImpl.class,
-        TimeUnit.MILLISECONDS.toNanos(this.idleMonitorExpirationMs),
-        TimeUnit.MINUTES.toNanos(1),
-        monitorErrorResponses,
-        CustomEndpointInfo.class
-    );
+    this.servicesContainer
+        .getMonitorService()
+        .registerMonitorTypeIfAbsent(
+            CustomEndpointMonitorImpl.class,
+            TimeUnit.MILLISECONDS.toNanos(this.idleMonitorExpirationMs),
+            TimeUnit.MINUTES.toNanos(1),
+            monitorErrorResponses,
+            CustomEndpointInfo.class);
   }
 
   @Override
@@ -189,7 +209,8 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     this.customEndpointHostSpec = hostSpec;
     LOGGER.finest(
         Messages.get(
-            "CustomEndpointPlugin.connectionRequestToCustomEndpoint", new Object[] {hostSpec.getUrl()}));
+            "CustomEndpointPlugin.connectionRequestToCustomEndpoint",
+            new Object[] {hostSpec.getUrl()}));
 
     this.customEndpointId = this.rdsUtils.getRdsClusterId(customEndpointHostSpec.getHost());
     if (StringUtils.isNullOrEmpty(customEndpointId)) {
@@ -199,12 +220,12 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
               new Object[] {customEndpointHostSpec.getHost()}));
     }
 
-    this.region = regionUtils.getRegion(this.customEndpointHostSpec.getHost(), props, REGION_PROPERTY.name);
+    this.region =
+        regionUtils.getRegion(this.customEndpointHostSpec.getHost(), props, REGION_PROPERTY.name);
     if (this.region == null) {
       throw new SQLException(
           Messages.get(
-              "CustomEndpointPlugin.unableToDetermineRegion",
-              new Object[] {REGION_PROPERTY.name}));
+              "CustomEndpointPlugin.unableToDetermineRegion", new Object[] {REGION_PROPERTY.name}));
     }
 
     CustomEndpointMonitor monitor = createMonitorIfAbsent(props);
@@ -225,38 +246,44 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
    * @throws SQLException if an error occurs while attempting to create the monitor.
    */
   protected CustomEndpointMonitor createMonitorIfAbsent(Properties props) throws SQLException {
-    return this.servicesContainer.getMonitorService().runIfAbsent(
-        CustomEndpointMonitorImpl.class,
-        this.customEndpointHostSpec.getUrl(),
-        this.servicesContainer,
-        this.props,
-        (servicesContainer) -> new CustomEndpointMonitorImpl(
-            servicesContainer.getStorageService(),
-            servicesContainer.getTelemetryFactory(),
-            this.customEndpointHostSpec,
-            this.customEndpointId,
-            this.region,
-            TimeUnit.MILLISECONDS.toNanos(CUSTOM_ENDPOINT_INFO_REFRESH_RATE_MS.getLong(props)),
-            CUSTOM_ENDPOINT_INFO_REFRESH_RATE_BACKOFF_FACTOR.getInteger(props),
-            TimeUnit.MILLISECONDS.toNanos(CUSTOM_ENDPOINT_INFO_MAX_REFRESH_RATE_MS.getLong(props)),
-            this.rdsClientFunc
-        ));
+    return this.servicesContainer
+        .getMonitorService()
+        .runIfAbsent(
+            CustomEndpointMonitorImpl.class,
+            this.customEndpointHostSpec.getUrl(),
+            this.servicesContainer,
+            this.props,
+            (servicesContainer) ->
+                new CustomEndpointMonitorImpl(
+                    servicesContainer.getStorageService(),
+                    servicesContainer.getTelemetryFactory(),
+                    this.customEndpointHostSpec,
+                    this.customEndpointId,
+                    this.region,
+                    TimeUnit.MILLISECONDS.toNanos(
+                        CUSTOM_ENDPOINT_INFO_REFRESH_RATE_MS.getLong(props)),
+                    CUSTOM_ENDPOINT_INFO_REFRESH_RATE_BACKOFF_FACTOR.getInteger(props),
+                    TimeUnit.MILLISECONDS.toNanos(
+                        CUSTOM_ENDPOINT_INFO_MAX_REFRESH_RATE_MS.getLong(props)),
+                    this.rdsClientFunc));
   }
 
-
   /**
-   * If custom endpoint info does not exist for the current custom endpoint, waits a short time for the info to be
-   * made available by the custom endpoint monitor. This is necessary so that other plugins can rely on accurate custom
-   * endpoint info. Since custom endpoint monitors and information are shared, we should not have to wait often.
+   * If custom endpoint info does not exist for the current custom endpoint, waits a short time for
+   * the info to be made available by the custom endpoint monitor. This is necessary so that other
+   * plugins can rely on accurate custom endpoint info. Since custom endpoint monitors and
+   * information are shared, we should not have to wait often.
    *
    * @param monitor A {@link CustomEndpointMonitor} monitor.
-   * @throws SQLException if there's an error getting custom endpoint, or if it takes longer time than anticipated
+   * @throws SQLException if there's an error getting custom endpoint, or if it takes longer time
+   *     than anticipated
    */
   protected void waitForCustomEndpointInfo(CustomEndpointMonitor monitor) throws SQLException {
     boolean hasCustomEndpointInfo = monitor.hasCustomEndpointInfo();
 
     if (!hasCustomEndpointInfo) {
-      // Wait for the monitor to place the custom endpoint info in the cache. This ensures other plugins get accurate
+      // Wait for the monitor to place the custom endpoint info in the cache. This ensures other
+      // plugins get accurate
       // custom endpoint info.
       if (this.waitForInfoCounter != null) {
         this.waitForInfoCounter.inc();
@@ -264,7 +291,9 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
       LOGGER.fine(
           Messages.get(
               "CustomEndpointPlugin.waitingForCustomEndpointInfo",
-              new Object[] {this.customEndpointHostSpec.getUrl(), this.waitOnCachedInfoDurationMs}));
+              new Object[] {
+                this.customEndpointHostSpec.getUrl(), this.waitOnCachedInfoDurationMs
+              }));
       long waitForEndpointInfoTimeoutNano =
           System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(this.waitOnCachedInfoDurationMs);
 
@@ -283,27 +312,32 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
 
       if (!hasCustomEndpointInfo) {
         throw new SQLException(
-            Messages.get("CustomEndpointPlugin.timedOutWaitingForCustomEndpointInfo",
-                new Object[] {this.waitOnCachedInfoDurationMs, this.customEndpointHostSpec.getUrl()}));
+            Messages.get(
+                "CustomEndpointPlugin.timedOutWaitingForCustomEndpointInfo",
+                new Object[] {
+                  this.waitOnCachedInfoDurationMs, this.customEndpointHostSpec.getUrl()
+                }));
       }
     }
   }
 
   /**
-   * Executes the given method via a pipeline of plugins. If a custom endpoint is being used, a monitor for that custom
-   * endpoint will be created if it does not already exist.
+   * Executes the given method via a pipeline of plugins. If a custom endpoint is being used, a
+   * monitor for that custom endpoint will be created if it does not already exist.
    *
-   * @param resultClass    The class of the object returned by the {@code jdbcMethodFunc}.
-   * @param exceptionClass The desired exception class for any exceptions that occur while executing the
-   *                       {@code jdbcMethodFunc}.
+   * @param resultClass The class of the object returned by the {@code jdbcMethodFunc}.
+   * @param exceptionClass The desired exception class for any exceptions that occur while executing
+   *     the {@code jdbcMethodFunc}.
    * @param methodInvokeOn The object that the {@code jdbcMethodFunc} is being invoked on.
-   * @param methodName     The name of the method being invoked.
+   * @param methodName The name of the method being invoked.
    * @param jdbcMethodFunc The execute pipeline to call to invoke the method.
    * @param jdbcMethodArgs The arguments to the method being invoked.
-   * @param <T>            The type of the result returned by the method.
-   * @param <E>            The desired type for any exceptions that occur while executing the {@code jdbcMethodFunc}.
+   * @param <T> The type of the result returned by the method.
+   * @param <E> The desired type for any exceptions that occur while executing the {@code
+   *     jdbcMethodFunc}.
    * @return The result of the method invocation.
-   * @throws E If an exception occurs, either directly in this method, or while executing the {@code jdbcMethodFunc}.
+   * @throws E If an exception occurs, either directly in this method, or while executing the {@code
+   *     jdbcMethodFunc}.
    */
   @Override
   public <T, E extends Exception> T execute(

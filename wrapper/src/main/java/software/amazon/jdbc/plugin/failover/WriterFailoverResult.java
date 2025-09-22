@@ -21,9 +21,7 @@ import java.sql.SQLException;
 import java.util.List;
 import software.amazon.jdbc.HostSpec;
 
-/**
- * This class holds results of Writer Failover Process.
- */
+/** This class holds results of Writer Failover Process. */
 public class WriterFailoverResult {
 
   private final boolean isConnected;

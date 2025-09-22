@@ -48,7 +48,8 @@ public class SuspendConnectRouting extends BaseConnectRouting {
 
   protected String bgdId;
 
-  public SuspendConnectRouting(@Nullable String hostAndPort, @Nullable BlueGreenRole role, final String bgdId) {
+  public SuspendConnectRouting(
+      @Nullable String hostAndPort, @Nullable BlueGreenRole role, final String bgdId) {
     super(hostAndPort, role);
     this.bgdId = bgdId;
   }
@@ -67,8 +68,8 @@ public class SuspendConnectRouting extends BaseConnectRouting {
 
     LOGGER.finest(() -> Messages.get("bgd.inProgressHoldConnect"));
     TelemetryFactory telemetryFactory = pluginService.getTelemetryFactory();
-    TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(TELEMETRY_SWITCHOVER,
-        TelemetryTraceLevel.NESTED);
+    TelemetryContext telemetryContext =
+        telemetryFactory.openTelemetryContext(TELEMETRY_SWITCHOVER, TelemetryTraceLevel.NESTED);
 
     BlueGreenStatus bgStatus = storageService.get(BlueGreenStatus.class, this.bgdId);
 
@@ -93,9 +94,12 @@ public class SuspendConnectRouting extends BaseConnectRouting {
 
       if (bgStatus != null && bgStatus.getCurrentPhase() == BlueGreenPhase.IN_PROGRESS) {
         throw new SQLTimeoutException(
-                Messages.get("bgd.inProgressTryConnectLater", new Object[] {BG_CONNECT_TIMEOUT.getLong(props)}));
+            Messages.get(
+                "bgd.inProgressTryConnectLater", new Object[] {BG_CONNECT_TIMEOUT.getLong(props)}));
       }
-      LOGGER.finest(Messages.get("bgd.switchoverCompleteContinueWithConnect",
+      LOGGER.finest(
+          Messages.get(
+              "bgd.switchoverCompleteContinueWithConnect",
               new Object[] {TimeUnit.NANOSECONDS.toMillis(this.getNanoTime() - holdStartTime)}));
 
     } finally {

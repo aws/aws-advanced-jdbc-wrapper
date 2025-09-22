@@ -23,16 +23,18 @@ import java.sql.Statement;
 
 public class DialectUtils {
   /**
-   * Given a series of existence queries, returns true if they all execute successfully and contain at least one record.
-   * Otherwise, returns false.
+   * Given a series of existence queries, returns true if they all execute successfully and contain
+   * at least one record. Otherwise, returns false.
    *
-   * @param conn             the connection to use for executing the queries.
+   * @param conn the connection to use for executing the queries.
    * @param existenceQueries the queries to check for existing records.
-   * @return true if all queries execute successfully and return at least one record, false otherwise.
+   * @return true if all queries execute successfully and return at least one record, false
+   *     otherwise.
    */
   public boolean checkExistenceQueries(Connection conn, String... existenceQueries) {
     for (String existenceQuery : existenceQueries) {
-      try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(existenceQuery)) {
+      try (Statement stmt = conn.createStatement();
+          ResultSet rs = stmt.executeQuery(existenceQuery)) {
         if (!rs.next()) {
           return false;
         }

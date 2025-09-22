@@ -68,7 +68,8 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 public class ConnectionPluginManagerTests {
 
-  private static final Logger LOGGER = Logger.getLogger(ConnectionPluginManagerTests.class.getName());
+  private static final Logger LOGGER =
+      Logger.getLogger(ConnectionPluginManagerTests.class.getName());
 
   @Mock JdbcCallable<Void, SQLException> mockSqlFunction;
   @Mock ConnectionProvider mockConnectionProvider;
@@ -79,7 +80,8 @@ public class ConnectionPluginManagerTests {
   @Mock PluginManagerService mockPluginManagerService;
   @Mock TargetDriverDialect mockTargetDriverDialect;
 
-  ConfigurationProfile configurationProfile = ConfigurationProfileBuilder.get().withName("test").build();
+  ConfigurationProfile configurationProfile =
+      ConfigurationProfileBuilder.get().withName("test").build();
 
   private AutoCloseable closeable;
 
@@ -95,8 +97,10 @@ public class ConnectionPluginManagerTests {
     when(mockServicesContainer.getPluginManagerService()).thenReturn(mockPluginManagerService);
     when(mockServicesContainer.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
-    when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
-    when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.openTelemetryContext(anyString(), any()))
+        .thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.openTelemetryContext(eq(null), any()))
+        .thenReturn(mockTelemetryContext);
     when(mockPluginService.getTargetDriverDialect()).thenReturn(mockTargetDriverDialect);
     when(mockTargetDriverDialect.getNetworkBoundMethodNames(any())).thenReturn(new HashSet<>());
   }
@@ -116,8 +120,8 @@ public class ConnectionPluginManagerTests {
     final Object[] testArgs = new Object[] {10, "arg2", 3.33};
 
     final ConnectionPluginManager target =
-        new ConnectionPluginManager(mockConnectionProvider,
-            null, testProperties, testPlugins, mockTelemetryFactory);
+        new ConnectionPluginManager(
+            mockConnectionProvider, null, testProperties, testPlugins, mockTelemetryFactory);
 
     final Object result =
         target.execute(
@@ -158,8 +162,8 @@ public class ConnectionPluginManagerTests {
     final Object[] testArgs = new Object[] {10, "arg2", 3.33};
 
     final ConnectionPluginManager target =
-        new ConnectionPluginManager(mockConnectionProvider,
-            null, testProperties, testPlugins, mockTelemetryFactory);
+        new ConnectionPluginManager(
+            mockConnectionProvider, null, testProperties, testPlugins, mockTelemetryFactory);
 
     final Object result =
         target.execute(
@@ -198,8 +202,8 @@ public class ConnectionPluginManagerTests {
     final Object[] testArgs = new Object[] {10, "arg2", 3.33};
 
     final ConnectionPluginManager target =
-        new ConnectionPluginManager(mockConnectionProvider,
-            null, testProperties, testPlugins, mockTelemetryFactory);
+        new ConnectionPluginManager(
+            mockConnectionProvider, null, testProperties, testPlugins, mockTelemetryFactory);
 
     final Object result =
         target.execute(
@@ -235,12 +239,16 @@ public class ConnectionPluginManagerTests {
 
     final Properties testProperties = new Properties();
     final ConnectionPluginManager target =
-        new ConnectionPluginManager(mockConnectionProvider,
-            null, testProperties, testPlugins, mockTelemetryFactory);
+        new ConnectionPluginManager(
+            mockConnectionProvider, null, testProperties, testPlugins, mockTelemetryFactory);
 
-    final Connection conn = target.connect("any",
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(), testProperties,
-        true, null);
+    final Connection conn =
+        target.connect(
+            "any",
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
+            testProperties,
+            true,
+            null);
 
     assertEquals(expectedConnection, conn);
     assertEquals(4, calls.size());
@@ -267,12 +275,16 @@ public class ConnectionPluginManagerTests {
 
     final Properties testProperties = new Properties();
     final ConnectionPluginManager target =
-        new ConnectionPluginManager(mockConnectionProvider,
-            null, testProperties, testPlugins, mockTelemetryFactory);
+        new ConnectionPluginManager(
+            mockConnectionProvider, null, testProperties, testPlugins, mockTelemetryFactory);
 
-    final Connection conn = target.connect("any",
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(), testProperties,
-        true, pluginOne);
+    final Connection conn =
+        target.connect(
+            "any",
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
+            testProperties,
+            true,
+            pluginOne);
 
     assertEquals(expectedConnection, conn);
     assertEquals(2, calls.size());
@@ -290,21 +302,26 @@ public class ConnectionPluginManagerTests {
     // TestPluginOne is not an AuthenticationConnectionPlugin.
     testPlugins.add(new TestPluginOne(calls));
 
-    // TestPluginTwo is an AuthenticationConnectionPlugin, but it's not subscribed to "forceConnect" method.
+    // TestPluginTwo is an AuthenticationConnectionPlugin, but it's not subscribed to "forceConnect"
+    // method.
     testPlugins.add(new TestPluginTwo(calls));
 
-    // TestPluginThree is an AuthenticationConnectionPlugin, and it's subscribed to "forceConnect" method.
+    // TestPluginThree is an AuthenticationConnectionPlugin, and it's subscribed to "forceConnect"
+    // method.
     testPlugins.add(new TestPluginThree(calls, expectedConnection));
 
     final Properties testProperties = new Properties();
     final ConnectionPluginManager target =
-        new ConnectionPluginManager(mockConnectionProvider,
-            null, testProperties, testPlugins, mockTelemetryFactory);
+        new ConnectionPluginManager(
+            mockConnectionProvider, null, testProperties, testPlugins, mockTelemetryFactory);
 
-    final Connection conn = target.forceConnect("any",
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(), testProperties,
-        true,
-        null);
+    final Connection conn =
+        target.forceConnect(
+            "any",
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
+            testProperties,
+            true,
+            null);
 
     // Expecting only TestPluginThree to participate in forceConnect().
     assertEquals(expectedConnection, conn);
@@ -328,13 +345,18 @@ public class ConnectionPluginManagerTests {
 
     final Properties testProperties = new Properties();
     final ConnectionPluginManager target =
-        new ConnectionPluginManager(mockConnectionProvider,
-            null, testProperties, testPlugins, mockTelemetryFactory);
+        new ConnectionPluginManager(
+            mockConnectionProvider, null, testProperties, testPlugins, mockTelemetryFactory);
 
     assertThrows(
         SQLException.class,
-        () -> target.connect("any", new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
-            testProperties, true, null));
+        () ->
+            target.connect(
+                "any",
+                new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
+                testProperties,
+                true,
+                null));
 
     assertEquals(2, calls.size());
     assertEquals("TestPluginOne:before connect", calls.get(0));
@@ -354,13 +376,18 @@ public class ConnectionPluginManagerTests {
 
     final Properties testProperties = new Properties();
     final ConnectionPluginManager target =
-        new ConnectionPluginManager(mockConnectionProvider,
-            null, testProperties, testPlugins, mockTelemetryFactory);
+        new ConnectionPluginManager(
+            mockConnectionProvider, null, testProperties, testPlugins, mockTelemetryFactory);
 
     assertThrows(
         SQLException.class,
-        () -> target.connect("any", new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
-            testProperties, true, null));
+        () ->
+            target.connect(
+                "any",
+                new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
+                testProperties,
+                true,
+                null));
 
     assertEquals(5, calls.size());
     assertEquals("TestPluginOne:before connect", calls.get(0));
@@ -383,14 +410,18 @@ public class ConnectionPluginManagerTests {
 
     final Properties testProperties = new Properties();
     final ConnectionPluginManager target =
-        new ConnectionPluginManager(mockConnectionProvider,
-            null, testProperties, testPlugins, mockTelemetryFactory);
+        new ConnectionPluginManager(
+            mockConnectionProvider, null, testProperties, testPlugins, mockTelemetryFactory);
 
     assertThrows(
         IllegalArgumentException.class,
-        () -> target.connect("any",
-            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
-            testProperties, true, null));
+        () ->
+            target.connect(
+                "any",
+                new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
+                testProperties,
+                true,
+                null));
 
     assertEquals(2, calls.size());
     assertEquals("TestPluginOne:before connect", calls.get(0));
@@ -410,14 +441,18 @@ public class ConnectionPluginManagerTests {
 
     final Properties testProperties = new Properties();
     final ConnectionPluginManager target =
-        new ConnectionPluginManager(mockConnectionProvider,
-            null, testProperties, testPlugins, mockTelemetryFactory);
+        new ConnectionPluginManager(
+            mockConnectionProvider, null, testProperties, testPlugins, mockTelemetryFactory);
 
     assertThrows(
         IllegalArgumentException.class,
-        () -> target.connect("any",
-            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
-            testProperties, true, null));
+        () ->
+            target.connect(
+                "any",
+                new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
+                testProperties,
+                true,
+                null));
 
     assertEquals(5, calls.size());
     assertEquals("TestPluginOne:before connect", calls.get(0));
@@ -441,9 +476,10 @@ public class ConnectionPluginManagerTests {
 
     final Object[] testArgs = new Object[] {10, "arg2", 3.33};
 
-    final ConnectionPluginManager target = Mockito.spy(
-        new ConnectionPluginManager(mockConnectionProvider,
-            null, testProperties, testPlugins, mockTelemetryFactory));
+    final ConnectionPluginManager target =
+        Mockito.spy(
+            new ConnectionPluginManager(
+                mockConnectionProvider, null, testProperties, testPlugins, mockTelemetryFactory));
 
     Object result =
         target.execute(
@@ -510,21 +546,17 @@ public class ConnectionPluginManagerTests {
     testPlugins.add(new TestPluginTwo(calls));
     testPlugins.add(new TestPluginThree(calls, mockConnection));
 
-    final HostSpec testHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host("test-instance").build();
+    final HostSpec testHostSpec =
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("test-instance").build();
 
     final Properties testProperties = new Properties();
 
-    final ConnectionPluginManager target = Mockito.spy(
-        new ConnectionPluginManager(mockConnectionProvider,
-            null, testProperties, testPlugins, mockTelemetryFactory));
+    final ConnectionPluginManager target =
+        Mockito.spy(
+            new ConnectionPluginManager(
+                mockConnectionProvider, null, testProperties, testPlugins, mockTelemetryFactory));
 
-    Object result = target.forceConnect(
-        "any",
-        testHostSpec,
-        testProperties,
-        true,
-        null);
+    Object result = target.forceConnect("any", testHostSpec, testProperties, true, null);
 
     assertEquals(mockConnection, result);
 
@@ -539,12 +571,7 @@ public class ConnectionPluginManagerTests {
 
     calls.clear();
 
-    result = target.forceConnect(
-        "any",
-        testHostSpec,
-        testProperties,
-        true,
-        null);
+    result = target.forceConnect("any", testHostSpec, testProperties, true, null);
 
     assertEquals(mockConnection, result);
 
@@ -562,14 +589,17 @@ public class ConnectionPluginManagerTests {
   public void testDefaultPlugins() throws SQLException {
     final Properties testProperties = new Properties();
 
-    final ConnectionPluginManager target = Mockito.spy(new ConnectionPluginManager(
-        testProperties, mockTelemetryFactory, mockConnectionProvider, null));
+    final ConnectionPluginManager target =
+        Mockito.spy(
+            new ConnectionPluginManager(
+                testProperties, mockTelemetryFactory, mockConnectionProvider, null));
     target.initPlugins(mockServicesContainer, configurationProfile);
 
     assertEquals(5, target.plugins.size());
     assertEquals(AuroraInitialConnectionStrategyPlugin.class, target.plugins.get(0).getClass());
     assertEquals(AuroraConnectionTrackerPlugin.class, target.plugins.get(1).getClass());
-    assertEquals(software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin.class,
+    assertEquals(
+        software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin.class,
         target.plugins.get(2).getClass());
     assertEquals(HostMonitoringConnectionPlugin.class, target.plugins.get(3).getClass());
     assertEquals(DefaultConnectionPlugin.class, target.plugins.get(4).getClass());
@@ -580,8 +610,10 @@ public class ConnectionPluginManagerTests {
     final Properties testProperties = new Properties();
     testProperties.setProperty(PropertyDefinition.PLUGINS.name, "");
 
-    final ConnectionPluginManager target = Mockito.spy(new ConnectionPluginManager(
-        testProperties, mockTelemetryFactory, mockConnectionProvider, null));
+    final ConnectionPluginManager target =
+        Mockito.spy(
+            new ConnectionPluginManager(
+                testProperties, mockTelemetryFactory, mockConnectionProvider, null));
     target.initPlugins(mockServicesContainer, configurationProfile);
 
     assertEquals(1, target.plugins.size());
@@ -592,8 +624,10 @@ public class ConnectionPluginManagerTests {
     final Properties testProperties = new Properties();
     testProperties.setProperty("wrapperPlugins", "logQuery");
 
-    final ConnectionPluginManager target = Mockito.spy(new ConnectionPluginManager(
-        testProperties, mockTelemetryFactory, mockConnectionProvider, null));
+    final ConnectionPluginManager target =
+        Mockito.spy(
+            new ConnectionPluginManager(
+                testProperties, mockTelemetryFactory, mockConnectionProvider, null));
     target.initPlugins(mockServicesContainer, configurationProfile);
 
     assertEquals(2, target.plugins.size());
@@ -619,11 +653,14 @@ public class ConnectionPluginManagerTests {
     final TelemetryFactory mockTelemetryFactory1 = Mockito.mock(TelemetryFactory.class);
     final Object object1 = new Object();
     when(mockPluginService1.getTelemetryFactory()).thenReturn(mockTelemetryFactory1);
-    when(mockTelemetryFactory1.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
-    when(mockTelemetryFactory1.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory1.openTelemetryContext(anyString(), any()))
+        .thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory1.openTelemetryContext(eq(null), any()))
+        .thenReturn(mockTelemetryContext);
 
-    final ConnectionPluginManager pluginManager1 = new ConnectionPluginManager(
-        mockConnectionProvider1, null, testProperties, testPlugins, mockTelemetryFactory1);
+    final ConnectionPluginManager pluginManager1 =
+        new ConnectionPluginManager(
+            mockConnectionProvider1, null, testProperties, testPlugins, mockTelemetryFactory1);
     final ConnectionProvider mockConnectionProvider2 = Mockito.mock(ConnectionProvider.class);
     final ConnectionWrapper mockConnectionWrapper2 = Mockito.mock(ConnectionWrapper.class);
     final PluginService mockPluginService2 = Mockito.mock(PluginService.class);
@@ -635,11 +672,14 @@ public class ConnectionPluginManagerTests {
     final TelemetryFactory mockTelemetryFactory2 = Mockito.mock(TelemetryFactory.class);
     final Object object2 = new Object();
     when(mockPluginService2.getTelemetryFactory()).thenReturn(mockTelemetryFactory2);
-    when(mockTelemetryFactory2.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
-    when(mockTelemetryFactory2.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory2.openTelemetryContext(anyString(), any()))
+        .thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory2.openTelemetryContext(eq(null), any()))
+        .thenReturn(mockTelemetryContext);
 
-    final ConnectionPluginManager pluginManager2 = new ConnectionPluginManager(
-        mockConnectionProvider2, null, testProperties, testPlugins, mockTelemetryFactory2);
+    final ConnectionPluginManager pluginManager2 =
+        new ConnectionPluginManager(
+            mockConnectionProvider2, null, testProperties, testPlugins, mockTelemetryFactory2);
 
     // Imaginary database resource is considered "locked" when latch is 0
     final CountDownLatch waitForDbResourceLocked = new CountDownLatch(1);
@@ -650,94 +690,98 @@ public class ConnectionPluginManagerTests {
 
     CompletableFuture.allOf(
 
-        // Thread 1
-        CompletableFuture.runAsync(() -> {
+            // Thread 1
+            CompletableFuture.runAsync(
+                () -> {
+                  LOGGER.info("thread-1: started");
 
-          LOGGER.info("thread-1: started");
+                  WrapperUtils.executeWithPlugins(
+                      Integer.class,
+                      mockConnectionWrapper1,
+                      pluginManager1,
+                      object1,
+                      JdbcMethod.BLOB_POSITION, // any JdbcMethod that locks connection
+                      () -> {
+                        dbResourceLock.lock();
+                        waitForDbResourceLocked.countDown();
+                        LOGGER.info("thread-1: locked");
+                        return 1;
+                      });
 
-          WrapperUtils.executeWithPlugins(
-              Integer.class,
-              mockConnectionWrapper1,
-              pluginManager1,
-              object1,
-              JdbcMethod.BLOB_POSITION, // any JdbcMethod that locks connection
-              () -> {
-                dbResourceLock.lock();
-                waitForDbResourceLocked.countDown();
-                LOGGER.info("thread-1: locked");
-                return 1;
-              });
+                  LOGGER.info("thread-1: waiting for thread-2");
+                  try {
+                    waitForReleaseDbResourceToProceed.await();
+                  } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                  }
+                  LOGGER.info("thread-1: continue");
 
-          LOGGER.info("thread-1: waiting for thread-2");
-          try {
-            waitForReleaseDbResourceToProceed.await();
-          } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-          }
-          LOGGER.info("thread-1: continue");
+                  WrapperUtils.executeWithPlugins(
+                      Integer.class,
+                      mockConnectionWrapper1,
+                      pluginManager1,
+                      object1,
+                      JdbcMethod.BLOB_TRUNCATE, // any JdbcMethod that locks connection
+                      () -> {
+                        dbResourceLock.unlock();
+                        dbResourceReleased.set(true);
+                        LOGGER.info("thread-1: unlocked");
+                        return 1;
+                      });
+                  LOGGER.info("thread-1: completed");
+                }),
 
-          WrapperUtils.executeWithPlugins(
-              Integer.class,
-              mockConnectionWrapper1,
-              pluginManager1,
-              object1,
-              JdbcMethod.BLOB_TRUNCATE, // any JdbcMethod that locks connection
-              () -> {
-                dbResourceLock.unlock();
-                dbResourceReleased.set(true);
-                LOGGER.info("thread-1: unlocked");
-                return 1;
-              });
-          LOGGER.info("thread-1: completed");
-        }),
+            // Thread 2
+            CompletableFuture.runAsync(
+                () -> {
+                  LOGGER.info("thread-2: started");
+                  LOGGER.info("thread-2: waiting for thread-1");
+                  try {
+                    waitForDbResourceLocked.await();
+                  } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                  }
+                  LOGGER.info("thread-2: continue");
 
-        // Thread 2
-        CompletableFuture.runAsync(() -> {
-
-          LOGGER.info("thread-2: started");
-          LOGGER.info("thread-2: waiting for thread-1");
-          try {
-            waitForDbResourceLocked.await();
-          } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-          }
-          LOGGER.info("thread-2: continue");
-
-          WrapperUtils.executeWithPlugins(
-              Integer.class,
-              mockConnectionWrapper2,
-              pluginManager2,
-              object2,
-              JdbcMethod.BLOB_LENGTH, // any JdbcMethod that locks connection
-              () -> {
-                waitForReleaseDbResourceToProceed.countDown();
-                LOGGER.info("thread-2: try to acquire a lock");
-                try {
-                  acquireDbResourceLockSuccessful.set(dbResourceLock.tryLock(5, TimeUnit.SECONDS));
-                } catch (InterruptedException e) {
-                  throw new RuntimeException(e);
-                }
-                return 1;
-              });
-          LOGGER.info("thread-2: completed");
-        })
-    ).join();
+                  WrapperUtils.executeWithPlugins(
+                      Integer.class,
+                      mockConnectionWrapper2,
+                      pluginManager2,
+                      object2,
+                      JdbcMethod.BLOB_LENGTH, // any JdbcMethod that locks connection
+                      () -> {
+                        waitForReleaseDbResourceToProceed.countDown();
+                        LOGGER.info("thread-2: try to acquire a lock");
+                        try {
+                          acquireDbResourceLockSuccessful.set(
+                              dbResourceLock.tryLock(5, TimeUnit.SECONDS));
+                        } catch (InterruptedException e) {
+                          throw new RuntimeException(e);
+                        }
+                        return 1;
+                      });
+                  LOGGER.info("thread-2: completed");
+                }))
+        .join();
 
     assertTrue(dbResourceReleased.get());
     assertTrue(acquireDbResourceLockSuccessful.get());
   }
 
   @Test
-  public void testGetHostSpecByStrategy_givenPluginWithNoSubscriptions_thenThrowsSqlException() throws SQLException {
+  public void testGetHostSpecByStrategy_givenPluginWithNoSubscriptions_thenThrowsSqlException()
+      throws SQLException {
     final ConnectionPlugin mockPlugin = mock(ConnectionPlugin.class);
     when(mockPlugin.getSubscribedMethods()).thenReturn(Collections.emptySet());
-    when(mockPlugin.getHostSpecByStrategy(any(), any())).thenThrow(new UnsupportedOperationException());
+    when(mockPlugin.getHostSpecByStrategy(any(), any()))
+        .thenThrow(new UnsupportedOperationException());
 
     final List<ConnectionPlugin> testPlugins = Collections.singletonList(mockPlugin);
 
     final Properties testProperties = new Properties();
-    final ConnectionPluginManager connectionPluginManager = new ConnectionPluginManager(
-        mockConnectionProvider, null, testProperties, testPlugins, mockTelemetryFactory);
+    final ConnectionPluginManager connectionPluginManager =
+        new ConnectionPluginManager(
+            mockConnectionProvider, null, testProperties, testPlugins, mockTelemetryFactory);
 
     final HostRole inputHostRole = HostRole.WRITER;
     final String inputStrategy = "someStrategy";
@@ -748,17 +792,20 @@ public class ConnectionPluginManagerTests {
   }
 
   @Test
-  public void testGetHostSpecByStrategy_givenPluginWithDiffSubscription_thenThrowsSqlException() throws SQLException {
+  public void testGetHostSpecByStrategy_givenPluginWithDiffSubscription_thenThrowsSqlException()
+      throws SQLException {
     final ConnectionPlugin mockPlugin = mock(ConnectionPlugin.class);
     when(mockPlugin.getSubscribedMethods())
         .thenReturn(new HashSet<>(Collections.singletonList(JdbcMethod.CONNECT.methodName)));
-    when(mockPlugin.getHostSpecByStrategy(any(), any())).thenThrow(new UnsupportedOperationException());
+    when(mockPlugin.getHostSpecByStrategy(any(), any()))
+        .thenThrow(new UnsupportedOperationException());
 
     final List<ConnectionPlugin> testPlugins = Collections.singletonList(mockPlugin);
 
     final Properties testProperties = new Properties();
-    final ConnectionPluginManager connectionPluginManager = new ConnectionPluginManager(
-        mockConnectionProvider, null, testProperties, testPlugins, mockTelemetryFactory);
+    final ConnectionPluginManager connectionPluginManager =
+        new ConnectionPluginManager(
+            mockConnectionProvider, null, testProperties, testPlugins, mockTelemetryFactory);
 
     final HostRole inputHostRole = HostRole.WRITER;
     final String inputStrategy = "someStrategy";
@@ -769,17 +816,20 @@ public class ConnectionPluginManagerTests {
   }
 
   @Test
-  public void testGetHostSpecByStrategy_givenUnsupportedPlugin_thenThrowsSqlException() throws SQLException {
+  public void testGetHostSpecByStrategy_givenUnsupportedPlugin_thenThrowsSqlException()
+      throws SQLException {
     final ConnectionPlugin mockPlugin = mock(ConnectionPlugin.class);
     when(mockPlugin.getSubscribedMethods())
         .thenReturn(new HashSet<>(Collections.singletonList(JdbcMethod.ALL.methodName)));
-    when(mockPlugin.getHostSpecByStrategy(any(), any())).thenThrow(new UnsupportedOperationException());
+    when(mockPlugin.getHostSpecByStrategy(any(), any()))
+        .thenThrow(new UnsupportedOperationException());
 
     final List<ConnectionPlugin> testPlugins = Collections.singletonList(mockPlugin);
 
     final Properties testProperties = new Properties();
-    final ConnectionPluginManager connectionPluginManager = new ConnectionPluginManager(
-        mockConnectionProvider, null, testProperties, testPlugins, mockTelemetryFactory);
+    final ConnectionPluginManager connectionPluginManager =
+        new ConnectionPluginManager(
+            mockConnectionProvider, null, testProperties, testPlugins, mockTelemetryFactory);
 
     final HostRole inputHostRole = HostRole.WRITER;
     final String inputStrategy = "someStrategy";
@@ -790,25 +840,28 @@ public class ConnectionPluginManagerTests {
   }
 
   @Test
-  public void testGetHostSpecByStrategy_givenSupportedSubscribedPlugin_thenThrowsSqlException() throws SQLException {
+  public void testGetHostSpecByStrategy_givenSupportedSubscribedPlugin_thenThrowsSqlException()
+      throws SQLException {
     final ConnectionPlugin mockPlugin = mock(ConnectionPlugin.class);
 
     when(mockPlugin.getSubscribedMethods())
         .thenReturn(new HashSet<>(Collections.singletonList(JdbcMethod.ALL.methodName)));
 
-    final HostSpec expectedHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host("expected-instance").build();
+    final HostSpec expectedHostSpec =
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("expected-instance").build();
     when(mockPlugin.getHostSpecByStrategy(any(), any())).thenReturn(expectedHostSpec);
 
     final List<ConnectionPlugin> testPlugins = Collections.singletonList(mockPlugin);
 
     final Properties testProperties = new Properties();
-    final ConnectionPluginManager connectionPluginManager = new ConnectionPluginManager(
-        mockConnectionProvider, null, testProperties, testPlugins, mockTelemetryFactory);
+    final ConnectionPluginManager connectionPluginManager =
+        new ConnectionPluginManager(
+            mockConnectionProvider, null, testProperties, testPlugins, mockTelemetryFactory);
 
     final HostRole inputHostRole = HostRole.WRITER;
     final String inputStrategy = "someStrategy";
-    final HostSpec actualHostSpec = connectionPluginManager.getHostSpecByStrategy(inputHostRole, inputStrategy);
+    final HostSpec actualHostSpec =
+        connectionPluginManager.getHostSpecByStrategy(inputHostRole, inputStrategy);
 
     verify(mockPlugin, times(1)).getHostSpecByStrategy(inputHostRole, inputStrategy);
     assertEquals(expectedHostSpec, actualHostSpec);
@@ -822,8 +875,13 @@ public class ConnectionPluginManagerTests {
     final ConnectionPlugin unsupportedSubscribedPlugin1 = mock(ConnectionPlugin.class);
     final ConnectionPlugin supportedSubscribedPlugin = mock(ConnectionPlugin.class);
 
-    final List<ConnectionPlugin> testPlugins = Arrays.asList(unsubscribedPlugin0, unsupportedSubscribedPlugin0,
-        unsubscribedPlugin1, unsupportedSubscribedPlugin1, supportedSubscribedPlugin);
+    final List<ConnectionPlugin> testPlugins =
+        Arrays.asList(
+            unsubscribedPlugin0,
+            unsupportedSubscribedPlugin0,
+            unsubscribedPlugin1,
+            unsupportedSubscribedPlugin1,
+            supportedSubscribedPlugin);
 
     when(unsubscribedPlugin0.getSubscribedMethods()).thenReturn(Collections.emptySet());
     when(unsubscribedPlugin1.getSubscribedMethods())
@@ -831,28 +889,35 @@ public class ConnectionPluginManagerTests {
     when(unsupportedSubscribedPlugin0.getSubscribedMethods())
         .thenReturn(new HashSet<>(Collections.singletonList(JdbcMethod.ALL.methodName)));
     when(unsupportedSubscribedPlugin1.getSubscribedMethods())
-        .thenReturn(new HashSet<>(Collections.singletonList(JdbcMethod.GETHOSTSPECBYSTRATEGY.methodName)));
+        .thenReturn(
+            new HashSet<>(Collections.singletonList(JdbcMethod.GETHOSTSPECBYSTRATEGY.methodName)));
     when(supportedSubscribedPlugin.getSubscribedMethods())
-        .thenReturn(new HashSet<>(Collections.singletonList(JdbcMethod.GETHOSTSPECBYSTRATEGY.methodName)));
+        .thenReturn(
+            new HashSet<>(Collections.singletonList(JdbcMethod.GETHOSTSPECBYSTRATEGY.methodName)));
 
-    when(unsubscribedPlugin0.getHostSpecByStrategy(any(), any())).thenThrow(new UnsupportedOperationException());
-    when(unsubscribedPlugin1.getHostSpecByStrategy(any(), any())).thenThrow(new UnsupportedOperationException());
+    when(unsubscribedPlugin0.getHostSpecByStrategy(any(), any()))
+        .thenThrow(new UnsupportedOperationException());
+    when(unsubscribedPlugin1.getHostSpecByStrategy(any(), any()))
+        .thenThrow(new UnsupportedOperationException());
     when(unsupportedSubscribedPlugin0.getHostSpecByStrategy(any(), any()))
         .thenThrow(new UnsupportedOperationException());
     when(unsupportedSubscribedPlugin1.getHostSpecByStrategy(any(), any()))
         .thenThrow(new UnsupportedOperationException());
 
-    final HostSpec expectedHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host("expected-instance").build();
-    when(supportedSubscribedPlugin.getHostSpecByStrategy(any(), any())).thenReturn(expectedHostSpec);
+    final HostSpec expectedHostSpec =
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("expected-instance").build();
+    when(supportedSubscribedPlugin.getHostSpecByStrategy(any(), any()))
+        .thenReturn(expectedHostSpec);
 
     final Properties testProperties = new Properties();
-    final ConnectionPluginManager connectionPluginManager = new ConnectionPluginManager(
-        mockConnectionProvider, null, testProperties, testPlugins, mockTelemetryFactory);
+    final ConnectionPluginManager connectionPluginManager =
+        new ConnectionPluginManager(
+            mockConnectionProvider, null, testProperties, testPlugins, mockTelemetryFactory);
 
     final HostRole inputHostRole = HostRole.WRITER;
     final String inputStrategy = "someStrategy";
-    final HostSpec actualHostSpec = connectionPluginManager.getHostSpecByStrategy(inputHostRole, inputStrategy);
+    final HostSpec actualHostSpec =
+        connectionPluginManager.getHostSpecByStrategy(inputHostRole, inputStrategy);
 
     verify(supportedSubscribedPlugin, times(1)).getHostSpecByStrategy(inputHostRole, inputStrategy);
     assertEquals(expectedHostSpec, actualHostSpec);
@@ -866,8 +931,13 @@ public class ConnectionPluginManagerTests {
     final ConnectionPlugin unsupportedSubscribedPlugin1 = mock(ConnectionPlugin.class);
     final ConnectionPlugin supportedSubscribedPlugin = mock(ConnectionPlugin.class);
 
-    final List<ConnectionPlugin> testPlugins = Arrays.asList(unsubscribedPlugin0, unsupportedSubscribedPlugin0,
-        unsubscribedPlugin1, unsupportedSubscribedPlugin1, supportedSubscribedPlugin);
+    final List<ConnectionPlugin> testPlugins =
+        Arrays.asList(
+            unsubscribedPlugin0,
+            unsupportedSubscribedPlugin0,
+            unsubscribedPlugin1,
+            unsupportedSubscribedPlugin1,
+            supportedSubscribedPlugin);
 
     when(unsubscribedPlugin0.getSubscribedMethods()).thenReturn(Collections.emptySet());
     when(unsubscribedPlugin1.getSubscribedMethods())
@@ -875,33 +945,43 @@ public class ConnectionPluginManagerTests {
     when(unsupportedSubscribedPlugin0.getSubscribedMethods())
         .thenReturn(new HashSet<>(Collections.singletonList(JdbcMethod.ALL.methodName)));
     when(unsupportedSubscribedPlugin1.getSubscribedMethods())
-        .thenReturn(new HashSet<>(Collections.singletonList(JdbcMethod.GETHOSTSPECBYSTRATEGY.methodName)));
+        .thenReturn(
+            new HashSet<>(Collections.singletonList(JdbcMethod.GETHOSTSPECBYSTRATEGY.methodName)));
     when(supportedSubscribedPlugin.getSubscribedMethods())
-        .thenReturn(new HashSet<>(Collections.singletonList(JdbcMethod.GETHOSTSPECBYSTRATEGY.methodName)));
+        .thenReturn(
+            new HashSet<>(Collections.singletonList(JdbcMethod.GETHOSTSPECBYSTRATEGY.methodName)));
 
-    when(unsubscribedPlugin0.getHostSpecByStrategy(any(), any(), any())).thenThrow(new UnsupportedOperationException());
-    when(unsubscribedPlugin1.getHostSpecByStrategy(any(), any(), any())).thenThrow(new UnsupportedOperationException());
+    when(unsubscribedPlugin0.getHostSpecByStrategy(any(), any(), any()))
+        .thenThrow(new UnsupportedOperationException());
+    when(unsubscribedPlugin1.getHostSpecByStrategy(any(), any(), any()))
+        .thenThrow(new UnsupportedOperationException());
     when(unsupportedSubscribedPlugin0.getHostSpecByStrategy(any(), any(), any()))
         .thenThrow(new UnsupportedOperationException());
     when(unsupportedSubscribedPlugin1.getHostSpecByStrategy(any(), any(), any()))
         .thenThrow(new UnsupportedOperationException());
 
-    final HostSpec expectedHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host("expected-instance").build();
-    when(supportedSubscribedPlugin.getHostSpecByStrategy(any(), any(), any())).thenReturn(expectedHostSpec);
+    final HostSpec expectedHostSpec =
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("expected-instance").build();
+    when(supportedSubscribedPlugin.getHostSpecByStrategy(any(), any(), any()))
+        .thenReturn(expectedHostSpec);
 
     final Properties testProperties = new Properties();
-    final ConnectionPluginManager connectionPluginManager = new ConnectionPluginManager(
-        mockConnectionProvider, null, testProperties, testPlugins, mockTelemetryFactory);
+    final ConnectionPluginManager connectionPluginManager =
+        new ConnectionPluginManager(
+            mockConnectionProvider, null, testProperties, testPlugins, mockTelemetryFactory);
 
-    final List<HostSpec> inputHosts = Collections.singletonList(
-            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("expected-instance").build());
+    final List<HostSpec> inputHosts =
+        Collections.singletonList(
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("expected-instance")
+                .build());
     final HostRole inputHostRole = HostRole.WRITER;
     final String inputStrategy = "someStrategy";
     final HostSpec actualHostSpec =
         connectionPluginManager.getHostSpecByStrategy(inputHosts, inputHostRole, inputStrategy);
 
-    verify(supportedSubscribedPlugin, times(1)).getHostSpecByStrategy(inputHosts, inputHostRole, inputStrategy);
+    verify(supportedSubscribedPlugin, times(1))
+        .getHostSpecByStrategy(inputHosts, inputHostRole, inputStrategy);
     assertEquals(expectedHostSpec, actualHostSpec);
   }
 }

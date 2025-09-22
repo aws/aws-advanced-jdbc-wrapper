@@ -33,9 +33,9 @@ import software.amazon.jdbc.PropertyDefinition;
 
 public class PropertyUtils {
   private static final Logger LOGGER = Logger.getLogger(PropertyUtils.class.getName());
-  private static final Set<Object> SECRET_PROPERTIES = Collections.unmodifiableSet(
-      new HashSet<>(Collections.singletonList(PropertyDefinition.PASSWORD.name))
-  );
+  private static final Set<Object> SECRET_PROPERTIES =
+      Collections.unmodifiableSet(
+          new HashSet<>(Collections.singletonList(PropertyDefinition.PASSWORD.name)));
 
   public static void applyProperties(final Object target, final Properties properties) {
     if (target == null || properties == null) {
@@ -104,7 +104,8 @@ public class PropertyUtils {
         writeMethod.invoke(target, propValue);
       }
       Object cleanPropValue = isSecretProperty(propName) ? "***" : propValue;
-      LOGGER.finest(() -> String.format("Set property '%s' with value: %s", propName, cleanPropValue));
+      LOGGER.finest(
+          () -> String.format("Set property '%s' with value: %s", propName, cleanPropValue));
 
     } catch (final InvocationTargetException ex) {
       LOGGER.warning(
@@ -175,8 +176,7 @@ public class PropertyUtils {
   }
 
   public static Integer getIntegerPropertyValue(
-      final @NonNull Properties props,
-      final @NonNull AwsWrapperProperty wrapperProperty) {
+      final @NonNull Properties props, final @NonNull AwsWrapperProperty wrapperProperty) {
 
     Integer result = null;
     if (!StringUtils.isNullOrEmpty(wrapperProperty.getString(props))) {
@@ -186,8 +186,7 @@ public class PropertyUtils {
   }
 
   public static Boolean getBooleanPropertyValue(
-      final @NonNull Properties props,
-      final @NonNull AwsWrapperProperty wrapperProperty) {
+      final @NonNull Properties props, final @NonNull AwsWrapperProperty wrapperProperty) {
 
     Boolean result = null;
     if (!StringUtils.isNullOrEmpty(wrapperProperty.getString(props))) {

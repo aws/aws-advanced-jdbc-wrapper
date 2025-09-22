@@ -42,9 +42,7 @@ public class OpenTelemetryContext implements TelemetryContext {
   private final Tracer tracer;
 
   public OpenTelemetryContext(
-      final Tracer tracer,
-      final String name,
-      final TelemetryTraceLevel traceLevel) {
+      final Tracer tracer, final String name, final TelemetryTraceLevel traceLevel) {
     this(tracer, name, traceLevel, getEpochNanos(Instant.now()));
   }
 
@@ -67,26 +65,32 @@ public class OpenTelemetryContext implements TelemetryContext {
     switch (effectiveTraceLevel) {
       case FORCE_TOP_LEVEL:
       case TOP_LEVEL:
-        span = this.tracer.spanBuilder(name)
-            .setNoParent()
-            .setStartTimestamp(startTimeNanos, TimeUnit.NANOSECONDS)
-            .startSpan();
+        span =
+            this.tracer
+                .spanBuilder(name)
+                .setNoParent()
+                .setStartTimestamp(startTimeNanos, TimeUnit.NANOSECONDS)
+                .startSpan();
         if (!isRoot) {
           this.setAttribute(
-              TelemetryConst.PARENT_TRACE_ANNOTATION,
-              span.getSpanContext().getTraceId());
+              TelemetryConst.PARENT_TRACE_ANNOTATION, span.getSpanContext().getTraceId());
         }
         this.setAttribute(TelemetryConst.TRACE_NAME_ANNOTATION, name);
         scope = span.makeCurrent();
-        LOGGER.finest(() -> String.format(
-            "[OTLP] Telemetry '%s' trace ID: %s", name, span.getSpanContext().getTraceId()));
+        LOGGER.finest(
+            () ->
+                String.format(
+                    "[OTLP] Telemetry '%s' trace ID: %s",
+                    name, span.getSpanContext().getTraceId()));
 
         break;
 
       case NESTED:
-        span = this.tracer.spanBuilder(name)
-            .setStartTimestamp(startTimeNanos, TimeUnit.NANOSECONDS)
-            .startSpan();
+        span =
+            this.tracer
+                .spanBuilder(name)
+                .setStartTimestamp(startTimeNanos, TimeUnit.NANOSECONDS)
+                .startSpan();
         this.setAttribute(TelemetryConst.TRACE_NAME_ANNOTATION, name);
         scope = span.makeCurrent();
         break;
@@ -122,11 +126,8 @@ public class OpenTelemetryContext implements TelemetryContext {
   public void setException(Exception exception) {
     if (span != null && exception != null) {
       span.setAttribute(
-          TelemetryConst.EXCEPTION_TYPE_ANNOTATION,
-          exception.getClass().getSimpleName());
-      span.setAttribute(
-          TelemetryConst.EXCEPTION_MESSAGE_ANNOTATION,
-          exception.getMessage());
+          TelemetryConst.EXCEPTION_TYPE_ANNOTATION, exception.getClass().getSimpleName());
+      span.setAttribute(TelemetryConst.EXCEPTION_MESSAGE_ANNOTATION, exception.getMessage());
       span.recordException(exception);
     }
   }
@@ -142,8 +143,7 @@ public class OpenTelemetryContext implements TelemetryContext {
   }
 
   public static void postCopy(
-      final OpenTelemetryContext telemetryContext,
-      final TelemetryTraceLevel traceLevel) {
+      final OpenTelemetryContext telemetryContext, final TelemetryTraceLevel traceLevel) {
 
     if (traceLevel == TelemetryTraceLevel.NO_TRACE) {
       return;
@@ -152,11 +152,14 @@ public class OpenTelemetryContext implements TelemetryContext {
     if (traceLevel == TelemetryTraceLevel.FORCE_TOP_LEVEL
         || traceLevel == TelemetryTraceLevel.TOP_LEVEL) {
 
-      // post a copy context in a separate lambda/thread, so it's not connected to a current context.
-      CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-        OpenTelemetryContext copy = clone(telemetryContext, traceLevel);
-        copy.closeContext();
-      });
+      // post a copy context in a separate lambda/thread, so it's not connected to a current
+      // context.
+      CompletableFuture<Void> future =
+          CompletableFuture.runAsync(
+              () -> {
+                OpenTelemetryContext copy = clone(telemetryContext, traceLevel);
+                copy.closeContext();
+              });
 
       try {
         future.get();
@@ -173,8 +176,7 @@ public class OpenTelemetryContext implements TelemetryContext {
   }
 
   private static OpenTelemetryContext clone(
-      final OpenTelemetryContext telemetryContext,
-      final TelemetryTraceLevel traceLevel) {
+      final OpenTelemetryContext telemetryContext, final TelemetryTraceLevel traceLevel) {
 
     if (!(telemetryContext.span instanceof ReadableSpan)) {
       // can't get required data from the span
@@ -184,15 +186,17 @@ public class OpenTelemetryContext implements TelemetryContext {
     ReadableSpan readableSpan = (ReadableSpan) telemetryContext.span;
     long startTime = readableSpan.toSpanData().getStartEpochNanos();
 
-    OpenTelemetryContext copy = new OpenTelemetryContext(
-        telemetryContext.tracer,
-        TelemetryConst.COPY_TRACE_NAME_PREFIX + telemetryContext.getName(),
-        traceLevel,
-        startTime);
+    OpenTelemetryContext copy =
+        new OpenTelemetryContext(
+            telemetryContext.tracer,
+            TelemetryConst.COPY_TRACE_NAME_PREFIX + telemetryContext.getName(),
+            traceLevel,
+            startTime);
 
     Map<AttributeKey<?>, Object> attributes = readableSpan.toSpanData().getAttributes().asMap();
     for (Map.Entry<AttributeKey<?>, Object> entry : attributes.entrySet()) {
-      if (entry.getValue() != null && !TelemetryConst.TRACE_NAME_ANNOTATION.equals(entry.getKey().getKey())) {
+      if (entry.getValue() != null
+          && !TelemetryConst.TRACE_NAME_ANNOTATION.equals(entry.getKey().getKey())) {
         copy.setAttribute(entry.getKey().getKey(), entry.getValue().toString());
       }
     }
@@ -217,5 +221,4 @@ public class OpenTelemetryContext implements TelemetryContext {
       scope.close();
     }
   }
-
 }

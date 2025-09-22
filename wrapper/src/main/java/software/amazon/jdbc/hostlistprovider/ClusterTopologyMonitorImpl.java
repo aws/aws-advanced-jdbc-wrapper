@@ -88,7 +88,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected AtomicConnection nodeThreadsWriterConnection;
   protected final AtomicReference<HostSpec> nodeThreadsWriterHostSpec = new AtomicReference<>(null);
   protected final AtomicConnection nodeThreadsReaderConnection;
-  protected final AtomicReference<List<HostSpec>> nodeThreadsLatestTopology = new AtomicReference<>(null);
+  protected final AtomicReference<List<HostSpec>> nodeThreadsLatestTopology =
+      new AtomicReference<>(null);
 
   protected final long refreshRateNano;
   protected final long highRefreshRateNano;
@@ -125,7 +126,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     this.refreshRateNano = refreshRateNano;
     this.highRefreshRateNano = highRefreshRateNano;
 
-    this.logUnclosedConnections = PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(properties);
+    this.logUnclosedConnections =
+        PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(properties);
     this.monitoringConnection = new AtomicConnection(this, this.logUnclosedConnections);
     this.nodeThreadsWriterConnection = new AtomicConnection(this, this.logUnclosedConnections);
     this.nodeThreadsReaderConnection = new AtomicConnection(this, this.logUnclosedConnections);
@@ -136,8 +138,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
         .forEach(
             p -> {
               this.monitoringProperties.put(
-                  p.substring(MONITORING_PROPERTY_PREFIX.length()),
-                  this.properties.getProperty(p));
+                  p.substring(MONITORING_PROPERTY_PREFIX.length()), this.properties.getProperty(p));
               this.monitoringProperties.remove(p);
             });
 
@@ -167,8 +168,11 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       // A previous failover event has completed recently.
       // We can use the results of it without triggering a new topology update.
       List<HostSpec> currentHosts = getStoredHosts();
-      LOGGER.finest(() ->
-          LogUtils.logTopology(currentHosts, Messages.get("ClusterTopologyMonitorImpl.ignoringTopologyRequest")));
+      LOGGER.finest(
+          () ->
+              LogUtils.logTopology(
+                  currentHosts,
+                  Messages.get("ClusterTopologyMonitorImpl.ignoringTopologyRequest")));
       if (currentHosts != null) {
         return currentHosts;
       }
@@ -182,30 +186,35 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     return this.waitTillTopologyGetsUpdated(timeoutMs);
   }
 
-  protected List<HostSpec> waitTillTopologyGetsUpdated(final long timeoutMs) throws TimeoutException {
+  protected List<HostSpec> waitTillTopologyGetsUpdated(final long timeoutMs)
+      throws TimeoutException {
     List<HostSpec> currentHosts = getStoredHosts();
     List<HostSpec> latestHosts;
 
     synchronized (this.requestToUpdateTopology) {
       this.requestToUpdateTopology.set(true);
 
-      // Notify the monitoring thread, which may be sleeping, that topology should be refreshed immediately.
+      // Notify the monitoring thread, which may be sleeping, that topology should be refreshed
+      // immediately.
       this.requestToUpdateTopology.notifyAll();
     }
 
     if (timeoutMs == 0) {
-      LOGGER.finest(() ->
-          LogUtils.logTopology(currentHosts, Messages.get("ClusterTopologyMonitorImpl.timeoutSetToZero")));
+      LOGGER.finest(
+          () ->
+              LogUtils.logTopology(
+                  currentHosts, Messages.get("ClusterTopologyMonitorImpl.timeoutSetToZero")));
       return currentHosts;
     }
 
     final long end = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMs);
 
-    // Note that we are checking reference equality instead of value equality here. We will break out of the loop if
-    // there is a new entry in the topology map, even if the value of the hosts in latestHosts is the same as
+    // Note that we are checking reference equality instead of value equality here. We will break
+    // out of the loop if
+    // there is a new entry in the topology map, even if the value of the hosts in latestHosts is
+    // the same as
     // currentHosts.
-    while (currentHosts == (latestHosts = getStoredHosts())
-        && System.nanoTime() < end) {
+    while (currentHosts == (latestHosts = getStoredHosts()) && System.nanoTime() < end) {
       try {
         synchronized (this.topologyUpdated) {
           this.topologyUpdated.wait(1000);
@@ -226,7 +235,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   }
 
   private List<HostSpec> getStoredHosts() {
-    Topology topology = this.servicesContainer.getStorageService().get(Topology.class, this.clusterId);
+    Topology topology =
+        this.servicesContainer.getStorageService().get(Topology.class, this.clusterId);
     return topology == null ? null : topology.getHosts();
   }
 
@@ -254,19 +264,23 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     this.monitoringConnection.clean();
     this.nodeThreadsWriterConnection.clean();
     this.nodeThreadsReaderConnection.clean();
-    this.servicesContainer.getEventPublisher().unsubscribe(
-        this, Collections.singleton(MonitorResetEvent.class));
+    this.servicesContainer
+        .getEventPublisher()
+        .unsubscribe(this, Collections.singleton(MonitorResetEvent.class));
   }
 
   @Override
   public void monitor() throws Exception {
     try {
-      LOGGER.finest(() -> Messages.get(
-          "ClusterTopologyMonitorImpl.startMonitoringThread",
-          new Object[] {this.clusterId, this.initialHostSpec.getHost()}));
+      LOGGER.finest(
+          () ->
+              Messages.get(
+                  "ClusterTopologyMonitorImpl.startMonitoringThread",
+                  new Object[] {this.clusterId, this.initialHostSpec.getHost()}));
 
-      this.servicesContainer.getEventPublisher().subscribe(
-          this, Collections.singleton(MonitorResetEvent.class));
+      this.servicesContainer
+          .getEventPublisher()
+          .subscribe(this, Collections.singleton(MonitorResetEvent.class));
 
       while (!this.stop.get() && !Thread.currentThread().isInterrupted()) {
         this.lastActivityTimestampNanos.set(System.nanoTime());
@@ -274,7 +288,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
         if (this.isInPanicMode()) {
 
           if (this.submittedNodes.isEmpty()) {
-            LOGGER.finest(() -> Messages.get("ClusterTopologyMonitorImpl.startingNodeMonitoringThreads"));
+            LOGGER.finest(
+                () -> Messages.get("ClusterTopologyMonitorImpl.startingNodeMonitoringThreads"));
 
             // Start node monitors.
             this.nodeThreadsStop.set(false);
@@ -293,10 +308,13 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
             if (hosts != null && !this.isVerifiedWriterConnection) {
               for (HostSpec hostSpec : hosts) {
-                // A list is used to store the exception since lambdas require references to outer variables to be
-                // final. This allows us to identify if an error occurred while creating the node monitoring worker.
+                // A list is used to store the exception since lambdas require references to outer
+                // variables to be
+                // final. This allows us to identify if an error occurred while creating the node
+                // monitoring worker.
                 final List<Exception> exceptionList = new ArrayList<>();
-                this.submittedNodes.computeIfAbsent(hostSpec.getHost(),
+                this.submittedNodes.computeIfAbsent(
+                    hostSpec.getHost(),
                     (key) -> {
                       final ExecutorService nodeExecutorServiceCopy = this.nodeExecutorService;
                       if (nodeExecutorServiceCopy != null) {
@@ -315,7 +333,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
                   throw exceptionList.get(0);
                 }
               }
-              // We do not call nodeExecutorService.shutdown() here since more node monitors may be submitted later.
+              // We do not call nodeExecutorService.shutdown() here since more node monitors may be
+              // submitted later.
             }
             // We will try again in the next iteration.
           } else {
@@ -323,20 +342,25 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
             final Connection writerConnection = this.nodeThreadsWriterConnection.get();
             final HostSpec writerConnectionHostSpec = this.nodeThreadsWriterHostSpec.get();
             if (writerConnection != null && writerConnectionHostSpec != null) {
-              LOGGER.finest(() -> Messages.get(
-                      "ClusterTopologyMonitorImpl.writerPickedUpFromNodeMonitors",
-                      new Object[] {writerConnectionHostSpec}));
+              LOGGER.finest(
+                  () ->
+                      Messages.get(
+                          "ClusterTopologyMonitorImpl.writerPickedUpFromNodeMonitors",
+                          new Object[] {writerConnectionHostSpec}));
 
               this.monitoringConnection.set(writerConnection);
               this.writerHostSpec.set(writerConnectionHostSpec);
               this.isVerifiedWriterConnection = true;
               this.highRefreshRateEndTimeNano = System.nanoTime() + highRefreshPeriodAfterPanicNano;
 
-              // We verify the writer on initial connection and on failover, but we only want to ignore new topology
-              // requests after failover. To accomplish this, the first time we verify the writer we set the ignore end
+              // We verify the writer on initial connection and on failover, but we only want to
+              // ignore new topology
+              // requests after failover. To accomplish this, the first time we verify the writer we
+              // set the ignore end
               // time to 0. Any future writer verifications will set it to a positive value.
               if (!this.ignoreNewTopologyRequestsEndTimeNano.compareAndSet(-1, 0)) {
-                this.ignoreNewTopologyRequestsEndTimeNano.set(System.nanoTime() + ignoreTopologyRequestNano);
+                this.ignoreNewTopologyRequestsEndTimeNano.set(
+                    System.nanoTime() + ignoreTopologyRequestNano);
               }
 
               this.nodeThreadsStop.set(true);
@@ -350,10 +374,13 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
               List<HostSpec> hosts = this.nodeThreadsLatestTopology.get();
               if (hosts != null && !this.nodeThreadsStop.get()) {
                 for (HostSpec hostSpec : hosts) {
-                  // A list is used to store the exception since lambdas require references to outer variables to be
-                  // final. This allows us to identify if an error occurred while creating the node monitoring worker.
+                  // A list is used to store the exception since lambdas require references to outer
+                  // variables to be
+                  // final. This allows us to identify if an error occurred while creating the node
+                  // monitoring worker.
                   final List<Exception> exceptionList = new ArrayList<>();
-                  this.submittedNodes.computeIfAbsent(hostSpec.getHost(),
+                  this.submittedNodes.computeIfAbsent(
+                      hostSpec.getHost(),
                       (key) -> {
                         try {
                           this.nodeExecutorService.submit(
@@ -370,7 +397,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
                     throw exceptionList.get(0);
                   }
                 }
-                // We do not call nodeExecutorService.shutdown() here since more node monitors may be submitted later.
+                // We do not call nodeExecutorService.shutdown() here since more node monitors may
+                // be submitted later.
               }
             }
           }
@@ -384,7 +412,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
             this.submittedNodes.clear();
           }
 
-          final List<HostSpec> hosts = this.fetchTopologyAndUpdateCache(this.monitoringConnection.get());
+          final List<HostSpec> hosts =
+              this.fetchTopologyAndUpdateCache(this.monitoringConnection.get());
           if (hosts == null) {
             // Attempt to fetch topology failed, so we switch to panic mode.
             this.monitoringConnection.set(null);
@@ -393,11 +422,13 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
             continue;
           }
 
-          if (this.highRefreshRateEndTimeNano > 0 && System.nanoTime() > this.highRefreshRateEndTimeNano) {
+          if (this.highRefreshRateEndTimeNano > 0
+              && System.nanoTime() > this.highRefreshRateEndTimeNano) {
             this.highRefreshRateEndTimeNano = 0;
           }
 
-          // We avoid logging the topology while using the high refresh rate because it is too noisy.
+          // We avoid logging the topology while using the high refresh rate because it is too
+          // noisy.
           if (this.highRefreshRateEndTimeNano == 0) {
             LOGGER.finest(() -> LogUtils.logTopology(getStoredHosts()));
           }
@@ -432,18 +463,24 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       this.monitoringConnection.clean();
       this.nodeThreadConnectionCleanUp();
 
-      this.servicesContainer.getEventPublisher().unsubscribe(
-          this, Collections.singleton(MonitorResetEvent.class));
+      this.servicesContainer
+          .getEventPublisher()
+          .unsubscribe(this, Collections.singleton(MonitorResetEvent.class));
 
-      LOGGER.finest(() -> Messages.get(
-          "ClusterTopologyMonitorImpl.stopMonitoringThread",
-          new Object[] {this.initialHostSpec.getHost()}));
+      LOGGER.finest(
+          () ->
+              Messages.get(
+                  "ClusterTopologyMonitorImpl.stopMonitoringThread",
+                  new Object[] {this.initialHostSpec.getHost()}));
     }
   }
 
   protected void reset() {
-    LOGGER.finest(() -> Messages.get("ClusterTopologyMonitorImpl.reset",
-            new Object[]{this.clusterId, this.initialHostSpec.getHost()}));
+    LOGGER.finest(
+        () ->
+            Messages.get(
+                "ClusterTopologyMonitorImpl.reset",
+                new Object[] {this.clusterId, this.initialHostSpec.getHost()}));
 
     this.nodeThreadsStop.set(true);
     this.closeNodeMonitors();
@@ -532,14 +569,14 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   }
 
   protected boolean isInPanicMode() {
-    return this.monitoringConnection.get() == null
-        || !this.isVerifiedWriterConnection;
+    return this.monitoringConnection.get() == null || !this.isVerifiedWriterConnection;
   }
 
   protected Runnable getNodeMonitoringWorker(
       final HostSpec hostSpec, final @Nullable HostSpec writerHostSpec) throws SQLException {
     FullServicesContainer newServiceContainer =
-        ServiceUtility.getInstance().createMinimalServiceContainer(this.servicesContainer, this.properties);
+        ServiceUtility.getInstance()
+            .createMinimalServiceContainer(this.servicesContainer, this.properties);
     return new NodeMonitoringWorker(
         newServiceContainer, this, hostSpec, writerHostSpec, this.logUnclosedConnections);
   }
@@ -552,15 +589,20 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
       // Open a new connection.
       try {
-        conn = this.servicesContainer.getPluginService().forceConnect(this.initialHostSpec, this.monitoringProperties);
+        conn =
+            this.servicesContainer
+                .getPluginService()
+                .forceConnect(this.initialHostSpec, this.monitoringProperties);
       } catch (SQLException ex) {
         return null;
       }
 
       if (this.monitoringConnection.compareAndSet(null, conn)) {
-        LOGGER.finest(() -> Messages.get(
-            "ClusterTopologyMonitorImpl.openedMonitoringConnection",
-            new Object[] {this.initialHostSpec.getHost()}));
+        LOGGER.finest(
+            () ->
+                Messages.get(
+                    "ClusterTopologyMonitorImpl.openedMonitoringConnection",
+                    new Object[] {this.initialHostSpec.getHost()}));
 
         try {
           if (this.topologyUtils.isWriterInstance(this.monitoringConnection.get())) {
@@ -569,19 +611,32 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
             if (rdsHelper.isRdsInstance(this.initialHostSpec.getHost())) {
               this.writerHostSpec.set(this.initialHostSpec);
-              LOGGER.finest(() -> Messages.get(
-                      "ClusterTopologyMonitorImpl.writerMonitoringConnection",
-                      new Object[] {this.writerHostSpec.get().getHost()}));
+              LOGGER.finest(
+                  () ->
+                      Messages.get(
+                          "ClusterTopologyMonitorImpl.writerMonitoringConnection",
+                          new Object[] {this.writerHostSpec.get().getHost()}));
             } else {
-              final Pair<String, String> pair = this.topologyUtils.getInstanceId(this.monitoringConnection.get());
+              final Pair<String, String> pair =
+                  this.topologyUtils.getInstanceId(this.monitoringConnection.get());
               if (pair != null) {
-                HostSpec instanceTemplate = this.getInstanceTemplate(pair.getValue2(), this.monitoringConnection.get());
-                HostSpec writerHost = this.topologyUtils.createHost(
-                    pair.getValue1(), pair.getValue2(), true, 0, null, this.initialHostSpec, instanceTemplate);
+                HostSpec instanceTemplate =
+                    this.getInstanceTemplate(pair.getValue2(), this.monitoringConnection.get());
+                HostSpec writerHost =
+                    this.topologyUtils.createHost(
+                        pair.getValue1(),
+                        pair.getValue2(),
+                        true,
+                        0,
+                        null,
+                        this.initialHostSpec,
+                        instanceTemplate);
                 this.writerHostSpec.set(writerHost);
-                LOGGER.finest(() -> Messages.get(
-                    "ClusterTopologyMonitorImpl.writerMonitoringConnection",
-                    new Object[] {this.writerHostSpec.get().getHost()}));
+                LOGGER.finest(
+                    () ->
+                        Messages.get(
+                            "ClusterTopologyMonitorImpl.writerMonitoringConnection",
+                            new Object[] {this.writerHostSpec.get().getHost()}));
               }
             }
           }
@@ -590,7 +645,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
         }
 
       } else {
-        // The monitoring connection has already been detected by another thread. We close the new connection since it
+        // The monitoring connection has already been detected by another thread. We close the new
+        // connection since it
         // is not needed anymore.
         this.closeConnection(conn);
       }
@@ -598,16 +654,20 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
     final List<HostSpec> hosts = this.fetchTopologyAndUpdateCache(this.monitoringConnection.get());
     if (writerVerifiedByThisThread) {
-      // We verify the writer on initial connection and on failover, but we only want to ignore new topology
-      // requests after failover. To accomplish this, the first time we verify the writer we set the ignore end
+      // We verify the writer on initial connection and on failover, but we only want to ignore new
+      // topology
+      // requests after failover. To accomplish this, the first time we verify the writer we set the
+      // ignore end
       // time to 0. Any future writer verifications will set it to a positive value.
       if (!this.ignoreNewTopologyRequestsEndTimeNano.compareAndSet(-1, 0)) {
-        this.ignoreNewTopologyRequestsEndTimeNano.set(System.nanoTime() + ignoreTopologyRequestNano);
+        this.ignoreNewTopologyRequestsEndTimeNano.set(
+            System.nanoTime() + ignoreTopologyRequestNano);
       }
     }
 
     if (hosts == null) {
-      // Attempt to fetch topology failed. There might be something wrong with the connection, so we close it here.
+      // Attempt to fetch topology failed. There might be something wrong with the connection, so we
+      // close it here.
       this.monitoringConnection.set(null);
       this.isVerifiedWriterConnection = false;
       this.writerHostSpec.set(null);
@@ -616,7 +676,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     return hosts;
   }
 
-  // Note: even though the parameters are not used here, they may be used in subclasses overriding this method.
+  // Note: even though the parameters are not used here, they may be used in subclasses overriding
+  // this method.
   protected HostSpec getInstanceTemplate(String nodeId, Connection connection) throws SQLException {
     return this.instanceTemplate;
   }
@@ -638,7 +699,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
   // Sleep method that can be easily interrupted.
   protected void delay(boolean useHighRefreshRate) throws InterruptedException {
-    if (this.highRefreshRateEndTimeNano > 0 && System.nanoTime() < this.highRefreshRateEndTimeNano) {
+    if (this.highRefreshRateEndTimeNano > 0
+        && System.nanoTime() < this.highRefreshRateEndTimeNano) {
       useHighRefreshRate = true;
     }
 
@@ -668,11 +730,14 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       return hosts;
     } catch (SQLException ex) {
       // Ignore exceptions related to network. Log other exceptions.
-      if (!this.servicesContainer.getPluginService().isNetworkException(ex,
-          this.servicesContainer.getPluginService().getTargetDriverDialect())) {
+      if (!this.servicesContainer
+          .getPluginService()
+          .isNetworkException(
+              ex, this.servicesContainer.getPluginService().getTargetDriverDialect())) {
         if (LOGGER.isLoggable(Level.FINEST)) {
-          LOGGER.log(Level.FINEST,
-              Messages.get("ClusterTopologyMonitorImpl.errorFetchingTopology", new Object[]{ex}),
+          LOGGER.log(
+              Level.FINEST,
+              Messages.get("ClusterTopologyMonitorImpl.errorFetchingTopology", new Object[] {ex}),
               ex);
         }
       }
@@ -682,11 +747,12 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   }
 
   protected List<HostSpec> queryForTopology(Connection connection) throws SQLException {
-    return this.topologyUtils.queryForTopology(connection, this.initialHostSpec, this.instanceTemplate);
+    return this.topologyUtils.queryForTopology(
+        connection, this.initialHostSpec, this.instanceTemplate);
   }
 
   protected void updateTopologyCache(final @NonNull List<HostSpec> hosts) {
-    //LOGGER.finest(() -> LogUtils.logTopology(hosts, null));
+    // LOGGER.finest(() -> LogUtils.logTopology(hosts, null));
     synchronized (this.requestToUpdateTopology) {
       this.servicesContainer.getStorageService().set(this.clusterId, new Topology(hosts));
       synchronized (this.topologyUpdated) {
@@ -727,8 +793,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
         final ClusterTopologyMonitorImpl monitor,
         final HostSpec hostSpec,
         final @Nullable HostSpec writerHostSpec,
-        final boolean logUnclosedConnections
-    ) {
+        final boolean logUnclosedConnections) {
       this.servicesContainer = servicesContainer;
       this.monitor = monitor;
       this.hostSpec = hostSpec;
@@ -748,25 +813,31 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
             try {
               this.connection.set(
-                  this.servicesContainer.getPluginService().forceConnect(
-                      hostSpec, this.monitor.monitoringProperties));
+                  this.servicesContainer
+                      .getPluginService()
+                      .forceConnect(hostSpec, this.monitor.monitoringProperties));
               this.connectionAttempts = 0;
             } catch (SQLException ex) {
               // A problem occurred while connecting.
-              if (this.servicesContainer.getPluginService().isNetworkException(
-                  ex, this.servicesContainer.getPluginService().getTargetDriverDialect())) {
+              if (this.servicesContainer
+                  .getPluginService()
+                  .isNetworkException(
+                      ex, this.servicesContainer.getPluginService().getTargetDriverDialect())) {
                 // It's a network issue that's expected during a cluster failover.
                 // We will try again on the next iteration.
                 TimeUnit.MILLISECONDS.sleep(100);
                 continue;
-              } else if (this.servicesContainer.getPluginService().isLoginException(
-                    ex, this.servicesContainer.getPluginService().getTargetDriverDialect())) {
+              } else if (this.servicesContainer
+                  .getPluginService()
+                  .isLoginException(
+                      ex, this.servicesContainer.getPluginService().getTargetDriverDialect())) {
                 // Something wrong with login credentials. We can't continue.
                 throw new RuntimeException(ex);
               } else {
                 // It might be some transient error. Let's try again.
                 //  If the error repeats, we will try again after a longer delay.
-                TimeUnit.MILLISECONDS.sleep(this.calculateBackoffWithJitter(this.connectionAttempts++));
+                TimeUnit.MILLISECONDS.sleep(
+                    this.calculateBackoffWithJitter(this.connectionAttempts++));
                 continue;
               }
             }
@@ -777,9 +848,11 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
             try {
               isWriter = this.monitor.topologyUtils.isWriterInstance(this.connection.get());
             } catch (SQLSyntaxErrorException ex) {
-              LOGGER.severe(() -> Messages.get(
-                  "NodeMonitoringThread.invalidWriterQuery",
-                  new Object[] {ex.getMessage()}));
+              LOGGER.severe(
+                  () ->
+                      Messages.get(
+                          "NodeMonitoringThread.invalidWriterQuery",
+                          new Object[] {ex.getMessage()}));
               throw new RuntimeException(ex);
             } catch (SQLException ex) {
               this.connection.set(null);
@@ -787,7 +860,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
             if (isWriter) {
               try {
-                if (this.servicesContainer.getPluginService().getHostRole(this.connection.get()) != HostRole.WRITER) {
+                if (this.servicesContainer.getPluginService().getHostRole(this.connection.get())
+                    != HostRole.WRITER) {
                   // The first connection after failover may be stale.
                   isWriter = false;
                 }
@@ -799,16 +873,23 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
             if (isWriter) {
               // This prevents us from closing the connection in the finally block.
-              if (!this.monitor.nodeThreadsWriterConnection.compareAndSet(null, this.connection.get())) {
+              if (!this.monitor.nodeThreadsWriterConnection.compareAndSet(
+                  null, this.connection.get())) {
                 // The writer connection is already set up, probably by another node monitor.
                 this.connection.set(null);
               } else {
                 // Successfully updated the node monitor writer connection.
-                LOGGER.fine(() ->
-                    Messages.get("NodeMonitoringThread.detectedWriter", new Object[] {hostSpec.getUrl()}));
-                // When nodeThreadsWriterConnection and nodeThreadsWriterHostSpec are both set, the topology monitor may
-                // set ignoreNewTopologyRequestsEndTimeNano, in which case other threads will use the cached topology
-                // for the ignore duration, so we need to update the topology before setting nodeThreadsWriterHostSpec.
+                LOGGER.fine(
+                    () ->
+                        Messages.get(
+                            "NodeMonitoringThread.detectedWriter",
+                            new Object[] {hostSpec.getUrl()}));
+                // When nodeThreadsWriterConnection and nodeThreadsWriterHostSpec are both set, the
+                // topology monitor may
+                // set ignoreNewTopologyRequestsEndTimeNano, in which case other threads will use
+                // the cached topology
+                // for the ignore duration, so we need to update the topology before setting
+                // nodeThreadsWriterHostSpec.
                 this.monitor.fetchTopologyAndUpdateCache(this.connection.get());
                 this.monitor.nodeThreadsWriterHostSpec.set(hostSpec);
 
@@ -824,7 +905,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
             } else if (this.connection.get() != null) {
               // This connection is a reader connection.
               if (this.monitor.nodeThreadsWriterConnection.get() == null) {
-                // We can use this reader connection to update the topology while we wait for the writer connection to
+                // We can use this reader connection to update the topology while we wait for the
+                // writer connection to
                 // be established.
                 if (updateTopology) {
                   this.readerThreadFetchTopology(this.connection.get(), this.writerHostSpec);
@@ -851,19 +933,22 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
         final Connection tempConnection = this.connection.get();
         if (tempConnection != null
             && (tempConnection == this.monitor.nodeThreadsWriterConnection.get()
-              || tempConnection == this.monitor.nodeThreadsReaderConnection.get())) {
+                || tempConnection == this.monitor.nodeThreadsReaderConnection.get())) {
           this.connection.set(null, false);
         }
         this.connection.clean();
 
         final long end = System.nanoTime();
-        LOGGER.finest(() -> Messages.get(
-            "NodeMonitoringThread.threadCompleted",
-            new Object[] {TimeUnit.NANOSECONDS.toMillis(end - start)}));
+        LOGGER.finest(
+            () ->
+                Messages.get(
+                    "NodeMonitoringThread.threadCompleted",
+                    new Object[] {TimeUnit.NANOSECONDS.toMillis(end - start)}));
       }
     }
 
-    private void readerThreadFetchTopology(final Connection connection, final @Nullable HostSpec writerHostSpec) {
+    private void readerThreadFetchTopology(
+        final Connection connection, final @Nullable HostSpec writerHostSpec) {
       if (connection == null) {
         return;
       }
@@ -878,7 +963,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
         return;
       }
 
-      // Share this topology so that the main monitoring thread can adjust the node monitoring threads.
+      // Share this topology so that the main monitoring thread can adjust the node monitoring
+      // threads.
       this.monitor.nodeThreadsLatestTopology.set(hosts);
 
       if (this.writerChanged) {
@@ -887,17 +973,17 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
         return;
       }
 
-      final HostSpec latestWriterHostSpec = hosts.stream()
-          .filter(x -> x.getRole() == HostRole.WRITER)
-          .findFirst()
-          .orElse(null);
+      final HostSpec latestWriterHostSpec =
+          hosts.stream().filter(x -> x.getRole() == HostRole.WRITER).findFirst().orElse(null);
       if (latestWriterHostSpec != null
           && writerHostSpec != null
           && !latestWriterHostSpec.getHostAndPort().equals(writerHostSpec.getHostAndPort())) {
         this.writerChanged = true;
-        LOGGER.fine(() -> Messages.get(
-            "NodeMonitoringThread.writerNodeChanged",
-            new Object[] {writerHostSpec.getHost(), latestWriterHostSpec.getHost()}));
+        LOGGER.fine(
+            () ->
+                Messages.get(
+                    "NodeMonitoringThread.writerNodeChanged",
+                    new Object[] {writerHostSpec.getHost(), latestWriterHostSpec.getHost()}));
 
         // Update the topology cache and notify all waiting threads.
         this.monitor.updateTopologyCache(hosts);

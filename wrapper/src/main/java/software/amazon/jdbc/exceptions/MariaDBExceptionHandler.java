@@ -16,6 +16,4 @@
 
 package software.amazon.jdbc.exceptions;
 
-public class MariaDBExceptionHandler extends MySQLExceptionHandler {
-
-}
+public class MariaDBExceptionHandler extends MySQLExceptionHandler {}

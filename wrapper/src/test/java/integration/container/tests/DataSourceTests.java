@@ -51,11 +51,12 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
 @DisableOnTestFeature({
-    TestEnvironmentFeatures.PERFORMANCE,
-    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
-    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
-    TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
-    TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
+  TestEnvironmentFeatures.PERFORMANCE,
+  TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
+  TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
+  TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
+  TestEnvironmentFeatures.RUN_DB_METRICS_ONLY
+})
 @Order(6)
 public class DataSourceTests {
 
@@ -67,18 +68,15 @@ public class DataSourceTests {
       throws SQLException, NamingException, IllegalAccessException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setJdbcProtocol(DriverHelper.getDriverProtocol());
-    ds.setServerName(TestEnvironment.getCurrent()
-        .getInfo()
-        .getDatabaseInfo()
-        .getInstances()
-        .get(0)
-        .getHost());
+    ds.setServerName(
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0).getHost());
     ds.setDatabase(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     ds.setUser(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
     ds.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
     ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
 
-    final Properties targetDataSourceProps = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
+    final Properties targetDataSourceProps =
+        ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     final Hashtable<String, Object> env = new Hashtable<>();

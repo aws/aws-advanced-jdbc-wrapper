@@ -23,13 +23,13 @@ public interface AcceptsUrlFunc {
 
   /**
    * This function can be passed to a {@link ConnectionProvider} constructor to specify when the
-   * {@link ConnectionProvider} should be used to open a connection to the given {@link HostSpec} with the
-   * given {@link Properties}.
+   * {@link ConnectionProvider} should be used to open a connection to the given {@link HostSpec}
+   * with the given {@link Properties}.
    *
-   * @param hostSpec      the host details for the requested connection
-   * @param props         the properties for the requested connection
-   * @return a boolean indicating whether a {@link ConnectionProvider} should be used to open a connection to the given
-   *     {@link HostSpec} with the given {@link Properties}.
+   * @param hostSpec the host details for the requested connection
+   * @param props the properties for the requested connection
+   * @return a boolean indicating whether a {@link ConnectionProvider} should be used to open a
+   *     connection to the given {@link HostSpec} with the given {@link Properties}.
    */
   boolean acceptsUrl(HostSpec hostSpec, Properties props);
 }

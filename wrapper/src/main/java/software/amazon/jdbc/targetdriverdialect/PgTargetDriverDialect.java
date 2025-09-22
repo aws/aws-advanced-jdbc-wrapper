@@ -38,52 +38,51 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   private static final String POOLING_DS_CLASS_NAME = "org.postgresql.ds.PGPoolingDataSource";
   private static final String CP_DS_CLASS_NAME = "org.postgresql.ds.PGConnectionPoolDataSource";
 
-  private static final Set<String> dataSourceClassMap = new HashSet<>(Arrays.asList(
-      SIMPLE_DS_CLASS_NAME,
-      POOLING_DS_CLASS_NAME,
-      CP_DS_CLASS_NAME));
+  private static final Set<String> dataSourceClassMap =
+      new HashSet<>(Arrays.asList(SIMPLE_DS_CLASS_NAME, POOLING_DS_CLASS_NAME, CP_DS_CLASS_NAME));
 
-  private static final Set<String> PG_ALLOWED_ON_CLOSED_METHOD_NAMES = Collections.unmodifiableSet(
-      new HashSet<String>() {
-        {
-          addAll(ALLOWED_ON_CLOSED_METHODS);
-          add(JdbcMethod.STATEMENT_CLEARWARNINGS.methodName);
-          add(JdbcMethod.STATEMENT_GETFETCHSIZE.methodName);
-          add(JdbcMethod.STATEMENT_GETMAXFIELDSIZE.methodName);
-          add(JdbcMethod.STATEMENT_GETRESULTSETTYPE.methodName);
-          add(JdbcMethod.STATEMENT_ISCLOSEONCOMPLETION.methodName);
-          add(JdbcMethod.STATEMENT_CLEARBATCH.methodName);
-          add(JdbcMethod.STATEMENT_CLOSEONCOMPLETION.methodName);
-          add(JdbcMethod.STATEMENT_GETGENERATEDKEYS.methodName);
-          add(JdbcMethod.STATEMENT_GETMAXROWS.methodName);
-          add(JdbcMethod.STATEMENT_GETMORERESULTS.methodName);
-          add(JdbcMethod.STATEMENT_GETQUERYTIMEOUT.methodName);
-          add(JdbcMethod.STATEMENT_GETRESULTSET.methodName);
-          add(JdbcMethod.STATEMENT_GETRESULTSETCONCURRENCY.methodName);
-          add(JdbcMethod.STATEMENT_GETUPDATECOUNT.methodName);
-          add(JdbcMethod.STATEMENT_GETWARNINGS.methodName);
-          add(JdbcMethod.STATEMENT_ADDBATCH.methodName);
-          add(JdbcMethod.CALLABLESTATEMENT_GETARRAY.methodName);
-          add(JdbcMethod.CALLABLESTATEMENT_GETBIGDECIMAL.methodName);
-          add(JdbcMethod.CALLABLESTATEMENT_GETBOOLEAN.methodName);
-          add(JdbcMethod.CALLABLESTATEMENT_GETBYTE.methodName);
-          add(JdbcMethod.CALLABLESTATEMENT_GETBYTES.methodName);
-          add(JdbcMethod.CALLABLESTATEMENT_GETDATE.methodName);
-          add(JdbcMethod.CALLABLESTATEMENT_GETDOUBLE.methodName);
-          add(JdbcMethod.CALLABLESTATEMENT_GETFLOAT.methodName);
-          add(JdbcMethod.CALLABLESTATEMENT_GETINT.methodName);
-          add(JdbcMethod.CALLABLESTATEMENT_GETLONG.methodName);
-          add(JdbcMethod.CALLABLESTATEMENT_GETOBJECT.methodName);
-          add(JdbcMethod.CALLABLESTATEMENT_GETSHORT.methodName);
-          add(JdbcMethod.CALLABLESTATEMENT_GETSQLXML.methodName);
-          add(JdbcMethod.CALLABLESTATEMENT_GETTIME.methodName);
-          add(JdbcMethod.CALLABLESTATEMENT_GETSTRING.methodName);
-          add(JdbcMethod.CALLABLESTATEMENT_GETTIMESTAMP.methodName);
-          add(JdbcMethod.CALLABLESTATEMENT_WASNULL.methodName);
-          add(JdbcMethod.PREPAREDSTATEMENT_ADDBATCH.methodName);
-          add(JdbcMethod.PREPAREDSTATEMENT_CLEARPARAMETERS.methodName);
-        }
-      });
+  private static final Set<String> PG_ALLOWED_ON_CLOSED_METHOD_NAMES =
+      Collections.unmodifiableSet(
+          new HashSet<String>() {
+            {
+              addAll(ALLOWED_ON_CLOSED_METHODS);
+              add(JdbcMethod.STATEMENT_CLEARWARNINGS.methodName);
+              add(JdbcMethod.STATEMENT_GETFETCHSIZE.methodName);
+              add(JdbcMethod.STATEMENT_GETMAXFIELDSIZE.methodName);
+              add(JdbcMethod.STATEMENT_GETRESULTSETTYPE.methodName);
+              add(JdbcMethod.STATEMENT_ISCLOSEONCOMPLETION.methodName);
+              add(JdbcMethod.STATEMENT_CLEARBATCH.methodName);
+              add(JdbcMethod.STATEMENT_CLOSEONCOMPLETION.methodName);
+              add(JdbcMethod.STATEMENT_GETGENERATEDKEYS.methodName);
+              add(JdbcMethod.STATEMENT_GETMAXROWS.methodName);
+              add(JdbcMethod.STATEMENT_GETMORERESULTS.methodName);
+              add(JdbcMethod.STATEMENT_GETQUERYTIMEOUT.methodName);
+              add(JdbcMethod.STATEMENT_GETRESULTSET.methodName);
+              add(JdbcMethod.STATEMENT_GETRESULTSETCONCURRENCY.methodName);
+              add(JdbcMethod.STATEMENT_GETUPDATECOUNT.methodName);
+              add(JdbcMethod.STATEMENT_GETWARNINGS.methodName);
+              add(JdbcMethod.STATEMENT_ADDBATCH.methodName);
+              add(JdbcMethod.CALLABLESTATEMENT_GETARRAY.methodName);
+              add(JdbcMethod.CALLABLESTATEMENT_GETBIGDECIMAL.methodName);
+              add(JdbcMethod.CALLABLESTATEMENT_GETBOOLEAN.methodName);
+              add(JdbcMethod.CALLABLESTATEMENT_GETBYTE.methodName);
+              add(JdbcMethod.CALLABLESTATEMENT_GETBYTES.methodName);
+              add(JdbcMethod.CALLABLESTATEMENT_GETDATE.methodName);
+              add(JdbcMethod.CALLABLESTATEMENT_GETDOUBLE.methodName);
+              add(JdbcMethod.CALLABLESTATEMENT_GETFLOAT.methodName);
+              add(JdbcMethod.CALLABLESTATEMENT_GETINT.methodName);
+              add(JdbcMethod.CALLABLESTATEMENT_GETLONG.methodName);
+              add(JdbcMethod.CALLABLESTATEMENT_GETOBJECT.methodName);
+              add(JdbcMethod.CALLABLESTATEMENT_GETSHORT.methodName);
+              add(JdbcMethod.CALLABLESTATEMENT_GETSQLXML.methodName);
+              add(JdbcMethod.CALLABLESTATEMENT_GETTIME.methodName);
+              add(JdbcMethod.CALLABLESTATEMENT_GETSTRING.methodName);
+              add(JdbcMethod.CALLABLESTATEMENT_GETTIMESTAMP.methodName);
+              add(JdbcMethod.CALLABLESTATEMENT_WASNULL.methodName);
+              add(JdbcMethod.PREPAREDSTATEMENT_ADDBATCH.methodName);
+              add(JdbcMethod.PREPAREDSTATEMENT_CLEARPARAMETERS.methodName);
+            }
+          });
 
   @Override
   public boolean isDialect(Driver driver) {
@@ -96,7 +95,8 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   }
 
   @Override
-  public ConnectInfo prepareConnectInfo(final @NonNull String protocol,
+  public ConnectInfo prepareConnectInfo(
+      final @NonNull String protocol,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props) {
 
@@ -105,10 +105,14 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
             ? PropertyDefinition.DATABASE.getString(props)
             : "";
 
-    final Boolean tcpKeepAlive = PropertyUtils.getBooleanPropertyValue(props, PropertyDefinition.TCP_KEEP_ALIVE);
-    final Integer loginTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.LOGIN_TIMEOUT);
-    final Integer connectTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.CONNECT_TIMEOUT);
-    final Integer socketTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.SOCKET_TIMEOUT);
+    final Boolean tcpKeepAlive =
+        PropertyUtils.getBooleanPropertyValue(props, PropertyDefinition.TCP_KEEP_ALIVE);
+    final Integer loginTimeout =
+        PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.LOGIN_TIMEOUT);
+    final Integer connectTimeout =
+        PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.CONNECT_TIMEOUT);
+    final Integer socketTimeout =
+        PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.SOCKET_TIMEOUT);
 
     // keep unknown properties (the ones that don't belong to AWS Wrapper Driver)
     // and use them to make a connection
@@ -119,16 +123,16 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
     }
 
     if (loginTimeout != null) {
-      props.setProperty("loginTimeout",
-          String.valueOf(TimeUnit.MILLISECONDS.toSeconds(loginTimeout)));
+      props.setProperty(
+          "loginTimeout", String.valueOf(TimeUnit.MILLISECONDS.toSeconds(loginTimeout)));
     }
     if (connectTimeout != null) {
-      props.setProperty("connectTimeout",
-          String.valueOf(TimeUnit.MILLISECONDS.toSeconds(connectTimeout)));
+      props.setProperty(
+          "connectTimeout", String.valueOf(TimeUnit.MILLISECONDS.toSeconds(connectTimeout)));
     }
     if (socketTimeout != null) {
-      props.setProperty("socketTimeout",
-          String.valueOf(TimeUnit.MILLISECONDS.toSeconds(socketTimeout)));
+      props.setProperty(
+          "socketTimeout", String.valueOf(TimeUnit.MILLISECONDS.toSeconds(socketTimeout)));
     }
 
     String urlBuilder = protocol + hostSpec.getUrl() + databaseName;
@@ -141,7 +145,8 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
       final @NonNull DataSource dataSource,
       final @NonNull String protocol,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props) throws SQLException {
+      final @NonNull Properties props)
+      throws SQLException {
 
     // The logic is isolated to a separated class since it uses
     // direct reference to org.postgresql.ds.common.BaseDataSource

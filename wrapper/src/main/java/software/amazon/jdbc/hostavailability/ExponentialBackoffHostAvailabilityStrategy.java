@@ -34,16 +34,21 @@ public class ExponentialBackoffHostAvailabilityStrategy implements HostAvailabil
 
   public ExponentialBackoffHostAvailabilityStrategy(Properties props) {
     if (HOST_AVAILABILITY_STRATEGY_MAX_RETRIES.getInteger(props) < 1) {
-      throw new IllegalArgumentException(Messages.get("HostAvailabilityStrategy.invalidMaxRetries",
-          new Object[] {HOST_AVAILABILITY_STRATEGY_MAX_RETRIES.getInteger(props)}));
+      throw new IllegalArgumentException(
+          Messages.get(
+              "HostAvailabilityStrategy.invalidMaxRetries",
+              new Object[] {HOST_AVAILABILITY_STRATEGY_MAX_RETRIES.getInteger(props)}));
     }
     this.maxRetries = HOST_AVAILABILITY_STRATEGY_MAX_RETRIES.getInteger(props);
 
     if (HOST_AVAILABILITY_STRATEGY_INITIAL_BACKOFF_TIME.getInteger(props) < 1) {
-      throw new IllegalArgumentException(Messages.get("HostAvailabilityStrategy.invalidInitialBackoffTime",
-          new Object[] {HOST_AVAILABILITY_STRATEGY_INITIAL_BACKOFF_TIME.getInteger(props)}));
+      throw new IllegalArgumentException(
+          Messages.get(
+              "HostAvailabilityStrategy.invalidInitialBackoffTime",
+              new Object[] {HOST_AVAILABILITY_STRATEGY_INITIAL_BACKOFF_TIME.getInteger(props)}));
     }
-    this.initialBackoffTimeSeconds = HOST_AVAILABILITY_STRATEGY_INITIAL_BACKOFF_TIME.getInteger(props);
+    this.initialBackoffTimeSeconds =
+        HOST_AVAILABILITY_STRATEGY_INITIAL_BACKOFF_TIME.getInteger(props);
 
     lastChanged = Timestamp.from(Instant.now());
   }
@@ -68,8 +73,10 @@ public class ExponentialBackoffHostAvailabilityStrategy implements HostAvailabil
       return HostAvailability.NOT_AVAILABLE;
     }
 
-    final double retryDelayMillis = Math.pow(2, notAvailableCount) * initialBackoffTimeSeconds * 1000;
-    final Timestamp earliestRetry = new Timestamp(lastChanged.getTime() + Math.round(retryDelayMillis));
+    final double retryDelayMillis =
+        Math.pow(2, notAvailableCount) * initialBackoffTimeSeconds * 1000;
+    final Timestamp earliestRetry =
+        new Timestamp(lastChanged.getTime() + Math.round(retryDelayMillis));
     final Timestamp now = Timestamp.from(Instant.now());
     if (earliestRetry.before(now)) {
       return HostAvailability.AVAILABLE;

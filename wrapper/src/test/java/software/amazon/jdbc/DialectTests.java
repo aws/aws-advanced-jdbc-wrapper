@@ -110,8 +110,8 @@ public class DialectTests {
   void testRdsMysqlIsDialectSuccess() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(successResultSet);
     when(successResultSet.next()).thenReturn(true, false, true, true);
-    when(successResultSet.getString(2)).thenReturn(
-        "Source distribution", "Source distribution", "");
+    when(successResultSet.getString(2))
+        .thenReturn("Source distribution", "Source distribution", "");
     when(successResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
     assertTrue(rdsMysqlDialect.isDialect(mockConnection));
   }

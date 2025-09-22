@@ -47,14 +47,16 @@ import software.amazon.jdbc.util.WrapperUtils;
 
 public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlugin {
 
-  private static final Logger LOGGER = Logger.getLogger(AuroraInitialConnectionStrategyPlugin.class.getName());
+  private static final Logger LOGGER =
+      Logger.getLogger(AuroraInitialConnectionStrategyPlugin.class.getName());
   private static final Set<String> subscribedMethods =
-      Collections.unmodifiableSet(new HashSet<String>() {
-        {
-          add("initHostProvider");
-          add("connect");
-        }
-      });
+      Collections.unmodifiableSet(
+          new HashSet<String>() {
+            {
+              add("initHostProvider");
+              add("connect");
+            }
+          });
 
   // Deprecated. Use "initialConnectionHostSelectorStrategy" instead.
   public static final AwsWrapperProperty READER_HOST_SELECTOR_STRATEGY =
@@ -88,9 +90,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
           "Defines whether or not the initial connection URL should be replaced with an instance URL from the"
               + " topology info when available, and if so, the role of the instance URL that should be selected.",
           false,
-          new String[] {
-              "writer", "reader", "any", "none"
-          });
+          new String[] {"writer", "reader", "any", "none"});
 
   public static final AwsWrapperProperty VERIFY_OPENED_CONNECTION_ROLE =
       new AwsWrapperProperty(
@@ -99,9 +99,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
           "Defines whether an opened connection should be verified to be a writer or reader, "
               + "or if no role verification should be performed.",
           false,
-          new String[] {
-              "writer", "reader", "none"
-          });
+          new String[] {"writer", "reader", "none"});
 
   private final RdsUtils rdsUtils = new RdsUtils();
   private final PluginService pluginService;
@@ -115,15 +113,18 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     PropertyDefinition.registerPluginProperties(AuroraInitialConnectionStrategyPlugin.class);
   }
 
-  public AuroraInitialConnectionStrategyPlugin(final PluginService pluginService, final Properties properties) {
+  public AuroraInitialConnectionStrategyPlugin(
+      final PluginService pluginService, final Properties properties) {
     this.pluginService = pluginService;
     this.retryDelayMs = OPEN_CONNECTION_RETRY_INTERVAL_MS.getInteger(properties);
     this.openConnectionRetryTimeoutNano =
         TimeUnit.MILLISECONDS.toNanos(OPEN_CONNECTION_RETRY_TIMEOUT_MS.getInteger(properties));
     String verifyRolePropValue = VERIFY_OPENED_CONNECTION_ROLE.getString(properties);
-    this.verifyRolePropValue = verifyRolePropValue == null ? null : verifyRolePropValue.toUpperCase();
+    this.verifyRolePropValue =
+        verifyRolePropValue == null ? null : verifyRolePropValue.toUpperCase();
 
-    // The HOST_SELECTOR_STRATEGY property should override the deprecated READER_HOST_SELECTOR_STRATEGY if it is set.
+    // The HOST_SELECTOR_STRATEGY property should override the deprecated
+    // READER_HOST_SELECTOR_STRATEGY if it is set.
     if (properties.containsKey(HOST_SELECTOR_STRATEGY.name)) {
       this.selectionStrategyPropValue = HOST_SELECTOR_STRATEGY.getString(properties);
     } else {
@@ -142,7 +143,8 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
       final String initialUrl,
       final Properties props,
       final HostListProviderService hostListProviderService,
-      final JdbcCallable<Void, SQLException> initHostProviderFunc) throws SQLException {
+      final JdbcCallable<Void, SQLException> initHostProviderFunc)
+      throws SQLException {
 
     this.hostListProviderService = hostListProviderService;
     initHostProviderFunc.call();
@@ -202,16 +204,20 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
         }
 
         // Verification failed.
-        // We will try again, unless a reader was requested but the cluster has no readers, which is a special case.
+        // We will try again, unless a reader was requested but the cluster has no readers, which is
+        // a special case.
         this.pluginService.forceRefreshHostList();
         List<HostSpec> allHosts = this.pluginService.getAllHosts();
-        if (roleToVerify == HostRole.READER && !Utils.isNullOrEmpty(allHosts) && !this.hasReaders(allHosts)) {
+        if (roleToVerify == HostRole.READER
+            && !Utils.isNullOrEmpty(allHosts)
+            && !this.hasReaders(allHosts)) {
           // A reader was requested but the cluster has no readers.
           // Simulate the reader cluster endpoint logic and return the current (writer) connection.
           if (RoleVerificationSetting.READER.name().equals(this.verifyRolePropValue)) {
-            LOGGER.finest(Messages.get(
-                "AuroraInitialConnectionStrategyPlugin.verifyReaderConfiguredButNoReadersExist",
-                new Object[] {VERIFY_OPENED_CONNECTION_ROLE.name}));
+            LOGGER.finest(
+                Messages.get(
+                    "AuroraInitialConnectionStrategyPlugin.verifyReaderConfiguredButNoReadersExist",
+                    new Object[] {VERIFY_OPENED_CONNECTION_ROLE.name}));
           }
 
           if (isInitialConnection) {
@@ -221,10 +227,12 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
           return candidateConn;
         }
 
-        // Failed to verify the connection. We will try to get a verified connection again on the next iteration.
-        LOGGER.finest(Messages.get(
-            "AuroraInitialConnectionStrategyPlugin.incorrectRole",
-            new Object[]{candidateHost.getHost(), roleToVerify}));
+        // Failed to verify the connection. We will try to get a verified connection again on the
+        // next iteration.
+        LOGGER.finest(
+            Messages.get(
+                "AuroraInitialConnectionStrategyPlugin.incorrectRole",
+                new Object[] {candidateHost.getHost(), roleToVerify}));
         this.closeConnection(candidateConn);
         this.delay(this.retryDelayMs);
       } catch (SQLException ex) {
@@ -234,17 +242,20 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
         }
 
         if (candidateHost != null) {
-          this.pluginService.setAvailability(candidateHost.asAliases(), HostAvailability.NOT_AVAILABLE);
+          this.pluginService.setAvailability(
+              candidateHost.asAliases(), HostAvailability.NOT_AVAILABLE);
         }
 
-        if (this.pluginService.isNetworkException(ex, this.pluginService.getTargetDriverDialect())) {
+        if (this.pluginService.isNetworkException(
+            ex, this.pluginService.getTargetDriverDialect())) {
           // Retry connection.
           continue;
         }
 
-        if (this.pluginService.isReadOnlyConnectionException(ex, this.pluginService.getTargetDriverDialect())
+        if (this.pluginService.isReadOnlyConnectionException(
+                ex, this.pluginService.getTargetDriverDialect())
             && (roleToVerify == HostRole.WRITER
-            || substitutionStrategy == InstanceSubstitutionStrategy.SUBSTITUTE_WITH_WRITER)) {
+                || substitutionStrategy == InstanceSubstitutionStrategy.SUBSTITUTE_WITH_WRITER)) {
           // Retry connection.
           continue;
         }
@@ -256,19 +267,21 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
       }
     }
 
-    throw new SQLException(Messages.get(
-        "AuroraInitialConnectionStrategyPlugin.timeout",
-        new Object[] {
-            TimeUnit.NANOSECONDS.toMillis(this.openConnectionRetryTimeoutNano),
-            VERIFY_OPENED_CONNECTION_ROLE.name}));
+    throw new SQLException(
+        Messages.get(
+            "AuroraInitialConnectionStrategyPlugin.timeout",
+            new Object[] {
+              TimeUnit.NANOSECONDS.toMillis(this.openConnectionRetryTimeoutNano),
+              VERIFY_OPENED_CONNECTION_ROLE.name
+            }));
   }
 
   protected @NonNull InstanceSubstitutionStrategy getInstanceSubstitutionStrategy(
-      Properties props, RdsUrlType urlType, boolean isInitialConnection)
-      throws SQLException {
+      Properties props, RdsUrlType urlType, boolean isInitialConnection) throws SQLException {
     if (isInitialConnection) {
       InstanceSubstitutionStrategy strategy =
-          InstanceSubstitutionStrategy.fromPropertyValue(ENDPOINT_SUBSTITUTION_ROLE.getString(props));
+          InstanceSubstitutionStrategy.fromPropertyValue(
+              ENDPOINT_SUBSTITUTION_ROLE.getString(props));
       if (strategy != null) {
         validateSubstitutionStrategy(strategy, urlType);
         return strategy;
@@ -287,16 +300,17 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     return InstanceSubstitutionStrategy.DO_NOT_SUBSTITUTE;
   }
 
-  protected void validateSubstitutionStrategy(@NonNull InstanceSubstitutionStrategy setting, RdsUrlType urlType)
-      throws SQLException {
+  protected void validateSubstitutionStrategy(
+      @NonNull InstanceSubstitutionStrategy setting, RdsUrlType urlType) throws SQLException {
     if (setting == InstanceSubstitutionStrategy.DO_NOT_SUBSTITUTE) {
       return;
     }
 
     if (urlType == RdsUrlType.RDS_INSTANCE) {
-      throw new SQLException(Messages.get(
-          "AuroraInitialConnectionStrategyPlugin.invalidSettingForInstanceEndpoint",
-          new Object[] {ENDPOINT_SUBSTITUTION_ROLE.name}));
+      throw new SQLException(
+          Messages.get(
+              "AuroraInitialConnectionStrategyPlugin.invalidSettingForInstanceEndpoint",
+              new Object[] {ENDPOINT_SUBSTITUTION_ROLE.name}));
     }
 
     if (!urlType.isRdsCluster()) {
@@ -307,31 +321,46 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     // so SUBSTITUTE_WRITER is not allowed.
     if (setting == InstanceSubstitutionStrategy.SUBSTITUTE_WITH_WRITER
         && (urlType == RdsUrlType.RDS_READER_CLUSTER || urlType == RdsUrlType.RDS_CUSTOM_CLUSTER)) {
-      throw new SQLException(Messages.get(
-          "AuroraInitialConnectionStrategyPlugin.invalidSettingForEndpoint",
-          new Object[] {ENDPOINT_SUBSTITUTION_ROLE.name, "writer", "reader cluster or custom cluster"}));
+      throw new SQLException(
+          Messages.get(
+              "AuroraInitialConnectionStrategyPlugin.invalidSettingForEndpoint",
+              new Object[] {
+                ENDPOINT_SUBSTITUTION_ROLE.name, "writer", "reader cluster or custom cluster"
+              }));
     }
 
     if (setting == InstanceSubstitutionStrategy.SUBSTITUTE_WITH_READER
-        && (urlType == RdsUrlType.RDS_WRITER_CLUSTER || urlType == RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER)) {
-      throw new SQLException(Messages.get(
-          "AuroraInitialConnectionStrategyPlugin.invalidSettingForEndpoint",
-          new Object[] {ENDPOINT_SUBSTITUTION_ROLE.name, "reader", "writer cluster or global cluster"}));
+        && (urlType == RdsUrlType.RDS_WRITER_CLUSTER
+            || urlType == RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER)) {
+      throw new SQLException(
+          Messages.get(
+              "AuroraInitialConnectionStrategyPlugin.invalidSettingForEndpoint",
+              new Object[] {
+                ENDPOINT_SUBSTITUTION_ROLE.name, "reader", "writer cluster or global cluster"
+              }));
     }
 
-    if (setting == InstanceSubstitutionStrategy.SUBSTITUTE_WITH_ANY && urlType != RdsUrlType.RDS_CUSTOM_CLUSTER) {
-      throw new SQLException(Messages.get(
-          "AuroraInitialConnectionStrategyPlugin.invalidSettingForEndpoint",
-          new Object[] {ENDPOINT_SUBSTITUTION_ROLE.name, "any", "writer cluster, reader cluster, or global cluster"}));
+    if (setting == InstanceSubstitutionStrategy.SUBSTITUTE_WITH_ANY
+        && urlType != RdsUrlType.RDS_CUSTOM_CLUSTER) {
+      throw new SQLException(
+          Messages.get(
+              "AuroraInitialConnectionStrategyPlugin.invalidSettingForEndpoint",
+              new Object[] {
+                ENDPOINT_SUBSTITUTION_ROLE.name,
+                "any",
+                "writer cluster, reader cluster, or global cluster"
+              }));
     }
   }
 
-  protected @Nullable HostRole getRoleToVerify(RdsUrlType urlType, boolean isInitialConnection) throws SQLException {
+  protected @Nullable HostRole getRoleToVerify(RdsUrlType urlType, boolean isInitialConnection)
+      throws SQLException {
     if (!isInitialConnection) {
       return null;
     }
 
-    RoleVerificationSetting setting = RoleVerificationSetting.fromPropertyValue(this.verifyRolePropValue);
+    RoleVerificationSetting setting =
+        RoleVerificationSetting.fromPropertyValue(this.verifyRolePropValue);
     if (setting != null) {
       validateVerificationSetting(setting, urlType);
     }
@@ -362,21 +391,28 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     return null;
   }
 
-  protected void validateVerificationSetting(@NonNull RoleVerificationSetting setting, RdsUrlType urlType)
-      throws SQLException {
+  protected void validateVerificationSetting(
+      @NonNull RoleVerificationSetting setting, RdsUrlType urlType) throws SQLException {
     if (setting == RoleVerificationSetting.READER
-        && (urlType == RdsUrlType.RDS_WRITER_CLUSTER || urlType == RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER)) {
-      throw new SQLException(Messages.get(
-          "AuroraInitialConnectionStrategyPlugin.invalidSettingForEndpoint",
-          new Object[]{VERIFY_OPENED_CONNECTION_ROLE.name, "reader", "writer cluster or global cluster"}));
+        && (urlType == RdsUrlType.RDS_WRITER_CLUSTER
+            || urlType == RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER)) {
+      throw new SQLException(
+          Messages.get(
+              "AuroraInitialConnectionStrategyPlugin.invalidSettingForEndpoint",
+              new Object[] {
+                VERIFY_OPENED_CONNECTION_ROLE.name, "reader", "writer cluster or global cluster"
+              }));
     }
 
     // When you create a custom cluster, it can only be of type "reader" or type "any".
     if (setting == RoleVerificationSetting.WRITER
         && (urlType == RdsUrlType.RDS_READER_CLUSTER || urlType == RdsUrlType.RDS_CUSTOM_CLUSTER)) {
-      throw new SQLException(Messages.get(
-          "AuroraInitialConnectionStrategyPlugin.invalidSettingForEndpoint",
-          new Object[]{VERIFY_OPENED_CONNECTION_ROLE.name, "writer", "reader cluster or custom cluster"}));
+      throw new SQLException(
+          Messages.get(
+              "AuroraInitialConnectionStrategyPlugin.invalidSettingForEndpoint",
+              new Object[] {
+                VERIFY_OPENED_CONNECTION_ROLE.name, "writer", "reader cluster or custom cluster"
+              }));
     }
   }
 
@@ -420,16 +456,18 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     }
 
     try {
-      final String awsRegion = urlType.isRdsCluster()
-          ? this.rdsUtils.getRdsRegion(originalConnectHost.getHost()) : null;
+      final String awsRegion =
+          urlType.isRdsCluster() ? this.rdsUtils.getRdsRegion(originalConnectHost.getHost()) : null;
       if (!StringUtils.isNullOrEmpty(awsRegion)) {
-        final List<HostSpec> hostsInRegion = this.pluginService.getHosts()
-            .stream()
-            .filter(x -> awsRegion.equalsIgnoreCase(this.rdsUtils.getRdsRegion(x.getHost())))
-            .collect(Collectors.toList());
-        return this.pluginService.getHostSpecByStrategy(hostsInRegion, targetRole, this.selectionStrategyPropValue);
+        final List<HostSpec> hostsInRegion =
+            this.pluginService.getHosts().stream()
+                .filter(x -> awsRegion.equalsIgnoreCase(this.rdsUtils.getRdsRegion(x.getHost())))
+                .collect(Collectors.toList());
+        return this.pluginService.getHostSpecByStrategy(
+            hostsInRegion, targetRole, this.selectionStrategyPropValue);
       } else {
-        return this.pluginService.getHostSpecByStrategy(targetRole, this.selectionStrategyPropValue);
+        return this.pluginService.getHostSpecByStrategy(
+            targetRole, this.selectionStrategyPropValue);
       }
     } catch (SQLException ex) {
       // Unable to find candidate host.
@@ -475,15 +513,19 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
       InstanceSubstitutionStrategy strategy = strategiesByKey.get(value.toLowerCase());
       if (strategy == null) {
-        throw new SQLException(Messages.get(
-            "AuroraInitialConnectionStrategyPlugin.invalidPropertyValue",
-            new Object[]{ENDPOINT_SUBSTITUTION_ROLE.name, value, ENDPOINT_SUBSTITUTION_ROLE.getChoices()}));
+        throw new SQLException(
+            Messages.get(
+                "AuroraInitialConnectionStrategyPlugin.invalidPropertyValue",
+                new Object[] {
+                  ENDPOINT_SUBSTITUTION_ROLE.name, value, ENDPOINT_SUBSTITUTION_ROLE.getChoices()
+                }));
       }
 
       return strategy;
     }
 
-    public static @Nullable HostRole toTargetRole(InstanceSubstitutionStrategy substitutionStrategy) {
+    public static @Nullable HostRole toTargetRole(
+        InstanceSubstitutionStrategy substitutionStrategy) {
       if (substitutionStrategy == InstanceSubstitutionStrategy.SUBSTITUTE_WITH_WRITER) {
         return HostRole.WRITER;
       }
@@ -504,23 +546,30 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     private static final Map<String, RoleVerificationSetting> settingsByKey =
         new HashMap<String, RoleVerificationSetting>() {
           {
-            // Note that there is no entry for HostRole.UNKNOWN, as that is not a valid role verification setting.
+            // Note that there is no entry for HostRole.UNKNOWN, as that is not a valid role
+            // verification setting.
             put("writer", WRITER);
             put("reader", READER);
             put("none", NO_VERIFICATION);
           }
         };
 
-    public static @Nullable RoleVerificationSetting fromPropertyValue(String value) throws SQLException {
+    public static @Nullable RoleVerificationSetting fromPropertyValue(String value)
+        throws SQLException {
       if (value == null) {
         return null;
       }
 
       RoleVerificationSetting verification = settingsByKey.get(value.toLowerCase());
       if (verification == null) {
-        throw new SQLException(Messages.get(
-            "AuroraInitialConnectionStrategyPlugin.invalidPropertyValue",
-            new Object[]{VERIFY_OPENED_CONNECTION_ROLE.name, value, VERIFY_OPENED_CONNECTION_ROLE.getChoices()}));
+        throw new SQLException(
+            Messages.get(
+                "AuroraInitialConnectionStrategyPlugin.invalidPropertyValue",
+                new Object[] {
+                  VERIFY_OPENED_CONNECTION_ROLE.name,
+                  value,
+                  VERIFY_OPENED_CONNECTION_ROLE.getChoices()
+                }));
       }
 
       return verification;

@@ -31,10 +31,10 @@ public class RunData implements Serializable {
   public List<FailoverResult> failoverResults;
 
   // Add more analyzed metrics below
-  public boolean topologyFalsePositive; // old writer node gets available and reports a stale writer (node "1")
+  public boolean
+      topologyFalsePositive; // old writer node gets available and reports a stale writer (node "1")
   public boolean topologyOldWriterUnavailable; // old writer node is unavailable after failover
   public boolean failoverFail;
 
-  public RunData() {
-  }
+  public RunData() {}
 }

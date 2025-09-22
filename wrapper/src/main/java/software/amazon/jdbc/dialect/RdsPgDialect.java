@@ -27,17 +27,16 @@ import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.Messages;
 
 /**
- * Suitable for the following AWS PG configurations.
- * - Multi-AZ DB Cluster
- * - Multi-AZ DB Instance
- * - Single DB Instance
+ * Suitable for the following AWS PG configurations. - Multi-AZ DB Cluster - Multi-AZ DB Instance -
+ * Single DB Instance
  */
 public class RdsPgDialect extends PgDialect implements BlueGreenDialect {
 
-  protected static final String EXTENSIONS_EXIST_SQL = "SELECT (setting LIKE '%rds_tools%') AS rds_tools, "
-      + "(setting LIKE '%aurora_stat_utils%') AS aurora_stat_utils "
-      + "FROM pg_catalog.pg_settings "
-      + "WHERE name OPERATOR(pg_catalog.=) 'rds.extensions'";
+  protected static final String EXTENSIONS_EXIST_SQL =
+      "SELECT (setting LIKE '%rds_tools%') AS rds_tools, "
+          + "(setting LIKE '%aurora_stat_utils%') AS aurora_stat_utils "
+          + "FROM pg_catalog.pg_settings "
+          + "WHERE name OPERATOR(pg_catalog.=) 'rds.extensions'";
   protected static final String TOPOLOGY_TABLE_EXISTS_QUERY =
       "SELECT 'rds_tools.show_topology'::regproc";
 
@@ -45,10 +44,11 @@ public class RdsPgDialect extends PgDialect implements BlueGreenDialect {
       "SELECT * FROM rds_tools.show_topology('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
 
   private static final Logger LOGGER = Logger.getLogger(RdsPgDialect.class.getName());
-  private static final List<String> dialectUpdateCandidates = Arrays.asList(
-      DialectCodes.RDS_MULTI_AZ_PG_CLUSTER,
-      DialectCodes.GLOBAL_AURORA_PG,
-      DialectCodes.AURORA_PG);
+  private static final List<String> dialectUpdateCandidates =
+      Arrays.asList(
+          DialectCodes.RDS_MULTI_AZ_PG_CLUSTER,
+          DialectCodes.GLOBAL_AURORA_PG,
+          DialectCodes.AURORA_PG);
 
   @Override
   public boolean isDialect(final Connection connection) {
@@ -57,11 +57,12 @@ public class RdsPgDialect extends PgDialect implements BlueGreenDialect {
     }
 
     try (Statement stmt = connection.createStatement();
-         ResultSet rs = stmt.executeQuery(EXTENSIONS_EXIST_SQL)) {
+        ResultSet rs = stmt.executeQuery(EXTENSIONS_EXIST_SQL)) {
       while (rs.next()) {
         final boolean rdsTools = rs.getBoolean("rds_tools");
         final boolean auroraUtils = rs.getBoolean("aurora_stat_utils");
-        LOGGER.finest(Messages.get("RdsPgDialect.rdsToolsAuroraUtils", new Object[] {rdsTools, auroraUtils}));
+        LOGGER.finest(
+            Messages.get("RdsPgDialect.rdsToolsAuroraUtils", new Object[] {rdsTools, auroraUtils}));
         if (rdsTools && !auroraUtils) {
           return true;
         }

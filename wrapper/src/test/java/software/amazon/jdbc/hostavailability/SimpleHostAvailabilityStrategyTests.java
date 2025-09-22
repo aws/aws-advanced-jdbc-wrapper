@@ -26,7 +26,8 @@ public class SimpleHostAvailabilityStrategyTests {
   public void testGetHostAvailability() {
     SimpleHostAvailabilityStrategy availabilityStrategy = new SimpleHostAvailabilityStrategy();
     HostAvailability expectedAvailability = HostAvailability.NOT_AVAILABLE;
-    HostAvailability actualAvailability = availabilityStrategy.getHostAvailability(expectedAvailability);
+    HostAvailability actualAvailability =
+        availabilityStrategy.getHostAvailability(expectedAvailability);
     assertEquals(expectedAvailability, actualAvailability);
   }
 }

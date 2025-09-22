@@ -49,12 +49,18 @@ import software.amazon.jdbc.hostlistprovider.HostListProvider;
 public class LimitlessConnectionPluginTest {
 
   private static final String DRIVER_PROTOCOL = "jdbc:postgresql:";
-  private static final HostSpec INPUT_HOST_SPEC = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-      .host("pg.testdb.us-east-2.rds.amazonaws.com").build();
+  private static final HostSpec INPUT_HOST_SPEC =
+      new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+          .host("pg.testdb.us-east-2.rds.amazonaws.com")
+          .build();
   private static final String CLUSTER_ID = "someClusterId";
 
-  private static final HostSpec expectedSelectedHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-      .host("expected-selected-instance").role(HostRole.WRITER).weight(Long.MAX_VALUE).build();
+  private static final HostSpec expectedSelectedHostSpec =
+      new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+          .host("expected-selected-instance")
+          .role(HostRole.WRITER)
+          .weight(Long.MAX_VALUE)
+          .build();
   private static final Dialect supportedDialect = new AuroraPgDialect();
   @Mock JdbcCallable<Connection, SQLException> mockConnectFuncLambda;
   @Mock private Connection mockConnection;
@@ -71,7 +77,8 @@ public class LimitlessConnectionPluginTest {
   public void init() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
     props = new Properties();
-    plugin = new LimitlessConnectionPlugin(mockPluginService, props, () -> mockLimitlessRouterService);
+    plugin =
+        new LimitlessConnectionPlugin(mockPluginService, props, () -> mockLimitlessRouterService);
 
     when(mockPluginService.getHostListProvider()).thenReturn(mockHostListProvider);
     when(mockPluginService.getDialect()).thenReturn(supportedDialect);
@@ -86,17 +93,21 @@ public class LimitlessConnectionPluginTest {
 
   @Test
   void testConnect() throws SQLException {
-    doAnswer(new Answer<Void>() {
-      public Void answer(InvocationOnMock invocation) {
-        LimitlessConnectionContext context = (LimitlessConnectionContext) invocation.getArguments()[0];
-        context.setConnection(mockConnection);
-        return null;
-      }
-    }).when(mockLimitlessRouterService).establishConnection(any());
+    doAnswer(
+            new Answer<Void>() {
+              public Void answer(InvocationOnMock invocation) {
+                LimitlessConnectionContext context =
+                    (LimitlessConnectionContext) invocation.getArguments()[0];
+                context.setConnection(mockConnection);
+                return null;
+              }
+            })
+        .when(mockLimitlessRouterService)
+        .establishConnection(any());
 
     final Connection expectedConnection = mockConnection;
-    final Connection actualConnection = plugin.connect(DRIVER_PROTOCOL, INPUT_HOST_SPEC, props, true,
-        mockConnectFuncLambda);
+    final Connection actualConnection =
+        plugin.connect(DRIVER_PROTOCOL, INPUT_HOST_SPEC, props, true, mockConnectFuncLambda);
 
     assertEquals(expectedConnection, actualConnection);
     verify(mockPluginService, times(1)).getDialect();
@@ -108,13 +119,17 @@ public class LimitlessConnectionPluginTest {
 
   @Test
   void testConnectGivenNullConnection() throws SQLException {
-    doAnswer(new Answer<Void>() {
-      public Void answer(InvocationOnMock invocation) {
-        LimitlessConnectionContext context = (LimitlessConnectionContext) invocation.getArguments()[0];
-        context.setConnection(null);
-        return null;
-      }
-    }).when(mockLimitlessRouterService).establishConnection(any());
+    doAnswer(
+            new Answer<Void>() {
+              public Void answer(InvocationOnMock invocation) {
+                LimitlessConnectionContext context =
+                    (LimitlessConnectionContext) invocation.getArguments()[0];
+                context.setConnection(null);
+                return null;
+              }
+            })
+        .when(mockLimitlessRouterService)
+        .establishConnection(any());
 
     assertThrows(
         SQLException.class,
@@ -149,8 +164,8 @@ public class LimitlessConnectionPluginTest {
     when(mockPluginService.getDialect()).thenReturn(unsupportedDialect, supportedDialect);
 
     final Connection expectedConnection = mockConnection;
-    final Connection actualConnection = plugin.connect(DRIVER_PROTOCOL, INPUT_HOST_SPEC, props, true,
-        mockConnectFuncLambda);
+    final Connection actualConnection =
+        plugin.connect(DRIVER_PROTOCOL, INPUT_HOST_SPEC, props, true, mockConnectFuncLambda);
 
     assertEquals(expectedConnection, actualConnection);
     verify(mockPluginService, times(2)).getDialect();

@@ -51,14 +51,16 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 @ExtendWith(TestDriverProvider.class)
 @MakeSureFirstInstanceWriter
 @EnableOnDatabaseEngineDeployment({
-    DatabaseEngineDeployment.AURORA,
-    DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER})
+  DatabaseEngineDeployment.AURORA,
+  DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER
+})
 @DisableOnTestFeature({
-    TestEnvironmentFeatures.PERFORMANCE,
-    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
-    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
-    TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
-    TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
+  TestEnvironmentFeatures.PERFORMANCE,
+  TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
+  TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
+  TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
+  TestEnvironmentFeatures.RUN_DB_METRICS_ONLY
+})
 @Order(18)
 public class FastestResponseStrategyTest {
   protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
@@ -71,14 +73,26 @@ public class FastestResponseStrategyTest {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
     props.setProperty(PropertyDefinition.CONNECT_TIMEOUT.name, "10000");
     props.setProperty(PropertyDefinition.SOCKET_TIMEOUT.name, "10000");
-    RdsHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props,
-        "?." + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointSuffix()
-            + ":" + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointPort());
-    props.setProperty(PropertyDefinition.PLUGINS.name, "readWriteSplitting,fastestResponseStrategy");
-    props.setProperty(ReadWriteSplittingPlugin.READER_HOST_SELECTOR_STRATEGY.name, "fastestResponse");
+    RdsHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(
+        props,
+        "?."
+            + TestEnvironment.getCurrent()
+                .getInfo()
+                .getProxyDatabaseInfo()
+                .getInstanceEndpointSuffix()
+            + ":"
+            + TestEnvironment.getCurrent()
+                .getInfo()
+                .getProxyDatabaseInfo()
+                .getInstanceEndpointPort());
+    props.setProperty(
+        PropertyDefinition.PLUGINS.name, "readWriteSplitting,fastestResponseStrategy");
+    props.setProperty(
+        ReadWriteSplittingPlugin.READER_HOST_SELECTOR_STRATEGY.name, "fastestResponse");
 
     String url = ConnectionStringHelper.getProxyWrapperUrl();
-    List<TestInstanceInfo> instances = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances();
+    List<TestInstanceInfo> instances =
+        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances();
     assertTrue(instances.size() >= 3);
     // The writer is stored at index 0, so we'll choose the reader at index 1 to be the fast one.
     TestInstanceInfo fastestReader = instances.get(1);
@@ -102,4 +116,3 @@ public class FastestResponseStrategyTest {
     }
   }
 }
-

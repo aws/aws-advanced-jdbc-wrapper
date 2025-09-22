@@ -28,30 +28,34 @@ import software.amazon.jdbc.util.StringUtils;
 public class FederatedAuthPluginFactory implements ConnectionPluginFactory {
 
   @Override
-  public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
+  public ConnectionPlugin getInstance(
+      final FullServicesContainer servicesContainer, final Properties props) {
     PluginService pluginService = servicesContainer.getPluginService();
-    return new FederatedAuthPlugin(pluginService, getCredentialsProviderFactory(pluginService, props));
+    return new FederatedAuthPlugin(
+        pluginService, getCredentialsProviderFactory(pluginService, props));
   }
 
-  private CredentialsProviderFactory getCredentialsProviderFactory(final PluginService pluginService,
-      final Properties props) {
+  private CredentialsProviderFactory getCredentialsProviderFactory(
+      final PluginService pluginService, final Properties props) {
     final String idpName = FederatedAuthPlugin.IDP_NAME.getString(props);
-    if (StringUtils.isNullOrEmpty(idpName) || AdfsCredentialsProviderFactory.IDP_NAME.equalsIgnoreCase(idpName)) {
+    if (StringUtils.isNullOrEmpty(idpName)
+        || AdfsCredentialsProviderFactory.IDP_NAME.equalsIgnoreCase(idpName)) {
       return new AdfsCredentialsProviderFactory(
           pluginService,
           () -> {
             try {
-              return new HttpClientFactory().getCloseableHttpClient(
-                  FederatedAuthPlugin.HTTP_CLIENT_SOCKET_TIMEOUT.getInteger(props),
-                  FederatedAuthPlugin.HTTP_CLIENT_CONNECT_TIMEOUT.getInteger(props),
-                  FederatedAuthPlugin.SSL_INSECURE.getBoolean(props));
+              return new HttpClientFactory()
+                  .getCloseableHttpClient(
+                      FederatedAuthPlugin.HTTP_CLIENT_SOCKET_TIMEOUT.getInteger(props),
+                      FederatedAuthPlugin.HTTP_CLIENT_CONNECT_TIMEOUT.getInteger(props),
+                      FederatedAuthPlugin.SSL_INSECURE.getBoolean(props));
             } catch (GeneralSecurityException e) {
               throw new RuntimeException(
                   Messages.get("CredentialsProviderFactory.failedToInitializeHttpClient"), e);
             }
           });
     }
-    throw new IllegalArgumentException(Messages.get("CredentialsProviderFactory.unsupportedIdp",
-        new Object[] {idpName}));
+    throw new IllegalArgumentException(
+        Messages.get("CredentialsProviderFactory.unsupportedIdp", new Object[] {idpName}));
   }
 }

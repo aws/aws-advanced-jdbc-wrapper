@@ -57,10 +57,11 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @DisableOnTestFeature({
-    TestEnvironmentFeatures.PERFORMANCE,
-    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
-    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
-    TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
+  TestEnvironmentFeatures.PERFORMANCE,
+  TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
+  TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
+  TestEnvironmentFeatures.RUN_DB_METRICS_ONLY
+})
 @Order(4)
 public class BasicConnectivityTests {
 
@@ -238,7 +239,8 @@ public class BasicConnectivityTests {
     LOGGER.finest("Connecting to " + url);
 
     try (Connection conn =
-        DriverManager.getConnection(url, ConnectionStringHelper.getDefaultPropertiesWithNoPlugins())) {
+        DriverManager.getConnection(
+            url, ConnectionStringHelper.getDefaultPropertiesWithNoPlugins())) {
 
       assertTrue(conn instanceof ConnectionWrapper);
       assertTrue(conn.isValid(10));
@@ -258,7 +260,8 @@ public class BasicConnectivityTests {
         SQLException.class,
         () -> {
           Connection conn =
-              DriverManager.getConnection(url, ConnectionStringHelper.getDefaultPropertiesWithNoPlugins());
+              DriverManager.getConnection(
+                  url, ConnectionStringHelper.getDefaultPropertiesWithNoPlugins());
           conn.close();
         });
   }
@@ -290,7 +293,8 @@ public class BasicConnectivityTests {
     props.setProperty(PropertyDefinition.PASSWORD.name, password);
 
     if (testDriver == TestDriver.MARIADB) {
-      // If this property is true the driver will still be able to connect, causing the test to fail.
+      // If this property is true the driver will still be able to connect, causing the test to
+      // fail.
       props.setProperty("allowPublicKeyRetrieval", "false");
     }
 

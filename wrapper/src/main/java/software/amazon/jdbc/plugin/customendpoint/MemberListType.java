@@ -17,18 +17,20 @@
 package software.amazon.jdbc.plugin.customendpoint;
 
 /**
- * Enum representing the member list type of custom endpoint. This information can be used together with a member list
- * to determine which instances are included or excluded from a custom endpoint.
+ * Enum representing the member list type of custom endpoint. This information can be used together
+ * with a member list to determine which instances are included or excluded from a custom endpoint.
  */
 public enum MemberListType {
   /**
-   * The member list for the custom endpoint specifies which instances are included in the custom endpoint. If new
-   * instances are added to the cluster, they will not be automatically added to the custom endpoint.
+   * The member list for the custom endpoint specifies which instances are included in the custom
+   * endpoint. If new instances are added to the cluster, they will not be automatically added to
+   * the custom endpoint.
    */
   STATIC_LIST,
   /**
-   * The member list for the custom endpoint specifies which instances are excluded from the custom endpoint. If new
-   * instances are added to the cluster, they will be automatically added to the custom endpoint.
+   * The member list for the custom endpoint specifies which instances are excluded from the custom
+   * endpoint. If new instances are added to the cluster, they will be automatically added to the
+   * custom endpoint.
    */
   EXCLUSION_LIST
 }

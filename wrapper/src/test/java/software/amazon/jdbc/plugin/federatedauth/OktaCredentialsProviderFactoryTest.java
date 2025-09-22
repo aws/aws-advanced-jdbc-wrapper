@@ -84,7 +84,8 @@ class OktaCredentialsProviderFactoryTest {
     when(mockStatusLine.getStatusCode()).thenReturn(200);
     when(mockHttpClient.execute(any())).thenReturn(mockResponse);
 
-    this.oktaCredentialsProviderFactory = new OktaCredentialsProviderFactory(mockPluginService, mockHttpClientSupplier);
+    this.oktaCredentialsProviderFactory =
+        new OktaCredentialsProviderFactory(mockPluginService, mockHttpClientSupplier);
   }
 
   @AfterEach
@@ -98,8 +99,10 @@ class OktaCredentialsProviderFactoryTest {
     final String samlAssertionResponse = getResource("okta/saml-assertion.html");
     final String expectedSessionToken = getResource("okta/expected-session-token.txt");
     final String expectedAssertion = getResource("okta/assertion.txt");
-    final URI expectedUri = new URI(
-        "https://example.okta.com/app/amazon_aws/example.okta.com/sso/saml?onetimetoken=" + expectedSessionToken);
+    final URI expectedUri =
+        new URI(
+            "https://example.okta.com/app/amazon_aws/example.okta.com/sso/saml?onetimetoken="
+                + expectedSessionToken);
     final HttpEntity sessionTokenEntity = new StringEntity(sessionTokenResponse);
     final HttpEntity samlAssertionEntity = new StringEntity(samlAssertionResponse);
     final String expectedSessionTokenEndpoint = "https://" + ENDPOINT + "/api/v1/authn";
@@ -111,10 +114,12 @@ class OktaCredentialsProviderFactoryTest {
     final String samlAssertion = this.oktaCredentialsProviderFactory.getSamlAssertion(props);
     assertEquals(expectedAssertion, samlAssertion);
 
-    final ArgumentCaptor<HttpUriRequest> httpPostArgumentCaptor = ArgumentCaptor.forClass(HttpUriRequest.class);
+    final ArgumentCaptor<HttpUriRequest> httpPostArgumentCaptor =
+        ArgumentCaptor.forClass(HttpUriRequest.class);
     verify(mockHttpClient, times(2)).execute(httpPostArgumentCaptor.capture());
     final List<HttpUriRequest> actualCaptures = httpPostArgumentCaptor.getAllValues();
-    final HttpEntityEnclosingRequest sessionTokenRequest = (HttpEntityEnclosingRequest) actualCaptures.get(0);
+    final HttpEntityEnclosingRequest sessionTokenRequest =
+        (HttpEntityEnclosingRequest) actualCaptures.get(0);
     final String content = EntityUtils.toString(sessionTokenRequest.getEntity());
     final HttpUriRequest samlRequest = actualCaptures.get(1);
     assertEquals(expectedSessionTokenEndpoint, sessionTokenRequest.getRequestLine().getUri());

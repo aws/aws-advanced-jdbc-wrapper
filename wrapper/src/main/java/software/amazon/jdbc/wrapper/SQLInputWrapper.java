@@ -347,7 +347,7 @@ public class SQLInputWrapper implements SQLInput {
         Ref.class,
         SQLException.class,
         this.connectionWrapper,
-          this.pluginManager,
+        this.pluginManager,
         this.sqlInput,
         JdbcMethod.SQLINPUT_READREF,
         this.sqlInput::readRef);
@@ -359,7 +359,7 @@ public class SQLInputWrapper implements SQLInput {
         Blob.class,
         SQLException.class,
         this.connectionWrapper,
-          this.pluginManager,
+        this.pluginManager,
         this.sqlInput,
         JdbcMethod.SQLINPUT_READBLOB,
         this.sqlInput::readBlob);
@@ -371,7 +371,7 @@ public class SQLInputWrapper implements SQLInput {
         Clob.class,
         SQLException.class,
         this.connectionWrapper,
-          this.pluginManager,
+        this.pluginManager,
         this.sqlInput,
         JdbcMethod.SQLINPUT_READCLOB,
         this.sqlInput::readClob);
@@ -383,7 +383,7 @@ public class SQLInputWrapper implements SQLInput {
         Array.class,
         SQLException.class,
         this.connectionWrapper,
-          this.pluginManager,
+        this.pluginManager,
         this.sqlInput,
         JdbcMethod.SQLINPUT_READARRAY,
         this.sqlInput::readArray);
@@ -427,7 +427,7 @@ public class SQLInputWrapper implements SQLInput {
         NClob.class,
         SQLException.class,
         this.connectionWrapper,
-          this.pluginManager,
+        this.pluginManager,
         this.sqlInput,
         JdbcMethod.SQLINPUT_READNCLOB,
         this.sqlInput::readNClob);

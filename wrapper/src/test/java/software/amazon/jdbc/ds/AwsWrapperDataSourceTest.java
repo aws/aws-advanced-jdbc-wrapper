@@ -55,7 +55,13 @@ class AwsWrapperDataSourceTest {
     doReturn(mockConnection)
         .when(ds)
         .createConnectionWrapper(
-            propertiesArgumentCaptor.capture(), urlArgumentCaptor.capture(), any(), any(), any(), any(), any());
+            propertiesArgumentCaptor.capture(),
+            urlArgumentCaptor.capture(),
+            any(),
+            any(),
+            any(),
+            any(),
+            any());
   }
 
   @AfterEach
@@ -85,7 +91,9 @@ class AwsWrapperDataSourceTest {
     assertEquals(2, urls.size());
     assertEquals(2, properties.size());
     assertEquals(expectedUrl1, urls.get(0));
-    assertEquals(expectedUrl1, urls.get(1)); // JDBC Url doesn't get updated when we are reusing the data source.
+    assertEquals(
+        expectedUrl1,
+        urls.get(1)); // JDBC Url doesn't get updated when we are reusing the data source.
     assertEquals(expectedProperties1, properties.get(0));
     assertEquals(expectedProperties2, properties.get(1));
   }

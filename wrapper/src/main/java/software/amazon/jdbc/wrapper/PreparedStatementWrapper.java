@@ -305,7 +305,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-          this.pluginManager,
+        this.pluginManager,
         this.statement,
         JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY,
         this.statement::executeQuery);
@@ -317,7 +317,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-          this.pluginManager,
+        this.pluginManager,
         this.statement,
         JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY,
         () -> this.statement.executeQuery(sql),
@@ -417,7 +417,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
         Connection.class,
         SQLException.class,
         this.connectionWrapper,
-          this.pluginManager,
+        this.pluginManager,
         this.statement,
         JdbcMethod.PREPAREDSTATEMENT_GETCONNECTION,
         () -> this.connectionWrapper);
@@ -462,7 +462,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-          this.pluginManager,
+        this.pluginManager,
         this.statement,
         JdbcMethod.PREPAREDSTATEMENT_GETGENERATEDKEYS,
         this.statement::getGeneratedKeys);
@@ -506,7 +506,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
         ResultSetMetaData.class,
         SQLException.class,
         this.connectionWrapper,
-          this.pluginManager,
+        this.pluginManager,
         this.statement,
         JdbcMethod.PREPAREDSTATEMENT_GETMETADATA,
         this.statement::getMetaData);
@@ -551,7 +551,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
         ParameterMetaData.class,
         SQLException.class,
         this.connectionWrapper,
-          this.pluginManager,
+        this.pluginManager,
         this.statement,
         JdbcMethod.PREPAREDSTATEMENT_GETPARAMETERMETADATA,
         this.statement::getParameterMetaData);
@@ -579,7 +579,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-          this.pluginManager,
+        this.pluginManager,
         this.statement,
         JdbcMethod.PREPAREDSTATEMENT_GETRESULTSET,
         this.statement::getResultSet);

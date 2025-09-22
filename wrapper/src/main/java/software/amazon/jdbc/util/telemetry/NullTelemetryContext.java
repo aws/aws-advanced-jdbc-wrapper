@@ -18,20 +18,16 @@ package software.amazon.jdbc.util.telemetry;
 
 public class NullTelemetryContext implements TelemetryContext {
 
-  public NullTelemetryContext() {
-  }
+  public NullTelemetryContext() {}
 
   @Override
-  public void setSuccess(boolean success) {
-  }
+  public void setSuccess(boolean success) {}
 
   @Override
-  public void setAttribute(String key, String value) {
-  }
+  public void setAttribute(String key, String value) {}
 
   @Override
-  public void setException(Exception exception) {
-  }
+  public void setException(Exception exception) {}
 
   @Override
   public String getName() {
@@ -39,7 +35,5 @@ public class NullTelemetryContext implements TelemetryContext {
   }
 
   @Override
-  public void closeContext() {
-  }
-
+  public void closeContext() {}
 }

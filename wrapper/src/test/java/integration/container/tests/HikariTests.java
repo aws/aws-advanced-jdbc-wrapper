@@ -80,13 +80,17 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
 @EnableOnTestFeature(TestEnvironmentFeatures.HIKARI)
-@EnableOnDatabaseEngineDeployment({DatabaseEngineDeployment.AURORA, DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER})
+@EnableOnDatabaseEngineDeployment({
+  DatabaseEngineDeployment.AURORA,
+  DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER
+})
 @DisableOnTestFeature({
-    TestEnvironmentFeatures.PERFORMANCE,
-    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
-    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
-    TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
-    TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
+  TestEnvironmentFeatures.PERFORMANCE,
+  TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
+  TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
+  TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
+  TestEnvironmentFeatures.RUN_DB_METRICS_ONLY
+})
 @MakeSureFirstInstanceWriter
 @Order(8)
 public class HikariTests {
@@ -99,8 +103,10 @@ public class HikariTests {
     try (final HikariDataSource dataSource = new HikariDataSource()) {
       final String url = ConnectionStringHelper.getWrapperUrl();
       dataSource.setJdbcUrl(url);
-      dataSource.setUsername(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
-      dataSource.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+      dataSource.setUsername(
+          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
+      dataSource.setPassword(
+          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
       dataSource.addDataSourceProperty(PLUGINS.name, "");
 
       final Connection conn = dataSource.getConnection();
@@ -125,24 +131,23 @@ public class HikariTests {
       dataSource.setDataSourceClassName(AwsWrapperDataSource.class.getName());
 
       // Configure the connection pool:
-      dataSource.setUsername(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
-      dataSource.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+      dataSource.setUsername(
+          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
+      dataSource.setPassword(
+          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
 
       // Configure AwsWrapperDataSource:
       dataSource.addDataSourceProperty("jdbcProtocol", DriverHelper.getDriverProtocol());
-      dataSource.addDataSourceProperty("serverName",
-          TestEnvironment.getCurrent()
-              .getInfo()
-              .getDatabaseInfo()
-              .getInstances()
-              .get(0)
-              .getHost());
-      dataSource.addDataSourceProperty(PropertyDefinition.DATABASE.name,
+      dataSource.addDataSourceProperty(
+          "serverName",
+          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0).getHost());
+      dataSource.addDataSourceProperty(
+          PropertyDefinition.DATABASE.name,
           TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
 
       // Specify the driver-specific DataSource for AwsWrapperDataSource:
-      dataSource.addDataSourceProperty("targetDataSourceClassName",
-          DriverHelper.getDataSourceClassname());
+      dataSource.addDataSourceProperty(
+          "targetDataSourceClassName", DriverHelper.getDataSourceClassname());
 
       // Configuring driver-specific DataSource:
       final Properties targetDataSourceProps = new Properties();
@@ -150,7 +155,7 @@ public class HikariTests {
 
       if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
           && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine()
-          == DatabaseEngine.MYSQL) {
+              == DatabaseEngine.MYSQL) {
         // Connecting to Mysql database with MariaDb driver requires a configuration parameter
         // "permitMysqlScheme"
         targetDataSourceProps.setProperty("permitMysqlScheme", "1");
@@ -172,9 +177,7 @@ public class HikariTests {
     }
   }
 
-  /**
-   * After getting successful connections from the pool, the cluster becomes unavailable.
-   */
+  /** After getting successful connections from the pool, the cluster becomes unavailable. */
   @TestTemplate
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
   @EnableOnNumOfInstances(min = 3)
@@ -182,7 +185,8 @@ public class HikariTests {
     final Properties customProps = new Properties();
     PLUGINS.set(customProps, "failover");
     FAILOVER_TIMEOUT_MS.set(customProps, Integer.toString(1));
-    PropertyDefinition.SOCKET_TIMEOUT.set(customProps, String.valueOf(TimeUnit.SECONDS.toMillis(1)));
+    PropertyDefinition.SOCKET_TIMEOUT.set(
+        customProps, String.valueOf(TimeUnit.SECONDS.toMillis(1)));
 
     try (final HikariDataSource dataSource = createHikariDataSource(customProps)) {
 
@@ -191,15 +195,15 @@ public class HikariTests {
 
         ProxyHelper.disableAllConnectivity();
 
-        assertThrows(FailoverFailedSQLException.class, () ->
-            // It's expected that the following statement executes in matter of seconds
-            // (since we rely on small socket timeout and small failover timeout). However,
-            // if it takes more time, we'd like to exit by timeout rather than waiting indefinitely.
-            executeWithTimeout(
-                () -> auroraUtil.queryInstanceId(conn),
-                TimeUnit.MINUTES.toMillis(1)
-            )
-        );
+        assertThrows(
+            FailoverFailedSQLException.class,
+            () ->
+                // It's expected that the following statement executes in matter of seconds
+                // (since we rely on small socket timeout and small failover timeout). However,
+                // if it takes more time, we'd like to exit by timeout rather than waiting
+                // indefinitely.
+                executeWithTimeout(
+                    () -> auroraUtil.queryInstanceId(conn), TimeUnit.MINUTES.toMillis(1)));
         assertFalse(conn.isValid(5));
       }
 
@@ -211,9 +215,8 @@ public class HikariTests {
   }
 
   /**
-   * After getting a successful connection from the pool, the connected instance becomes
-   * unavailable and the
-   * connection fails over to another instance through the Enhanced Failure Monitor.
+   * After getting a successful connection from the pool, the connected instance becomes unavailable
+   * and the connection fails over to another instance through the Enhanced Failure Monitor.
    */
   @TestTemplate
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
@@ -221,10 +224,8 @@ public class HikariTests {
   public void testEFMFailover() throws SQLException {
     ProxyHelper.disableAllConnectivity();
 
-    final List<TestInstanceInfo> instances = TestEnvironment.getCurrent()
-        .getInfo()
-        .getProxyDatabaseInfo()
-        .getInstances();
+    final List<TestInstanceInfo> instances =
+        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances();
 
     final String writerIdentifier = instances.get(0).getInstanceId();
     final String readerIdentifier = instances.get(1).getInstanceId();
@@ -261,15 +262,16 @@ public class HikariTests {
   }
 
   /**
-   * After successfully opening and returning a connection to the Hikari pool, writer failover is triggered when
-   * getConnection is called.
+   * After successfully opening and returning a connection to the Hikari pool, writer failover is
+   * triggered when getConnection is called.
    */
   @TestTemplate
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
   @EnableOnNumOfInstances(min = 2)
   public void testInternalPools_driverWriterFailoverOnGetConnectionInvocation()
       throws SQLException, InterruptedException {
-    final TestProxyDatabaseInfo proxyInfo = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
+    final TestProxyDatabaseInfo proxyInfo =
+        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
     final List<TestInstanceInfo> instances = proxyInfo.getInstances();
     final TestInstanceInfo reader = instances.get(1);
     final String readerId = reader.getInstanceId();
@@ -277,8 +279,10 @@ public class HikariTests {
     setupInternalConnectionPools(getInstanceUrlSubstring(reader.getHost()));
     try {
       final Properties targetDataSourceProps = new Properties();
-      targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_MODE.name, "strict-writer");
-      final AwsWrapperDataSource ds = createWrapperDataSource(reader, proxyInfo, targetDataSourceProps);
+      targetDataSourceProps.setProperty(
+          FailoverConnectionPlugin.FAILOVER_MODE.name, "strict-writer");
+      final AwsWrapperDataSource ds =
+          createWrapperDataSource(reader, proxyInfo, targetDataSourceProps);
 
       // Open connection and then return it to the pool
       Connection conn = ds.getConnection();
@@ -286,8 +290,10 @@ public class HikariTests {
       conn.close();
 
       ProxyHelper.disableConnectivity(reader.getInstanceId());
-      // Hikari's 'com.zaxxer.hikari.aliveBypassWindowMs' property is set to 500ms by default. We need to wait this long
-      // to trigger Hikari's validation attempts when HikariDatasource#getConnection is called. These attempts will fail
+      // Hikari's 'com.zaxxer.hikari.aliveBypassWindowMs' property is set to 500ms by default. We
+      // need to wait this long
+      // to trigger Hikari's validation attempts when HikariDatasource#getConnection is called.
+      // These attempts will fail
       // and Hikari will throw an exception, which should trigger failover.
       TimeUnit.MILLISECONDS.sleep(500);
 
@@ -301,15 +307,16 @@ public class HikariTests {
   }
 
   /**
-   * After successfully opening and returning connections to the Hikari pool, reader failover is triggered when
-   * getConnection is called.
+   * After successfully opening and returning connections to the Hikari pool, reader failover is
+   * triggered when getConnection is called.
    */
   @TestTemplate
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
   @EnableOnNumOfInstances(min = 2)
   public void testInternalPools_driverReaderFailoverOnGetConnectionInvocation()
       throws SQLException, InterruptedException {
-    final TestProxyDatabaseInfo proxyInfo = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
+    final TestProxyDatabaseInfo proxyInfo =
+        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
     final List<TestInstanceInfo> instances = proxyInfo.getInstances();
     final TestInstanceInfo writer = instances.get(0);
     final String writerId = writer.getInstanceId();
@@ -317,8 +324,10 @@ public class HikariTests {
     setupInternalConnectionPools(getInstanceUrlSubstring(writer.getHost()));
     try {
       final Properties targetDataSourceProps = new Properties();
-      targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_MODE.name, "strict-reader");
-      final AwsWrapperDataSource ds = createWrapperDataSource(writer, proxyInfo, targetDataSourceProps);
+      targetDataSourceProps.setProperty(
+          FailoverConnectionPlugin.FAILOVER_MODE.name, "strict-reader");
+      final AwsWrapperDataSource ds =
+          createWrapperDataSource(writer, proxyInfo, targetDataSourceProps);
 
       // Open some connections.
       List<Connection> connections = new ArrayList<>();
@@ -333,8 +342,10 @@ public class HikariTests {
       }
 
       ProxyHelper.disableConnectivity(writer.getInstanceId());
-      // Hikari's 'com.zaxxer.hikari.aliveBypassWindowMs' property is set to 500ms by default. We need to wait this long
-      // to trigger Hikari's validation attempts when HikariDatasource#getConnection is called. These attempts will fail
+      // Hikari's 'com.zaxxer.hikari.aliveBypassWindowMs' property is set to 500ms by default. We
+      // need to wait this long
+      // to trigger Hikari's validation attempts when HikariDatasource#getConnection is called.
+      // These attempts will fail
       // and Hikari will throw an exception, which should trigger failover.
       TimeUnit.MILLISECONDS.sleep(500);
 
@@ -349,15 +360,17 @@ public class HikariTests {
   }
 
   /**
-   * After successfully opening and returning a connection to the Hikari pool, writer failover is triggered when
-   * getConnection is called. Since the cluster only has one instance and the instance stays down, failover fails.
+   * After successfully opening and returning a connection to the Hikari pool, writer failover is
+   * triggered when getConnection is called. Since the cluster only has one instance and the
+   * instance stays down, failover fails.
    */
   @TestTemplate
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
   @EnableOnNumOfInstances(max = 1)
   public void testInternalPools_driverWriterFailoverOnGetConnectionInvocation_singleInstance()
       throws SQLException, InterruptedException {
-    final TestProxyDatabaseInfo proxyInfo = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
+    final TestProxyDatabaseInfo proxyInfo =
+        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
     final List<TestInstanceInfo> instances = proxyInfo.getInstances();
     final TestInstanceInfo writer = instances.get(0);
     final String writerId = writer.getInstanceId();
@@ -365,9 +378,11 @@ public class HikariTests {
     setupInternalConnectionPools(getInstanceUrlSubstring(writer.getHost()));
     try {
       final Properties targetDataSourceProps = new Properties();
-      targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_MODE.name, "strict-writer");
+      targetDataSourceProps.setProperty(
+          FailoverConnectionPlugin.FAILOVER_MODE.name, "strict-writer");
       targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.name, "5000");
-      final AwsWrapperDataSource ds = createWrapperDataSource(writer, proxyInfo, targetDataSourceProps);
+      final AwsWrapperDataSource ds =
+          createWrapperDataSource(writer, proxyInfo, targetDataSourceProps);
 
       // Open connection and then return it to the pool
       Connection conn = ds.getConnection();
@@ -375,8 +390,10 @@ public class HikariTests {
       conn.close();
 
       ProxyHelper.disableAllConnectivity();
-      // Hikari's 'com.zaxxer.hikari.aliveBypassWindowMs' property is set to 500ms by default. We need to wait this long
-      // to trigger Hikari's validation attempts when HikariDatasource#getConnection is called. These attempts will fail
+      // Hikari's 'com.zaxxer.hikari.aliveBypassWindowMs' property is set to 500ms by default. We
+      // need to wait this long
+      // to trigger Hikari's validation attempts when HikariDatasource#getConnection is called.
+      // These attempts will fail
       // and Hikari will throw an exception, which should trigger failover.
       TimeUnit.MILLISECONDS.sleep(500);
 
@@ -388,8 +405,8 @@ public class HikariTests {
   }
 
   /**
-   * Given an instance URL, extracts the substring of the URL that is common to all instance URLs. For example, given
-   * "instance-1.ABC.cluster-XYZ.us-west-2.rds.amazonaws.com.proxied", returns
+   * Given an instance URL, extracts the substring of the URL that is common to all instance URLs.
+   * For example, given "instance-1.ABC.cluster-XYZ.us-west-2.rds.amazonaws.com.proxied", returns
    * ".ABC.cluster-XYZ.us-west-2.rds.amazonaws.com.proxied"
    */
   private String getInstanceUrlSubstring(String instanceUrl) {
@@ -397,19 +414,31 @@ public class HikariTests {
     return instanceUrl.substring(substringStart);
   }
 
-  private AwsWrapperDataSource createWrapperDataSource(TestInstanceInfo instanceInfo,
-      TestProxyDatabaseInfo proxyInfo, Properties targetDataSourceProps) {
-    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "auroraConnectionTracker,failover,efm");
-    targetDataSourceProps.setProperty(FailoverConnectionPlugin.ENABLE_CONNECT_FAILOVER.name, "true");
-    targetDataSourceProps.setProperty(RdsHostListProvider.CLUSTER_TOPOLOGY_REFRESH_RATE_MS.name,
+  private AwsWrapperDataSource createWrapperDataSource(
+      TestInstanceInfo instanceInfo,
+      TestProxyDatabaseInfo proxyInfo,
+      Properties targetDataSourceProps) {
+    targetDataSourceProps.setProperty(
+        PropertyDefinition.PLUGINS.name, "auroraConnectionTracker,failover,efm");
+    targetDataSourceProps.setProperty(
+        FailoverConnectionPlugin.ENABLE_CONNECT_FAILOVER.name, "true");
+    targetDataSourceProps.setProperty(
+        RdsHostListProvider.CLUSTER_TOPOLOGY_REFRESH_RATE_MS.name,
         String.valueOf(TimeUnit.MINUTES.toMillis(5)));
-    targetDataSourceProps.setProperty(RdsHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name,
-        "?." + proxyInfo.getInstanceEndpointSuffix()
-            + ":" + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointPort());
+    targetDataSourceProps.setProperty(
+        RdsHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name,
+        "?."
+            + proxyInfo.getInstanceEndpointSuffix()
+            + ":"
+            + TestEnvironment.getCurrent()
+                .getInfo()
+                .getProxyDatabaseInfo()
+                .getInstanceEndpointPort());
     targetDataSourceProps.setProperty(RdsHostListProvider.CLUSTER_ID.name, "HikariTestsCluster");
 
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
-        && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.MYSQL) {
+        && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine()
+            == DatabaseEngine.MYSQL) {
       targetDataSourceProps.setProperty("permitMysqlScheme", "1");
     }
 
@@ -427,22 +456,24 @@ public class HikariTests {
   }
 
   private void setupInternalConnectionPools(String instanceUrlSubstring) {
-    HikariPoolConfigurator hikariConfigurator = (hostSpec, props) -> {
-      HikariConfig config = new HikariConfig();
-      config.setMaximumPoolSize(30);
-      config.setMinimumIdle(2);
-      config.setIdleTimeout(TimeUnit.MINUTES.toMillis(15));
-      config.setInitializationFailTimeout(-1);
-      config.setConnectionTimeout(1500);
-      config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(3));
-      config.setValidationTimeout(1000);
-      config.setMaxLifetime(TimeUnit.DAYS.toMillis(1));
-      config.setReadOnly(true);
-      config.setAutoCommit(true);
-      return config;
-    };
+    HikariPoolConfigurator hikariConfigurator =
+        (hostSpec, props) -> {
+          HikariConfig config = new HikariConfig();
+          config.setMaximumPoolSize(30);
+          config.setMinimumIdle(2);
+          config.setIdleTimeout(TimeUnit.MINUTES.toMillis(15));
+          config.setInitializationFailTimeout(-1);
+          config.setConnectionTimeout(1500);
+          config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(3));
+          config.setValidationTimeout(1000);
+          config.setMaxLifetime(TimeUnit.DAYS.toMillis(1));
+          config.setReadOnly(true);
+          config.setAutoCommit(true);
+          return config;
+        };
 
-    AcceptsUrlFunc acceptsUrlFunc = (hostSpec, props) -> hostSpec.getHost().contains(instanceUrlSubstring);
+    AcceptsUrlFunc acceptsUrlFunc =
+        (hostSpec, props) -> hostSpec.getHost().contains(instanceUrlSubstring);
 
     final HikariPooledConnectionProvider provider =
         new HikariPooledConnectionProvider(
@@ -486,21 +517,27 @@ public class HikariTests {
     config.setConnectionTimeout(1000);
 
     config.setDataSourceClassName(AwsWrapperDataSource.class.getName());
-    config.addDataSourceProperty("targetDataSourceClassName",
-        DriverHelper.getDataSourceClassname());
+    config.addDataSourceProperty(
+        "targetDataSourceClassName", DriverHelper.getDataSourceClassname());
     config.addDataSourceProperty("jdbcProtocol", DriverHelper.getDriverProtocol());
-    config.addDataSourceProperty("serverName",
+    config.addDataSourceProperty(
+        "serverName",
         TestEnvironment.getCurrent()
             .getInfo()
             .getProxyDatabaseInfo()
             .getInstances()
             .get(0)
             .getHost());
-    config.addDataSourceProperty("database",
+    config.addDataSourceProperty(
+        "database",
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName());
-    config.addDataSourceProperty("serverPort",
-        Integer.toString(TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo()
-            .getClusterEndpointPort()));
+    config.addDataSourceProperty(
+        "serverPort",
+        Integer.toString(
+            TestEnvironment.getCurrent()
+                .getInfo()
+                .getProxyDatabaseInfo()
+                .getClusterEndpointPort()));
 
     final Properties targetDataSourceProps = ConnectionStringHelper.getDefaultProperties();
 
@@ -509,10 +546,14 @@ public class HikariTests {
         "clusterInstanceHostPattern",
         "?."
             + TestEnvironment.getCurrent()
-            .getInfo()
-            .getProxyDatabaseInfo()
-            .getInstanceEndpointSuffix()
-            + ":" + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointPort());
+                .getInfo()
+                .getProxyDatabaseInfo()
+                .getInstanceEndpointSuffix()
+            + ":"
+            + TestEnvironment.getCurrent()
+                .getInfo()
+                .getProxyDatabaseInfo()
+                .getInstanceEndpointPort());
 
     targetDataSourceProps.setProperty(
         FailoverConnectionPlugin.FAILOVER_MODE.name, "reader-or-writer");
@@ -524,14 +565,17 @@ public class HikariTests {
         HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "1");
 
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
-        && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.MYSQL) {
+        && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine()
+            == DatabaseEngine.MYSQL) {
       // Connecting to Mysql database with MariaDb driver requires a configuration parameter
       // "permitMysqlScheme"
       targetDataSourceProps.setProperty("permitMysqlScheme", "1");
     }
 
-    targetDataSourceProps.setProperty("monitoring-" + PropertyDefinition.CONNECT_TIMEOUT.name, "3000");
-    targetDataSourceProps.setProperty("monitoring-" + PropertyDefinition.SOCKET_TIMEOUT.name, "3000");
+    targetDataSourceProps.setProperty(
+        "monitoring-" + PropertyDefinition.CONNECT_TIMEOUT.name, "3000");
+    targetDataSourceProps.setProperty(
+        "monitoring-" + PropertyDefinition.SOCKET_TIMEOUT.name, "3000");
     targetDataSourceProps.setProperty(PropertyDefinition.CONNECT_TIMEOUT.name, "10000");
     targetDataSourceProps.setProperty(PropertyDefinition.SOCKET_TIMEOUT.name, "10000");
 

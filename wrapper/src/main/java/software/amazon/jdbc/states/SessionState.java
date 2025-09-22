@@ -44,7 +44,8 @@ public class SessionState {
       newSessionState.typeMap.setValue(new HashMap<>(this.typeMap.getValue().get()));
     }
     if (this.typeMap.getPristineValue().isPresent()) {
-      newSessionState.typeMap.setPristineValue(new HashMap<>(this.typeMap.getPristineValue().get()));
+      newSessionState.typeMap.setPristineValue(
+          new HashMap<>(this.typeMap.getPristineValue().get()));
     }
 
     return newSessionState;

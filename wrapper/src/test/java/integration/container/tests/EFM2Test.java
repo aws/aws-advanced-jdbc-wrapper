@@ -51,34 +51,41 @@ import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
 @EnableOnDatabaseEngineDeployment({
-    DatabaseEngineDeployment.AURORA,
-    DatabaseEngineDeployment.RDS,
-    DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER,
-    DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE,
+  DatabaseEngineDeployment.AURORA,
+  DatabaseEngineDeployment.RDS,
+  DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER,
+  DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE,
 })
 @DisableOnTestFeature({
-    TestEnvironmentFeatures.PERFORMANCE,
-    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
-    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
-    TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
-    TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
+  TestEnvironmentFeatures.PERFORMANCE,
+  TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
+  TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
+  TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
+  TestEnvironmentFeatures.RUN_DB_METRICS_ONLY
+})
 @Order(17)
 public class EFM2Test {
   private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingTests.class.getName());
   protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
-  protected ExecutorService executor = Executors.newFixedThreadPool(1, r -> {
-    final Thread thread = new Thread(r);
-    thread.setDaemon(true);
-    return thread;
-  });
+  protected ExecutorService executor =
+      Executors.newFixedThreadPool(
+          1,
+          r -> {
+            final Thread thread = new Thread(r);
+            thread.setDaemon(true);
+            return thread;
+          });
 
   @BeforeEach
   public void setUpEach() {
-    this.executor = Executors.newFixedThreadPool(1, r -> {
-      final Thread thread = new Thread(r);
-      thread.setDaemon(true);
-      return thread;
-    });
+    this.executor =
+        Executors.newFixedThreadPool(
+            1,
+            r -> {
+              final Thread thread = new Thread(r);
+              thread.setDaemon(true);
+              return thread;
+            });
   }
 
   @AfterEach
@@ -101,16 +108,18 @@ public class EFM2Test {
     props.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "1");
 
     String url = ConnectionStringHelper.getProxyWrapperUrl();
-    String instanceId = TestEnvironment.getCurrent()
-        .getInfo()
-        .getProxyDatabaseInfo()
-        .getInstances()
-        .get(0)
-        .getInstanceId();
+    String instanceId =
+        TestEnvironment.getCurrent()
+            .getInfo()
+            .getProxyDatabaseInfo()
+            .getInstances()
+            .get(0)
+            .getInstanceId();
     try (final Connection conn = DriverManager.getConnection(url, props)) {
       Statement stmt = conn.createStatement();
 
-      // Simulate network failure in the middle of the query. The simulated failure occurs after a small delay to allow
+      // Simulate network failure in the middle of the query. The simulated failure occurs after a
+      // small delay to allow
       // time for the statement to be sent and the monitoring connection to be opened.
       auroraUtil.simulateTemporaryFailure(executor, instanceId, failureDelayMs, maxDurationMs);
       long startNs = System.nanoTime();
@@ -120,16 +129,20 @@ public class EFM2Test {
       } catch (SQLException e) {
         long endNs = System.nanoTime();
         long durationMs = TimeUnit.NANOSECONDS.toMillis(endNs - startNs);
-        // EFM should detect network failure and abort the connection ~5-10 seconds after the query is sent
-        assertTrue(durationMs > failureDelayMs && durationMs < maxDurationMs,
-            String.format("Time before failure was not between %d and %d seconds, actual duration was %d seconds.",
+        // EFM should detect network failure and abort the connection ~5-10 seconds after the query
+        // is sent
+        assertTrue(
+            durationMs > failureDelayMs && durationMs < maxDurationMs,
+            String.format(
+                "Time before failure was not between %d and %d seconds, actual duration was %d seconds.",
                 failureDelayMs, maxDurationMs, durationMs));
       }
     }
   }
 
   private String getSleepSql(final long seconds) {
-    final DatabaseEngine databaseEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
+    final DatabaseEngine databaseEngine =
+        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
     switch (databaseEngine) {
       case PG:
         return String.format("SELECT pg_catalog.pg_sleep(%d)", seconds);

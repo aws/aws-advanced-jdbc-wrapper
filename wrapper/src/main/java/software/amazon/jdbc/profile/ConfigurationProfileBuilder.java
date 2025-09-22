@@ -40,7 +40,7 @@ public class ConfigurationProfileBuilder {
   private @Nullable AwsCredentialsProviderHandler awsCredentialsProviderHandler;
   private @Nullable ConnectionProvider connectionProvider;
 
-  private ConfigurationProfileBuilder() { }
+  private ConfigurationProfileBuilder() {}
 
   public static ConfigurationProfileBuilder get() {
     return new ConfigurationProfileBuilder();
@@ -96,9 +96,8 @@ public class ConfigurationProfileBuilder {
         DriverConfigurationProfiles.getProfileConfiguration(presetProfileName);
 
     if (configurationProfile == null) {
-      throw new RuntimeException(Messages.get(
-          "Driver.configurationProfileNotFound",
-          new Object[] {presetProfileName}));
+      throw new RuntimeException(
+          Messages.get("Driver.configurationProfileNotFound", new Object[] {presetProfileName}));
     }
 
     this.pluginFactories = configurationProfile.getPluginFactories();
@@ -120,7 +119,8 @@ public class ConfigurationProfileBuilder {
       throw new RuntimeException("Can't add or update a built-in preset configuration profile.");
     }
 
-    return new ConfigurationProfile(this.name,
+    return new ConfigurationProfile(
+        this.name,
         this.pluginFactories,
         this.properties,
         this.dialect,

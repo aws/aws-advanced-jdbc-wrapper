@@ -56,8 +56,8 @@ public class SamlUtils {
 
   static void validateUrl(final String paramString) throws IOException {
     final URI authorizeRequestUrl = URI.create(paramString);
-    final String errorMessage = Messages.get("AdfsCredentialsProviderFactory.invalidHttpsUrl",
-        new Object[] {paramString});
+    final String errorMessage =
+        Messages.get("AdfsCredentialsProviderFactory.invalidHttpsUrl", new Object[] {paramString});
 
     if (!authorizeRequestUrl.toURL().getProtocol().equalsIgnoreCase("https")) {
       throw new IOException(errorMessage);
@@ -68,5 +68,4 @@ public class SamlUtils {
       throw new IOException(errorMessage);
     }
   }
-
 }

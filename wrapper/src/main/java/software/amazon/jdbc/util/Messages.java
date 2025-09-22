@@ -21,7 +21,8 @@ import java.util.ResourceBundle;
 
 public class Messages {
 
-  private static final ResourceBundle MESSAGES = ResourceBundle.getBundle("aws_advanced_jdbc_wrapper_messages");
+  private static final ResourceBundle MESSAGES =
+      ResourceBundle.getBundle("aws_advanced_jdbc_wrapper_messages");
   private static final Object[] emptyArgs = {};
 
   /**

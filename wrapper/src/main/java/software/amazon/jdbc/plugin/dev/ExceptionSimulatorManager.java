@@ -25,7 +25,8 @@ public class ExceptionSimulatorManager {
     nextException = throwable;
   }
 
-  public static void setCallback(final ExceptionSimulatorConnectCallback exceptionSimulatorConnectCallback) {
+  public static void setCallback(
+      final ExceptionSimulatorConnectCallback exceptionSimulatorConnectCallback) {
     connectCallback = exceptionSimulatorConnectCallback;
   }
 }

@@ -31,37 +31,40 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.client.LaxRedirectStrategy;
 
 /**
- * Provides a HttpClient so that requests to HTTP API can be made. This is used by the
- * {@link software.amazon.jdbc.plugin.federatedauth.AdfsCredentialsProviderFactory} to make HTTP calls to ADFS HTTP
- * endpoints that are not available via SDK.
+ * Provides a HttpClient so that requests to HTTP API can be made. This is used by the {@link
+ * software.amazon.jdbc.plugin.federatedauth.AdfsCredentialsProviderFactory} to make HTTP calls to
+ * ADFS HTTP endpoints that are not available via SDK.
  */
 public class HttpClientFactory {
   private static final int MAX_REQUEST_RETRIES = 3;
 
-  public CloseableHttpClient getCloseableHttpClient(final int socketTimeoutMs, final int connectionTimeoutMs,
-      final boolean keySslInsecure) throws GeneralSecurityException {
-    final RequestConfig rc = RequestConfig.custom()
-        .setSocketTimeout(socketTimeoutMs)
-        .setConnectTimeout(connectionTimeoutMs)
-        .setExpectContinueEnabled(false)
-        .setCookieSpec(CookieSpecs.STANDARD)
-        .build();
+  public CloseableHttpClient getCloseableHttpClient(
+      final int socketTimeoutMs, final int connectionTimeoutMs, final boolean keySslInsecure)
+      throws GeneralSecurityException {
+    final RequestConfig rc =
+        RequestConfig.custom()
+            .setSocketTimeout(socketTimeoutMs)
+            .setConnectTimeout(connectionTimeoutMs)
+            .setExpectContinueEnabled(false)
+            .setCookieSpec(CookieSpecs.STANDARD)
+            .build();
 
-    final HttpClientBuilder builder = HttpClients.custom()
-        .setDefaultRequestConfig(rc)
-        .setRedirectStrategy(new LaxRedirectStrategy())
-        .setRetryHandler(new DefaultHttpRequestRetryHandler(MAX_REQUEST_RETRIES, true))
-        .useSystemProperties(); // this is needed for proxy setting using system properties.
+    final HttpClientBuilder builder =
+        HttpClients.custom()
+            .setDefaultRequestConfig(rc)
+            .setRedirectStrategy(new LaxRedirectStrategy())
+            .setRetryHandler(new DefaultHttpRequestRetryHandler(MAX_REQUEST_RETRIES, true))
+            .useSystemProperties(); // this is needed for proxy setting using system properties.
 
     if (keySslInsecure) {
       final SSLContext ctx = SSLContext.getInstance("TLSv1.2");
-      final TrustManager[] tma = new TrustManager[] {new NonValidatingSSLSocketFactory.NonValidatingTrustManager()};
+      final TrustManager[] tma =
+          new TrustManager[] {new NonValidatingSSLSocketFactory.NonValidatingTrustManager()};
       ctx.init(null, tma, null);
       final SSLSocketFactory factory = ctx.getSocketFactory();
 
-      final SSLConnectionSocketFactory sf = new SSLConnectionSocketFactory(
-          factory,
-          new NoopHostnameVerifier());
+      final SSLConnectionSocketFactory sf =
+          new SSLConnectionSocketFactory(factory, new NoopHostnameVerifier());
 
       builder.setSSLSocketFactory(sf);
     }

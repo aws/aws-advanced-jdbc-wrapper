@@ -48,7 +48,8 @@ public class SuspendExecuteRouting extends BaseExecuteRouting {
 
   protected String bgdId;
 
-  public SuspendExecuteRouting(@Nullable String hostAndPort, @Nullable BlueGreenRole role, final String bgdId) {
+  public SuspendExecuteRouting(
+      @Nullable String hostAndPort, @Nullable BlueGreenRole role, final String bgdId) {
     super(hostAndPort, role);
     this.bgdId = bgdId;
   }
@@ -64,12 +65,13 @@ public class SuspendExecuteRouting extends BaseExecuteRouting {
       final Object[] jdbcMethodArgs,
       final StorageService storageService,
       final PluginService pluginService,
-      final Properties props) throws E {
+      final Properties props)
+      throws E {
 
     LOGGER.finest(Messages.get("bgd.inProgressSuspendMethod", new Object[] {methodName}));
     TelemetryFactory telemetryFactory = pluginService.getTelemetryFactory();
-    TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(TELEMETRY_SWITCHOVER,
-        TelemetryTraceLevel.NESTED);
+    TelemetryContext telemetryContext =
+        telemetryFactory.openTelemetryContext(TELEMETRY_SWITCHOVER, TelemetryTraceLevel.NESTED);
 
     BlueGreenStatus bgStatus = storageService.get(BlueGreenStatus.class, this.bgdId);
 
@@ -94,13 +96,20 @@ public class SuspendExecuteRouting extends BaseExecuteRouting {
       }
 
       if (bgStatus != null && bgStatus.getCurrentPhase() == BlueGreenPhase.IN_PROGRESS) {
-        throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass,
-            new SQLTimeoutException(Messages.get("bgd.stillInProgressTryMethodLater",
-                new Object[] {BG_CONNECT_TIMEOUT.getLong(props), methodName})));
+        throw WrapperUtils.wrapExceptionIfNeeded(
+            exceptionClass,
+            new SQLTimeoutException(
+                Messages.get(
+                    "bgd.stillInProgressTryMethodLater",
+                    new Object[] {BG_CONNECT_TIMEOUT.getLong(props), methodName})));
       }
-      LOGGER.finest(() -> Messages.get("bgd.switchoverCompletedContinueWithMethod", new Object[] {
-          methodName,
-          TimeUnit.NANOSECONDS.toMillis(this.getNanoTime() - holdStartTime)}));
+      LOGGER.finest(
+          () ->
+              Messages.get(
+                  "bgd.switchoverCompletedContinueWithMethod",
+                  new Object[] {
+                    methodName, TimeUnit.NANOSECONDS.toMillis(this.getNanoTime() - holdStartTime)
+                  }));
 
     } finally {
       if (telemetryContext != null) {

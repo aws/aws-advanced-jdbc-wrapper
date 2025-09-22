@@ -47,16 +47,15 @@ import software.amazon.jdbc.plugin.srw.SimpleReadWriteSplittingPlugin;
 @ExtendWith(TestDriverProvider.class)
 @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
 @DisableOnTestFeature({
-    TestEnvironmentFeatures.PERFORMANCE,
-    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
-    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
-    TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
-    TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
+  TestEnvironmentFeatures.PERFORMANCE,
+  TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
+  TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
+  TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
+  TestEnvironmentFeatures.RUN_DB_METRICS_ONLY
+})
 @EnableOnNumOfInstances(min = 2)
 @MakeSureFirstInstanceWriter
 @Order(23)
-
-
 public class SimpleReadWriteSplittingTest extends ReadWriteSplittingTests {
   String pluginCode = "srw";
   String pluginCodesWithFailover = "failover2,efm2,srw";
@@ -65,14 +64,21 @@ public class SimpleReadWriteSplittingTest extends ReadWriteSplittingTests {
     final Properties props = getDefaultPropsNoPlugins();
     PropertyDefinition.PLUGINS.set(props, plugins);
     if (proxied) {
-      props.setProperty(SimpleReadWriteSplittingPlugin.SRW_WRITE_ENDPOINT.name,
+      props.setProperty(
+          SimpleReadWriteSplittingPlugin.SRW_WRITE_ENDPOINT.name,
           TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getClusterEndpoint());
-      props.setProperty(SimpleReadWriteSplittingPlugin.SRW_READ_ENDPOINT.name,
-          TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getClusterReadOnlyEndpoint());
+      props.setProperty(
+          SimpleReadWriteSplittingPlugin.SRW_READ_ENDPOINT.name,
+          TestEnvironment.getCurrent()
+              .getInfo()
+              .getProxyDatabaseInfo()
+              .getClusterReadOnlyEndpoint());
     } else {
       props.setProperty(SimpleReadWriteSplittingPlugin.VERIFY_NEW_SRW_CONNECTIONS.name, "false");
-      props.setProperty(SimpleReadWriteSplittingPlugin.SRW_WRITE_ENDPOINT.name, getWriterEndpoint());
-      props.setProperty(SimpleReadWriteSplittingPlugin.SRW_READ_ENDPOINT.name, getReaderClusterEndpoint());
+      props.setProperty(
+          SimpleReadWriteSplittingPlugin.SRW_WRITE_ENDPOINT.name, getWriterEndpoint());
+      props.setProperty(
+          SimpleReadWriteSplittingPlugin.SRW_READ_ENDPOINT.name, getReaderClusterEndpoint());
     }
     return props;
   }
@@ -81,15 +87,14 @@ public class SimpleReadWriteSplittingTest extends ReadWriteSplittingTests {
   public void test_IncorrectReaderEndpoint() throws SQLException {
     final Properties props = getDefaultPropsNoPlugins();
     PropertyDefinition.PLUGINS.set(props, pluginCode);
-    int port = TestEnvironment.getCurrent()
-        .getInfo()
-        .getDatabaseInfo()
-        .getClusterEndpointPort();
-    props.setProperty(SimpleReadWriteSplittingPlugin.SRW_WRITE_ENDPOINT.name, getWriterEndpoint() + ":" + port);
-    props.setProperty(SimpleReadWriteSplittingPlugin.SRW_READ_ENDPOINT.name, getWriterEndpoint() + ":" + port);
+    int port = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpointPort();
+    props.setProperty(
+        SimpleReadWriteSplittingPlugin.SRW_WRITE_ENDPOINT.name, getWriterEndpoint() + ":" + port);
+    props.setProperty(
+        SimpleReadWriteSplittingPlugin.SRW_READ_ENDPOINT.name, getWriterEndpoint() + ":" + port);
 
-    try (final Connection conn = DriverManager.getConnection(
-        ConnectionStringHelper.getWrapperClusterEndpointUrl(), props)) {
+    try (final Connection conn =
+        DriverManager.getConnection(ConnectionStringHelper.getWrapperClusterEndpointUrl(), props)) {
       final String writerConnectionId = auroraUtil.queryInstanceId(conn);
 
       // Switch to reader successfully
@@ -107,7 +112,8 @@ public class SimpleReadWriteSplittingTest extends ReadWriteSplittingTests {
 
   @TestTemplate
   public void test_autoCommitStatePreserved_acrossConnectionSwitches() throws SQLException {
-    try (final Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), getProps())) {
+    try (final Connection conn =
+        DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), getProps())) {
 
       // Set autoCommit to false on writer
       conn.setAutoCommit(false);
@@ -141,18 +147,36 @@ public class SimpleReadWriteSplittingTest extends ReadWriteSplittingTests {
   @Override
   protected Properties getProxiedPropsWithFailover() {
     final Properties props = getSrwProps(true, pluginCodesWithFailover);
-    RdsHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props,
-        "?." + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointSuffix()
-            + ":" + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointPort());
+    RdsHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(
+        props,
+        "?."
+            + TestEnvironment.getCurrent()
+                .getInfo()
+                .getProxyDatabaseInfo()
+                .getInstanceEndpointSuffix()
+            + ":"
+            + TestEnvironment.getCurrent()
+                .getInfo()
+                .getProxyDatabaseInfo()
+                .getInstanceEndpointPort());
     return props;
   }
 
   @Override
   protected Properties getProxiedProps() {
     final Properties props = getSrwProps(true, pluginCode);
-    RdsHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props,
-        "?." + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointSuffix()
-            + ":" + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointPort());
+    RdsHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(
+        props,
+        "?."
+            + TestEnvironment.getCurrent()
+                .getInfo()
+                .getProxyDatabaseInfo()
+                .getInstanceEndpointSuffix()
+            + ":"
+            + TestEnvironment.getCurrent()
+                .getInfo()
+                .getProxyDatabaseInfo()
+                .getInstanceEndpointPort());
     return props;
   }
 
@@ -163,10 +187,7 @@ public class SimpleReadWriteSplittingTest extends ReadWriteSplittingTests {
 
   @Override
   protected String getWriterEndpoint() {
-    return TestEnvironment.getCurrent()
-        .getInfo()
-        .getDatabaseInfo()
-        .getClusterEndpoint();
+    return TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint();
   }
 
   @TestTemplate
@@ -182,7 +203,8 @@ public class SimpleReadWriteSplittingTest extends ReadWriteSplittingTests {
   @Disabled("Skipping because it's not applicable to SimpleReadWriteSplitting.")
   @Override
   public void test_pooledConnectionFailoverWithClusterURL() {
-    // Skip this test for simple read write splitting as it relies on there NOT being a stored read/write splitting
+    // Skip this test for simple read write splitting as it relies on there NOT being a stored
+    // read/write splitting
     // connection to the cluster endpoint.
   }
 
@@ -190,7 +212,8 @@ public class SimpleReadWriteSplittingTest extends ReadWriteSplittingTests {
   @Disabled("Skipping because it's not applicable to SimpleReadWriteSplitting.")
   @Override
   public void test_failoverToNewReader_setReadOnlyFalseTrue() {
-    // Skip this test for simple read write splitting as disabling connectivity to a reader cluster endpoint does not
+    // Skip this test for simple read write splitting as disabling connectivity to a reader cluster
+    // endpoint does not
     // trigger reader to reader failover but rather forces defaulting to the writer.
   }
 
@@ -208,4 +231,3 @@ public class SimpleReadWriteSplittingTest extends ReadWriteSplittingTests {
     // Skip this test for simple read write splitting as there is no reader selection strategy.
   }
 }
-

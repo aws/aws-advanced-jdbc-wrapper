@@ -35,52 +35,56 @@ class RandomHostSelectorTests {
   @RepeatedTest(value = 50)
   void testGetHostGivenUnavailbleHost() throws SQLException {
 
-    final HostSpec unavailableHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host("someUnavailableHost")
-        .role(HOST_ROLE)
-        .availability(HostAvailability.NOT_AVAILABLE)
-        .build();
+    final HostSpec unavailableHost =
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("someUnavailableHost")
+            .role(HOST_ROLE)
+            .availability(HostAvailability.NOT_AVAILABLE)
+            .build();
 
-    final HostSpec availableHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host("someAvailableHost")
-        .role(HOST_ROLE)
-        .availability(HostAvailability.AVAILABLE)
-        .build();
+    final HostSpec availableHost =
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("someAvailableHost")
+            .role(HOST_ROLE)
+            .availability(HostAvailability.AVAILABLE)
+            .build();
 
     final RandomHostSelector hostSelector = new RandomHostSelector();
-    final HostSpec actualHost = hostSelector.getHost(Arrays.asList(unavailableHost, availableHost), HOST_ROLE,
-        new Properties());
+    final HostSpec actualHost =
+        hostSelector.getHost(
+            Arrays.asList(unavailableHost, availableHost), HOST_ROLE, new Properties());
 
     assertEquals(availableHost, actualHost);
   }
 
   @RepeatedTest(value = 50)
   void testGetHostGivenMultipleUnavailableHosts() throws SQLException {
-    List<HostSpec> hostSpecTestsList = Arrays.asList(
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-            .host("someUnavailableHost")
-            .role(HOST_ROLE)
-            .availability(HostAvailability.NOT_AVAILABLE)
-            .build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-            .host("someUnavailableHost")
-            .role(HOST_ROLE)
-            .availability(HostAvailability.NOT_AVAILABLE)
-            .build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-            .host("someAvailableHost")
-            .role(HOST_ROLE)
-            .availability(HostAvailability.AVAILABLE)
-            .build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-            .host("someAvailableHost")
-            .role(HOST_ROLE)
-            .availability(HostAvailability.AVAILABLE)
-            .build()
-    );
+    List<HostSpec> hostSpecTestsList =
+        Arrays.asList(
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("someUnavailableHost")
+                .role(HOST_ROLE)
+                .availability(HostAvailability.NOT_AVAILABLE)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("someUnavailableHost")
+                .role(HOST_ROLE)
+                .availability(HostAvailability.NOT_AVAILABLE)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("someAvailableHost")
+                .role(HOST_ROLE)
+                .availability(HostAvailability.AVAILABLE)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("someAvailableHost")
+                .role(HOST_ROLE)
+                .availability(HostAvailability.AVAILABLE)
+                .build());
 
     final RandomHostSelector hostSelector = new RandomHostSelector();
-    final HostSpec actualHost = hostSelector.getHost(hostSpecTestsList, HOST_ROLE, new Properties());
+    final HostSpec actualHost =
+        hostSelector.getHost(hostSpecTestsList, HOST_ROLE, new Properties());
     assertEquals(HostAvailability.AVAILABLE, actualHost.getAvailability());
   }
 }

@@ -41,10 +41,12 @@ public class RdsUtils {
   // Cluster (Writer) Endpoint: <database-cluster-name>.cluster-<xyz>.<aws-region>.rds.amazonaws.com
   // Example: test-postgres.cluster-123456789012.us-east-2.rds.amazonaws.com
   //
-  // Cluster Reader Endpoint: <database-cluster-name>.cluster-ro-<xyz>.<aws-region>.rds.amazonaws.com
+  // Cluster Reader Endpoint:
+  // <database-cluster-name>.cluster-ro-<xyz>.<aws-region>.rds.amazonaws.com
   // Example: test-postgres.cluster-ro-123456789012.us-east-2.rds.amazonaws.com
   //
-  // Cluster Custom Endpoint: <cluster-name-alias>.cluster-custom-<xyz>.<aws-region>.rds.amazonaws.com
+  // Cluster Custom Endpoint:
+  // <cluster-name-alias>.cluster-custom-<xyz>.<aws-region>.rds.amazonaws.com
   // Example: test-postgres-alias.cluster-custom-123456789012.us-east-2.rds.amazonaws.com
   //
   // Instance Endpoint: <instance-name>.<xyz>.<aws-region>.rds.amazonaws.com
@@ -56,13 +58,16 @@ public class RdsUtils {
   // https://docs.amazonaws.cn/en_us/aws/latest/userguide/endpoints-Ningxia.html
   // https://docs.amazonaws.cn/en_us/aws/latest/userguide/endpoints-Beijing.html
   //
-  // Cluster (Writer) Endpoint: <database-cluster-name>.cluster-<xyz>.rds.<aws-region>.amazonaws.com.cn
+  // Cluster (Writer) Endpoint:
+  // <database-cluster-name>.cluster-<xyz>.rds.<aws-region>.amazonaws.com.cn
   // Example: test-postgres.cluster-123456789012.rds.cn-northwest-1.amazonaws.com.cn
   //
-  // Cluster Reader Endpoint: <database-cluster-name>.cluster-ro-<xyz>.rds.<aws-region>.amazonaws.com.cn
+  // Cluster Reader Endpoint:
+  // <database-cluster-name>.cluster-ro-<xyz>.rds.<aws-region>.amazonaws.com.cn
   // Example: test-postgres.cluster-ro-123456789012.rds.cn-northwest-1.amazonaws.com.cn
   //
-  // Cluster Custom Endpoint: <cluster-name-alias>.cluster-custom-<xyz>.rds.<aws-region>.amazonaws.com.cn
+  // Cluster Custom Endpoint:
+  // <cluster-name-alias>.cluster-custom-<xyz>.rds.<aws-region>.amazonaws.com.cn
   // Example: test-postgres-alias.cluster-custom-123456789012.rds.cn-northwest-1.amazonaws.com.cn
   //
   // Instance Endpoint: <instance-name>.<xyz>.rds.<aws-region>.amazonaws.com.cn
@@ -85,7 +90,8 @@ public class RdsUtils {
   // RDS Proxy Endpoint: <proxy-name>.proxy-<xyz>.<aws-region>.rds.amazonaws.com
   // Example: test-rds-proxy-name.proxy-123456789012.us-east-2.rds.amazonaws.com
   //
-  // RDS Proxy Custom Endpoint: <custom-endpoint-name>.endpoint.proxy-<xyz>.<aws-region>.rds.amazonaws.com
+  // RDS Proxy Custom Endpoint:
+  // <custom-endpoint-name>.endpoint.proxy-<xyz>.<aws-region>.rds.amazonaws.com
   // Example: test-custom-endpoint-name.endpoint.proxy-123456789012.us-east-2.rds.amazonaws.com
 
   private static final Pattern AURORA_DNS_PATTERN =
@@ -177,19 +183,13 @@ public class RdsUtils {
               + "::(([0-9A-Fa-f]{1,4}(:[0-9A-Fa-f]{1,4}){0,5})?)$");
 
   private static final Pattern BG_GREEN_HOST_PATTERN =
-      Pattern.compile(
-          ".*(?<prefix>-green-[0-9a-z]{6})\\..*",
-          Pattern.CASE_INSENSITIVE);
+      Pattern.compile(".*(?<prefix>-green-[0-9a-z]{6})\\..*", Pattern.CASE_INSENSITIVE);
 
   private static final Pattern BG_GREEN_HOSTID_PATTERN =
-      Pattern.compile(
-          "(.*)-green-[0-9a-z]{6}",
-          Pattern.CASE_INSENSITIVE);
+      Pattern.compile("(.*)-green-[0-9a-z]{6}", Pattern.CASE_INSENSITIVE);
 
   private static final Pattern BG_OLD_HOST_PATTERN =
-      Pattern.compile(
-          ".*(?<prefix>-old1)\\..*",
-          Pattern.CASE_INSENSITIVE);
+      Pattern.compile(".*(?<prefix>-old1)\\..*", Pattern.CASE_INSENSITIVE);
 
   // https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Concepts.Aurora_Fea_Regions_DB-eng.Feature.GlobalDatabase.html
   private static final Pattern AURORA_GLOBAL_WRITER_DNS_PATTERN =
@@ -230,11 +230,13 @@ public class RdsUtils {
   private static final String DNS_GROUP = "dns";
   private static final String DOMAIN_GROUP = "domain";
   private static final String REGION_GROUP = "region";
-  private static final AtomicReference<Function<String, String>> prepareHostFunc = new AtomicReference<>(null);
+  private static final AtomicReference<Function<String, String>> prepareHostFunc =
+      new AtomicReference<>(null);
 
   public boolean isRdsClusterDns(final String host) {
     final String dnsGroup = getDnsGroup(getPreparedHost(host));
-    return dnsGroup != null && (dnsGroup.equalsIgnoreCase("cluster-") || dnsGroup.equalsIgnoreCase("cluster-ro-"));
+    return dnsGroup != null
+        && (dnsGroup.equalsIgnoreCase("cluster-") || dnsGroup.equalsIgnoreCase("cluster-ro-"));
   }
 
   public boolean isRdsCustomClusterDns(final String host) {
@@ -244,8 +246,13 @@ public class RdsUtils {
 
   public boolean isRdsDns(final String host) {
     final String preparedHost = getPreparedHost(host);
-    final Matcher matcher = cacheMatcher(preparedHost,
-        AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN, AURORA_OLD_CHINA_DNS_PATTERN, AURORA_GOV_DNS_PATTERN);
+    final Matcher matcher =
+        cacheMatcher(
+            preparedHost,
+            AURORA_DNS_PATTERN,
+            AURORA_CHINA_DNS_PATTERN,
+            AURORA_OLD_CHINA_DNS_PATTERN,
+            AURORA_GOV_DNS_PATTERN);
     final String group = getRegexGroup(matcher, DNS_GROUP);
     if (group != null) {
       cachedDnsPatterns.put(preparedHost, group);
@@ -270,8 +277,12 @@ public class RdsUtils {
       return false;
     }
 
-    final Matcher matcher = cacheMatcher(preparedHost,
-        RDS_PROXY_ENDPOINT_DNS_PATTERN, RDS_PROXY_ENDPOINT_CHINA_DNS_PATTERN, RDS_PROXY_ENDPOINT_OLD_CHINA_DNS_PATTERN);
+    final Matcher matcher =
+        cacheMatcher(
+            preparedHost,
+            RDS_PROXY_ENDPOINT_DNS_PATTERN,
+            RDS_PROXY_ENDPOINT_CHINA_DNS_PATTERN,
+            RDS_PROXY_ENDPOINT_OLD_CHINA_DNS_PATTERN);
     if (getRegexGroup(matcher, DNS_GROUP) != null) {
       return getRegexGroup(matcher, INSTANCE_GROUP) != null;
     }
@@ -285,8 +296,13 @@ public class RdsUtils {
       return null;
     }
 
-    final Matcher matcher = cacheMatcher(preparedHost,
-        AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN, AURORA_OLD_CHINA_DNS_PATTERN, AURORA_GOV_DNS_PATTERN);
+    final Matcher matcher =
+        cacheMatcher(
+            preparedHost,
+            AURORA_DNS_PATTERN,
+            AURORA_CHINA_DNS_PATTERN,
+            AURORA_OLD_CHINA_DNS_PATTERN,
+            AURORA_GOV_DNS_PATTERN);
     if (getRegexGroup(matcher, DNS_GROUP) != null) {
       return getRegexGroup(matcher, INSTANCE_GROUP);
     }
@@ -300,8 +316,13 @@ public class RdsUtils {
       return null;
     }
 
-    final Matcher matcher = cacheMatcher(preparedHost,
-        AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN, AURORA_OLD_CHINA_DNS_PATTERN, AURORA_GOV_DNS_PATTERN);
+    final Matcher matcher =
+        cacheMatcher(
+            preparedHost,
+            AURORA_DNS_PATTERN,
+            AURORA_CHINA_DNS_PATTERN,
+            AURORA_OLD_CHINA_DNS_PATTERN,
+            AURORA_GOV_DNS_PATTERN);
     if (getRegexGroup(matcher, DNS_GROUP) == null) {
       return getRegexGroup(matcher, INSTANCE_GROUP);
     }
@@ -315,8 +336,13 @@ public class RdsUtils {
       return "?";
     }
 
-    final Matcher matcher = cacheMatcher(preparedHost,
-        AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN, AURORA_OLD_CHINA_DNS_PATTERN, AURORA_GOV_DNS_PATTERN);
+    final Matcher matcher =
+        cacheMatcher(
+            preparedHost,
+            AURORA_DNS_PATTERN,
+            AURORA_CHINA_DNS_PATTERN,
+            AURORA_OLD_CHINA_DNS_PATTERN,
+            AURORA_GOV_DNS_PATTERN);
     final String group = getRegexGroup(matcher, DOMAIN_GROUP);
     return group == null ? "?" : "?." + group;
   }
@@ -327,8 +353,13 @@ public class RdsUtils {
       return null;
     }
 
-    final Matcher matcher = cacheMatcher(preparedHost,
-        AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN, AURORA_OLD_CHINA_DNS_PATTERN, AURORA_GOV_DNS_PATTERN);
+    final Matcher matcher =
+        cacheMatcher(
+            preparedHost,
+            AURORA_DNS_PATTERN,
+            AURORA_CHINA_DNS_PATTERN,
+            AURORA_OLD_CHINA_DNS_PATTERN,
+            AURORA_GOV_DNS_PATTERN);
     final String group = getRegexGroup(matcher, REGION_GROUP);
     if (group != null) {
       return group;
@@ -364,23 +395,28 @@ public class RdsUtils {
 
     final Matcher matcher = AURORA_CLUSTER_PATTERN.matcher(preparedHost);
     if (matcher.find()) {
-      return preparedHost.replaceAll(AURORA_CLUSTER_PATTERN.pattern(), "${instance}.cluster-${domain}");
+      return preparedHost.replaceAll(
+          AURORA_CLUSTER_PATTERN.pattern(), "${instance}.cluster-${domain}");
     }
     final Matcher chinaMatcher = AURORA_CHINA_CLUSTER_PATTERN.matcher(preparedHost);
     if (chinaMatcher.find()) {
-      return preparedHost.replaceAll(AURORA_CHINA_CLUSTER_PATTERN.pattern(), "${instance}.cluster-${domain}");
+      return preparedHost.replaceAll(
+          AURORA_CHINA_CLUSTER_PATTERN.pattern(), "${instance}.cluster-${domain}");
     }
     final Matcher oldChinaMatcher = AURORA_OLD_CHINA_CLUSTER_PATTERN.matcher(preparedHost);
     if (oldChinaMatcher.find()) {
-      return preparedHost.replaceAll(AURORA_OLD_CHINA_CLUSTER_PATTERN.pattern(), "${instance}.cluster-${domain}");
+      return preparedHost.replaceAll(
+          AURORA_OLD_CHINA_CLUSTER_PATTERN.pattern(), "${instance}.cluster-${domain}");
     }
     final Matcher govMatcher = AURORA_GOV_CLUSTER_PATTERN.matcher(preparedHost);
     if (govMatcher.find()) {
-      return preparedHost.replaceAll(AURORA_GOV_CLUSTER_PATTERN.pattern(), "${instance}.cluster-${domain}");
+      return preparedHost.replaceAll(
+          AURORA_GOV_CLUSTER_PATTERN.pattern(), "${instance}.cluster-${domain}");
     }
     final Matcher limitlessMatcher = AURORA_LIMITLESS_CLUSTER_PATTERN.matcher(preparedHost);
     if (limitlessMatcher.find()) {
-      return preparedHost.replaceAll(AURORA_LIMITLESS_CLUSTER_PATTERN.pattern(), "${instance}.shardgrp-${domain}");
+      return preparedHost.replaceAll(
+          AURORA_LIMITLESS_CLUSTER_PATTERN.pattern(), "${instance}.shardgrp-${domain}");
     }
     return null;
   }
@@ -449,17 +485,20 @@ public class RdsUtils {
 
   public boolean isGreenInstance(final String host) {
     final String preparedHost = getPreparedHost(host);
-    return !StringUtils.isNullOrEmpty(preparedHost) && BG_GREEN_HOST_PATTERN.matcher(preparedHost).matches();
+    return !StringUtils.isNullOrEmpty(preparedHost)
+        && BG_GREEN_HOST_PATTERN.matcher(preparedHost).matches();
   }
 
   public boolean isOldInstance(final String host) {
     final String preparedHost = getPreparedHost(host);
-    return !StringUtils.isNullOrEmpty(preparedHost) && BG_OLD_HOST_PATTERN.matcher(preparedHost).matches();
+    return !StringUtils.isNullOrEmpty(preparedHost)
+        && BG_OLD_HOST_PATTERN.matcher(preparedHost).matches();
   }
 
   public boolean isNotOldInstance(final String host) {
     final String preparedHost = getPreparedHost(host);
-    return StringUtils.isNullOrEmpty(preparedHost) || !BG_OLD_HOST_PATTERN.matcher(preparedHost).matches();
+    return StringUtils.isNullOrEmpty(preparedHost)
+        || !BG_OLD_HOST_PATTERN.matcher(preparedHost).matches();
   }
 
   // Verify that provided host is a blue host name and contains neither green prefix nor old prefix.
@@ -521,12 +560,19 @@ public class RdsUtils {
     if (StringUtils.isNullOrEmpty(host)) {
       return null;
     }
-    return cachedDnsPatterns.computeIfAbsent(host, (k) -> {
-      final Matcher matcher = cacheMatcher(k,
-          AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN, AURORA_OLD_CHINA_DNS_PATTERN,
-          AURORA_GOV_DNS_PATTERN, AURORA_GLOBAL_WRITER_DNS_PATTERN);
-      return getRegexGroup(matcher, DNS_GROUP);
-    });
+    return cachedDnsPatterns.computeIfAbsent(
+        host,
+        (k) -> {
+          final Matcher matcher =
+              cacheMatcher(
+                  k,
+                  AURORA_DNS_PATTERN,
+                  AURORA_CHINA_DNS_PATTERN,
+                  AURORA_OLD_CHINA_DNS_PATTERN,
+                  AURORA_GOV_DNS_PATTERN,
+                  AURORA_GLOBAL_WRITER_DNS_PATTERN);
+          return getRegexGroup(matcher, DNS_GROUP);
+        });
   }
 
   public static void clearCache() {

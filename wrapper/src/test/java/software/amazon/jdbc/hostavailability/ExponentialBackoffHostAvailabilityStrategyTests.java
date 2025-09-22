@@ -38,8 +38,10 @@ class ExponentialBackoffHostAvailabilityStrategyTests {
   @Test
   void testGetHostAvailabilityMaxRetriesExceeded() throws InterruptedException {
     Properties props = new Properties();
-    props.setProperty(HostAvailabilityStrategyFactory.HOST_AVAILABILITY_STRATEGY_MAX_RETRIES.name, "1");
-    props.setProperty(HostAvailabilityStrategyFactory.HOST_AVAILABILITY_STRATEGY_INITIAL_BACKOFF_TIME.name, "3");
+    props.setProperty(
+        HostAvailabilityStrategyFactory.HOST_AVAILABILITY_STRATEGY_MAX_RETRIES.name, "1");
+    props.setProperty(
+        HostAvailabilityStrategyFactory.HOST_AVAILABILITY_STRATEGY_INITIAL_BACKOFF_TIME.name, "3");
     ExponentialBackoffHostAvailabilityStrategy availabilityStrategy =
         new ExponentialBackoffHostAvailabilityStrategy(props);
     availabilityStrategy.setHostAvailability(HostAvailability.NOT_AVAILABLE);
@@ -47,7 +49,8 @@ class ExponentialBackoffHostAvailabilityStrategyTests {
 
     Thread.sleep(3000);
 
-    HostAvailability actualHostAvailability = availabilityStrategy.getHostAvailability(HostAvailability.NOT_AVAILABLE);
+    HostAvailability actualHostAvailability =
+        availabilityStrategy.getHostAvailability(HostAvailability.NOT_AVAILABLE);
     HostAvailability expectedHostAvailability = HostAvailability.NOT_AVAILABLE;
     assertEquals(expectedHostAvailability, actualHostAvailability);
   }
@@ -55,13 +58,15 @@ class ExponentialBackoffHostAvailabilityStrategyTests {
   @Test
   void testGetHostAvailabilityPastThreshold() throws InterruptedException {
     Properties props = new Properties();
-    props.setProperty(HostAvailabilityStrategyFactory.HOST_AVAILABILITY_STRATEGY_INITIAL_BACKOFF_TIME.name, "3");
+    props.setProperty(
+        HostAvailabilityStrategyFactory.HOST_AVAILABILITY_STRATEGY_INITIAL_BACKOFF_TIME.name, "3");
     ExponentialBackoffHostAvailabilityStrategy availabilityStrategy =
         new ExponentialBackoffHostAvailabilityStrategy(props);
 
     Thread.sleep(3001);
 
-    HostAvailability actualHostAvailability = availabilityStrategy.getHostAvailability(HostAvailability.NOT_AVAILABLE);
+    HostAvailability actualHostAvailability =
+        availabilityStrategy.getHostAvailability(HostAvailability.NOT_AVAILABLE);
     HostAvailability expectedHostAvailability = HostAvailability.AVAILABLE;
     assertEquals(expectedHostAvailability, actualHostAvailability);
   }
@@ -69,13 +74,15 @@ class ExponentialBackoffHostAvailabilityStrategyTests {
   @Test
   void testGetHostAvailabilityBeforeThreshold() throws InterruptedException {
     Properties props = new Properties();
-    props.setProperty(HostAvailabilityStrategyFactory.HOST_AVAILABILITY_STRATEGY_INITIAL_BACKOFF_TIME.name, "3");
+    props.setProperty(
+        HostAvailabilityStrategyFactory.HOST_AVAILABILITY_STRATEGY_INITIAL_BACKOFF_TIME.name, "3");
     ExponentialBackoffHostAvailabilityStrategy availabilityStrategy =
         new ExponentialBackoffHostAvailabilityStrategy(props);
 
     Thread.sleep(2500);
 
-    HostAvailability actualHostAvailability = availabilityStrategy.getHostAvailability(HostAvailability.NOT_AVAILABLE);
+    HostAvailability actualHostAvailability =
+        availabilityStrategy.getHostAvailability(HostAvailability.NOT_AVAILABLE);
     HostAvailability expectedHostAvailability = HostAvailability.NOT_AVAILABLE;
     assertEquals(expectedHostAvailability, actualHostAvailability);
   }
@@ -83,14 +90,20 @@ class ExponentialBackoffHostAvailabilityStrategyTests {
   @Test
   void testConstructorThrowsWhenInvalidMaxRetries() {
     Properties props = new Properties();
-    props.setProperty(HostAvailabilityStrategyFactory.HOST_AVAILABILITY_STRATEGY_MAX_RETRIES.name, "0");
-    assertThrows(IllegalArgumentException.class, () -> new ExponentialBackoffHostAvailabilityStrategy(props));
+    props.setProperty(
+        HostAvailabilityStrategyFactory.HOST_AVAILABILITY_STRATEGY_MAX_RETRIES.name, "0");
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new ExponentialBackoffHostAvailabilityStrategy(props));
   }
 
   @Test
   void testConstructorThrowsWhenInvalidBackoffTime() {
     Properties props = new Properties();
-    props.setProperty(HostAvailabilityStrategyFactory.HOST_AVAILABILITY_STRATEGY_INITIAL_BACKOFF_TIME.name, "0");
-    assertThrows(IllegalArgumentException.class, () -> new ExponentialBackoffHostAvailabilityStrategy(props));
+    props.setProperty(
+        HostAvailabilityStrategyFactory.HOST_AVAILABILITY_STRATEGY_INITIAL_BACKOFF_TIME.name, "0");
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new ExponentialBackoffHostAvailabilityStrategy(props));
   }
 }

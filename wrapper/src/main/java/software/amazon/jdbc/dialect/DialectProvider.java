@@ -26,10 +26,12 @@ public interface DialectProvider {
   Dialect getDialect(
       final @NonNull String driverProtocol,
       final @NonNull String url,
-      final @NonNull Properties props) throws SQLException;
+      final @NonNull Properties props)
+      throws SQLException;
 
   Dialect getDialect(
       final @NonNull String originalUrl,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Connection connection) throws SQLException;
+      final @NonNull Connection connection)
+      throws SQLException;
 }

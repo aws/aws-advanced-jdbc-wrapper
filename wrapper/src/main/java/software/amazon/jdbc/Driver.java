@@ -79,16 +79,15 @@ public class Driver implements java.sql.Driver {
   private static final Logger LOGGER = Logger.getLogger("software.amazon.jdbc.Driver");
   private static @Nullable Driver registeredDriver;
 
-  private static final AtomicReference<ResetSessionStateOnCloseCallable> resetSessionStateOnCloseCallable =
-      new AtomicReference<>(null);
-  private static final AtomicReference<TransferSessionStateOnSwitchCallable> transferSessionStateOnSwitchCallable =
-      new AtomicReference<>(null);
+  private static final AtomicReference<ResetSessionStateOnCloseCallable>
+      resetSessionStateOnCloseCallable = new AtomicReference<>(null);
+  private static final AtomicReference<TransferSessionStateOnSwitchCallable>
+      transferSessionStateOnSwitchCallable = new AtomicReference<>(null);
 
   private static final AtomicReference<ExceptionHandler> customExceptionHandler =
       new AtomicReference<>(null);
 
-  private static final AtomicReference<Dialect> customDialect =
-      new AtomicReference<>(null);
+  private static final AtomicReference<Dialect> customDialect = new AtomicReference<>(null);
 
   private static final AtomicReference<TargetDriverDialect> customTargetDriverDialect =
       new AtomicReference<>(null);
@@ -124,8 +123,7 @@ public class Driver implements java.sql.Driver {
 
   public static void register() throws SQLException {
     if (isRegistered()) {
-      throw new IllegalStateException(
-          Messages.get("Driver.alreadyRegistered"));
+      throw new IllegalStateException(Messages.get("Driver.alreadyRegistered"));
     }
     final Driver driver = new Driver();
     DriverManager.registerDriver(driver);
@@ -134,8 +132,7 @@ public class Driver implements java.sql.Driver {
 
   public static void deregister() throws SQLException {
     if (registeredDriver == null) {
-      throw new IllegalStateException(
-          Messages.get("Driver.notRegistered"));
+      throw new IllegalStateException(Messages.get("Driver.notRegistered"));
     }
     DriverManager.deregisterDriver(registeredDriver);
     registeredDriver = null;
@@ -172,10 +169,13 @@ public class Driver implements java.sql.Driver {
       PropertyDefinition.DATABASE.set(props, databaseName);
     }
 
-    LOGGER.finest(() -> PropertyUtils.logProperties(
-        PropertyUtils.maskProperties(props), "Connecting with properties: \n"));
+    LOGGER.finest(
+        () ->
+            PropertyUtils.logProperties(
+                PropertyUtils.maskProperties(props), "Connecting with properties: \n"));
 
-    final String registerPackageNames = PropertyDefinition.SKIP_WRAPPING_FOR_PACKAGES.getString(props);
+    final String registerPackageNames =
+        PropertyDefinition.SKIP_WRAPPING_FOR_PACKAGES.getString(props);
     if (!StringUtils.isNullOrEmpty(registerPackageNames)) {
       String[] packages = registerPackageNames.split(",");
       for (String packageName : packages) {
@@ -190,19 +190,19 @@ public class Driver implements java.sql.Driver {
       if (configurationProfile != null) {
         PropertyUtils.addProperties(props, configurationProfile.getProperties());
         if (configurationProfile.getAwsCredentialsProviderHandler() != null) {
-          AwsCredentialsManager.setCustomHandler(configurationProfile.getAwsCredentialsProviderHandler());
+          AwsCredentialsManager.setCustomHandler(
+              configurationProfile.getAwsCredentialsProviderHandler());
         }
       } else {
         throw new SQLException(
-            Messages.get(
-                "Driver.configurationProfileNotFound",
-                new Object[] {profileName}));
+            Messages.get("Driver.configurationProfileNotFound", new Object[] {profileName}));
       }
     }
 
     TelemetryFactory telemetryFactory = new DefaultTelemetryFactory(props);
-    TelemetryContext context = telemetryFactory.openTelemetryContext(
-        "software.amazon.jdbc.Driver.connect", TelemetryTraceLevel.TOP_LEVEL);
+    TelemetryContext context =
+        telemetryFactory.openTelemetryContext(
+            "software.amazon.jdbc.Driver.connect", TelemetryTraceLevel.TOP_LEVEL);
 
     try {
       final String driverUrl = url.replaceFirst(PROTOCOL_PREFIX, "jdbc:");
@@ -225,12 +225,12 @@ public class Driver implements java.sql.Driver {
         PARENT_LOGGER.setLevel(logLevel);
       }
 
-      TargetDriverDialect targetDriverDialect = configurationProfile == null
-          ? null
-          : configurationProfile.getTargetDriverDialect();
+      TargetDriverDialect targetDriverDialect =
+          configurationProfile == null ? null : configurationProfile.getTargetDriverDialect();
 
       if (targetDriverDialect == null) {
-        final TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
+        final TargetDriverDialectManager targetDriverDialectManager =
+            new TargetDriverDialectManager();
         targetDriverDialect = targetDriverDialectManager.getDialect(driver, props);
       }
 
@@ -250,20 +250,23 @@ public class Driver implements java.sql.Driver {
       }
 
       String targetDriverProtocol = urlParser.getProtocol(driverUrl);
-      FullServicesContainer servicesContainer = ServiceUtility.getInstance().createStandardServiceContainer(
-          this.storageService,
-          this.monitorService,
-          this.eventPublisher,
-          defaultConnectionProvider,
-          effectiveConnectionProvider,
-          telemetryFactory,
-          driverUrl,
-          targetDriverProtocol,
-          targetDriverDialect,
-          props,
-          configurationProfile);
+      FullServicesContainer servicesContainer =
+          ServiceUtility.getInstance()
+              .createStandardServiceContainer(
+                  this.storageService,
+                  this.monitorService,
+                  this.eventPublisher,
+                  defaultConnectionProvider,
+                  effectiveConnectionProvider,
+                  telemetryFactory,
+                  driverUrl,
+                  targetDriverProtocol,
+                  targetDriverDialect,
+                  props,
+                  configurationProfile);
 
-      return new ConnectionWrapper(servicesContainer, props, url, targetDriverProtocol, configurationProfile);
+      return new ConnectionWrapper(
+          servicesContainer, props, url, targetDriverProtocol, configurationProfile);
     } catch (Exception ex) {
       if (context != null) {
         context.setException(ex);
@@ -325,7 +328,8 @@ public class Driver implements java.sql.Driver {
     return PARENT_LOGGER;
   }
 
-  public static void setResetSessionStateOnCloseFunc(final @NonNull ResetSessionStateOnCloseCallable func) {
+  public static void setResetSessionStateOnCloseFunc(
+      final @NonNull ResetSessionStateOnCloseCallable func) {
     resetSessionStateOnCloseCallable.set(func);
   }
 
@@ -337,7 +341,8 @@ public class Driver implements java.sql.Driver {
     return resetSessionStateOnCloseCallable.get();
   }
 
-  public static void setTransferSessionStateOnSwitchFunc(final @NonNull TransferSessionStateOnSwitchCallable func) {
+  public static void setTransferSessionStateOnSwitchFunc(
+      final @NonNull TransferSessionStateOnSwitchCallable func) {
     transferSessionStateOnSwitchCallable.set(func);
   }
 
@@ -381,7 +386,8 @@ public class Driver implements java.sql.Driver {
     customDialect.set(null);
   }
 
-  public static void setCustomTargetDriverDialect(final @NonNull TargetDriverDialect targetDriverDialect) {
+  public static void setCustomTargetDriverDialect(
+      final @NonNull TargetDriverDialect targetDriverDialect) {
     customTargetDriverDialect.set(targetDriverDialect);
   }
 
@@ -396,8 +402,8 @@ public class Driver implements java.sql.Driver {
   /**
    * Setter that can optionally be called to request a non-default {@link ConnectionProvider}. The
    * requested ConnectionProvider will be used to establish future connections unless it does not
-   * support a requested URL, in which case the default ConnectionProvider will be used. See
-   * {@link ConnectionProvider#acceptsUrl} for more info.
+   * support a requested URL, in which case the default ConnectionProvider will be used. See {@link
+   * ConnectionProvider#acceptsUrl} for more info.
    *
    * @param connProvider the {@link ConnectionProvider} to use to establish new connections
    */

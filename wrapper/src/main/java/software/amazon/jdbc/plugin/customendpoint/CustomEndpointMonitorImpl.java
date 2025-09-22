@@ -42,15 +42,19 @@ import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
- * The default custom endpoint monitor implementation. This class uses a background thread to monitor a given custom
- * endpoint for custom endpoint information and future changes to the custom endpoint.
+ * The default custom endpoint monitor implementation. This class uses a background thread to
+ * monitor a given custom endpoint for custom endpoint information and future changes to the custom
+ * endpoint.
  */
 public class CustomEndpointMonitorImpl extends AbstractMonitor implements CustomEndpointMonitor {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointMonitorImpl.class.getName());
-  private static final String TELEMETRY_ENDPOINT_INFO_CHANGED = "customEndpoint.infoChanged.counter";
+  private static final String TELEMETRY_ENDPOINT_INFO_CHANGED =
+      "customEndpoint.infoChanged.counter";
 
-  // Keys are custom endpoint URLs, values are information objects for the associated custom endpoint.
-  protected static final CacheMap<String, CustomEndpointInfo> customEndpointInfoCache = new CacheMap<>();
+  // Keys are custom endpoint URLs, values are information objects for the associated custom
+  // endpoint.
+  protected static final CacheMap<String, CustomEndpointInfo> customEndpointInfoCache =
+      new CacheMap<>();
   protected static final long CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(5);
   protected static final long UNAUTHORIZED_SLEEP_NANO = TimeUnit.MINUTES.toNanos(5);
   protected static final long MONITOR_TERMINATION_TIMEOUT_SEC = 30;
@@ -69,18 +73,19 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
   private final TelemetryCounter infoChangedCounter;
 
   /**
-   * Constructs a CustomEndpointMonitorImpl instance for the host specified by {@code customEndpointHostSpec}.
+   * Constructs a CustomEndpointMonitorImpl instance for the host specified by {@code
+   * customEndpointHostSpec}.
    *
-   * @param storageService         The storage service used to store the set of allowed/blocked hosts according to the
-   *                               custom endpoint info.
-   * @param telemetryFactory       The telemetry factory used to create telemetry data.
+   * @param storageService The storage service used to store the set of allowed/blocked hosts
+   *     according to the custom endpoint info.
+   * @param telemetryFactory The telemetry factory used to create telemetry data.
    * @param customEndpointHostSpec The host information for the custom endpoint to be monitored.
-   * @param endpointIdentifier     An endpoint identifier.
-   * @param region                 The region of the custom endpoint to be monitored.
-   * @param refreshRateNano        Controls how often the custom endpoint information should be fetched and analyzed for
-   *                               changes. The value specified should be in nanoseconds.
-   * @param rdsClientFunc          The function to call to create the RDS client that will fetch custom endpoint
-   *                               information.
+   * @param endpointIdentifier An endpoint identifier.
+   * @param region The region of the custom endpoint to be monitored.
+   * @param refreshRateNano Controls how often the custom endpoint information should be fetched and
+   *     analyzed for changes. The value specified should be in nanoseconds.
+   * @param rdsClientFunc The function to call to create the RDS client that will fetch custom
+   *     endpoint information.
    */
   public CustomEndpointMonitorImpl(
       StorageService storageService,
@@ -106,9 +111,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
     this.infoChangedCounter = telemetryFactory.createCounter(TELEMETRY_ENDPOINT_INFO_CHANGED);
   }
 
-  /**
-   * Analyzes a given custom endpoint for changes to custom endpoint information.
-   */
+  /** Analyzes a given custom endpoint for changes to custom endpoint information. */
   @Override
   public void monitor() {
     LOGGER.fine(
@@ -127,28 +130,29 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
           final DescribeDbClusterEndpointsResponse endpointsResponse =
               this.rdsClient.describeDBClusterEndpoints(
                   (builder) ->
-                      builder.dbClusterEndpointIdentifier(this.endpointIdentifier).filters(customEndpointFilter));
+                      builder
+                          .dbClusterEndpointIdentifier(this.endpointIdentifier)
+                          .filters(customEndpointFilter));
 
           List<DBClusterEndpoint> endpoints = endpointsResponse.dbClusterEndpoints();
           if (endpoints.size() != 1) {
             List<String> endpointURLs =
                 endpoints.stream().map(DBClusterEndpoint::endpoint).collect(Collectors.toList());
             LOGGER.warning(
-                Messages.get("CustomEndpointMonitorImpl.unexpectedNumberOfEndpoints",
+                Messages.get(
+                    "CustomEndpointMonitorImpl.unexpectedNumberOfEndpoints",
                     new Object[] {
-                        this.endpointIdentifier,
-                        this.region.id(),
-                        endpoints.size(),
-                        endpointURLs
-                    }
-                ));
+                      this.endpointIdentifier, this.region.id(), endpoints.size(), endpointURLs
+                    }));
 
             this.sleep(this.refreshRateNano);
             continue;
           }
 
-          CustomEndpointInfo endpointInfo = CustomEndpointInfo.fromDBClusterEndpoint(endpoints.get(0));
-          CustomEndpointInfo cachedEndpointInfo = customEndpointInfoCache.get(this.customEndpointHostSpec.getUrl());
+          CustomEndpointInfo endpointInfo =
+              CustomEndpointInfo.fromDBClusterEndpoint(endpoints.get(0));
+          CustomEndpointInfo cachedEndpointInfo =
+              customEndpointInfoCache.get(this.customEndpointHostSpec.getUrl());
           if (cachedEndpointInfo != null && cachedEndpointInfo.equals(endpointInfo)) {
             long elapsedTime = System.nanoTime() - start;
             long sleepDuration = Math.max(0, this.refreshRateNano - elapsedTime);
@@ -161,17 +165,22 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
                   "CustomEndpointMonitorImpl.detectedChangeInCustomEndpointInfo",
                   new Object[] {this.customEndpointHostSpec.getUrl(), endpointInfo}));
 
-          // The custom endpoint info has changed, so we need to update the set of allowed/blocked hosts.
+          // The custom endpoint info has changed, so we need to update the set of allowed/blocked
+          // hosts.
           AllowedAndBlockedHosts allowedAndBlockedHosts;
           if (STATIC_LIST.equals(endpointInfo.getMemberListType())) {
-            allowedAndBlockedHosts = new AllowedAndBlockedHosts(endpointInfo.getStaticMembers(), null);
+            allowedAndBlockedHosts =
+                new AllowedAndBlockedHosts(endpointInfo.getStaticMembers(), null);
           } else {
-            allowedAndBlockedHosts = new AllowedAndBlockedHosts(null, endpointInfo.getExcludedMembers());
+            allowedAndBlockedHosts =
+                new AllowedAndBlockedHosts(null, endpointInfo.getExcludedMembers());
           }
 
           this.storageService.set(this.customEndpointHostSpec.getUrl(), allowedAndBlockedHosts);
           customEndpointInfoCache.put(
-              this.customEndpointHostSpec.getUrl(), endpointInfo, CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO);
+              this.customEndpointHostSpec.getUrl(),
+              endpointInfo,
+              CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO);
           this.refreshRequired.set(false);
           if (this.infoChangedCounter != null) {
             this.infoChangedCounter.inc();
@@ -185,15 +194,18 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
         } catch (InterruptedException e) {
           throw e;
         } catch (RdsException ex) {
-          LOGGER.log(Level.SEVERE,
+          LOGGER.log(
+              Level.SEVERE,
               Messages.get(
                   "CustomEndpointMonitorImpl.exception",
-                  new Object[] {this.customEndpointHostSpec.getUrl()}), ex);
+                  new Object[] {this.customEndpointHostSpec.getUrl()}),
+              ex);
 
           if (ex.isThrottlingException()) {
             slowdownRefreshRate();
             this.sleep(this.refreshRateNano);
-          } else if (ex.statusCode() == HttpStatusCode.UNAUTHORIZED || ex.statusCode() == HttpStatusCode.FORBIDDEN) {
+          } else if (ex.statusCode() == HttpStatusCode.UNAUTHORIZED
+              || ex.statusCode() == HttpStatusCode.FORBIDDEN) {
             // User has no permissions to get custom endpoint details.
             // Reduce the refresh rate.
             this.sleep(UNAUTHORIZED_SLEEP_NANO);
@@ -202,10 +214,12 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
           }
         } catch (Exception e) {
           // If the exception is not an InterruptedException, log it and continue monitoring.
-          LOGGER.log(Level.SEVERE,
+          LOGGER.log(
+              Level.SEVERE,
               Messages.get(
                   "CustomEndpointMonitorImpl.exception",
-                  new Object[] {this.customEndpointHostSpec.getUrl()}), e);
+                  new Object[] {this.customEndpointHostSpec.getUrl()}),
+              e);
 
           this.sleep(this.refreshRateNano);
         }
@@ -246,7 +260,8 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
 
   protected void sleep(long durationNano) throws InterruptedException {
     long endNano = System.nanoTime() + durationNano;
-    // Choose the minimum between 500ms and the durationNano passed in, in case durationNano is less than 500ms.
+    // Choose the minimum between 500ms and the durationNano passed in, in case durationNano is less
+    // than 500ms.
     long waitDurationMs = Math.min(500, TimeUnit.NANOSECONDS.toMillis(durationNano));
     while (!this.refreshRequired.get() && System.nanoTime() < endNano && !this.stop.get()) {
       synchronized (this.refreshRequired) {
@@ -256,9 +271,11 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
   }
 
   public boolean hasCustomEndpointInfo() {
-    CustomEndpointInfo customEndpointInfo = customEndpointInfoCache.get(this.customEndpointHostSpec.getUrl());
+    CustomEndpointInfo customEndpointInfo =
+        customEndpointInfoCache.get(this.customEndpointHostSpec.getUrl());
     if (customEndpointInfo == null && !this.refreshRequired.get()) {
-      // There is no custom endpoint info, probably because the cache entry has expired. We use notifyAll below to
+      // There is no custom endpoint info, probably because the cache entry has expired. We use
+      // notifyAll below to
       // wake up the custom endpoint monitor if it is sleeping.
       synchronized (this.refreshRequired) {
         this.refreshRequired.set(true);
@@ -275,9 +292,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
     this.rdsClient.close();
   }
 
-  /**
-   * Clears the shared custom endpoint information cache.
-   */
+  /** Clears the shared custom endpoint information cache. */
   public static void clearCache() {
     LOGGER.info(Messages.get("CustomEndpointMonitorImpl.clearCache"));
     customEndpointInfoCache.clear();

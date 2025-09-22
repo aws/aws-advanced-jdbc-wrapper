@@ -93,8 +93,7 @@ public class TestDatabaseInfo {
     this.clusterReadOnlyEndpointPort = clusterReadOnlyEndpointPort;
   }
 
-  public void setInstanceEndpointSuffix(
-      String instanceEndpointSuffix, int instanceEndpointPort) {
+  public void setInstanceEndpointSuffix(String instanceEndpointSuffix, int instanceEndpointPort) {
     this.instanceEndpointSuffix = instanceEndpointSuffix;
     this.instanceEndpointPort = instanceEndpointPort;
   }

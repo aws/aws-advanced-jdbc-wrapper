@@ -51,14 +51,15 @@ public class AdfsCredentialsProviderFactory extends SamlCredentialsProviderFacto
   private static final String TELEMETRY_FETCH_SAML = "Fetch ADFS SAML Assertion";
   private static final Pattern INPUT_TAG_PATTERN = Pattern.compile("<input(.+?)/>", Pattern.DOTALL);
   private static final Pattern FORM_ACTION_PATTERN = Pattern.compile("<form.*?action=\"([^\"]+)\"");
-  private static final Logger LOGGER = Logger.getLogger(AdfsCredentialsProviderFactory.class.getName());
+  private static final Logger LOGGER =
+      Logger.getLogger(AdfsCredentialsProviderFactory.class.getName());
   private final PluginService pluginService;
   private final TelemetryFactory telemetryFactory;
   private final Supplier<CloseableHttpClient> httpClientSupplier;
   private TelemetryContext telemetryContext;
 
-  public AdfsCredentialsProviderFactory(final PluginService pluginService,
-      final Supplier<CloseableHttpClient> httpClientSupplier) {
+  public AdfsCredentialsProviderFactory(
+      final PluginService pluginService, final Supplier<CloseableHttpClient> httpClientSupplier) {
     this.pluginService = pluginService;
     this.telemetryFactory = this.pluginService.getTelemetryFactory();
     this.httpClientSupplier = httpClientSupplier;
@@ -66,7 +67,8 @@ public class AdfsCredentialsProviderFactory extends SamlCredentialsProviderFacto
 
   @Override
   String getSamlAssertion(final @NonNull Properties props) throws SQLException {
-    this.telemetryContext = telemetryFactory.openTelemetryContext(TELEMETRY_FETCH_SAML, TelemetryTraceLevel.NESTED);
+    this.telemetryContext =
+        telemetryFactory.openTelemetryContext(TELEMETRY_FETCH_SAML, TelemetryTraceLevel.NESTED);
 
     try (final CloseableHttpClient httpClient = httpClientSupplier.get()) {
       String uri = getSignInPageUrl(props);
@@ -82,13 +84,15 @@ public class AdfsCredentialsProviderFactory extends SamlCredentialsProviderFacto
 
       final Matcher matcher = FederatedAuthPlugin.SAML_RESPONSE_PATTERN.matcher(content);
       if (!matcher.find()) {
-        throw new IOException(Messages.get("AdfsCredentialsProviderFactory.failedLogin", new Object[] {content}));
+        throw new IOException(
+            Messages.get("AdfsCredentialsProviderFactory.failedLogin", new Object[] {content}));
       }
 
       // return SAML Response value
       return matcher.group(FederatedAuthPlugin.SAML_RESPONSE_PATTERN_GROUP);
     } catch (final IOException e) {
-      LOGGER.severe(Messages.get("SAMLCredentialsProviderFactory.getSamlAssertionFailed", new Object[] {e}));
+      LOGGER.severe(
+          Messages.get("SAMLCredentialsProviderFactory.getSamlAssertionFailed", new Object[] {e}));
       if (this.telemetryContext != null) {
         this.telemetryContext.setSuccess(false);
         this.telemetryContext.setException(e);
@@ -101,56 +105,68 @@ public class AdfsCredentialsProviderFactory extends SamlCredentialsProviderFacto
     }
   }
 
-  private String getSignInPageBody(final CloseableHttpClient httpClient, final String uri) throws IOException {
+  private String getSignInPageBody(final CloseableHttpClient httpClient, final String uri)
+      throws IOException {
     LOGGER.finest(Messages.get("AdfsCredentialsProviderFactory.signOnPageUrl", new Object[] {uri}));
     SamlUtils.validateUrl(uri);
     try (final CloseableHttpResponse resp = httpClient.execute(new HttpGet(uri))) {
       final StatusLine statusLine = resp.getStatusLine();
       // Check HTTP Status Code is 2xx Success
       if (statusLine.getStatusCode() / 100 != 2) {
-        throw new IOException(Messages.get("AdfsCredentialsProviderFactory.signOnPageRequestFailed",
-            new Object[] {
-                statusLine.getStatusCode(),
-                statusLine.getReasonPhrase(),
-                EntityUtils.toString(resp.getEntity())}));
+        throw new IOException(
+            Messages.get(
+                "AdfsCredentialsProviderFactory.signOnPageRequestFailed",
+                new Object[] {
+                  statusLine.getStatusCode(),
+                  statusLine.getReasonPhrase(),
+                  EntityUtils.toString(resp.getEntity())
+                }));
       }
       return EntityUtils.toString(resp.getEntity());
     }
   }
 
-  private String getFormActionBody(final CloseableHttpClient httpClient, final String uri,
-      final List<NameValuePair> params) throws IOException {
-    LOGGER.finest(Messages.get("AdfsCredentialsProviderFactory.signOnPagePostActionUrl", new Object[] {uri}));
+  private String getFormActionBody(
+      final CloseableHttpClient httpClient, final String uri, final List<NameValuePair> params)
+      throws IOException {
+    LOGGER.finest(
+        Messages.get("AdfsCredentialsProviderFactory.signOnPagePostActionUrl", new Object[] {uri}));
     SamlUtils.validateUrl(uri);
 
-    final HttpUriRequest request = RequestBuilder
-        .post()
-        .setUri(uri)
-        .setEntity(new UrlEncodedFormEntity(params))
-        .build();
+    final HttpUriRequest request =
+        RequestBuilder.post().setUri(uri).setEntity(new UrlEncodedFormEntity(params)).build();
     try (final CloseableHttpResponse resp = httpClient.execute(request)) {
       final StatusLine statusLine = resp.getStatusLine();
       // Check HTTP Status Code is 2xx Success
       if (statusLine.getStatusCode() / 100 != 2) {
-        throw new IOException(Messages.get("AdfsCredentialsProviderFactory.signOnPagePostActionRequestFailed",
-            new Object[] {
-                statusLine.getStatusCode(),
-                statusLine.getReasonPhrase(),
-                EntityUtils.toString(resp.getEntity())}));
+        throw new IOException(
+            Messages.get(
+                "AdfsCredentialsProviderFactory.signOnPagePostActionRequestFailed",
+                new Object[] {
+                  statusLine.getStatusCode(),
+                  statusLine.getReasonPhrase(),
+                  EntityUtils.toString(resp.getEntity())
+                }));
       }
       return EntityUtils.toString(resp.getEntity());
     }
   }
 
   private String getSignInPageUrl(final Properties props) {
-    return "https://" + FederatedAuthPlugin.IDP_ENDPOINT.getString(props) + ':'
-        + FederatedAuthPlugin.IDP_PORT.getString(props) + "/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp="
+    return "https://"
+        + FederatedAuthPlugin.IDP_ENDPOINT.getString(props)
+        + ':'
+        + FederatedAuthPlugin.IDP_PORT.getString(props)
+        + "/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp="
         + FederatedAuthPlugin.RELAYING_PARTY_ID.getString(props);
   }
 
   private String getFormActionUrl(final Properties props, final String action) {
-    return "https://" + FederatedAuthPlugin.IDP_ENDPOINT.getString(props) + ':'
-        + FederatedAuthPlugin.IDP_PORT.getString(props) + action;
+    return "https://"
+        + FederatedAuthPlugin.IDP_ENDPOINT.getString(props)
+        + ':'
+        + FederatedAuthPlugin.IDP_PORT.getString(props)
+        + action;
   }
 
   private List<String> getInputTagsFromHTML(final String body) {
@@ -168,7 +184,8 @@ public class AdfsCredentialsProviderFactory extends SamlCredentialsProviderFacto
   }
 
   private String getValueByKey(final String input, final String key) {
-    final Pattern keyValuePattern = Pattern.compile("(" + Pattern.quote(key) + ")\\s*=\\s*\"(.*?)\"");
+    final Pattern keyValuePattern =
+        Pattern.compile("(" + Pattern.quote(key) + ")\\s*=\\s*\"(.*?)\"");
     final Matcher keyValueMatcher = keyValuePattern.matcher(input);
     if (keyValueMatcher.find()) {
       return escapeHtmlEntity(keyValueMatcher.group(2));
@@ -211,7 +228,8 @@ public class AdfsCredentialsProviderFactory extends SamlCredentialsProviderFacto
     return sb.toString();
   }
 
-  private List<NameValuePair> getParametersFromHtmlBody(final String body, final @NonNull Properties props) {
+  private List<NameValuePair> getParametersFromHtmlBody(
+      final String body, final @NonNull Properties props) {
     final List<NameValuePair> parameters = new ArrayList<>();
     for (final String inputTag : getInputTagsFromHTML(body)) {
       final String name = getValueByKey(inputTag, "name");
@@ -219,14 +237,15 @@ public class AdfsCredentialsProviderFactory extends SamlCredentialsProviderFacto
       final String nameLower = name.toLowerCase();
 
       if (nameLower.contains("username")) {
-        parameters.add(new BasicNameValuePair(name, FederatedAuthPlugin.IDP_USERNAME.getString(props)));
+        parameters.add(
+            new BasicNameValuePair(name, FederatedAuthPlugin.IDP_USERNAME.getString(props)));
       } else if (nameLower.contains("authmethod")) {
         if (!value.isEmpty()) {
           parameters.add(new BasicNameValuePair(name, value));
         }
       } else if (nameLower.contains("password")) {
-        parameters
-            .add(new BasicNameValuePair(name, FederatedAuthPlugin.IDP_PASSWORD.getString(props)));
+        parameters.add(
+            new BasicNameValuePair(name, FederatedAuthPlugin.IDP_PASSWORD.getString(props)));
       } else if (!name.isEmpty()) {
         parameters.add(new BasicNameValuePair(name, value));
       }

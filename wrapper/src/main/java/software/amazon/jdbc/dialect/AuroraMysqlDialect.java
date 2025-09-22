@@ -25,7 +25,8 @@ import software.amazon.jdbc.hostlistprovider.TopologyUtils;
 
 public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect, BlueGreenDialect {
 
-  protected static final String AURORA_VERSION_EXISTS_QUERY = "SHOW VARIABLES LIKE 'aurora_version'";
+  protected static final String AURORA_VERSION_EXISTS_QUERY =
+      "SHOW VARIABLES LIKE 'aurora_version'";
   protected static final String TOPOLOGY_QUERY =
       "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
           + "CPU, REPLICA_LAG_IN_MILLISECONDS, LAST_UPDATE_TIMESTAMP "
