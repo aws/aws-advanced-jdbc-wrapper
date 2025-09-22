@@ -1,9 +1,9 @@
-# Tutorial: Getting started with the AWS Advanced Jdbc Driver and Vert.x
+# Tutorial: Getting started with the AWS Advanced JDBC Wrapper and Vert.x
 
-In this tutorial, you will set up a Vert.x application with the AWS JDBC Driver, and use the driver to execute some simple database operations on an Aurora PostgreSQL database.
+In this tutorial, you will set up a Vert.x application with the AWS Advanced JDBC Wrapper, and use the driver to execute some simple database operations on an Aurora PostgreSQL database.
 
 > Note: this tutorial was written using the following technologies:
->    - AWS JDBC Driver 2.6.4
+>    - AWS Advanced JDBC Wrapper 2.6.4
 >    - PostgreSQL 42.5.4
 >    - Java 8
 >    - Vert.x 4.4.2
@@ -57,7 +57,7 @@ dependencies {
 }
 ```
 
-Please note that the sample code inside the AWS JDBC Driver project will use the dependency `implementation(project(":aws-advanced-jdbc-wrapper"))` instead of `implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:latest")` as seen above.
+Please note that the sample code inside the AWS Advanced JDBC Wrapper project will use the dependency `implementation(project(":aws-advanced-jdbc-wrapper"))` instead of `implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:latest")` as seen above.
 
 ## Step 3: Set up connection pools
 Vert.x applications can use connection pools to handle requests. In this example, we use two connection pools, one to handle write requests and another to handle read requests. Vert.x uses C3P0 by default to manage database connections.
@@ -153,4 +153,4 @@ public void start(Promise<Void> startPromise) throws Exception {
 Start the application by running the command `./gradlew :vertxexample:run`. Once the application has started, requests can be made using the previously defined routes. For example, to obtain the current instance ID, the command `curl localhost:8888/id` can be run.
 
 # Summary
-This tutorial walks through the steps required to add and configure the AWS JDBC Driver to a simple Vert.x application.
+This tutorial walks through the steps required to add and configure the AWS Advanced JDBC Wrapper to a simple Vert.x application.

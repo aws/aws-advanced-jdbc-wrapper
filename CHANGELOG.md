@@ -212,7 +212,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### :bug: Fixed
 - Connection identification and tracking in the host list provider (PR #943)[https://github.com/aws/aws-advanced-jdbc-wrapper/pull/943].
-- Green node endpoint replacement, allowing the AWS JDBC Driver to detect and connect to green nodes after Blue/Green switchover (PR# 948)(https://github.com/aws/aws-advanced-jdbc-wrapper/pull/948). Addresses [issue #678](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/678).
+- Green node endpoint replacement, allowing the AWS Advanced JDBC Wrapper to detect and connect to green nodes after Blue/Green switchover (PR# 948)(https://github.com/aws/aws-advanced-jdbc-wrapper/pull/948). Addresses [issue #678](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/678).
 - MariaDB Pool Datasource support. Addresses [issue #957](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/957).
 
 ### :crab: Changed
@@ -222,7 +222,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [2.3.5] - 2024-03-14
 
 ### :magic_wand: Added
-- Sample code configuring the AWS JDBC Driver with DBCP ([PR #930](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/930)).
+- Sample code configuring the AWS Advanced JDBC Wrapper with DBCP ([PR #930](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/930)).
 
 ### :crab: Changed
 - Fix issue with deadlock while using prepared transactions and PostgreSQL Explicit Locking ([PR #918](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/918)).
@@ -349,7 +349,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Close underlying connections in the Read Write Splitting Plugin after switching to read-write or read-only depending on whether internal connection pooling is used ([PR #583](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/583)).
 - Sort plugins by default to prevent plugin misconfiguration. This can be disabled by setting the property `autoSortWrapperPluginOrder` to false ([PR #542](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/542)).
 - Documentation:
-  - Clarified AWS JDBC Driver limitations with Blue/Green deployments. See [Known Limitations](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/KnownLimitations.md#amazon-rds-bluegreen-deployments).
+  - Clarified AWS Advanced JDBC Wrapper limitations with Blue/Green deployments. See [Known Limitations](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/KnownLimitations.md#amazon-rds-bluegreen-deployments).
   - Updated and reworded main [README.md](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/README.md) page.
 
 ## [2.2.3] - 2023-07-28
@@ -364,10 +364,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [2.2.2] - 2023-07-05
 ### :magic_wand: Added
-- Official support for Amazon Aurora with MySQL compatibility. The AWS JDBC Driver has been validated to support [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j) and [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j).
+- Official support for Amazon Aurora with MySQL compatibility. The AWS Advanced JDBC Wrapper has been validated to support [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j) and [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j).
 - Documentation:
   - Maintenance and release policy ([PR #442](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/442) and [PR #507](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/507)).
-  - Migration guide for moving from the AWS JDBC Driver for MySQL to the AWS JDBC Driver ([PR #510](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/510)).
+  - Migration guide for moving from the AWS Advanced JDBC Wrapper for MySQL to the AWS Advanced JDBC Wrapper ([PR #510](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/510)).
 
 ### :crab: Changed
 - Improved integration test suite performance by creating required test database clusters in advance ([PR #411](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/411)).

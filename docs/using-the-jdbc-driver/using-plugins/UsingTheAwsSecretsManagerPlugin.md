@@ -1,9 +1,9 @@
 # AWS Secrets Manager Plugin
 
-The AWS Advanced JDBC Driver supports usage of database credentials stored as secrets in the [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/) through the AWS Secrets Manager Connection Plugin. When you create a new connection with this plugin enabled, the plugin will retrieve the secret and the connection will be created with the credentials inside that secret.
+The AWS Advanced JDBC Wrapper supports usage of database credentials stored as secrets in the [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/) through the AWS Secrets Manager Connection Plugin. When you create a new connection with this plugin enabled, the plugin will retrieve the secret and the connection will be created with the credentials inside that secret.
 
 ## Enabling the AWS Secrets Manager Connection Plugin
-> :warning: **Note:** To use this plugin, you must include the runtime dependencies [Jackson Databind](https://central.sonatype.com/artifact/com.fasterxml.jackson.core/jackson-databind) and [AWS Secrets Manager](https://central.sonatype.com/artifact/software.amazon.awssdk/secretsmanager) in your project. These parameters are required for the AWS JDBC Driver to pass database credentials to the underlying driver.
+> :warning: **Note:** To use this plugin, you must include the runtime dependencies [Jackson Databind](https://central.sonatype.com/artifact/com.fasterxml.jackson.core/jackson-databind) and [AWS Secrets Manager](https://central.sonatype.com/artifact/software.amazon.awssdk/secretsmanager) in your project. These parameters are required for the AWS Advanced JDBC Wrapper to pass database credentials to the underlying driver.
 
 To enable the AWS Secrets Manager Connection Plugin, add the plugin code `awsSecretsManager` to the [`wrapperPlugins`](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters) value, or to the current [driver profile](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters).
 
@@ -27,4 +27,4 @@ The plugin assumes that the secret contains the following properties `username` 
 
 ### Example
 [AwsSecretsManagerConnectionPluginPostgresqlExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/AwsSecretsManagerConnectionPluginPostgresqlExample.java)
-demonstrates using the AWS Advanced JDBC Driver to make a connection to a PostgreSQL database using credentials fetched from the AWS Secrets Manager.
+demonstrates using the AWS Advanced JDBC Wrapper to make a connection to a PostgreSQL database using credentials fetched from the AWS Secrets Manager.

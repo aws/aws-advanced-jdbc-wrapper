@@ -4,7 +4,7 @@
 
 The [Blue/Green Deployment](https://docs.aws.amazon.com/whitepapers/latest/blue-green-deployments/introduction.html) technique enables organizations to release applications by seamlessly shifting traffic between two identical environments running different versions of the application. This strategy effectively mitigates common risks associated with software deployment, such as downtime and limited rollback capability.
 
-The AWS JDBC Driver leverages the Blue/Green Deployment approach by intelligently managing traffic distribution between blue and green nodes, minimizing the impact of stale DNS data and connectivity disruptions on user applications.
+The AWS Advanced JDBC Wrapper leverages the Blue/Green Deployment approach by intelligently managing traffic distribution between blue and green nodes, minimizing the impact of stale DNS data and connectivity disruptions on user applications.
 
 **Important: Service Dependency**
 
@@ -47,7 +47,7 @@ During a [Blue/Green switchover](https://docs.aws.amazon.com/AmazonRDS/latest/Us
 - Internal security certificates are regenerated to accommodate the new node names
 
 
-All factors mentioned above may cause application disruption. The AWS Advanced JDBC Driver aims to minimize the application disruption during Blue/Green switchover by performing the following actions:
+All factors mentioned above may cause application disruption. The AWS Advanced JDBC Wrapper aims to minimize the application disruption during Blue/Green switchover by performing the following actions:
 - Actively monitors Blue/Green switchover status and implements appropriate measures to suspend, pass-through, or re-route database traffic
 - Prior to Blue/Green switchover initiation, compiles a comprehensive inventory of cluster and instance endpoints for both blue and green nodes along with their corresponding IP addresses
 - During the active switchover phase, temporarily suspends execution of JDBC calls to blue nodes, which helps unload database nodes and reduces transaction lag for green nodes, thereby enhancing overall switchover performance
@@ -57,7 +57,7 @@ All factors mentioned above may cause application disruption. The AWS Advanced J
 - Intelligently detects switchover failures and rollbacks to the original state, implementing appropriate connection handling measures to maintain application stability
 
 
-## How do I use Blue/Green Deployment Plugin with the AWS JDBC Driver?
+## How do I use Blue/Green Deployment Plugin with the AWS Advanced JDBC Wrapper?
 
 To enable the Blue/Green Deployment functionality, add the plugin code `bg` to the [`wrapperPlugins`](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters) parameter value.
 The Blue/Green Deployment Plugin supports the following configuration parameters:
@@ -91,7 +91,7 @@ properties.setProperty("blue-green-monitoring-socketTimeout", "10000");
 
 ## Plan your Blue/Green switchover in advance
 
-To optimize Blue/Green switchover support with the AWS JDBC Driver, advance planning is essential. Please follow these recommended steps:
+To optimize Blue/Green switchover support with the AWS Advanced JDBC Wrapper, advance planning is essential. Please follow these recommended steps:
 
 1. Create a Blue/Green Deployment for your database.
 2. Configure your application by incorporating the `bg` plugin along with any additional parameters of your choice, then deploy your application to the corresponding environment.

@@ -30,7 +30,8 @@ include(
     "springboothikariexample",
     "springtxfailover",
     "vertxexample",
-    "readwritesample"
+    "readwritesample",
+    "shardingsphere"
 )
 
 project(":aws-advanced-jdbc-wrapper").projectDir = file("wrapper")
@@ -46,6 +47,7 @@ project(":springboothikariexample").projectDir = file("examples/SpringBootHikari
 project(":springtxfailover").projectDir = file("examples/SpringTxFailoverExample")
 project(":vertxexample").projectDir = file("examples/VertxExample")
 project(":readwritesample").projectDir = file("examples/ReadWriteSplittingSample")
+project(":shardingsphere").projectDir = file("examples/ShardingSphereExample")
 
 pluginManagement {
     plugins {

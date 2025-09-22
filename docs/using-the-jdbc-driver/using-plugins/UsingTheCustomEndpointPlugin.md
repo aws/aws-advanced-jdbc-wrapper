@@ -7,7 +7,7 @@ The Custom Endpoint Plugin adds support for RDS custom endpoints. When the Custo
     - [AWS Java SDK RDS v2.7.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds)
 - Note: The above dependencies may have transitive dependencies that are also required (ex. AWS Java SDK RDS requires [AWS Java SDK Core](https://central.sonatype.com/artifact/software.amazon.awssdk/aws-core/)). If you are not using a package manager such as Maven or Gradle, please refer to Maven Central to determine these transitive dependencies.
 
-## How to use the Custom Endpoint Plugin with the AWS JDBC Driver
+## How to use the Custom Endpoint Plugin with the AWS Advanced JDBC Wrapper
 
 ### Enabling the Custom Endpoint Plugin
 

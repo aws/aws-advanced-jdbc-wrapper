@@ -1,11 +1,11 @@
-# Tutorial: Getting Started with the AWS JDBC Driver, Spring Boot and Wildfly
+# Tutorial: Getting Started with the AWS Advanced JDBC Wrapper, Spring Boot and Wildfly
 
-In this tutorial, you will set up a Wildfly and Spring Boot application with the AWS Advanced JDBC Driver, and use the wrapper to execute some simple database operations.
+In this tutorial, you will set up a Wildfly and Spring Boot application with the AWS Advanced JDBC Wrapper, and use the wrapper to execute some simple database operations.
 
 > Note: this tutorial was written using the following technologies:
 >    - Spring Boot 2.7.1
 >    - Wildfly 26.1.1 Final
->    - AWS JDBC Driver 2.6.4
+>    - AWS Advanced JDBC Wrapper 2.6.4
 >    - Postgresql 42.5.4
 >    - Gradle 7
 >    - Java 11
@@ -99,13 +99,13 @@ dependencies {
 }
 ```
 
-Please note that the sample code inside the AWS JDBC Driver project will use the dependency `implementation(project(":aws-advanced-jdbc-wrapper"))` instead of `implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:latest")` as seen above.
+Please note that the sample code inside the AWS Advanced JDBC Wrapper project will use the dependency `implementation(project(":aws-advanced-jdbc-wrapper"))` instead of `implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:latest")` as seen above.
 
 ## Step 3: Configure Wildfly
 > Note: for simplicity, this repository does not contain the entire wildfly application, and instead only contains the modified files.
 
 Download the Wildfly 26.1.1 Servlet-Only Distribution from the [Wildfly website](https://www.wildfly.org/downloads/).
-In the Wildfly `standalone/configuration/standalone.xml` file, configure the AWS Advanced JDBC Driver as your datasource by adding the following to the `<datasources>` section.
+In the Wildfly `standalone/configuration/standalone.xml` file, configure the AWS Advanced JDBC Wrapper as your datasource by adding the following to the `<datasources>` section.
 
 ```xml
 <datasource jndi-name="java:jboss/datasources/AWSWrapper" pool-name="AWSWrapper" enabled="true" use-java-context="true" statistics-enabled="${wildfly.datasources.statistics-enabled:${wildfly.statistics-enabled:false}}">
@@ -129,7 +129,7 @@ If you would like to configure any additional properties for the wrapper, such a
 You also need to add a new module in the `modules` directory.
 To add a new module, you need to add a `module.xml` and provide the required driver JAR files.
 The folder containing the `module.xml` needs to match the module name, in this example, the module name is `software.amazon.jdbc`.
-Since this example uses the PostgreSQL JDBC driver as the target driver, you need to add the AWS Advanced JDBC Driver JAR file as well as the PostgreSQL JDBC driver JAR file in the same directory as the `module.xml`.
+Since this example uses the PostgreSQL JDBC driver as the target driver, you need to add the AWS Advanced JDBC Wrapper JAR file as well as the PostgreSQL JDBC driver JAR file in the same directory as the `module.xml`.
 
 ```xml
 <module xmlns="urn:jboss:module:1.1" name="software.amazon.jdbc">
@@ -141,7 +141,7 @@ Since this example uses the PostgreSQL JDBC driver as the target driver, you nee
 </module>
 ```
 
-## Step 4: Configure Spring to use the AWS Advanced JDBC Driver
+## Step 4: Configure Spring to use the AWS Advanced JDBC Wrapper
 To configure Spring to use the datasource specified in Wildfly, add an `application.properties` file in `spring/main/resources` with the `jndi-name` property:
 ```properties
 spring.datasource.jndi-name=java:jboss/datasources/AWSWrapper
@@ -198,4 +198,4 @@ Start the application by
 3. You should see the Spring application making a connection to the database and fetching data from the Example table.
 
 # Summary
-This tutorial walks through the steps required to add and configure the AWS Advanced JDBC Driver to a simple Spring Boot and Wildfly application.
+This tutorial walks through the steps required to add and configure the AWS Advanced JDBC Wrapper to a simple Spring Boot and Wildfly application.

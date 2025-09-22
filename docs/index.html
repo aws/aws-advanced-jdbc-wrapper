@@ -17,7 +17,7 @@
     <header class="mdl-header">
       <input id="sta-menu" type="checkbox">
       <div class="m-content">
-        <nav><a class="sta-hoverOFF" href="#home">AWS JDBC DRIVER for POSTGRESQL</a></nav>
+        <nav><a class="sta-hoverOFF" href="#home">AWS Advanced JDBC Wrapper for POSTGRESQL</a></nav>
         <nav>
           <a class="sta-hoverOFF"
             href="https://github.com/aws/aws-advanced-jdbc-wrapper">DOWNLOAD</a>
@@ -62,7 +62,7 @@
     <article class="m-content">
       <section>
         <p><b>The Amazon Web Services JDBC Driver</b> has been redesigned as an advanced JDBC wrapper. This wrapper is complementary to and extends the functionality of an existing JDBC driver to help an application take advantage of the features of clustered databases such as Amazon Aurora.</p>
-        <p>The AWS JDBC Driver for PostgreSQL supports fast failover for Amazon Aurora with PostgreSQL
+        <p>The AWS Advanced JDBC Wrapper for PostgreSQL supports fast failover for Amazon Aurora with PostgreSQL
           compatibility and
           <a href="https://github.com/aws/aws-advanced-jdbc-wrapper#enhanced-failure-monitoring" target="new">Enhanced Failover Monitoring</a>.</p>
       </section>
@@ -74,7 +74,7 @@
       <section>
         <p>Developers use software libraries, known as database connectivity drivers (or simply drivers), to connect
           applications to databases. A driver converts SQL queries in an application into a protocol language to
-          communicate with the database and returns query results to the application. The AWS JDBC Driver for PostgreSQL
+          communicate with the database and returns query results to the application. The AWS Advanced JDBC Wrapper for PostgreSQL
           is optimally configured to allow an application to connect to and take advantage of the features of clustered
           PostgreSQL database deployments.
         <p><b>Supporting Fast Failover for Amazon Aurora</b><br>In Amazon Aurora, failover is a mechanism by which the
@@ -82,20 +82,20 @@
           Aurora elects a database replica to become the new primary DB instance, so the cluster can provide
           maximum availability to a primary read-write DB instance.</p>
         <p>Before a replica instance can be promoted to the primary DB instance, the DNS record must be updated in order
-          to properly direct the connection. This process can take up to several minutes. The AWS JDBC Driver for
+          to properly direct the connection. This process can take up to several minutes. The AWS Advanced JDBC Wrapper for
           PostgreSQL is designed to coordinate with this behavior in order to provide minimal downtime. It achieves this
           by maintaining a cache of the PostgreSQL cluster topology and each instance's role (replica or primary DB
           instance). This topology is provided via a direct query to the PostgreSQL database, providing a shortcut to
-          bypass the delays caused by DNS resolution. With this knowledge, the AWS JDBC Driver for PostgreSQL can more
+          bypass the delays caused by DNS resolution. With this knowledge, the AWS Advanced JDBC Wrapper for PostgreSQL can more
           closely monitor the database cluster status so that a connection to the new primary DB instance can be
           established as quickly as possible.</p>
       </section>
       <div class="m-img">
         <img src="files/images/failover_diagram.png" width="50%" height="50%" class="m-desktop"
-          alt="How the AWS JDBC Driver for PostgreSQL works">
+          alt="How the AWS Advanced JDBC Wrapper for PostgreSQL works">
       </div>
       <section>
-        <p>The figure above provides a simplified overview of how the AWS JDBC Driver for PostgreSQL handles an Amazon
+        <p>The figure above provides a simplified overview of how the AWS Advanced JDBC Wrapper for PostgreSQL handles an Amazon
           Aurora failover encounter. <a
             href="https://github.com/aws/aws-advanced-jdbc-wrapper#about-the-driver"
             target="new">Learn more>></a></p>
@@ -109,14 +109,14 @@
         <article class="m-item" style="position: absolute; left: 0px; top: 0px;">
           <header>Seamless Deployment</header>
           <section>
-            The AWS JDBC Driver for PostgreSQL is based on and is drop-in compatible with the PostgreSQL JDBC Driver,
+            The AWS Advanced JDBC Wrapper for PostgreSQL is based on and is drop-in compatible with the PostgreSQL JDBC Driver,
             so you can replace it in your application with few code changes.
           </section>
         </article>
         <article class="m-item" style="position: absolute; left: 594px; top: 0px;">
           <header>Increased Application Availability</header>
           <section>
-            In the event of an Amazon Aurora primary DB failure, the AWS JDBC Driver for PostgreSQL supports fast
+            In the event of an Amazon Aurora primary DB failure, the AWS Advanced JDBC Wrapper for PostgreSQL supports fast
             failover to a database replica, resulting in minimal impact to application availability and user experience.
           </section>
         </article>
@@ -130,7 +130,7 @@
         <article class="m-item" style="position: absolute; left: 0px; top: 0px;">
           <header>What does drop-in compatible mean?</header>
           <section>
-            The AWS JDBC Driver for PostgreSQL is compatible with all PostgreSQL deployments, whether they be
+            The AWS Advanced JDBC Wrapper for PostgreSQL is compatible with all PostgreSQL deployments, whether they be
             on-premises or in the cloud. It currently supports fast failover capabilities for Amazon Aurora with
             PostgreSQL compatibility only. The driver is based on and is drop-in compatible with the PostgreSQL JDBC
             Driver. Changes to the connection string is all that is needed. Support for additional features of clustered
@@ -139,10 +139,10 @@
           </section>
         </article>
         <article class="m-item" style="position: absolute; left: 594px; top: 0px;">
-          <header>How do I use the AWS JDBC Driver for PostgreSQL?</header>
+          <header>How do I use the AWS Advanced JDBC Wrapper for PostgreSQL?</header>
           <section>
-            The AWS JDBC Driver for PostgreSQL is an advanced wrapper, and is drop-in compatible for the PostgreSQL JDBC Driver. To replace
-            your existing driver with the AWS JDBC Driver for PostgreSQL, follow the same steps used to update the
+            The AWS Advanced JDBC Wrapper for PostgreSQL is an advanced wrapper, and is drop-in compatible for the PostgreSQL JDBC Driver. To replace
+            your existing driver with the AWS Advanced JDBC Wrapper for PostgreSQL, follow the same steps used to update the
             current driver. Then, update the client connection string to use the AWS protocol when connecting. For details about Getting Started,
             visit <a href="https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/GettingStarted.md"
               target="new">here</a>.
@@ -160,7 +160,7 @@
         <article class="m-item" style="position: absolute; left: 0px; top: 377px;">
           <header>How can I get help or open an issue?</header>
           <section>
-            Work on the advanced AWS JDBC Driver for PostgreSQL is being managed in a Github project <a
+            Work on the advanced AWS Advanced JDBC Wrapper for PostgreSQL is being managed in a Github project <a
               href="https://github.com/aws/aws-advanced-jdbc-wrapper#getting-help-and-opening-issues"
               target="new">here</a>. Visit the project website to file an issue or ask questions.
           </section>
@@ -187,7 +187,7 @@
       <div>
         <article class="m-content">
           <section>
-            AWS JDBC DRIVER FOR POSTGRESQL
+            AWS Advanced JDBC Wrapper FOR POSTGRESQL
           </section>
         </article>
       </div>

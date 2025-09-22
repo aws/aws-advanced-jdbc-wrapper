@@ -25,7 +25,7 @@ In the case of AD FS, the user signs into the AD FS sign in page. This generates
 >
 > It's recommended to use [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) when it's possible.
 
-## How to use the Okta Authentication Plugin with the AWS JDBC Driver 
+## How to use the Okta Authentication Plugin with the AWS Advanced JDBC Wrapper 
 
 ### Enabling the Okta Authentication Plugin
 > [!NOTE]\
