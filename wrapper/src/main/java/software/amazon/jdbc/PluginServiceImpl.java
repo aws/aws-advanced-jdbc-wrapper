@@ -697,7 +697,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   public void updateDialect(final @NonNull Connection connection) throws SQLException {
     final Dialect originalDialect = this.connectionInfo.getDbDialect();
     Dialect currentDialect = this.dialectProvider.getDialect(
-        this.connectionInfo.getProtocol(), this.initialConnectionHostSpec, connection);
+        this.connectionInfo.getInitialConnectionString(), this.initialConnectionHostSpec, connection);
     if (originalDialect == currentDialect) {
       return;
     }
