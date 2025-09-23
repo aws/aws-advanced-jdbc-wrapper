@@ -54,7 +54,6 @@ import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
-import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 /**
  * This class creates and handles a chain of {@link ConnectionPlugin} for each connection.
@@ -97,7 +96,6 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
   protected final ReentrantLock lock = new ReentrantLock();
   protected final @NonNull ConnectionProvider defaultConnProvider;
   protected final @Nullable ConnectionProvider effectiveConnProvider;
-  protected final ConnectionWrapper connectionWrapper;
   protected TelemetryFactory telemetryFactory;
   protected Properties props = new Properties();
   protected List<ConnectionPlugin> plugins;
@@ -107,11 +105,9 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
   public ConnectionPluginManager(
       final @NonNull ConnectionProvider defaultConnProvider,
       final @Nullable ConnectionProvider effectiveConnProvider,
-      final @Nullable ConnectionWrapper connectionWrapper,
       final @NonNull TelemetryFactory telemetryFactory) {
     this.defaultConnProvider = defaultConnProvider;
     this.effectiveConnProvider = effectiveConnProvider;
-    this.connectionWrapper = connectionWrapper;
     this.telemetryFactory = telemetryFactory;
     this.isTelemetryInUse = telemetryFactory.inUse();
   }
@@ -124,13 +120,11 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       final @Nullable ConnectionProvider effectiveConnProvider,
       final Properties props,
       final List<ConnectionPlugin> plugins,
-      final ConnectionWrapper connectionWrapper,
       final TelemetryFactory telemetryFactory) {
     this.defaultConnProvider = defaultConnProvider;
     this.effectiveConnProvider = effectiveConnProvider;
     this.props = props;
     this.plugins = plugins;
-    this.connectionWrapper = connectionWrapper;
     this.telemetryFactory = telemetryFactory;
     this.isTelemetryInUse = telemetryFactory.inUse();
   }
@@ -299,10 +293,6 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
         pluginPipeline.call(plugin, null);
       }
     }
-  }
-
-  public ConnectionWrapper getConnectionWrapper() {
-    return this.connectionWrapper;
   }
 
   public TelemetryFactory getTelemetryFactory() {

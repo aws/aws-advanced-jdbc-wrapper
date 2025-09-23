@@ -109,10 +109,6 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
       @NonNull final Dialect dbDialect,
       @Nullable final ConfigurationProfile configurationProfile) {
     this.servicesContainer = servicesContainer;
-    this.servicesContainer.setHostListProviderService(this);
-    this.servicesContainer.setPluginService(this);
-    this.servicesContainer.setPluginManagerService(this);
-
     this.pluginManager = servicesContainer.getConnectionPluginManager();
     this.props = props;
     this.originalUrl = originalUrl;

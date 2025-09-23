@@ -52,11 +52,7 @@ public class ConnectionServiceImpl implements ConnectionService {
     FullServicesContainer
         servicesContainer = new FullServicesContainerImpl(
             storageService, monitorService, connectionProvider, telemetryFactory);
-    this.pluginManager = new ConnectionPluginManager(
-        connectionProvider,
-        null,
-        null,
-        telemetryFactory);
+    this.pluginManager = new ConnectionPluginManager(connectionProvider, null, telemetryFactory);
     servicesContainer.setConnectionPluginManager(this.pluginManager);
 
     PartialPluginService partialPluginService = new PartialPluginService(
@@ -67,6 +63,10 @@ public class ConnectionServiceImpl implements ConnectionService {
         driverDialect,
         dbDialect
     );
+
+    servicesContainer.setHostListProviderService(partialPluginService);
+    servicesContainer.setPluginService(partialPluginService);
+    servicesContainer.setPluginManagerService(partialPluginService);
 
     this.pluginService = partialPluginService;
     this.pluginManager.init(servicesContainer, props, partialPluginService, null);
