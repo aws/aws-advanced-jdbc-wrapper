@@ -97,10 +97,10 @@ public class WeightedRandomHostSelector implements HostSelector {
     }
     int randomInt = this.random.nextInt(counter);
 
-    // Check random number is in host weigh range map
+    // Check random number is in host weight range map
     for (final HostSpec host : eligibleHosts) {
-      if (hostWeightRangeMap.containsKey(host.getHost())
-          && hostWeightRangeMap.get(host.getHost()).isInRange(randomInt)) {
+      NumberRange range = hostWeightRangeMap.get(host.getHost());
+      if (range != null && range.isInRange(randomInt)) {
         return host;
       }
     }
