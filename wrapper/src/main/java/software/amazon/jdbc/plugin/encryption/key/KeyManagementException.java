@@ -194,6 +194,10 @@ public class KeyManagementException extends SQLException {
 
     /**
      * Creates a KeyManagementException for key creation failures.
+     * 
+     * @param message Error message
+     * @param cause Root cause
+     * @return KeyManagementException instance
      */
     public static KeyManagementException keyCreationFailed(String message, Throwable cause) {
         return new KeyManagementException(message, KEY_CREATION_FAILED_STATE, cause);
@@ -201,6 +205,11 @@ public class KeyManagementException extends SQLException {
 
     /**
      * Creates a KeyManagementException for key decryption failures.
+     * 
+     * @param keyId Key ID
+     * @param masterKeyArn Master key ARN
+     * @param cause Root cause
+     * @return KeyManagementException instance
      */
     public static KeyManagementException keyDecryptionFailed(String keyId, String masterKeyArn, Throwable cause) {
         return new KeyManagementException("Failed to decrypt data key", KEY_DECRYPTION_FAILED_STATE, cause)
@@ -210,6 +219,10 @@ public class KeyManagementException extends SQLException {
 
     /**
      * Creates a KeyManagementException for key storage failures.
+     * 
+     * @param message Error message
+     * @param cause Root cause
+     * @return KeyManagementException instance
      */
     public static KeyManagementException keyStorageFailed(String message, Throwable cause) {
         return new KeyManagementException(message, KEY_STORAGE_FAILED_STATE, cause);
@@ -217,6 +230,10 @@ public class KeyManagementException extends SQLException {
 
     /**
      * Creates a KeyManagementException for KMS connection failures.
+     * 
+     * @param message Error message
+     * @param cause Root cause
+     * @return KeyManagementException instance
      */
     public static KeyManagementException kmsConnectionFailed(String message, Throwable cause) {
         return new KeyManagementException(message, KMS_CONNECTION_FAILED_STATE, cause);

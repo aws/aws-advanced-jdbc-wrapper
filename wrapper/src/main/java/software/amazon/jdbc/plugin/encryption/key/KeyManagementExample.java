@@ -60,6 +60,8 @@ public class KeyManagementExample {
 
     /**
      * Example: Setting up encryption for a new application.
+     * 
+     * @throws KeyManagementException if key management operations fail
      */
     public void setupNewApplication() throws KeyManagementException {
         logger.info("Setting up encryption for new application");
@@ -87,6 +89,8 @@ public class KeyManagementExample {
 
     /**
      * Example: Adding encryption to an existing column.
+     * 
+     * @throws KeyManagementException if key management operations fail
      */
     public void addEncryptionToExistingColumn() throws KeyManagementException {
         logger.info("Adding encryption to existing column");
@@ -107,6 +111,8 @@ public class KeyManagementExample {
 
     /**
      * Example: Rotating keys for security compliance.
+     * 
+     * @throws KeyManagementException if key management operations fail
      */
     public void performKeyRotation() throws KeyManagementException {
         logger.info("Performing key rotation for security compliance");
@@ -128,6 +134,8 @@ public class KeyManagementExample {
 
     /**
      * Example: Auditing and managing existing keys.
+     * 
+     * @throws KeyManagementException if key management operations fail
      */
     public void auditExistingKeys() throws KeyManagementException {
         logger.info("Auditing existing encryption keys");
@@ -154,6 +162,8 @@ public class KeyManagementExample {
 
     /**
      * Example: Removing encryption from a column (for decommissioning).
+     * 
+     * @throws KeyManagementException if key management operations fail
      */
     public void removeEncryptionFromColumn() throws KeyManagementException {
         logger.info("Removing encryption from decommissioned column");
@@ -166,6 +176,8 @@ public class KeyManagementExample {
 
     /**
      * Main method demonstrating the complete workflow.
+     * 
+     * @param args Command line arguments
      */
     public static void main(String[] args) {
         try {

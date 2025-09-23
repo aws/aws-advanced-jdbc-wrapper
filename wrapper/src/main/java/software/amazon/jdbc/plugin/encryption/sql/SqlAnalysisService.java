@@ -20,13 +20,13 @@ package software.amazon.jdbc.plugin.encryption.sql;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
+import software.amazon.jdbc.plugin.encryption.parser.PostgreSQLParser;
+import software.amazon.jdbc.plugin.encryption.parser.SQLAnalyzer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Service that analyzes SQL statements to identify columns that need encryption/decryption.
@@ -37,36 +37,18 @@ public class SqlAnalysisService {
     private static final Logger logger = LoggerFactory.getLogger(SqlAnalysisService.class);
 
     private final MetadataManager metadataManager;
-    private final Object parser;
-    private final Object analyzer;
-
-    // Pattern to extract table names from simple queries as fallback
-    private static final Pattern TABLE_PATTERN = Pattern.compile(
-        "(?i)(?:FROM|INTO|UPDATE|JOIN)\\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\\s+[a-zA-Z_][a-zA-Z0-9_]*)?",
-        Pattern.CASE_INSENSITIVE
-    );
+    private final PostgreSQLParser parser;
+    private final SQLAnalyzer analyzer;
 
     public SqlAnalysisService(PluginService pluginService, MetadataManager metadataManager) {
         this.metadataManager = metadataManager;
+        this.parser = new PostgreSQLParser();
+        this.analyzer = new SQLAnalyzer();
 
-        // Initialize parser and analyzer using reflection to avoid compile-time dependencies
-        Object tempParser = null;
-        Object tempAnalyzer = null;
-        try {
-            Class<?> parserClass = Class.forName("PostgreSQLParser");
-            Class<?> analyzerClass = Class.forName("SQLAnalyzer");
-            tempParser = parserClass.getDeclaredConstructor().newInstance();
-            tempAnalyzer = analyzerClass.getDeclaredConstructor().newInstance();
-        } catch (Exception e) {
-            logger.warn("Could not initialize parser classes: {}", e.getMessage());
-        }
-        this.parser = tempParser;
-        this.analyzer = tempAnalyzer;
     }
 
     /**
      * Analyzes a SQL statement to determine which columns need encryption/decryption.
-     * Uses PostgreSQLParser and SQLAnalyzer for accurate parsing.
      *
      * @param sql The SQL statement to analyze
      * @return Analysis result containing affected columns and their encryption configs
@@ -77,24 +59,17 @@ public class SqlAnalysisService {
         }
 
         try {
-            if (analyzer != null) {
-                // Use SQLAnalyzer to analyze the SQL
-                Object queryAnalysis = analyzer.getClass().getMethod("analyze", String.class).invoke(analyzer, sql);
-
-                if (queryAnalysis != null) {
-                    Set<String> tables = extractTablesFromAnalysis(queryAnalysis);
-                    return analyzeFromTables(tables);
-                }
+            Object queryAnalysis = analyzer.analyze(sql);
+            if (queryAnalysis != null) {
+                Set<String> tables = extractTablesFromAnalysis(queryAnalysis);
+                return analyzeFromTables(tables);
             }
-
-            // Fallback to regex-based analysis
-            logger.debug("Parser not available, using regex analysis for SQL: {}", sanitizeSql(sql));
-            return analyzeWithRegex(sql);
-
         } catch (Exception e) {
-            logger.warn("Error analyzing SQL with parser, using fallback: {}", e.getMessage());
-            return analyzeWithRegex(sql);
+            logger.error("Error analyzing SQL: {}", e.getMessage(), e);
+            throw new RuntimeException("SQL analysis failed", e);
         }
+
+        return new SqlAnalysisResult(Collections.emptySet(), Collections.emptyMap());
     }
 
     /**
@@ -125,64 +100,9 @@ public class SqlAnalysisService {
     private SqlAnalysisResult analyzeFromTables(Set<String> tables) {
         Map<String, ColumnEncryptionConfig> encryptedColumns = new HashMap<>();
 
-        // For each table, get encrypted columns
-        for (String tableName : tables) {
-            Map<String, ColumnEncryptionConfig> tableColumns = getEncryptedColumnsForTable(tableName);
-            encryptedColumns.putAll(tableColumns);
-        }
-
-        logger.debug("Parser analysis found {} tables, {} encrypted columns",
-                    tables.size(), encryptedColumns.size());
+        logger.debug("Parser analysis found {} tables", tables.size());
 
         return new SqlAnalysisResult(tables, encryptedColumns);
-    }
-
-    /**
-     * Fallback analysis using regex patterns when parser fails.
-     */
-    private SqlAnalysisResult analyzeWithRegex(String sql) {
-        Set<String> affectedTables = new HashSet<>();
-        Map<String, ColumnEncryptionConfig> encryptedColumns = new HashMap<>();
-
-        // Extract table names using regex
-        Matcher matcher = TABLE_PATTERN.matcher(sql);
-        while (matcher.find()) {
-            String tableName = matcher.group(1);
-            if (tableName != null) {
-                affectedTables.add(tableName.toLowerCase());
-            }
-        }
-
-        // For each table, get encrypted columns
-        for (String tableName : affectedTables) {
-            Map<String, ColumnEncryptionConfig> tableColumns = getEncryptedColumnsForTable(tableName);
-            encryptedColumns.putAll(tableColumns);
-        }
-
-        logger.debug("Regex fallback analysis found {} tables, {} encrypted columns",
-                    affectedTables.size(), encryptedColumns.size());
-
-        return new SqlAnalysisResult(affectedTables, encryptedColumns);
-    }
-
-    /**
-     * Gets all encrypted columns for a specific table.
-     */
-    private Map<String, ColumnEncryptionConfig> getEncryptedColumnsForTable(String tableName) {
-        Map<String, ColumnEncryptionConfig> columns = new HashMap<>();
-
-        try {
-            // This would need to be implemented to query all columns for a table
-            // For now, we'll check if specific columns are encrypted
-            // In a real implementation, you'd query the metadata to get all columns for the table
-
-            logger.debug("Checking encrypted columns for table: {}", tableName);
-
-        } catch (Exception e) {
-            logger.warn("Error getting encrypted columns for table {}: {}", tableName, e.getMessage());
-        }
-
-        return columns;
     }
 
     /**
@@ -199,6 +119,10 @@ public class SqlAnalysisService {
 
     /**
      * Gets the encryption configuration for a specific column.
+     *
+     * @param tableName Table name
+     * @param columnName Column name
+     * @return Column encryption configuration, or null if not found
      */
     public ColumnEncryptionConfig getColumnConfig(String tableName, String columnName) {
         try {
@@ -207,17 +131,6 @@ public class SqlAnalysisService {
             logger.warn("Error getting column config: {}.{}", tableName, columnName, e);
             return null;
         }
-    }
-
-    /**
-     * Sanitizes SQL for logging by removing sensitive data.
-     */
-    private String sanitizeSql(String sql) {
-        if (sql == null) return "null";
-
-        // Remove potential sensitive values in WHERE clauses
-        return sql.replaceAll("'[^']*'", "'***'")
-                  .replaceAll("= [^\\s]+", "= ***");
     }
 
     /**

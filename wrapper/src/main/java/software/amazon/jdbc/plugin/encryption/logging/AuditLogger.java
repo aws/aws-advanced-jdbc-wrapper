@@ -93,6 +93,11 @@ public class AuditLogger {
     
     /**
      * Logs data key generation operation.
+     * 
+     * @param masterKeyArn Master key ARN
+     * @param keyId Key ID
+     * @param success Whether operation succeeded
+     * @param errorMessage Error message if failed
      */
     public void logDataKeyGeneration(String masterKeyArn, String keyId, boolean success, String errorMessage) {
         if (!auditEnabled) return;
@@ -116,6 +121,11 @@ public class AuditLogger {
     
     /**
      * Logs data key decryption operation.
+     * 
+     * @param masterKeyArn Master key ARN
+     * @param keyId Key ID
+     * @param success Whether operation succeeded
+     * @param errorMessage Error message if failed
      */
     public void logDataKeyDecryption(String masterKeyArn, String keyId, boolean success, String errorMessage) {
         if (!auditEnabled) return;
@@ -139,6 +149,12 @@ public class AuditLogger {
     
     /**
      * Logs encryption operation.
+     * 
+     * @param tableName Table name
+     * @param columnName Column name
+     * @param keyId Key ID
+     * @param success Whether operation succeeded
+     * @param errorMessage Error message if failed
      */
     public void logEncryption(String tableName, String columnName, String keyId, boolean success, String errorMessage) {
         if (!auditEnabled) return;
@@ -163,6 +179,12 @@ public class AuditLogger {
     
     /**
      * Logs decryption operation.
+     * 
+     * @param tableName Table name
+     * @param columnName Column name
+     * @param keyId Key ID
+     * @param success Whether operation succeeded
+     * @param errorMessage Error message if failed
      */
     public void logDecryption(String tableName, String columnName, String keyId, boolean success, String errorMessage) {
         if (!auditEnabled) return;
@@ -187,6 +209,12 @@ public class AuditLogger {
     
     /**
      * Logs metadata operations.
+     * 
+     * @param operation Operation type
+     * @param tableName Table name
+     * @param columnName Column name
+     * @param success Whether operation succeeded
+     * @param errorMessage Error message if failed
      */
     public void logMetadataOperation(String operation, String tableName, String columnName, 
                                    boolean success, String errorMessage) {
@@ -212,6 +240,11 @@ public class AuditLogger {
     
     /**
      * Logs configuration changes.
+     * 
+     * @param configType Configuration type
+     * @param details Configuration details
+     * @param success Whether operation succeeded
+     * @param errorMessage Error message if failed
      */
     public void logConfigurationChange(String configType, String details, boolean success, String errorMessage) {
         if (!auditEnabled) return;
@@ -235,6 +268,11 @@ public class AuditLogger {
     
     /**
      * Logs connection parameter extraction operations.
+     * 
+     * @param strategy Extraction strategy
+     * @param connectionType Connection type
+     * @param success Whether operation succeeded
+     * @param errorMessage Error message if failed
      */
     public void logConnectionParameterExtraction(String strategy, String connectionType, 
                                                boolean success, String errorMessage) {
@@ -261,6 +299,11 @@ public class AuditLogger {
     
     /**
      * Logs independent connection creation operations.
+     * 
+     * @param jdbcUrl JDBC URL
+     * @param success Whether operation succeeded
+     * @param errorMessage Error message if failed
+     * @param usedFallback Whether fallback was used
      */
     public void logIndependentConnectionCreation(String jdbcUrl, boolean success, String errorMessage, 
                                                boolean usedFallback) {
@@ -293,6 +336,10 @@ public class AuditLogger {
     
     /**
      * Logs connection sharing fallback activation.
+     * 
+     * @param reason Reason for fallback
+     * @param originalFailure Original failure message
+     * @param isActive Whether fallback is active
      */
     public void logConnectionSharingFallback(String reason, String originalFailure, boolean isActive) {
         if (!auditEnabled) return;
@@ -318,6 +365,12 @@ public class AuditLogger {
     
     /**
      * Logs connection health monitoring events.
+     * 
+     * @param dataSourceType Data source type
+     * @param isHealthy Whether connection is healthy
+     * @param successCount Number of successful connections
+     * @param failureCount Number of failed connections
+     * @param successRate Success rate as decimal
      */
     public void logConnectionHealthCheck(String dataSourceType, boolean isHealthy, 
                                        long successCount, long failureCount, double successRate) {
