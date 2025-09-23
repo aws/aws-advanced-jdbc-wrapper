@@ -32,6 +32,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.RoundRobinHostSelector;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.util.HostSelectorUtils;
 
 public class RoundRobinHostSelectorTest {
   private static final int TEST_PORT = 5432;
@@ -523,35 +524,5 @@ public class RoundRobinHostSelectorTest {
     assertEquals(
         readerHostSpec4.getHost(),
         roundRobinHostSelector.getHost(hostsList14, HostRole.READER, defaultProps).getHost());
-  }
-
-  @Test
-  void testSetRoundRobinHostWeightPairsProperty() {
-    final String expectedPropertyValue = "instance-1-id:2,instance-2-id:1,instance-3-id:0";
-
-    final List<HostSpec> hosts = Arrays.asList(
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-            .host("instance-1")
-            .hostId("instance-1-id")
-            .weight(2)
-            .build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-            .host("instance-2")
-            .hostId("instance-2-id")
-            .weight(1)
-            .build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-            .host("instance-3")
-            .hostId("instance-3-id")
-            .weight(0)
-            .build()
-    );
-    final Properties properties = new Properties();
-    RoundRobinHostSelector.setRoundRobinHostWeightPairsProperty(properties, hosts);
-
-    final String actualPropertyValue = properties.getProperty(
-        RoundRobinHostSelector.ROUND_ROBIN_HOST_WEIGHT_PAIRS.name);
-
-    assertEquals(expectedPropertyValue, actualPropertyValue);
   }
 }
