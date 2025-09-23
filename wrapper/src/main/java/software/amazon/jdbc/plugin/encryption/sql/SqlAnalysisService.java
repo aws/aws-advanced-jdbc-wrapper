@@ -77,19 +77,9 @@ public class SqlAnalysisService {
      */
     private Set<String> extractTablesFromAnalysis(Object queryAnalysis) {
         Set<String> tables = new HashSet<>();
-        try {
-            // Access the public tables field directly
-            Object tablesField = queryAnalysis.getClass().getField("tables").get(queryAnalysis);
-            if (tablesField instanceof Set) {
-                Set<?> tableSet = (Set<?>) tablesField;
-                for (Object table : tableSet) {
-                    if (table != null) {
-                        tables.add(table.toString().toLowerCase());
-                    }
-                }
-            }
-        } catch (Exception e) {
-            logger.debug("Error extracting tables from analysis: {}", e.getMessage());
+        if (queryAnalysis instanceof SQLAnalyzer.QueryAnalysis) {
+            SQLAnalyzer.QueryAnalysis analysis = (SQLAnalyzer.QueryAnalysis) queryAnalysis;
+            tables.addAll(analysis.tables);
         }
         return tables;
     }
