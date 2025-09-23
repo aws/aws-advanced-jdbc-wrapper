@@ -20,12 +20,70 @@ package software.amazon.jdbc.plugin.encryption.model;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Properties;
+import software.amazon.jdbc.AwsWrapperProperty;
+import software.amazon.jdbc.PropertyDefinition;
 
 /**
  * Configuration class for the encryption plugin containing KMS settings,
  * caching options, retry policies, and other operational parameters.
  */
 public class EncryptionConfig {
+
+    // Property definitions using AwsWrapperProperty
+    public static final AwsWrapperProperty KMS_REGION = new AwsWrapperProperty(
+        "kms.region", null, "AWS KMS region for encryption operations");
+
+    public static final AwsWrapperProperty KMS_MASTER_KEY_ARN = new AwsWrapperProperty(
+        "kms.MasterKeyArn", null, "Master key ARN for encryption");
+
+    public static final AwsWrapperProperty KEY_ROTATION_DAYS = new AwsWrapperProperty(
+        "key.rotationDays", "30", "Number of days for key rotation");
+
+    public static final AwsWrapperProperty CACHE_ENABLED = new AwsWrapperProperty(
+        "cache.enabled", "true", "Enable/disable caching");
+
+    public static final AwsWrapperProperty CACHE_EXPIRATION_MINUTES = new AwsWrapperProperty(
+        "cache.expirationMinutes", "60", "Cache expiration time in minutes");
+
+    public static final AwsWrapperProperty MAX_RETRIES = new AwsWrapperProperty(
+        "retry.maxRetries", "3", "Maximum number of retries");
+
+    public static final AwsWrapperProperty RETRY_BACKOFF_BASE_MS = new AwsWrapperProperty(
+        "retry.backoffBaseMs", "100", "Base backoff time in milliseconds");
+
+    public static final AwsWrapperProperty AUDIT_LOGGING_ENABLED = new AwsWrapperProperty(
+        "audit.loggingEnabled", "false", "Enable/disable audit logging");
+
+    public static final AwsWrapperProperty KMS_CONNECTION_POOL_SIZE = new AwsWrapperProperty(
+        "kms.connectionPoolSize", "10", "KMS connection pool size");
+
+    public static final AwsWrapperProperty KMS_CONNECTION_TIMEOUT_MS = new AwsWrapperProperty(
+        "kms.connectionTimeoutMs", "5000", "KMS connection timeout in milliseconds");
+
+    public static final AwsWrapperProperty DATA_KEY_CACHE_ENABLED = new AwsWrapperProperty(
+        "dataKeyCache.enabled", "true", "Enable/disable data key caching");
+
+    public static final AwsWrapperProperty DATA_KEY_CACHE_MAX_SIZE = new AwsWrapperProperty(
+        "dataKeyCache.maxSize", "1000", "Maximum size of data key cache");
+
+    public static final AwsWrapperProperty DATA_KEY_CACHE_EXPIRATION_MS = new AwsWrapperProperty(
+        "dataKeyCache.expirationMs", "3600000", "Data key cache expiration in milliseconds");
+
+    public static final AwsWrapperProperty METADATA_REFRESH_INTERVAL_MS = new AwsWrapperProperty(
+        "metadata.refreshIntervalMs", "300000", "Metadata refresh interval in milliseconds");
+
+    public static final AwsWrapperProperty HOT_RELOAD_ENABLED = new AwsWrapperProperty(
+        "config.hotReloadEnabled", "false", "Enable/disable hot reload of configuration");
+
+    public static final AwsWrapperProperty METRICS_ENABLED = new AwsWrapperProperty(
+        "metrics.enabled", "false", "Enable/disable metrics collection");
+
+    public static final AwsWrapperProperty METRICS_REPORTING_INTERVAL_MS = new AwsWrapperProperty(
+        "metrics.reportingIntervalMs", "60000", "Metrics reporting interval in milliseconds");
+
+    static {
+        PropertyDefinition.registerPluginProperties(EncryptionConfig.class);
+    }
 
     private final String kmsRegion;
     private final String defaultMasterKeyArn;
@@ -251,90 +309,31 @@ public class EncryptionConfig {
     public static EncryptionConfig fromProperties(Properties properties) {
         Builder builder = builder();
 
-        String region = properties.getProperty("kms.region");
+        String region = KMS_REGION.getString(properties);
         if (region != null) {
             builder.kmsRegion(region);
         }
 
-        String masterKeyArn = properties.getProperty("kms.defaultMasterKeyArn");
+        String masterKeyArn = KMS_MASTER_KEY_ARN.getString(properties);
         if (masterKeyArn != null) {
             builder.defaultMasterKeyArn(masterKeyArn);
         }
 
-        String rotationDays = properties.getProperty("key.rotationDays");
-        if (rotationDays != null) {
-            builder.keyRotationDays(Integer.parseInt(rotationDays));
-        }
-
-        String cacheEnabled = properties.getProperty("cache.enabled");
-        if (cacheEnabled != null) {
-            builder.cacheEnabled(Boolean.parseBoolean(cacheEnabled));
-        }
-
-        String cacheExpiration = properties.getProperty("cache.expirationMinutes");
-        if (cacheExpiration != null) {
-            builder.cacheExpirationMinutes(Integer.parseInt(cacheExpiration));
-        }
-
-        String maxRetries = properties.getProperty("retry.maxRetries");
-        if (maxRetries != null) {
-            builder.maxRetries(Integer.parseInt(maxRetries));
-        }
-
-        String backoffMs = properties.getProperty("retry.backoffBaseMs");
-        if (backoffMs != null) {
-            builder.retryBackoffBase(Duration.ofMillis(Long.parseLong(backoffMs)));
-        }
-
-        String auditLogging = properties.getProperty("audit.loggingEnabled");
-        if (auditLogging != null) {
-            builder.auditLoggingEnabled(Boolean.parseBoolean(auditLogging));
-        }
-
-        String poolSize = properties.getProperty("kms.connectionPoolSize");
-        if (poolSize != null) {
-            builder.kmsConnectionPoolSize(Integer.parseInt(poolSize));
-        }
-
-        String timeoutMs = properties.getProperty("kms.connectionTimeoutMs");
-        if (timeoutMs != null) {
-            builder.kmsConnectionTimeout(Duration.ofMillis(Long.parseLong(timeoutMs)));
-        }
-
-        String dataKeyCacheEnabled = properties.getProperty("dataKeyCache.enabled");
-        if (dataKeyCacheEnabled != null) {
-            builder.dataKeyCacheEnabled(Boolean.parseBoolean(dataKeyCacheEnabled));
-        }
-
-        String dataKeyCacheMaxSize = properties.getProperty("dataKeyCache.maxSize");
-        if (dataKeyCacheMaxSize != null) {
-            builder.dataKeyCacheMaxSize(Integer.parseInt(dataKeyCacheMaxSize));
-        }
-
-        String dataKeyCacheExpirationMs = properties.getProperty("dataKeyCache.expirationMs");
-        if (dataKeyCacheExpirationMs != null) {
-            builder.dataKeyCacheExpiration(Duration.ofMillis(Long.parseLong(dataKeyCacheExpirationMs)));
-        }
-
-        String metadataRefreshIntervalMs = properties.getProperty("metadata.refreshIntervalMs");
-        if (metadataRefreshIntervalMs != null) {
-            builder.metadataRefreshInterval(Duration.ofMillis(Long.parseLong(metadataRefreshIntervalMs)));
-        }
-
-        String hotReloadEnabled = properties.getProperty("config.hotReloadEnabled");
-        if (hotReloadEnabled != null) {
-            builder.hotReloadEnabled(Boolean.parseBoolean(hotReloadEnabled));
-        }
-
-        String metricsEnabled = properties.getProperty("metrics.enabled");
-        if (metricsEnabled != null) {
-            builder.metricsEnabled(Boolean.parseBoolean(metricsEnabled));
-        }
-
-        String metricsReportingIntervalMs = properties.getProperty("metrics.reportingIntervalMs");
-        if (metricsReportingIntervalMs != null) {
-            builder.metricsReportingInterval(Duration.ofMillis(Long.parseLong(metricsReportingIntervalMs)));
-        }
+        builder.keyRotationDays(KEY_ROTATION_DAYS.getInteger(properties));
+        builder.cacheEnabled(CACHE_ENABLED.getBoolean(properties));
+        builder.cacheExpirationMinutes(CACHE_EXPIRATION_MINUTES.getInteger(properties));
+        builder.maxRetries(MAX_RETRIES.getInteger(properties));
+        builder.retryBackoffBase(Duration.ofMillis(RETRY_BACKOFF_BASE_MS.getLong(properties)));
+        builder.auditLoggingEnabled(AUDIT_LOGGING_ENABLED.getBoolean(properties));
+        builder.kmsConnectionPoolSize(KMS_CONNECTION_POOL_SIZE.getInteger(properties));
+        builder.kmsConnectionTimeout(Duration.ofMillis(KMS_CONNECTION_TIMEOUT_MS.getLong(properties)));
+        builder.dataKeyCacheEnabled(DATA_KEY_CACHE_ENABLED.getBoolean(properties));
+        builder.dataKeyCacheMaxSize(DATA_KEY_CACHE_MAX_SIZE.getInteger(properties));
+        builder.dataKeyCacheExpiration(Duration.ofMillis(DATA_KEY_CACHE_EXPIRATION_MS.getLong(properties)));
+        builder.metadataRefreshInterval(Duration.ofMillis(METADATA_REFRESH_INTERVAL_MS.getLong(properties)));
+        builder.hotReloadEnabled(HOT_RELOAD_ENABLED.getBoolean(properties));
+        builder.metricsEnabled(METRICS_ENABLED.getBoolean(properties));
+        builder.metricsReportingInterval(Duration.ofMillis(METRICS_REPORTING_INTERVAL_MS.getLong(properties)));
 
         return builder.build();
     }
