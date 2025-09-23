@@ -1,7 +1,24 @@
-package software.amazon.jdbc.metrics;
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-import software.amazon.jdbc.cache.DataKeyCache;
-import software.amazon.jdbc.model.EncryptionConfig;
+
+package software.amazon.jdbc.plugin.encryption.metrics;
+
+import software.amazon.jdbc.plugin.encryption.cache.DataKeyCache;
+import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,41 +35,41 @@ import java.util.concurrent.atomic.LongAdder;
  * Tracks encryption/decryption operations, KMS calls, cache performance, and timing metrics.
  */
 public class PerformanceMetrics {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(PerformanceMetrics.class);
     private static final Logger metricsLogger = LoggerFactory.getLogger("METRICS");
-    
+
     private final EncryptionConfig config;
     private final ScheduledExecutorService reportingExecutor;
-    
+
     // Operation counters
     private final LongAdder encryptionOperations = new LongAdder();
     private final LongAdder decryptionOperations = new LongAdder();
     private final LongAdder kmsGenerateDataKeyOperations = new LongAdder();
     private final LongAdder kmsDecryptOperations = new LongAdder();
     private final LongAdder metadataLookups = new LongAdder();
-    
+
     // Error counters
     private final LongAdder encryptionErrors = new LongAdder();
     private final LongAdder decryptionErrors = new LongAdder();
     private final LongAdder kmsErrors = new LongAdder();
     private final LongAdder metadataErrors = new LongAdder();
-    
+
     // Timing metrics (in nanoseconds)
     private final LongAdder totalEncryptionTime = new LongAdder();
     private final LongAdder totalDecryptionTime = new LongAdder();
     private final LongAdder totalKmsTime = new LongAdder();
     private final LongAdder totalMetadataTime = new LongAdder();
-    
+
     // Peak timing tracking
     private final AtomicLong maxEncryptionTime = new AtomicLong(0);
     private final AtomicLong maxDecryptionTime = new AtomicLong(0);
     private final AtomicLong maxKmsTime = new AtomicLong(0);
     private final AtomicLong maxMetadataTime = new AtomicLong(0);
-    
+
     // Cache reference for metrics
     private volatile DataKeyCache dataKeyCache;
-    
+
     // Reporting state
     private volatile Instant lastReportTime = Instant.now();
 
@@ -63,12 +80,12 @@ public class PerformanceMetrics {
             t.setDaemon(true);
             return t;
         });
-        
+
         if (config.isMetricsEnabled()) {
             startPeriodicReporting();
         }
-        
-        logger.info("PerformanceMetrics initialized, enabled={}, reportingInterval={}", 
+
+        logger.info("PerformanceMetrics initialized, enabled={}, reportingInterval={}",
                    config.isMetricsEnabled(), config.getMetricsReportingInterval());
     }
 
@@ -84,7 +101,7 @@ public class PerformanceMetrics {
      */
     public void recordEncryption(Duration duration) {
         if (!config.isMetricsEnabled()) return;
-        
+
         encryptionOperations.increment();
         long nanos = duration.toNanos();
         totalEncryptionTime.add(nanos);
@@ -96,7 +113,7 @@ public class PerformanceMetrics {
      */
     public void recordDecryption(Duration duration) {
         if (!config.isMetricsEnabled()) return;
-        
+
         decryptionOperations.increment();
         long nanos = duration.toNanos();
         totalDecryptionTime.add(nanos);
@@ -108,7 +125,7 @@ public class PerformanceMetrics {
      */
     public void recordKmsGenerateDataKey(Duration duration) {
         if (!config.isMetricsEnabled()) return;
-        
+
         kmsGenerateDataKeyOperations.increment();
         long nanos = duration.toNanos();
         totalKmsTime.add(nanos);
@@ -120,7 +137,7 @@ public class PerformanceMetrics {
      */
     public void recordKmsDecrypt(Duration duration) {
         if (!config.isMetricsEnabled()) return;
-        
+
         kmsDecryptOperations.increment();
         long nanos = duration.toNanos();
         totalKmsTime.add(nanos);
@@ -132,7 +149,7 @@ public class PerformanceMetrics {
      */
     public void recordMetadataLookup(Duration duration) {
         if (!config.isMetricsEnabled()) return;
-        
+
         metadataLookups.increment();
         long nanos = duration.toNanos();
         totalMetadataTime.add(nanos);
@@ -189,28 +206,28 @@ public class PerformanceMetrics {
             kmsGenerateDataKeyOperations.sum(),
             kmsDecryptOperations.sum(),
             metadataLookups.sum(),
-            
+
             // Error counts
             encryptionErrors.sum(),
             decryptionErrors.sum(),
             kmsErrors.sum(),
             metadataErrors.sum(),
-            
+
             // Average times (in milliseconds)
             calculateAverageTime(totalEncryptionTime.sum(), encryptionOperations.sum()),
             calculateAverageTime(totalDecryptionTime.sum(), decryptionOperations.sum()),
             calculateAverageTime(totalKmsTime.sum(), kmsGenerateDataKeyOperations.sum() + kmsDecryptOperations.sum()),
             calculateAverageTime(totalMetadataTime.sum(), metadataLookups.sum()),
-            
+
             // Max times (in milliseconds)
             maxEncryptionTime.get() / 1_000_000.0,
             maxDecryptionTime.get() / 1_000_000.0,
             maxKmsTime.get() / 1_000_000.0,
             maxMetadataTime.get() / 1_000_000.0,
-            
+
             // Cache stats
             dataKeyCache != null ? dataKeyCache.getStats() : null,
-            
+
             Instant.now()
         );
     }
@@ -224,24 +241,24 @@ public class PerformanceMetrics {
         kmsGenerateDataKeyOperations.reset();
         kmsDecryptOperations.reset();
         metadataLookups.reset();
-        
+
         encryptionErrors.reset();
         decryptionErrors.reset();
         kmsErrors.reset();
         metadataErrors.reset();
-        
+
         totalEncryptionTime.reset();
         totalDecryptionTime.reset();
         totalKmsTime.reset();
         totalMetadataTime.reset();
-        
+
         maxEncryptionTime.set(0);
         maxDecryptionTime.set(0);
         maxKmsTime.set(0);
         maxMetadataTime.set(0);
-        
+
         lastReportTime = Instant.now();
-        
+
         logger.info("Metrics reset");
     }
 
@@ -250,7 +267,7 @@ public class PerformanceMetrics {
      */
     public void shutdown() {
         logger.info("Shutting down PerformanceMetrics");
-        
+
         reportingExecutor.shutdown();
         try {
             if (!reportingExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
@@ -278,39 +295,39 @@ public class PerformanceMetrics {
         try {
             MetricsSnapshot snapshot = getSnapshot();
             Duration reportingPeriod = Duration.between(lastReportTime, snapshot.getTimestamp());
-            
+
             metricsLogger.info("=== Encryption Plugin Metrics ({}s period) ===", reportingPeriod.getSeconds());
-            metricsLogger.info("Operations: encrypt={}, decrypt={}, kms_generate={}, kms_decrypt={}, metadata_lookup={}", 
+            metricsLogger.info("Operations: encrypt={}, decrypt={}, kms_generate={}, kms_decrypt={}, metadata_lookup={}",
                              snapshot.getEncryptionOperations(),
                              snapshot.getDecryptionOperations(),
                              snapshot.getKmsGenerateDataKeyOperations(),
                              snapshot.getKmsDecryptOperations(),
                              snapshot.getMetadataLookups());
-            
-            metricsLogger.info("Errors: encrypt={}, decrypt={}, kms={}, metadata={}", 
+
+            metricsLogger.info("Errors: encrypt={}, decrypt={}, kms={}, metadata={}",
                              snapshot.getEncryptionErrors(),
                              snapshot.getDecryptionErrors(),
                              snapshot.getKmsErrors(),
                              snapshot.getMetadataErrors());
-            
-            metricsLogger.info("Avg Times (ms): encrypt={:.2f}, decrypt={:.2f}, kms={:.2f}, metadata={:.2f}", 
+
+            metricsLogger.info("Avg Times (ms): encrypt={:.2f}, decrypt={:.2f}, kms={:.2f}, metadata={:.2f}",
                              snapshot.getAvgEncryptionTime(),
                              snapshot.getAvgDecryptionTime(),
                              snapshot.getAvgKmsTime(),
                              snapshot.getAvgMetadataTime());
-            
-            metricsLogger.info("Max Times (ms): encrypt={:.2f}, decrypt={:.2f}, kms={:.2f}, metadata={:.2f}", 
+
+            metricsLogger.info("Max Times (ms): encrypt={:.2f}, decrypt={:.2f}, kms={:.2f}, metadata={:.2f}",
                              snapshot.getMaxEncryptionTime(),
                              snapshot.getMaxDecryptionTime(),
                              snapshot.getMaxKmsTime(),
                              snapshot.getMaxMetadataTime());
-            
+
             if (snapshot.getCacheStats() != null) {
                 metricsLogger.info("Cache: {}", snapshot.getCacheStats());
             }
-            
+
             lastReportTime = snapshot.getTimestamp();
-            
+
         } catch (Exception e) {
             logger.warn("Error reporting metrics", e);
         }
@@ -360,26 +377,26 @@ public class PerformanceMetrics {
         private final long kmsGenerateDataKeyOperations;
         private final long kmsDecryptOperations;
         private final long metadataLookups;
-        
+
         private final long encryptionErrors;
         private final long decryptionErrors;
         private final long kmsErrors;
         private final long metadataErrors;
-        
+
         private final double avgEncryptionTime;
         private final double avgDecryptionTime;
         private final double avgKmsTime;
         private final double avgMetadataTime;
-        
+
         private final double maxEncryptionTime;
         private final double maxDecryptionTime;
         private final double maxKmsTime;
         private final double maxMetadataTime;
-        
+
         private final DataKeyCache.CacheStats cacheStats;
         private final Instant timestamp;
 
-        public MetricsSnapshot(long encryptionOperations, long decryptionOperations, 
+        public MetricsSnapshot(long encryptionOperations, long decryptionOperations,
                              long kmsGenerateDataKeyOperations, long kmsDecryptOperations, long metadataLookups,
                              long encryptionErrors, long decryptionErrors, long kmsErrors, long metadataErrors,
                              double avgEncryptionTime, double avgDecryptionTime, double avgKmsTime, double avgMetadataTime,

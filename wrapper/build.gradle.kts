@@ -39,6 +39,7 @@ dependencies {
     optionalImplementation("software.amazon.awssdk:http-client-spi:2.33.5") // Required for IAM (light implementation)
     optionalImplementation("software.amazon.awssdk:sts:2.33.5")
     optionalImplementation("software.amazon.awssdk:secretsmanager:2.33.5")
+    optionalImplementation("software.amazon.awssdk:kms:2.33.5")
     optionalImplementation("com.fasterxml.jackson.core:jackson-databind:2.19.0")
     optionalImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     optionalImplementation("com.mchange:c3p0:0.11.0")

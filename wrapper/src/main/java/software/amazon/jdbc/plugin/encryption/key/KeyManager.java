@@ -1,9 +1,26 @@
-package software.amazon.jdbc.key;
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
+package software.amazon.jdbc.plugin.encryption.key;
 
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.cache.DataKeyCache;
-import software.amazon.jdbc.model.EncryptionConfig;
-import software.amazon.jdbc.model.KeyMetadata;
+import software.amazon.jdbc.plugin.encryption.cache.DataKeyCache;
+import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
+import software.amazon.jdbc.plugin.encryption.model.KeyMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.SdkBytes;
@@ -23,26 +40,26 @@ import java.util.concurrent.ThreadLocalRandom;
  * Handles key creation, data key generation/decryption, and database storage of key metadata.
  */
 public class KeyManager {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(KeyManager.class);
-    
+
     private final KmsClient kmsClient;
     private final PluginService pluginService;
     private final EncryptionConfig config;
     private final DataKeyCache dataKeyCache;
-    
+
     // SQL statements for key metadata operations
-    private static final String INSERT_KEY_METADATA_SQL = 
+    private static final String INSERT_KEY_METADATA_SQL =
         "INSERT INTO key_storage (key_id, master_key_arn, encrypted_data_key, key_spec, created_at, last_used_at) " +
         "VALUES (?, ?, ?, ?, ?, ?) " +
         "ON CONFLICT (key_id) DO UPDATE SET " +
         "last_used_at = EXCLUDED.last_used_at";
-    
-    private static final String SELECT_KEY_METADATA_SQL = 
+
+    private static final String SELECT_KEY_METADATA_SQL =
         "SELECT key_id, master_key_arn, encrypted_data_key, key_spec, created_at, last_used_at " +
         "FROM key_storage WHERE key_id = ?";
-    
-    private static final String UPDATE_LAST_USED_SQL = 
+
+    private static final String UPDATE_LAST_USED_SQL =
         "UPDATE key_storage SET last_used_at = ? WHERE key_id = ?";
 
     public KeyManager(KmsClient kmsClient, PluginService pluginService, EncryptionConfig config) {
@@ -54,29 +71,29 @@ public class KeyManager {
 
     /**
      * Creates a new KMS master key with the specified description.
-     * 
+     *
      * @param description Description for the master key
      * @return The ARN of the created master key
      * @throws KeyManagementException if key creation fails
      */
-    public String createMasterKey(String description) throws KeyManagementException {
+    public String createMasterKey(String description) throws software.amazon.jdbc.key.KeyManagementException {
         Objects.requireNonNull(description, "Description cannot be null");
-        
+
         logger.info("Creating KMS master key with description: {}", description);
-        
+
         try {
             CreateKeyRequest request = CreateKeyRequest.builder()
                     .description(description)
                     .keyUsage(KeyUsageType.ENCRYPT_DECRYPT)
                     .keySpec(KeySpec.SYMMETRIC_DEFAULT)
                     .build();
-            
+
             CreateKeyResponse response = executeWithRetry(() -> kmsClient.createKey(request));
             String keyArn = response.keyMetadata().arn();
-            
+
             logger.info("Successfully created KMS master key: {}", keyArn);
             return keyArn;
-            
+
         } catch (Exception e) {
             logger.error("Failed to create KMS master key", e);
             throw new KeyManagementException("Failed to create KMS master key: " + e.getMessage(), e);
@@ -85,30 +102,30 @@ public class KeyManager {
 
     /**
      * Generates a new data key using the specified master key.
-     * 
+     *
      * @param masterKeyArn ARN of the master key to use for data key generation
      * @return DataKeyResult containing both plaintext and encrypted data keys
      * @throws KeyManagementException if data key generation fails
      */
     public DataKeyResult generateDataKey(String masterKeyArn) throws KeyManagementException {
         Objects.requireNonNull(masterKeyArn, "Master key ARN cannot be null");
-        
+
         logger.debug("Generating data key using master key: {}", masterKeyArn);
-        
+
         try {
             GenerateDataKeyRequest request = GenerateDataKeyRequest.builder()
                     .keyId(masterKeyArn)
                     .keySpec(DataKeySpec.AES_256)
                     .build();
-            
+
             GenerateDataKeyResponse response = executeWithRetry(() -> kmsClient.generateDataKey(request));
-            
+
             byte[] plaintextKey = response.plaintext().asByteArray();
             String encryptedKey = Base64.getEncoder().encodeToString(response.ciphertextBlob().asByteArray());
-            
+
             logger.debug("Successfully generated data key for master key: {}", masterKeyArn);
             return new DataKeyResult(plaintextKey, encryptedKey);
-            
+
         } catch (Exception e) {
             logger.error("Failed to generate data key for master key: {}", masterKeyArn, e);
             throw new KeyManagementException("Failed to generate data key: " + e.getMessage(), e);
@@ -117,7 +134,7 @@ public class KeyManager {
 
     /**
      * Decrypts an encrypted data key using KMS with caching support.
-     * 
+     *
      * @param encryptedDataKey Base64-encoded encrypted data key
      * @param masterKeyArn ARN of the master key used for encryption
      * @return Decrypted data key as byte array
@@ -126,10 +143,10 @@ public class KeyManager {
     public byte[] decryptDataKey(String encryptedDataKey, String masterKeyArn) throws KeyManagementException {
         Objects.requireNonNull(encryptedDataKey, "Encrypted data key cannot be null");
         Objects.requireNonNull(masterKeyArn, "Master key ARN cannot be null");
-        
+
         // Create cache key from encrypted data key hash
         String cacheKey = createCacheKey(encryptedDataKey);
-        
+
         // Try cache first if enabled
         if (config.isDataKeyCacheEnabled()) {
             byte[] cachedKey = dataKeyCache.get(cacheKey);
@@ -138,28 +155,28 @@ public class KeyManager {
                 return cachedKey;
             }
         }
-        
+
         logger.debug("Decrypting data key using master key: {}", masterKeyArn);
-        
+
         try {
             byte[] encryptedKeyBytes = Base64.getDecoder().decode(encryptedDataKey);
-            
+
             DecryptRequest request = DecryptRequest.builder()
                     .ciphertextBlob(SdkBytes.fromByteArray(encryptedKeyBytes))
                     .keyId(masterKeyArn)
                     .build();
-            
+
             DecryptResponse response = executeWithRetry(() -> kmsClient.decrypt(request));
             byte[] plaintextKey = response.plaintext().asByteArray();
-            
+
             // Cache the decrypted key if caching is enabled
             if (config.isDataKeyCacheEnabled()) {
                 dataKeyCache.put(cacheKey, plaintextKey);
             }
-            
+
             logger.debug("Successfully decrypted data key for master key: {}", masterKeyArn);
             return plaintextKey;
-            
+
         } catch (Exception e) {
             logger.error("Failed to decrypt data key for master key: {}", masterKeyArn, e);
             throw new KeyManagementException("Failed to decrypt data key: " + e.getMessage(), e);
@@ -168,41 +185,41 @@ public class KeyManager {
 
     /**
      * Stores key metadata in the database for the specified table and column.
-     * 
+     *
      * @param tableName Name of the table
      * @param columnName Name of the column
      * @param keyMetadata Key metadata to store
      * @throws KeyManagementException if storage fails
      */
-    public void storeKeyMetadata(String tableName, String columnName, KeyMetadata keyMetadata) 
+    public void storeKeyMetadata(String tableName, String columnName, KeyMetadata keyMetadata)
             throws KeyManagementException {
         Objects.requireNonNull(tableName, "Table name cannot be null");
         Objects.requireNonNull(columnName, "Column name cannot be null");
         Objects.requireNonNull(keyMetadata, "Key metadata cannot be null");
-        
+
         if (!keyMetadata.isValid()) {
             throw new KeyManagementException("Invalid key metadata provided");
         }
-        
+
         logger.debug("Storing key metadata for {}.{}", tableName, columnName);
-        
+
         try (Connection conn = pluginService.forceConnect(pluginService.getCurrentHostSpec(), pluginService.getProperties());
              PreparedStatement stmt = conn.prepareStatement(INSERT_KEY_METADATA_SQL)) {
-            
+
             stmt.setString(1, keyMetadata.getKeyId());
             stmt.setString(2, keyMetadata.getMasterKeyArn());
             stmt.setString(3, keyMetadata.getEncryptedDataKey());
             stmt.setString(4, keyMetadata.getKeySpec());
             stmt.setTimestamp(5, Timestamp.from(keyMetadata.getCreatedAt()));
             stmt.setTimestamp(6, Timestamp.from(keyMetadata.getLastUsedAt()));
-            
+
             int rowsAffected = stmt.executeUpdate();
             if (rowsAffected == 0) {
                 throw new KeyManagementException("Failed to store key metadata - no rows affected");
             }
-            
+
             logger.debug("Successfully stored key metadata for {}.{}", tableName, columnName);
-            
+
         } catch (SQLException e) {
             logger.error("Database error storing key metadata for {}.{}", tableName, columnName, e);
             throw new KeyManagementException("Failed to store key metadata: " + e.getMessage(), e);
@@ -211,21 +228,21 @@ public class KeyManager {
 
     /**
      * Retrieves key metadata from the database for the specified key ID.
-     * 
+     *
      * @param keyId Key ID to retrieve metadata for
      * @return Optional containing key metadata if found
      * @throws KeyManagementException if retrieval fails
      */
     public Optional<KeyMetadata> getKeyMetadata(String keyId) throws KeyManagementException {
         Objects.requireNonNull(keyId, "Key ID cannot be null");
-        
+
         logger.debug("Retrieving key metadata for key ID: {}", keyId);
-        
+
         try (Connection conn = pluginService.forceConnect(pluginService.getCurrentHostSpec(), pluginService.getProperties());
              PreparedStatement stmt = conn.prepareStatement(SELECT_KEY_METADATA_SQL)) {
-            
+
             stmt.setString(1, keyId);
-            
+
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     KeyMetadata metadata = KeyMetadata.builder()
@@ -236,7 +253,7 @@ public class KeyManager {
                             .createdAt(rs.getTimestamp("created_at").toInstant())
                             .lastUsedAt(rs.getTimestamp("last_used_at").toInstant())
                             .build();
-                    
+
                     logger.debug("Successfully retrieved key metadata for key ID: {}", keyId);
                     return Optional.of(metadata);
                 } else {
@@ -244,7 +261,7 @@ public class KeyManager {
                     return Optional.empty();
                 }
             }
-            
+
         } catch (SQLException e) {
             logger.error("Database error retrieving key metadata for key ID: {}", keyId, e);
             throw new KeyManagementException("Failed to retrieve key metadata: " + e.getMessage(), e);
@@ -253,21 +270,21 @@ public class KeyManager {
 
     /**
      * Updates the last used timestamp for the specified key.
-     * 
+     *
      * @param keyId Key ID to update
      * @throws KeyManagementException if update fails
      */
     public void updateLastUsed(String keyId) throws KeyManagementException {
         Objects.requireNonNull(keyId, "Key ID cannot be null");
-        
+
         try (Connection conn = pluginService.forceConnect(pluginService.getCurrentHostSpec(), pluginService.getProperties());
              PreparedStatement stmt = conn.prepareStatement(UPDATE_LAST_USED_SQL)) {
-            
+
             stmt.setTimestamp(1, Timestamp.from(Instant.now()));
             stmt.setString(2, keyId);
-            
+
             stmt.executeUpdate();
-            
+
         } catch (SQLException e) {
             logger.error("Database error updating last used timestamp for key ID: {}", keyId, e);
             throw new KeyManagementException("Failed to update last used timestamp: " + e.getMessage(), e);
@@ -276,7 +293,7 @@ public class KeyManager {
 
     /**
      * Generates a unique key ID for new keys.
-     * 
+     *
      * @return Unique key ID
      */
     public String generateKeyId() {
@@ -312,22 +329,22 @@ public class KeyManager {
     private <T> T executeWithRetry(KmsOperation<T> operation) throws Exception {
         Exception lastException = null;
         int maxRetries = config.getMaxRetries();
-        
+
         for (int attempt = 0; attempt <= maxRetries; attempt++) {
             try {
                 return operation.execute();
             } catch (Exception e) {
                 lastException = e;
-                
+
                 if (attempt == maxRetries) {
                     break;
                 }
-                
+
                 if (isRetryableException(e)) {
                     long backoffMs = calculateBackoff(attempt);
-                    logger.warn("KMS operation failed (attempt {}/{}), retrying in {}ms: {}", 
+                    logger.warn("KMS operation failed (attempt {}/{}), retrying in {}ms: {}",
                                attempt + 1, maxRetries + 1, backoffMs, e.getMessage());
-                    
+
                     try {
                         Thread.sleep(backoffMs);
                     } catch (InterruptedException ie) {
@@ -340,7 +357,7 @@ public class KeyManager {
                 }
             }
         }
-        
+
         throw lastException;
     }
 
@@ -353,16 +370,16 @@ public class KeyManager {
             // Retry on throttling, service unavailable, and internal errors
             boolean isServerError = kmsException.statusCode() >= 500;
             boolean isThrottling = kmsException.statusCode() == 429;
-            
+
             // Check error code if available
             boolean isThrottlingError = false;
             if (kmsException.awsErrorDetails() != null && kmsException.awsErrorDetails().errorCode() != null) {
                 isThrottlingError = "ThrottlingException".equals(kmsException.awsErrorDetails().errorCode());
             }
-            
+
             return isServerError || isThrottling || isThrottlingError;
         }
-        
+
         // Retry on general network/connection issues
         return e instanceof java.net.ConnectException ||
                e instanceof java.net.SocketTimeoutException ||
@@ -375,10 +392,10 @@ public class KeyManager {
     private long calculateBackoff(int attempt) {
         long baseMs = config.getRetryBackoffBase().toMillis();
         long exponentialBackoff = baseMs * (1L << attempt);
-        
+
         // Add jitter (±25% of the calculated backoff)
         long jitter = (long) (exponentialBackoff * 0.25 * (ThreadLocalRandom.current().nextDouble() - 0.5) * 2);
-        
+
         return Math.max(baseMs, exponentialBackoff + jitter);
     }
 

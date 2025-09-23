@@ -1,6 +1,23 @@
-package software.amazon.jdbc.config;
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-import software.amazon.jdbc.model.EncryptionConfig;
+
+package software.amazon.jdbc.plugin.encryption.config;
+
+import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,20 +37,20 @@ import java.util.function.Consumer;
  * Monitors configuration files for changes and notifies listeners when updates occur.
  */
 public class ConfigurationManager {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(ConfigurationManager.class);
-    
+
     private final AtomicReference<EncryptionConfig> currentConfig;
     private final ScheduledExecutorService watcherExecutor;
     private final Path configFilePath;
     private volatile WatchService watchService;
     private volatile Instant lastModified;
     private volatile Consumer<EncryptionConfig> configChangeListener;
-    
+
     public ConfigurationManager(EncryptionConfig initialConfig) {
         this(initialConfig, null);
     }
-    
+
     public ConfigurationManager(EncryptionConfig initialConfig, String configFilePath) {
         this.currentConfig = new AtomicReference<>(initialConfig);
         this.configFilePath = configFilePath != null ? Paths.get(configFilePath) : null;
@@ -43,12 +60,12 @@ public class ConfigurationManager {
             t.setDaemon(true);
             return t;
         });
-        
+
         if (initialConfig.isHotReloadEnabled() && this.configFilePath != null) {
             startFileWatcher();
         }
-        
-        logger.info("ConfigurationManager initialized, hotReload={}, configFile={}", 
+
+        logger.info("ConfigurationManager initialized, hotReload={}, configFile={}",
                    initialConfig.isHotReloadEnabled(), configFilePath);
     }
 
@@ -64,9 +81,9 @@ public class ConfigurationManager {
      */
     public void updateConfig(EncryptionConfig newConfig) {
         EncryptionConfig oldConfig = currentConfig.getAndSet(newConfig);
-        
+
         logger.info("Configuration updated");
-        
+
         // Restart file watcher if hot reload setting changed
         if (oldConfig.isHotReloadEnabled() != newConfig.isHotReloadEnabled()) {
             if (newConfig.isHotReloadEnabled() && configFilePath != null) {
@@ -75,7 +92,7 @@ public class ConfigurationManager {
                 stopFileWatcher();
             }
         }
-        
+
         // Notify listener if registered
         if (configChangeListener != null) {
             try {
@@ -98,7 +115,7 @@ public class ConfigurationManager {
      */
     public static EncryptionConfig loadFromFile(String filePath) throws IOException {
         Properties properties = new Properties();
-        
+
         try (InputStream input = Files.newInputStream(Paths.get(filePath))) {
             properties.load(input);
             logger.info("Loaded configuration from file: {}", filePath);
@@ -111,7 +128,7 @@ public class ConfigurationManager {
      */
     public static EncryptionConfig loadFromResource(String resourcePath) throws IOException {
         Properties properties = new Properties();
-        
+
         try (InputStream input = ConfigurationManager.class.getClassLoader().getResourceAsStream(resourcePath)) {
             if (input == null) {
                 throw new IOException("Configuration resource not found: " + resourcePath);
@@ -130,7 +147,7 @@ public class ConfigurationManager {
             logger.warn("Cannot reload configuration - no file path configured");
             return;
         }
-        
+
         try {
             EncryptionConfig newConfig = loadFromFile(configFilePath.toString());
             updateConfig(newConfig);
@@ -146,22 +163,22 @@ public class ConfigurationManager {
     public boolean validateConfigChange(EncryptionConfig newConfig) {
         try {
             newConfig.validate();
-            
+
             EncryptionConfig current = currentConfig.get();
-            
+
             // Check for potentially dangerous changes
             if (!current.getKmsRegion().equals(newConfig.getKmsRegion())) {
-                logger.warn("Configuration change includes KMS region change: {} -> {}", 
+                logger.warn("Configuration change includes KMS region change: {} -> {}",
                            current.getKmsRegion(), newConfig.getKmsRegion());
             }
-            
+
             if (current.getKmsConnectionPoolSize() != newConfig.getKmsConnectionPoolSize()) {
-                logger.info("KMS connection pool size changing: {} -> {}", 
+                logger.info("KMS connection pool size changing: {} -> {}",
                            current.getKmsConnectionPoolSize(), newConfig.getKmsConnectionPoolSize());
             }
-            
+
             return true;
-            
+
         } catch (Exception e) {
             logger.error("Configuration validation failed", e);
             return false;
@@ -173,9 +190,9 @@ public class ConfigurationManager {
      */
     public void shutdown() {
         logger.info("Shutting down ConfigurationManager");
-        
+
         stopFileWatcher();
-        
+
         watcherExecutor.shutdown();
         try {
             if (!watcherExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
@@ -195,23 +212,23 @@ public class ConfigurationManager {
             logger.warn("Cannot start file watcher - config file does not exist: {}", configFilePath);
             return;
         }
-        
+
         stopFileWatcher(); // Stop any existing watcher
-        
+
         try {
             watchService = FileSystems.getDefault().newWatchService();
             Path parentDir = configFilePath.getParent();
-            
+
             if (parentDir != null) {
                 parentDir.register(watchService, StandardWatchEventKinds.ENTRY_MODIFY);
                 updateLastModified();
-                
+
                 // Start watching in background
                 watcherExecutor.submit(this::watchForChanges);
-                
+
                 logger.info("Started file watcher for configuration: {}", configFilePath);
             }
-            
+
         } catch (IOException e) {
             logger.error("Failed to start file watcher for configuration", e);
         }
@@ -237,49 +254,49 @@ public class ConfigurationManager {
      */
     private void watchForChanges() {
         logger.debug("File watcher thread started");
-        
+
         try {
             while (watchService != null && !Thread.currentThread().isInterrupted()) {
                 WatchKey key = watchService.take();
-                
+
                 for (WatchEvent<?> event : key.pollEvents()) {
                     WatchEvent.Kind<?> kind = event.kind();
-                    
+
                     if (kind == StandardWatchEventKinds.OVERFLOW) {
                         continue;
                     }
-                    
+
                     @SuppressWarnings("unchecked")
                     WatchEvent<Path> pathEvent = (WatchEvent<Path>) event;
                     Path changedFile = pathEvent.context();
-                    
+
                     // Check if it's our config file
                     if (configFilePath.getFileName().equals(changedFile)) {
                         // Debounce rapid changes
                         if (hasFileChanged()) {
                             logger.info("Configuration file changed, reloading: {}", configFilePath);
-                            
+
                             // Small delay to ensure file write is complete
                             Thread.sleep(100);
                             reloadFromFile();
                         }
                     }
                 }
-                
+
                 boolean valid = key.reset();
                 if (!valid) {
                     logger.warn("File watcher key became invalid");
                     break;
                 }
             }
-            
+
         } catch (InterruptedException e) {
             logger.debug("File watcher thread interrupted");
             Thread.currentThread().interrupt();
         } catch (Exception e) {
             logger.error("Error in file watcher thread", e);
         }
-        
+
         logger.debug("File watcher thread stopped");
     }
 

@@ -1,9 +1,26 @@
-package software.amazon.jdbc.key;
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-import software.amazon.jdbc.metadata.MetadataException;
-import software.amazon.jdbc.metadata.MetadataManager;
-import software.amazon.jdbc.model.ColumnEncryptionConfig;
-import software.amazon.jdbc.model.KeyMetadata;
+
+package software.amazon.jdbc.plugin.encryption.key;
+
+import software.amazon.jdbc.plugin.encryption.metadata.MetadataException;
+import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
+import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
+import software.amazon.jdbc.plugin.encryption.model.KeyMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.kms.KmsClient;
@@ -22,34 +39,34 @@ import java.util.Objects;
  * for tables/columns, rotating keys, and managing the encryption lifecycle.
  */
 public class KeyManagementUtility {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(KeyManagementUtility.class);
-    
+
     private final KeyManager keyManager;
     private final MetadataManager metadataManager;
     private final DataSource dataSource;
     private final KmsClient kmsClient;
-    
+
     // SQL statements for encryption metadata operations
-    private static final String INSERT_ENCRYPTION_METADATA_SQL = 
+    private static final String INSERT_ENCRYPTION_METADATA_SQL =
         "INSERT INTO encryption_metadata (table_name, column_name, encryption_algorithm, key_id, created_at, updated_at) " +
         "VALUES (?, ?, ?, ?, ?, ?) " +
         "ON CONFLICT (table_name, column_name) DO UPDATE SET " +
         "encryption_algorithm = EXCLUDED.encryption_algorithm, " +
         "key_id = EXCLUDED.key_id, " +
         "updated_at = EXCLUDED.updated_at";
-    
-    private static final String UPDATE_ENCRYPTION_METADATA_KEY_SQL = 
+
+    private static final String UPDATE_ENCRYPTION_METADATA_KEY_SQL =
         "UPDATE encryption_metadata SET key_id = ?, updated_at = ? " +
         "WHERE table_name = ? AND column_name = ?";
-    
-    private static final String SELECT_COLUMNS_WITH_KEY_SQL = 
+
+    private static final String SELECT_COLUMNS_WITH_KEY_SQL =
         "SELECT table_name, column_name FROM encryption_metadata WHERE key_id = ?";
-    
-    private static final String DELETE_ENCRYPTION_METADATA_SQL = 
+
+    private static final String DELETE_ENCRYPTION_METADATA_SQL =
         "DELETE FROM encryption_metadata WHERE table_name = ? AND column_name = ?";
 
-    public KeyManagementUtility(KeyManager keyManager, MetadataManager metadataManager, 
+    public KeyManagementUtility(KeyManager keyManager, MetadataManager metadataManager,
                                DataSource dataSource, KmsClient kmsClient) {
         this.keyManager = Objects.requireNonNull(keyManager, "KeyManager cannot be null");
         this.metadataManager = Objects.requireNonNull(metadataManager, "MetadataManager cannot be null");
@@ -59,45 +76,45 @@ public class KeyManagementUtility {
 
     /**
      * Creates a new KMS master key with proper permissions for encryption operations.
-     * 
+     *
      * @param description Description for the master key
      * @param keyPolicy Optional key policy JSON string. If null, uses default policy
      * @return The ARN of the created master key
      * @throws KeyManagementException if key creation fails
      */
-    public String createMasterKeyWithPermissions(String description, String keyPolicy) 
+    public String createMasterKeyWithPermissions(String description, String keyPolicy)
             throws KeyManagementException {
         Objects.requireNonNull(description, "Description cannot be null");
-        
+
         logger.info("Creating KMS master key with permissions: {}", description);
-        
+
         try {
             CreateKeyRequest.Builder requestBuilder = CreateKeyRequest.builder()
                     .description(description)
                     .keyUsage(KeyUsageType.ENCRYPT_DECRYPT)
                     .keySpec(KeySpec.SYMMETRIC_DEFAULT);
-            
+
             // Add key policy if provided
             if (keyPolicy != null && !keyPolicy.trim().isEmpty()) {
                 requestBuilder.policy(keyPolicy);
                 logger.debug("Using custom key policy for master key creation");
             }
-            
+
             CreateKeyResponse response = kmsClient.createKey(requestBuilder.build());
             String keyArn = response.keyMetadata().arn();
-            
+
             // Create an alias for easier management
             String aliasName = "alias/jdbc-encryption-" + System.currentTimeMillis();
             CreateAliasRequest aliasRequest = CreateAliasRequest.builder()
                     .aliasName(aliasName)
                     .targetKeyId(keyArn)
                     .build();
-            
+
             kmsClient.createAlias(aliasRequest);
-            
+
             logger.info("Successfully created KMS master key: {} with alias: {}", keyArn, aliasName);
             return keyArn;
-            
+
         } catch (Exception e) {
             logger.error("Failed to create KMS master key with permissions", e);
             throw new KeyManagementException("Failed to create KMS master key: " + e.getMessage(), e);
@@ -106,7 +123,7 @@ public class KeyManagementUtility {
 
     /**
      * Creates a master key with default permissions suitable for JDBC encryption.
-     * 
+     *
      * @param description Description for the master key
      * @return The ARN of the created master key
      * @throws KeyManagementException if key creation fails
@@ -118,7 +135,7 @@ public class KeyManagementUtility {
     /**
      * Generates and stores a data key for the specified table and column.
      * This method creates the complete encryption setup for a column.
-     * 
+     *
      * @param tableName Name of the table
      * @param columnName Name of the column
      * @param masterKeyArn ARN of the master key to use
@@ -126,27 +143,27 @@ public class KeyManagementUtility {
      * @return The generated key ID
      * @throws KeyManagementException if key generation or storage fails
      */
-    public String generateAndStoreDataKey(String tableName, String columnName, 
-                                        String masterKeyArn, String algorithm) 
+    public String generateAndStoreDataKey(String tableName, String columnName,
+                                        String masterKeyArn, String algorithm)
             throws KeyManagementException {
         Objects.requireNonNull(tableName, "Table name cannot be null");
         Objects.requireNonNull(columnName, "Column name cannot be null");
         Objects.requireNonNull(masterKeyArn, "Master key ARN cannot be null");
-        
+
         if (algorithm == null || algorithm.trim().isEmpty()) {
             algorithm = "AES-256-GCM";
         }
-        
-        logger.info("Generating and storing data key for {}.{} using master key: {}", 
+
+        logger.info("Generating and storing data key for {}.{} using master key: {}",
                    tableName, columnName, masterKeyArn);
-        
+
         try {
             // Generate a unique key ID
             String keyId = keyManager.generateKeyId();
-            
+
             // Generate the data key using KMS
             KeyManager.DataKeyResult dataKeyResult = keyManager.generateDataKey(masterKeyArn);
-            
+
             try {
                 // Create key metadata
                 KeyMetadata keyMetadata = KeyMetadata.builder()
@@ -157,26 +174,26 @@ public class KeyManagementUtility {
                         .createdAt(Instant.now())
                         .lastUsedAt(Instant.now())
                         .build();
-                
+
                 // Store key metadata in database
                 keyManager.storeKeyMetadata(tableName, columnName, keyMetadata);
-                
+
                 // Store encryption metadata
                 storeEncryptionMetadata(tableName, columnName, algorithm, keyId);
-                
+
                 // Refresh metadata cache
                 metadataManager.refreshMetadata();
-                
-                logger.info("Successfully generated and stored data key for {}.{} with key ID: {}", 
+
+                logger.info("Successfully generated and stored data key for {}.{} with key ID: {}",
                            tableName, columnName, keyId);
-                
+
                 return keyId;
-                
+
             } finally {
                 // Clear sensitive data from memory
                 dataKeyResult.clearPlaintextKey();
             }
-            
+
         } catch (Exception e) {
             logger.error("Failed to generate and store data key for {}.{}", tableName, columnName, e);
             throw new KeyManagementException("Failed to generate and store data key: " + e.getMessage(), e);
@@ -186,35 +203,35 @@ public class KeyManagementUtility {
     /**
      * Rotates the data key for an existing encrypted column.
      * This creates a new data key while preserving the existing encryption metadata.
-     * 
+     *
      * @param tableName Name of the table
      * @param columnName Name of the column
      * @param newMasterKeyArn Optional new master key ARN. If null, uses existing master key
      * @return The new key ID
      * @throws KeyManagementException if key rotation fails
      */
-    public String rotateDataKey(String tableName, String columnName, String newMasterKeyArn) 
+    public String rotateDataKey(String tableName, String columnName, String newMasterKeyArn)
             throws KeyManagementException {
         Objects.requireNonNull(tableName, "Table name cannot be null");
         Objects.requireNonNull(columnName, "Column name cannot be null");
-        
+
         logger.info("Rotating data key for {}.{}", tableName, columnName);
-        
+
         try {
             // Get current encryption configuration
             ColumnEncryptionConfig currentConfig = metadataManager.getColumnConfig(tableName, columnName);
             if (currentConfig == null) {
                 throw new KeyManagementException("No encryption configuration found for " + tableName + "." + columnName);
             }
-            
+
             // Use existing master key if new one not provided
-            String masterKeyArn = newMasterKeyArn != null ? newMasterKeyArn : 
+            String masterKeyArn = newMasterKeyArn != null ? newMasterKeyArn :
                                  currentConfig.getKeyMetadata().getMasterKeyArn();
-            
+
             // Generate new data key
             String newKeyId = keyManager.generateKeyId();
             KeyManager.DataKeyResult dataKeyResult = keyManager.generateDataKey(masterKeyArn);
-            
+
             try {
                 // Create new key metadata
                 KeyMetadata newKeyMetadata = KeyMetadata.builder()
@@ -225,25 +242,25 @@ public class KeyManagementUtility {
                         .createdAt(Instant.now())
                         .lastUsedAt(Instant.now())
                         .build();
-                
+
                 // Store new key metadata
                 keyManager.storeKeyMetadata(tableName, columnName, newKeyMetadata);
-                
+
                 // Update encryption metadata to use new key
                 updateEncryptionMetadataKey(tableName, columnName, newKeyId);
-                
+
                 // Refresh metadata cache
                 metadataManager.refreshMetadata();
-                
-                logger.info("Successfully rotated data key for {}.{} from {} to {}", 
+
+                logger.info("Successfully rotated data key for {}.{} from {} to {}",
                            tableName, columnName, currentConfig.getKeyId(), newKeyId);
-                
+
                 return newKeyId;
-                
+
             } finally {
                 dataKeyResult.clearPlaintextKey();
             }
-            
+
         } catch (Exception e) {
             logger.error("Failed to rotate data key for {}.{}", tableName, columnName, e);
             throw new KeyManagementException("Failed to rotate data key: " + e.getMessage(), e);
@@ -253,21 +270,21 @@ public class KeyManagementUtility {
     /**
      * Initializes encryption for a new table and column combination.
      * This is a convenience method that creates everything needed for encryption.
-     * 
+     *
      * @param tableName Name of the table
      * @param columnName Name of the column
      * @param masterKeyArn ARN of the master key to use
      * @return The generated key ID
      * @throws KeyManagementException if initialization fails
      */
-    public String initializeEncryptionForColumn(String tableName, String columnName, String masterKeyArn) 
+    public String initializeEncryptionForColumn(String tableName, String columnName, String masterKeyArn)
             throws KeyManagementException {
         return initializeEncryptionForColumn(tableName, columnName, masterKeyArn, "AES-256-GCM");
     }
 
     /**
      * Initializes encryption for a new table and column combination with specified algorithm.
-     * 
+     *
      * @param tableName Name of the table
      * @param columnName Name of the column
      * @param masterKeyArn ARN of the master key to use
@@ -275,11 +292,11 @@ public class KeyManagementUtility {
      * @return The generated key ID
      * @throws KeyManagementException if initialization fails
      */
-    public String initializeEncryptionForColumn(String tableName, String columnName, 
-                                              String masterKeyArn, String algorithm) 
+    public String initializeEncryptionForColumn(String tableName, String columnName,
+                                              String masterKeyArn, String algorithm)
             throws KeyManagementException {
         logger.info("Initializing encryption for column {}.{}", tableName, columnName);
-        
+
         // Check if column is already encrypted
         try {
             if (metadataManager.isColumnEncrypted(tableName, columnName)) {
@@ -288,7 +305,7 @@ public class KeyManagementUtility {
         } catch (MetadataException e) {
             throw new KeyManagementException("Failed to check existing encryption status", e);
         }
-        
+
         // Generate and store the data key
         return generateAndStoreDataKey(tableName, columnName, masterKeyArn, algorithm);
     }
@@ -296,34 +313,34 @@ public class KeyManagementUtility {
     /**
      * Removes encryption configuration for a table and column.
      * This does not delete the actual key data for security reasons.
-     * 
+     *
      * @param tableName Name of the table
      * @param columnName Name of the column
      * @throws KeyManagementException if removal fails
      */
-    public void removeEncryptionForColumn(String tableName, String columnName) 
+    public void removeEncryptionForColumn(String tableName, String columnName)
             throws KeyManagementException {
         Objects.requireNonNull(tableName, "Table name cannot be null");
         Objects.requireNonNull(columnName, "Column name cannot be null");
-        
+
         logger.info("Removing encryption configuration for {}.{}", tableName, columnName);
-        
+
         try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(DELETE_ENCRYPTION_METADATA_SQL)) {
-            
+
             stmt.setString(1, tableName);
             stmt.setString(2, columnName);
-            
+
             int rowsAffected = stmt.executeUpdate();
             if (rowsAffected == 0) {
                 logger.warn("No encryption configuration found for {}.{}", tableName, columnName);
             } else {
                 logger.info("Successfully removed encryption configuration for {}.{}", tableName, columnName);
             }
-            
+
             // Refresh metadata cache
             metadataManager.refreshMetadata();
-            
+
         } catch (MetadataException e) {
             logger.error("Failed to refresh metadata after removing encryption configuration", e);
             throw new KeyManagementException("Failed to refresh metadata: " + e.getMessage(), e);
@@ -336,21 +353,21 @@ public class KeyManagementUtility {
     /**
      * Lists all columns that use a specific key ID.
      * Useful for understanding the impact of key operations.
-     * 
+     *
      * @param keyId The key ID to search for
      * @return List of table.column identifiers using the key
      * @throws KeyManagementException if query fails
      */
     public List<String> getColumnsUsingKey(String keyId) throws KeyManagementException {
         Objects.requireNonNull(keyId, "Key ID cannot be null");
-        
+
         logger.debug("Finding columns using key ID: {}", keyId);
-        
+
         try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(SELECT_COLUMNS_WITH_KEY_SQL)) {
-            
+
             stmt.setString(1, keyId);
-            
+
             try (ResultSet rs = stmt.executeQuery()) {
                 List<String> columns = new ArrayList<>();
                 while (rs.next()) {
@@ -360,7 +377,7 @@ public class KeyManagementUtility {
                 }
                 return columns;
             }
-            
+
         } catch (SQLException e) {
             logger.error("Failed to find columns using key ID: {}", keyId, e);
             throw new KeyManagementException("Failed to find columns using key: " + e.getMessage(), e);
@@ -369,31 +386,31 @@ public class KeyManagementUtility {
 
     /**
      * Validates that a master key exists and is accessible.
-     * 
+     *
      * @param masterKeyArn ARN of the master key to validate
      * @return true if key is valid and accessible
      * @throws KeyManagementException if validation fails
      */
     public boolean validateMasterKey(String masterKeyArn) throws KeyManagementException {
         Objects.requireNonNull(masterKeyArn, "Master key ARN cannot be null");
-        
+
         logger.debug("Validating master key: {}", masterKeyArn);
-        
+
         try {
             DescribeKeyRequest request = DescribeKeyRequest.builder()
                     .keyId(masterKeyArn)
                     .build();
-            
+
             DescribeKeyResponse response = kmsClient.describeKey(request);
             software.amazon.awssdk.services.kms.model.KeyMetadata keyMetadata = response.keyMetadata();
-            
-            boolean isValid = keyMetadata.enabled() && 
+
+            boolean isValid = keyMetadata.enabled() &&
                              keyMetadata.keyState() == KeyState.ENABLED &&
                              keyMetadata.keyUsage() == KeyUsageType.ENCRYPT_DECRYPT;
-            
+
             logger.debug("Master key {} validation result: {}", masterKeyArn, isValid);
             return isValid;
-            
+
         } catch (Exception e) {
             logger.error("Failed to validate master key: {}", masterKeyArn, e);
             throw new KeyManagementException("Failed to validate master key: " + e.getMessage(), e);
@@ -403,25 +420,25 @@ public class KeyManagementUtility {
     /**
      * Stores encryption metadata in the database.
      */
-    private void storeEncryptionMetadata(String tableName, String columnName, 
+    private void storeEncryptionMetadata(String tableName, String columnName,
                                        String algorithm, String keyId) throws SQLException {
         try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(INSERT_ENCRYPTION_METADATA_SQL)) {
-            
+
             Timestamp now = Timestamp.from(Instant.now());
-            
+
             stmt.setString(1, tableName);
             stmt.setString(2, columnName);
             stmt.setString(3, algorithm);
             stmt.setString(4, keyId);
             stmt.setTimestamp(5, now);
             stmt.setTimestamp(6, now);
-            
+
             int rowsAffected = stmt.executeUpdate();
             if (rowsAffected == 0) {
                 throw new SQLException("Failed to store encryption metadata - no rows affected");
             }
-            
+
             logger.debug("Successfully stored encryption metadata for {}.{}", tableName, columnName);
         }
     }
@@ -429,22 +446,22 @@ public class KeyManagementUtility {
     /**
      * Updates the key ID for existing encryption metadata.
      */
-    private void updateEncryptionMetadataKey(String tableName, String columnName, String newKeyId) 
+    private void updateEncryptionMetadataKey(String tableName, String columnName, String newKeyId)
             throws SQLException {
         try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(UPDATE_ENCRYPTION_METADATA_KEY_SQL)) {
-            
+
             stmt.setString(1, newKeyId);
             stmt.setTimestamp(2, Timestamp.from(Instant.now()));
             stmt.setString(3, tableName);
             stmt.setString(4, columnName);
-            
+
             int rowsAffected = stmt.executeUpdate();
             if (rowsAffected == 0) {
                 throw new SQLException("Failed to update encryption metadata key - no rows affected");
             }
-            
-            logger.debug("Successfully updated encryption metadata key for {}.{} to {}", 
+
+            logger.debug("Successfully updated encryption metadata key for {}.{} to {}",
                         tableName, columnName, newKeyId);
         }
     }

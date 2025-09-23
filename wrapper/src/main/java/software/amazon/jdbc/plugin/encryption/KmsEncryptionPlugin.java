@@ -1,24 +1,40 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
 package software.amazon.jdbc.plugin.encryption;
 
 
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.factory.IndependentDataSource;
-import software.amazon.jdbc.key.KeyManager;
 import software.amazon.jdbc.logging.AuditLogger;
-import software.amazon.jdbc.metadata.MetadataManager;
-import software.amazon.jdbc.metadata.MetadataException;
-import software.amazon.jdbc.model.EncryptionConfig;
+import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
+import software.amazon.jdbc.plugin.encryption.metadata.MetadataException;
+import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
+import software.amazon.jdbc.plugin.encryption.key.KeyManager;
 import software.amazon.jdbc.plugin.encryption.wrapper.EncryptingPreparedStatement;
-import software.amazon.jdbc.service.EncryptionService;
+import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
 import software.amazon.jdbc.sql.SqlAnalysisService;
-import software.amazon.jdbc.wrapper.DecryptingResultSet;
+import software.amazon.jdbc.plugin.encryption.wrapper.DecryptingResultSet;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kms.KmsClient;
 
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -147,16 +163,12 @@ public class KmsEncryptionPlugin {
         }
 
         try {
-            long startTime = System.currentTimeMillis();
-
             if (pluginService != null) {
                 // Create independent DataSource using PluginService
                 this.independentDataSource = new IndependentDataSource(pluginService, pluginProperties);
 
-                long duration = System.currentTimeMillis() - startTime;
-
                 // Log success
-                auditLogger.logConnectionParameterExtraction("PluginService", "PLUGIN_SERVICE", true, null, duration);
+                auditLogger.logConnectionParameterExtraction("PluginService", "PLUGIN_SERVICE", true, null);
 
                 // Initialize managers with PluginService
                 this.keyManager = new KeyManager(kmsClient, pluginService, config);
@@ -166,14 +178,12 @@ public class KmsEncryptionPlugin {
                 // Initialize SQL analysis service
                 this.sqlAnalysisService = new SqlAnalysisService(pluginService, metadataManager);
 
-                logger.info("Plugin initialized with PluginService connection parameters in {}ms", duration);
+                logger.info("Plugin initialized with PluginService connection parameters");
 
             } else {
-                long duration = System.currentTimeMillis() - startTime;
-
                 logger.error("PluginService not available - cannot create independent connections");
 
-                auditLogger.logConnectionParameterExtraction("PluginService", "PLUGIN_SERVICE", false, "PluginService not available", duration);
+                auditLogger.logConnectionParameterExtraction("PluginService", "PLUGIN_SERVICE", false, "PluginService not available");
 
                 throw new SQLException("PluginService not available - cannot create independent connections");
             }

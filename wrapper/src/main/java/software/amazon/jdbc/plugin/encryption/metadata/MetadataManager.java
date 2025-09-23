@@ -1,13 +1,29 @@
-package software.amazon.jdbc.metadata;
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
+package software.amazon.jdbc.plugin.encryption.metadata;
 
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.model.ColumnEncryptionConfig;
-import software.amazon.jdbc.model.EncryptionConfig;
-import software.amazon.jdbc.model.KeyMetadata;
+import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
+import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
+import software.amazon.jdbc.plugin.encryption.model.KeyMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -28,18 +44,18 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * providing caching mechanisms, and offering lookup methods for column encryption settings.
  */
 public class MetadataManager {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(MetadataManager.class);
-    
+
     private final PluginService pluginService;
     private volatile EncryptionConfig config;
     private final Map<String, ColumnEncryptionConfig> metadataCache;
     private final ReadWriteLock cacheLock;
     private volatile Instant lastRefreshTime;
     private volatile ScheduledExecutorService refreshExecutor;
-    
+
     // SQL queries for metadata operations
-    private static final String LOAD_ENCRYPTION_METADATA_SQL = 
+    private static final String LOAD_ENCRYPTION_METADATA_SQL =
         "SELECT em.table_name, em.column_name, em.encryption_algorithm, em.key_id, " +
         "       em.created_at, em.updated_at, " +
         "       ks.master_key_arn, ks.encrypted_data_key, ks.key_spec, " +
@@ -47,12 +63,12 @@ public class MetadataManager {
         "FROM encryption_metadata em " +
         "JOIN key_storage ks ON em.key_id = ks.key_id " +
         "ORDER BY em.table_name, em.column_name";
-    
-    private static final String CHECK_COLUMN_ENCRYPTED_SQL = 
+
+    private static final String CHECK_COLUMN_ENCRYPTED_SQL =
         "SELECT 1 FROM encryption_metadata " +
         "WHERE table_name = ? AND column_name = ?";
-    
-    private static final String GET_COLUMN_CONFIG_SQL = 
+
+    private static final String GET_COLUMN_CONFIG_SQL =
         "SELECT em.table_name, em.column_name, em.encryption_algorithm, em.key_id, " +
         "       em.created_at, em.updated_at, " +
         "       ks.master_key_arn, ks.encrypted_data_key, ks.key_spec, " +
@@ -72,59 +88,59 @@ public class MetadataManager {
 
     /**
      * Loads encryption metadata from database tables and returns a map of column configurations.
-     * 
+     *
      * @return Map of column identifiers to ColumnEncryptionConfig objects
      * @throws MetadataException if database operations fail
      */
-    public Map<String, ColumnEncryptionConfig> loadEncryptionMetadata() throws MetadataException {
+    public Map<String, ColumnEncryptionConfig> loadEncryptionMetadata() throws software.amazon.jdbc.metadata.MetadataException {
         logger.debug("Loading encryption metadata from database");
-        
+
         Map<String, ColumnEncryptionConfig> metadata = new ConcurrentHashMap<>();
-        
+
         try (Connection connection = pluginService.forceConnect(pluginService.getCurrentHostSpec(), pluginService.getProperties());
              PreparedStatement stmt = connection.prepareStatement(LOAD_ENCRYPTION_METADATA_SQL);
              ResultSet rs = stmt.executeQuery()) {
-            
+
             while (rs.next()) {
                 ColumnEncryptionConfig columnConfig = buildColumnConfigFromResultSet(rs);
                 String columnIdentifier = columnConfig.getColumnIdentifier();
                 metadata.put(columnIdentifier, columnConfig);
-                
+
                 logger.trace("Loaded encryption config for column: {}", columnIdentifier);
             }
-            
+
             logger.info("Successfully loaded {} encryption configurations", metadata.size());
-            
+
         } catch (SQLException e) {
             String errorMsg = "Failed to load encryption metadata from database";
             logger.error(errorMsg, e);
             throw new MetadataException(errorMsg, e);
         }
-        
+
         return metadata;
     }
 
     /**
      * Refreshes the metadata cache by reloading from the database.
      * This method is thread-safe and can be called without application restart.
-     * 
+     *
      * @throws MetadataException if refresh operation fails
      */
     public void refreshMetadata() throws MetadataException {
         logger.info("Refreshing encryption metadata cache");
-        
+
         cacheLock.writeLock().lock();
         try {
             Map<String, ColumnEncryptionConfig> newMetadata = loadEncryptionMetadata();
-            
+
             // Clear existing cache and populate with new data
             metadataCache.clear();
             metadataCache.putAll(newMetadata);
             lastRefreshTime = Instant.now();
-            
-            logger.info("Metadata cache refreshed successfully with {} configurations", 
+
+            logger.info("Metadata cache refreshed successfully with {} configurations",
                        metadataCache.size());
-            
+
         } finally {
             cacheLock.writeLock().unlock();
         }
@@ -133,7 +149,7 @@ public class MetadataManager {
     /**
      * Checks if a specific column is configured for encryption.
      * Uses cache if available and valid, otherwise queries database directly.
-     * 
+     *
      * @param tableName the table name
      * @param columnName the column name
      * @return true if column is encrypted, false otherwise
@@ -143,9 +159,9 @@ public class MetadataManager {
         if (tableName == null || columnName == null) {
             return false;
         }
-        
+
         String columnIdentifier = tableName + "." + columnName;
-        
+
         // Try cache first if caching is enabled
         if (config.isCacheEnabled() && isCacheValid()) {
             cacheLock.readLock().lock();
@@ -157,7 +173,7 @@ public class MetadataManager {
                 cacheLock.readLock().unlock();
             }
         }
-        
+
         // Fallback to database query
         return isColumnEncryptedFromDatabase(tableName, columnName);
     }
@@ -165,33 +181,33 @@ public class MetadataManager {
     /**
      * Retrieves the encryption configuration for a specific column.
      * Uses cache if available and valid, otherwise queries database directly.
-     * 
+     *
      * @param tableName the table name
      * @param columnName the column name
      * @return ColumnEncryptionConfig if found, null otherwise
      * @throws MetadataException if database operations fail
      */
-    public ColumnEncryptionConfig getColumnConfig(String tableName, String columnName) 
+    public ColumnEncryptionConfig getColumnConfig(String tableName, String columnName)
             throws MetadataException {
         if (tableName == null || columnName == null) {
             return null;
         }
-        
+
         String columnIdentifier = tableName + "." + columnName;
-        
+
         // Try cache first if caching is enabled
         if (config.isCacheEnabled() && isCacheValid()) {
             cacheLock.readLock().lock();
             try {
                 ColumnEncryptionConfig result = metadataCache.get(columnIdentifier);
-                logger.trace("Cache lookup for column config {}: {}", 
+                logger.trace("Cache lookup for column config {}: {}",
                            columnIdentifier, result != null ? "found" : "not found");
                 return result;
             } finally {
                 cacheLock.readLock().unlock();
             }
         }
-        
+
         // Fallback to database query
         return getColumnConfigFromDatabase(tableName, columnName);
     }
@@ -199,19 +215,19 @@ public class MetadataManager {
     /**
      * Initializes the metadata cache by loading all configurations from database.
      * Should be called during plugin initialization.
-     * 
+     *
      * @throws MetadataException if initialization fails
      */
     public void initialize() throws MetadataException {
         logger.info("Initializing MetadataManager");
-        
+
         if (config.isCacheEnabled()) {
             refreshMetadata();
         }
-        
+
         // Start automatic refresh if configured
         startAutomaticRefresh();
-        
+
         logger.info("MetadataManager initialized successfully");
     }
 
@@ -221,13 +237,13 @@ public class MetadataManager {
     public void updateConfig(EncryptionConfig newConfig) {
         EncryptionConfig oldConfig = this.config;
         this.config = newConfig;
-        
+
         // Restart automatic refresh if interval changed
         if (!oldConfig.getMetadataRefreshInterval().equals(newConfig.getMetadataRefreshInterval())) {
             stopAutomaticRefresh();
             startAutomaticRefresh();
         }
-        
+
         logger.info("MetadataManager configuration updated");
     }
 
@@ -236,9 +252,9 @@ public class MetadataManager {
      */
     public void shutdown() {
         logger.info("Shutting down MetadataManager");
-        
+
         stopAutomaticRefresh();
-        
+
         // Clear cache
         cacheLock.writeLock().lock();
         try {
@@ -246,13 +262,13 @@ public class MetadataManager {
         } finally {
             cacheLock.writeLock().unlock();
         }
-        
+
         logger.info("MetadataManager shutdown completed");
     }
 
     /**
      * Returns the timestamp of the last cache refresh.
-     * 
+     *
      * @return Instant of last refresh, or Instant.EPOCH if never refreshed
      */
     public Instant getLastRefreshTime() {
@@ -261,7 +277,7 @@ public class MetadataManager {
 
     /**
      * Returns the current size of the metadata cache.
-     * 
+     *
      * @return number of cached configurations
      */
     public int getCacheSize() {
@@ -275,14 +291,14 @@ public class MetadataManager {
 
     /**
      * Checks if the cache is valid based on expiration time.
-     * 
+     *
      * @return true if cache is valid, false if expired or never initialized
      */
     private boolean isCacheValid() {
         if (lastRefreshTime.equals(Instant.EPOCH)) {
             return false;
         }
-        
+
         Instant expirationTime = lastRefreshTime.plusSeconds(config.getCacheExpirationMinutes() * 60L);
         return Instant.now().isBefore(expirationTime);
     }
@@ -290,24 +306,24 @@ public class MetadataManager {
     /**
      * Queries database directly to check if column is encrypted.
      */
-    private boolean isColumnEncryptedFromDatabase(String tableName, String columnName) 
+    private boolean isColumnEncryptedFromDatabase(String tableName, String columnName)
             throws MetadataException {
         logger.trace("Checking encryption status for column {}.{} from database", tableName, columnName);
-        
+
         try (Connection connection = pluginService.forceConnect(pluginService.getCurrentHostSpec(), pluginService.getProperties());
              PreparedStatement stmt = connection.prepareStatement(CHECK_COLUMN_ENCRYPTED_SQL)) {
-            
+
             stmt.setString(1, tableName);
             stmt.setString(2, columnName);
-            
+
             try (ResultSet rs = stmt.executeQuery()) {
                 boolean result = rs.next();
                 logger.trace("Database lookup for column {}.{}: {}", tableName, columnName, result);
                 return result;
             }
-            
+
         } catch (SQLException e) {
-            String errorMsg = String.format("Failed to check encryption status for column %s.%s", 
+            String errorMsg = String.format("Failed to check encryption status for column %s.%s",
                                           tableName, columnName);
             logger.error(errorMsg, e);
             throw new MetadataException(errorMsg, e);
@@ -317,16 +333,16 @@ public class MetadataManager {
     /**
      * Queries database directly to get column configuration.
      */
-    private ColumnEncryptionConfig getColumnConfigFromDatabase(String tableName, String columnName) 
+    private ColumnEncryptionConfig getColumnConfigFromDatabase(String tableName, String columnName)
             throws MetadataException {
         logger.trace("Loading encryption config for column {}.{} from database", tableName, columnName);
-        
+
         try (Connection connection = pluginService.forceConnect(pluginService.getCurrentHostSpec(), pluginService.getProperties());
              PreparedStatement stmt = connection.prepareStatement(GET_COLUMN_CONFIG_SQL)) {
-            
+
             stmt.setString(1, tableName);
             stmt.setString(2, columnName);
-            
+
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     ColumnEncryptionConfig result = buildColumnConfigFromResultSet(rs);
@@ -337,9 +353,9 @@ public class MetadataManager {
                     return null;
                 }
             }
-            
+
         } catch (SQLException e) {
-            String errorMsg = String.format("Failed to load encryption config for column %s.%s", 
+            String errorMsg = String.format("Failed to load encryption config for column %s.%s",
                                           tableName, columnName);
             logger.error(errorMsg, e);
             throw new MetadataException(errorMsg, e);
@@ -389,7 +405,7 @@ public class MetadataManager {
             return t;
         });
     }
-    
+
     /**
      * Stops automatic metadata refresh.
      */
@@ -407,23 +423,23 @@ public class MetadataManager {
             }
         }
     }
-    
+
     /**
      * Starts automatic metadata refresh based on configuration.
      */
     private void startAutomaticRefresh() {
         Duration refreshInterval = config.getMetadataRefreshInterval();
-        
+
         if (refreshInterval.isZero() || refreshInterval.isNegative()) {
             logger.info("Automatic metadata refresh disabled (interval: {})", refreshInterval);
             return;
         }
-        
+
         // Create new executor if current one is shut down
         if (refreshExecutor == null || refreshExecutor.isShutdown()) {
             refreshExecutor = createRefreshExecutor();
         }
-        
+
         long intervalMs = refreshInterval.toMillis();
         refreshExecutor.scheduleAtFixedRate(() -> {
             try {
@@ -433,7 +449,7 @@ public class MetadataManager {
                 logger.warn("Automatic metadata refresh failed", e);
             }
         }, intervalMs, intervalMs, TimeUnit.MILLISECONDS);
-        
+
         logger.info("Started automatic metadata refresh every {}ms", intervalMs);
     }
 }

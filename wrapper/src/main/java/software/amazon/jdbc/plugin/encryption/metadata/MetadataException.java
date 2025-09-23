@@ -1,4 +1,21 @@
-package software.amazon.jdbc.metadata;
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
+package software.amazon.jdbc.plugin.encryption.metadata;
 
 import java.sql.SQLException;
 import java.util.HashMap;
@@ -10,16 +27,16 @@ import java.util.Map;
  * Provides enhanced error context information for better troubleshooting.
  */
 public class MetadataException extends SQLException {
-    
+
     private static final long serialVersionUID = 1L;
-    
+
     // SQL State codes for different metadata error types
     public static final String METADATA_LOAD_FAILED_STATE = "META01";
     public static final String METADATA_CACHE_FAILED_STATE = "META02";
     public static final String METADATA_REFRESH_FAILED_STATE = "META03";
     public static final String METADATA_LOOKUP_FAILED_STATE = "META04";
     public static final String METADATA_VALIDATION_FAILED_STATE = "META05";
-    
+
     private final Map<String, Object> errorContext = new HashMap<>();
 
     /**
@@ -62,7 +79,7 @@ public class MetadataException extends SQLException {
     public MetadataException(String message, String sqlState, int vendorCode, Throwable cause) {
         super(message, sqlState, vendorCode, cause);
     }
-    
+
     /**
      * Constructs a MetadataException with the specified detail message, SQL state and cause.
      *
@@ -73,7 +90,7 @@ public class MetadataException extends SQLException {
     public MetadataException(String message, String sqlState, Throwable cause) {
         super(message, sqlState, cause);
     }
-    
+
     /**
      * Adds context information to the exception.
      *
@@ -85,7 +102,7 @@ public class MetadataException extends SQLException {
         errorContext.put(key, value);
         return this;
     }
-    
+
     /**
      * Adds table name to the error context.
      *
@@ -95,7 +112,7 @@ public class MetadataException extends SQLException {
     public MetadataException withTable(String tableName) {
         return withContext("table", tableName);
     }
-    
+
     /**
      * Adds column name to the error context.
      *
@@ -105,7 +122,7 @@ public class MetadataException extends SQLException {
     public MetadataException withColumn(String columnName) {
         return withContext("column", columnName);
     }
-    
+
     /**
      * Adds operation type to the error context.
      *
@@ -115,7 +132,7 @@ public class MetadataException extends SQLException {
     public MetadataException withOperation(String operation) {
         return withContext("operation", operation);
     }
-    
+
     /**
      * Adds cache information to the error context.
      *
@@ -126,7 +143,7 @@ public class MetadataException extends SQLException {
     public MetadataException withCacheInfo(int cacheSize, boolean cacheHit) {
         return withContext("cacheSize", cacheSize).withContext("cacheHit", cacheHit);
     }
-    
+
     /**
      * Adds SQL query information to the error context (sanitized).
      *
@@ -136,7 +153,7 @@ public class MetadataException extends SQLException {
     public MetadataException withSql(String sql) {
         return withContext("sql", sanitizeSql(sql));
     }
-    
+
     /**
      * Gets the error context map.
      *
@@ -145,7 +162,7 @@ public class MetadataException extends SQLException {
     public Map<String, Object> getErrorContext() {
         return new HashMap<>(errorContext);
     }
-    
+
     /**
      * Gets a formatted error message including context information.
      *
@@ -155,10 +172,10 @@ public class MetadataException extends SQLException {
         if (errorContext.isEmpty()) {
             return getMessage();
         }
-        
+
         StringBuilder sb = new StringBuilder(getMessage());
         sb.append(" [Context: ");
-        
+
         boolean first = true;
         for (Map.Entry<String, Object> entry : errorContext.entrySet()) {
             if (!first) {
@@ -167,32 +184,32 @@ public class MetadataException extends SQLException {
             sb.append(entry.getKey()).append("=").append(entry.getValue());
             first = false;
         }
-        
+
         sb.append("]");
         return sb.toString();
     }
-    
+
     /**
      * Creates a MetadataException for metadata loading failures.
      */
     public static MetadataException loadFailed(String message, Throwable cause) {
         return new MetadataException(message, METADATA_LOAD_FAILED_STATE, cause);
     }
-    
+
     /**
      * Creates a MetadataException for cache operation failures.
      */
     public static MetadataException cacheFailed(String message, Throwable cause) {
         return new MetadataException(message, METADATA_CACHE_FAILED_STATE, cause);
     }
-    
+
     /**
      * Creates a MetadataException for metadata refresh failures.
      */
     public static MetadataException refreshFailed(String message, Throwable cause) {
         return new MetadataException(message, METADATA_REFRESH_FAILED_STATE, cause);
     }
-    
+
     /**
      * Creates a MetadataException for metadata lookup failures.
      */
@@ -201,23 +218,23 @@ public class MetadataException extends SQLException {
             .withTable(tableName)
             .withColumn(columnName);
     }
-    
+
     /**
      * Creates a MetadataException for metadata validation failures.
      */
     public static MetadataException validationFailed(String message) {
         return new MetadataException(message, METADATA_VALIDATION_FAILED_STATE, null);
     }
-    
+
     // Sanitization methods
-    
+
     private String sanitizeSql(String sql) {
         if (sql == null) return null;
         // Remove potential sensitive data from SQL and limit length
         String sanitized = sql
             .replaceAll("'[^']*'", "'***'")  // Replace string literals
             .replaceAll("\\b\\d+\\b", "***"); // Replace numeric literals
-        
+
         return sanitized.length() > 100 ? sanitized.substring(0, 97) + "..." : sanitized;
     }
 }
