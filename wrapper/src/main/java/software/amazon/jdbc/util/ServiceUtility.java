@@ -30,7 +30,6 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
-import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 public class ServiceUtility {
   private static volatile ServiceUtility instance;
@@ -62,7 +61,6 @@ public class ServiceUtility {
   public FullServicesContainer createStandardServiceContainer(
       StorageService storageService,
       MonitorService monitorService,
-      ConnectionWrapper connectionWrapper,
       ConnectionProvider defaultConnectionProvider,
       ConnectionProvider effectiveConnectionProvider,
       TelemetryFactory telemetryFactory,

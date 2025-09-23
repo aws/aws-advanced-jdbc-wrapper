@@ -241,12 +241,9 @@ public class Driver implements java.sql.Driver {
       }
 
       String targetDriverProtocol = urlParser.getProtocol(driverUrl);
-      ConnectionWrapper connectionWrapper =
-          new ConnectionWrapper(props, url, targetDriverProtocol, configurationProfile);
       FullServicesContainer servicesContainer = ServiceUtility.getInstance().createStandardServiceContainer(
           storageService,
           monitorService,
-          connectionWrapper,
           defaultConnectionProvider,
           effectiveConnectionProvider,
           telemetryFactory,
@@ -256,7 +253,7 @@ public class Driver implements java.sql.Driver {
           props,
           configurationProfile);
 
-      return connectionWrapper;
+      return new ConnectionWrapper(servicesContainer, props, url, targetDriverProtocol, configurationProfile);
     } catch (Exception ex) {
       if (context != null) {
         context.setException(ex);

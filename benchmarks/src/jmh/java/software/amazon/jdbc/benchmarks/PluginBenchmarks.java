@@ -63,8 +63,6 @@ import software.amazon.jdbc.benchmarks.testplugin.TestConnectionWrapper;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.monitoring.MonitorService;
-import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -84,6 +82,7 @@ public class PluginBenchmarks {
   private static final String FIELD_SERVER_ID = "SERVER_ID";
   private static final String FIELD_SESSION_ID = "SESSION_ID";
   private static final String CONNECTION_STRING = "jdbc:postgresql://my.domain.com";
+  private static final String PG_PROTOCOL = "jdbc:postgresql://";
   private static final String PG_CONNECTION_STRING =
       "jdbc:aws-wrapper:postgresql://instance-0.XYZ.us-east-2.rds.amazonaws.com";
   private static final String TEST_HOST = "instance-0";
@@ -91,10 +90,7 @@ public class PluginBenchmarks {
   private final HostSpec writerHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
       .host(TEST_HOST).port(TEST_PORT).build();
 
-  @Mock private StorageService mockStorageService;
-  @Mock private MonitorService mockMonitorService;
   @Mock private PluginService mockPluginService;
-  @Mock private TargetDriverDialect mockTargetDriverDialect;
   @Mock private Dialect mockDialect;
   @Mock private ConnectionPluginManager mockConnectionPluginManager;
   @Mock private TelemetryFactory mockTelemetryFactory;
@@ -173,14 +169,11 @@ public class PluginBenchmarks {
     return new TestConnectionWrapper(
         props,
         connString,
-        mockConnectionProvider,
+        PG_PROTOCOL,
         mockConnectionPluginManager,
-        mockTelemetryFactory,
         mockPluginService,
         mockHostListProviderService,
-        mockPluginManagerService,
-        mockStorageService,
-        mockMonitorService);
+        mockPluginManagerService);
   }
 
   @Benchmark

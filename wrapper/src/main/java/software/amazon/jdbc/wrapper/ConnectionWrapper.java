@@ -39,7 +39,6 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
-import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginManagerService;
@@ -48,37 +47,34 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.FullServicesContainerImpl;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
-import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
-import software.amazon.jdbc.util.monitoring.MonitorService;
-import software.amazon.jdbc.util.storage.StorageService;
-import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class ConnectionWrapper implements Connection, CanReleaseResources {
 
   private static final Logger LOGGER = Logger.getLogger(ConnectionWrapper.class.getName());
 
-  protected ConnectionPluginManager pluginManager;
-  protected TelemetryFactory telemetryFactory;
-  protected PluginService pluginService;
-  protected HostListProviderService hostListProviderService;
-
-  protected PluginManagerService pluginManagerService;
-  protected String targetDriverProtocol;
-  protected String originalUrl;
+  protected final ConnectionPluginManager pluginManager;
+  protected final PluginService pluginService;
+  protected final HostListProviderService hostListProviderService;
+  protected final PluginManagerService pluginManagerService;
+  protected final String targetDriverProtocol;
+  protected final String originalUrl;
   protected @Nullable ConfigurationProfile configurationProfile;
-
   protected @Nullable Throwable openConnectionStacktrace;
 
   public ConnectionWrapper(
+      @NonNull final FullServicesContainer servicesContainer,
       @NonNull final Properties props,
       @NonNull final String url,
       @NonNull final String targetDriverProtocol,
       @Nullable final ConfigurationProfile configurationProfile)
       throws SQLException {
+    this.pluginManager = servicesContainer.getConnectionPluginManager();
+    this.pluginService = servicesContainer.getPluginService();
+    this.hostListProviderService = servicesContainer.getHostListProviderService();
+    this.pluginManagerService = servicesContainer.getPluginManagerService();
     this.originalUrl = url;
     this.targetDriverProtocol = targetDriverProtocol;
     this.configurationProfile = configurationProfile;
@@ -93,30 +89,18 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   protected ConnectionWrapper(
       @NonNull final Properties props,
       @NonNull final String url,
-      @NonNull final ConnectionProvider defaultConnectionProvider,
+      @NonNull final String protocol,
       @NonNull final ConnectionPluginManager connectionPluginManager,
-      @NonNull final TelemetryFactory telemetryFactory,
       @NonNull final PluginService pluginService,
       @NonNull final HostListProviderService hostListProviderService,
-      @NonNull final PluginManagerService pluginManagerService,
-      @NonNull final StorageService storageService,
-      @NonNull final MonitorService monitorService)
+      @NonNull final PluginManagerService pluginManagerService)
       throws SQLException {
-
-    if (StringUtils.isNullOrEmpty(url)) {
-      throw new IllegalArgumentException("url");
-    }
-
-    FullServicesContainer servicesContainer = new FullServicesContainerImpl(
-        storageService,
-        monitorService,
-        defaultConnectionProvider,
-        telemetryFactory,
-        connectionPluginManager,
-        hostListProviderService,
-        pluginService,
-        pluginManagerService
-    );
+    this.originalUrl = url;
+    this.targetDriverProtocol = protocol;
+    this.pluginManager = connectionPluginManager;
+    this.pluginService = pluginService;
+    this.hostListProviderService = hostListProviderService;
+    this.pluginManagerService = pluginManagerService;
 
     init(props);
   }

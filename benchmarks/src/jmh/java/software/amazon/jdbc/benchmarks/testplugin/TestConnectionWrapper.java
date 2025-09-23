@@ -20,42 +20,29 @@ import java.sql.SQLException;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.ConnectionPluginManager;
-import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.util.ConnectionUrlParser;
-import software.amazon.jdbc.util.monitoring.MonitorService;
-import software.amazon.jdbc.util.storage.StorageService;
-import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 // Test class allowing for mocks to be used with ConnectionWrapper logic
 public class TestConnectionWrapper extends ConnectionWrapper {
-  protected final ConnectionUrlParser urlParser = new ConnectionUrlParser();
-
   public TestConnectionWrapper(
       @NonNull final Properties props,
       @NonNull final String url,
-      @NonNull final ConnectionProvider defaultConnectionProvider,
+      @NonNull final String protocol,
       @NonNull final ConnectionPluginManager connectionPluginManager,
-      @NonNull final TelemetryFactory telemetryFactory,
       @NonNull final PluginService pluginService,
       @NonNull final HostListProviderService hostListProviderService,
-      @NonNull final PluginManagerService pluginManagerService,
-      @NonNull final StorageService storageService,
-      @NonNull final MonitorService monitorService)
+      @NonNull final PluginManagerService pluginManagerService)
       throws SQLException {
     super(
         props,
         url,
-        defaultConnectionProvider,
+        protocol,
         connectionPluginManager,
-        telemetryFactory,
         pluginService,
         hostListProviderService,
-        pluginManagerService,
-        storageService,
-        monitorService);
+        pluginManagerService);
   }
 }
