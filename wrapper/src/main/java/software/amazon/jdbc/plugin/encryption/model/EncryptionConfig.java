@@ -39,23 +39,20 @@ public class EncryptionConfig {
     public static final AwsWrapperProperty KEY_ROTATION_DAYS = new AwsWrapperProperty(
         "key.rotationDays", "30", "Number of days for key rotation");
 
-    public static final AwsWrapperProperty CACHE_ENABLED = new AwsWrapperProperty(
-        "cache.enabled", "true", "Enable/disable caching");
+    public static final AwsWrapperProperty METADATA_CACHE_ENABLED = new AwsWrapperProperty(
+        "metadataCache.enabled", "true", "Enable/disable metadata caching");
 
-    public static final AwsWrapperProperty CACHE_EXPIRATION_MINUTES = new AwsWrapperProperty(
-        "cache.expirationMinutes", "60", "Cache expiration time in minutes");
+    public static final AwsWrapperProperty METADATA_CACHE_EXPIRATION_MINUTES = new AwsWrapperProperty(
+        "metadataCache.expirationMinutes", "60", "Metadata cache expiration time in minutes");
 
-    public static final AwsWrapperProperty MAX_RETRIES = new AwsWrapperProperty(
-        "retry.maxRetries", "3", "Maximum number of retries");
+    public static final AwsWrapperProperty KEY_MANAGEMENT_MAX_RETRIES = new AwsWrapperProperty(
+        "keyManagement.maxRetries", "3", "Maximum number of retries for key management operations");
 
-    public static final AwsWrapperProperty RETRY_BACKOFF_BASE_MS = new AwsWrapperProperty(
-        "retry.backoffBaseMs", "100", "Base backoff time in milliseconds");
+    public static final AwsWrapperProperty KEY_MANAGEMENT_RETRY_BACKOFF_BASE_MS = new AwsWrapperProperty(
+        "keyManagement.retryBackoffBaseMs", "100", "Base backoff time in milliseconds for key management retries");
 
     public static final AwsWrapperProperty AUDIT_LOGGING_ENABLED = new AwsWrapperProperty(
         "audit.loggingEnabled", "false", "Enable/disable audit logging");
-
-    public static final AwsWrapperProperty KMS_CONNECTION_POOL_SIZE = new AwsWrapperProperty(
-        "kms.connectionPoolSize", "10", "KMS connection pool size");
 
     public static final AwsWrapperProperty KMS_CONNECTION_TIMEOUT_MS = new AwsWrapperProperty(
         "kms.connectionTimeoutMs", "5000", "KMS connection timeout in milliseconds");
@@ -69,17 +66,8 @@ public class EncryptionConfig {
     public static final AwsWrapperProperty DATA_KEY_CACHE_EXPIRATION_MS = new AwsWrapperProperty(
         "dataKeyCache.expirationMs", "3600000", "Data key cache expiration in milliseconds");
 
-    public static final AwsWrapperProperty METADATA_REFRESH_INTERVAL_MS = new AwsWrapperProperty(
-        "metadata.refreshIntervalMs", "300000", "Metadata refresh interval in milliseconds");
-
-    public static final AwsWrapperProperty HOT_RELOAD_ENABLED = new AwsWrapperProperty(
-        "config.hotReloadEnabled", "false", "Enable/disable hot reload of configuration");
-
-    public static final AwsWrapperProperty METRICS_ENABLED = new AwsWrapperProperty(
-        "metrics.enabled", "false", "Enable/disable metrics collection");
-
-    public static final AwsWrapperProperty METRICS_REPORTING_INTERVAL_MS = new AwsWrapperProperty(
-        "metrics.reportingIntervalMs", "60000", "Metrics reporting interval in milliseconds");
+    public static final AwsWrapperProperty METADATA_CACHE_REFRESH_INTERVAL_MS = new AwsWrapperProperty(
+        "metadataCache.refreshIntervalMs", "300000", "Metadata cache refresh interval in milliseconds");
 
     static {
         PropertyDefinition.registerPluginProperties(EncryptionConfig.class);
@@ -93,15 +81,11 @@ public class EncryptionConfig {
     private final int maxRetries;
     private final Duration retryBackoffBase;
     private final boolean auditLoggingEnabled;
-    private final int kmsConnectionPoolSize;
     private final Duration kmsConnectionTimeout;
     private final boolean dataKeyCacheEnabled;
     private final int dataKeyCacheMaxSize;
     private final Duration dataKeyCacheExpiration;
     private final Duration metadataRefreshInterval;
-    private final boolean hotReloadEnabled;
-    private final boolean metricsEnabled;
-    private final Duration metricsReportingInterval;
 
     private EncryptionConfig(Builder builder) {
         this.kmsRegion = Objects.requireNonNull(builder.kmsRegion, "kmsRegion cannot be null");
@@ -112,15 +96,11 @@ public class EncryptionConfig {
         this.maxRetries = builder.maxRetries;
         this.retryBackoffBase = builder.retryBackoffBase;
         this.auditLoggingEnabled = builder.auditLoggingEnabled;
-        this.kmsConnectionPoolSize = builder.kmsConnectionPoolSize;
         this.kmsConnectionTimeout = builder.kmsConnectionTimeout;
         this.dataKeyCacheEnabled = builder.dataKeyCacheEnabled;
         this.dataKeyCacheMaxSize = builder.dataKeyCacheMaxSize;
         this.dataKeyCacheExpiration = builder.dataKeyCacheExpiration;
         this.metadataRefreshInterval = builder.metadataRefreshInterval;
-        this.hotReloadEnabled = builder.hotReloadEnabled;
-        this.metricsEnabled = builder.metricsEnabled;
-        this.metricsReportingInterval = builder.metricsReportingInterval;
     }
 
     public String getKmsRegion() {
@@ -155,10 +135,6 @@ public class EncryptionConfig {
         return auditLoggingEnabled;
     }
 
-    public int getKmsConnectionPoolSize() {
-        return kmsConnectionPoolSize;
-    }
-
     public Duration getKmsConnectionTimeout() {
         return kmsConnectionTimeout;
     }
@@ -177,18 +153,6 @@ public class EncryptionConfig {
 
     public Duration getMetadataRefreshInterval() {
         return metadataRefreshInterval;
-    }
-
-    public boolean isHotReloadEnabled() {
-        return hotReloadEnabled;
-    }
-
-    public boolean isMetricsEnabled() {
-        return metricsEnabled;
-    }
-
-    public Duration getMetricsReportingInterval() {
-        return metricsReportingInterval;
     }
 
     /**
@@ -217,10 +181,6 @@ public class EncryptionConfig {
             throw new IllegalArgumentException("Retry backoff base cannot be negative");
         }
 
-        if (kmsConnectionPoolSize <= 0) {
-            throw new IllegalArgumentException("KMS connection pool size must be positive");
-        }
-
         if (kmsConnectionTimeout.isNegative()) {
             throw new IllegalArgumentException("KMS connection timeout cannot be negative");
         }
@@ -234,10 +194,6 @@ public class EncryptionConfig {
         }
 
         if (metadataRefreshInterval.isNegative()) {
-            throw new IllegalArgumentException("Metadata refresh interval cannot be negative");
-        }
-
-        if (metricsReportingInterval.isNegative()) {
             throw new IllegalArgumentException("Metrics reporting interval cannot be negative");
         }
     }
@@ -254,27 +210,22 @@ public class EncryptionConfig {
                 cacheExpirationMinutes == that.cacheExpirationMinutes &&
                 maxRetries == that.maxRetries &&
                 auditLoggingEnabled == that.auditLoggingEnabled &&
-                kmsConnectionPoolSize == that.kmsConnectionPoolSize &&
                 dataKeyCacheEnabled == that.dataKeyCacheEnabled &&
                 dataKeyCacheMaxSize == that.dataKeyCacheMaxSize &&
-                hotReloadEnabled == that.hotReloadEnabled &&
-                metricsEnabled == that.metricsEnabled &&
                 Objects.equals(kmsRegion, that.kmsRegion) &&
                 Objects.equals(defaultMasterKeyArn, that.defaultMasterKeyArn) &&
                 Objects.equals(retryBackoffBase, that.retryBackoffBase) &&
                 Objects.equals(kmsConnectionTimeout, that.kmsConnectionTimeout) &&
                 Objects.equals(dataKeyCacheExpiration, that.dataKeyCacheExpiration) &&
-                Objects.equals(metadataRefreshInterval, that.metadataRefreshInterval) &&
-                Objects.equals(metricsReportingInterval, that.metricsReportingInterval);
+                Objects.equals(metadataRefreshInterval, that.metadataRefreshInterval);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(kmsRegion, defaultMasterKeyArn, keyRotationDays, cacheEnabled,
                 cacheExpirationMinutes, maxRetries, retryBackoffBase, auditLoggingEnabled,
-                kmsConnectionPoolSize, kmsConnectionTimeout, dataKeyCacheEnabled, dataKeyCacheMaxSize,
-                dataKeyCacheExpiration, metadataRefreshInterval, hotReloadEnabled, metricsEnabled,
-                metricsReportingInterval);
+                kmsConnectionTimeout, dataKeyCacheEnabled, dataKeyCacheMaxSize,
+                dataKeyCacheExpiration, metadataRefreshInterval);
     }
 
     @Override
@@ -288,15 +239,11 @@ public class EncryptionConfig {
                 ", maxRetries=" + maxRetries +
                 ", retryBackoffBase=" + retryBackoffBase +
                 ", auditLoggingEnabled=" + auditLoggingEnabled +
-                ", kmsConnectionPoolSize=" + kmsConnectionPoolSize +
                 ", kmsConnectionTimeout=" + kmsConnectionTimeout +
                 ", dataKeyCacheEnabled=" + dataKeyCacheEnabled +
                 ", dataKeyCacheMaxSize=" + dataKeyCacheMaxSize +
                 ", dataKeyCacheExpiration=" + dataKeyCacheExpiration +
                 ", metadataRefreshInterval=" + metadataRefreshInterval +
-                ", hotReloadEnabled=" + hotReloadEnabled +
-                ", metricsEnabled=" + metricsEnabled +
-                ", metricsReportingInterval=" + metricsReportingInterval +
                 '}';
     }
 
@@ -320,20 +267,16 @@ public class EncryptionConfig {
         }
 
         builder.keyRotationDays(KEY_ROTATION_DAYS.getInteger(properties));
-        builder.cacheEnabled(CACHE_ENABLED.getBoolean(properties));
-        builder.cacheExpirationMinutes(CACHE_EXPIRATION_MINUTES.getInteger(properties));
-        builder.maxRetries(MAX_RETRIES.getInteger(properties));
-        builder.retryBackoffBase(Duration.ofMillis(RETRY_BACKOFF_BASE_MS.getLong(properties)));
+        builder.cacheEnabled(METADATA_CACHE_ENABLED.getBoolean(properties));
+        builder.cacheExpirationMinutes(METADATA_CACHE_EXPIRATION_MINUTES.getInteger(properties));
+        builder.maxRetries(KEY_MANAGEMENT_MAX_RETRIES.getInteger(properties));
+        builder.retryBackoffBase(Duration.ofMillis(KEY_MANAGEMENT_RETRY_BACKOFF_BASE_MS.getLong(properties)));
         builder.auditLoggingEnabled(AUDIT_LOGGING_ENABLED.getBoolean(properties));
-        builder.kmsConnectionPoolSize(KMS_CONNECTION_POOL_SIZE.getInteger(properties));
         builder.kmsConnectionTimeout(Duration.ofMillis(KMS_CONNECTION_TIMEOUT_MS.getLong(properties)));
         builder.dataKeyCacheEnabled(DATA_KEY_CACHE_ENABLED.getBoolean(properties));
         builder.dataKeyCacheMaxSize(DATA_KEY_CACHE_MAX_SIZE.getInteger(properties));
         builder.dataKeyCacheExpiration(Duration.ofMillis(DATA_KEY_CACHE_EXPIRATION_MS.getLong(properties)));
-        builder.metadataRefreshInterval(Duration.ofMillis(METADATA_REFRESH_INTERVAL_MS.getLong(properties)));
-        builder.hotReloadEnabled(HOT_RELOAD_ENABLED.getBoolean(properties));
-        builder.metricsEnabled(METRICS_ENABLED.getBoolean(properties));
-        builder.metricsReportingInterval(Duration.ofMillis(METRICS_REPORTING_INTERVAL_MS.getLong(properties)));
+        builder.metadataRefreshInterval(Duration.ofMillis(METADATA_CACHE_REFRESH_INTERVAL_MS.getLong(properties)));
 
         return builder.build();
     }
@@ -351,15 +294,11 @@ public class EncryptionConfig {
         private int maxRetries = 5;
         private Duration retryBackoffBase = Duration.ofMillis(100);
         private boolean auditLoggingEnabled = false;
-        private int kmsConnectionPoolSize = 10;
         private Duration kmsConnectionTimeout = Duration.ofSeconds(30);
         private boolean dataKeyCacheEnabled = true;
         private int dataKeyCacheMaxSize = 1000;
         private Duration dataKeyCacheExpiration = Duration.ofMinutes(30);
         private Duration metadataRefreshInterval = Duration.ofMinutes(5);
-        private boolean hotReloadEnabled = false;
-        private boolean metricsEnabled = false;
-        private Duration metricsReportingInterval = Duration.ofMinutes(1);
 
         public Builder kmsRegion(String kmsRegion) {
             this.kmsRegion = kmsRegion;
@@ -401,11 +340,6 @@ public class EncryptionConfig {
             return this;
         }
 
-        public Builder kmsConnectionPoolSize(int kmsConnectionPoolSize) {
-            this.kmsConnectionPoolSize = kmsConnectionPoolSize;
-            return this;
-        }
-
         public Builder kmsConnectionTimeout(Duration kmsConnectionTimeout) {
             this.kmsConnectionTimeout = kmsConnectionTimeout;
             return this;
@@ -428,21 +362,6 @@ public class EncryptionConfig {
 
         public Builder metadataRefreshInterval(Duration metadataRefreshInterval) {
             this.metadataRefreshInterval = metadataRefreshInterval;
-            return this;
-        }
-
-        public Builder hotReloadEnabled(boolean hotReloadEnabled) {
-            this.hotReloadEnabled = hotReloadEnabled;
-            return this;
-        }
-
-        public Builder metricsEnabled(boolean metricsEnabled) {
-            this.metricsEnabled = metricsEnabled;
-            return this;
-        }
-
-        public Builder metricsReportingInterval(Duration metricsReportingInterval) {
-            this.metricsReportingInterval = metricsReportingInterval;
             return this;
         }
 
