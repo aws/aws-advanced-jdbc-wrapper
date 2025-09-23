@@ -87,10 +87,11 @@ public class EncryptingPreparedStatement implements PreparedStatement {
             if (!analysisResult.getAffectedTables().isEmpty()) {
                 this.tableName = analysisResult.getAffectedTables().iterator().next();
 
-                // For INSERT statements, map parameters to columns in order
-                if (sql.trim().toUpperCase().startsWith("INSERT")) {
+                // Use query type from analysis result instead of parsing SQL string
+                String queryType = analysisResult.getQueryType();
+                if ("INSERT".equals(queryType)) {
                     mapInsertParameters();
-                } else if (sql.trim().toUpperCase().startsWith("UPDATE")) {
+                } else if ("UPDATE".equals(queryType)) {
                     mapUpdateParameters();
                 }
             }
