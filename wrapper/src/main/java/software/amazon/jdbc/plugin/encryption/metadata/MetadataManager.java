@@ -92,7 +92,7 @@ public class MetadataManager {
      * @return Map of column identifiers to ColumnEncryptionConfig objects
      * @throws MetadataException if database operations fail
      */
-    public Map<String, ColumnEncryptionConfig> loadEncryptionMetadata() throws software.amazon.jdbc.metadata.MetadataException {
+    public Map<String, ColumnEncryptionConfig> loadEncryptionMetadata() throws MetadataException {
         logger.debug("Loading encryption metadata from database");
 
         Map<String, ColumnEncryptionConfig> metadata = new ConcurrentHashMap<>();

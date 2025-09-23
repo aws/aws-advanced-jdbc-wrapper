@@ -15,9 +15,9 @@
  */
 
 
-package software.amazon.jdbc.exception;
+package software.amazon.jdbc.plugin.encryption.exception;
 
-import software.amazon.jdbc.model.ConnectionParameters;
+import software.amazon.jdbc.plugin.encryption.model.ConnectionParameters;
 
 import java.sql.SQLException;
 

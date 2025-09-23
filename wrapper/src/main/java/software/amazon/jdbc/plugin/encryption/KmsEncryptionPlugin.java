@@ -19,15 +19,15 @@ package software.amazon.jdbc.plugin.encryption;
 
 
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.factory.IndependentDataSource;
-import software.amazon.jdbc.logging.AuditLogger;
+import software.amazon.jdbc.plugin.encryption.factory.IndependentDataSource;
+import software.amazon.jdbc.plugin.encryption.logging.AuditLogger;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataException;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.key.KeyManager;
+import software.amazon.jdbc.plugin.encryption.sql.SqlAnalysisService;
 import software.amazon.jdbc.plugin.encryption.wrapper.EncryptingPreparedStatement;
 import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
-import software.amazon.jdbc.sql.SqlAnalysisService;
 import software.amazon.jdbc.plugin.encryption.wrapper.DecryptingResultSet;
 
 import org.slf4j.Logger;

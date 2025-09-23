@@ -15,7 +15,7 @@
  */
 
 
-package software.amazon.jdbc.parser;
+package software.amazon.jdbc.plugin.encryption.parser;
 
 import java.util.*;
 

@@ -15,7 +15,7 @@
  */
 
 
-package software.amazon.jdbc.logging;
+package software.amazon.jdbc.plugin.encryption.logging;
 
 import java.util.HashMap;
 import java.util.Map;

@@ -15,7 +15,7 @@
  */
 
 
-package software.amazon.jdbc.service;
+package software.amazon.jdbc.plugin.encryption.service;
 
 import java.sql.SQLException;
 import java.util.HashMap;
@@ -27,18 +27,18 @@ import java.util.Map;
  * Provides enhanced error context information for better troubleshooting.
  */
 public class EncryptionException extends SQLException {
-    
+
     private static final long serialVersionUID = 1L;
-    
+
     // SQL State codes for different encryption error types
     public static final String ENCRYPTION_FAILED_STATE = "ENC01";
     public static final String DECRYPTION_FAILED_STATE = "ENC02";
     public static final String INVALID_ALGORITHM_STATE = "ENC03";
     public static final String INVALID_KEY_STATE = "ENC04";
     public static final String TYPE_CONVERSION_FAILED_STATE = "ENC05";
-    
+
     private final Map<String, Object> errorContext = new HashMap<>();
-    
+
     /**
      * Constructs an EncryptionException with the specified detail message.
      *
@@ -47,7 +47,7 @@ public class EncryptionException extends SQLException {
     public EncryptionException(String message) {
         super(message, ENCRYPTION_FAILED_STATE);
     }
-    
+
     /**
      * Constructs an EncryptionException with the specified detail message and cause.
      *
@@ -57,7 +57,7 @@ public class EncryptionException extends SQLException {
     public EncryptionException(String message, Throwable cause) {
         super(message, ENCRYPTION_FAILED_STATE, cause);
     }
-    
+
     /**
      * Constructs an EncryptionException with the specified detail message, SQL state and cause.
      *
@@ -68,7 +68,7 @@ public class EncryptionException extends SQLException {
     public EncryptionException(String message, String sqlState, Throwable cause) {
         super(message, sqlState, cause);
     }
-    
+
     /**
      * Constructs an EncryptionException with the specified cause.
      *
@@ -77,7 +77,7 @@ public class EncryptionException extends SQLException {
     public EncryptionException(Throwable cause) {
         super(cause.getMessage(), ENCRYPTION_FAILED_STATE, cause);
     }
-    
+
     /**
      * Adds context information to the exception.
      *
@@ -89,7 +89,7 @@ public class EncryptionException extends SQLException {
         errorContext.put(key, value);
         return this;
     }
-    
+
     /**
      * Adds table name to the error context.
      *
@@ -99,7 +99,7 @@ public class EncryptionException extends SQLException {
     public EncryptionException withTable(String tableName) {
         return withContext("table", tableName);
     }
-    
+
     /**
      * Adds column name to the error context.
      *
@@ -109,7 +109,7 @@ public class EncryptionException extends SQLException {
     public EncryptionException withColumn(String columnName) {
         return withContext("column", columnName);
     }
-    
+
     /**
      * Adds algorithm to the error context.
      *
@@ -119,7 +119,7 @@ public class EncryptionException extends SQLException {
     public EncryptionException withAlgorithm(String algorithm) {
         return withContext("algorithm", algorithm);
     }
-    
+
     /**
      * Adds data type to the error context.
      *
@@ -129,7 +129,7 @@ public class EncryptionException extends SQLException {
     public EncryptionException withDataType(String dataType) {
         return withContext("dataType", dataType);
     }
-    
+
     /**
      * Adds operation type to the error context.
      *
@@ -139,7 +139,7 @@ public class EncryptionException extends SQLException {
     public EncryptionException withOperation(String operation) {
         return withContext("operation", operation);
     }
-    
+
     /**
      * Gets the error context map.
      *
@@ -148,7 +148,7 @@ public class EncryptionException extends SQLException {
     public Map<String, Object> getErrorContext() {
         return new HashMap<>(errorContext);
     }
-    
+
     /**
      * Gets a formatted error message including context information.
      *
@@ -158,10 +158,10 @@ public class EncryptionException extends SQLException {
         if (errorContext.isEmpty()) {
             return getMessage();
         }
-        
+
         StringBuilder sb = new StringBuilder(getMessage());
         sb.append(" [Context: ");
-        
+
         boolean first = true;
         for (Map.Entry<String, Object> entry : errorContext.entrySet()) {
             if (!first) {
@@ -170,25 +170,25 @@ public class EncryptionException extends SQLException {
             sb.append(entry.getKey()).append("=").append(entry.getValue());
             first = false;
         }
-        
+
         sb.append("]");
         return sb.toString();
     }
-    
+
     /**
      * Creates an EncryptionException for encryption failures.
      */
     public static EncryptionException encryptionFailed(String message, Throwable cause) {
         return new EncryptionException(message, ENCRYPTION_FAILED_STATE, cause);
     }
-    
+
     /**
      * Creates an EncryptionException for decryption failures.
      */
     public static EncryptionException decryptionFailed(String message, Throwable cause) {
         return new EncryptionException(message, DECRYPTION_FAILED_STATE, cause);
     }
-    
+
     /**
      * Creates an EncryptionException for invalid algorithm errors.
      */
@@ -196,21 +196,21 @@ public class EncryptionException extends SQLException {
         return new EncryptionException("Unsupported encryption algorithm: " + algorithm, INVALID_ALGORITHM_STATE, null)
             .withAlgorithm(algorithm);
     }
-    
+
     /**
      * Creates an EncryptionException for invalid key errors.
      */
     public static EncryptionException invalidKey(String message) {
         return new EncryptionException(message, INVALID_KEY_STATE, null);
     }
-    
+
     /**
      * Creates an EncryptionException for type conversion errors.
      */
     public static EncryptionException typeConversionFailed(String fromType, String toType, Throwable cause) {
         return new EncryptionException(
-            String.format("Cannot convert %s to %s", fromType, toType), 
-            TYPE_CONVERSION_FAILED_STATE, 
+            String.format("Cannot convert %s to %s", fromType, toType),
+            TYPE_CONVERSION_FAILED_STATE,
             cause
         ).withContext("fromType", fromType).withContext("toType", toType);
     }

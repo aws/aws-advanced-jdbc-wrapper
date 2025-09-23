@@ -15,9 +15,9 @@
  */
 
 
-package software.amazon.jdbc.cache;
+package software.amazon.jdbc.plugin.encryption.cache;
 
-import software.amazon.jdbc.model.ConnectionParameters;
+import software.amazon.jdbc.plugin.encryption.model.ConnectionParameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

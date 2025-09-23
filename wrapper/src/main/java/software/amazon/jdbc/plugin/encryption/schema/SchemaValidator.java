@@ -15,7 +15,7 @@
  */
 
 
-package software.amazon.jdbc.schema;
+package software.amazon.jdbc.plugin.encryption.schema;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;

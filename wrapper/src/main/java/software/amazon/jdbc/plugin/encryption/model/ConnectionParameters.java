@@ -15,7 +15,7 @@
  */
 
 
-package software.amazon.jdbc.model;
+package software.amazon.jdbc.plugin.encryption.model;
 
 import java.util.Objects;
 import java.util.Properties;

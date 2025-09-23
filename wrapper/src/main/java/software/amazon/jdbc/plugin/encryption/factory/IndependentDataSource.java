@@ -15,12 +15,12 @@
  */
 
 
-package software.amazon.jdbc.factory;
+package software.amazon.jdbc.plugin.encryption.factory;
 
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.exception.IndependentConnectionException;
-import software.amazon.jdbc.logging.ErrorContext;
+import software.amazon.jdbc.plugin.encryption.exception.IndependentConnectionException;
+import software.amazon.jdbc.plugin.encryption.logging.ErrorContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;

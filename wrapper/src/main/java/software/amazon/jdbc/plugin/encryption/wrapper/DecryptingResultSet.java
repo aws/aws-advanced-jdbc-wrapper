@@ -19,7 +19,7 @@ package software.amazon.jdbc.plugin.encryption.wrapper;
 
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
-import software.amazon.jdbc.service.EncryptionService;
+import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
 import software.amazon.jdbc.plugin.encryption.key.KeyManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

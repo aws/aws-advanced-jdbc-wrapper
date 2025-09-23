@@ -76,7 +76,7 @@ public class KeyManager {
      * @return The ARN of the created master key
      * @throws KeyManagementException if key creation fails
      */
-    public String createMasterKey(String description) throws software.amazon.jdbc.key.KeyManagementException {
+    public String createMasterKey(String description) throws KeyManagementException {
         Objects.requireNonNull(description, "Description cannot be null");
 
         logger.info("Creating KMS master key with description: {}", description);
