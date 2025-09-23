@@ -233,6 +233,8 @@ public class MetadataManager {
 
     /**
      * Updates the configuration and adjusts refresh behavior accordingly.
+     * 
+     * @param newConfig New encryption configuration
      */
     public void updateConfig(EncryptionConfig newConfig) {
         EncryptionConfig oldConfig = this.config;

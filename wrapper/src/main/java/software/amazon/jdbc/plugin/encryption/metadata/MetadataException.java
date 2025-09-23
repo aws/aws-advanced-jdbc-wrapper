@@ -191,6 +191,10 @@ public class MetadataException extends SQLException {
 
     /**
      * Creates a MetadataException for metadata loading failures.
+     * 
+     * @param message Error message
+     * @param cause Root cause
+     * @return New MetadataException instance
      */
     public static MetadataException loadFailed(String message, Throwable cause) {
         return new MetadataException(message, METADATA_LOAD_FAILED_STATE, cause);
@@ -198,6 +202,10 @@ public class MetadataException extends SQLException {
 
     /**
      * Creates a MetadataException for cache operation failures.
+     * 
+     * @param message Error message
+     * @param cause Root cause
+     * @return New MetadataException instance
      */
     public static MetadataException cacheFailed(String message, Throwable cause) {
         return new MetadataException(message, METADATA_CACHE_FAILED_STATE, cause);
@@ -205,6 +213,10 @@ public class MetadataException extends SQLException {
 
     /**
      * Creates a MetadataException for metadata refresh failures.
+     * 
+     * @param message Error message
+     * @param cause Root cause
+     * @return New MetadataException instance
      */
     public static MetadataException refreshFailed(String message, Throwable cause) {
         return new MetadataException(message, METADATA_REFRESH_FAILED_STATE, cause);
@@ -212,6 +224,11 @@ public class MetadataException extends SQLException {
 
     /**
      * Creates a MetadataException for metadata lookup failures.
+     * 
+     * @param tableName Table name
+     * @param columnName Column name
+     * @param cause Root cause
+     * @return New MetadataException instance
      */
     public static MetadataException lookupFailed(String tableName, String columnName, Throwable cause) {
         return new MetadataException("Failed to lookup metadata", METADATA_LOOKUP_FAILED_STATE, cause)
@@ -221,6 +238,9 @@ public class MetadataException extends SQLException {
 
     /**
      * Creates a MetadataException for metadata validation failures.
+     * 
+     * @param message Error message
+     * @return New MetadataException instance
      */
     public static MetadataException validationFailed(String message) {
         return new MetadataException(message, METADATA_VALIDATION_FAILED_STATE, null);

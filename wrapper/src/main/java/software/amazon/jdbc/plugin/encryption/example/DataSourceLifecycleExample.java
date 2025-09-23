@@ -175,6 +175,8 @@ public class DataSourceLifecycleExample {
 
     /**
      * Demonstrates connection validation and recovery patterns.
+     * 
+     * @param originalDataSource Original data source to wrap
      */
     public static void demonstrateConnectionRecovery(DataSource originalDataSource) {
         logger.info("=== Demonstrating Connection Recovery ===");

@@ -302,6 +302,8 @@ public class KeyManager {
 
     /**
      * Returns the data key cache for metrics and management.
+     * 
+     * @return Data key cache instance
      */
     public DataKeyCache getDataKeyCache() {
         return dataKeyCache;

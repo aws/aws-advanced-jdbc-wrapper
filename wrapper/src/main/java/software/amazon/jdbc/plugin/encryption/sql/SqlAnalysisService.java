@@ -107,6 +107,10 @@ public class SqlAnalysisService {
 
     /**
      * Checks if a specific column is encrypted.
+     * 
+     * @param tableName Table name
+     * @param columnName Column name
+     * @return True if column is encrypted, false otherwise
      */
     public boolean isColumnEncrypted(String tableName, String columnName) {
         try {

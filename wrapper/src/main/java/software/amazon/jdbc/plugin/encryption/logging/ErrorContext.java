@@ -33,6 +33,8 @@ public class ErrorContext {
     
     /**
      * Creates a new error context builder.
+     * 
+     * @return New ErrorContext instance
      */
     public static ErrorContext builder() {
         return new ErrorContext();
@@ -40,6 +42,9 @@ public class ErrorContext {
     
     /**
      * Adds table name to the error context.
+     * 
+     * @param tableName Table name
+     * @return This ErrorContext instance for chaining
      */
     public ErrorContext table(String tableName) {
         context.put("table", tableName);
@@ -48,6 +53,9 @@ public class ErrorContext {
     
     /**
      * Adds column name to the error context.
+     * 
+     * @param columnName Column name
+     * @return This ErrorContext instance for chaining
      */
     public ErrorContext column(String columnName) {
         context.put("column", columnName);
@@ -56,6 +64,9 @@ public class ErrorContext {
     
     /**
      * Adds operation type to the error context.
+     * 
+     * @param operation Operation type
+     * @return This ErrorContext instance for chaining
      */
     public ErrorContext operation(String operation) {
         context.put("operation", operation);
@@ -64,6 +75,9 @@ public class ErrorContext {
     
     /**
      * Adds key ID to the error context.
+     * 
+     * @param keyId Key ID
+     * @return This ErrorContext instance for chaining
      */
     public ErrorContext keyId(String keyId) {
         context.put("keyId", sanitizeKeyId(keyId));
@@ -72,6 +86,9 @@ public class ErrorContext {
     
     /**
      * Adds master key ARN to the error context.
+     * 
+     * @param masterKeyArn Master key ARN
+     * @return This ErrorContext instance for chaining
      */
     public ErrorContext masterKeyArn(String masterKeyArn) {
         context.put("masterKeyArn", sanitizeArn(masterKeyArn));
@@ -80,6 +97,9 @@ public class ErrorContext {
     
     /**
      * Adds algorithm to the error context.
+     * 
+     * @param algorithm Algorithm name
+     * @return This ErrorContext instance for chaining
      */
     public ErrorContext algorithm(String algorithm) {
         context.put("algorithm", algorithm);
@@ -88,6 +108,9 @@ public class ErrorContext {
     
     /**
      * Adds parameter index to the error context.
+     * 
+     * @param parameterIndex Parameter index
+     * @return This ErrorContext instance for chaining
      */
     public ErrorContext parameterIndex(int parameterIndex) {
         context.put("parameterIndex", parameterIndex);
@@ -96,6 +119,9 @@ public class ErrorContext {
     
     /**
      * Adds column index to the error context.
+     * 
+     * @param columnIndex Column index
+     * @return This ErrorContext instance for chaining
      */
     public ErrorContext columnIndex(int columnIndex) {
         context.put("columnIndex", columnIndex);
@@ -104,6 +130,9 @@ public class ErrorContext {
     
     /**
      * Adds SQL statement to the error context (sanitized).
+     * 
+     * @param sql SQL statement
+     * @return This ErrorContext instance for chaining
      */
     public ErrorContext sql(String sql) {
         context.put("sql", sanitizeSql(sql));
@@ -112,6 +141,9 @@ public class ErrorContext {
     
     /**
      * Adds data type to the error context.
+     * 
+     * @param dataType Data type
+     * @return This ErrorContext instance for chaining
      */
     public ErrorContext dataType(String dataType) {
         context.put("dataType", dataType);
@@ -120,6 +152,10 @@ public class ErrorContext {
     
     /**
      * Adds retry attempt information to the error context.
+     * 
+     * @param attempt Current attempt number
+     * @param maxAttempts Maximum number of attempts
+     * @return This ErrorContext instance for chaining
      */
     public ErrorContext retryAttempt(int attempt, int maxAttempts) {
         context.put("retryAttempt", attempt);
@@ -129,6 +165,10 @@ public class ErrorContext {
     
     /**
      * Adds cache information to the error context.
+     * 
+     * @param cacheType Type of cache
+     * @param cacheHit Whether cache was hit
+     * @return This ErrorContext instance for chaining
      */
     public ErrorContext cacheInfo(String cacheType, boolean cacheHit) {
         context.put("cacheType", cacheType);
@@ -138,6 +178,9 @@ public class ErrorContext {
     
     /**
      * Builds an error message with the provided base message and context.
+     * 
+     * @param baseMessage Base error message
+     * @return Formatted error message with context
      */
     public String buildMessage(String baseMessage) {
         if (context.isEmpty()) {
@@ -162,6 +205,9 @@ public class ErrorContext {
     
     /**
      * Builds an error message for encryption operations.
+     * 
+     * @param baseMessage Base error message
+     * @return Formatted encryption error message
      */
     public String buildEncryptionErrorMessage(String baseMessage) {
         StringBuilder sb = new StringBuilder("Encryption failed");
@@ -176,6 +222,9 @@ public class ErrorContext {
     
     /**
      * Builds an error message for decryption operations.
+     * 
+     * @param baseMessage Base error message
+     * @return Formatted decryption error message
      */
     public String buildDecryptionErrorMessage(String baseMessage) {
         StringBuilder sb = new StringBuilder("Decryption failed");
@@ -190,6 +239,9 @@ public class ErrorContext {
     
     /**
      * Builds an error message for key management operations.
+     * 
+     * @param baseMessage Base error message
+     * @return Formatted key management error message
      */
     public String buildKeyManagementErrorMessage(String baseMessage) {
         StringBuilder sb = new StringBuilder("Key management operation failed");
@@ -204,6 +256,9 @@ public class ErrorContext {
     
     /**
      * Builds an error message for metadata operations.
+     * 
+     * @param baseMessage Base error message
+     * @return Formatted metadata error message
      */
     public String buildMetadataErrorMessage(String baseMessage) {
         StringBuilder sb = new StringBuilder("Metadata operation failed");
@@ -218,6 +273,8 @@ public class ErrorContext {
     
     /**
      * Gets the context map for external use.
+     * 
+     * @return Copy of the context map
      */
     public Map<String, Object> getContext() {
         return new HashMap<>(context);

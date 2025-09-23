@@ -241,6 +241,9 @@ public class KeyManagementException extends SQLException {
 
     /**
      * Creates a KeyManagementException for invalid key metadata.
+     * 
+     * @param message Error message
+     * @return New KeyManagementException instance
      */
     public static KeyManagementException invalidKeyMetadata(String message) {
         return new KeyManagementException(message, INVALID_KEY_METADATA_STATE, null);

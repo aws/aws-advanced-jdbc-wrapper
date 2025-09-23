@@ -71,6 +71,8 @@ public class ConfigurationManager {
 
     /**
      * Gets the current configuration.
+     * 
+     * @return Current encryption configuration
      */
     public EncryptionConfig getCurrentConfig() {
         return currentConfig.get();
@@ -78,6 +80,8 @@ public class ConfigurationManager {
 
     /**
      * Updates the configuration and notifies listeners.
+     * 
+     * @param newConfig New encryption configuration
      */
     public void updateConfig(EncryptionConfig newConfig) {
         EncryptionConfig oldConfig = currentConfig.getAndSet(newConfig);
@@ -105,6 +109,8 @@ public class ConfigurationManager {
 
     /**
      * Sets a listener to be notified when configuration changes.
+     * 
+     * @param listener Configuration change listener
      */
     public void setConfigChangeListener(Consumer<EncryptionConfig> listener) {
         this.configChangeListener = listener;
@@ -112,6 +118,10 @@ public class ConfigurationManager {
 
     /**
      * Loads configuration from a properties file.
+     * 
+     * @param filePath Path to configuration file
+     * @return Loaded encryption configuration
+     * @throws IOException If file cannot be read
      */
     public static EncryptionConfig loadFromFile(String filePath) throws IOException {
         Properties properties = new Properties();
@@ -125,6 +135,10 @@ public class ConfigurationManager {
 
     /**
      * Loads configuration from classpath resource.
+     * 
+     * @param resourcePath Path to resource file
+     * @return Loaded encryption configuration
+     * @throws IOException If resource cannot be read
      */
     public static EncryptionConfig loadFromResource(String resourcePath) throws IOException {
         Properties properties = new Properties();
@@ -159,6 +173,9 @@ public class ConfigurationManager {
 
     /**
      * Validates that a configuration change is safe to apply.
+     * 
+     * @param newConfig New configuration to validate
+     * @return True if configuration is valid, false otherwise
      */
     public boolean validateConfigChange(EncryptionConfig newConfig) {
         try {

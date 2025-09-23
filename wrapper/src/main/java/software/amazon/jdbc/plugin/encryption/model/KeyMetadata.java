@@ -68,6 +68,8 @@ public class KeyMetadata {
 
     /**
      * Creates a new KeyMetadata instance with updated lastUsedAt timestamp.
+     * 
+     * @return New KeyMetadata with current timestamp
      */
     public KeyMetadata withUpdatedLastUsed() {
         return builder()
@@ -82,6 +84,8 @@ public class KeyMetadata {
 
     /**
      * Checks if the key metadata is valid for encryption operations.
+     * 
+     * @return True if metadata is valid, false otherwise
      */
     public boolean isValid() {
         return keyId != null && !keyId.trim().isEmpty() &&

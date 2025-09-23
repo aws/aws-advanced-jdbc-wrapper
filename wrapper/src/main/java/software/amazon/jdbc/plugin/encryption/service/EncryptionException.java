@@ -177,6 +177,10 @@ public class EncryptionException extends SQLException {
 
     /**
      * Creates an EncryptionException for encryption failures.
+     * 
+     * @param message Error message
+     * @param cause Root cause
+     * @return New EncryptionException instance
      */
     public static EncryptionException encryptionFailed(String message, Throwable cause) {
         return new EncryptionException(message, ENCRYPTION_FAILED_STATE, cause);
@@ -184,6 +188,10 @@ public class EncryptionException extends SQLException {
 
     /**
      * Creates an EncryptionException for decryption failures.
+     * 
+     * @param message Error message
+     * @param cause Root cause
+     * @return New EncryptionException instance
      */
     public static EncryptionException decryptionFailed(String message, Throwable cause) {
         return new EncryptionException(message, DECRYPTION_FAILED_STATE, cause);
@@ -191,6 +199,9 @@ public class EncryptionException extends SQLException {
 
     /**
      * Creates an EncryptionException for invalid algorithm errors.
+     * 
+     * @param algorithm Invalid algorithm name
+     * @return New EncryptionException instance
      */
     public static EncryptionException invalidAlgorithm(String algorithm) {
         return new EncryptionException("Unsupported encryption algorithm: " + algorithm, INVALID_ALGORITHM_STATE, null)
@@ -199,6 +210,9 @@ public class EncryptionException extends SQLException {
 
     /**
      * Creates an EncryptionException for invalid key errors.
+     * 
+     * @param message Error message
+     * @return New EncryptionException instance
      */
     public static EncryptionException invalidKey(String message) {
         return new EncryptionException(message, INVALID_KEY_STATE, null);
@@ -206,6 +220,11 @@ public class EncryptionException extends SQLException {
 
     /**
      * Creates an EncryptionException for type conversion errors.
+     * 
+     * @param fromType Source type
+     * @param toType Target type
+     * @param cause Root cause
+     * @return New EncryptionException instance
      */
     public static EncryptionException typeConversionFailed(String fromType, String toType, Throwable cause) {
         return new EncryptionException(

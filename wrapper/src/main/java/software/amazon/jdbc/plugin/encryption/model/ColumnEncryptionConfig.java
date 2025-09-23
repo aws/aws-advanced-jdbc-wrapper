@@ -75,6 +75,8 @@ public class ColumnEncryptionConfig {
     /**
      * Returns a unique identifier for this column configuration.
      * Format: "tableName.columnName"
+     * 
+     * @return Column identifier string
      */
     public String getColumnIdentifier() {
         return tableName + "." + columnName;
