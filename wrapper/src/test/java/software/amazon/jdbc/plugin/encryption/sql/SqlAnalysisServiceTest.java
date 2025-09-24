@@ -55,11 +55,11 @@ class SqlAnalysisServiceTest {
         assertEquals("INSERT", result.getQueryType());
         assertTrue(result.getAffectedTables().contains("customers"));
 
-        // INSERT with schema - analyzer extracts schema name only
+        // INSERT with schema - jOOQ extracts full qualified name
         result = sqlAnalysisService.analyzeSql(
             "INSERT INTO public.users (id, username, password) VALUES (1, 'john', 'secret')");
         assertEquals("INSERT", result.getQueryType());
-        assertTrue(result.getAffectedTables().contains("public"));
+        assertTrue(result.getAffectedTables().contains("public.users"));
 
         // Multi-value INSERT
         result = sqlAnalysisService.analyzeSql(
@@ -82,11 +82,11 @@ class SqlAnalysisServiceTest {
         assertEquals("UPDATE", result.getQueryType());
         assertTrue(result.getAffectedTables().contains("orders"));
 
-        // UPDATE with schema - analyzer extracts schema name only
+        // UPDATE with schema - jOOQ extracts full qualified name
         result = sqlAnalysisService.analyzeSql(
             "UPDATE public.inventory SET quantity = quantity - 1 WHERE product_id = ?");
         assertEquals("UPDATE", result.getQueryType());
-        assertTrue(result.getAffectedTables().contains("public"));
+        assertTrue(result.getAffectedTables().contains("public.inventory"));
     }
 
     @Test
@@ -174,10 +174,10 @@ class SqlAnalysisServiceTest {
             "CREATE TABLE new_table (id SERIAL PRIMARY KEY, name VARCHAR(100))");
         assertEquals("CREATE", result.getQueryType());
 
-        // DROP TABLE - parser limitation, expect UNKNOWN
+        // DROP TABLE - jOOQ parser works correctly
         result = sqlAnalysisService.analyzeSql(
             "DROP TABLE old_table");
-        assertEquals("UNKNOWN", result.getQueryType());
+        assertEquals("DROP", result.getQueryType());
     }
 
     @Test

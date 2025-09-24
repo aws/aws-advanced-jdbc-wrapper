@@ -16,7 +16,15 @@
 
 package software.amazon.jdbc.plugin.encryption.parser;
 
+import org.jooq.DSLContext;
+import org.jooq.Query;
+import org.jooq.SQLDialect;
+import org.jooq.impl.DSL;
+import org.jooq.impl.ParserException;
+
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class SQLAnalyzer {
 
@@ -47,36 +55,39 @@ public class SQLAnalyzer {
         }
     }
 
-    private PostgreSQLParser parser = new PostgreSQLParser();
+    private final DSLContext dsl = DSL.using(SQLDialect.POSTGRES);
 
     public QueryAnalysis analyze(String sql) {
         QueryAnalysis analysis = new QueryAnalysis();
 
         try {
-            List<PostgreSQLParser.ParseNode> parseTree = parser.rawParser(sql, PostgreSQLParser.RawParseMode.DEFAULT);
-
-            if (!parseTree.isEmpty()) {
-                // Get query type from first node
-                analysis.queryType = parseTree.get(0).type;
-                
-                // Handle both single-node and multi-node parse trees
-                if (parseTree.size() == 1) {
-                    // Simple query - use original logic with children
-                    analyzeNode(parseTree.get(0), analysis);
-                } else {
-                    // Complex query - use flat parse tree logic
-                    if ("SELECT".equals(analysis.queryType)) {
-                        extractSelectInfo(parseTree, analysis);
-                    } else if ("INSERT".equals(analysis.queryType)) {
-                        extractInsertInfo(parseTree, analysis);
-                    } else if ("UPDATE".equals(analysis.queryType)) {
-                        extractUpdateInfo(parseTree, analysis);
-                    } else if ("DELETE".equals(analysis.queryType)) {
-                        extractDeleteInfo(parseTree, analysis);
-                    }
-                }
+            // Parse with jOOQ to validate SQL syntax
+            Query query = dsl.parser().parseQuery(sql);
+            
+            // Extract query type from the SQL string
+            String trimmedSql = sql.trim().toUpperCase();
+            if (trimmedSql.startsWith("SELECT")) {
+                analysis.queryType = "SELECT";
+                extractTablesFromSelect(sql, analysis);
+            } else if (trimmedSql.startsWith("INSERT")) {
+                analysis.queryType = "INSERT";
+                extractTablesFromInsert(sql, analysis);
+            } else if (trimmedSql.startsWith("UPDATE")) {
+                analysis.queryType = "UPDATE";
+                extractTablesFromUpdate(sql, analysis);
+            } else if (trimmedSql.startsWith("DELETE")) {
+                analysis.queryType = "DELETE";
+                extractTablesFromDelete(sql, analysis);
+            } else if (trimmedSql.startsWith("CREATE")) {
+                analysis.queryType = "CREATE";
+            } else if (trimmedSql.startsWith("DROP")) {
+                analysis.queryType = "DROP";
+            } else {
+                analysis.queryType = "UNKNOWN";
             }
 
+        } catch (ParserException e) {
+            analysis.queryType = "UNKNOWN";
         } catch (Exception e) {
             analysis.queryType = "UNKNOWN";
         }
@@ -84,110 +95,39 @@ public class SQLAnalyzer {
         return analysis;
     }
 
-    private void analyzeNode(PostgreSQLParser.ParseNode node, QueryAnalysis analysis) {
-        if (node == null) return;
-
-        if ("TABLE_REF".equals(node.type)) {
-            analysis.tables.add(node.value);
-        }
-
-        for (PostgreSQLParser.ParseNode child : node.children) {
-            analyzeNode(child, analysis);
+    private void extractTablesFromSelect(String sql, QueryAnalysis analysis) {
+        // Pattern to match FROM clause
+        Pattern fromPattern = Pattern.compile("\\bFROM\\s+([\\w.]+)", Pattern.CASE_INSENSITIVE);
+        Matcher matcher = fromPattern.matcher(sql);
+        if (matcher.find()) {
+            analysis.tables.add(matcher.group(1));
         }
     }
 
-    private void extractSelectInfo(List<PostgreSQLParser.ParseNode> parseTree, QueryAnalysis analysis) {
-        // Look for FROM keyword followed by table names
-        for (int i = 0; i < parseTree.size() - 1; i++) {
-            if ("UNKNOWN".equals(parseTree.get(i).type) && "FROM".equals(parseTree.get(i).value)) {
-                // Next non-keyword token should be a table name
-                for (int j = i + 1; j < parseTree.size(); j++) {
-                    String value = parseTree.get(j).value;
-                    if ("UNKNOWN".equals(parseTree.get(j).type) && 
-                        !isKeyword(value) && !value.matches("[.,=()]")) {
-                        analysis.tables.add(value);
-                        break; // Get first table after FROM
-                    }
-                }
-                break;
-            }
-        }
-        
-        // Extract column references (simplified)
-        for (int i = 1; i < parseTree.size(); i++) {
-            if ("UNKNOWN".equals(parseTree.get(i).type) && ".".equals(parseTree.get(i).value) &&
-                i > 0 && i < parseTree.size() - 1) {
-                String table = parseTree.get(i - 1).value;
-                String column = parseTree.get(i + 1).value;
-                analysis.columns.add(new ColumnInfo(table, column));
-            }
+    private void extractTablesFromInsert(String sql, QueryAnalysis analysis) {
+        // Pattern to match INSERT INTO table
+        Pattern insertPattern = Pattern.compile("\\bINSERT\\s+INTO\\s+([\\w.]+)", Pattern.CASE_INSENSITIVE);
+        Matcher matcher = insertPattern.matcher(sql);
+        if (matcher.find()) {
+            analysis.tables.add(matcher.group(1));
         }
     }
 
-    private void extractInsertInfo(List<PostgreSQLParser.ParseNode> parseTree, QueryAnalysis analysis) {
-        // Look for pattern: INSERT, INTO, table_name
-        for (int i = 0; i < parseTree.size() - 2; i++) {
-            if ("INSERT".equals(parseTree.get(i).type) &&
-                "UNKNOWN".equals(parseTree.get(i + 1).type) && "INTO".equals(parseTree.get(i + 1).value) &&
-                "UNKNOWN".equals(parseTree.get(i + 2).type)) {
-                analysis.tables.add(parseTree.get(i + 2).value);
-                break;
-            }
-        }
-        
-        // Extract column names from INSERT
-        boolean inColumnList = false;
-        for (int i = 0; i < parseTree.size(); i++) {
-            String value = parseTree.get(i).value;
-            if ("(".equals(value)) {
-                inColumnList = true;
-            } else if (")".equals(value)) {
-                inColumnList = false;
-            } else if (inColumnList && "UNKNOWN".equals(parseTree.get(i).type) && 
-                      !",".equals(value) && !analysis.tables.isEmpty()) {
-                analysis.columns.add(new ColumnInfo(analysis.tables.iterator().next(), value));
-            }
+    private void extractTablesFromUpdate(String sql, QueryAnalysis analysis) {
+        // Pattern to match UPDATE table
+        Pattern updatePattern = Pattern.compile("\\bUPDATE\\s+([\\w.]+)", Pattern.CASE_INSENSITIVE);
+        Matcher matcher = updatePattern.matcher(sql);
+        if (matcher.find()) {
+            analysis.tables.add(matcher.group(1));
         }
     }
 
-    private void extractUpdateInfo(List<PostgreSQLParser.ParseNode> parseTree, QueryAnalysis analysis) {
-        // Look for UPDATE table_name
-        for (int i = 0; i < parseTree.size() - 1; i++) {
-            if ("UPDATE".equals(parseTree.get(i).type) &&
-                "UNKNOWN".equals(parseTree.get(i + 1).type)) {
-                analysis.tables.add(parseTree.get(i + 1).value);
-                break;
-            }
+    private void extractTablesFromDelete(String sql, QueryAnalysis analysis) {
+        // Pattern to match DELETE FROM table
+        Pattern deletePattern = Pattern.compile("\\bDELETE\\s+FROM\\s+([\\w.]+)", Pattern.CASE_INSENSITIVE);
+        Matcher matcher = deletePattern.matcher(sql);
+        if (matcher.find()) {
+            analysis.tables.add(matcher.group(1));
         }
-        
-        // Extract SET columns
-        boolean inSetClause = false;
-        for (int i = 0; i < parseTree.size(); i++) {
-            String value = parseTree.get(i).value;
-            if ("SET".equals(value)) {
-                inSetClause = true;
-            } else if ("WHERE".equals(value)) {
-                inSetClause = false;
-            } else if (inSetClause && "UNKNOWN".equals(parseTree.get(i).type) && 
-                      !isKeyword(value) && !analysis.tables.isEmpty()) {
-                analysis.columns.add(new ColumnInfo(analysis.tables.iterator().next(), value));
-            }
-        }
-    }
-
-    private void extractDeleteInfo(List<PostgreSQLParser.ParseNode> parseTree, QueryAnalysis analysis) {
-        // Look for DELETE FROM table_name
-        for (int i = 0; i < parseTree.size() - 2; i++) {
-            if ("DELETE".equals(parseTree.get(i).type) &&
-                "UNKNOWN".equals(parseTree.get(i + 1).type) && "FROM".equals(parseTree.get(i + 1).value) &&
-                "UNKNOWN".equals(parseTree.get(i + 2).type)) {
-                analysis.tables.add(parseTree.get(i + 2).value);
-                break;
-            }
-        }
-    }
-
-    private boolean isKeyword(String value) {
-        return value != null && value.matches("(?i)(SELECT|FROM|WHERE|JOIN|ON|SET|VALUES|INTO|UPDATE|DELETE|INSERT|AND|OR|ORDER|BY|GROUP|HAVING|LIMIT)");
     }
 }

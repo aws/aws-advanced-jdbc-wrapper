@@ -50,6 +50,7 @@ dependencies {
     optionalImplementation("io.opentelemetry:opentelemetry-api:1.52.0")
     optionalImplementation("io.opentelemetry:opentelemetry-sdk:1.52.0")
     optionalImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.52.0")
+    optionalImplementation("org.jooq:jooq:3.14.16") // jOOQ SQL parser (Java 8 compatible)
 
     compileOnly("org.checkerframework:checker-qual:3.49.5")
     compileOnly("com.mysql:mysql-connector-j:9.4.0")

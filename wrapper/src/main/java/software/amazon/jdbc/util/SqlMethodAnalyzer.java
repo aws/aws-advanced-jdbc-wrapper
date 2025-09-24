@@ -25,9 +25,15 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.jooq.DSLContext;
+import org.jooq.Query;
+import org.jooq.SQLDialect;
+import org.jooq.impl.DSL;
 import software.amazon.jdbc.JdbcMethod;
 
 public class SqlMethodAnalyzer {
+
+  private static final DSLContext dsl = DSL.using(SQLDialect.DEFAULT);
 
   private static final Set<String> CLOSING_METHOD_NAMES = Collections.unmodifiableSet(
       new HashSet<>(Arrays.asList(
@@ -125,23 +131,58 @@ public class SqlMethodAnalyzer {
     return isStatementClosingTransaction(statement);
   }
 
+  private String getQueryTypeFromParseTree(final String sql) {
+    try {
+      final Query query = dsl.parser().parseQuery(sql);
+      final String className = query.getClass().getSimpleName();
+      
+      if (className.contains("Select")) return "SELECT";
+      if (className.contains("Insert")) return "INSERT";
+      if (className.contains("Update")) return "UPDATE";
+      if (className.contains("Delete")) return "DELETE";
+      if (className.contains("Create")) return "CREATE";
+      if (className.contains("Drop")) return "DROP";
+      if (className.contains("Alter")) return "ALTER";
+      
+      return "UNKNOWN";
+    } catch (Exception e) {
+      // Fallback to string parsing if jOOQ fails
+      return getQueryTypeFromString(sql);
+    }
+  }
+
+  private String getQueryTypeFromString(final String sql) {
+    final String trimmed = sql.trim().toUpperCase();
+    if (trimmed.startsWith("SELECT")) return "SELECT";
+    if (trimmed.startsWith("INSERT")) return "INSERT";
+    if (trimmed.startsWith("UPDATE")) return "UPDATE";
+    if (trimmed.startsWith("DELETE")) return "DELETE";
+    if (trimmed.startsWith("CREATE")) return "CREATE";
+    if (trimmed.startsWith("DROP")) return "DROP";
+    if (trimmed.startsWith("ALTER")) return "ALTER";
+    if (trimmed.startsWith("BEGIN") || trimmed.startsWith("START TRANSACTION")) return "BEGIN";
+    if (trimmed.startsWith("COMMIT")) return "COMMIT";
+    if (trimmed.startsWith("ROLLBACK")) return "ROLLBACK";
+    if (trimmed.startsWith("SET")) return "SET";
+    if (trimmed.startsWith("USE")) return "USE";
+    if (trimmed.startsWith("SHOW")) return "SHOW";
+    return "UNKNOWN";
+  }
+
   public boolean isStatementDml(final String statement) {
-    return !isStatementStartingTransaction(statement)
-        && !isStatementClosingTransaction(statement)
-        && !statement.startsWith("SET ")
-        && !statement.startsWith("USE ")
-        && !statement.startsWith("SHOW ");
+    final String queryType = getQueryTypeFromParseTree(statement);
+    return "SELECT".equals(queryType) || "INSERT".equals(queryType) || 
+           "UPDATE".equals(queryType) || "DELETE".equals(queryType);
   }
 
   public boolean isStatementStartingTransaction(final String statement) {
-    return statement.startsWith("BEGIN") || statement.startsWith("START TRANSACTION");
+    final String queryType = getQueryTypeFromParseTree(statement);
+    return "BEGIN".equals(queryType);
   }
 
   public boolean isStatementClosingTransaction(final String statement) {
-    return statement.startsWith("COMMIT")
-        || statement.startsWith("ROLLBACK")
-        || statement.startsWith("END")
-        || statement.startsWith("ABORT");
+    final String queryType = getQueryTypeFromParseTree(statement);
+    return "COMMIT".equals(queryType) || "ROLLBACK".equals(queryType);
   }
 
   public boolean isStatementSettingAutoCommit(final String methodName, final Object[] args) {
@@ -154,7 +195,8 @@ public class SqlMethodAnalyzer {
     }
 
     final String statement = getFirstSqlStatement(String.valueOf(args[0]));
-    return statement.startsWith("SET AUTOCOMMIT");
+    final String queryType = getQueryTypeFromParseTree(statement);
+    return "SET".equals(queryType) && statement.toUpperCase().contains("AUTOCOMMIT");
   }
 
   public boolean doesSwitchAutoCommitFalseTrue(final Connection conn, final String methodName,

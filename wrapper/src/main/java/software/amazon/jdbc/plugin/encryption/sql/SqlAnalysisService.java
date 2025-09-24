@@ -20,7 +20,6 @@ package software.amazon.jdbc.plugin.encryption.sql;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
-import software.amazon.jdbc.plugin.encryption.parser.PostgreSQLParser;
 import software.amazon.jdbc.plugin.encryption.parser.SQLAnalyzer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,21 +29,18 @@ import java.util.*;
 
 /**
  * Service that analyzes SQL statements to identify columns that need encryption/decryption.
- * Uses PostgreSQLParser and SQLAnalyzer classes directly.
+ * Uses jOOQ parser via SQLAnalyzer class.
  */
 public class SqlAnalysisService {
 
     private static final Logger logger = LoggerFactory.getLogger(SqlAnalysisService.class);
 
     private final MetadataManager metadataManager;
-    private final PostgreSQLParser parser;
     private final SQLAnalyzer analyzer;
 
     public SqlAnalysisService(PluginService pluginService, MetadataManager metadataManager) {
         this.metadataManager = metadataManager;
-        this.parser = new PostgreSQLParser();
         this.analyzer = new SQLAnalyzer();
-
     }
 
     /**
