@@ -55,13 +55,25 @@ public class SQLAnalyzer {
         try {
             List<PostgreSQLParser.ParseNode> parseTree = parser.rawParser(sql, PostgreSQLParser.RawParseMode.DEFAULT);
 
-            for (PostgreSQLParser.ParseNode node : parseTree) {
-                analysis.queryType = node.type;
-                analyzeNode(node, analysis);
-
-                // For INSERT, extract table from the flat structure
-                if ("INSERT".equals(node.type)) {
-                    extractInsertTable(parseTree, analysis);
+            if (!parseTree.isEmpty()) {
+                // Get query type from first node
+                analysis.queryType = parseTree.get(0).type;
+                
+                // Handle both single-node and multi-node parse trees
+                if (parseTree.size() == 1) {
+                    // Simple query - use original logic with children
+                    analyzeNode(parseTree.get(0), analysis);
+                } else {
+                    // Complex query - use flat parse tree logic
+                    if ("SELECT".equals(analysis.queryType)) {
+                        extractSelectInfo(parseTree, analysis);
+                    } else if ("INSERT".equals(analysis.queryType)) {
+                        extractInsertInfo(parseTree, analysis);
+                    } else if ("UPDATE".equals(analysis.queryType)) {
+                        extractUpdateInfo(parseTree, analysis);
+                    } else if ("DELETE".equals(analysis.queryType)) {
+                        extractDeleteInfo(parseTree, analysis);
+                    }
                 }
             }
 
@@ -72,7 +84,47 @@ public class SQLAnalyzer {
         return analysis;
     }
 
-    private void extractInsertTable(List<PostgreSQLParser.ParseNode> parseTree, QueryAnalysis analysis) {
+    private void analyzeNode(PostgreSQLParser.ParseNode node, QueryAnalysis analysis) {
+        if (node == null) return;
+
+        if ("TABLE_REF".equals(node.type)) {
+            analysis.tables.add(node.value);
+        }
+
+        for (PostgreSQLParser.ParseNode child : node.children) {
+            analyzeNode(child, analysis);
+        }
+    }
+
+    private void extractSelectInfo(List<PostgreSQLParser.ParseNode> parseTree, QueryAnalysis analysis) {
+        // Look for FROM keyword followed by table names
+        for (int i = 0; i < parseTree.size() - 1; i++) {
+            if ("UNKNOWN".equals(parseTree.get(i).type) && "FROM".equals(parseTree.get(i).value)) {
+                // Next non-keyword token should be a table name
+                for (int j = i + 1; j < parseTree.size(); j++) {
+                    String value = parseTree.get(j).value;
+                    if ("UNKNOWN".equals(parseTree.get(j).type) && 
+                        !isKeyword(value) && !value.matches("[.,=()]")) {
+                        analysis.tables.add(value);
+                        break; // Get first table after FROM
+                    }
+                }
+                break;
+            }
+        }
+        
+        // Extract column references (simplified)
+        for (int i = 1; i < parseTree.size(); i++) {
+            if ("UNKNOWN".equals(parseTree.get(i).type) && ".".equals(parseTree.get(i).value) &&
+                i > 0 && i < parseTree.size() - 1) {
+                String table = parseTree.get(i - 1).value;
+                String column = parseTree.get(i + 1).value;
+                analysis.columns.add(new ColumnInfo(table, column));
+            }
+        }
+    }
+
+    private void extractInsertInfo(List<PostgreSQLParser.ParseNode> parseTree, QueryAnalysis analysis) {
         // Look for pattern: INSERT, INTO, table_name
         for (int i = 0; i < parseTree.size() - 2; i++) {
             if ("INSERT".equals(parseTree.get(i).type) &&
@@ -82,122 +134,60 @@ public class SQLAnalyzer {
                 break;
             }
         }
-    }
-
-    private void analyzeNode(PostgreSQLParser.ParseNode node, QueryAnalysis analysis) {
-        if (node == null) return;
-
-        if ("TABLE_REF".equals(node.type)) {
-            analysis.tables.add(node.value);
-        }
-
-        if ("SELECT".equals(node.type)) {
-            extractSelectInfo(node, analysis);
-        } else if ("INSERT".equals(node.type)) {
-            extractInsertInfo(node, analysis);
-        } else if ("UPDATE".equals(node.type)) {
-            extractUpdateInfo(node, analysis);
-        } else if ("DELETE".equals(node.type)) {
-            extractDeleteInfo(node, analysis);
-        }
-
-        for (PostgreSQLParser.ParseNode child : node.children) {
-            analyzeNode(child, analysis);
+        
+        // Extract column names from INSERT
+        boolean inColumnList = false;
+        for (int i = 0; i < parseTree.size(); i++) {
+            String value = parseTree.get(i).value;
+            if ("(".equals(value)) {
+                inColumnList = true;
+            } else if (")".equals(value)) {
+                inColumnList = false;
+            } else if (inColumnList && "UNKNOWN".equals(parseTree.get(i).type) && 
+                      !",".equals(value) && !analysis.tables.isEmpty()) {
+                analysis.columns.add(new ColumnInfo(analysis.tables.iterator().next(), value));
+            }
         }
     }
 
-    private void extractSelectInfo(PostgreSQLParser.ParseNode selectNode, QueryAnalysis analysis) {
-        String tableName = null;
-        List<String> columnNames = new ArrayList<>();
-
-        // First pass: find table name
-        for (PostgreSQLParser.ParseNode child : selectNode.children) {
-            if ("FROM".equals(child.type)) {
-                tableName = findTableName(child);
+    private void extractUpdateInfo(List<PostgreSQLParser.ParseNode> parseTree, QueryAnalysis analysis) {
+        // Look for UPDATE table_name
+        for (int i = 0; i < parseTree.size() - 1; i++) {
+            if ("UPDATE".equals(parseTree.get(i).type) &&
+                "UNKNOWN".equals(parseTree.get(i + 1).type)) {
+                analysis.tables.add(parseTree.get(i + 1).value);
                 break;
             }
         }
+        
+        // Extract SET columns
+        boolean inSetClause = false;
+        for (int i = 0; i < parseTree.size(); i++) {
+            String value = parseTree.get(i).value;
+            if ("SET".equals(value)) {
+                inSetClause = true;
+            } else if ("WHERE".equals(value)) {
+                inSetClause = false;
+            } else if (inSetClause && "UNKNOWN".equals(parseTree.get(i).type) && 
+                      !isKeyword(value) && !analysis.tables.isEmpty()) {
+                analysis.columns.add(new ColumnInfo(analysis.tables.iterator().next(), value));
+            }
+        }
+    }
 
-        // Second pass: find columns
-        for (PostgreSQLParser.ParseNode child : selectNode.children) {
-            if ("SELECT_LIST".equals(child.type)) {
-                extractColumns(child, columnNames);
+    private void extractDeleteInfo(List<PostgreSQLParser.ParseNode> parseTree, QueryAnalysis analysis) {
+        // Look for DELETE FROM table_name
+        for (int i = 0; i < parseTree.size() - 2; i++) {
+            if ("DELETE".equals(parseTree.get(i).type) &&
+                "UNKNOWN".equals(parseTree.get(i + 1).type) && "FROM".equals(parseTree.get(i + 1).value) &&
+                "UNKNOWN".equals(parseTree.get(i + 2).type)) {
+                analysis.tables.add(parseTree.get(i + 2).value);
                 break;
             }
         }
-
-        // Combine table and columns
-        String finalTableName = tableName != null ? tableName : "unknown";
-        for (String columnName : columnNames) {
-            analysis.columns.add(new ColumnInfo(finalTableName, columnName));
-        }
     }
 
-    private String findTableName(PostgreSQLParser.ParseNode fromNode) {
-        for (PostgreSQLParser.ParseNode child : fromNode.children) {
-            if ("TABLE_REF".equals(child.type)) {
-                return child.value;
-            }
-        }
-        return null;
-    }
-
-    private void extractColumns(PostgreSQLParser.ParseNode selectListNode, List<String> columnNames) {
-        for (PostgreSQLParser.ParseNode child : selectListNode.children) {
-            if ("EXPRESSION".equals(child.type) && !"*".equals(child.value)) {
-                columnNames.add(child.value);
-            }
-        }
-    }
-
-    private void extractInsertInfo(PostgreSQLParser.ParseNode insertNode, QueryAnalysis analysis) {
-        String tableName = null;
-
-        // Find table name and columns from children
-        for (PostgreSQLParser.ParseNode child : insertNode.children) {
-            if ("TABLE_REF".equals(child.type)) {
-                tableName = child.value;
-            } else if ("COLUMN_LIST".equals(child.type)) {
-                // Extract columns from COLUMN_LIST
-                for (PostgreSQLParser.ParseNode colNode : child.children) {
-                    if ("COLUMN".equals(colNode.type)) {
-                        analysis.columns.add(new ColumnInfo(tableName != null ? tableName : "unknown", colNode.value));
-                    }
-                }
-            }
-        }
-    }
-
-    private void extractUpdateInfo(PostgreSQLParser.ParseNode updateNode, QueryAnalysis analysis) {
-        String tableName = null;
-
-        // Find table name and columns from children
-        for (PostgreSQLParser.ParseNode child : updateNode.children) {
-            if ("TABLE_REF".equals(child.type)) {
-                tableName = child.value;
-            } else if ("SET_CLAUSE".equals(child.type)) {
-                // Extract columns from SET_CLAUSE
-                for (PostgreSQLParser.ParseNode colNode : child.children) {
-                    if ("COLUMN".equals(colNode.type)) {
-                        analysis.columns.add(new ColumnInfo(tableName != null ? tableName : "unknown", colNode.value));
-                    }
-                }
-            }
-        }
-    }
-
-    private void extractDeleteInfo(PostgreSQLParser.ParseNode deleteNode, QueryAnalysis analysis) {
-        String tableName = null;
-
-        // Find table name from children
-        for (PostgreSQLParser.ParseNode child : deleteNode.children) {
-            if ("TABLE_REF".equals(child.type)) {
-                tableName = child.value;
-                break;
-            }
-        }
-
-        // DELETE doesn't typically have columns to extract (it deletes entire rows)
-        // We could potentially extract WHERE clause columns, but that's complex
+    private boolean isKeyword(String value) {
+        return value != null && value.matches("(?i)(SELECT|FROM|WHERE|JOIN|ON|SET|VALUES|INTO|UPDATE|DELETE|INSERT|AND|OR|ORDER|BY|GROUP|HAVING|LIMIT)");
     }
 }

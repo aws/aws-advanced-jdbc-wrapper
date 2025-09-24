@@ -143,6 +143,24 @@ class PostgreSQLParserTest {
     });
   }
 
+  @Test
+  public void testSelectJoinQuery() {
+    String sql = "SELECT c.name, c.ssn, o.payment_info FROM customers c JOIN orders o ON c.id = o.customer_id";
+    
+    try {
+      List<PostgreSQLParser.ParseNode> parseTree = parser.rawParser(sql, PostgreSQLParser.RawParseMode.DEFAULT);
+      
+      assertNotNull(parseTree);
+      assertFalse(parseTree.isEmpty());
+      
+      PostgreSQLParser.ParseNode firstNode = parseTree.get(0);
+      assertEquals("SELECT", firstNode.type, "Expected SELECT JOIN query to be parsed as SELECT statement");
+      
+    } catch (Exception e) {
+      fail("Failed to parse SELECT JOIN query: " + e.getMessage());
+    }
+  }
+
   private void assertParses(String sql) {
     List<PostgreSQLParser.ParseNode> result = parser.rawParser(sql, PostgreSQLParser.RawParseMode.DEFAULT);
     assertNotNull(result, "Parser returned null for: " + sql);
