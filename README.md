@@ -56,6 +56,12 @@ Visit [this page](./docs/using-the-jdbc-driver/SupportForRDSMultiAzDBCluster.md)
 
 The AWS JDBC Driver also works with RDS provided databases that are not Aurora.
 
+### RDS Proxy
+
+There are limitations with the AWS JDBC Driver and RDS Proxy. This is currently intended, by design, since the main reason is that RDS Proxy transparently re-routes requests to a single database instance. RDS Proxy decides which database instance is used based on many criteria (on a per-request basis). Due to this, functionality like Failover, Enhanced Host Monitoring, and Read/Write Splitting is not compatible since the driver relies on cluster topology and RDS Proxy handles this automatically.
+
+However, the driver can still be used to handle authentication workflows. For more information regarding compatibility, please refer to the specific plugin documentation.
+
 Visit [this page](./docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#using-the-aws-jdbc-driver-with-plain-rds-databases) for more details.
 
 ## Getting Started
