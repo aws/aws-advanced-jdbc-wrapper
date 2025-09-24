@@ -54,6 +54,7 @@ import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 
 public class AuroraConnectionTrackerPluginTest {
 
@@ -68,7 +69,7 @@ public class AuroraConnectionTrackerPluginTest {
   @Mock JdbcCallable<Connection, SQLException> mockConnectionFunction;
   @Mock JdbcCallable<ResultSet, SQLException> mockSqlFunction;
   @Mock JdbcCallable<Void, SQLException> mockCloseOrAbortFunction;
-  @Mock TargetDriverDialect mockTargetDriverDialect;
+  @Mock TargetDriverDialect mockDriverDialect;
 
   private static final Object[] SQL_ARGS = {"sql"};
 
@@ -86,8 +87,8 @@ public class AuroraConnectionTrackerPluginTest {
     when(mockRdsUtils.identifyRdsType(any())).thenReturn(RdsUrlType.RDS_INSTANCE);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.getDialect()).thenReturn(mockTopologyAwareDialect);
-    when(mockPluginService.getTargetDriverDialect()).thenReturn(mockTargetDriverDialect);
-    when(mockTargetDriverDialect.getNetworkBoundMethodNames(any())).thenReturn(new HashSet<>());
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(mockDriverDialect);
+    when(mockDriverDialect.getNetworkBoundMethodNames(any())).thenReturn(new HashSet<>());
   }
 
   @AfterEach
@@ -111,10 +112,11 @@ public class AuroraConnectionTrackerPluginTest {
         mockRdsUtils,
         mockTracker);
 
+    final ConnectionInfo connectionInfo =
+        new ConnectionInfo(protocol + hostSpec.getHost(), mockDriverDialect, EMPTY_PROPERTIES);
     final Connection actualConnection = plugin.connect(
-        protocol,
+        connectionInfo,
         hostSpec,
-        EMPTY_PROPERTIES,
         isInitialConnection,
         mockConnectionFunction);
 
@@ -129,10 +131,6 @@ public class AuroraConnectionTrackerPluginTest {
     final FailoverSQLException expectedException = new FailoverSQLException("reason", "sqlstate");
     final HostSpec originalHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("host")
-        .role(HostRole.WRITER)
-        .build();
-    final HostSpec newHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host("new-host")
         .role(HostRole.WRITER)
         .build();
 

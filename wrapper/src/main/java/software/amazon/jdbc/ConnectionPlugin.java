@@ -53,7 +53,7 @@ public interface ConnectionPlugin {
    * {@link DataSourceConnectionProvider} for connections requested via an
    * {@link software.amazon.jdbc.ds.AwsWrapperDataSource}.
    *
-   * @param connectionInfo   the connection info for the original connection
+   * @param connectionInfo      the connection info for the original connection
    * @param hostSpec            the host details for the desired connection
    * @param isInitialConnection a boolean indicating whether the current {@link Connection} is
    *                            establishing an initial physical connection to the database or has
@@ -80,7 +80,7 @@ public interface ConnectionPlugin {
    * requested via the {@link java.sql.DriverManager} and {@link DataSourceConnectionProvider} for
    * connections requested via an {@link software.amazon.jdbc.ds.AwsWrapperDataSource}.
    *
-   * @param connectionInfo   the connection info for the original connection.
+   * @param connectionInfo      the connection info for the original connection.
    * @param hostSpec            the host details for the desired connection
    * @param isInitialConnection a boolean indicating whether the current {@link Connection} is
    *                            establishing an initial physical connection to the database or has

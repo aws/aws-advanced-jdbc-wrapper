@@ -35,7 +35,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 
-class HostHostMonitorConnectionContextTest {
+class HostMonitorConnectionContextTest {
   private static final long FAILURE_DETECTION_TIME_MILLIS = 10;
   private static final long FAILURE_DETECTION_INTERVAL_MILLIS = 100;
   private static final long FAILURE_DETECTION_COUNT = 3;

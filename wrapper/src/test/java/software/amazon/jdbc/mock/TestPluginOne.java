@@ -19,12 +19,11 @@ package software.amazon.jdbc.mock;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.HostListProviderService;
@@ -35,7 +34,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
-import software.amazon.jdbc.util.connection.ConnectionContext;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 
 public class TestPluginOne implements ConnectionPlugin {
 
@@ -47,7 +46,7 @@ public class TestPluginOne implements ConnectionPlugin {
   public TestPluginOne(ArrayList<String> calls) {
     this.calls = calls;
 
-    this.subscribedMethods = new HashSet<>(Arrays.asList("*"));
+    this.subscribedMethods = new HashSet<>(Collections.singletonList("*"));
   }
 
   @Override
@@ -86,7 +85,7 @@ public class TestPluginOne implements ConnectionPlugin {
 
   @Override
   public Connection connect(
-      final ConnectionContext connectionContext,
+      final ConnectionInfo connectionInfo,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
@@ -99,12 +98,10 @@ public class TestPluginOne implements ConnectionPlugin {
 
   @Override
   public Connection forceConnect(
-      String driverProtocol,
-      HostSpec hostSpec,
-      Properties props,
-      boolean isInitialConnection,
-      JdbcCallable<Connection, SQLException> forceConnectFunc)
-      throws SQLException {
+      final ConnectionInfo connectionInfo,
+      final HostSpec hostSpec,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> forceConnectFunc) throws SQLException {
 
     this.calls.add(this.getClass().getSimpleName() + ":before forceConnect");
     Connection result = forceConnectFunc.call();
@@ -133,13 +130,9 @@ public class TestPluginOne implements ConnectionPlugin {
 
   @Override
   public void initHostProvider(
-      String driverProtocol,
-      String initialUrl,
-      Properties props,
+      ConnectionInfo connectionInfo,
       HostListProviderService hostListProviderService,
-      JdbcCallable<Void, SQLException> initHostProviderFunc)
-      throws SQLException {
-
+      JdbcCallable<Void, SQLException> initHostProviderFunc) {
     // do nothing
   }
 

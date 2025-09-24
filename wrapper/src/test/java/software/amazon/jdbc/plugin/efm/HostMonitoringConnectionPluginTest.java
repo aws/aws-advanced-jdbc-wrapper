@@ -25,7 +25,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atMostOnce;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -50,8 +49,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HostSpec;
@@ -66,6 +63,7 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 
 class HostMonitoringConnectionPluginTest {
 
@@ -79,9 +77,9 @@ class HostMonitoringConnectionPluginTest {
   @Mock PluginService pluginService;
   @Mock Dialect mockDialect;
   @Mock Connection connection;
+  @Mock ConnectionInfo mockConnectionInfo;
   @Mock Statement statement;
   @Mock ResultSet resultSet;
-  @Captor ArgumentCaptor<String> stringArgumentCaptor;
   Properties properties = new Properties();
   @Mock HostSpec hostSpec;
   @Mock HostSpec hostSpec2;
@@ -95,23 +93,6 @@ class HostMonitoringConnectionPluginTest {
 
   private HostMonitoringConnectionPlugin plugin;
   private AutoCloseable closeable;
-
-  /**
-   * Generate different sets of method arguments where one argument is null to ensure {@link
-   * software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin#HostMonitoringConnectionPlugin(PluginService,
-   * Properties)} can handle null arguments correctly.
-   *
-   * @return different sets of arguments.
-   */
-  private static Stream<Arguments> generateNullArguments() {
-    final PluginService pluginService = mock(PluginService.class);
-    final Properties properties = new Properties();
-
-    return Stream.of(
-        Arguments.of(null, null),
-        Arguments.of(pluginService, null),
-        Arguments.of(null, properties));
-  }
 
   @AfterEach
   void cleanUp() throws Exception {
@@ -227,7 +208,7 @@ class HostMonitoringConnectionPluginTest {
   }
 
   /**
-   * Tests exception being thrown in the finally block when checking connection status in the execute method.
+   * Tests exception being thrown in the `finally` block when checking connection status in the execute method.
    */
   @Test
   void test_executeCleanUp_whenCheckingConnectionStatus_throwsException() throws SQLException {
@@ -248,7 +229,7 @@ class HostMonitoringConnectionPluginTest {
   }
 
   /**
-   * Tests exception being thrown in the finally block
+   * Tests exception being thrown in the `finally` block
    * when an open connection object is detected for an unavailable node in the execute method.
    */
   @Test
@@ -282,7 +263,7 @@ class HostMonitoringConnectionPluginTest {
     doThrow(new SQLException()).when(connection).createStatement();
 
     // Ensure SQLException raised in `generateHostAliases` are ignored.
-    final Connection conn = plugin.connect("protocol", hostSpec, properties, true, () -> connection);
+    final Connection conn = plugin.connect(mockConnectionInfo, hostSpec, true, () -> connection);
     assertNotNull(conn);
   }
 

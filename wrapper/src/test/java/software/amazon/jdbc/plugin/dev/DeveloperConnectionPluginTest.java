@@ -326,7 +326,7 @@ public class DeveloperConnectionPluginTest {
     props.put(DialectManager.DIALECT.name, DialectCodes.PG);
 
     final SQLException exception = new SQLException("test");
-    when(mockConnectCallback.getExceptionToRaise(any(), any(), any(), anyBoolean()))
+    when(mockConnectCallback.getExceptionToRaise(any(), any(), anyBoolean()))
         .thenReturn(exception)
         .thenReturn(null);
     ExceptionSimulatorManager.setCallback(mockConnectCallback);

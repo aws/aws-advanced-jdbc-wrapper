@@ -25,7 +25,7 @@ import java.util.Properties;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
-import software.amazon.jdbc.util.connection.ConnectionContext;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 
 public class TestPluginThree extends TestPluginOne {
 
@@ -46,7 +46,7 @@ public class TestPluginThree extends TestPluginOne {
 
   @Override
   public Connection connect(
-      final ConnectionContext connectionContext,
+      final ConnectionInfo connectionInfo,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {

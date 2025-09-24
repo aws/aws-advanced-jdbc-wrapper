@@ -53,7 +53,9 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.plugin.TokenInfo;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -87,6 +89,7 @@ class IamAuthConnectionPluginTest {
   @Mock TelemetryContext mockTelemetryContext;
   @Mock JdbcCallable<Connection, SQLException> mockLambda;
   @Mock Dialect mockDialect;
+  @Mock TargetDriverDialect mockDriverDialect;
   @Mock private RdsUtils mockRdsUtils;
   @Mock private IamTokenUtility mockIamTokenUtils;
   private AutoCloseable closable;
@@ -259,7 +262,8 @@ class IamAuthConnectionPluginTest {
     IamAuthConnectionPlugin targetPlugin = new IamAuthConnectionPlugin(mockPluginService, mockIamTokenUtils);
     doThrow(new SQLException()).when(mockLambda).call();
 
-    assertThrows(SQLException.class, () -> targetPlugin.connect(protocol, hostSpec, props, true, mockLambda));
+    ConnectionInfo connectionInfo = new ConnectionInfo(protocol + hostSpec.getHost(), mockDriverDialect, props);
+    assertThrows(SQLException.class, () -> targetPlugin.connect(connectionInfo, hostSpec, true, mockLambda));
     verify(mockLambda, times(1)).call();
 
     assertEquals(TEST_TOKEN, PropertyDefinition.PASSWORD.getString(props));
@@ -278,8 +282,9 @@ class IamAuthConnectionPluginTest {
 
     doThrow(new SQLException()).when(mockLambda).call();
 
+    ConnectionInfo connectionInfo = new ConnectionInfo(protocol + hostSpec.getHost(), mockDriverDialect, props);
     assertThrows(SQLException.class,
-        () -> spyPlugin.connect(protocol, hostSpec, props, true, mockLambda));
+        () -> spyPlugin.connect(connectionInfo, hostSpec, true, mockLambda));
 
     verify(mockIamTokenUtils).generateAuthenticationToken(
         any(DefaultCredentialsProvider.class),

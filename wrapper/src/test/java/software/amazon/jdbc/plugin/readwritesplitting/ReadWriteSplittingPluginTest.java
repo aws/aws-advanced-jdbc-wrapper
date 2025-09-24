@@ -30,7 +30,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.zaxxer.hikari.HikariConfig;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -53,14 +52,12 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.SqlState;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 
 public class ReadWriteSplittingPluginTest {
-  private static final String TEST_PROTOCOL = "jdbc:postgresql:";
   private static final int TEST_PORT = 5432;
   private static final Properties defaultProps = new Properties();
 
@@ -95,7 +92,6 @@ public class ReadWriteSplittingPluginTest {
   @Mock private JdbcCallable<Connection, SQLException> mockConnectFunc;
   @Mock private JdbcCallable<ResultSet, SQLException> mockSqlFunction;
   @Mock private PluginService mockPluginService;
-  @Mock private Dialect mockDialect;
   @Mock private HostListProviderService mockHostListProviderService;
   @Mock private Connection mockWriterConn;
   @Mock private Connection mockNewWriterConn;
@@ -105,6 +101,7 @@ public class ReadWriteSplittingPluginTest {
   @Mock private Connection mockReaderConn3;
   @Mock private Statement mockStatement;
   @Mock private ResultSet mockResultSet;
+  @Mock private ConnectionInfo mockConnectionInfo;
   @Mock private EnumSet<NodeChangeOptions> mockChanges;
 
   @BeforeEach
@@ -405,7 +402,7 @@ public class ReadWriteSplittingPluginTest {
         null);
 
     final Connection connection =
-        plugin.connect(TEST_PROTOCOL, writerHostSpec, defaultProps, false, this.mockConnectFunc);
+        plugin.connect(mockConnectionInfo, writerHostSpec, false, this.mockConnectFunc);
 
     assertEquals(mockWriterConn, connection);
     verify(mockConnectFunc).call();
@@ -424,9 +421,8 @@ public class ReadWriteSplittingPluginTest {
         null,
         null);
     final Connection connection = plugin.connect(
-        TEST_PROTOCOL,
+        mockConnectionInfo,
         instanceUrlHostSpec,
-        defaultProps,
         true,
         this.mockConnectFunc);
 
@@ -447,7 +443,7 @@ public class ReadWriteSplittingPluginTest {
         null,
         null);
     final Connection connection =
-        plugin.connect(TEST_PROTOCOL, ipUrlHostSpec, defaultProps, true, this.mockConnectFunc);
+        plugin.connect(mockConnectionInfo, ipUrlHostSpec, true, this.mockConnectFunc);
 
     assertEquals(mockReaderConn1, connection);
     verify(mockConnectFunc).call();
@@ -463,7 +459,7 @@ public class ReadWriteSplittingPluginTest {
         null,
         null);
     final Connection connection =
-        plugin.connect(TEST_PROTOCOL, clusterUrlHostSpec, defaultProps, true, this.mockConnectFunc);
+        plugin.connect(mockConnectionInfo, clusterUrlHostSpec, true, this.mockConnectFunc);
 
     assertEquals(mockWriterConn, connection);
     verify(mockConnectFunc).call();
@@ -484,9 +480,8 @@ public class ReadWriteSplittingPluginTest {
     assertThrows(
         SQLException.class,
         () -> plugin.connect(
-            TEST_PROTOCOL,
+            mockConnectionInfo,
             ipUrlHostSpec,
-            defaultProps,
             true,
             this.mockConnectFunc));
     verify(mockHostListProviderService, times(0)).setInitialConnectionHostSpec(any(HostSpec.class));
@@ -538,7 +533,7 @@ public class ReadWriteSplittingPluginTest {
   }
 
   @Test
-  public void testExecuteClearWarningsOnNullConnectionsIsNotCalled() throws SQLException {
+  public void testExecuteClearWarningsOnNullConnectionsIsNotCalled() {
     final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
         defaultProps,
@@ -608,19 +603,5 @@ public class ReadWriteSplittingPluginTest {
     spyPlugin.switchConnectionIfRequired(true);
 
     verify(spyPlugin, times(1)).closeConnectionIfIdle(eq(mockWriterConn));
-  }
-
-  private static HikariConfig getHikariConfig(HostSpec hostSpec, Properties props) {
-    final HikariConfig config = new HikariConfig();
-    config.setMaximumPoolSize(3);
-    config.setInitializationFailTimeout(75000);
-    config.setConnectionTimeout(10000);
-    return config;
-  }
-
-  private static String getPoolKey(HostSpec hostSpec, Properties props) {
-    final String user = props.getProperty(PropertyDefinition.USER.name);
-    final String somePropertyValue = props.getProperty("somePropertyValue");
-    return hostSpec.getUrl() + user + somePropertyValue;
   }
 }

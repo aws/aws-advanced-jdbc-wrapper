@@ -30,7 +30,6 @@ import static org.mockito.Mockito.spy;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,10 +37,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.ConnectionProvider;
-import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
-import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -49,14 +47,10 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 class MonitorServiceImplTest {
   @Mock FullServicesContainer mockServicesContainer;
   @Mock StorageService mockStorageService;
+  @Mock ConnectionInfo mockConnectionInfo;
   @Mock ConnectionProvider mockConnectionProvider;
   @Mock TelemetryFactory mockTelemetryFactory;
-  @Mock TargetDriverDialect mockTargetDriverDialect;
-  @Mock Dialect mockDbDialect;
   @Mock EventPublisher mockPublisher;
-  String url = "jdbc:postgresql://somehost/somedb";
-  String protocol = "someProtocol";
-  Properties props = new Properties();
   MonitorServiceImpl spyMonitorService;
   private AutoCloseable closeable;
 
@@ -69,11 +63,7 @@ class MonitorServiceImplTest {
         eq(mockStorageService),
         eq(mockConnectionProvider),
         eq(mockTelemetryFactory),
-        eq(url),
-        eq(protocol),
-        eq(mockTargetDriverDialect),
-        eq(mockDbDialect),
-        eq(props));
+        eq(mockConnectionInfo));
   }
 
   @AfterEach
@@ -98,11 +88,7 @@ class MonitorServiceImplTest {
         mockStorageService,
         mockTelemetryFactory,
         mockConnectionProvider,
-        url,
-        protocol,
-        mockTargetDriverDialect,
-        mockDbDialect,
-        props,
+        mockConnectionInfo,
         (mockServicesContainer) -> new NoOpMonitor(30)
     );
 
@@ -142,11 +128,7 @@ class MonitorServiceImplTest {
         mockStorageService,
         mockTelemetryFactory,
         mockConnectionProvider,
-        url,
-        protocol,
-        mockTargetDriverDialect,
-        mockDbDialect,
-        props,
+        mockConnectionInfo,
         (mockServicesContainer) -> new NoOpMonitor(30)
     );
 
@@ -188,11 +170,7 @@ class MonitorServiceImplTest {
         mockStorageService,
         mockTelemetryFactory,
         mockConnectionProvider,
-        url,
-        protocol,
-        mockTargetDriverDialect,
-        mockDbDialect,
-        props,
+        mockConnectionInfo,
         (mockServicesContainer) -> new NoOpMonitor(30)
     );
 
@@ -221,11 +199,7 @@ class MonitorServiceImplTest {
         mockStorageService,
         mockTelemetryFactory,
         mockConnectionProvider,
-        url,
-        protocol,
-        mockTargetDriverDialect,
-        mockDbDialect,
-        props,
+        mockConnectionInfo,
         // indicated monitor class is CustomEndpointMonitorImpl, but actual monitor is NoOpMonitor. The monitor
         // service should detect this and throw an exception.
         (mockServicesContainer) -> new NoOpMonitor(30)
@@ -251,11 +225,7 @@ class MonitorServiceImplTest {
         mockStorageService,
         mockTelemetryFactory,
         mockConnectionProvider,
-        url,
-        protocol,
-        mockTargetDriverDialect,
-        mockDbDialect,
-        props,
+        mockConnectionInfo,
         (mockServicesContainer) -> new NoOpMonitor(30)
     );
     assertNotNull(monitor);
@@ -286,11 +256,7 @@ class MonitorServiceImplTest {
         mockStorageService,
         mockTelemetryFactory,
         mockConnectionProvider,
-        url,
-        protocol,
-        mockTargetDriverDialect,
-        mockDbDialect,
-        props,
+        mockConnectionInfo,
         (mockServicesContainer) -> new NoOpMonitor(30)
     );
     assertNotNull(monitor);

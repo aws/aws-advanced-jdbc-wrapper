@@ -45,19 +45,19 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 import software.amazon.jdbc.util.storage.SlidingExpirationCache;
 
 class HikariPooledConnectionProviderTest {
   @Mock Connection mockConnection;
+  @Mock ConnectionInfo mockConnectionInfo;
   @Mock HikariDataSource mockDataSource;
   @Mock HostSpec mockHostSpec;
   @Mock HikariConfig mockConfig;
-  @Mock Dialect mockDialect;
   @Mock TargetDriverDialect mockTargetDriverDialect;
   @Mock HikariDataSource dsWithNoConnections;
   @Mock HikariDataSource dsWith1Connection;
@@ -129,24 +129,21 @@ class HikariPooledConnectionProviderTest {
   void testConnectWithDefaultMapping() throws SQLException {
     when(mockHostSpec.getUrl()).thenReturn("url");
     final Set<String> expectedUrls = new HashSet<>(Collections.singletonList("url"));
-    final Set<Pair> expectedKeys = new HashSet<>(
+    final Set<Pair<String, String>> expectedKeys = new HashSet<>(
         Collections.singletonList(Pair.create("url", user1)));
 
     provider = spy(new HikariPooledConnectionProvider((hostSpec, properties) -> mockConfig));
 
-    doReturn(mockDataSource).when(provider).createHikariDataSource(any(), any(), any(), any());
+    doReturn(mockDataSource).when(provider).createHikariDataSource(any(), any(), any());
     doReturn(new ConnectInfo("url", new Properties()))
         .when(mockTargetDriverDialect).prepareConnectInfo(anyString(), any(), any());
 
-    Properties props = new Properties();
-    props.setProperty(PropertyDefinition.USER.name, user1);
-    props.setProperty(PropertyDefinition.PASSWORD.name, password);
-    try (Connection conn = provider.connect(protocol, mockDialect, mockTargetDriverDialect, mockHostSpec, props)) {
+    try (Connection conn = provider.connect(mockConnectionInfo, mockHostSpec)) {
       assertEquals(mockConnection, conn);
       assertEquals(1, provider.getHostCount());
       final Set<String> hosts = provider.getHosts();
       assertEquals(expectedUrls, hosts);
-      final Set<Pair> keys = provider.getKeys();
+      final Set<Pair<String, String>> keys = provider.getKeys();
       assertEquals(expectedKeys, keys);
     }
   }
@@ -154,22 +151,22 @@ class HikariPooledConnectionProviderTest {
   @Test
   void testConnectWithCustomMapping() throws SQLException {
     when(mockHostSpec.getUrl()).thenReturn("url");
-    final Set<Pair> expectedKeys = new HashSet<>(
+    final Set<Pair<String, String>> expectedKeys = new HashSet<>(
         Collections.singletonList(Pair.create("url", "url+someUniqueKey")));
 
     provider = spy(new HikariPooledConnectionProvider(
         (hostSpec, properties) -> mockConfig,
         (hostSpec, properties) -> hostSpec.getUrl() + "+someUniqueKey"));
 
-    doReturn(mockDataSource).when(provider).createHikariDataSource(any(), any(), any(), any());
+    doReturn(mockDataSource).when(provider).createHikariDataSource(any(), any(), any());
 
     Properties props = new Properties();
     props.setProperty(PropertyDefinition.USER.name, user1);
     props.setProperty(PropertyDefinition.PASSWORD.name, password);
-    try (Connection conn = provider.connect(protocol, mockDialect, mockTargetDriverDialect, mockHostSpec, props)) {
+    try (Connection conn = provider.connect(mockConnectionInfo, mockHostSpec)) {
       assertEquals(mockConnection, conn);
       assertEquals(1, provider.getHostCount());
-      final Set<Pair> keys = provider.getKeys();
+      final Set<Pair<String, String>> keys = provider.getKeys();
       assertEquals(expectedKeys, keys);
     }
   }
@@ -180,12 +177,13 @@ class HikariPooledConnectionProviderTest {
     provider = new HikariPooledConnectionProvider((hostSpec, properties) -> mockConfig);
 
     assertTrue(
-        provider.acceptsUrl(protocol,
-            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host(readerUrl2Connection).build(),
-            defaultProps));
+        provider.acceptsUrl(
+            mockConnectionInfo,
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host(readerUrl2Connection).build()));
     assertFalse(
-        provider.acceptsUrl(protocol,
-            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host(clusterUrl).build(), defaultProps));
+        provider.acceptsUrl(
+            mockConnectionInfo,
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host(clusterUrl).build()));
   }
 
   @Test
@@ -208,8 +206,8 @@ class HikariPooledConnectionProviderTest {
     assertEquals(readerUrl1Connection, selectedHost.getHost());
   }
 
-  private SlidingExpirationCache<Pair, AutoCloseable> getTestPoolMap() {
-    SlidingExpirationCache<Pair, AutoCloseable> map = new SlidingExpirationCache<>();
+  private SlidingExpirationCache<Pair<String, String>, AutoCloseable> getTestPoolMap() {
+    SlidingExpirationCache<Pair<String, String>, AutoCloseable> map = new SlidingExpirationCache<>();
     map.computeIfAbsent(Pair.create(readerHost2Connection.getUrl(), user1),
         (key) -> dsWith1Connection, TimeUnit.MINUTES.toNanos(10));
     map.computeIfAbsent(Pair.create(readerHost2Connection.getUrl(), user2),
@@ -227,7 +225,7 @@ class HikariPooledConnectionProviderTest {
     doReturn(new ConnectInfo(protocol + readerHost1Connection.getUrl() + db, defaultProps))
         .when(mockTargetDriverDialect).prepareConnectInfo(anyString(), any(), any());
 
-    provider.configurePool(mockConfig, protocol, readerHost1Connection, defaultProps, mockTargetDriverDialect);
+    provider.configurePool(mockConfig, mockConnectionInfo, readerHost1Connection, defaultProps);
     verify(mockConfig).setJdbcUrl(expectedJdbcUrl);
     verify(mockConfig).setUsername(user1);
     verify(mockConfig).setPassword(password);
@@ -238,10 +236,10 @@ class HikariPooledConnectionProviderTest {
     provider = spy(new HikariPooledConnectionProvider((hostSpec, properties) -> mockConfig));
 
     doReturn(mockDataSource).when(provider)
-        .createHikariDataSource(eq(protocol), eq(readerHost1Connection), eq(defaultProps), eq(mockTargetDriverDialect));
+        .createHikariDataSource(eq(mockConnectionInfo), eq(readerHost1Connection), eq(defaultProps));
     when(mockDataSource.getConnection()).thenThrow(SQLException.class);
 
     assertThrows(SQLException.class,
-        () -> provider.connect(protocol, mockDialect, mockTargetDriverDialect, readerHost1Connection, defaultProps));
+        () -> provider.connect(mockConnectionInfo, readerHost1Connection));
   }
 }

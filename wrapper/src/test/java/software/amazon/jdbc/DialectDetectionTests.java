@@ -52,6 +52,7 @@ import software.amazon.jdbc.dialect.RdsPgDialect;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 import software.amazon.jdbc.util.storage.StorageService;
 
 public class DialectDetectionTests {
@@ -61,18 +62,17 @@ public class DialectDetectionTests {
   private static final String MYSQL_PROTOCOL = "jdbc:mysql://";
   private static final String PG_PROTOCOL = "jdbc:postgresql://";
   private static final String MARIA_PROTOCOL = "jdbc:mariadb://";
-  private final Properties props = new Properties();
   private AutoCloseable closeable;
   @Mock private FullServicesContainer mockServicesContainer;
   @Mock private HostListProviderService mockHostListProviderService;
   @Mock private StorageService mockStorageService;
+  @Mock private TargetDriverDialect mockDriverDialect;
   @Mock private Connection mockConnection;
   @Mock private Statement mockStatement;
   @Mock private ResultSet mockSuccessResultSet;
   @Mock private ResultSet mockFailResultSet;
   @Mock private HostSpec mockHost;
   @Mock private ConnectionPluginManager mockPluginManager;
-  @Mock private TargetDriverDialect mockTargetDriverDialect;
   @Mock private ResultSetMetaData mockResultSetMetaData;
 
   @BeforeEach
@@ -94,15 +94,17 @@ public class DialectDetectionTests {
   }
 
   PluginServiceImpl getPluginService(String host, String protocol) throws SQLException {
+    return getPluginService(
+        new ConnectionInfo(host + protocol, protocol, mockDriverDialect, new Properties()));
+  }
+
+  PluginServiceImpl getPluginService(ConnectionInfo connectionInfo) throws SQLException {
     PluginServiceImpl pluginService = spy(
         new PluginServiceImpl(
             mockServicesContainer,
             new ExceptionManager(),
-            props,
-            protocol + host,
-            protocol,
+            connectionInfo,
             null,
-            mockTargetDriverDialect,
             null,
             null));
 
@@ -113,8 +115,10 @@ public class DialectDetectionTests {
   @ParameterizedTest
   @MethodSource("getInitialDialectArguments")
   public void testInitialDialectDetection(String protocol, String host, Object expectedDialect) throws SQLException {
+    final ConnectionInfo connectionInfo =
+        new ConnectionInfo(protocol + host, protocol, mockDriverDialect, new Properties());
     final DialectManager dialectManager = new DialectManager(this.getPluginService(host, protocol));
-    final Dialect dialect = dialectManager.getDialect(protocol, host, new Properties());
+    final Dialect dialect = dialectManager.getDialect(connectionInfo);
     assertEquals(expectedDialect, dialect.getClass());
   }
 
@@ -138,7 +142,7 @@ public class DialectDetectionTests {
     final PluginServiceImpl target = getPluginService(LOCALHOST, MYSQL_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
-    assertEquals(MysqlDialect.class, target.dialect.getClass());
+    assertEquals(MysqlDialect.class, target.getDialect().getClass());
   }
 
   @Test
@@ -154,7 +158,7 @@ public class DialectDetectionTests {
     final PluginServiceImpl target = getPluginService(LOCALHOST, MYSQL_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
-    assertEquals(RdsMysqlDialect.class, target.dialect.getClass());
+    assertEquals(RdsMysqlDialect.class, target.getDialect().getClass());
   }
 
   @Test
@@ -168,7 +172,7 @@ public class DialectDetectionTests {
     final PluginServiceImpl target = getPluginService(LOCALHOST, MYSQL_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
-    assertEquals(AuroraMysqlDialect.class, target.dialect.getClass());
+    assertEquals(AuroraMysqlDialect.class, target.getDialect().getClass());
   }
 
   @Test
@@ -180,7 +184,7 @@ public class DialectDetectionTests {
     when(mockServicesContainer.getPluginService()).thenReturn(target);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
-    assertEquals(AuroraMysqlDialect.class, target.dialect.getClass());
+    assertEquals(AuroraMysqlDialect.class, target.getDialect().getClass());
   }
 
   @Test
@@ -189,7 +193,7 @@ public class DialectDetectionTests {
     final PluginServiceImpl target = getPluginService(LOCALHOST, PG_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
-    assertEquals(PgDialect.class, target.dialect.getClass());
+    assertEquals(PgDialect.class, target.getDialect().getClass());
   }
 
   @Test
@@ -204,7 +208,7 @@ public class DialectDetectionTests {
     final PluginServiceImpl target = getPluginService(LOCALHOST, PG_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
-    assertEquals(RdsPgDialect.class, target.dialect.getClass());
+    assertEquals(RdsPgDialect.class, target.getDialect().getClass());
   }
 
   @Test
@@ -219,7 +223,7 @@ public class DialectDetectionTests {
     final PluginServiceImpl target = getPluginService(LOCALHOST, PG_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
-    assertEquals(RdsMultiAzDbClusterPgDialect.class, target.dialect.getClass());
+    assertEquals(RdsMultiAzDbClusterPgDialect.class, target.getDialect().getClass());
   }
 
   @Test
@@ -234,7 +238,7 @@ public class DialectDetectionTests {
     final PluginServiceImpl target = getPluginService(LOCALHOST, PG_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
-    assertEquals(AuroraPgDialect.class, target.dialect.getClass());
+    assertEquals(AuroraPgDialect.class, target.getDialect().getClass());
   }
 
   @Test
@@ -243,7 +247,7 @@ public class DialectDetectionTests {
     final PluginServiceImpl target = getPluginService(LOCALHOST, MARIA_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
-    assertEquals(MariaDbDialect.class, target.dialect.getClass());
+    assertEquals(MariaDbDialect.class, target.getDialect().getClass());
   }
 
   @Test
@@ -259,7 +263,7 @@ public class DialectDetectionTests {
     final PluginServiceImpl target = getPluginService(LOCALHOST, MARIA_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
-    assertEquals(RdsMysqlDialect.class, target.dialect.getClass());
+    assertEquals(RdsMysqlDialect.class, target.getDialect().getClass());
   }
 
   @Test
@@ -272,7 +276,7 @@ public class DialectDetectionTests {
     final PluginServiceImpl target = getPluginService(LOCALHOST, MARIA_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
-    assertEquals(RdsMultiAzDbClusterMysqlDialect.class, target.dialect.getClass());
+    assertEquals(RdsMultiAzDbClusterMysqlDialect.class, target.getDialect().getClass());
   }
 
   @Test
@@ -284,6 +288,6 @@ public class DialectDetectionTests {
     when(mockServicesContainer.getPluginService()).thenReturn(target);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
-    assertEquals(AuroraMysqlDialect.class, target.dialect.getClass());
+    assertEquals(AuroraMysqlDialect.class, target.getDialect().getClass());
   }
 }
