@@ -686,12 +686,31 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
         Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getStatus"}));
   }
 
+  @Override
   public boolean isPluginInUse(final Class<? extends ConnectionPlugin> pluginClazz) {
     try {
       return this.pluginManager.isWrapperFor(pluginClazz);
     } catch (SQLException e) {
       return false;
     }
+  }
+
+  @Override
+  public <T> T unwrap(Class<T> iface) throws SQLException {
+    if (iface == PluginService.class) {
+      return iface.cast(this);
+    }
+
+    return this.pluginManager.unwrap(iface);
+  }
+
+  @Override
+  public boolean isWrapperFor(Class<?> iface) throws SQLException {
+    if (iface == PluginService.class) {
+      return true;
+    }
+
+    return this.pluginManager.isWrapperFor(iface);
   }
 
   public static void clearCache() {

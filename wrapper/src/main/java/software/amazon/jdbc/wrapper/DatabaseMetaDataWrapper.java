@@ -49,6 +49,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_ALLPROCEDURESARECALLABLE,
@@ -64,6 +65,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_ALLTABLESARESELECTABLE,
@@ -79,6 +81,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETURL,
@@ -94,6 +97,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETUSERNAME,
@@ -109,6 +113,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_ISREADONLY,
@@ -124,6 +129,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_NULLSARESORTEDHIGH,
@@ -139,6 +145,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_NULLSARESORTEDLOW,
@@ -154,6 +161,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_NULLSARESORTEDATSTART,
@@ -169,6 +177,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_NULLSARESORTEDATEND,
@@ -184,6 +193,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETDATABASEPRODUCTNAME,
@@ -199,6 +209,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETDATABASEPRODUCTVERSION,
@@ -214,6 +225,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETDRIVERNAME,
@@ -249,6 +261,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_USESLOCALFILES,
@@ -264,6 +277,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_USESLOCALFILEPERTABLE,
@@ -279,6 +293,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSMIXEDCASEIDENTIFIERS,
@@ -294,6 +309,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_STORESUPPERCASEIDENTIFIERS,
@@ -309,6 +325,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_STORESLOWERCASEIDENTIFIERS,
@@ -324,6 +341,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_STORESMIXEDCASEIDENTIFIERS,
@@ -339,6 +357,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSMIXEDCASEQUOTEDIDENTIFIERS,
@@ -354,6 +373,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_STORESUPPERCASEQUOTEDIDENTIFIERS,
@@ -369,6 +389,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_STORESLOWERCASEQUOTEDIDENTIFIERS,
@@ -384,6 +405,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_STORESMIXEDCASEQUOTEDIDENTIFIERS,
@@ -399,6 +421,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETIDENTIFIERQUOTESTRING,
@@ -414,6 +437,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETSQLKEYWORDS,
@@ -429,6 +453,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETNUMERICFUNCTIONS,
@@ -444,6 +469,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETSTRINGFUNCTIONS,
@@ -459,6 +485,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETSYSTEMFUNCTIONS,
@@ -474,6 +501,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETTIMEDATEFUNCTIONS,
@@ -489,6 +517,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETSEARCHSTRINGESCAPE,
@@ -504,6 +533,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETEXTRANAMECHARACTERS,
@@ -519,6 +549,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSALTERTABLEWITHADDCOLUMN,
@@ -534,6 +565,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSALTERTABLEWITHDROPCOLUMN,
@@ -549,6 +581,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSCOLUMNALIASING,
@@ -564,6 +597,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_NULLPLUSNONNULLISNULL,
@@ -579,6 +613,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSCONVERT,
@@ -594,6 +629,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSCONVERT,
@@ -611,6 +647,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSTABLECORRELATIONNAMES,
@@ -626,6 +663,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSDIFFERENTTABLECORRELATIONNAMES,
@@ -641,6 +679,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSEXPRESSIONSINORDERBY,
@@ -656,6 +695,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSORDERBYUNRELATED,
@@ -671,6 +711,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSGROUPBY,
@@ -686,6 +727,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSGROUPBYUNRELATED,
@@ -701,6 +743,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSGROUPBYBEYONDSELECT,
@@ -716,6 +759,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSLIKEESCAPECLAUSE,
@@ -731,6 +775,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSMULTIPLERESULTSETS,
@@ -746,6 +791,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSMULTIPLETRANSACTIONS,
@@ -761,6 +807,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSNONNULLABLECOLUMNS,
@@ -776,6 +823,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSMINIMUMSQLGRAMMAR,
@@ -791,6 +839,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSCORESQLGRAMMAR,
@@ -806,6 +855,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSEXTENDEDSQLGRAMMAR,
@@ -821,6 +871,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSANSI92ENTRYLEVELSQL,
@@ -836,6 +887,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSANSI92INTERMEDIATESQL,
@@ -851,6 +903,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSANSI92FULLSQL,
@@ -866,6 +919,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSINTEGRITYENHANCEMENTFACILITY,
@@ -881,6 +935,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSOUTERJOINS,
@@ -896,6 +951,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSFULLOUTERJOINS,
@@ -911,6 +967,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSLIMITEDOUTERJOINS,
@@ -926,6 +983,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETSCHEMATERM,
@@ -941,6 +999,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETPROCEDURETERM,
@@ -956,6 +1015,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETCATALOGTERM,
@@ -971,6 +1031,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_ISCATALOGATSTART,
@@ -986,6 +1047,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETCATALOGSEPARATOR,
@@ -1001,6 +1063,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSCHEMASINDATAMANIPULATION,
@@ -1016,6 +1079,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSCHEMASINPROCEDURECALLS,
@@ -1031,6 +1095,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSCHEMASINTABLEDEFINITIONS,
@@ -1046,6 +1111,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSCHEMASININDEXDEFINITIONS,
@@ -1061,6 +1127,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSCHEMASINPRIVILEGEDEFINITIONS,
@@ -1076,6 +1143,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSCATALOGSINDATAMANIPULATION,
@@ -1091,6 +1159,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSCATALOGSINPROCEDURECALLS,
@@ -1106,6 +1175,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSCATALOGSINTABLEDEFINITIONS,
@@ -1121,6 +1191,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSCATALOGSININDEXDEFINITIONS,
@@ -1136,6 +1207,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSCATALOGSINPRIVILEGEDEFINITIONS,
@@ -1151,6 +1223,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSPOSITIONEDDELETE,
@@ -1166,6 +1239,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSPOSITIONEDUPDATE,
@@ -1181,6 +1255,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSELECTFORUPDATE,
@@ -1196,6 +1271,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSTOREDPROCEDURES,
@@ -1211,6 +1287,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSUBQUERIESINCOMPARISONS,
@@ -1226,6 +1303,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSUBQUERIESINEXISTS,
@@ -1241,6 +1319,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSUBQUERIESININS,
@@ -1256,6 +1335,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSUBQUERIESINQUANTIFIEDS,
@@ -1271,6 +1351,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSCORRELATEDSUBQUERIES,
@@ -1286,6 +1367,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSUNION,
@@ -1301,6 +1383,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSUNIONALL,
@@ -1316,6 +1399,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSOPENCURSORSACROSSCOMMIT,
@@ -1331,6 +1415,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSOPENCURSORSACROSSROLLBACK,
@@ -1346,6 +1431,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSOPENSTATEMENTSACROSSCOMMIT,
@@ -1361,6 +1447,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSOPENSTATEMENTSACROSSROLLBACK,
@@ -1376,6 +1463,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXBINARYLITERALLENGTH,
@@ -1391,6 +1479,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXCHARLITERALLENGTH,
@@ -1406,6 +1495,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXCOLUMNNAMELENGTH,
@@ -1421,6 +1511,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXCOLUMNSINGROUPBY,
@@ -1436,6 +1527,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXCOLUMNSININDEX,
@@ -1451,6 +1543,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXCOLUMNSINORDERBY,
@@ -1466,6 +1559,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXCOLUMNSINSELECT,
@@ -1481,6 +1575,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXCOLUMNSINTABLE,
@@ -1496,6 +1591,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXCONNECTIONS,
@@ -1511,6 +1607,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXCURSORNAMELENGTH,
@@ -1526,6 +1623,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXINDEXLENGTH,
@@ -1541,6 +1639,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXSCHEMANAMELENGTH,
@@ -1556,6 +1655,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXPROCEDURENAMELENGTH,
@@ -1571,6 +1671,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXCATALOGNAMELENGTH,
@@ -1586,6 +1687,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXROWSIZE,
@@ -1601,6 +1703,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_DOESMAXROWSIZEINCLUDEBLOBS,
@@ -1616,6 +1719,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXSTATEMENTLENGTH,
@@ -1631,6 +1735,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXSTATEMENTS,
@@ -1646,6 +1751,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXTABLENAMELENGTH,
@@ -1661,6 +1767,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXTABLESINSELECT,
@@ -1676,6 +1783,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXUSERNAMELENGTH,
@@ -1691,6 +1799,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETDEFAULTTRANSACTIONISOLATION,
@@ -1706,6 +1815,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSTRANSACTIONS,
@@ -1721,6 +1831,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSTRANSACTIONISOLATIONLEVEL,
@@ -1738,6 +1849,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSDATADEFINITIONANDDATAMANIPULATIONTRANSACTIONS,
@@ -1753,6 +1865,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSDATAMANIPULATIONTRANSACTIONSONLY,
@@ -1768,6 +1881,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_DATADEFINITIONCAUSESTRANSACTIONCOMMIT,
@@ -1783,6 +1897,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_DATADEFINITIONIGNOREDINTRANSACTIONS,
@@ -1798,7 +1913,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETPROCEDURES,
         () -> this.databaseMetaData.getProcedures(catalog, schemaPattern, procedureNamePattern),
@@ -1814,7 +1930,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETPROCEDURECOLUMNS,
         () ->
@@ -1833,7 +1950,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETTABLES,
         () -> this.databaseMetaData.getTables(catalog, schemaPattern, tableNamePattern, types),
@@ -1848,7 +1966,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETSCHEMAS,
         this.databaseMetaData::getSchemas);
@@ -1859,7 +1978,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETSCHEMAS,
         () -> this.databaseMetaData.getSchemas(catalog, schemaPattern),
@@ -1872,7 +1992,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETCATALOGS,
         this.databaseMetaData::getCatalogs);
@@ -1883,7 +2004,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETTABLETYPES,
         this.databaseMetaData::getTableTypes);
@@ -1896,7 +2018,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETCOLUMNS,
         () ->
@@ -1914,7 +2037,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETCOLUMNPRIVILEGES,
         () -> this.databaseMetaData.getColumnPrivileges(catalog, schema, table, columnNamePattern),
@@ -1930,7 +2054,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETTABLEPRIVILEGES,
         () -> this.databaseMetaData.getTablePrivileges(catalog, schemaPattern, tableNamePattern),
@@ -1946,7 +2071,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETBESTROWIDENTIFIER,
         () -> this.databaseMetaData.getBestRowIdentifier(catalog, schema, table, scope, nullable),
@@ -1963,7 +2089,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETVERSIONCOLUMNS,
         () -> this.databaseMetaData.getVersionColumns(catalog, schema, table),
@@ -1977,7 +2104,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETPRIMARYKEYS,
         () -> this.databaseMetaData.getPrimaryKeys(catalog, schema, table),
@@ -1992,7 +2120,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETIMPORTEDKEYS,
         () -> this.databaseMetaData.getImportedKeys(catalog, schema, table),
@@ -2007,7 +2136,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETEXPORTEDKEYS,
         () -> this.databaseMetaData.getExportedKeys(catalog, schema, table),
@@ -2028,7 +2158,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETCROSSREFERENCE,
         () ->
@@ -2052,7 +2183,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETTYPEINFO,
         this.databaseMetaData::getTypeInfo);
@@ -2065,7 +2197,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETINDEXINFO,
         () -> this.databaseMetaData.getIndexInfo(catalog, schema, table, unique, approximate),
@@ -2082,6 +2215,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSRESULTSETTYPE,
@@ -2098,6 +2232,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSRESULTSETCONCURRENCY,
@@ -2115,6 +2250,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_OWNUPDATESAREVISIBLE,
@@ -2131,6 +2267,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_OWNDELETESAREVISIBLE,
@@ -2147,6 +2284,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_OWNINSERTSAREVISIBLE,
@@ -2163,6 +2301,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_OTHERSUPDATESAREVISIBLE,
@@ -2179,6 +2318,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_OTHERSDELETESAREVISIBLE,
@@ -2195,6 +2335,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_OTHERSINSERTSAREVISIBLE,
@@ -2211,6 +2352,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_UPDATESAREDETECTED,
@@ -2227,6 +2369,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_DELETESAREDETECTED,
@@ -2243,6 +2386,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_INSERTSAREDETECTED,
@@ -2259,6 +2403,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSBATCHUPDATES,
@@ -2275,7 +2420,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETUDTS,
         () -> this.databaseMetaData.getUDTs(catalog, schemaPattern, typeNamePattern, types),
@@ -2290,7 +2436,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         Connection.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETCONNECTION,
         () -> this.connectionWrapper);
@@ -2302,6 +2449,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSAVEPOINTS,
@@ -2317,6 +2465,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSNAMEDPARAMETERS,
@@ -2332,6 +2481,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSMULTIPLEOPENRESULTS,
@@ -2347,6 +2497,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSGETGENERATEDKEYS,
@@ -2362,7 +2513,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETSUPERTYPES,
         () -> this.databaseMetaData.getSuperTypes(catalog, schemaPattern, typeNamePattern),
@@ -2377,7 +2529,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETSUPERTABLES,
         () -> this.databaseMetaData.getSuperTables(catalog, schemaPattern, tableNamePattern),
@@ -2393,7 +2546,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETATTRIBUTES,
         () ->
@@ -2411,6 +2565,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSRESULTSETHOLDABILITY,
@@ -2427,6 +2582,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETRESULTSETHOLDABILITY,
@@ -2442,6 +2598,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETDATABASEMAJORVERSION,
@@ -2457,6 +2614,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETDATABASEMINORVERSION,
@@ -2472,6 +2630,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETJDBCMAJORVERSION,
@@ -2487,6 +2646,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETJDBCMINORVERSION,
@@ -2503,6 +2663,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETSQLSTATETYPE,
@@ -2518,6 +2679,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_LOCATORSUPDATECOPY,
@@ -2533,6 +2695,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSTATEMENTPOOLING,
@@ -2548,6 +2711,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           RowIdLifetime.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETROWIDLIFETIME,
@@ -2563,6 +2727,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSTOREDFUNCTIONSUSINGCALLSYNTAX,
@@ -2578,6 +2743,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_AUTOCOMMITFAILURECLOSESALLRESULTSETS,
@@ -2592,7 +2758,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETCLIENTINFOPROPERTIES,
         this.databaseMetaData::getClientInfoProperties);
@@ -2604,7 +2771,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETFUNCTIONS,
         () -> this.databaseMetaData.getFunctions(catalog, schemaPattern, functionNamePattern),
@@ -2620,7 +2788,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETFUNCTIONCOLUMNS,
         () ->
@@ -2639,7 +2808,8 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETPSEUDOCOLUMNS,
         () ->
@@ -2657,6 +2827,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GENERATEDKEYALWAYSRETURNED,
@@ -2672,6 +2843,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           long.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXLOGICALLOBSIZE,
@@ -2687,6 +2859,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSREFCURSORS,

@@ -27,6 +27,6 @@ public class SavepointWrapperFactory implements WrapperFactory {
       @NonNull Object targetObj,
       @NonNull ConnectionWrapper connectionWrapper,
       @NonNull ConnectionPluginManager pluginManager) {
-    return new SavepointWrapper((Savepoint) targetObj, pluginManager);
+    return new SavepointWrapper((Savepoint) targetObj, connectionWrapper, pluginManager);
   }
 }

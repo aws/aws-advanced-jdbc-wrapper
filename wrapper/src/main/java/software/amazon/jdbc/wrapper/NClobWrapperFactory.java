@@ -27,6 +27,6 @@ public class NClobWrapperFactory implements WrapperFactory {
       @NonNull Object targetObj,
       @NonNull ConnectionWrapper connectionWrapper,
       @NonNull ConnectionPluginManager pluginManager) {
-    return new NClobWrapper((NClob) targetObj, pluginManager);
+    return new NClobWrapper((NClob) targetObj, connectionWrapper, pluginManager);
   }
 }

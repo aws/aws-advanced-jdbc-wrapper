@@ -65,6 +65,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_ADDBATCH)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_ADDBATCH,
@@ -79,6 +80,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_ADDBATCH)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_ADDBATCH,
@@ -94,6 +96,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_CANCEL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_CANCEL,
@@ -108,6 +111,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_CLEARBATCH)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_CLEARBATCH,
@@ -122,6 +126,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_CLEARPARAMETERS)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_CLEARPARAMETERS,
@@ -136,6 +141,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_CLEARWARNINGS)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_CLEARWARNINGS,
@@ -150,6 +156,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_CLOSE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_CLOSE,
@@ -164,6 +171,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_CLOSEONCOMPLETION)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_CLOSEONCOMPLETION,
@@ -179,6 +187,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_EXECUTE,
@@ -194,6 +203,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_EXECUTE,
@@ -210,6 +220,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_EXECUTE,
@@ -227,6 +238,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_EXECUTE,
@@ -244,6 +256,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_EXECUTE,
@@ -261,6 +274,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           int[].class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_EXECUTEBATCH,
@@ -276,6 +290,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           long.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE,
@@ -290,7 +305,8 @@ public class CallableStatementWrapper implements CallableStatement {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY,
         this.statement::executeQuery);
@@ -301,7 +317,8 @@ public class CallableStatementWrapper implements CallableStatement {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY,
         () -> this.statement.executeQuery(sql),
@@ -314,6 +331,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE,
@@ -329,6 +347,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE,
@@ -345,6 +364,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE,
@@ -362,6 +382,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE,
@@ -379,6 +400,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE,
@@ -395,7 +417,8 @@ public class CallableStatementWrapper implements CallableStatement {
     return WrapperUtils.executeWithPlugins(
         Array.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.CALLABLESTATEMENT_GETARRAY,
         () -> this.statement.getArray(parameterIndex),
@@ -407,7 +430,8 @@ public class CallableStatementWrapper implements CallableStatement {
     return WrapperUtils.executeWithPlugins(
         Array.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.CALLABLESTATEMENT_GETARRAY,
         () -> this.statement.getArray(parameterName),
@@ -421,6 +445,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           BigDecimal.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETBIGDECIMAL,
@@ -438,6 +463,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           BigDecimal.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETBIGDECIMAL,
@@ -454,6 +480,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           BigDecimal.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETBIGDECIMAL,
@@ -469,7 +496,8 @@ public class CallableStatementWrapper implements CallableStatement {
     return WrapperUtils.executeWithPlugins(
         Blob.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.CALLABLESTATEMENT_GETBLOB,
         () -> this.statement.getBlob(parameterIndex),
@@ -481,7 +509,8 @@ public class CallableStatementWrapper implements CallableStatement {
     return WrapperUtils.executeWithPlugins(
         Blob.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.CALLABLESTATEMENT_GETBLOB,
         () -> this.statement.getBlob(parameterName),
@@ -494,6 +523,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETBOOLEAN,
@@ -510,6 +540,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETBOOLEAN,
@@ -526,6 +557,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           byte.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETBYTE,
@@ -542,6 +574,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           byte.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETBYTE,
@@ -558,6 +591,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           byte[].class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETBYTES,
@@ -574,6 +608,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           byte[].class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETBYTES,
@@ -590,6 +625,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           Reader.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETCHARACTERSTREAM,
@@ -606,6 +642,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           Reader.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETCHARACTERSTREAM,
@@ -621,7 +658,8 @@ public class CallableStatementWrapper implements CallableStatement {
     return WrapperUtils.executeWithPlugins(
         Clob.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.CALLABLESTATEMENT_GETCLOB,
         () -> this.statement.getClob(parameterIndex),
@@ -633,7 +671,8 @@ public class CallableStatementWrapper implements CallableStatement {
     return WrapperUtils.executeWithPlugins(
         Clob.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.CALLABLESTATEMENT_GETCLOB,
         () -> this.statement.getClob(parameterName),
@@ -645,7 +684,8 @@ public class CallableStatementWrapper implements CallableStatement {
     return WrapperUtils.executeWithPlugins(
         Connection.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.CALLABLESTATEMENT_GETCONNECTION,
         () -> this.connectionWrapper);
@@ -657,6 +697,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           Date.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETDATE,
@@ -673,6 +714,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           Date.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETDATE,
@@ -690,6 +732,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           Date.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETDATE,
@@ -706,6 +749,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           Date.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETDATE,
@@ -723,6 +767,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           double.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETDOUBLE,
@@ -739,6 +784,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           double.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETDOUBLE,
@@ -756,6 +802,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETFETCHDIRECTION,
@@ -771,6 +818,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETFETCHSIZE,
@@ -786,6 +834,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           float.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETFLOAT,
@@ -802,6 +851,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           float.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETFLOAT,
@@ -817,7 +867,8 @@ public class CallableStatementWrapper implements CallableStatement {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.CALLABLESTATEMENT_GETGENERATEDKEYS,
         this.statement::getGeneratedKeys);
@@ -829,6 +880,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETINT,
@@ -845,6 +897,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETINT,
@@ -861,6 +914,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           long.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETLONG,
@@ -877,6 +931,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           long.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETLONG,
@@ -893,6 +948,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETMAXFIELDSIZE,
@@ -908,6 +964,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETMAXROWS,
@@ -922,7 +979,8 @@ public class CallableStatementWrapper implements CallableStatement {
     return WrapperUtils.executeWithPlugins(
         ResultSetMetaData.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.CALLABLESTATEMENT_GETMETADATA,
         this.statement::getMetaData);
@@ -934,6 +992,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETMORERESULTS,
@@ -949,6 +1008,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETMORERESULTS,
@@ -965,6 +1025,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           Reader.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETNCHARACTERSTREAM,
@@ -981,6 +1042,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           Reader.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETNCHARACTERSTREAM,
@@ -996,7 +1058,8 @@ public class CallableStatementWrapper implements CallableStatement {
     return WrapperUtils.executeWithPlugins(
         NClob.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.CALLABLESTATEMENT_GETNCLOB,
         () -> this.statement.getNClob(parameterIndex),
@@ -1008,7 +1071,8 @@ public class CallableStatementWrapper implements CallableStatement {
     return WrapperUtils.executeWithPlugins(
         NClob.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.CALLABLESTATEMENT_GETNCLOB,
         () -> this.statement.getNClob(parameterName),
@@ -1021,6 +1085,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETNSTRING,
@@ -1037,6 +1102,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETNSTRING,
@@ -1053,6 +1119,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           Object.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETOBJECT,
@@ -1069,6 +1136,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           Object.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETOBJECT,
@@ -1086,6 +1154,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           Object.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETOBJECT,
@@ -1102,6 +1171,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           Object.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETOBJECT,
@@ -1119,6 +1189,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           type,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETOBJECT,
@@ -1136,6 +1207,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           type,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETOBJECT,
@@ -1152,7 +1224,8 @@ public class CallableStatementWrapper implements CallableStatement {
     return WrapperUtils.executeWithPlugins(
         ParameterMetaData.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.CALLABLESTATEMENT_GETPARAMETERMETADATA,
         this.statement::getParameterMetaData);
@@ -1164,6 +1237,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETQUERYTIMEOUT,
@@ -1178,7 +1252,8 @@ public class CallableStatementWrapper implements CallableStatement {
     return WrapperUtils.executeWithPlugins(
         Ref.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.CALLABLESTATEMENT_GETREF,
         () -> this.statement.getRef(parameterIndex),
@@ -1190,7 +1265,8 @@ public class CallableStatementWrapper implements CallableStatement {
     return WrapperUtils.executeWithPlugins(
         Ref.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.CALLABLESTATEMENT_GETREF,
         () -> this.statement.getRef(parameterName),
@@ -1202,7 +1278,8 @@ public class CallableStatementWrapper implements CallableStatement {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.CALLABLESTATEMENT_GETRESULTSET,
         this.statement::getResultSet);
@@ -1215,6 +1292,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETRESULTSETCONCURRENCY,
@@ -1230,6 +1308,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETRESULTSETHOLDABILITY,
@@ -1246,6 +1325,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETRESULTSETTYPE,
@@ -1261,6 +1341,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           RowId.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETROWID,
@@ -1277,6 +1358,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           RowId.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETROWID,
@@ -1293,6 +1375,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           SQLXML.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETSQLXML,
@@ -1309,6 +1392,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           SQLXML.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETSQLXML,
@@ -1325,6 +1409,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           short.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETSHORT,
@@ -1341,6 +1426,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           short.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETSHORT,
@@ -1357,6 +1443,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETSTRING,
@@ -1373,6 +1460,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETSTRING,
@@ -1389,6 +1477,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           Time.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETTIME,
@@ -1405,6 +1494,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           Time.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETTIME,
@@ -1422,6 +1512,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           Time.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETTIME,
@@ -1438,6 +1529,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           Time.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETTIME,
@@ -1455,6 +1547,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           Timestamp.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETTIMESTAMP,
@@ -1471,6 +1564,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           Timestamp.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETTIMESTAMP,
@@ -1488,6 +1582,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           Timestamp.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETTIMESTAMP,
@@ -1504,6 +1599,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           Timestamp.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETTIMESTAMP,
@@ -1521,6 +1617,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           URL.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETURL,
@@ -1537,6 +1634,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           URL.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETURL,
@@ -1553,6 +1651,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETUPDATECOUNT,
@@ -1568,6 +1667,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           SQLWarning.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETWARNINGS,
@@ -1583,6 +1683,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_ISCLOSEONCOMPLETION,
@@ -1598,6 +1699,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_ISCLOSED,
@@ -1613,6 +1715,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_ISPOOLABLE,
@@ -1632,6 +1735,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_REGISTEROUTPARAMETER)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_REGISTEROUTPARAMETER,
@@ -1648,6 +1752,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_REGISTEROUTPARAMETER)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_REGISTEROUTPARAMETER,
@@ -1666,6 +1771,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_REGISTEROUTPARAMETER)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_REGISTEROUTPARAMETER,
@@ -1683,6 +1789,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_REGISTEROUTPARAMETER)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_REGISTEROUTPARAMETER,
@@ -1700,6 +1807,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_REGISTEROUTPARAMETER)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_REGISTEROUTPARAMETER,
@@ -1718,6 +1826,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_REGISTEROUTPARAMETER)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_REGISTEROUTPARAMETER,
@@ -1735,6 +1844,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_REGISTEROUTPARAMETER)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_REGISTEROUTPARAMETER,
@@ -1752,6 +1862,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_REGISTEROUTPARAMETER)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_REGISTEROUTPARAMETER,
@@ -1770,6 +1881,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_REGISTEROUTPARAMETER)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_REGISTEROUTPARAMETER,
@@ -1787,6 +1899,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_REGISTEROUTPARAMETER)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_REGISTEROUTPARAMETER,
@@ -1804,6 +1917,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_REGISTEROUTPARAMETER)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_REGISTEROUTPARAMETER,
@@ -1822,6 +1936,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_REGISTEROUTPARAMETER)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_REGISTEROUTPARAMETER,
@@ -1839,6 +1954,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETARRAY)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETARRAY,
@@ -1855,6 +1971,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETASCIISTREAM,
@@ -1872,6 +1989,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETASCIISTREAM,
@@ -1889,6 +2007,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETASCIISTREAM,
@@ -1905,6 +2024,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETASCIISTREAM,
@@ -1922,6 +2042,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETASCIISTREAM,
@@ -1939,6 +2060,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETASCIISTREAM,
@@ -1955,6 +2077,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETBIGDECIMAL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETBIGDECIMAL,
@@ -1971,6 +2094,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETBIGDECIMAL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETBIGDECIMAL,
@@ -1987,6 +2111,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETBINARYSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETBINARYSTREAM,
@@ -2005,6 +2130,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETBINARYSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETBINARYSTREAM,
@@ -2022,6 +2148,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETBINARYSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETBINARYSTREAM,
@@ -2038,6 +2165,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETBINARYSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETBINARYSTREAM,
@@ -2055,6 +2183,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETBINARYSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETBINARYSTREAM,
@@ -2072,6 +2201,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETBINARYSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETBINARYSTREAM,
@@ -2089,6 +2219,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETBLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETBLOB,
@@ -2106,6 +2237,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETBLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETBLOB,
@@ -2122,6 +2254,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETBLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETBLOB,
@@ -2138,6 +2271,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETBLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETBLOB,
@@ -2155,6 +2289,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETBLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETBLOB,
@@ -2172,6 +2307,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETBLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETBLOB,
@@ -2188,6 +2324,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETBOOLEAN)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETBOOLEAN,
@@ -2204,6 +2341,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETBOOLEAN)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETBOOLEAN,
@@ -2220,6 +2358,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETBYTE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETBYTE,
@@ -2236,6 +2375,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETBYTE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETBYTE,
@@ -2252,6 +2392,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETBYTES)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETBYTES,
@@ -2268,6 +2409,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETBYTES)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETBYTES,
@@ -2285,6 +2427,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETCHARACTERSTREAM,
@@ -2303,6 +2446,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETCHARACTERSTREAM,
@@ -2320,6 +2464,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETCHARACTERSTREAM,
@@ -2337,6 +2482,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETCHARACTERSTREAM,
@@ -2355,6 +2501,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETCHARACTERSTREAM,
@@ -2372,6 +2519,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETCHARACTERSTREAM,
@@ -2388,6 +2536,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETCLOB,
@@ -2405,6 +2554,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETCLOB,
@@ -2421,6 +2571,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETCLOB,
@@ -2437,6 +2588,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETCLOB,
@@ -2453,6 +2605,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETCLOB,
@@ -2470,6 +2623,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETCLOB,
@@ -2486,6 +2640,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETCURSORNAME)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETCURSORNAME,
@@ -2501,6 +2656,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETDATE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETDATE,
@@ -2517,6 +2673,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETDATE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETDATE,
@@ -2534,6 +2691,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETDATE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETDATE,
@@ -2550,6 +2708,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETDATE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETDATE,
@@ -2567,6 +2726,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETDOUBLE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETDOUBLE,
@@ -2583,6 +2743,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETDOUBLE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETDOUBLE,
@@ -2599,6 +2760,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETESCAPEPROCESSING)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETESCAPEPROCESSING,
@@ -2614,6 +2776,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETFETCHDIRECTION)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETFETCHDIRECTION,
@@ -2629,6 +2792,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETFETCHSIZE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETFETCHSIZE,
@@ -2644,6 +2808,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETFLOAT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETFLOAT,
@@ -2660,6 +2825,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETFLOAT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETFLOAT,
@@ -2676,6 +2842,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETINT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETINT,
@@ -2692,6 +2859,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETINT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETINT,
@@ -2708,6 +2876,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETLONG)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETLONG,
@@ -2724,6 +2893,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETLONG)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETLONG,
@@ -2740,6 +2910,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETMAXFIELDSIZE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETMAXFIELDSIZE,
@@ -2755,6 +2926,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETMAXROWS)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETMAXROWS,
@@ -2771,6 +2943,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETNCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETNCHARACTERSTREAM,
@@ -2788,6 +2961,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETNCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETNCHARACTERSTREAM,
@@ -2805,6 +2979,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETNCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETNCHARACTERSTREAM,
@@ -2822,6 +2997,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETNCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETNCHARACTERSTREAM,
@@ -2838,6 +3014,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETNCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETNCLOB,
@@ -2854,6 +3031,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETNCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETNCLOB,
@@ -2871,6 +3049,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETNCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETNCLOB,
@@ -2887,6 +3066,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETNCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETNCLOB,
@@ -2903,6 +3083,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETNCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETNCLOB,
@@ -2920,6 +3101,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETNCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETNCLOB,
@@ -2936,6 +3118,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETNSTRING)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETNSTRING,
@@ -2952,6 +3135,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETNSTRING)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETNSTRING,
@@ -2968,6 +3152,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETNULL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETNULL,
@@ -2984,6 +3169,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETNULL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETNULL,
@@ -3001,6 +3187,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETNULL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETNULL,
@@ -3017,6 +3204,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETNULL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETNULL,
@@ -3035,6 +3223,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETOBJECT,
@@ -3053,6 +3242,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETOBJECT,
@@ -3070,6 +3260,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETOBJECT,
@@ -3087,6 +3278,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETOBJECT,
@@ -3105,6 +3297,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETOBJECT,
@@ -3122,6 +3315,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETOBJECT,
@@ -3139,6 +3333,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETOBJECT,
@@ -3156,6 +3351,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETOBJECT,
@@ -3175,6 +3371,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETOBJECT,
@@ -3193,6 +3390,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETOBJECT,
@@ -3211,6 +3409,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETPOOLABLE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETPOOLABLE,
@@ -3226,6 +3425,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETQUERYTIMEOUT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETQUERYTIMEOUT,
@@ -3241,6 +3441,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETREF)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETREF,
@@ -3257,6 +3458,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETROWID)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETROWID,
@@ -3273,6 +3475,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETROWID)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETROWID,
@@ -3289,6 +3492,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETSQLXML)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETSQLXML,
@@ -3305,6 +3509,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETSQLXML)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETSQLXML,
@@ -3321,6 +3526,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETSHORT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETSHORT,
@@ -3337,6 +3543,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETSHORT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETSHORT,
@@ -3353,6 +3560,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETSTRING)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETSTRING,
@@ -3369,6 +3577,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETSTRING)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETSTRING,
@@ -3385,6 +3594,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETTIME)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETTIME,
@@ -3401,6 +3611,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETTIME)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETTIME,
@@ -3418,6 +3629,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETTIME)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETTIME,
@@ -3434,6 +3646,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETTIME)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETTIME,
@@ -3451,6 +3664,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETTIMESTAMP)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETTIMESTAMP,
@@ -3467,6 +3681,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETTIMESTAMP)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETTIMESTAMP,
@@ -3484,6 +3699,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETTIMESTAMP)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETTIMESTAMP,
@@ -3500,6 +3716,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETTIMESTAMP)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETTIMESTAMP,
@@ -3517,6 +3734,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETURL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETURL,
@@ -3533,6 +3751,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETURL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETURL,
@@ -3550,6 +3769,7 @@ public class CallableStatementWrapper implements CallableStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETUNICODESTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_SETUNICODESTREAM,
@@ -3573,6 +3793,7 @@ public class CallableStatementWrapper implements CallableStatement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_WASNULL,

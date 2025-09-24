@@ -27,6 +27,6 @@ public class SQLInputWrapperFactory implements WrapperFactory {
       @NonNull Object targetObj,
       @NonNull ConnectionWrapper connectionWrapper,
       @NonNull ConnectionPluginManager pluginManager) {
-    return new SQLInputWrapper((SQLInput) targetObj, pluginManager);
+    return new SQLInputWrapper((SQLInput) targetObj, connectionWrapper, pluginManager);
   }
 }

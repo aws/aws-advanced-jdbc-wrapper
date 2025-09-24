@@ -49,9 +49,9 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectManager;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.CoreServicesContainer;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.FullServicesContainerImpl;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.ServiceUtility;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -282,13 +282,25 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
       final @NonNull TargetDriverDialect targetDriverDialect,
       final @Nullable ConfigurationProfile configurationProfile,
       final TelemetryFactory telemetryFactory) throws SQLException {
-    FullServicesContainer
-        servicesContainer = new FullServicesContainerImpl(
-            storageService, monitorService, defaultProvider, telemetryFactory);
+    String targetProtocol = this.urlParser.getProtocol(url);
+    FullServicesContainer servicesContainer = ServiceUtility.getInstance().createStandardServiceContainer(
+        storageService,
+        monitorService,
+        defaultProvider,
+        effectiveProvider,
+        telemetryFactory,
+        url,
+        targetProtocol,
+        targetDriverDialect,
+        props,
+        configurationProfile
+    );
+
     return new ConnectionWrapper(
+        servicesContainer,
         props,
         url,
-        this.urlParser.getProtocol(url),
+        targetProtocol,
         configurationProfile);
   }
 

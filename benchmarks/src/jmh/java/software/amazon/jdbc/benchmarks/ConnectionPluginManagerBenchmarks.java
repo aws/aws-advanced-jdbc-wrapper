@@ -75,7 +75,6 @@ import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryGauge;
-import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 @State(Scope.Benchmark)
 @Fork(3)
@@ -94,7 +93,6 @@ public class ConnectionPluginManagerBenchmarks {
   private ConnectionPluginManager pluginManagerWithNoPlugins;
 
   @Mock ConnectionProvider mockConnectionProvider;
-  @Mock ConnectionWrapper mockConnectionWrapper;
   @Mock FullServicesContainer mockServicesContainer;
   @Mock PluginService mockPluginService;
   @Mock PluginManagerService mockPluginManagerService;
@@ -164,12 +162,11 @@ public class ConnectionPluginManagerBenchmarks {
 
     pluginManager = new ConnectionPluginManager(mockConnectionProvider,
         null,
-        mockConnectionWrapper,
         telemetryFactory);
     pluginManager.init(mockServicesContainer, propertiesWithPlugins, mockPluginManagerService, configurationProfile);
 
-    pluginManagerWithNoPlugins = new ConnectionPluginManager(mockConnectionProvider, null,
-        mockConnectionWrapper, telemetryFactory);
+    pluginManagerWithNoPlugins =
+        new ConnectionPluginManager(mockConnectionProvider, null, telemetryFactory);
     pluginManagerWithNoPlugins.init(mockServicesContainer, propertiesWithoutPlugins, mockPluginManagerService, null);
   }
 
@@ -180,16 +177,16 @@ public class ConnectionPluginManagerBenchmarks {
 
   @Benchmark
   public ConnectionPluginManager initConnectionPluginManagerWithNoPlugins() throws SQLException {
-    final ConnectionPluginManager manager = new ConnectionPluginManager(mockConnectionProvider, null,
-        mockConnectionWrapper, mockTelemetryFactory);
+    final ConnectionPluginManager manager =
+        new ConnectionPluginManager(mockConnectionProvider, null, mockTelemetryFactory);
     manager.init(mockServicesContainer, propertiesWithoutPlugins, mockPluginManagerService, configurationProfile);
     return manager;
   }
 
   @Benchmark
   public ConnectionPluginManager initConnectionPluginManagerWithPlugins() throws SQLException {
-    final ConnectionPluginManager manager = new ConnectionPluginManager(mockConnectionProvider, null,
-        mockConnectionWrapper, mockTelemetryFactory);
+    final ConnectionPluginManager manager =
+        new ConnectionPluginManager(mockConnectionProvider, null, mockTelemetryFactory);
     manager.init(mockServicesContainer, propertiesWithPlugins, mockPluginManagerService, configurationProfile);
     return manager;
   }

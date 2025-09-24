@@ -27,6 +27,6 @@ public class SQLOutputWrapperFactory implements WrapperFactory {
       @NonNull Object targetObj,
       @NonNull ConnectionWrapper connectionWrapper,
       @NonNull ConnectionPluginManager pluginManager) {
-    return new SQLOutputWrapper((SQLOutput) targetObj, pluginManager);
+    return new SQLOutputWrapper((SQLOutput) targetObj, connectionWrapper, pluginManager);
   }
 }

@@ -46,7 +46,8 @@ public class StatementWrapper implements Statement {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+         this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.STATEMENT_EXECUTEQUERY,
         () -> this.statement.executeQuery(sql),
@@ -59,6 +60,7 @@ public class StatementWrapper implements Statement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_EXECUTEUPDATE,
@@ -75,6 +77,7 @@ public class StatementWrapper implements Statement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_EXECUTEUPDATE,
@@ -92,6 +95,7 @@ public class StatementWrapper implements Statement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_EXECUTEUPDATE,
@@ -109,6 +113,7 @@ public class StatementWrapper implements Statement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_EXECUTEUPDATE,
@@ -125,6 +130,7 @@ public class StatementWrapper implements Statement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_CLOSE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_CLOSE,
@@ -140,6 +146,7 @@ public class StatementWrapper implements Statement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_GETMAXFIELDSIZE,
@@ -154,6 +161,7 @@ public class StatementWrapper implements Statement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_SETMAXFIELDSIZE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_SETMAXFIELDSIZE,
@@ -170,6 +178,7 @@ public class StatementWrapper implements Statement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_GETMAXROWS,
@@ -184,6 +193,7 @@ public class StatementWrapper implements Statement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_SETMAXROWS)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_SETMAXROWS,
@@ -199,6 +209,7 @@ public class StatementWrapper implements Statement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_SETESCAPEPROCESSING)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_SETESCAPEPROCESSING,
@@ -215,6 +226,7 @@ public class StatementWrapper implements Statement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_GETQUERYTIMEOUT,
@@ -229,6 +241,7 @@ public class StatementWrapper implements Statement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_SETQUERYTIMEOUT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_SETQUERYTIMEOUT,
@@ -244,6 +257,7 @@ public class StatementWrapper implements Statement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_CANCEL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_CANCEL,
@@ -259,6 +273,7 @@ public class StatementWrapper implements Statement {
       return WrapperUtils.executeWithPlugins(
           SQLWarning.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_GETWARNINGS,
@@ -273,6 +288,7 @@ public class StatementWrapper implements Statement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_CLEARWARNINGS)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_CLEARWARNINGS,
@@ -287,6 +303,7 @@ public class StatementWrapper implements Statement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_SETCURSORNAME)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_SETCURSORNAME,
@@ -303,6 +320,7 @@ public class StatementWrapper implements Statement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_EXECUTE,
@@ -319,6 +337,7 @@ public class StatementWrapper implements Statement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_EXECUTE,
@@ -336,6 +355,7 @@ public class StatementWrapper implements Statement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_EXECUTE,
@@ -353,6 +373,7 @@ public class StatementWrapper implements Statement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_EXECUTE,
@@ -369,7 +390,8 @@ public class StatementWrapper implements Statement {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.STATEMENT_GETRESULTSET,
         this.statement::getResultSet);
@@ -381,6 +403,7 @@ public class StatementWrapper implements Statement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_GETUPDATECOUNT,
@@ -396,6 +419,7 @@ public class StatementWrapper implements Statement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_GETMORERESULTS,
@@ -411,6 +435,7 @@ public class StatementWrapper implements Statement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_GETMORERESULTS,
@@ -428,6 +453,7 @@ public class StatementWrapper implements Statement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_GETFETCHDIRECTION,
@@ -442,6 +468,7 @@ public class StatementWrapper implements Statement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_SETFETCHDIRECTION)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_SETFETCHDIRECTION,
@@ -458,6 +485,7 @@ public class StatementWrapper implements Statement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_GETFETCHSIZE,
@@ -472,6 +500,7 @@ public class StatementWrapper implements Statement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_SETFETCHSIZE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_SETFETCHSIZE,
@@ -489,6 +518,7 @@ public class StatementWrapper implements Statement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_GETRESULTSETCONCURRENCY,
@@ -505,6 +535,7 @@ public class StatementWrapper implements Statement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_GETRESULTSETTYPE,
@@ -519,6 +550,7 @@ public class StatementWrapper implements Statement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_ADDBATCH)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_ADDBATCH,
@@ -534,6 +566,7 @@ public class StatementWrapper implements Statement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_CLEARBATCH)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_CLEARBATCH,
@@ -549,6 +582,7 @@ public class StatementWrapper implements Statement {
       return WrapperUtils.executeWithPlugins(
           int[].class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_EXECUTEBATCH,
@@ -563,7 +597,8 @@ public class StatementWrapper implements Statement {
     return WrapperUtils.executeWithPlugins(
         Connection.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.STATEMENT_GETCONNECTION,
         () -> this.connectionWrapper);
@@ -574,7 +609,8 @@ public class StatementWrapper implements Statement {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.STATEMENT_GETGENERATEDKEYS,
         this.statement::getGeneratedKeys);
@@ -586,6 +622,7 @@ public class StatementWrapper implements Statement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_GETRESULTSETHOLDABILITY,
@@ -601,6 +638,7 @@ public class StatementWrapper implements Statement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_ISCLOSED,
@@ -616,6 +654,7 @@ public class StatementWrapper implements Statement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_ISPOOLABLE,
@@ -631,6 +670,7 @@ public class StatementWrapper implements Statement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_SETPOOLABLE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_SETPOOLABLE,
@@ -646,6 +686,7 @@ public class StatementWrapper implements Statement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_CLOSEONCOMPLETION)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_CLOSEONCOMPLETION,
@@ -661,6 +702,7 @@ public class StatementWrapper implements Statement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_ISCLOSEONCOMPLETION,

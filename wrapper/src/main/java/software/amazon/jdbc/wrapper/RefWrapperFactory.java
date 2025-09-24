@@ -27,6 +27,6 @@ public class RefWrapperFactory implements WrapperFactory {
       @NonNull Object targetObj,
       @NonNull ConnectionWrapper connectionWrapper,
       @NonNull ConnectionPluginManager pluginManager) {
-    return new RefWrapper((Ref) targetObj, pluginManager);
+    return new RefWrapper((Ref) targetObj, connectionWrapper, pluginManager);
   }
 }

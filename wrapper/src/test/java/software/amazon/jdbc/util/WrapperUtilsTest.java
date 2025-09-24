@@ -46,11 +46,13 @@ import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.wrapper.CallableStatementWrapper;
+import software.amazon.jdbc.wrapper.ConnectionWrapper;
 import software.amazon.jdbc.wrapper.PreparedStatementWrapper;
 import software.amazon.jdbc.wrapper.StatementWrapper;
 
 public class WrapperUtilsTest {
 
+  @Mock ConnectionWrapper mockConnectionWrapper;
   @Mock ConnectionPluginManager pluginManager;
   @Mock TelemetryFactory mockTelemetryFactory;
   @Mock TelemetryContext mockTelemetryContext;
@@ -100,6 +102,7 @@ public class WrapperUtilsTest {
   Integer callExecuteWithPlugins(JdbcMethod jdbcMethod) {
     return WrapperUtils.executeWithPlugins(
         Integer.class,
+        mockConnectionWrapper,
         pluginManager,
         object,
         jdbcMethod,
@@ -119,7 +122,8 @@ public class WrapperUtilsTest {
       return WrapperUtils.executeWithPlugins(
           Integer.class,
           SQLException.class,
-          pluginManager,
+          mockConnectionWrapper,
+        pluginManager,
           object,
           jdbcMethod,
           () -> 1);
@@ -179,18 +183,21 @@ public class WrapperUtilsTest {
         WrapperUtils.wrapWithProxyIfNeeded(
             Statement.class,
             mock(Statement.class),
+            mockConnectionWrapper,
             mockPluginManager));
 
     assertInstanceOf(PreparedStatementWrapper.class,
         WrapperUtils.wrapWithProxyIfNeeded(
             Statement.class,
             mock(PreparedStatement.class),
+            mockConnectionWrapper,
             mockPluginManager));
 
     assertInstanceOf(CallableStatementWrapper.class,
         WrapperUtils.wrapWithProxyIfNeeded(
             Statement.class,
             mock(CallableStatement.class),
+            mockConnectionWrapper,
             mockPluginManager));
   }
 }

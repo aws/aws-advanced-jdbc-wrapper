@@ -29,11 +29,16 @@ import software.amazon.jdbc.util.WrapperUtils;
 
 public class ClobWrapper implements Clob {
 
-  protected Clob clob;
-  protected ConnectionPluginManager pluginManager;
+  protected final Clob clob;
+  protected final ConnectionWrapper connectionWrapper;
+  protected final ConnectionPluginManager pluginManager;
 
-  public ClobWrapper(@NonNull Clob clob, @NonNull ConnectionPluginManager pluginManager) {
+  public ClobWrapper(
+      @NonNull Clob clob,
+      @NonNull ConnectionWrapper connectionWrapper,
+      @NonNull ConnectionPluginManager pluginManager) {
     this.clob = clob;
+    this.connectionWrapper = connectionWrapper;
     this.pluginManager = pluginManager;
   }
 
@@ -43,10 +48,11 @@ public class ClobWrapper implements Clob {
       return WrapperUtils.executeWithPlugins(
           long.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.clob,
           JdbcMethod.CLOB_LENGTH,
-          () -> this.clob.length());
+          this.clob::length);
     } else {
       return this.clob.length();
     }
@@ -58,6 +64,7 @@ public class ClobWrapper implements Clob {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.clob,
           JdbcMethod.CLOB_GETSUBSTRING,
@@ -75,10 +82,11 @@ public class ClobWrapper implements Clob {
       return WrapperUtils.executeWithPlugins(
           Reader.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.clob,
           JdbcMethod.CLOB_GETCHARACTERSTREAM,
-          () -> this.clob.getCharacterStream());
+          this.clob::getCharacterStream);
     } else {
       return this.clob.getCharacterStream();
     }
@@ -90,6 +98,7 @@ public class ClobWrapper implements Clob {
       return WrapperUtils.executeWithPlugins(
           Reader.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.clob,
           JdbcMethod.CLOB_GETCHARACTERSTREAM,
@@ -107,10 +116,11 @@ public class ClobWrapper implements Clob {
       return WrapperUtils.executeWithPlugins(
           InputStream.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.clob,
           JdbcMethod.CLOB_GETASCIISTREAM,
-          () -> this.clob.getAsciiStream());
+          this.clob::getAsciiStream);
     } else {
       return this.clob.getAsciiStream();
     }
@@ -122,6 +132,7 @@ public class ClobWrapper implements Clob {
       return WrapperUtils.executeWithPlugins(
           long.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.clob,
           JdbcMethod.CLOB_POSITION,
@@ -139,6 +150,7 @@ public class ClobWrapper implements Clob {
       return WrapperUtils.executeWithPlugins(
           long.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.clob,
           JdbcMethod.CLOB_POSITION,
@@ -156,6 +168,7 @@ public class ClobWrapper implements Clob {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.clob,
           JdbcMethod.CLOB_SETSTRING,
@@ -173,6 +186,7 @@ public class ClobWrapper implements Clob {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.clob,
           JdbcMethod.CLOB_SETSTRING,
@@ -192,6 +206,7 @@ public class ClobWrapper implements Clob {
       return WrapperUtils.executeWithPlugins(
           OutputStream.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.clob,
           JdbcMethod.CLOB_SETASCIISTREAM,
@@ -208,6 +223,7 @@ public class ClobWrapper implements Clob {
       return WrapperUtils.executeWithPlugins(
           Writer.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.clob,
           JdbcMethod.CLOB_SETCHARACTERSTREAM,
@@ -223,6 +239,7 @@ public class ClobWrapper implements Clob {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CLOB_TRUNCATE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.clob,
           JdbcMethod.CLOB_TRUNCATE,
@@ -238,10 +255,11 @@ public class ClobWrapper implements Clob {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CLOB_FREE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.clob,
           JdbcMethod.CLOB_FREE,
-          () -> this.clob.free());
+          this.clob::free);
     } else {
       this.clob.free();
     }

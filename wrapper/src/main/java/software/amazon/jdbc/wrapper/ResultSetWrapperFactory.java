@@ -27,6 +27,6 @@ public class ResultSetWrapperFactory implements WrapperFactory {
       @NonNull Object targetObj,
       @NonNull ConnectionWrapper connectionWrapper,
       @NonNull ConnectionPluginManager pluginManager) {
-    return new ResultSetWrapper((ResultSet) targetObj, pluginManager);
+    return new ResultSetWrapper((ResultSet) targetObj, connectionWrapper, pluginManager);
   }
 }

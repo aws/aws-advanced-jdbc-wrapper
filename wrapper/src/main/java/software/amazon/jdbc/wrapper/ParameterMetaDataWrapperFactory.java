@@ -27,6 +27,6 @@ public class ParameterMetaDataWrapperFactory implements WrapperFactory {
       @NonNull Object targetObj,
       @NonNull ConnectionWrapper connectionWrapper,
       @NonNull ConnectionPluginManager pluginManager) {
-    return new ParameterMetaDataWrapper((ParameterMetaData) targetObj, pluginManager);
+    return new ParameterMetaDataWrapper((ParameterMetaData) targetObj, connectionWrapper, pluginManager);
   }
 }

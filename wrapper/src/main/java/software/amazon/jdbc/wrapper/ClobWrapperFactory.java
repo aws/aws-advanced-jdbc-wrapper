@@ -27,6 +27,6 @@ public class ClobWrapperFactory implements WrapperFactory {
       @NonNull Object targetObj,
       @NonNull ConnectionWrapper connectionWrapper,
       @NonNull ConnectionPluginManager pluginManager) {
-    return new ClobWrapper((Clob) targetObj, pluginManager);
+    return new ClobWrapper((Clob) targetObj, connectionWrapper, pluginManager);
   }
 }

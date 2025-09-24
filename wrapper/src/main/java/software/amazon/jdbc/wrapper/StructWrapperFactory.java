@@ -27,6 +27,6 @@ public class StructWrapperFactory implements WrapperFactory {
       @NonNull Object targetObj,
       @NonNull ConnectionWrapper connectionWrapper,
       @NonNull ConnectionPluginManager pluginManager) {
-    return new StructWrapper((Struct) targetObj, pluginManager);
+    return new StructWrapper((Struct) targetObj, connectionWrapper, pluginManager);
   }
 }

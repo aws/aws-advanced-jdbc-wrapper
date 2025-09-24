@@ -25,12 +25,16 @@ import software.amazon.jdbc.util.WrapperUtils;
 
 public class SavepointWrapper implements Savepoint {
 
-  protected Savepoint savepoint;
-  protected ConnectionPluginManager pluginManager;
+  protected final Savepoint savepoint;
+  protected final ConnectionWrapper connectionWrapper;
+  protected final ConnectionPluginManager pluginManager;
 
   public SavepointWrapper(
-      @NonNull Savepoint savepoint, @NonNull ConnectionPluginManager pluginManager) {
+      @NonNull Savepoint savepoint,
+      @NonNull ConnectionWrapper connectionWrapper,
+      @NonNull ConnectionPluginManager pluginManager) {
     this.savepoint = savepoint;
+    this.connectionWrapper = connectionWrapper;
     this.pluginManager = pluginManager;
   }
 
@@ -40,6 +44,7 @@ public class SavepointWrapper implements Savepoint {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.savepoint,
           JdbcMethod.SAVEPOINT_GETSAVEPOINTID,
@@ -55,6 +60,7 @@ public class SavepointWrapper implements Savepoint {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.savepoint,
           JdbcMethod.SAVEPOINT_GETSAVEPOINTNAME,
