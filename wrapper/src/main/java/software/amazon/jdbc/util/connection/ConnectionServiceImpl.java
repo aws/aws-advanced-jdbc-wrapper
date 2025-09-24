@@ -52,7 +52,7 @@ public class ConnectionServiceImpl implements ConnectionService {
     FullServicesContainer
         servicesContainer = new FullServicesContainerImpl(
             storageService, monitorService, connectionProvider, telemetryFactory);
-    this.pluginManager = new ConnectionPluginManager(connectionProvider, null, telemetryFactory);
+    this.pluginManager = new ConnectionPluginManager(props, telemetryFactory, connectionProvider, null);
     servicesContainer.setConnectionPluginManager(this.pluginManager);
 
     PartialPluginService partialPluginService = new PartialPluginService(
@@ -69,7 +69,7 @@ public class ConnectionServiceImpl implements ConnectionService {
     servicesContainer.setPluginManagerService(partialPluginService);
 
     this.pluginService = partialPluginService;
-    this.pluginManager.init(servicesContainer, props, partialPluginService, null);
+    this.pluginManager.initPlugins(servicesContainer, null);
   }
 
   @Override

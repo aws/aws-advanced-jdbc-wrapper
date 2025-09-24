@@ -78,7 +78,6 @@ public class ConnectionPluginManagerTests {
   @Mock TelemetryContext mockTelemetryContext;
   @Mock FullServicesContainer mockServicesContainer;
   @Mock PluginService mockPluginService;
-  @Mock PluginManagerService mockPluginManagerService;
   @Mock TargetDriverDialect mockTargetDriverDialect;
 
   ConfigurationProfile configurationProfile = ConfigurationProfileBuilder.get().withName("test").build();
@@ -387,12 +386,11 @@ public class ConnectionPluginManagerTests {
         new ConnectionPluginManager(mockConnectionProvider,
             null, testProperties, testPlugins, mockTelemetryFactory);
 
-    final Exception ex =
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> target.connect("any",
-                new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
-                testProperties, true, null));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> target.connect("any",
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
+            testProperties, true, null));
 
     assertEquals(2, calls.size());
     assertEquals("TestPluginOne:before connect", calls.get(0));
@@ -415,12 +413,11 @@ public class ConnectionPluginManagerTests {
         new ConnectionPluginManager(mockConnectionProvider,
             null, testProperties, testPlugins, mockTelemetryFactory);
 
-    final Exception ex =
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> target.connect("any",
-                new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
-                testProperties, true, null));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> target.connect("any",
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
+            testProperties, true, null));
 
     assertEquals(5, calls.size());
     assertEquals("TestPluginOne:before connect", calls.get(0));
@@ -617,11 +614,8 @@ public class ConnectionPluginManagerTests {
     final Properties testProperties = new Properties();
 
     final ConnectionPluginManager target = Mockito.spy(new ConnectionPluginManager(
-        mockConnectionProvider,
-        null,
-
-        mockTelemetryFactory));
-    target.init(mockServicesContainer, testProperties, mockPluginManagerService, configurationProfile);
+        testProperties, mockTelemetryFactory, mockConnectionProvider, null));
+    target.initPlugins(mockServicesContainer, configurationProfile);
 
     assertEquals(4, target.plugins.size());
     assertEquals(AuroraConnectionTrackerPlugin.class, target.plugins.get(0).getClass());
@@ -637,11 +631,8 @@ public class ConnectionPluginManagerTests {
     testProperties.setProperty(PropertyDefinition.PLUGINS.name, "");
 
     final ConnectionPluginManager target = Mockito.spy(new ConnectionPluginManager(
-        mockConnectionProvider,
-        null,
-
-        mockTelemetryFactory));
-    target.init(mockServicesContainer, testProperties, mockPluginManagerService, configurationProfile);
+        testProperties, mockTelemetryFactory, mockConnectionProvider, null));
+    target.initPlugins(mockServicesContainer, configurationProfile);
 
     assertEquals(1, target.plugins.size());
   }
@@ -652,11 +643,8 @@ public class ConnectionPluginManagerTests {
     testProperties.setProperty("wrapperPlugins", "logQuery");
 
     final ConnectionPluginManager target = Mockito.spy(new ConnectionPluginManager(
-        mockConnectionProvider,
-        null,
-
-        mockTelemetryFactory));
-    target.init(mockServicesContainer, testProperties, mockPluginManagerService, configurationProfile);
+        testProperties, mockTelemetryFactory, mockConnectionProvider, null));
+    target.initPlugins(mockServicesContainer, configurationProfile);
 
     assertEquals(2, target.plugins.size());
     assertEquals(LogQueryConnectionPlugin.class, target.plugins.get(0).getClass());

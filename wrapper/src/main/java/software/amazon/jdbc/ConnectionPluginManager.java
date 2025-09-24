@@ -94,18 +94,19 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
   protected final PluginChainJdbcCallableInfo[] pluginChainFuncMap =
       new PluginChainJdbcCallableInfo[JdbcMethod.ALL.id + 1]; // it should be the last element in JdbcMethod enum
   protected final ReentrantLock lock = new ReentrantLock();
-  protected final @NonNull ConnectionProvider defaultConnProvider;
+  protected final Properties props;
+  protected final TelemetryFactory telemetryFactory;
+  protected final boolean isTelemetryInUse;
+  protected final ConnectionProvider defaultConnProvider;
   protected final @Nullable ConnectionProvider effectiveConnProvider;
-  protected TelemetryFactory telemetryFactory;
-  protected Properties props = new Properties();
   protected List<ConnectionPlugin> plugins;
-  protected FullServicesContainer servicesContainer;
-  protected boolean isTelemetryInUse;
 
   public ConnectionPluginManager(
+      final @NonNull Properties props,
+      final @NonNull TelemetryFactory telemetryFactory,
       final @NonNull ConnectionProvider defaultConnProvider,
-      final @Nullable ConnectionProvider effectiveConnProvider,
-      final @NonNull TelemetryFactory telemetryFactory) {
+      final @Nullable ConnectionProvider effectiveConnProvider) {
+    this.props = props;
     this.defaultConnProvider = defaultConnProvider;
     this.effectiveConnProvider = effectiveConnProvider;
     this.telemetryFactory = telemetryFactory;
@@ -146,29 +147,18 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    * connection plugin in the chain.
    *
    * @param servicesContainer     the service container for the services required by this class.
-   * @param props                the configuration of the connection
-   * @param pluginManagerService a reference to a plugin manager service
    * @param configurationProfile a profile configuration defined by the user
    * @throws SQLException if errors occurred during the execution
    */
-  public void init(
+  public void initPlugins(
       final FullServicesContainer servicesContainer,
-      final Properties props,
-      final PluginManagerService pluginManagerService,
       @Nullable ConfigurationProfile configurationProfile) throws SQLException {
-
-    this.props = props;
-    this.servicesContainer = servicesContainer;
-    this.telemetryFactory = servicesContainer.getTelemetryFactory();
-    this.isTelemetryInUse = telemetryFactory.inUse();
-
     ConnectionPluginChainBuilder pluginChainBuilder = new ConnectionPluginChainBuilder();
     this.plugins = pluginChainBuilder.getPlugins(
-        this.servicesContainer,
+        servicesContainer,
         this.defaultConnProvider,
         this.effectiveConnProvider,
-        pluginManagerService,
-        props,
+        this.props,
         configurationProfile);
   }
 
@@ -198,14 +188,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       this.pluginChainFuncMap[jdbcMethod.id] = pluginChainJdbcCallableInfo;
     }
 
-
-    if (pluginChainJdbcCallableInfo == null) {
-      throw new RuntimeException("Error processing this JDBC call.");
-    }
-
     if (jdbcMethod.alwaysUsePipeline || pluginChainJdbcCallableInfo.isSubscribed) {
       // noinspection unchecked
-      @SuppressWarnings("unchecked")
       PluginChainJdbcCallable<T, E> pluginChainFunc = pluginChainJdbcCallableInfo.func;
       return pluginChainFunc.call(pluginPipeline, jdbcMethodFunc, pluginToSkip);
     } else {

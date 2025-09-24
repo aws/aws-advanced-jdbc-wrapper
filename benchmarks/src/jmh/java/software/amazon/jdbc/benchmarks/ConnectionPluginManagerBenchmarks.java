@@ -160,14 +160,12 @@ public class ConnectionPluginManagerBenchmarks {
 
     TelemetryFactory telemetryFactory = new DefaultTelemetryFactory(propertiesWithPlugins);
 
-    pluginManager = new ConnectionPluginManager(mockConnectionProvider,
-        null,
-        telemetryFactory);
-    pluginManager.init(mockServicesContainer, propertiesWithPlugins, mockPluginManagerService, configurationProfile);
+    pluginManager = new ConnectionPluginManager(propertiesWithPlugins, telemetryFactory, mockConnectionProvider, null);
+    pluginManager.initPlugins(mockServicesContainer, configurationProfile);
 
     pluginManagerWithNoPlugins =
-        new ConnectionPluginManager(mockConnectionProvider, null, telemetryFactory);
-    pluginManagerWithNoPlugins.init(mockServicesContainer, propertiesWithoutPlugins, mockPluginManagerService, null);
+        new ConnectionPluginManager(propertiesWithoutPlugins, telemetryFactory, mockConnectionProvider, null);
+    pluginManagerWithNoPlugins.initPlugins(mockServicesContainer, null);
   }
 
   @TearDown(Level.Iteration)
@@ -178,16 +176,16 @@ public class ConnectionPluginManagerBenchmarks {
   @Benchmark
   public ConnectionPluginManager initConnectionPluginManagerWithNoPlugins() throws SQLException {
     final ConnectionPluginManager manager =
-        new ConnectionPluginManager(mockConnectionProvider, null, mockTelemetryFactory);
-    manager.init(mockServicesContainer, propertiesWithoutPlugins, mockPluginManagerService, configurationProfile);
+        new ConnectionPluginManager(propertiesWithoutPlugins, mockTelemetryFactory, mockConnectionProvider, null);
+    manager.initPlugins(mockServicesContainer, configurationProfile);
     return manager;
   }
 
   @Benchmark
   public ConnectionPluginManager initConnectionPluginManagerWithPlugins() throws SQLException {
     final ConnectionPluginManager manager =
-        new ConnectionPluginManager(mockConnectionProvider, null, mockTelemetryFactory);
-    manager.init(mockServicesContainer, propertiesWithPlugins, mockPluginManagerService, configurationProfile);
+        new ConnectionPluginManager(propertiesWithPlugins, mockTelemetryFactory, mockConnectionProvider, null);
+    manager.initPlugins(mockServicesContainer, configurationProfile);
     return manager;
   }
 

@@ -73,7 +73,7 @@ public class ServiceUtility {
         new FullServicesContainerImpl(storageService, monitorService, defaultConnectionProvider, telemetryFactory);
 
     ConnectionPluginManager pluginManager =
-        new ConnectionPluginManager(defaultConnectionProvider, effectiveConnectionProvider, telemetryFactory);
+        new ConnectionPluginManager(props, telemetryFactory, defaultConnectionProvider, effectiveConnectionProvider);
     servicesContainer.setConnectionPluginManager(pluginManager);
 
     PluginServiceImpl pluginServiceImpl = new PluginServiceImpl(
@@ -89,7 +89,7 @@ public class ServiceUtility {
     servicesContainer.setPluginService(pluginServiceImpl);
     servicesContainer.setPluginManagerService(pluginServiceImpl);
 
-    pluginManager.init(servicesContainer, props, pluginServiceImpl, configurationProfile);
+    pluginManager.initPlugins(servicesContainer, configurationProfile);
     return servicesContainer;
   }
 
@@ -106,7 +106,7 @@ public class ServiceUtility {
     FullServicesContainer serviceContainer =
         new FullServicesContainerImpl(storageService, monitorService, connectionProvider, telemetryFactory);
     ConnectionPluginManager pluginManager =
-        new ConnectionPluginManager(connectionProvider, null, telemetryFactory);
+        new ConnectionPluginManager(props, telemetryFactory, connectionProvider, null);
     serviceContainer.setConnectionPluginManager(pluginManager);
 
     PartialPluginService partialPluginService = new PartialPluginService(
@@ -122,7 +122,7 @@ public class ServiceUtility {
     serviceContainer.setPluginService(partialPluginService);
     serviceContainer.setPluginManagerService(partialPluginService);
 
-    pluginManager.init(serviceContainer, props, partialPluginService, null);
+    pluginManager.initPlugins(serviceContainer, null);
     return serviceContainer;
   }
 }

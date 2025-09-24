@@ -28,7 +28,6 @@ import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
-import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,7 +50,6 @@ public class ConnectionPluginChainBuilderTests {
   @Mock ConnectionProvider mockConnectionProvider;
   @Mock FullServicesContainer mockServicesContainer;
   @Mock PluginService mockPluginService;
-  @Mock PluginManagerService mockPluginManagerService;
   @Mock TelemetryFactory mockTelemetryFactory;
   @Mock TelemetryContext mockTelemetryContext;
   @Mock TargetDriverDialect mockTargetDriverDialect;
@@ -85,7 +83,6 @@ public class ConnectionPluginChainBuilderTests {
         mockServicesContainer,
         mockConnectionProvider,
         null,
-        mockPluginManagerService,
         props,
         null);
 
@@ -108,7 +105,6 @@ public class ConnectionPluginChainBuilderTests {
         mockServicesContainer,
         mockConnectionProvider,
         null,
-        mockPluginManagerService,
         props,
         null);
 
@@ -130,7 +126,6 @@ public class ConnectionPluginChainBuilderTests {
         mockServicesContainer,
         mockConnectionProvider,
         null,
-        mockPluginManagerService,
         props,
         null);
 
