@@ -40,10 +40,10 @@ import software.amazon.jdbc.hostlistprovider.monitoring.MultiAzClusterTopologyMo
 import software.amazon.jdbc.plugin.strategy.fastestresponse.NodeResponseTimeMonitor;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ExecutorFactory;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
-import software.amazon.jdbc.util.connection.ConnectionService;
-import software.amazon.jdbc.util.connection.ConnectionServiceImpl;
+import software.amazon.jdbc.util.ServiceUtility;
 import software.amazon.jdbc.util.events.DataAccessEvent;
 import software.amazon.jdbc.util.events.Event;
 import software.amazon.jdbc.util.events.EventPublisher;
@@ -204,20 +204,16 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
     final List<SQLException> exceptionList = new ArrayList<>(1);
     MonitorItem monitorItem = cacheContainer.getCache().computeIfAbsent(key, k -> {
       try {
-        final ConnectionService connectionService =
-            getConnectionService(
-                storageService,
-                telemetryFactory,
-                defaultConnectionProvider,
-                originalUrl,
-                driverProtocol,
-                driverDialect,
-                dbDialect,
-                originalProps);
-        final MonitorItem monitorItemInner = new MonitorItem(() -> initializer.createMonitor(
-            connectionService,
-            connectionService.getPluginService())
-        );
+        final FullServicesContainer servicesContainer = getNewServicesContainer(
+            storageService,
+            defaultConnectionProvider,
+            telemetryFactory,
+            originalUrl,
+            driverProtocol,
+            driverDialect,
+            dbDialect,
+            originalProps);
+        final MonitorItem monitorItemInner = new MonitorItem(() -> initializer.createMonitor(servicesContainer));
         monitorItemInner.getMonitor().start();
         return monitorItemInner;
       } catch (SQLException e) {
@@ -239,26 +235,27 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
         Messages.get("MonitorServiceImpl.unexpectedMonitorClass", new Object[] {monitorClass, monitor}));
   }
 
-  protected ConnectionService getConnectionService(
+  protected FullServicesContainer getNewServicesContainer(
       StorageService storageService,
+      ConnectionProvider connectionProvider,
       TelemetryFactory telemetryFactory,
-      ConnectionProvider defaultConnectionProvider,
       String originalUrl,
       String driverProtocol,
       TargetDriverDialect driverDialect,
       Dialect dbDialect,
       Properties originalProps) throws SQLException {
     final Properties propsCopy = PropertyUtils.copyProperties(originalProps);
-    return new ConnectionServiceImpl(
+    return ServiceUtility.getInstance().createServiceContainer(
         storageService,
         this,
+        connectionProvider,
         telemetryFactory,
-        defaultConnectionProvider,
         originalUrl,
         driverProtocol,
         driverDialect,
         dbDialect,
-        propsCopy);
+        propsCopy
+    );
   }
 
   @Override

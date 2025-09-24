@@ -17,6 +17,7 @@
 package software.amazon.jdbc.util;
 
 import software.amazon.jdbc.ConnectionPluginManager;
+import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
@@ -27,6 +28,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 public class FullServicesContainerImpl implements FullServicesContainer {
   private StorageService storageService;
   private MonitorService monitorService;
+  private ConnectionProvider defaultConnProvider;
   private TelemetryFactory telemetryFactory;
   private ConnectionPluginManager connectionPluginManager;
   private HostListProviderService hostListProviderService;
@@ -36,12 +38,13 @@ public class FullServicesContainerImpl implements FullServicesContainer {
   public FullServicesContainerImpl(
       StorageService storageService,
       MonitorService monitorService,
+      ConnectionProvider defaultConnProvider,
       TelemetryFactory telemetryFactory,
       ConnectionPluginManager connectionPluginManager,
       HostListProviderService hostListProviderService,
       PluginService pluginService,
       PluginManagerService pluginManagerService) {
-    this(storageService, monitorService, telemetryFactory);
+    this(storageService, monitorService, defaultConnProvider, telemetryFactory);
     this.connectionPluginManager = connectionPluginManager;
     this.hostListProviderService = hostListProviderService;
     this.pluginService = pluginService;
@@ -51,9 +54,11 @@ public class FullServicesContainerImpl implements FullServicesContainer {
   public FullServicesContainerImpl(
       StorageService storageService,
       MonitorService monitorService,
+      ConnectionProvider defaultConnProvider,
       TelemetryFactory telemetryFactory) {
     this.storageService = storageService;
     this.monitorService = monitorService;
+    this.defaultConnProvider = defaultConnProvider;
     this.telemetryFactory = telemetryFactory;
   }
 
@@ -65,6 +70,11 @@ public class FullServicesContainerImpl implements FullServicesContainer {
   @Override
   public MonitorService getMonitorService() {
     return this.monitorService;
+  }
+
+  @Override
+  public ConnectionProvider getDefaultConnectionProvider() {
+    return this.defaultConnProvider;
   }
 
   @Override

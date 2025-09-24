@@ -18,7 +18,6 @@ package software.amazon.jdbc.targetdriverdialect;
 
 import static software.amazon.jdbc.util.ConnectionUrlBuilder.buildUrl;
 
-import com.mysql.cj.jdbc.Driver;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Collections;
