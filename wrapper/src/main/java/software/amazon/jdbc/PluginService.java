@@ -84,6 +84,7 @@ public interface PluginService extends ExceptionHandler {
 
   /**
    * Get the {@link ConnectionInfo} for the current original connection.
+   *
    * @return the {@link ConnectionInfo} for the current original connection.
    */
   ConnectionInfo getConnectionInfo();

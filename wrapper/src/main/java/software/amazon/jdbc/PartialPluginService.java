@@ -504,7 +504,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
       final Properties props,
       final @Nullable ConnectionPlugin pluginToSkip)
       throws SQLException {
-    return this.pluginManager.forceConnect(this.connectionInfo, hostSpec,true, pluginToSkip);
+    return this.pluginManager.forceConnect(this.connectionInfo, hostSpec, true, pluginToSkip);
   }
 
   private void updateHostAvailability(final List<HostSpec> hosts) {
