@@ -27,11 +27,16 @@ import software.amazon.jdbc.util.WrapperUtils;
 
 public class ArrayWrapper implements Array {
 
-  protected Array array;
-  protected ConnectionPluginManager pluginManager;
+  protected final Array array;
+  protected final ConnectionWrapper connectionWrapper;
+  protected final ConnectionPluginManager pluginManager;
 
-  public ArrayWrapper(@NonNull Array array, @NonNull ConnectionPluginManager pluginManager) {
+  public ArrayWrapper(
+      @NonNull Array array,
+      @NonNull ConnectionWrapper connectionWrapper,
+      @NonNull ConnectionPluginManager pluginManager) {
     this.array = array;
+    this.connectionWrapper = connectionWrapper;
     this.pluginManager = pluginManager;
   }
 
@@ -41,10 +46,11 @@ public class ArrayWrapper implements Array {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.array,
           JdbcMethod.ARRAY_GETBASETYPENAME,
-          () -> this.array.getBaseTypeName());
+          this.array::getBaseTypeName);
     } else {
       return this.array.getBaseTypeName();
     }
@@ -56,10 +62,11 @@ public class ArrayWrapper implements Array {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.array,
           JdbcMethod.ARRAY_GETBASETYPE,
-          () -> this.array.getBaseType());
+          this.array::getBaseType);
     } else {
       return this.array.getBaseType();
     }
@@ -71,10 +78,11 @@ public class ArrayWrapper implements Array {
       return WrapperUtils.executeWithPlugins(
           Object.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.array,
           JdbcMethod.ARRAY_GETARRAY,
-          () -> this.array.getArray());
+          this.array::getArray);
     } else {
       return this.array.getArray();
     }
@@ -86,6 +94,7 @@ public class ArrayWrapper implements Array {
       return WrapperUtils.executeWithPlugins(
           Object.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.array,
           JdbcMethod.ARRAY_GETARRAY,
@@ -102,6 +111,7 @@ public class ArrayWrapper implements Array {
       return WrapperUtils.executeWithPlugins(
           Object.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.array,
           JdbcMethod.ARRAY_GETARRAY,
@@ -119,6 +129,7 @@ public class ArrayWrapper implements Array {
       return WrapperUtils.executeWithPlugins(
           Object.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.array,
           JdbcMethod.ARRAY_GETARRAY,
@@ -136,10 +147,11 @@ public class ArrayWrapper implements Array {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.array,
         JdbcMethod.ARRAY_GETRESULTSET,
-        () -> this.array.getResultSet());
+        this.array::getResultSet);
   }
 
   @Override
@@ -147,7 +159,8 @@ public class ArrayWrapper implements Array {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.array,
         JdbcMethod.ARRAY_GETRESULTSET,
         () -> this.array.getResultSet(map),
@@ -159,7 +172,8 @@ public class ArrayWrapper implements Array {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.array,
         JdbcMethod.ARRAY_GETRESULTSET,
         () -> this.array.getResultSet(index, count),
@@ -173,7 +187,8 @@ public class ArrayWrapper implements Array {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.array,
         JdbcMethod.ARRAY_GETRESULTSET,
         () -> this.array.getResultSet(index, count, map),
@@ -187,10 +202,11 @@ public class ArrayWrapper implements Array {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.ARRAY_FREE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.array,
           JdbcMethod.ARRAY_FREE,
-          () -> this.array.free());
+          this.array::free);
     } else {
       this.array.free();
     }
@@ -203,6 +219,6 @@ public class ArrayWrapper implements Array {
     // serialize array content. So wrapper class should preserve this logic.
     // More details can be found at
     // https://github.com/pgjdbc/pgjdbc/blob/f61fbfe7b72ccf2ca0ac2e2c366230fdb93260e5/pgjdbc/src/main/java/org/postgresql/jdbc/PgArray.java
-    return this.array == null ? null : this.array.toString();
+    return this.array.toString();
   }
 }

@@ -23,7 +23,10 @@ import software.amazon.jdbc.ConnectionPluginManager;
 public class BlobWrapperFactory implements WrapperFactory {
 
   @Override
-  public Object getInstance(@NonNull Object targetObj, @NonNull ConnectionPluginManager pluginManager) {
-    return new BlobWrapper((Blob) targetObj, pluginManager);
+  public Object getInstance(
+      @NonNull Object targetObj,
+      @NonNull ConnectionWrapper connectionWrapper,
+      @NonNull ConnectionPluginManager pluginManager) {
+    return new BlobWrapper((Blob) targetObj, connectionWrapper, pluginManager);
   }
 }

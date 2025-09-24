@@ -47,12 +47,16 @@ import software.amazon.jdbc.util.WrapperUtils;
 
 public class CallableStatementWrapper implements CallableStatement {
 
-  protected CallableStatement statement;
-  protected ConnectionPluginManager pluginManager;
+  protected final CallableStatement statement;
+  protected final ConnectionWrapper connectionWrapper;
+  protected final ConnectionPluginManager pluginManager;
 
   public CallableStatementWrapper(
-      @NonNull CallableStatement statement, @NonNull ConnectionPluginManager pluginManager) {
+      @NonNull CallableStatement statement,
+      @NonNull ConnectionWrapper connectionWrapper,
+      @NonNull ConnectionPluginManager pluginManager) {
     this.statement = statement;
+    this.connectionWrapper = connectionWrapper;
     this.pluginManager = pluginManager;
   }
 
@@ -64,7 +68,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_ADDBATCH,
-          () -> this.statement.addBatch());
+          this.statement::addBatch);
     } else {
       this.statement.addBatch();
     }
@@ -93,7 +97,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_CANCEL,
-          () -> this.statement.cancel());
+          this.statement::cancel);
     } else {
       this.statement.cancel();
     }
@@ -107,7 +111,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_CLEARBATCH,
-          () -> this.statement.clearBatch());
+          this.statement::clearBatch);
     } else {
       this.statement.clearBatch();
     }
@@ -121,7 +125,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_CLEARPARAMETERS,
-          () -> this.statement.clearParameters());
+          this.statement::clearParameters);
     } else {
       this.statement.clearParameters();
     }
@@ -135,7 +139,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_CLEARWARNINGS,
-          () -> this.statement.clearWarnings());
+          this.statement::clearWarnings);
     } else {
       this.statement.clearWarnings();
     }
@@ -149,7 +153,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_CLOSE,
-          () -> this.statement.close());
+          this.statement::close);
     } else {
       this.statement.close();
     }
@@ -163,7 +167,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_CLOSEONCOMPLETION,
-          () -> this.statement.closeOnCompletion());
+          this.statement::closeOnCompletion);
     } else {
       this.statement.closeOnCompletion();
     }
@@ -178,7 +182,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_EXECUTE,
-          () -> this.statement.execute());
+          this.statement::execute);
     } else {
       return this.statement.execute();
     }
@@ -260,7 +264,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_EXECUTEBATCH,
-          () -> this.statement.executeBatch());
+          this.statement::executeBatch);
     } else {
       return this.statement.executeBatch();
     }
@@ -275,7 +279,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE,
-          () -> this.statement.executeLargeUpdate());
+          this.statement::executeLargeUpdate);
     } else {
       return this.statement.executeLargeUpdate();
     }
@@ -289,7 +293,7 @@ public class CallableStatementWrapper implements CallableStatement {
         this.pluginManager,
         this.statement,
         JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY,
-        () -> this.statement.executeQuery());
+        this.statement::executeQuery);
   }
 
   @Override
@@ -313,7 +317,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE,
-          () -> this.statement.executeUpdate());
+          this.statement::executeUpdate);
     } else {
       return this.statement.executeUpdate();
     }
@@ -644,7 +648,7 @@ public class CallableStatementWrapper implements CallableStatement {
         this.pluginManager,
         this.statement,
         JdbcMethod.CALLABLESTATEMENT_GETCONNECTION,
-        () -> this.pluginManager.getConnectionWrapper());
+        () -> this.connectionWrapper);
   }
 
   @Override
@@ -755,7 +759,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETFETCHDIRECTION,
-          () -> this.statement.getFetchDirection());
+          this.statement::getFetchDirection);
     } else {
       return this.statement.getFetchDirection();
     }
@@ -770,7 +774,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETFETCHSIZE,
-          () -> this.statement.getFetchSize());
+          this.statement::getFetchSize);
     } else {
       return this.statement.getFetchSize();
     }
@@ -816,7 +820,7 @@ public class CallableStatementWrapper implements CallableStatement {
         this.pluginManager,
         this.statement,
         JdbcMethod.CALLABLESTATEMENT_GETGENERATEDKEYS,
-        () -> this.statement.getGeneratedKeys());
+        this.statement::getGeneratedKeys);
   }
 
   @Override
@@ -892,7 +896,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETMAXFIELDSIZE,
-          () -> this.statement.getMaxFieldSize());
+          this.statement::getMaxFieldSize);
     } else {
       return this.statement.getMaxFieldSize();
     }
@@ -907,7 +911,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETMAXROWS,
-          () -> this.statement.getMaxRows());
+          this.statement::getMaxRows);
     } else {
       return this.statement.getMaxRows();
     }
@@ -921,7 +925,7 @@ public class CallableStatementWrapper implements CallableStatement {
         this.pluginManager,
         this.statement,
         JdbcMethod.CALLABLESTATEMENT_GETMETADATA,
-        () -> this.statement.getMetaData());
+        this.statement::getMetaData);
   }
 
   @Override
@@ -933,7 +937,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETMORERESULTS,
-          () -> this.statement.getMoreResults());
+          this.statement::getMoreResults);
     } else {
       return this.statement.getMoreResults();
     }
@@ -1151,7 +1155,7 @@ public class CallableStatementWrapper implements CallableStatement {
         this.pluginManager,
         this.statement,
         JdbcMethod.CALLABLESTATEMENT_GETPARAMETERMETADATA,
-        () -> this.statement.getParameterMetaData());
+        this.statement::getParameterMetaData);
   }
 
   @Override
@@ -1163,7 +1167,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETQUERYTIMEOUT,
-          () -> this.statement.getQueryTimeout());
+          this.statement::getQueryTimeout);
     } else {
       return this.statement.getQueryTimeout();
     }
@@ -1201,7 +1205,7 @@ public class CallableStatementWrapper implements CallableStatement {
         this.pluginManager,
         this.statement,
         JdbcMethod.CALLABLESTATEMENT_GETRESULTSET,
-        () -> this.statement.getResultSet());
+        this.statement::getResultSet);
   }
 
   @SuppressWarnings("MagicConstant")
@@ -1214,7 +1218,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETRESULTSETCONCURRENCY,
-          () -> this.statement.getResultSetConcurrency());
+          this.statement::getResultSetConcurrency);
     } else {
       return this.statement.getResultSetConcurrency();
     }
@@ -1229,7 +1233,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETRESULTSETHOLDABILITY,
-          () -> this.statement.getResultSetHoldability());
+          this.statement::getResultSetHoldability);
     } else {
       return this.statement.getResultSetHoldability();
     }
@@ -1245,7 +1249,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETRESULTSETTYPE,
-          () -> this.statement.getResultSetType());
+          this.statement::getResultSetType);
     } else {
       return this.statement.getResultSetType();
     }
@@ -1285,7 +1289,6 @@ public class CallableStatementWrapper implements CallableStatement {
 
   @Override
   public SQLXML getSQLXML(int parameterIndex) throws SQLException {
-    //noinspection SpellCheckingInspection
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_GETSQLXML)) {
       return WrapperUtils.executeWithPlugins(
           SQLXML.class,
@@ -1302,7 +1305,6 @@ public class CallableStatementWrapper implements CallableStatement {
 
   @Override
   public SQLXML getSQLXML(String parameterName) throws SQLException {
-    //noinspection SpellCheckingInspection
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_GETSQLXML)) {
       return WrapperUtils.executeWithPlugins(
           SQLXML.class,
@@ -1554,7 +1556,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETUPDATECOUNT,
-          () -> this.statement.getUpdateCount());
+          this.statement::getUpdateCount);
     } else {
       return this.statement.getUpdateCount();
     }
@@ -1569,7 +1571,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_GETWARNINGS,
-          () -> this.statement.getWarnings());
+          this.statement::getWarnings);
     } else {
       return this.statement.getWarnings();
     }
@@ -1584,7 +1586,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_ISCLOSEONCOMPLETION,
-          () -> this.statement.isCloseOnCompletion());
+          this.statement::isCloseOnCompletion);
     } else {
       return this.statement.isCloseOnCompletion();
     }
@@ -1599,7 +1601,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_ISCLOSED,
-          () -> this.statement.isClosed());
+          this.statement::isClosed);
     } else {
       return this.statement.isClosed();
     }
@@ -1607,7 +1609,6 @@ public class CallableStatementWrapper implements CallableStatement {
 
   @Override
   public boolean isPoolable() throws SQLException {
-    //noinspection SpellCheckingInspection
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_ISPOOLABLE)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
@@ -1615,7 +1616,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_ISPOOLABLE,
-          () -> this.statement.isPoolable());
+          this.statement::isPoolable);
     } else {
       return this.statement.isPoolable();
     }
@@ -3285,7 +3286,6 @@ public class CallableStatementWrapper implements CallableStatement {
 
   @Override
   public void setSQLXML(String parameterName, SQLXML xmlObject) throws SQLException {
-    //noinspection SpellCheckingInspection
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETSQLXML)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -3302,7 +3302,6 @@ public class CallableStatementWrapper implements CallableStatement {
 
   @Override
   public void setSQLXML(int parameterIndex, SQLXML xmlObject) throws SQLException {
-    //noinspection SpellCheckingInspection
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CALLABLESTATEMENT_SETSQLXML)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -3577,7 +3576,7 @@ public class CallableStatementWrapper implements CallableStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.CALLABLESTATEMENT_WASNULL,
-          () -> this.statement.wasNull());
+          this.statement::wasNull);
     } else {
       return this.statement.wasNull();
     }

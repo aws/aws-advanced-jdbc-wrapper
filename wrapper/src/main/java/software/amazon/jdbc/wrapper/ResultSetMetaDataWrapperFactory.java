@@ -23,7 +23,10 @@ import software.amazon.jdbc.ConnectionPluginManager;
 public class ResultSetMetaDataWrapperFactory implements WrapperFactory {
 
   @Override
-  public Object getInstance(@NonNull Object targetObj, @NonNull ConnectionPluginManager pluginManager) {
+  public Object getInstance(
+      @NonNull Object targetObj,
+      @NonNull ConnectionWrapper connectionWrapper,
+      @NonNull ConnectionPluginManager pluginManager) {
     return new ResultSetMetaDataWrapper((ResultSetMetaData) targetObj, pluginManager);
   }
 }

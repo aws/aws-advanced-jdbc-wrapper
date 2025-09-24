@@ -23,7 +23,10 @@ import software.amazon.jdbc.ConnectionPluginManager;
 public class PreparedStatementWrapperFactory implements WrapperFactory {
 
   @Override
-  public Object getInstance(@NonNull Object targetObj, @NonNull ConnectionPluginManager pluginManager) {
-    return new PreparedStatementWrapper((PreparedStatement) targetObj, pluginManager);
+  public Object getInstance(
+      @NonNull Object targetObj,
+      @NonNull ConnectionWrapper connectionWrapper,
+      @NonNull ConnectionPluginManager pluginManager) {
+    return new PreparedStatementWrapper((PreparedStatement) targetObj, connectionWrapper, pluginManager);
   }
 }

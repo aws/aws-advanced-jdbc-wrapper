@@ -28,12 +28,16 @@ import software.amazon.jdbc.util.WrapperUtils;
 
 public class StatementWrapper implements Statement {
 
-  protected Statement statement;
-  protected ConnectionPluginManager pluginManager;
+  protected final Statement statement;
+  protected final ConnectionWrapper connectionWrapper;
+  protected final ConnectionPluginManager pluginManager;
 
   public StatementWrapper(
-      @NonNull Statement statement, @NonNull ConnectionPluginManager pluginManager) {
+      @NonNull Statement statement,
+      @NonNull ConnectionWrapper connectionWrapper,
+      @NonNull ConnectionPluginManager pluginManager) {
     this.statement = statement;
+    this.connectionWrapper = connectionWrapper;
     this.pluginManager = pluginManager;
   }
 
@@ -124,7 +128,7 @@ public class StatementWrapper implements Statement {
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_CLOSE,
-          () -> this.statement.close());
+          this.statement::close);
     } else {
       this.statement.close();
     }
@@ -139,7 +143,7 @@ public class StatementWrapper implements Statement {
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_GETMAXFIELDSIZE,
-          () -> this.statement.getMaxFieldSize());
+          this.statement::getMaxFieldSize);
     } else {
       return this.statement.getMaxFieldSize();
     }
@@ -169,7 +173,7 @@ public class StatementWrapper implements Statement {
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_GETMAXROWS,
-          () -> this.statement.getMaxRows());
+          this.statement::getMaxRows);
     } else {
       return this.statement.getMaxRows();
     }
@@ -214,7 +218,7 @@ public class StatementWrapper implements Statement {
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_GETQUERYTIMEOUT,
-          () -> this.statement.getQueryTimeout());
+          this.statement::getQueryTimeout);
     } else {
       return this.statement.getQueryTimeout();
     }
@@ -243,7 +247,7 @@ public class StatementWrapper implements Statement {
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_CANCEL,
-          () -> this.statement.cancel());
+          this.statement::cancel);
     } else {
       this.statement.cancel();
     }
@@ -258,7 +262,7 @@ public class StatementWrapper implements Statement {
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_GETWARNINGS,
-          () -> this.statement.getWarnings());
+          this.statement::getWarnings);
     } else {
       return this.statement.getWarnings();
     }
@@ -272,7 +276,7 @@ public class StatementWrapper implements Statement {
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_CLEARWARNINGS,
-          () -> this.statement.clearWarnings());
+          this.statement::clearWarnings);
     } else {
       this.statement.clearWarnings();
     }
@@ -368,7 +372,7 @@ public class StatementWrapper implements Statement {
         this.pluginManager,
         this.statement,
         JdbcMethod.STATEMENT_GETRESULTSET,
-        () -> this.statement.getResultSet());
+        this.statement::getResultSet);
   }
 
   @Override
@@ -380,7 +384,7 @@ public class StatementWrapper implements Statement {
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_GETUPDATECOUNT,
-          () -> this.statement.getUpdateCount());
+          this.statement::getUpdateCount);
     } else {
       return this.statement.getUpdateCount();
     }
@@ -395,7 +399,7 @@ public class StatementWrapper implements Statement {
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_GETMORERESULTS,
-          () -> this.statement.getMoreResults());
+          this.statement::getMoreResults);
     } else {
       return this.statement.getMoreResults();
     }
@@ -427,7 +431,7 @@ public class StatementWrapper implements Statement {
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_GETFETCHDIRECTION,
-          () -> this.statement.getFetchDirection());
+          this.statement::getFetchDirection);
     } else {
       return this.statement.getFetchDirection();
     }
@@ -457,7 +461,7 @@ public class StatementWrapper implements Statement {
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_GETFETCHSIZE,
-          () -> this.statement.getFetchSize());
+          this.statement::getFetchSize);
     } else {
       return this.statement.getFetchSize();
     }
@@ -488,7 +492,7 @@ public class StatementWrapper implements Statement {
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_GETRESULTSETCONCURRENCY,
-          () -> this.statement.getResultSetConcurrency());
+          this.statement::getResultSetConcurrency);
     } else {
       return this.statement.getResultSetConcurrency();
     }
@@ -504,7 +508,7 @@ public class StatementWrapper implements Statement {
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_GETRESULTSETTYPE,
-          () -> this.statement.getResultSetType());
+          this.statement::getResultSetType);
     } else {
       return this.statement.getResultSetType();
     }
@@ -533,7 +537,7 @@ public class StatementWrapper implements Statement {
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_CLEARBATCH,
-          () -> this.statement.clearBatch());
+          this.statement::clearBatch);
     } else {
       this.statement.clearBatch();
     }
@@ -548,7 +552,7 @@ public class StatementWrapper implements Statement {
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_EXECUTEBATCH,
-          () -> this.statement.executeBatch());
+          this.statement::executeBatch);
     } else {
       return this.statement.executeBatch();
     }
@@ -562,7 +566,7 @@ public class StatementWrapper implements Statement {
         this.pluginManager,
         this.statement,
         JdbcMethod.STATEMENT_GETCONNECTION,
-        () -> this.pluginManager.getConnectionWrapper());
+        () -> this.connectionWrapper);
   }
 
   @Override
@@ -573,7 +577,7 @@ public class StatementWrapper implements Statement {
         this.pluginManager,
         this.statement,
         JdbcMethod.STATEMENT_GETGENERATEDKEYS,
-        () -> this.statement.getGeneratedKeys());
+        this.statement::getGeneratedKeys);
   }
 
   @Override
@@ -585,7 +589,7 @@ public class StatementWrapper implements Statement {
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_GETRESULTSETHOLDABILITY,
-          () -> this.statement.getResultSetHoldability());
+          this.statement::getResultSetHoldability);
     } else {
       return this.statement.getResultSetHoldability();
     }
@@ -600,13 +604,12 @@ public class StatementWrapper implements Statement {
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_ISCLOSED,
-          () -> this.statement.isClosed());
+          this.statement::isClosed);
     } else {
       return this.statement.isClosed();
     }
   }
 
-  @SuppressWarnings("SpellCheckingInspection")
   @Override
   public boolean isPoolable() throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.STATEMENT_ISPOOLABLE)) {
@@ -616,7 +619,7 @@ public class StatementWrapper implements Statement {
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_ISPOOLABLE,
-          () -> this.statement.isPoolable());
+          this.statement::isPoolable);
     } else {
       return this.statement.isPoolable();
     }
@@ -646,7 +649,7 @@ public class StatementWrapper implements Statement {
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_CLOSEONCOMPLETION,
-          () -> this.statement.closeOnCompletion());
+          this.statement::closeOnCompletion);
     } else {
       this.statement.closeOnCompletion();
     }
@@ -661,7 +664,7 @@ public class StatementWrapper implements Statement {
           this.pluginManager,
           this.statement,
           JdbcMethod.STATEMENT_ISCLOSEONCOMPLETION,
-          () -> this.statement.isCloseOnCompletion());
+          this.statement::isCloseOnCompletion);
     } else {
       return this.statement.isCloseOnCompletion();
     }

@@ -46,12 +46,16 @@ import software.amazon.jdbc.util.WrapperUtils;
 
 public class PreparedStatementWrapper implements PreparedStatement {
 
-  protected PreparedStatement statement;
-  protected ConnectionPluginManager pluginManager;
+  protected final PreparedStatement statement;
+  protected final ConnectionWrapper connectionWrapper;
+  protected final ConnectionPluginManager pluginManager;
 
   public PreparedStatementWrapper(
-      @NonNull PreparedStatement statement, @NonNull ConnectionPluginManager pluginManager) {
+      @NonNull PreparedStatement statement,
+      @NonNull ConnectionWrapper connectionWrapper,
+      @NonNull ConnectionPluginManager pluginManager) {
     this.statement = statement;
+    this.connectionWrapper = connectionWrapper;
     this.pluginManager = pluginManager;
   }
 
@@ -63,7 +67,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_ADDBATCH,
-          () -> this.statement.addBatch());
+          this.statement::addBatch);
     } else {
       this.statement.addBatch();
     }
@@ -92,7 +96,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_CANCEL,
-          () -> this.statement.cancel());
+          this.statement::cancel);
     } else {
       this.statement.cancel();
     }
@@ -106,7 +110,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_CLEARBATCH,
-          () -> this.statement.clearBatch());
+          this.statement::clearBatch);
     } else {
       this.statement.clearBatch();
     }
@@ -120,7 +124,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_CLEARPARAMETERS,
-          () -> this.statement.clearParameters());
+          this.statement::clearParameters);
     } else {
       this.statement.clearParameters();
     }
@@ -134,7 +138,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_CLEARWARNINGS,
-          () -> this.statement.clearWarnings());
+          this.statement::clearWarnings);
     } else {
       this.statement.clearWarnings();
     }
@@ -148,7 +152,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_CLOSE,
-          () -> this.statement.close());
+          this.statement::close);
     } else {
       this.statement.close();
     }
@@ -162,7 +166,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_CLOSEONCOMPLETION,
-          () -> this.statement.closeOnCompletion());
+          this.statement::closeOnCompletion);
     } else {
       this.statement.closeOnCompletion();
     }
@@ -177,7 +181,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_EXECUTE,
-          () -> this.statement.execute());
+          this.statement::execute);
     } else {
       return this.statement.execute();
     }
@@ -259,7 +263,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_EXECUTEBATCH,
-          () -> this.statement.executeBatch());
+          this.statement::executeBatch);
     } else {
       return this.statement.executeBatch();
     }
@@ -274,7 +278,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_EXECUTELARGEUPDATE,
-          () -> this.statement.executeLargeUpdate());
+          this.statement::executeLargeUpdate);
     } else {
       return this.statement.executeLargeUpdate();
     }
@@ -288,7 +292,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
         this.pluginManager,
         this.statement,
         JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY,
-        () -> this.statement.executeQuery());
+        this.statement::executeQuery);
   }
 
   @Override
@@ -312,7 +316,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE,
-          () -> this.statement.executeUpdate());
+          this.statement::executeUpdate);
     } else {
       return this.statement.executeUpdate();
     }
@@ -393,7 +397,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
         this.pluginManager,
         this.statement,
         JdbcMethod.PREPAREDSTATEMENT_GETCONNECTION,
-        () -> this.pluginManager.getConnectionWrapper());
+        () -> this.connectionWrapper);
   }
 
   @SuppressWarnings("MagicConstant")
@@ -406,7 +410,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_GETFETCHDIRECTION,
-          () -> this.statement.getFetchDirection());
+          this.statement::getFetchDirection);
     } else {
       return this.statement.getFetchDirection();
     }
@@ -421,7 +425,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_GETFETCHSIZE,
-          () -> this.statement.getFetchSize());
+          this.statement::getFetchSize);
     } else {
       return this.statement.getFetchSize();
     }
@@ -435,7 +439,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
         this.pluginManager,
         this.statement,
         JdbcMethod.PREPAREDSTATEMENT_GETGENERATEDKEYS,
-        () -> this.statement.getGeneratedKeys());
+        this.statement::getGeneratedKeys);
   }
 
   @Override
@@ -447,7 +451,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_GETMAXFIELDSIZE,
-          () -> this.statement.getMaxFieldSize());
+          this.statement::getMaxFieldSize);
     } else {
       return this.statement.getMaxFieldSize();
     }
@@ -462,7 +466,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_GETMAXROWS,
-          () -> this.statement.getMaxRows());
+          this.statement::getMaxRows);
     } else {
       return this.statement.getMaxRows();
     }
@@ -476,7 +480,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
         this.pluginManager,
         this.statement,
         JdbcMethod.PREPAREDSTATEMENT_GETMETADATA,
-        () -> this.statement.getMetaData());
+        this.statement::getMetaData);
   }
 
   @Override
@@ -488,7 +492,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_GETMORERESULTS,
-          () -> this.statement.getMoreResults());
+          this.statement::getMoreResults);
     } else {
       return this.statement.getMoreResults();
     }
@@ -518,7 +522,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
         this.pluginManager,
         this.statement,
         JdbcMethod.PREPAREDSTATEMENT_GETPARAMETERMETADATA,
-        () -> this.statement.getParameterMetaData());
+        this.statement::getParameterMetaData);
   }
 
   @Override
@@ -530,7 +534,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_GETQUERYTIMEOUT,
-          () -> this.statement.getQueryTimeout());
+          this.statement::getQueryTimeout);
     } else {
       return this.statement.getQueryTimeout();
     }
@@ -544,7 +548,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
         this.pluginManager,
         this.statement,
         JdbcMethod.PREPAREDSTATEMENT_GETRESULTSET,
-        () -> this.statement.getResultSet());
+        this.statement::getResultSet);
   }
 
   @SuppressWarnings("MagicConstant")
@@ -557,7 +561,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_GETRESULTSETCONCURRENCY,
-          () -> this.statement.getResultSetConcurrency());
+          this.statement::getResultSetConcurrency);
     } else {
       return this.statement.getResultSetConcurrency();
     }
@@ -572,7 +576,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_GETRESULTSETHOLDABILITY,
-          () -> this.statement.getResultSetHoldability());
+          this.statement::getResultSetHoldability);
     } else {
       return this.statement.getResultSetHoldability();
     }
@@ -588,7 +592,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_GETRESULTSETTYPE,
-          () -> this.statement.getResultSetType());
+          this.statement::getResultSetType);
     } else {
       return this.statement.getResultSetType();
     }
@@ -603,7 +607,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_GETUPDATECOUNT,
-          () -> this.statement.getUpdateCount());
+          this.statement::getUpdateCount);
     } else {
       return this.statement.getUpdateCount();
     }
@@ -618,7 +622,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_GETWARNINGS,
-          () -> this.statement.getWarnings());
+          this.statement::getWarnings);
     } else {
       return this.statement.getWarnings();
     }
@@ -633,7 +637,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_ISCLOSEONCOMPLETION,
-          () -> this.statement.isCloseOnCompletion());
+          this.statement::isCloseOnCompletion);
     } else {
       return this.statement.isCloseOnCompletion();
     }
@@ -648,13 +652,12 @@ public class PreparedStatementWrapper implements PreparedStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_ISCLOSED,
-          () -> this.statement.isClosed());
+          this.statement::isClosed);
     } else {
       return this.statement.isClosed();
     }
   }
 
-  @SuppressWarnings("SpellCheckingInspection")
   @Override
   public boolean isPoolable() throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_ISPOOLABLE)) {
@@ -664,7 +667,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_ISPOOLABLE,
-          () -> this.statement.isPoolable());
+          this.statement::isPoolable);
     } else {
       return this.statement.isPoolable();
     }

@@ -23,7 +23,10 @@ import software.amazon.jdbc.ConnectionPluginManager;
 public class SavepointWrapperFactory implements WrapperFactory {
 
   @Override
-  public Object getInstance(@NonNull Object targetObj, @NonNull ConnectionPluginManager pluginManager) {
+  public Object getInstance(
+      @NonNull Object targetObj,
+      @NonNull ConnectionWrapper connectionWrapper,
+      @NonNull ConnectionPluginManager pluginManager) {
     return new SavepointWrapper((Savepoint) targetObj, pluginManager);
   }
 }

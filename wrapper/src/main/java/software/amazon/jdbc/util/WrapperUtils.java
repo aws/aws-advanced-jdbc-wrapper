@@ -174,6 +174,7 @@ public class WrapperUtils {
 
   public static <E extends Exception> void runWithPlugins(
       final Class<E> exceptionClass,
+      final ConnectionWrapper connectionWrapper,
       final ConnectionPluginManager pluginManager,
       final Object methodInvokeOn,
       final JdbcMethod jdbcMethod,
@@ -184,6 +185,7 @@ public class WrapperUtils {
     executeWithPlugins(
         Void.TYPE,
         exceptionClass,
+        connectionWrapper,
         pluginManager,
         methodInvokeOn,
         jdbcMethod,
@@ -196,6 +198,7 @@ public class WrapperUtils {
 
   public static <T> T executeWithPlugins(
       final Class<T> resultClass,
+      final ConnectionWrapper connectionWrapper,
       final ConnectionPluginManager pluginManager,
       final Object methodInvokeOn,
       final JdbcMethod jdbcMethod,
@@ -229,7 +232,7 @@ public class WrapperUtils {
 
       try {
         if (jdbcMethod.wrapResults) {
-          return wrapWithProxyIfNeeded(resultClass, result, pluginManager);
+          return wrapWithProxyIfNeeded(resultClass, result, connectionWrapper, pluginManager);
         } else {
           return result;
         }
@@ -252,6 +255,7 @@ public class WrapperUtils {
   public static <T, E extends Exception> T executeWithPlugins(
       final Class<T> resultClass,
       final Class<E> exceptionClass,
+      final ConnectionWrapper connectionWrapper,
       final ConnectionPluginManager pluginManager,
       final Object methodInvokeOn,
       final JdbcMethod jdbcMethod,
@@ -285,7 +289,7 @@ public class WrapperUtils {
 
       if (jdbcMethod.wrapResults) {
         try {
-          return wrapWithProxyIfNeeded(resultClass, result, pluginManager);
+          return wrapWithProxyIfNeeded(resultClass, result, connectionWrapper, pluginManager);
         } catch (final InstantiationException e) {
           if (context != null) {
             context.setSuccess(false);
@@ -307,9 +311,10 @@ public class WrapperUtils {
   }
 
   public static @Nullable <T> T wrapWithProxyIfNeeded(
-      final Class<T> resultClass, @Nullable final T toProxy, final ConnectionPluginManager pluginManager)
-      throws InstantiationException {
-
+      final Class<T> resultClass,
+      @Nullable final T toProxy,
+      final ConnectionWrapper connectionWrapper,
+      final ConnectionPluginManager pluginManager) throws InstantiationException {
     if (toProxy == null) {
       return null;
     }
@@ -346,14 +351,14 @@ public class WrapperUtils {
     WrapperFactory wrapperFactory = availableWrappers.get(effectiveResultClass);
 
     if (wrapperFactory != null) {
-      return resultClass.cast(wrapperFactory.getInstance(toProxy, pluginManager));
+      return resultClass.cast(wrapperFactory.getInstance(toProxy, connectionWrapper, pluginManager));
     }
 
     for (final Class<?> iface : toProxy.getClass().getInterfaces()) {
       if (isJdbcInterface(iface)) {
         wrapperFactory = availableWrappers.get(iface);
         if (wrapperFactory != null) {
-          return resultClass.cast(wrapperFactory.getInstance(toProxy, pluginManager));
+          return resultClass.cast(wrapperFactory.getInstance(toProxy, connectionWrapper, pluginManager));
         }
       }
     }
@@ -449,14 +454,7 @@ public class WrapperUtils {
         return resultClass.cast(classToInstantiate.newInstance());
       }
 
-      Class<?>[] argClasses = constructorArgClasses;
-      if (argClasses == null) {
-        argClasses = new Class<?>[constructorArgs.length];
-        for (int i = 0; i < constructorArgs.length; i++) {
-          argClasses[i] = constructorArgs[i].getClass();
-        }
-      }
-      final Constructor<?> constructor = classToInstantiate.getConstructor(argClasses);
+      final Constructor<?> constructor = classToInstantiate.getConstructor(constructorArgClasses);
       return resultClass.cast(constructor.newInstance(constructorArgs));
     } catch (final Exception e) {
       throw new InstantiationException(

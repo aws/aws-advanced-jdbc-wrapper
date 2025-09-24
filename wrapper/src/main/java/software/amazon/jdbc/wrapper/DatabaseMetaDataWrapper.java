@@ -30,12 +30,16 @@ import software.amazon.jdbc.util.WrapperUtils;
 
 public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
-  protected DatabaseMetaData databaseMetaData;
-  protected ConnectionPluginManager pluginManager;
+  protected final DatabaseMetaData databaseMetaData;
+  protected final ConnectionWrapper connectionWrapper;
+  protected final ConnectionPluginManager pluginManager;
 
   public DatabaseMetaDataWrapper(
-      @NonNull DatabaseMetaData databaseMetaData, @NonNull ConnectionPluginManager pluginManager) {
+      @NonNull DatabaseMetaData databaseMetaData,
+      @NonNull ConnectionWrapper connectionWrapper,
+      @NonNull ConnectionPluginManager pluginManager) {
     this.databaseMetaData = databaseMetaData;
+    this.connectionWrapper = connectionWrapper;
     this.pluginManager = pluginManager;
   }
 
@@ -48,7 +52,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_ALLPROCEDURESARECALLABLE,
-          () -> this.databaseMetaData.allProceduresAreCallable());
+          this.databaseMetaData::allProceduresAreCallable);
     } else {
       return this.databaseMetaData.allProceduresAreCallable();
     }
@@ -63,7 +67,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_ALLTABLESARESELECTABLE,
-          () -> this.databaseMetaData.allTablesAreSelectable());
+          this.databaseMetaData::allTablesAreSelectable);
     } else {
       return this.databaseMetaData.allTablesAreSelectable();
     }
@@ -78,7 +82,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETURL,
-          () -> this.databaseMetaData.getURL());
+          this.databaseMetaData::getURL);
     } else {
       return this.databaseMetaData.getURL();
     }
@@ -93,7 +97,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETUSERNAME,
-          () -> this.databaseMetaData.getUserName());
+          this.databaseMetaData::getUserName);
     } else {
       return this.databaseMetaData.getUserName();
     }
@@ -108,7 +112,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_ISREADONLY,
-          () -> this.databaseMetaData.isReadOnly());
+          this.databaseMetaData::isReadOnly);
     } else {
       return this.databaseMetaData.isReadOnly();
     }
@@ -123,7 +127,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_NULLSARESORTEDHIGH,
-          () -> this.databaseMetaData.nullsAreSortedHigh());
+          this.databaseMetaData::nullsAreSortedHigh);
     } else {
       return this.databaseMetaData.nullsAreSortedHigh();
     }
@@ -138,7 +142,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_NULLSARESORTEDLOW,
-          () -> this.databaseMetaData.nullsAreSortedLow());
+          this.databaseMetaData::nullsAreSortedLow);
     } else {
       return this.databaseMetaData.nullsAreSortedLow();
     }
@@ -153,7 +157,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_NULLSARESORTEDATSTART,
-          () -> this.databaseMetaData.nullsAreSortedAtStart());
+          this.databaseMetaData::nullsAreSortedAtStart);
     } else {
       return this.databaseMetaData.nullsAreSortedAtStart();
     }
@@ -168,7 +172,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_NULLSARESORTEDATEND,
-          () -> this.databaseMetaData.nullsAreSortedAtEnd());
+          this.databaseMetaData::nullsAreSortedAtEnd);
     } else {
       return this.databaseMetaData.nullsAreSortedAtEnd();
     }
@@ -183,7 +187,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETDATABASEPRODUCTNAME,
-          () -> this.databaseMetaData.getDatabaseProductName());
+          this.databaseMetaData::getDatabaseProductName);
     } else {
       return this.databaseMetaData.getDatabaseProductName();
     }
@@ -198,7 +202,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETDATABASEPRODUCTVERSION,
-          () -> this.databaseMetaData.getDatabaseProductVersion());
+          this.databaseMetaData::getDatabaseProductVersion);
     } else {
       return this.databaseMetaData.getDatabaseProductVersion();
     }
@@ -220,7 +224,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
   }
 
   @Override
-  public String getDriverVersion() throws SQLException {
+  public String getDriverVersion() {
     final StringJoiner joiner = new StringJoiner(" ");
     joiner
         .add(DriverInfo.DRIVER_NAME)
@@ -248,7 +252,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_USESLOCALFILES,
-          () -> this.databaseMetaData.usesLocalFiles());
+          this.databaseMetaData::usesLocalFiles);
     } else {
       return this.databaseMetaData.usesLocalFiles();
     }
@@ -263,7 +267,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_USESLOCALFILEPERTABLE,
-          () -> this.databaseMetaData.usesLocalFilePerTable());
+          this.databaseMetaData::usesLocalFilePerTable);
     } else {
       return this.databaseMetaData.usesLocalFilePerTable();
     }
@@ -278,7 +282,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSMIXEDCASEIDENTIFIERS,
-          () -> this.databaseMetaData.supportsMixedCaseIdentifiers());
+          this.databaseMetaData::supportsMixedCaseIdentifiers);
     } else {
       return this.databaseMetaData.supportsMixedCaseIdentifiers();
     }
@@ -293,7 +297,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_STORESUPPERCASEIDENTIFIERS,
-          () -> this.databaseMetaData.storesUpperCaseIdentifiers());
+          this.databaseMetaData::storesUpperCaseIdentifiers);
     } else {
       return this.databaseMetaData.storesUpperCaseIdentifiers();
     }
@@ -308,7 +312,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_STORESLOWERCASEIDENTIFIERS,
-          () -> this.databaseMetaData.storesLowerCaseIdentifiers());
+          this.databaseMetaData::storesLowerCaseIdentifiers);
     } else {
       return this.databaseMetaData.storesLowerCaseIdentifiers();
     }
@@ -323,7 +327,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_STORESMIXEDCASEIDENTIFIERS,
-          () -> this.databaseMetaData.storesMixedCaseIdentifiers());
+          this.databaseMetaData::storesMixedCaseIdentifiers);
     } else {
       return this.databaseMetaData.storesMixedCaseIdentifiers();
     }
@@ -338,7 +342,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSMIXEDCASEQUOTEDIDENTIFIERS,
-          () -> this.databaseMetaData.supportsMixedCaseQuotedIdentifiers());
+          this.databaseMetaData::supportsMixedCaseQuotedIdentifiers);
     } else {
       return this.databaseMetaData.supportsMixedCaseQuotedIdentifiers();
     }
@@ -353,7 +357,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_STORESUPPERCASEQUOTEDIDENTIFIERS,
-          () -> this.databaseMetaData.storesUpperCaseQuotedIdentifiers());
+          this.databaseMetaData::storesUpperCaseQuotedIdentifiers);
     } else {
       return this.databaseMetaData.storesUpperCaseQuotedIdentifiers();
     }
@@ -368,7 +372,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_STORESLOWERCASEQUOTEDIDENTIFIERS,
-          () -> this.databaseMetaData.storesLowerCaseQuotedIdentifiers());
+          this.databaseMetaData::storesLowerCaseQuotedIdentifiers);
     } else {
       return this.databaseMetaData.storesLowerCaseQuotedIdentifiers();
     }
@@ -383,7 +387,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_STORESMIXEDCASEQUOTEDIDENTIFIERS,
-          () -> this.databaseMetaData.storesMixedCaseQuotedIdentifiers());
+          this.databaseMetaData::storesMixedCaseQuotedIdentifiers);
     } else {
       return this.databaseMetaData.storesMixedCaseQuotedIdentifiers();
     }
@@ -398,7 +402,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETIDENTIFIERQUOTESTRING,
-          () -> this.databaseMetaData.getIdentifierQuoteString());
+          this.databaseMetaData::getIdentifierQuoteString);
     } else {
       return this.databaseMetaData.getIdentifierQuoteString();
     }
@@ -413,7 +417,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETSQLKEYWORDS,
-          () -> this.databaseMetaData.getSQLKeywords());
+          this.databaseMetaData::getSQLKeywords);
     } else {
       return this.databaseMetaData.getSQLKeywords();
     }
@@ -428,7 +432,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETNUMERICFUNCTIONS,
-          () -> this.databaseMetaData.getNumericFunctions());
+          this.databaseMetaData::getNumericFunctions);
     } else {
       return this.databaseMetaData.getNumericFunctions();
     }
@@ -443,7 +447,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETSTRINGFUNCTIONS,
-          () -> this.databaseMetaData.getStringFunctions());
+          this.databaseMetaData::getStringFunctions);
     } else {
       return this.databaseMetaData.getStringFunctions();
     }
@@ -458,7 +462,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETSYSTEMFUNCTIONS,
-          () -> this.databaseMetaData.getSystemFunctions());
+          this.databaseMetaData::getSystemFunctions);
     } else {
       return this.databaseMetaData.getSystemFunctions();
     }
@@ -473,7 +477,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETTIMEDATEFUNCTIONS,
-          () -> this.databaseMetaData.getTimeDateFunctions());
+          this.databaseMetaData::getTimeDateFunctions);
     } else {
       return this.databaseMetaData.getTimeDateFunctions();
     }
@@ -488,7 +492,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETSEARCHSTRINGESCAPE,
-          () -> this.databaseMetaData.getSearchStringEscape());
+          this.databaseMetaData::getSearchStringEscape);
     } else {
       return this.databaseMetaData.getSearchStringEscape();
     }
@@ -503,7 +507,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETEXTRANAMECHARACTERS,
-          () -> this.databaseMetaData.getExtraNameCharacters());
+          this.databaseMetaData::getExtraNameCharacters);
     } else {
       return this.databaseMetaData.getExtraNameCharacters();
     }
@@ -518,7 +522,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSALTERTABLEWITHADDCOLUMN,
-          () -> this.databaseMetaData.supportsAlterTableWithAddColumn());
+          this.databaseMetaData::supportsAlterTableWithAddColumn);
     } else {
       return this.databaseMetaData.supportsAlterTableWithAddColumn();
     }
@@ -533,7 +537,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSALTERTABLEWITHDROPCOLUMN,
-          () -> this.databaseMetaData.supportsAlterTableWithDropColumn());
+          this.databaseMetaData::supportsAlterTableWithDropColumn);
     } else {
       return this.databaseMetaData.supportsAlterTableWithDropColumn();
     }
@@ -548,7 +552,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSCOLUMNALIASING,
-          () -> this.databaseMetaData.supportsColumnAliasing());
+          this.databaseMetaData::supportsColumnAliasing);
     } else {
       return this.databaseMetaData.supportsColumnAliasing();
     }
@@ -563,7 +567,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_NULLPLUSNONNULLISNULL,
-          () -> this.databaseMetaData.nullPlusNonNullIsNull());
+          this.databaseMetaData::nullPlusNonNullIsNull);
     } else {
       return this.databaseMetaData.nullPlusNonNullIsNull();
     }
@@ -578,7 +582,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSCONVERT,
-          () -> this.databaseMetaData.supportsConvert());
+          this.databaseMetaData::supportsConvert);
     } else {
       return this.databaseMetaData.supportsConvert();
     }
@@ -610,7 +614,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSTABLECORRELATIONNAMES,
-          () -> this.databaseMetaData.supportsTableCorrelationNames());
+          this.databaseMetaData::supportsTableCorrelationNames);
     } else {
       return this.databaseMetaData.supportsTableCorrelationNames();
     }
@@ -625,7 +629,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSDIFFERENTTABLECORRELATIONNAMES,
-          () -> this.databaseMetaData.supportsDifferentTableCorrelationNames());
+          this.databaseMetaData::supportsDifferentTableCorrelationNames);
     } else {
       return this.databaseMetaData.supportsDifferentTableCorrelationNames();
     }
@@ -640,7 +644,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSEXPRESSIONSINORDERBY,
-          () -> this.databaseMetaData.supportsExpressionsInOrderBy());
+          this.databaseMetaData::supportsExpressionsInOrderBy);
     } else {
       return this.databaseMetaData.supportsExpressionsInOrderBy();
     }
@@ -655,7 +659,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSORDERBYUNRELATED,
-          () -> this.databaseMetaData.supportsOrderByUnrelated());
+          this.databaseMetaData::supportsOrderByUnrelated);
     } else {
       return this.databaseMetaData.supportsOrderByUnrelated();
     }
@@ -670,7 +674,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSGROUPBY,
-          () -> this.databaseMetaData.supportsGroupBy());
+          this.databaseMetaData::supportsGroupBy);
     } else {
       return this.databaseMetaData.supportsGroupBy();
     }
@@ -685,7 +689,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSGROUPBYUNRELATED,
-          () -> this.databaseMetaData.supportsGroupByUnrelated());
+          this.databaseMetaData::supportsGroupByUnrelated);
     } else {
       return this.databaseMetaData.supportsGroupByUnrelated();
     }
@@ -700,7 +704,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSGROUPBYBEYONDSELECT,
-          () -> this.databaseMetaData.supportsGroupByBeyondSelect());
+          this.databaseMetaData::supportsGroupByBeyondSelect);
     } else {
       return this.databaseMetaData.supportsGroupByBeyondSelect();
     }
@@ -715,7 +719,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSLIKEESCAPECLAUSE,
-          () -> this.databaseMetaData.supportsLikeEscapeClause());
+          this.databaseMetaData::supportsLikeEscapeClause);
     } else {
       return this.databaseMetaData.supportsLikeEscapeClause();
     }
@@ -730,7 +734,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSMULTIPLERESULTSETS,
-          () -> this.databaseMetaData.supportsMultipleResultSets());
+          this.databaseMetaData::supportsMultipleResultSets);
     } else {
       return this.databaseMetaData.supportsMultipleResultSets();
     }
@@ -745,7 +749,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSMULTIPLETRANSACTIONS,
-          () -> this.databaseMetaData.supportsMultipleTransactions());
+          this.databaseMetaData::supportsMultipleTransactions);
     } else {
       return this.databaseMetaData.supportsMultipleTransactions();
     }
@@ -760,7 +764,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSNONNULLABLECOLUMNS,
-          () -> this.databaseMetaData.supportsNonNullableColumns());
+          this.databaseMetaData::supportsNonNullableColumns);
     } else {
       return this.databaseMetaData.supportsNonNullableColumns();
     }
@@ -775,7 +779,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSMINIMUMSQLGRAMMAR,
-          () -> this.databaseMetaData.supportsMinimumSQLGrammar());
+          this.databaseMetaData::supportsMinimumSQLGrammar);
     } else {
       return this.databaseMetaData.supportsMinimumSQLGrammar();
     }
@@ -790,7 +794,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSCORESQLGRAMMAR,
-          () -> this.databaseMetaData.supportsCoreSQLGrammar());
+          this.databaseMetaData::supportsCoreSQLGrammar);
     } else {
       return this.databaseMetaData.supportsCoreSQLGrammar();
     }
@@ -805,7 +809,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSEXTENDEDSQLGRAMMAR,
-          () -> this.databaseMetaData.supportsExtendedSQLGrammar());
+          this.databaseMetaData::supportsExtendedSQLGrammar);
     } else {
       return this.databaseMetaData.supportsExtendedSQLGrammar();
     }
@@ -820,7 +824,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSANSI92ENTRYLEVELSQL,
-          () -> this.databaseMetaData.supportsANSI92EntryLevelSQL());
+          this.databaseMetaData::supportsANSI92EntryLevelSQL);
     } else {
       return this.databaseMetaData.supportsANSI92EntryLevelSQL();
     }
@@ -835,7 +839,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSANSI92INTERMEDIATESQL,
-          () -> this.databaseMetaData.supportsANSI92IntermediateSQL());
+          this.databaseMetaData::supportsANSI92IntermediateSQL);
     } else {
       return this.databaseMetaData.supportsANSI92IntermediateSQL();
     }
@@ -850,7 +854,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSANSI92FULLSQL,
-          () -> this.databaseMetaData.supportsANSI92FullSQL());
+          this.databaseMetaData::supportsANSI92FullSQL);
     } else {
       return this.databaseMetaData.supportsANSI92FullSQL();
     }
@@ -865,7 +869,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSINTEGRITYENHANCEMENTFACILITY,
-          () -> this.databaseMetaData.supportsIntegrityEnhancementFacility());
+          this.databaseMetaData::supportsIntegrityEnhancementFacility);
     } else {
       return this.databaseMetaData.supportsIntegrityEnhancementFacility();
     }
@@ -880,7 +884,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSOUTERJOINS,
-          () -> this.databaseMetaData.supportsOuterJoins());
+          this.databaseMetaData::supportsOuterJoins);
     } else {
       return this.databaseMetaData.supportsOuterJoins();
     }
@@ -895,7 +899,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSFULLOUTERJOINS,
-          () -> this.databaseMetaData.supportsFullOuterJoins());
+          this.databaseMetaData::supportsFullOuterJoins);
     } else {
       return this.databaseMetaData.supportsFullOuterJoins();
     }
@@ -910,7 +914,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSLIMITEDOUTERJOINS,
-          () -> this.databaseMetaData.supportsLimitedOuterJoins());
+          this.databaseMetaData::supportsLimitedOuterJoins);
     } else {
       return this.databaseMetaData.supportsLimitedOuterJoins();
     }
@@ -925,7 +929,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETSCHEMATERM,
-          () -> this.databaseMetaData.getSchemaTerm());
+          this.databaseMetaData::getSchemaTerm);
     } else {
       return this.databaseMetaData.getSchemaTerm();
     }
@@ -940,7 +944,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETPROCEDURETERM,
-          () -> this.databaseMetaData.getProcedureTerm());
+          this.databaseMetaData::getProcedureTerm);
     } else {
       return this.databaseMetaData.getProcedureTerm();
     }
@@ -955,7 +959,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETCATALOGTERM,
-          () -> this.databaseMetaData.getCatalogTerm());
+          this.databaseMetaData::getCatalogTerm);
     } else {
       return this.databaseMetaData.getCatalogTerm();
     }
@@ -970,7 +974,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_ISCATALOGATSTART,
-          () -> this.databaseMetaData.isCatalogAtStart());
+          this.databaseMetaData::isCatalogAtStart);
     } else {
       return this.databaseMetaData.isCatalogAtStart();
     }
@@ -985,7 +989,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETCATALOGSEPARATOR,
-          () -> this.databaseMetaData.getCatalogSeparator());
+          this.databaseMetaData::getCatalogSeparator);
     } else {
       return this.databaseMetaData.getCatalogSeparator();
     }
@@ -1000,7 +1004,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSCHEMASINDATAMANIPULATION,
-          () -> this.databaseMetaData.supportsSchemasInDataManipulation());
+          this.databaseMetaData::supportsSchemasInDataManipulation);
     } else {
       return this.databaseMetaData.supportsSchemasInDataManipulation();
     }
@@ -1015,7 +1019,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSCHEMASINPROCEDURECALLS,
-          () -> this.databaseMetaData.supportsSchemasInProcedureCalls());
+          this.databaseMetaData::supportsSchemasInProcedureCalls);
     } else {
       return this.databaseMetaData.supportsSchemasInProcedureCalls();
     }
@@ -1030,7 +1034,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSCHEMASINTABLEDEFINITIONS,
-          () -> this.databaseMetaData.supportsSchemasInTableDefinitions());
+          this.databaseMetaData::supportsSchemasInTableDefinitions);
     } else {
       return this.databaseMetaData.supportsSchemasInTableDefinitions();
     }
@@ -1045,7 +1049,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSCHEMASININDEXDEFINITIONS,
-          () -> this.databaseMetaData.supportsSchemasInIndexDefinitions());
+          this.databaseMetaData::supportsSchemasInIndexDefinitions);
     } else {
       return this.databaseMetaData.supportsSchemasInIndexDefinitions();
     }
@@ -1060,7 +1064,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSCHEMASINPRIVILEGEDEFINITIONS,
-          () -> this.databaseMetaData.supportsSchemasInPrivilegeDefinitions());
+          this.databaseMetaData::supportsSchemasInPrivilegeDefinitions);
     } else {
       return this.databaseMetaData.supportsSchemasInPrivilegeDefinitions();
     }
@@ -1075,7 +1079,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSCATALOGSINDATAMANIPULATION,
-          () -> this.databaseMetaData.supportsCatalogsInDataManipulation());
+          this.databaseMetaData::supportsCatalogsInDataManipulation);
     } else {
       return this.databaseMetaData.supportsCatalogsInDataManipulation();
     }
@@ -1090,7 +1094,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSCATALOGSINPROCEDURECALLS,
-          () -> this.databaseMetaData.supportsCatalogsInProcedureCalls());
+          this.databaseMetaData::supportsCatalogsInProcedureCalls);
     } else {
       return this.databaseMetaData.supportsCatalogsInProcedureCalls();
     }
@@ -1105,7 +1109,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSCATALOGSINTABLEDEFINITIONS,
-          () -> this.databaseMetaData.supportsCatalogsInTableDefinitions());
+          this.databaseMetaData::supportsCatalogsInTableDefinitions);
     } else {
       return this.databaseMetaData.supportsCatalogsInTableDefinitions();
     }
@@ -1120,7 +1124,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSCATALOGSININDEXDEFINITIONS,
-          () -> this.databaseMetaData.supportsCatalogsInIndexDefinitions());
+          this.databaseMetaData::supportsCatalogsInIndexDefinitions);
     } else {
       return this.databaseMetaData.supportsCatalogsInIndexDefinitions();
     }
@@ -1135,7 +1139,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSCATALOGSINPRIVILEGEDEFINITIONS,
-          () -> this.databaseMetaData.supportsCatalogsInPrivilegeDefinitions());
+          this.databaseMetaData::supportsCatalogsInPrivilegeDefinitions);
     } else {
       return this.databaseMetaData.supportsCatalogsInPrivilegeDefinitions();
     }
@@ -1150,7 +1154,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSPOSITIONEDDELETE,
-          () -> this.databaseMetaData.supportsPositionedDelete());
+          this.databaseMetaData::supportsPositionedDelete);
     } else {
       return this.databaseMetaData.supportsPositionedDelete();
     }
@@ -1165,7 +1169,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSPOSITIONEDUPDATE,
-          () -> this.databaseMetaData.supportsPositionedUpdate());
+          this.databaseMetaData::supportsPositionedUpdate);
     } else {
       return this.databaseMetaData.supportsPositionedUpdate();
     }
@@ -1180,7 +1184,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSELECTFORUPDATE,
-          () -> this.databaseMetaData.supportsSelectForUpdate());
+          this.databaseMetaData::supportsSelectForUpdate);
     } else {
       return this.databaseMetaData.supportsSelectForUpdate();
     }
@@ -1195,7 +1199,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSTOREDPROCEDURES,
-          () -> this.databaseMetaData.supportsStoredProcedures());
+          this.databaseMetaData::supportsStoredProcedures);
     } else {
       return this.databaseMetaData.supportsStoredProcedures();
     }
@@ -1210,7 +1214,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSUBQUERIESINCOMPARISONS,
-          () -> this.databaseMetaData.supportsSubqueriesInComparisons());
+          this.databaseMetaData::supportsSubqueriesInComparisons);
     } else {
       return this.databaseMetaData.supportsSubqueriesInComparisons();
     }
@@ -1225,7 +1229,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSUBQUERIESINEXISTS,
-          () -> this.databaseMetaData.supportsSubqueriesInExists());
+          this.databaseMetaData::supportsSubqueriesInExists);
     } else {
       return this.databaseMetaData.supportsSubqueriesInExists();
     }
@@ -1240,7 +1244,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSUBQUERIESININS,
-          () -> this.databaseMetaData.supportsSubqueriesInIns());
+          this.databaseMetaData::supportsSubqueriesInIns);
     } else {
       return this.databaseMetaData.supportsSubqueriesInIns();
     }
@@ -1255,7 +1259,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSUBQUERIESINQUANTIFIEDS,
-          () -> this.databaseMetaData.supportsSubqueriesInQuantifieds());
+          this.databaseMetaData::supportsSubqueriesInQuantifieds);
     } else {
       return this.databaseMetaData.supportsSubqueriesInQuantifieds();
     }
@@ -1270,7 +1274,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSCORRELATEDSUBQUERIES,
-          () -> this.databaseMetaData.supportsCorrelatedSubqueries());
+          this.databaseMetaData::supportsCorrelatedSubqueries);
     } else {
       return this.databaseMetaData.supportsCorrelatedSubqueries();
     }
@@ -1285,7 +1289,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSUNION,
-          () -> this.databaseMetaData.supportsUnion());
+          this.databaseMetaData::supportsUnion);
     } else {
       return this.databaseMetaData.supportsUnion();
     }
@@ -1300,7 +1304,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSUNIONALL,
-          () -> this.databaseMetaData.supportsUnionAll());
+          this.databaseMetaData::supportsUnionAll);
     } else {
       return this.databaseMetaData.supportsUnionAll();
     }
@@ -1315,7 +1319,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSOPENCURSORSACROSSCOMMIT,
-          () -> this.databaseMetaData.supportsOpenCursorsAcrossCommit());
+          this.databaseMetaData::supportsOpenCursorsAcrossCommit);
     } else {
       return this.databaseMetaData.supportsOpenCursorsAcrossCommit();
     }
@@ -1330,7 +1334,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSOPENCURSORSACROSSROLLBACK,
-          () -> this.databaseMetaData.supportsOpenCursorsAcrossRollback());
+          this.databaseMetaData::supportsOpenCursorsAcrossRollback);
     } else {
       return this.databaseMetaData.supportsOpenCursorsAcrossRollback();
     }
@@ -1345,7 +1349,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSOPENSTATEMENTSACROSSCOMMIT,
-          () -> this.databaseMetaData.supportsOpenStatementsAcrossCommit());
+          this.databaseMetaData::supportsOpenStatementsAcrossCommit);
     } else {
       return this.databaseMetaData.supportsOpenStatementsAcrossCommit();
     }
@@ -1360,7 +1364,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSOPENSTATEMENTSACROSSROLLBACK,
-          () -> this.databaseMetaData.supportsOpenStatementsAcrossRollback());
+          this.databaseMetaData::supportsOpenStatementsAcrossRollback);
     } else {
       return this.databaseMetaData.supportsOpenStatementsAcrossRollback();
     }
@@ -1375,7 +1379,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXBINARYLITERALLENGTH,
-          () -> this.databaseMetaData.getMaxBinaryLiteralLength());
+          this.databaseMetaData::getMaxBinaryLiteralLength);
     } else {
       return this.databaseMetaData.getMaxBinaryLiteralLength();
     }
@@ -1390,7 +1394,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXCHARLITERALLENGTH,
-          () -> this.databaseMetaData.getMaxCharLiteralLength());
+          this.databaseMetaData::getMaxCharLiteralLength);
     } else {
       return this.databaseMetaData.getMaxCharLiteralLength();
     }
@@ -1405,7 +1409,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXCOLUMNNAMELENGTH,
-          () -> this.databaseMetaData.getMaxColumnNameLength());
+          this.databaseMetaData::getMaxColumnNameLength);
     } else {
       return this.databaseMetaData.getMaxColumnNameLength();
     }
@@ -1420,7 +1424,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXCOLUMNSINGROUPBY,
-          () -> this.databaseMetaData.getMaxColumnsInGroupBy());
+          this.databaseMetaData::getMaxColumnsInGroupBy);
     } else {
       return this.databaseMetaData.getMaxColumnsInGroupBy();
     }
@@ -1435,7 +1439,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXCOLUMNSININDEX,
-          () -> this.databaseMetaData.getMaxColumnsInIndex());
+          this.databaseMetaData::getMaxColumnsInIndex);
     } else {
       return this.databaseMetaData.getMaxColumnsInIndex();
     }
@@ -1450,7 +1454,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXCOLUMNSINORDERBY,
-          () -> this.databaseMetaData.getMaxColumnsInOrderBy());
+          this.databaseMetaData::getMaxColumnsInOrderBy);
     } else {
       return this.databaseMetaData.getMaxColumnsInOrderBy();
     }
@@ -1465,7 +1469,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXCOLUMNSINSELECT,
-          () -> this.databaseMetaData.getMaxColumnsInSelect());
+          this.databaseMetaData::getMaxColumnsInSelect);
     } else {
       return this.databaseMetaData.getMaxColumnsInSelect();
     }
@@ -1480,7 +1484,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXCOLUMNSINTABLE,
-          () -> this.databaseMetaData.getMaxColumnsInTable());
+          this.databaseMetaData::getMaxColumnsInTable);
     } else {
       return this.databaseMetaData.getMaxColumnsInTable();
     }
@@ -1495,7 +1499,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXCONNECTIONS,
-          () -> this.databaseMetaData.getMaxConnections());
+          this.databaseMetaData::getMaxConnections);
     } else {
       return this.databaseMetaData.getMaxConnections();
     }
@@ -1510,7 +1514,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXCURSORNAMELENGTH,
-          () -> this.databaseMetaData.getMaxCursorNameLength());
+          this.databaseMetaData::getMaxCursorNameLength);
     } else {
       return this.databaseMetaData.getMaxCursorNameLength();
     }
@@ -1525,7 +1529,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXINDEXLENGTH,
-          () -> this.databaseMetaData.getMaxIndexLength());
+          this.databaseMetaData::getMaxIndexLength);
     } else {
       return this.databaseMetaData.getMaxIndexLength();
     }
@@ -1540,7 +1544,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXSCHEMANAMELENGTH,
-          () -> this.databaseMetaData.getMaxSchemaNameLength());
+          this.databaseMetaData::getMaxSchemaNameLength);
     } else {
       return this.databaseMetaData.getMaxSchemaNameLength();
     }
@@ -1555,7 +1559,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXPROCEDURENAMELENGTH,
-          () -> this.databaseMetaData.getMaxProcedureNameLength());
+          this.databaseMetaData::getMaxProcedureNameLength);
     } else {
       return this.databaseMetaData.getMaxProcedureNameLength();
     }
@@ -1570,7 +1574,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXCATALOGNAMELENGTH,
-          () -> this.databaseMetaData.getMaxCatalogNameLength());
+          this.databaseMetaData::getMaxCatalogNameLength);
     } else {
       return this.databaseMetaData.getMaxCatalogNameLength();
     }
@@ -1585,7 +1589,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXROWSIZE,
-          () -> this.databaseMetaData.getMaxRowSize());
+          this.databaseMetaData::getMaxRowSize);
     } else {
       return this.databaseMetaData.getMaxRowSize();
     }
@@ -1600,7 +1604,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_DOESMAXROWSIZEINCLUDEBLOBS,
-          () -> this.databaseMetaData.doesMaxRowSizeIncludeBlobs());
+          this.databaseMetaData::doesMaxRowSizeIncludeBlobs);
     } else {
       return this.databaseMetaData.doesMaxRowSizeIncludeBlobs();
     }
@@ -1615,7 +1619,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXSTATEMENTLENGTH,
-          () -> this.databaseMetaData.getMaxStatementLength());
+          this.databaseMetaData::getMaxStatementLength);
     } else {
       return this.databaseMetaData.getMaxStatementLength();
     }
@@ -1630,7 +1634,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXSTATEMENTS,
-          () -> this.databaseMetaData.getMaxStatements());
+          this.databaseMetaData::getMaxStatements);
     } else {
       return this.databaseMetaData.getMaxStatements();
     }
@@ -1645,7 +1649,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXTABLENAMELENGTH,
-          () -> this.databaseMetaData.getMaxTableNameLength());
+          this.databaseMetaData::getMaxTableNameLength);
     } else {
       return this.databaseMetaData.getMaxTableNameLength();
     }
@@ -1660,7 +1664,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXTABLESINSELECT,
-          () -> this.databaseMetaData.getMaxTablesInSelect());
+          this.databaseMetaData::getMaxTablesInSelect);
     } else {
       return this.databaseMetaData.getMaxTablesInSelect();
     }
@@ -1675,7 +1679,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXUSERNAMELENGTH,
-          () -> this.databaseMetaData.getMaxUserNameLength());
+          this.databaseMetaData::getMaxUserNameLength);
     } else {
       return this.databaseMetaData.getMaxUserNameLength();
     }
@@ -1690,7 +1694,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETDEFAULTTRANSACTIONISOLATION,
-          () -> this.databaseMetaData.getDefaultTransactionIsolation());
+          this.databaseMetaData::getDefaultTransactionIsolation);
     } else {
       return this.databaseMetaData.getDefaultTransactionIsolation();
     }
@@ -1705,7 +1709,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSTRANSACTIONS,
-          () -> this.databaseMetaData.supportsTransactions());
+          this.databaseMetaData::supportsTransactions);
     } else {
       return this.databaseMetaData.supportsTransactions();
     }
@@ -1737,7 +1741,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSDATADEFINITIONANDDATAMANIPULATIONTRANSACTIONS,
-          () -> this.databaseMetaData.supportsDataDefinitionAndDataManipulationTransactions());
+          this.databaseMetaData::supportsDataDefinitionAndDataManipulationTransactions);
     } else {
       return this.databaseMetaData.supportsDataDefinitionAndDataManipulationTransactions();
     }
@@ -1752,7 +1756,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSDATAMANIPULATIONTRANSACTIONSONLY,
-          () -> this.databaseMetaData.supportsDataManipulationTransactionsOnly());
+          this.databaseMetaData::supportsDataManipulationTransactionsOnly);
     } else {
       return this.databaseMetaData.supportsDataManipulationTransactionsOnly();
     }
@@ -1767,7 +1771,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_DATADEFINITIONCAUSESTRANSACTIONCOMMIT,
-          () -> this.databaseMetaData.dataDefinitionCausesTransactionCommit());
+          this.databaseMetaData::dataDefinitionCausesTransactionCommit);
     } else {
       return this.databaseMetaData.dataDefinitionCausesTransactionCommit();
     }
@@ -1782,7 +1786,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_DATADEFINITIONIGNOREDINTRANSACTIONS,
-          () -> this.databaseMetaData.dataDefinitionIgnoredInTransactions());
+          this.databaseMetaData::dataDefinitionIgnoredInTransactions);
     } else {
       return this.databaseMetaData.dataDefinitionIgnoredInTransactions();
     }
@@ -1847,7 +1851,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETSCHEMAS,
-        () -> this.databaseMetaData.getSchemas());
+        this.databaseMetaData::getSchemas);
   }
 
   @Override
@@ -1871,7 +1875,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETCATALOGS,
-        () -> this.databaseMetaData.getCatalogs());
+        this.databaseMetaData::getCatalogs);
   }
 
   @Override
@@ -1882,7 +1886,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETTABLETYPES,
-        () -> this.databaseMetaData.getTableTypes());
+        this.databaseMetaData::getTableTypes);
   }
 
   @Override
@@ -2051,7 +2055,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETTYPEINFO,
-        () -> this.databaseMetaData.getTypeInfo());
+        this.databaseMetaData::getTypeInfo);
   }
 
   @Override
@@ -2258,7 +2262,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSBATCHUPDATES,
-          () -> this.databaseMetaData.supportsBatchUpdates());
+          this.databaseMetaData::supportsBatchUpdates);
     } else {
       return this.databaseMetaData.supportsBatchUpdates();
     }
@@ -2289,7 +2293,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETCONNECTION,
-        () -> this.pluginManager.getConnectionWrapper());
+        () -> this.connectionWrapper);
   }
 
   @Override
@@ -2301,7 +2305,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSAVEPOINTS,
-          () -> this.databaseMetaData.supportsSavepoints());
+          this.databaseMetaData::supportsSavepoints);
     } else {
       return this.databaseMetaData.supportsSavepoints();
     }
@@ -2316,7 +2320,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSNAMEDPARAMETERS,
-          () -> this.databaseMetaData.supportsNamedParameters());
+          this.databaseMetaData::supportsNamedParameters);
     } else {
       return this.databaseMetaData.supportsNamedParameters();
     }
@@ -2331,7 +2335,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSMULTIPLEOPENRESULTS,
-          () -> this.databaseMetaData.supportsMultipleOpenResults());
+          this.databaseMetaData::supportsMultipleOpenResults);
     } else {
       return this.databaseMetaData.supportsMultipleOpenResults();
     }
@@ -2346,7 +2350,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSGETGENERATEDKEYS,
-          () -> this.databaseMetaData.supportsGetGeneratedKeys());
+          this.databaseMetaData::supportsGetGeneratedKeys);
     } else {
       return this.databaseMetaData.supportsGetGeneratedKeys();
     }
@@ -2426,7 +2430,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETRESULTSETHOLDABILITY,
-          () -> this.databaseMetaData.getResultSetHoldability());
+          this.databaseMetaData::getResultSetHoldability);
     } else {
       return this.databaseMetaData.getResultSetHoldability();
     }
@@ -2441,7 +2445,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETDATABASEMAJORVERSION,
-          () -> this.databaseMetaData.getDatabaseMajorVersion());
+          this.databaseMetaData::getDatabaseMajorVersion);
     } else {
       return this.databaseMetaData.getDatabaseMajorVersion();
     }
@@ -2456,7 +2460,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETDATABASEMINORVERSION,
-          () -> this.databaseMetaData.getDatabaseMinorVersion());
+          this.databaseMetaData::getDatabaseMinorVersion);
     } else {
       return this.databaseMetaData.getDatabaseMinorVersion();
     }
@@ -2471,7 +2475,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETJDBCMAJORVERSION,
-          () -> this.databaseMetaData.getJDBCMajorVersion());
+          this.databaseMetaData::getJDBCMajorVersion);
     } else {
       return this.databaseMetaData.getJDBCMajorVersion();
     }
@@ -2486,7 +2490,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETJDBCMINORVERSION,
-          () -> this.databaseMetaData.getJDBCMinorVersion());
+          this.databaseMetaData::getJDBCMinorVersion);
     } else {
       return this.databaseMetaData.getJDBCMinorVersion();
     }
@@ -2502,7 +2506,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETSQLSTATETYPE,
-          () -> this.databaseMetaData.getSQLStateType());
+          this.databaseMetaData::getSQLStateType);
     } else {
       return this.databaseMetaData.getSQLStateType();
     }
@@ -2517,7 +2521,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_LOCATORSUPDATECOPY,
-          () -> this.databaseMetaData.locatorsUpdateCopy());
+          this.databaseMetaData::locatorsUpdateCopy);
     } else {
       return this.databaseMetaData.locatorsUpdateCopy();
     }
@@ -2532,7 +2536,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSTATEMENTPOOLING,
-          () -> this.databaseMetaData.supportsStatementPooling());
+          this.databaseMetaData::supportsStatementPooling);
     } else {
       return this.databaseMetaData.supportsStatementPooling();
     }
@@ -2547,7 +2551,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETROWIDLIFETIME,
-          () -> this.databaseMetaData.getRowIdLifetime());
+          this.databaseMetaData::getRowIdLifetime);
     } else {
       return this.databaseMetaData.getRowIdLifetime();
     }
@@ -2562,7 +2566,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSSTOREDFUNCTIONSUSINGCALLSYNTAX,
-          () -> this.databaseMetaData.supportsStoredFunctionsUsingCallSyntax());
+          this.databaseMetaData::supportsStoredFunctionsUsingCallSyntax);
     } else {
       return this.databaseMetaData.supportsStoredFunctionsUsingCallSyntax();
     }
@@ -2577,7 +2581,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_AUTOCOMMITFAILURECLOSESALLRESULTSETS,
-          () -> this.databaseMetaData.autoCommitFailureClosesAllResultSets());
+          this.databaseMetaData::autoCommitFailureClosesAllResultSets);
     } else {
       return this.databaseMetaData.autoCommitFailureClosesAllResultSets();
     }
@@ -2591,7 +2595,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETCLIENTINFOPROPERTIES,
-        () -> this.databaseMetaData.getClientInfoProperties());
+        this.databaseMetaData::getClientInfoProperties);
   }
 
   @Override
@@ -2656,7 +2660,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GENERATEDKEYALWAYSRETURNED,
-          () -> this.databaseMetaData.generatedKeyAlwaysReturned());
+          this.databaseMetaData::generatedKeyAlwaysReturned);
     } else {
       return this.databaseMetaData.generatedKeyAlwaysReturned();
     }
@@ -2671,7 +2675,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_GETMAXLOGICALLOBSIZE,
-          () -> this.databaseMetaData.getMaxLogicalLobSize());
+          this.databaseMetaData::getMaxLogicalLobSize);
     } else {
       return this.databaseMetaData.getMaxLogicalLobSize();
     }
@@ -2686,7 +2690,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
           this.pluginManager,
           this.databaseMetaData,
           JdbcMethod.DATABASEMETADATA_SUPPORTSREFCURSORS,
-          () -> this.databaseMetaData.supportsRefCursors());
+          this.databaseMetaData::supportsRefCursors);
     } else {
       return this.databaseMetaData.supportsRefCursors();
     }
