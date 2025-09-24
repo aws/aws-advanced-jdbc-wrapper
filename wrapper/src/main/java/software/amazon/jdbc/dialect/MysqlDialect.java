@@ -25,11 +25,13 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.MySQLExceptionHandler;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverRestriction;
+import software.amazon.jdbc.util.DriverInfo;
 
 public class MysqlDialect implements Dialect {
 
@@ -61,40 +63,30 @@ public class MysqlDialect implements Dialect {
   }
 
   @Override
-  public String getServerVersionQuery() {
+  public String getServerVersionQuery(final Properties properties) {
     return "SHOW VARIABLES LIKE 'version_comment'";
   }
 
   @Override
-  public boolean isDialect(final Connection connection) {
-    Statement stmt = null;
-    ResultSet rs = null;
+  public boolean isDialect(final Connection connection, final Properties properties) {
+
+    // For community Mysql (MysqlDialect):
+    // SHOW VARIABLES LIKE 'version_comment'
+    // | Variable_name   | value                                            |
+    // |-----------------|--------------------------------------------------|
+    // | version_comment | MySQL Community Server (GPL) |
+    //
     try {
-      stmt = connection.createStatement();
-      rs = stmt.executeQuery(this.getServerVersionQuery());
-      while (rs.next()) {
-        final String columnValue = rs.getString(2);
-        if (columnValue != null && columnValue.toLowerCase().contains("mysql")) {
-          return true;
+      try (Statement stmt = connection.createStatement();
+          ResultSet rs = stmt.executeQuery(this.getServerVersionQuery(properties))) {
+        if (!rs.next()) {
+          return false;
         }
+        String version = rs.getString(2);
+        return version != null && version.toLowerCase().contains("mysql");
       }
-    } catch (final SQLException ex) {
-      // ignore
-    } finally {
-      if (stmt != null) {
-        try {
-          stmt.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
-      if (rs != null) {
-        try {
-          rs.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
+    } catch (SQLException ex) {
+      // do nothing
     }
     return false;
   }
@@ -111,8 +103,19 @@ public class MysqlDialect implements Dialect {
 
   @Override
   public void prepareConnectProperties(
-      final @NonNull Properties connectProperties, final @NonNull String protocol, final @NonNull HostSpec hostSpec) {
-    // do nothing
+      final @NonNull Properties connectProperties,
+      final @NonNull String protocol,
+      final @NonNull HostSpec hostSpec) {
+
+    final String connectionAttributes = String.format(
+        "_jdbc_wrapper_name:aws_jdbc_driver,_jdbc_wrapper_version:%s,_jdbc_wrapper_plugins:%s",
+        DriverInfo.DRIVER_VERSION,
+        connectProperties.getProperty(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY));
+    connectProperties.setProperty("connectionAttributes",
+        connectProperties.getProperty("connectionAttributes") == null
+            ? connectionAttributes
+            : connectProperties.getProperty("connectionAttributes") + "," + connectionAttributes);
+    connectProperties.remove(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY);
   }
 
   @Override
