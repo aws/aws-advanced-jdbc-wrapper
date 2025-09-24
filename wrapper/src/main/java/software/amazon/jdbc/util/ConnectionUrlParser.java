@@ -16,7 +16,6 @@
 
 package software.amazon.jdbc.util;
 
-import com.fasterxml.jackson.databind.annotation.JsonAppend.Prop;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;

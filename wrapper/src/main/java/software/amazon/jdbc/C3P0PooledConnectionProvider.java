@@ -32,9 +32,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
-import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.connection.ConnectionInfo;
 import software.amazon.jdbc.util.storage.SlidingExpirationCache;
 
 public class C3P0PooledConnectionProvider implements PooledConnectionProvider, CanReleaseResources {
@@ -56,7 +56,7 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
   protected static final long poolExpirationCheckNanos = TimeUnit.MINUTES.toNanos(30);
 
   @Override
-  public boolean acceptsUrl(@NonNull String protocol, @NonNull HostSpec hostSpec, @NonNull Properties props) {
+  public boolean acceptsUrl(@NonNull ConnectionInfo connectionInfo, @NonNull HostSpec hostSpec) {
     return true;
   }
 
@@ -79,31 +79,32 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
   }
 
   @Override
-  public Connection connect(@NonNull String protocol, @NonNull Dialect dialect,
-      @NonNull TargetDriverDialect targetDriverDialect, @NonNull HostSpec hostSpec,
-      @NonNull Properties props) throws SQLException {
-    final Properties copy = PropertyUtils.copyProperties(props);
-    dialect.prepareConnectProperties(copy, protocol, hostSpec);
+  public Connection connect(
+      @NonNull ConnectionInfo connectionInfo, @NonNull HostSpec hostSpec) throws SQLException {
+    Dialect dialect = connectionInfo.getDbDialect();
+    Properties propsCopy = PropertyUtils.copyProperties(connectionInfo.getProps());
+    dialect.prepareConnectProperties(propsCopy, connectionInfo.getProtocol(), hostSpec);
 
     final ComboPooledDataSource ds = databasePools.computeIfAbsent(
         hostSpec.getUrl(),
-        (key) -> createDataSource(protocol, hostSpec, copy, targetDriverDialect),
+        (key) -> createDataSource(connectionInfo, hostSpec, propsCopy),
         poolExpirationCheckNanos
     );
 
-    ds.setPassword(copy.getProperty(PropertyDefinition.PASSWORD.name));
+    ds.setPassword(propsCopy.getProperty(PropertyDefinition.PASSWORD.name));
 
     return ds.getConnection();
   }
 
   protected ComboPooledDataSource createDataSource(
-      @NonNull String protocol,
+      @NonNull ConnectionInfo connectionInfo,
       @NonNull HostSpec hostSpec,
-      @NonNull Properties props,
-      TargetDriverDialect driverDialect) {
+      @NonNull Properties props) {
     ConnectInfo connectInfo;
+
     try {
-      connectInfo = driverDialect.prepareConnectInfo(protocol, hostSpec, props);
+      connectInfo = connectionInfo.getDriverDialect()
+          .prepareConnectInfo(connectionInfo.getProtocol(), hostSpec, props);
     } catch (SQLException ex) {
       throw new RuntimeException(ex);
     }
