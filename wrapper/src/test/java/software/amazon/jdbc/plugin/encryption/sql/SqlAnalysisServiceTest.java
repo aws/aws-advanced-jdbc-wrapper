@@ -55,11 +55,11 @@ class SqlAnalysisServiceTest {
         assertEquals("INSERT", result.getQueryType());
         assertTrue(result.getAffectedTables().contains("customers"));
 
-        // INSERT with schema - jOOQ extracts full qualified name
+        // INSERT with schema - extract just table name
         result = sqlAnalysisService.analyzeSql(
             "INSERT INTO public.users (id, username, password) VALUES (1, 'john', 'secret')");
         assertEquals("INSERT", result.getQueryType());
-        assertTrue(result.getAffectedTables().contains("public.users"));
+        assertTrue(result.getAffectedTables().contains("users"));
 
         // Multi-value INSERT
         result = sqlAnalysisService.analyzeSql(
@@ -82,11 +82,11 @@ class SqlAnalysisServiceTest {
         assertEquals("UPDATE", result.getQueryType());
         assertTrue(result.getAffectedTables().contains("orders"));
 
-        // UPDATE with schema - jOOQ extracts full qualified name
+        // UPDATE with schema - extract just table name
         result = sqlAnalysisService.analyzeSql(
             "UPDATE public.inventory SET quantity = quantity - 1 WHERE product_id = ?");
         assertEquals("UPDATE", result.getQueryType());
-        assertTrue(result.getAffectedTables().contains("public.inventory"));
+        assertTrue(result.getAffectedTables().contains("inventory"));
     }
 
     @Test

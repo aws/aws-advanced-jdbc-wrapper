@@ -16,15 +16,20 @@
 
 package software.amazon.jdbc.plugin.encryption.parser;
 
-import org.jooq.DSLContext;
-import org.jooq.Query;
-import org.jooq.SQLDialect;
-import org.jooq.impl.DSL;
-import org.jooq.impl.ParserException;
+import net.sf.jsqlparser.JSQLParserException;
+import net.sf.jsqlparser.parser.CCJSqlParserUtil;
+import net.sf.jsqlparser.statement.Statement;
+import net.sf.jsqlparser.statement.delete.Delete;
+import net.sf.jsqlparser.statement.insert.Insert;
+import net.sf.jsqlparser.statement.select.Select;
+import net.sf.jsqlparser.statement.select.SelectExpressionItem;
+import net.sf.jsqlparser.statement.select.SelectItem;
+import net.sf.jsqlparser.statement.select.PlainSelect;
+import net.sf.jsqlparser.statement.update.Update;
+import net.sf.jsqlparser.schema.Column;
+import net.sf.jsqlparser.schema.Table;
 
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class SQLAnalyzer {
 
@@ -55,29 +60,46 @@ public class SQLAnalyzer {
         }
     }
 
-    private final DSLContext dsl = DSL.using(SQLDialect.POSTGRES);
-
     public QueryAnalysis analyze(String sql) {
         QueryAnalysis analysis = new QueryAnalysis();
 
         try {
-            // Parse with jOOQ to validate SQL syntax
-            Query query = dsl.parser().parseQuery(sql);
+            Statement statement = CCJSqlParserUtil.parse(sql);
             
-            // Extract query type from the SQL string
+            if (statement instanceof Select) {
+                analysis.queryType = "SELECT";
+                extractFromSelect((Select) statement, analysis);
+            } else if (statement instanceof Insert) {
+                analysis.queryType = "INSERT";
+                extractFromInsert((Insert) statement, analysis);
+            } else if (statement instanceof Update) {
+                analysis.queryType = "UPDATE";
+                extractFromUpdate((Update) statement, analysis);
+            } else if (statement instanceof Delete) {
+                analysis.queryType = "DELETE";
+                extractFromDelete((Delete) statement, analysis);
+            } else {
+                String className = statement.getClass().getSimpleName();
+                if (className.contains("Create")) {
+                    analysis.queryType = "CREATE";
+                } else if (className.contains("Drop")) {
+                    analysis.queryType = "DROP";
+                } else {
+                    analysis.queryType = "UNKNOWN";
+                }
+            }
+
+        } catch (JSQLParserException e) {
+            // Fallback to string parsing if JSqlParser fails
             String trimmedSql = sql.trim().toUpperCase();
             if (trimmedSql.startsWith("SELECT")) {
                 analysis.queryType = "SELECT";
-                extractTablesFromSelect(sql, analysis);
             } else if (trimmedSql.startsWith("INSERT")) {
                 analysis.queryType = "INSERT";
-                extractTablesFromInsert(sql, analysis);
             } else if (trimmedSql.startsWith("UPDATE")) {
                 analysis.queryType = "UPDATE";
-                extractTablesFromUpdate(sql, analysis);
             } else if (trimmedSql.startsWith("DELETE")) {
                 analysis.queryType = "DELETE";
-                extractTablesFromDelete(sql, analysis);
             } else if (trimmedSql.startsWith("CREATE")) {
                 analysis.queryType = "CREATE";
             } else if (trimmedSql.startsWith("DROP")) {
@@ -85,49 +107,63 @@ public class SQLAnalyzer {
             } else {
                 analysis.queryType = "UNKNOWN";
             }
-
-        } catch (ParserException e) {
-            analysis.queryType = "UNKNOWN";
-        } catch (Exception e) {
-            analysis.queryType = "UNKNOWN";
         }
 
         return analysis;
     }
 
-    private void extractTablesFromSelect(String sql, QueryAnalysis analysis) {
-        // Pattern to match FROM clause
-        Pattern fromPattern = Pattern.compile("\\bFROM\\s+([\\w.]+)", Pattern.CASE_INSENSITIVE);
-        Matcher matcher = fromPattern.matcher(sql);
-        if (matcher.find()) {
-            analysis.tables.add(matcher.group(1));
+    private void extractFromSelect(Select select, QueryAnalysis analysis) {
+        PlainSelect plainSelect = (PlainSelect) select.getSelectBody();
+        
+        // Extract table
+        if (plainSelect.getFromItem() instanceof Table) {
+            Table table = (Table) plainSelect.getFromItem();
+            analysis.tables.add(table.getName());
+        }
+        
+        // Extract columns
+        for (SelectItem selectItem : plainSelect.getSelectItems()) {
+            if (selectItem instanceof SelectExpressionItem) {
+                SelectExpressionItem item = (SelectExpressionItem) selectItem;
+                if (item.getExpression() instanceof Column) {
+                    Column column = (Column) item.getExpression();
+                    String tableName = analysis.tables.isEmpty() ? "unknown" : analysis.tables.iterator().next();
+                    analysis.columns.add(new ColumnInfo(tableName, column.getColumnName()));
+                }
+            }
         }
     }
 
-    private void extractTablesFromInsert(String sql, QueryAnalysis analysis) {
-        // Pattern to match INSERT INTO table
-        Pattern insertPattern = Pattern.compile("\\bINSERT\\s+INTO\\s+([\\w.]+)", Pattern.CASE_INSENSITIVE);
-        Matcher matcher = insertPattern.matcher(sql);
-        if (matcher.find()) {
-            analysis.tables.add(matcher.group(1));
+    private void extractFromInsert(Insert insert, QueryAnalysis analysis) {
+        // Extract table
+        analysis.tables.add(insert.getTable().getName());
+        
+        // Extract columns
+        if (insert.getColumns() != null) {
+            for (Column column : insert.getColumns()) {
+                String tableName = insert.getTable().getName();
+                analysis.columns.add(new ColumnInfo(tableName, column.getColumnName()));
+            }
         }
     }
 
-    private void extractTablesFromUpdate(String sql, QueryAnalysis analysis) {
-        // Pattern to match UPDATE table
-        Pattern updatePattern = Pattern.compile("\\bUPDATE\\s+([\\w.]+)", Pattern.CASE_INSENSITIVE);
-        Matcher matcher = updatePattern.matcher(sql);
-        if (matcher.find()) {
-            analysis.tables.add(matcher.group(1));
+    private void extractFromUpdate(Update update, QueryAnalysis analysis) {
+        // Extract table
+        analysis.tables.add(update.getTable().getName());
+        
+        // Extract columns from UPDATE SET expressions
+        if (update.getUpdateSets() != null) {
+            update.getUpdateSets().forEach(updateSet -> {
+                updateSet.getColumns().forEach(column -> {
+                    String tableName = update.getTable().getName();
+                    analysis.columns.add(new ColumnInfo(tableName, column.getColumnName()));
+                });
+            });
         }
     }
 
-    private void extractTablesFromDelete(String sql, QueryAnalysis analysis) {
-        // Pattern to match DELETE FROM table
-        Pattern deletePattern = Pattern.compile("\\bDELETE\\s+FROM\\s+([\\w.]+)", Pattern.CASE_INSENSITIVE);
-        Matcher matcher = deletePattern.matcher(sql);
-        if (matcher.find()) {
-            analysis.tables.add(matcher.group(1));
-        }
+    private void extractFromDelete(Delete delete, QueryAnalysis analysis) {
+        // Extract table
+        analysis.tables.add(delete.getTable().getName());
     }
 }
