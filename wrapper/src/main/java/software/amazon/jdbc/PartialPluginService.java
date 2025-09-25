@@ -109,6 +109,10 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
       @NonNull final Dialect dbDialect,
       @Nullable final ConfigurationProfile configurationProfile) {
     this.servicesContainer = servicesContainer;
+    this.servicesContainer.setHostListProviderService(this);
+    this.servicesContainer.setPluginService(this);
+    this.servicesContainer.setPluginManagerService(this);
+
     this.pluginManager = servicesContainer.getConnectionPluginManager();
     this.props = props;
     this.originalUrl = originalUrl;
@@ -148,11 +152,11 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
 
         this.currentHostSpec = Utils.getWriter(this.getAllHosts());
         final List<HostSpec> allowedHosts = this.getHosts();
-        if (!Utils.containsUrl(allowedHosts, this.currentHostSpec.getUrl())) {
+        if (!Utils.containsHostAndPort(allowedHosts, this.currentHostSpec.getHostAndPort())) {
           throw new RuntimeException(
               Messages.get("PluginServiceImpl.currentHostNotAllowed",
                   new Object[] {
-                      currentHostSpec == null ? "<null>" : currentHostSpec.getUrl(),
+                      currentHostSpec == null ? "<null>" : currentHostSpec.getHostAndPort(),
                       Utils.logTopology(allowedHosts, "")})
           );
         }

@@ -154,13 +154,16 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
         // do nothing
       }
     }
+
     final HostSpec hostSpecAfterFailover = Utils.getWriter(this.pluginService.getAllHosts());
+    if (hostSpecAfterFailover == null) {
+      return;
+    }
 
     if (this.currentWriter == null) {
       this.currentWriter = hostSpecAfterFailover;
       this.needUpdateCurrentWriter = false;
-
-    } else if (!this.currentWriter.equals(hostSpecAfterFailover)) {
+    } else if (!this.currentWriter.getHostAndPort().equals(hostSpecAfterFailover.getHostAndPort())) {
       // the writer's changed
       tracker.invalidateAllConnections(this.currentWriter);
       tracker.logOpenedConnections();

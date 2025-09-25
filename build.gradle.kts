@@ -17,7 +17,6 @@
 import com.github.vlsi.gradle.dsl.configureEach
 import com.github.vlsi.gradle.properties.dsl.props
 import software.amazon.jdbc.buildtools.JavaCommentPreprocessorTask
-import com.github.vlsi.gradle.publishing.dsl.simplifyXml
 
 plugins {
     java
@@ -88,6 +87,16 @@ allprojects {
         )
     }
 
+    java {
+        registerFeature("optional") {
+            usingSourceSet(sourceSets.getByName("main"))
+        }
+        registerFeature("federatedAuthBundle") {
+            usingSourceSet(sourceSets.getByName("main"))
+            disablePublication()
+        }
+    }
+
     publishing {
         publications {
             if (project.props.bool("nexus.publish", default = false)) {
@@ -100,7 +109,6 @@ allprojects {
                     suppressAllPomMetadataWarnings()
 
                     pom {
-                        simplifyXml()
                         name.set("AWS Advanced JDBC Wrapper")
                         description.set(
                             project.description ?: "Amazon Web Services (AWS) Advanced JDBC Wrapper"
@@ -128,22 +136,6 @@ allprojects {
                         issueManagement {
                             system.set("GitHub issues")
                             url.set("https://github.com/aws/aws-advanced-jdbc-wrapper/issues")
-                        }
-
-                        // Remove dependencies
-                        withXml {
-                            val sb = asString()
-                            var s = sb.toString()
-                            s = s.replace(
-                                Regex(
-                                    "<dependency>.*?</dependency>",
-                                    RegexOption.DOT_MATCHES_ALL
-                                ),
-                                ""
-                            )
-                            sb.setLength(0)
-                            sb.append(s)
-                            asNode()
                         }
                     }
                 }

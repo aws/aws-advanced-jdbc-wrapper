@@ -16,7 +16,7 @@ If you are using the AWS JDBC Driver as part of a Gradle project, include the wr
 
 ```gradle
 dependencies {
-    implementation group: 'software.amazon.jdbc', name: 'aws-advanced-jdbc-wrapper', version: '2.6.3'
+    implementation group: 'software.amazon.jdbc', name: 'aws-advanced-jdbc-wrapper', version: '2.6.4'
     implementation group: 'org.postgresql', name: 'postgresql', version: '42.5.0'
 }
 ```
@@ -30,38 +30,38 @@ You can use pre-compiled packages that can be downloaded directly from [GitHub R
 For example, the following command uses wget to download the wrapper:
 
 ```bash
-wget https://github.com/aws/aws-advanced-jdbc-wrapper/releases/download/2.6.3/aws-advanced-jdbc-wrapper-2.6.3.jar
+wget https://github.com/aws/aws-advanced-jdbc-wrapper/releases/download/2.6.4/aws-advanced-jdbc-wrapper-2.6.4.jar
 ```
 
 Then, the following command adds the AWS JDBC Driver to the CLASSPATH:
 
 ```bash
-export CLASSPATH=$CLASSPATH:/home/userx/libs/aws-advanced-jdbc-wrapper-2.6.3.jar
+export CLASSPATH=$CLASSPATH:/home/userx/libs/aws-advanced-jdbc-wrapper-2.6.4.jar
 ```
 
-> **Note**: There is also a JAR suffixed with `-bundle-federated-auth`. It is an Uber JAR that contains the AWS JDBC Driver as well as all the dependencies needed to run the Federated Authentication Plugin. **Our general recommendation is to use the `aws-advanced-jdbc-wrapper-2.6.3.jar` for use cases unrelated to complex Federated Authentication environments**. To learn more, please check out the [Federated Authentication Plugin](./using-the-jdbc-driver/using-plugins/UsingTheFederatedAuthPlugin.md#bundled-uber-jar). 
+> **Note**: There is also a JAR suffixed with `-bundle-federated-auth`. It is an Uber JAR that contains the AWS JDBC Driver as well as all the dependencies needed to run the Federated Authentication Plugin. **Our general recommendation is to use the `aws-advanced-jdbc-wrapper-2.6.4.jar` for use cases unrelated to complex Federated Authentication environments**. To learn more, please check out the [Federated Authentication Plugin](./using-the-jdbc-driver/using-plugins/UsingTheFederatedAuthPlugin.md#bundled-uber-jar). 
 
 ### As a Maven Dependency
 
-You can use [Maven's dependency management](https://search.maven.org/search?q=g:software.amazon.jdbc) to obtain the AWS JDBC Driver by adding the following configuration to the application's Project Object Model (POM) file:
+You can use [Maven's dependency management](https://central.sonatype.com/artifact/software.amazon.jdbc/aws-advanced-jdbc-wrapper) to obtain the AWS JDBC Driver by adding the following configuration to the application's Project Object Model (POM) file:
 
 ```xml
 <dependencies>
     <dependency>
         <groupId>software.amazon.jdbc</groupId>
         <artifactId>aws-advanced-jdbc-wrapper</artifactId>
-        <version>2.6.3</version>
+        <version>2.6.4</version>
     </dependency>
 </dependencies>
 ```
 
 ### As a Gradle Dependency
 
-You can use [Gradle's dependency management](https://search.maven.org/search?q=g:software.amazon.jdbc) to obtain the AWS JDBC Driver by adding the following configuration to the application's ```build.gradle``` file:
+You can use [Gradle's dependency management](https://central.sonatype.com/artifact/software.amazon.jdbc/aws-advanced-jdbc-wrapper) to obtain the AWS JDBC Driver by adding the following configuration to the application's ```build.gradle``` file:
 
 ```gradle
 dependencies {
-    implementation group: 'software.amazon.jdbc', name: 'aws-advanced-jdbc-wrapper', version: '2.6.3'
+    implementation group: 'software.amazon.jdbc', name: 'aws-advanced-jdbc-wrapper', version: '2.6.4'
 }
 ```
 
@@ -69,7 +69,7 @@ To add a Gradle dependency in a Kotlin syntax, use the following configuration:
 
 ```kotlin
 dependencies {
-    implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:2.6.3")
+    implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:2.6.4")
 }
 ```
 

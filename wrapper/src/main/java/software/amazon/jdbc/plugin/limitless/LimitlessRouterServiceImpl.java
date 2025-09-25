@@ -34,9 +34,10 @@ import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.RoundRobinHostSelector;
+import software.amazon.jdbc.WeightedRandomHostSelector;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.HostSelectorUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.monitoring.MonitorErrorResponse;
@@ -109,7 +110,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       }
     }
 
-    if (context.getLimitlessRouters().contains(context.getHostSpec())) {
+    if (Utils.containsHostAndPort(context.getLimitlessRouters(), context.getHostSpec().getHostAndPort())) {
       LOGGER.finest(Messages.get(
           "LimitlessRouterServiceImpl.connectWithHost",
           new Object[] {context.getHostSpec().getHost()}));
@@ -126,7 +127,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       return;
     }
 
-    RoundRobinHostSelector.setRoundRobinHostWeightPairsProperty(
+    HostSelectorUtils.setHostWeightPairsProperty(WeightedRandomHostSelector.WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS,
         context.getProps(),
         context.getLimitlessRouters());
     HostSpec selectedHostSpec;
@@ -134,7 +135,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       selectedHostSpec = this.pluginService.getHostSpecByStrategy(
           context.getLimitlessRouters(),
           HostRole.WRITER,
-          RoundRobinHostSelector.STRATEGY_ROUND_ROBIN);
+          WeightedRandomHostSelector.STRATEGY_WEIGHTED_RANDOM);
       LOGGER.fine(Messages.get(
           "LimitlessRouterServiceImpl.selectedHost",
           new Object[] {selectedHostSpec != null ? selectedHostSpec.getHost() : "null"}));
