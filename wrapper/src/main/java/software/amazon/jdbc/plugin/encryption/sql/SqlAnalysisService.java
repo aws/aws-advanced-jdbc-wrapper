@@ -102,38 +102,6 @@ public class SqlAnalysisService {
     }
 
     /**
-     * Checks if a specific column is encrypted.
-     * 
-     * @param tableName Table name
-     * @param columnName Column name
-     * @return True if column is encrypted, false otherwise
-     */
-    public boolean isColumnEncrypted(String tableName, String columnName) {
-        try {
-            return metadataManager.isColumnEncrypted(tableName, columnName);
-        } catch (SQLException e) {
-            logger.warn("Error checking if column is encrypted: {}.{}", tableName, columnName, e);
-            return false;
-        }
-    }
-
-    /**
-     * Gets the encryption configuration for a specific column.
-     *
-     * @param tableName Table name
-     * @param columnName Column name
-     * @return Column encryption configuration, or null if not found
-     */
-    public ColumnEncryptionConfig getColumnConfig(String tableName, String columnName) {
-        try {
-            return metadataManager.getColumnConfig(tableName, columnName);
-        } catch (SQLException e) {
-            logger.warn("Error getting column config: {}.{}", tableName, columnName, e);
-            return null;
-        }
-    }
-
-    /**
      * Result of SQL analysis containing affected tables and encrypted columns.
      */
     public static class SqlAnalysisResult {

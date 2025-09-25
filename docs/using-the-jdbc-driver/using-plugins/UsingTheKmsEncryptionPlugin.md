@@ -15,6 +15,69 @@ The KMS Encryption Plugin provides transparent client-side encryption using AWS 
 - AWS KMS key with appropriate permissions
 - Database table to store encryption metadata
 - AWS credentials configured (via IAM roles, profiles, or environment variables)
+- **JSqlParser 4.5.x dependency** - Required for SQL parsing and analysis
+
+### Creating AWS KMS Master Key
+
+1. **Create a KMS Key** in AWS Console or using AWS CLI:
+```bash
+aws kms create-key --description "Database encryption master key" --key-usage ENCRYPT_DECRYPT
+```
+
+2. **Note the Key ARN** from the response - you'll need this for the `kms.MasterKeyArn` property.
+
+3. **Set Key Permissions** - Ensure your application has the following KMS permissions:
+   - `kms:Encrypt`
+   - `kms:Decrypt` 
+   - `kms:GenerateDataKey`
+   - `kms:DescribeKey`
+
+### Data Key Management
+
+The plugin automatically manages data keys:
+- **Data keys are generated** automatically using the master key when encrypting new data
+- **Data keys are cached** in memory for performance (configurable via `dataKeyCache.*` properties)
+- **Data keys are encrypted** with the master key and stored alongside encrypted data
+- **No manual data key creation** is required
+
+### Metadata Storage
+
+Create a metadata table to store encryption configuration:
+
+```sql
+CREATE TABLE encryption_metadata (
+    table_name VARCHAR(255) NOT NULL,
+    column_name VARCHAR(255) NOT NULL,
+    key_arn VARCHAR(512) NOT NULL,
+    algorithm VARCHAR(50) DEFAULT 'AES_256_GCM',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (table_name, column_name)
+);
+```
+
+Insert encryption metadata for columns that should be encrypted:
+```sql
+INSERT INTO encryption_metadata (table_name, column_name, key_arn) 
+VALUES ('users', 'ssn', 'arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012');
+```
+
+### Adding JSqlParser Dependency
+
+The KMS Encryption Plugin requires JSqlParser 4.5.x for SQL statement analysis. Add this dependency to your project:
+
+**Maven:**
+```xml
+<dependency>
+    <groupId>com.github.jsqlparser</groupId>
+    <artifactId>jsqlparser</artifactId>
+    <version>4.5</version>
+</dependency>
+```
+
+**Gradle:**
+```gradle
+implementation 'com.github.jsqlparser:jsqlparser:4.5'
+```
 
 ## Configuration
 
@@ -22,19 +85,19 @@ The KMS Encryption Plugin provides transparent client-side encryption using AWS 
 
 | Property | Description | Required | Default |
 |----------|-------------|----------|---------|
-| `kms.MasterKeyArn` | AWS KMS Key ARN for encryption operations | Yes | None |
-| `kms.region` | AWS region where the KMS key is located | Yes | None |
-| `audit.loggingEnabled` | Enable audit logging for encryption operations | No | `false` |
+| `kms.region` | AWS KMS region for encryption operations | Yes | None |
+| `kms.MasterKeyArn` | Master key ARN for encryption | Yes | None |
+| `key.rotationDays` | Number of days for key rotation | No | `30` |
 | `metadataCache.enabled` | Enable/disable metadata caching | No | `true` |
 | `metadataCache.expirationMinutes` | Metadata cache expiration time in minutes | No | `60` |
 | `metadataCache.refreshIntervalMs` | Metadata cache refresh interval in milliseconds | No | `300000` |
 | `keyManagement.maxRetries` | Maximum number of retries for key management operations | No | `3` |
 | `keyManagement.retryBackoffBaseMs` | Base backoff time in milliseconds for key management retries | No | `100` |
+| `audit.loggingEnabled` | Enable/disable audit logging | No | `false` |
 | `kms.connectionTimeoutMs` | KMS connection timeout in milliseconds | No | `5000` |
 | `dataKeyCache.enabled` | Enable/disable data key caching | No | `true` |
 | `dataKeyCache.maxSize` | Maximum size of data key cache | No | `1000` |
 | `dataKeyCache.expirationMs` | Data key cache expiration in milliseconds | No | `3600000` |
-| `metadataCache.refreshIntervalMs` | Metadata cache refresh interval in milliseconds | No | `300000` |
 
 ### Example Connection String
 
