@@ -217,6 +217,17 @@ public class WrapperUtils {
         context.setAttribute("jdbcCall", jdbcMethod.methodName);
       }
 
+      // The target driver may block on Statement.getConnection().
+      if (jdbcMethod.shouldLockConnection && jdbcMethod.checkBoundedConnection) {
+        final Connection conn = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
+        if (conn != null && conn != connectionWrapper.getCurrentConnection()) {
+          throw WrapperUtils.wrapExceptionIfNeeded(
+              RuntimeException.class,
+              new SQLException(
+                  Messages.get("ConnectionPluginManager.invokedAgainstOldConnection", new Object[]{methodInvokeOn})));
+        }
+      }
+
       final T result =
           pluginManager.execute(
               resultClass,
@@ -273,6 +284,17 @@ public class WrapperUtils {
     try {
       if (context != null) {
         context.setAttribute("jdbcCall", jdbcMethod.methodName);
+      }
+
+      // The target driver may block on Statement.getConnection().
+      if (jdbcMethod.shouldLockConnection && jdbcMethod.checkBoundedConnection) {
+        final Connection conn = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
+        if (conn != null && conn != connectionWrapper.getCurrentConnection()) {
+          throw WrapperUtils.wrapExceptionIfNeeded(
+              exceptionClass,
+              new SQLException(
+                  Messages.get("ConnectionPluginManager.invokedAgainstOldConnection", new Object[]{methodInvokeOn})));
+        }
       }
 
       final T result =

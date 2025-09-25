@@ -1158,4 +1158,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       super.finalize();
     }
   }
+
+  public Connection getCurrentConnection() {
+    return this.pluginService.getCurrentConnection();
+  }
 }
