@@ -95,7 +95,7 @@ public class DialectDetectionTests {
 
   PluginServiceImpl getPluginService(String host, String protocol) throws SQLException {
     return getPluginService(
-        new ConnectionInfo(host + protocol, protocol, mockDriverDialect, new Properties()));
+        new ConnectionInfo(protocol + host, protocol, mockDriverDialect, new Properties()));
   }
 
   PluginServiceImpl getPluginService(ConnectionInfo connectionInfo) throws SQLException {

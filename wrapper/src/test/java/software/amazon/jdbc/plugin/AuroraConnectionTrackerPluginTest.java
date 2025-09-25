@@ -234,10 +234,10 @@ public class AuroraConnectionTrackerPluginTest {
 
   private static Stream<Arguments> trackNewConnectionsParameters() {
     return Stream.of(
-        Arguments.of("postgresql", true),
-        Arguments.of("postgresql", false),
-        Arguments.of("otherProtocol", true),
-        Arguments.of("otherProtocol", false)
+        Arguments.of("jdbc:postgresql://", true),
+        Arguments.of("jdbc:postgresql://", false),
+        Arguments.of("jdbc:otherProtocol://", true),
+        Arguments.of("jdbc:otherProtocol://", false)
     );
   }
 }

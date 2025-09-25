@@ -90,7 +90,8 @@ class DefaultConnectionPluginTest {
     when(mockConnectionProviderManager.getConnectionProvider(any(), any()))
         .thenReturn(connectionProvider);
 
-    plugin = new DefaultConnectionPlugin(pluginService, connectionProvider, null, pluginManagerService);
+    plugin = new DefaultConnectionPlugin(
+        pluginService, connectionProvider, pluginManagerService, mockConnectionProviderManager);
   }
 
   @AfterEach

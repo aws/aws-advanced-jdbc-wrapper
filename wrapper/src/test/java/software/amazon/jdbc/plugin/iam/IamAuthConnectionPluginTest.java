@@ -71,8 +71,8 @@ class IamAuthConnectionPluginTest {
       + DEFAULT_PG_PORT + ":postgresqlUser";
   private static final String MYSQL_CACHE_KEY = "us-east-2:mysql.testdb.us-east-2.rds.amazonaws.com:"
       + DEFAULT_MYSQL_PORT + ":mysqlUser";
-  private static final String PG_DRIVER_PROTOCOL = "jdbc:postgresql:";
-  private static final String MYSQL_DRIVER_PROTOCOL = "jdbc:mysql:";
+  private static final String PG_DRIVER_PROTOCOL = "jdbc:postgresql://";
+  private static final String MYSQL_DRIVER_PROTOCOL = "jdbc:mysql://";
   private static final HostSpec PG_HOST_SPEC = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
       .host("pg.testdb.us-east-2.rds.amazonaws.com").build();
   private static final HostSpec PG_HOST_SPEC_WITH_PORT = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())

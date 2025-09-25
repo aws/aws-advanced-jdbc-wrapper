@@ -21,7 +21,6 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Properties;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
@@ -64,14 +63,12 @@ public class TestPluginThree extends TestPluginOne {
     return result;
   }
 
+  @Override
   public Connection forceConnect(
-      String driverProtocol,
-      HostSpec hostSpec,
-      Properties props,
-      boolean isInitialConnection,
-      JdbcCallable<Connection, SQLException> forceConnectFunc)
-      throws SQLException {
-
+      final ConnectionInfo connectionInfo,
+      final HostSpec hostSpec,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> forceConnectFunc) throws SQLException {
     this.calls.add(this.getClass().getSimpleName() + ":before forceConnect");
 
     if (this.connection != null) {

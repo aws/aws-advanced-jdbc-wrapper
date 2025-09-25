@@ -104,6 +104,7 @@ class FederatedAuthPluginTest {
     when(mockCredentialsProviderFactory.getAwsCredentialsProvider(any(), any(), any()))
         .thenReturn(mockAwsCredentialsProvider);
     when(mockAwsCredentialsProvider.resolveIdentity()).thenReturn(completableFuture);
+    when(mockConnectionInfo.getProps()).thenReturn(props);
     when(completableFuture.get()).thenReturn(mockAwsCredentialsIdentity);
   }
 

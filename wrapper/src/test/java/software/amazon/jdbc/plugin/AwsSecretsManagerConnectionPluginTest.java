@@ -79,8 +79,8 @@ import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 @SuppressWarnings("resource")
 public class AwsSecretsManagerConnectionPluginTest {
 
-  private static final String TEST_PG_PROTOCOL = "jdbc:aws-wrapper:postgresql:";
-  private static final String TEST_MYSQL_PROTOCOL = "jdbc:aws-wrapper:mysql:";
+  private static final String TEST_PG_PROTOCOL = "jdbc:aws-wrapper:postgresql://";
+  private static final String TEST_MYSQL_PROTOCOL = "jdbc:aws-wrapper:mysql://";
   private static final String TEST_REGION = "us-east-2";
   private static final String TEST_SECRET_ID = "secretId";
   private static final String TEST_USERNAME = "testUser";

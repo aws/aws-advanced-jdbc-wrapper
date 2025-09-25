@@ -42,6 +42,7 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
@@ -69,6 +70,7 @@ public class PluginServiceImplTests {
 
   private StorageService storageService;
   private AutoCloseable closeable;
+  private Properties props = new Properties();
 
   @Mock FullServicesContainer servicesContainer;
   @Mock EventPublisher mockEventPublisher;
@@ -92,6 +94,9 @@ public class PluginServiceImplTests {
     when(statement.executeQuery(any())).thenReturn(resultSet);
     when(servicesContainer.getConnectionPluginManager()).thenReturn(pluginManager);
     when(servicesContainer.getStorageService()).thenReturn(storageService);
+    when(mockConnectionInfo.getProps()).thenReturn(props);
+    when(mockConnectionInfo.getInitialConnectionString()).thenReturn("url");
+    when(mockConnectionInfo.getProtocol()).thenReturn("jdbc:postgresql://");
     storageService = new TestStorageServiceImpl(mockEventPublisher);
     PluginServiceImpl.hostAvailabilityExpiringCache.clear();
   }
@@ -309,8 +314,7 @@ public class PluginServiceImplTests {
     when(hostListProvider.refresh()).thenReturn(Collections.singletonList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostA").build()));
 
-    PluginServiceImpl target = spy(
-        getPluginService());
+    PluginServiceImpl target = spy(getPluginService());
     target.allHosts = new ArrayList<>();
     target.hostListProvider = hostListProvider;
 
@@ -334,8 +338,7 @@ public class PluginServiceImplTests {
     when(hostListProvider.refresh()).thenReturn(Collections.singletonList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostB").build()));
 
-    PluginServiceImpl target = spy(
-        getPluginService());
+    PluginServiceImpl target = spy(getPluginService());
     target.allHosts = Arrays.asList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostA").build(),
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostB").build());
@@ -362,8 +365,7 @@ public class PluginServiceImplTests {
         Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostA")
             .port(HostSpec.NO_PORT).role(HostRole.READER).build()));
 
-    PluginServiceImpl target = spy(
-        getPluginService());
+    PluginServiceImpl target = spy(getPluginService());
     target.allHosts = Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("hostA").port(HostSpec.NO_PORT).role(HostRole.WRITER).build());
     target.hostListProvider = hostListProvider;
@@ -390,8 +392,7 @@ public class PluginServiceImplTests {
         Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
             .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).build()));
 
-    PluginServiceImpl target = spy(
-        getPluginService());
+    PluginServiceImpl target = spy(getPluginService());
     target.allHosts = Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).build());
     target.hostListProvider = hostListProvider;
@@ -407,8 +408,7 @@ public class PluginServiceImplTests {
   public void testNodeAvailabilityNotChanged() throws SQLException {
     doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
 
-    PluginServiceImpl target = spy(
-        getPluginService());
+    PluginServiceImpl target = spy(getPluginService());
     target.allHosts = Collections.singletonList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
             .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.AVAILABLE)
@@ -427,8 +427,7 @@ public class PluginServiceImplTests {
   public void testNodeAvailabilityChanged_WentDown() throws SQLException {
     doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
 
-    PluginServiceImpl target = spy(
-        getPluginService());
+    PluginServiceImpl target = spy(getPluginService());
     target.allHosts = Collections.singletonList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
             .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.AVAILABLE)
@@ -454,8 +453,7 @@ public class PluginServiceImplTests {
   public void testNodeAvailabilityChanged_WentUp() throws SQLException {
     doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
 
-    PluginServiceImpl target = spy(
-        getPluginService());
+    PluginServiceImpl target = spy(getPluginService());
     target.allHosts = Collections.singletonList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
             .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.NOT_AVAILABLE)
@@ -492,8 +490,7 @@ public class PluginServiceImplTests {
     hostB.addAlias("ip-10-10-10-10");
     hostB.addAlias("hostB.custom.domain.com");
 
-    PluginServiceImpl target = spy(
-        getPluginService());
+    PluginServiceImpl target = spy(getPluginService());
 
     target.allHosts = Arrays.asList(hostA, hostB);
 
@@ -528,8 +525,7 @@ public class PluginServiceImplTests {
     hostB.addAlias("ip-10-10-10-10");
     hostB.addAlias("hostB.custom.domain.com");
 
-    PluginServiceImpl target = spy(
-        getPluginService());
+    PluginServiceImpl target = spy(getPluginService());
 
     target.allHosts = Arrays.asList(hostA, hostB);
 
@@ -597,8 +593,7 @@ public class PluginServiceImplTests {
     when(hostListProvider.refresh()).thenReturn(newHostSpecs);
     when(hostListProvider.refresh(newConnection)).thenReturn(newHostSpecs2);
 
-    PluginServiceImpl target = spy(
-        getPluginService());
+    PluginServiceImpl target = spy(getPluginService());
     when(target.getHostListProvider()).thenReturn(hostListProvider);
 
     assertNotEquals(expectedHostSpecs, newHostSpecs);
@@ -645,8 +640,7 @@ public class PluginServiceImplTests {
     when(hostListProvider.forceRefresh()).thenReturn(newHostSpecs);
     when(hostListProvider.forceRefresh(newConnection)).thenReturn(newHostSpecs);
 
-    PluginServiceImpl target = spy(
-        getPluginService());
+    PluginServiceImpl target = spy(getPluginService());
     when(target.getHostListProvider()).thenReturn(hostListProvider);
 
     assertNotEquals(expectedHostSpecs, newHostSpecs);
@@ -661,8 +655,7 @@ public class PluginServiceImplTests {
 
   @Test
   void testIdentifyConnectionWithNoAliases() throws SQLException {
-    PluginServiceImpl target = spy(
-        getPluginService());
+    PluginServiceImpl target = spy(getPluginService());
     when(target.getHostListProvider()).thenReturn(hostListProvider);
 
     when(target.getDialect()).thenReturn(new MysqlDialect());
@@ -673,8 +666,7 @@ public class PluginServiceImplTests {
   void testIdentifyConnectionWithAliases() throws SQLException {
     final HostSpec expected = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("test")
         .build();
-    PluginServiceImpl target = spy(
-        getPluginService());
+    PluginServiceImpl target = spy(getPluginService());
     target.hostListProvider = hostListProvider;
     when(target.getHostListProvider()).thenReturn(hostListProvider);
     when(hostListProvider.identifyConnection(eq(newConnection))).thenReturn(expected);
@@ -692,8 +684,7 @@ public class PluginServiceImplTests {
         .build();
     oneAlias.addAlias(oneAlias.asAlias());
 
-    PluginServiceImpl target = spy(
-        getPluginService());
+    PluginServiceImpl target = spy(getPluginService());
 
     assertEquals(1, oneAlias.getAliases().size());
     target.fillAliases(newConnection, oneAlias);
@@ -705,8 +696,7 @@ public class PluginServiceImplTests {
   @MethodSource("fillAliasesDialects")
   void testFillAliasesWithInstanceEndpoint(Dialect dialect, String[] expectedInstanceAliases) throws SQLException {
     final HostSpec empty = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("foo").build();
-    PluginServiceImpl target = spy(
-        getPluginService());
+    PluginServiceImpl target = spy(getPluginService());
     target.hostListProvider = hostListProvider;
     when(target.getDialect()).thenReturn(dialect);
     when(resultSet.next()).thenReturn(true, false); // Result set contains 1 row.

@@ -45,6 +45,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
@@ -58,7 +59,8 @@ class HikariPooledConnectionProviderTest {
   @Mock HikariDataSource mockDataSource;
   @Mock HostSpec mockHostSpec;
   @Mock HikariConfig mockConfig;
-  @Mock TargetDriverDialect mockTargetDriverDialect;
+  @Mock Dialect mockDbDialect;
+  @Mock TargetDriverDialect mockDriverDialect;
   @Mock HikariDataSource dsWithNoConnections;
   @Mock HikariDataSource dsWith1Connection;
   @Mock HikariDataSource dsWith2Connections;
@@ -115,6 +117,10 @@ class HikariPooledConnectionProviderTest {
     when(mxBeanWith1Connection.getActiveConnections()).thenReturn(1);
     when(dsWith2Connections.getHikariPoolMXBean()).thenReturn(mxBeanWith2Connections);
     when(mxBeanWith2Connections.getActiveConnections()).thenReturn(2);
+    when(mockConnectionInfo.getDriverDialect()).thenReturn(mockDriverDialect);
+    when(mockConnectionInfo.getDbDialect()).thenReturn(mockDbDialect);
+    when(mockConnectionInfo.getProps()).thenReturn(defaultProps);
+    when(mockConnectionInfo.getProtocol()).thenReturn(protocol);
   }
 
   @AfterEach
@@ -136,7 +142,7 @@ class HikariPooledConnectionProviderTest {
 
     doReturn(mockDataSource).when(provider).createHikariDataSource(any(), any(), any());
     doReturn(new ConnectInfo("url", new Properties()))
-        .when(mockTargetDriverDialect).prepareConnectInfo(anyString(), any(), any());
+        .when(mockDriverDialect).prepareConnectInfo(anyString(), any(), any());
 
     try (Connection conn = provider.connect(mockConnectionInfo, mockHostSpec)) {
       assertEquals(mockConnection, conn);
@@ -223,7 +229,7 @@ class HikariPooledConnectionProviderTest {
     final String expectedJdbcUrl =
         protocol + readerHost1Connection.getUrl() + db + "?database=" + db;
     doReturn(new ConnectInfo(protocol + readerHost1Connection.getUrl() + db, defaultProps))
-        .when(mockTargetDriverDialect).prepareConnectInfo(anyString(), any(), any());
+        .when(mockDriverDialect).prepareConnectInfo(anyString(), any(), any());
 
     provider.configurePool(mockConfig, mockConnectionInfo, readerHost1Connection, defaultProps);
     verify(mockConfig).setJdbcUrl(expectedJdbcUrl);

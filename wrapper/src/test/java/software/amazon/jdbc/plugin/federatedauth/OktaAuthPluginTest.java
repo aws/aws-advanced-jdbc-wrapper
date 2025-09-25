@@ -96,6 +96,7 @@ class OktaAuthPluginTest {
     when(mockPluginService.getDialect()).thenReturn(mockDialect);
     when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PORT);
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
+    when(mockConnectionInfo.getProps()).thenReturn(props);
     when(mockTelemetryFactory.createCounter(any())).thenReturn(mockTelemetryCounter);
     when(mockTelemetryFactory.openTelemetryContext(any(), any())).thenReturn(mockTelemetryContext);
     when(mockCredentialsProviderFactory.getAwsCredentialsProvider(any(), any(), any()))
