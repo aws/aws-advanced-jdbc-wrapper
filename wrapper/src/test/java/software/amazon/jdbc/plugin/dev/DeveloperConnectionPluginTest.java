@@ -110,7 +110,7 @@ public class DeveloperConnectionPluginTest {
   }
 
   @SuppressWarnings("unchecked")
-  protected void createStatement() throws SQLException{
+  protected void createStatement() throws SQLException {
     plugin.execute(
         Statement.class,
         SQLException.class,
