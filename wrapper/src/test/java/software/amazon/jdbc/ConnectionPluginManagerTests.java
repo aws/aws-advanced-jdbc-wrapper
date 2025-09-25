@@ -16,7 +16,6 @@
 
 package software.amazon.jdbc;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -29,9 +28,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -78,6 +75,7 @@ public class ConnectionPluginManagerTests {
   @Mock TelemetryContext mockTelemetryContext;
   @Mock FullServicesContainer mockServicesContainer;
   @Mock PluginService mockPluginService;
+  @Mock PluginManagerService mockPluginManagerService;
   @Mock TargetDriverDialect mockTargetDriverDialect;
 
   ConfigurationProfile configurationProfile = ConfigurationProfileBuilder.get().withName("test").build();
@@ -93,6 +91,7 @@ public class ConnectionPluginManagerTests {
   void init() {
     closeable = MockitoAnnotations.openMocks(this);
     when(mockServicesContainer.getPluginService()).thenReturn(mockPluginService);
+    when(mockServicesContainer.getPluginManagerService()).thenReturn(mockPluginManagerService);
     when(mockServicesContainer.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
@@ -556,57 +555,6 @@ public class ConnectionPluginManagerTests {
     assertEquals("TestPluginThree:before forceConnect", calls.get(1));
     assertEquals("TestPluginThree:forced connection", calls.get(2));
     assertEquals("TestPluginOne:after forceConnect", calls.get(3));
-  }
-
-  @Test
-  public void testExecuteAgainstOldConnection() throws Exception {
-    final ArrayList<String> calls = new ArrayList<>();
-
-    final ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
-    testPlugins.add(new TestPluginOne(calls));
-    testPlugins.add(new TestPluginTwo(calls));
-    testPlugins.add(new TestPluginThree(calls));
-
-    final Properties testProperties = new Properties();
-
-    final Connection mockOldConnection = mock(Connection.class);
-    final Connection mockCurrentConnection = mock(Connection.class);
-    final Statement mockOldStatement = mock(Statement.class);
-    final ResultSet mockOldResultSet = mock(ResultSet.class);
-
-    when(mockPluginService.getCurrentConnection()).thenReturn(mockCurrentConnection);
-    when(mockOldStatement.getConnection()).thenReturn(mockOldConnection);
-    when(mockOldResultSet.getStatement()).thenReturn(mockOldStatement);
-
-    final ConnectionPluginManager target = new ConnectionPluginManager(
-        mockConnectionProvider, null, testProperties, testPlugins, mockTelemetryFactory);
-
-    assertThrows(SQLException.class,
-        () -> target.execute(String.class, Exception.class, mockOldConnection,
-            JdbcMethod.CALLABLESTATEMENT_GETCONNECTION, () -> "result", null));
-    assertThrows(SQLException.class,
-        () -> target.execute(String.class, Exception.class, mockOldStatement,
-            JdbcMethod.CALLABLESTATEMENT_GETMORERESULTS, () -> "result", null));
-    assertThrows(SQLException.class,
-        () -> target.execute(String.class, Exception.class, mockOldResultSet,
-            JdbcMethod.RESULTSET_GETSTATEMENT, () -> "result", null));
-
-    assertDoesNotThrow(
-        () -> target.execute(Void.class, SQLException.class, mockOldConnection,
-            JdbcMethod.CONNECTION_CLOSE, mockSqlFunction,
-            null));
-    assertDoesNotThrow(
-        () -> target.execute(Void.class, SQLException.class, mockOldConnection,
-            JdbcMethod.CONNECTION_ABORT, mockSqlFunction,
-            null));
-    assertDoesNotThrow(
-        () -> target.execute(Void.class, SQLException.class, mockOldStatement,
-            JdbcMethod.STATEMENT_CLOSE, mockSqlFunction,
-            null));
-    assertDoesNotThrow(
-        () -> target.execute(Void.class, SQLException.class, mockOldResultSet,
-            JdbcMethod.RESULTSET_CLOSE, mockSqlFunction,
-            null));
   }
 
   @Test

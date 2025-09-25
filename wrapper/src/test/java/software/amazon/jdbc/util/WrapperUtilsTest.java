@@ -16,8 +16,10 @@
 
 package software.amazon.jdbc.util;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -53,18 +55,27 @@ import software.amazon.jdbc.wrapper.StatementWrapper;
 public class WrapperUtilsTest {
 
   @Mock ConnectionWrapper mockConnectionWrapper;
-  @Mock ConnectionPluginManager pluginManager;
+  @Mock ConnectionPluginManager mockPluginManager;
   @Mock TelemetryFactory mockTelemetryFactory;
   @Mock TelemetryContext mockTelemetryContext;
   @Mock Object object;
+  ReentrantLock testLock;
   private AutoCloseable closeable;
 
   @BeforeEach
   @SuppressWarnings("unchecked")
   void init() {
-    final ReentrantLock testLock = new ReentrantLock();
+    testLock = new ReentrantLock();
     closeable = MockitoAnnotations.openMocks(this);
 
+    mockExecuteReturnValue(1);
+
+    when(mockPluginManager.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
+    when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
+  }
+
+  private void mockExecuteReturnValue(Object returnValue) {
     doAnswer(invocation -> {
       boolean lockIsFree = testLock.tryLock();
       if (!lockIsFree) {
@@ -72,18 +83,14 @@ public class WrapperUtilsTest {
       }
       Thread.sleep(3000);
       testLock.unlock();
-      return 1;
-    }).when(pluginManager).execute(
+      return returnValue;
+    }).when(mockPluginManager).execute(
         any(Class.class),
         any(Class.class),
         any(Object.class),
         argThat(jdbcMethod -> jdbcMethod.shouldLockConnection),
         any(JdbcCallable.class),
         any(Object[].class));
-
-    when(pluginManager.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
-    when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
-    when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
   }
 
   @AfterEach
@@ -103,7 +110,7 @@ public class WrapperUtilsTest {
     return WrapperUtils.executeWithPlugins(
         Integer.class,
         mockConnectionWrapper,
-        pluginManager,
+        mockPluginManager,
         object,
         jdbcMethod,
         () -> 1);
@@ -123,7 +130,7 @@ public class WrapperUtilsTest {
           Integer.class,
           SQLException.class,
           mockConnectionWrapper,
-        pluginManager,
+          mockPluginManager,
           object,
           jdbcMethod,
           () -> 1);
@@ -199,5 +206,67 @@ public class WrapperUtilsTest {
             mock(CallableStatement.class),
             mockConnectionWrapper,
             mockPluginManager));
+  }
+
+  @Test
+  public void testExecuteAgainstOldConnection() throws Exception {
+    final Connection mockOldConnection = mock(Connection.class);
+    final Connection mockCurrentConnection = mock(Connection.class);
+    final Statement mockOldStatement = mock(Statement.class);
+    final ResultSet mockOldResultSet = mock(ResultSet.class);
+
+    when(mockConnectionWrapper.getCurrentConnection()).thenReturn(mockCurrentConnection);
+    when(mockOldStatement.getConnection()).thenReturn(mockOldConnection);
+    when(mockOldResultSet.getStatement()).thenReturn(mockOldStatement);
+
+    mockExecuteReturnValue("result");
+    assertThrows(SQLException.class,
+        () -> WrapperUtils.executeWithPlugins(String.class, Exception.class, mockConnectionWrapper, mockPluginManager,
+            mockOldStatement, JdbcMethod.CALLABLESTATEMENT_GETCONNECTION, () -> "result"));
+    assertThrows(SQLException.class,
+        () -> WrapperUtils.executeWithPlugins(String.class, Exception.class, mockConnectionWrapper, mockPluginManager,
+            mockOldStatement, JdbcMethod.CALLABLESTATEMENT_GETMORERESULTS, () -> "result"));
+    assertThrows(SQLException.class,
+        () -> WrapperUtils.executeWithPlugins(String.class, Exception.class, mockConnectionWrapper, mockPluginManager,
+            mockOldResultSet, JdbcMethod.RESULTSET_GETSTATEMENT, () -> "result"));
+
+    mockExecuteReturnValue(null);
+    assertDoesNotThrow(
+        () -> WrapperUtils.executeWithPlugins(Void.class, SQLException.class, mockConnectionWrapper, mockPluginManager,
+            mockOldConnection, JdbcMethod.CONNECTION_CLOSE, () -> null));
+    assertDoesNotThrow(
+        () -> WrapperUtils.executeWithPlugins(Void.class, SQLException.class, mockConnectionWrapper, mockPluginManager,
+            mockOldConnection, JdbcMethod.CONNECTION_ABORT, () -> null));
+    assertDoesNotThrow(
+        () -> WrapperUtils.executeWithPlugins(Void.class, SQLException.class, mockConnectionWrapper, mockPluginManager,
+            mockOldStatement, JdbcMethod.STATEMENT_CLOSE, () -> null));
+    assertDoesNotThrow(
+        () -> WrapperUtils.executeWithPlugins(Void.class, SQLException.class, mockConnectionWrapper, mockPluginManager,
+            mockOldResultSet, JdbcMethod.RESULTSET_CLOSE, () -> null));
+
+    mockExecuteReturnValue("result");
+    assertThrows(RuntimeException.class,
+        () -> WrapperUtils.executeWithPlugins(String.class, mockConnectionWrapper, mockPluginManager,
+            mockOldStatement, JdbcMethod.CALLABLESTATEMENT_GETCONNECTION, () -> "result"));
+    assertThrows(RuntimeException.class,
+        () -> WrapperUtils.executeWithPlugins(String.class, mockConnectionWrapper, mockPluginManager,
+            mockOldStatement, JdbcMethod.CALLABLESTATEMENT_GETMORERESULTS, () -> "result"));
+    assertThrows(RuntimeException.class,
+        () -> WrapperUtils.executeWithPlugins(String.class, mockConnectionWrapper, mockPluginManager,
+            mockOldResultSet, JdbcMethod.RESULTSET_GETSTATEMENT, () -> "result"));
+
+    mockExecuteReturnValue(null);
+    assertDoesNotThrow(
+        () -> WrapperUtils.executeWithPlugins(Void.class, mockConnectionWrapper, mockPluginManager,
+            mockOldConnection, JdbcMethod.CONNECTION_CLOSE, () -> null));
+    assertDoesNotThrow(
+        () -> WrapperUtils.executeWithPlugins(Void.class, mockConnectionWrapper, mockPluginManager,
+            mockOldConnection, JdbcMethod.CONNECTION_ABORT, () -> null));
+    assertDoesNotThrow(
+        () -> WrapperUtils.executeWithPlugins(Void.class, mockConnectionWrapper, mockPluginManager,
+            mockOldStatement, JdbcMethod.STATEMENT_CLOSE, () -> null));
+    assertDoesNotThrow(
+        () -> WrapperUtils.executeWithPlugins(Void.class, mockConnectionWrapper, mockPluginManager,
+            mockOldResultSet, JdbcMethod.RESULTSET_CLOSE, () -> null));
   }
 }

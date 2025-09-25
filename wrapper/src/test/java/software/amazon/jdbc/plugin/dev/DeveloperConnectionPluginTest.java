@@ -30,6 +30,7 @@ import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Properties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,31 +39,35 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
-import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.dialect.DialectCodes;
-import software.amazon.jdbc.dialect.DialectManager;
-import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.FullServicesContainerImpl;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
-import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 @SuppressWarnings({"resource"})
 public class DeveloperConnectionPluginTest {
-  private FullServicesContainer servicesContainer;
   @Mock StorageService mockStorageService;
   @Mock MonitorService mockMonitorService;
-  @Mock ConnectionProvider mockConnectionProvider;
+  @Mock PluginServiceImpl mockPluginService;
   @Mock Connection mockConnection;
   @Mock ConnectionPluginManager mockConnectionPluginManager;
+  @Mock ConnectionProvider mockConnectionProvider;
+  @Mock HostSpec mockHostSpec;
   @Mock ExceptionSimulatorConnectCallback mockConnectCallback;
   @Mock private TelemetryFactory mockTelemetryFactory;
   @Mock TelemetryContext mockTelemetryContext;
-  @Mock TargetDriverDialect mockTargetDriverDialect;
 
+  @SuppressWarnings("rawtypes")
+  @Mock JdbcCallable mockCallable;
+
+  protected Properties props = new Properties();
+  protected DeveloperConnectionPlugin plugin = new DeveloperConnectionPlugin();
+  protected FullServicesContainer servicesContainer;
   private AutoCloseable closeable;
 
   @AfterEach
@@ -74,7 +79,14 @@ public class DeveloperConnectionPluginTest {
   void init() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
     servicesContainer = new FullServicesContainerImpl(
-        mockStorageService, mockMonitorService, mockConnectionProvider, mockTelemetryFactory);
+        mockStorageService,
+        mockMonitorService,
+        mockConnectionProvider,
+        mockTelemetryFactory,
+        mockConnectionPluginManager,
+        mockPluginService,
+        mockPluginService,
+        mockPluginService);
 
     when(mockConnectionProvider.connect(any(), any(), any(), any(), any())).thenReturn(mockConnection);
     when(mockConnectCallback.getExceptionToRaise(any(), any(), any(), anyBoolean())).thenReturn(null);
@@ -86,195 +98,136 @@ public class DeveloperConnectionPluginTest {
 
   @Test
   @SuppressWarnings("try")
-  public void test_RaiseException() throws SQLException {
+  public void test_RaiseException() {
+    assertDoesNotThrow(this::createStatement);
 
-    final Properties props = new Properties();
-    props.put(PropertyDefinition.PLUGINS.name, "dev");
-    props.put(DialectManager.DIALECT.name, DialectCodes.PG);
-    try (ConnectionWrapper wrapper =
-             new ConnectionWrapper(servicesContainer, props, "any-protocol://any-host/", "any-protocol://", null)) {
+    final RuntimeException runtimeException = new RuntimeException("test");
+    plugin.raiseExceptionOnNextCall(runtimeException);
+    Throwable thrownException = assertThrows(RuntimeException.class, this::createStatement);
+    assertSame(runtimeException, thrownException);
 
-      ExceptionSimulator simulator = wrapper.unwrap(ExceptionSimulator.class);
-      assertNotNull(simulator);
+    assertDoesNotThrow(this::createStatement);
+  }
 
-      assertDoesNotThrow(() -> wrapper.createStatement());
-
-      final RuntimeException runtimeException = new RuntimeException("test");
-      simulator.raiseExceptionOnNextCall(runtimeException);
-      Throwable thrownException = assertThrows(RuntimeException.class, wrapper::createStatement);
-      assertSame(runtimeException, thrownException);
-
-      assertDoesNotThrow(() -> wrapper.createStatement());
-    }
+  @SuppressWarnings("unchecked")
+  protected void createStatement() throws SQLException{
+    plugin.execute(
+        Statement.class,
+        SQLException.class,
+        mockConnection,
+        "Connection.createStatement",
+        mockCallable,
+        new Object[]{});
   }
 
   @Test
-  public void test_RaiseExceptionForMethodName() throws SQLException {
+  public void test_RaiseExceptionForMethodName() {
+    assertDoesNotThrow(this::createStatement);
 
-    final Properties props = new Properties();
-    props.put(PropertyDefinition.PLUGINS.name, "dev");
-    props.put(DialectManager.DIALECT.name, DialectCodes.PG);
-    try (ConnectionWrapper wrapper =
-             new ConnectionWrapper(servicesContainer, props, "any-protocol://any-host/", "any-protocol://", null)) {
-      ExceptionSimulator simulator = wrapper.unwrap(ExceptionSimulator.class);
-      assertNotNull(simulator);
+    final RuntimeException runtimeException = new RuntimeException("test");
+    plugin.raiseExceptionOnNextCall("Connection.createStatement", runtimeException);
+    Throwable thrownException = assertThrows(RuntimeException.class, this::createStatement);
+    assertSame(runtimeException, thrownException);
 
-      assertDoesNotThrow(() -> wrapper.createStatement());
-
-      final RuntimeException runtimeException = new RuntimeException("test");
-      simulator.raiseExceptionOnNextCall("Connection.createStatement", runtimeException);
-      Throwable thrownException = assertThrows(RuntimeException.class, wrapper::createStatement);
-      assertSame(runtimeException, thrownException);
-
-      assertDoesNotThrow(() -> wrapper.createStatement());
-    }
+    assertDoesNotThrow(this::createStatement);
   }
 
   @Test
-  public void test_RaiseExceptionForAnyMethodName() throws SQLException {
+  public void test_RaiseExceptionForAnyMethodName() {
+    assertDoesNotThrow(this::createStatement);
 
-    final Properties props = new Properties();
-    props.put(PropertyDefinition.PLUGINS.name, "dev");
-    props.put(DialectManager.DIALECT.name, DialectCodes.PG);
-    try (ConnectionWrapper wrapper =
-             new ConnectionWrapper(servicesContainer, props, "any-protocol://any-host/", "any-protocol://", null)) {
-      ExceptionSimulator simulator = wrapper.unwrap(ExceptionSimulator.class);
-      assertNotNull(simulator);
+    final RuntimeException runtimeException = new RuntimeException("test");
+    plugin.raiseExceptionOnNextCall("*", runtimeException);
+    Throwable thrownException = assertThrows(RuntimeException.class, this::createStatement);
+    assertSame(runtimeException, thrownException);
 
-      assertDoesNotThrow(() -> wrapper.createStatement());
-
-      final RuntimeException runtimeException = new RuntimeException("test");
-      simulator.raiseExceptionOnNextCall("*", runtimeException);
-      Throwable thrownException = assertThrows(RuntimeException.class, wrapper::createStatement);
-      assertSame(runtimeException, thrownException);
-
-      assertDoesNotThrow(() -> wrapper.createStatement());
-    }
+    assertDoesNotThrow(this::createStatement);
   }
 
   @Test
-  public void test_RaiseExceptionForWrongMethodName() throws SQLException {
+  public void test_RaiseExceptionForWrongMethodName() {
+    assertDoesNotThrow(this::createStatement);
 
-    final Properties props = new Properties();
-    props.put(PropertyDefinition.PLUGINS.name, "dev");
-    props.put(DialectManager.DIALECT.name, DialectCodes.PG);
-    try (ConnectionWrapper wrapper =
-             new ConnectionWrapper(servicesContainer, props, "any-protocol://any-host/", "any-protocol://", null)) {
-      ExceptionSimulator simulator = wrapper.unwrap(ExceptionSimulator.class);
-      assertNotNull(simulator);
+    final RuntimeException runtimeException = new RuntimeException("test");
+    plugin.raiseExceptionOnNextCall("Connection.isClosed", runtimeException);
+    assertDoesNotThrow(this::createStatement);
 
-      assertDoesNotThrow(() -> wrapper.createStatement());
+    @SuppressWarnings("unchecked")
+    Throwable thrownException = assertThrows(
+        RuntimeException.class,
+        () -> plugin.execute(
+            Boolean.class,
+            SQLException.class,
+            mockConnection,
+            "Connection.isClosed",
+            mockCallable,
+            new Object[]{}));
+    assertSame(runtimeException, thrownException);
 
-      final RuntimeException runtimeException = new RuntimeException("test");
-      simulator.raiseExceptionOnNextCall("Connection.isClosed", runtimeException);
-      assertDoesNotThrow(() -> wrapper.createStatement());
-
-      Throwable thrownException = assertThrows(RuntimeException.class, wrapper::isClosed);
-      assertSame(runtimeException, thrownException);
-
-      assertDoesNotThrow(() -> wrapper.createStatement());
-    }
+    assertDoesNotThrow(this::createStatement);
   }
 
   @Test
-  public void test_RaiseExpectedExceptionClass() throws SQLException {
+  public void test_RaiseExpectedExceptionClass() {
+    assertDoesNotThrow(this::createStatement);
 
-    final Properties props = new Properties();
-    props.put(PropertyDefinition.PLUGINS.name, "dev");
-    props.put(DialectManager.DIALECT.name, DialectCodes.PG);
-    try (ConnectionWrapper wrapper =
-             new ConnectionWrapper(servicesContainer, props, "any-protocol://any-host/", "any-protocol://", null)) {
-      ExceptionSimulator simulator = wrapper.unwrap(ExceptionSimulator.class);
-      assertNotNull(simulator);
+    final SQLException sqlException = new SQLException("test");
+    plugin.raiseExceptionOnNextCall(sqlException);
+    Throwable thrownException = assertThrows(SQLException.class, this::createStatement);
+    assertSame(sqlException, thrownException);
 
-      assertDoesNotThrow(() -> wrapper.createStatement());
-
-      final SQLException sqlException = new SQLException("test");
-      simulator.raiseExceptionOnNextCall(sqlException);
-      Throwable thrownException = assertThrows(SQLException.class, wrapper::createStatement);
-      assertSame(sqlException, thrownException);
-
-      assertDoesNotThrow(() -> wrapper.createStatement());
-    }
+    assertDoesNotThrow(this::createStatement);
   }
 
   @Test
-  public void test_RaiseUnexpectedExceptionClass() throws SQLException {
+  public void test_RaiseUnexpectedExceptionClass() {
+    assertDoesNotThrow(this::createStatement);
 
-    final Properties props = new Properties();
-    props.put(PropertyDefinition.PLUGINS.name, "dev");
-    props.put(DialectManager.DIALECT.name, DialectCodes.PG);
-    try (ConnectionWrapper wrapper =
-             new ConnectionWrapper(servicesContainer, props, "any-protocol://any-host/", "any-protocol://", null)) {
-      ExceptionSimulator simulator = wrapper.unwrap(ExceptionSimulator.class);
-      assertNotNull(simulator);
+    final Exception exception = new Exception("test");
+    plugin.raiseExceptionOnNextCall(exception);
+    Throwable thrownException = assertThrows(SQLException.class, this::createStatement);
+    assertNotNull(thrownException);
+    assertNotSame(exception, thrownException);
+    assertInstanceOf(SQLException.class, thrownException);
+    assertNotNull(thrownException.getCause());
+    assertSame(thrownException.getCause(), exception);
 
-      assertDoesNotThrow(() -> wrapper.createStatement());
-
-      final Exception exception = new Exception("test");
-      simulator.raiseExceptionOnNextCall(exception);
-      Throwable thrownException = assertThrows(SQLException.class, wrapper::createStatement);
-      assertNotNull(thrownException);
-      assertNotSame(exception, thrownException);
-      assertInstanceOf(SQLException.class, thrownException);
-      assertNotNull(thrownException.getCause());
-      assertSame(thrownException.getCause(), exception);
-
-      assertDoesNotThrow(() -> wrapper.createStatement());
-    }
+    assertDoesNotThrow(this::createStatement);
   }
 
   @Test
   public void test_RaiseExceptionOnConnect() {
-
-    final Properties props = new Properties();
-    props.put(PropertyDefinition.PLUGINS.name, "dev");
-    props.put(DialectManager.DIALECT.name, DialectCodes.PG);
-
     final SQLException exception = new SQLException("test");
     ExceptionSimulatorManager.raiseExceptionOnNextConnect(exception);
 
-    Throwable thrownException = assertThrows(
-        SQLException.class,
-        () -> new ConnectionWrapper(servicesContainer, props, "any-protocol://any-host/", "any-protocol://", null));
+    Throwable thrownException = assertThrows(SQLException.class, this::connect);
     assertSame(exception, thrownException);
 
-    assertDoesNotThrow(
-        () -> new ConnectionWrapper(servicesContainer, props, "any-protocol://any-host/", "any-protocol://", null));
+    assertDoesNotThrow(this::connect);
+  }
+
+  @SuppressWarnings("unchecked")
+  protected Connection connect() throws SQLException {
+    return plugin.connect("any-protocol://", mockHostSpec, props, true, mockCallable);
   }
 
   @Test
   public void test_NoExceptionOnConnectWithCallback() {
-
-    final Properties props = new Properties();
-    props.put(PropertyDefinition.PLUGINS.name, "dev");
-    props.put(DialectManager.DIALECT.name, DialectCodes.PG);
-
     ExceptionSimulatorManager.setCallback(mockConnectCallback);
-
-    assertDoesNotThrow(
-        () -> new ConnectionWrapper(servicesContainer, props, "any-protocol://any-host/", "any-protocol://", null));
+    assertDoesNotThrow(this::connect);
   }
 
   @Test
   public void test_RaiseExceptionOnConnectWithCallback() {
-
-    final Properties props = new Properties();
-    props.put(PropertyDefinition.PLUGINS.name, "dev");
-    props.put(DialectManager.DIALECT.name, DialectCodes.PG);
-
     final SQLException exception = new SQLException("test");
     when(mockConnectCallback.getExceptionToRaise(any(), any(), any(), anyBoolean()))
         .thenReturn(exception)
         .thenReturn(null);
     ExceptionSimulatorManager.setCallback(mockConnectCallback);
 
-    Throwable thrownException = assertThrows(
-        SQLException.class,
-        () -> new ConnectionWrapper(servicesContainer, props, "any-protocol://any-host/", "any-protocol://", null));
+    Throwable thrownException = assertThrows(SQLException.class, this::connect);
     assertSame(exception, thrownException);
 
-    assertDoesNotThrow(
-        () -> new ConnectionWrapper(servicesContainer, props, "any-protocol://any-host/", "any-protocol://", null));
+    assertDoesNotThrow(this::connect);
   }
 }

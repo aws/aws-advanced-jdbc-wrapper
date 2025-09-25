@@ -50,6 +50,7 @@ public class ConnectionPluginChainBuilderTests {
   @Mock ConnectionProvider mockConnectionProvider;
   @Mock FullServicesContainer mockServicesContainer;
   @Mock PluginService mockPluginService;
+  @Mock PluginManagerService mockPluginManagerService;
   @Mock TelemetryFactory mockTelemetryFactory;
   @Mock TelemetryContext mockTelemetryContext;
   @Mock TargetDriverDialect mockTargetDriverDialect;
@@ -66,6 +67,7 @@ public class ConnectionPluginChainBuilderTests {
     closeable = MockitoAnnotations.openMocks(this);
     when(mockServicesContainer.getPluginService()).thenReturn(mockPluginService);
     when(mockServicesContainer.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
+    when(mockServicesContainer.getPluginManagerService()).thenReturn(mockPluginManagerService);
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
     when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
