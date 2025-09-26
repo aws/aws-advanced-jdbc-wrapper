@@ -56,10 +56,18 @@ public class KmsEncryptionPluginTest {
     props.setProperty("user", "myapp_user");
     props.setProperty("password", "password");
     connection = DriverManager.getConnection(DB_URL, props);
-//    connection = TestEnvironment.getCurrent().connectToInstance(props);
 
-    // Create test table
+    // Create test table and metadata
     try (Statement stmt = connection.createStatement()) {
+      // Create metadata tables
+      stmt.execute("CREATE TABLE IF NOT EXISTS key_storage (id SERIAL PRIMARY KEY, name VARCHAR(255), master_key_arn VARCHAR(512), encrypted_data_key TEXT, key_spec VARCHAR(50), created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, last_used_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP)");
+      stmt.execute("CREATE TABLE IF NOT EXISTS encryption_metadata (table_name VARCHAR(255), column_name VARCHAR(255), encryption_algorithm VARCHAR(50), key_id INTEGER, created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (table_name, column_name))");
+      
+      // Insert test metadata
+      stmt.execute("INSERT INTO key_storage (id, name, master_key_arn, encrypted_data_key, key_spec) VALUES (1, 'test-key', '" + kmsKeyArn + "', 'dummy-key', 'AES_256') ON CONFLICT (id) DO NOTHING");
+      stmt.execute("INSERT INTO encryption_metadata (table_name, column_name, encryption_algorithm, key_id) VALUES ('users', 'ssn', 'AES-256-GCM', 1) ON CONFLICT (table_name, column_name) DO NOTHING");
+      
+      // Create test table
       stmt.execute("CREATE TABLE if not exists users ("
               + "id SERIAL PRIMARY KEY,"
               + "name VARCHAR(100),"

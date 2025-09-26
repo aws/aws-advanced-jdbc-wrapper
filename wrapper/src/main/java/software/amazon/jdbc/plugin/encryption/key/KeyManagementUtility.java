@@ -165,9 +165,13 @@ public class KeyManagementUtility {
             KeyManager.DataKeyResult dataKeyResult = keyManager.generateDataKey(masterKeyArn);
 
             try {
+                // Generate a unique key name
+                String keyName = "key-" + tableName + "-" + columnName + "-" + System.currentTimeMillis();
+                
                 // Create key metadata
                 KeyMetadata keyMetadata = KeyMetadata.builder()
-                        .keyId(keyId)
+                        .keyId("dummy") // Not used anymore but required by builder
+                        .keyName(keyName)
                         .masterKeyArn(masterKeyArn)
                         .encryptedDataKey(dataKeyResult.getEncryptedKey())
                         .keySpec("AES_256")
@@ -175,19 +179,19 @@ public class KeyManagementUtility {
                         .lastUsedAt(Instant.now())
                         .build();
 
-                // Store key metadata in database
-                keyManager.storeKeyMetadata(tableName, columnName, keyMetadata);
+                // Store key metadata in database and get the generated integer ID
+                int generatedKeyId = keyManager.storeKeyMetadata(tableName, columnName, keyMetadata);
 
-                // Store encryption metadata
-                storeEncryptionMetadata(tableName, columnName, algorithm, keyId);
+                // Store encryption metadata using the generated integer key ID
+                storeEncryptionMetadata(tableName, columnName, algorithm, generatedKeyId);
 
                 // Refresh metadata cache
                 metadataManager.refreshMetadata();
 
                 logger.info("Successfully generated and stored data key for {}.{} with key ID: {}",
-                           tableName, columnName, keyId);
+                           tableName, columnName, generatedKeyId);
 
-                return keyId;
+                return String.valueOf(generatedKeyId);
 
             } finally {
                 // Clear sensitive data from memory
@@ -421,7 +425,7 @@ public class KeyManagementUtility {
      * Stores encryption metadata in the database.
      */
     private void storeEncryptionMetadata(String tableName, String columnName,
-                                       String algorithm, String keyId) throws SQLException {
+                                       String algorithm, int keyId) throws SQLException {
         try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(INSERT_ENCRYPTION_METADATA_SQL)) {
 
@@ -430,7 +434,7 @@ public class KeyManagementUtility {
             stmt.setString(1, tableName);
             stmt.setString(2, columnName);
             stmt.setString(3, algorithm);
-            stmt.setString(4, keyId);
+            stmt.setInt(4, keyId);
             stmt.setTimestamp(5, now);
             stmt.setTimestamp(6, now);
 

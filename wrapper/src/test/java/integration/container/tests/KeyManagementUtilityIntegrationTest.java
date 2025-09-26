@@ -232,25 +232,27 @@ public class KeyManagementUtilityIntegrationTest {
       stmt.execute("DROP TABLE IF EXISTS key_storage CASCADE");
       stmt.execute("DROP TABLE IF EXISTS " + TEST_TABLE + " CASCADE");
 
-      // Create encryption metadata table
-      stmt.execute("CREATE TABLE encryption_metadata (" +
-          "table_name VARCHAR(255) NOT NULL, " +
-          "column_name VARCHAR(255) NOT NULL, " +
-          "encryption_algorithm VARCHAR(50) NOT NULL, " +
-          "key_id VARCHAR(255) NOT NULL, " +
-          "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, " +
-          "updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, " +
-          "PRIMARY KEY (table_name, column_name)" +
-          ")");
-
-      // Create key storage table
+      // Create key storage table first (due to foreign key)
       stmt.execute("CREATE TABLE key_storage (" +
-          "key_id VARCHAR(255) PRIMARY KEY, " +
+          "id SERIAL PRIMARY KEY, " +
+          "name VARCHAR(255) NOT NULL, " +
           "master_key_arn VARCHAR(512) NOT NULL, " +
           "encrypted_data_key TEXT NOT NULL, " +
           "key_spec VARCHAR(50) NOT NULL, " +
           "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, " +
           "last_used_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP" +
+          ")");
+
+      // Create encryption metadata table
+      stmt.execute("CREATE TABLE encryption_metadata (" +
+          "table_name VARCHAR(255) NOT NULL, " +
+          "column_name VARCHAR(255) NOT NULL, " +
+          "encryption_algorithm VARCHAR(50) NOT NULL, " +
+          "key_id INTEGER NOT NULL, " +
+          "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, " +
+          "updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, " +
+          "PRIMARY KEY (table_name, column_name), " +
+          "FOREIGN KEY (key_id) REFERENCES key_storage(id)" +
           ")");
 
       // Create test users table

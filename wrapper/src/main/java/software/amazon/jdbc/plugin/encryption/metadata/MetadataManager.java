@@ -58,10 +58,10 @@ public class MetadataManager {
     private static final String LOAD_ENCRYPTION_METADATA_SQL =
         "SELECT em.table_name, em.column_name, em.encryption_algorithm, em.key_id, " +
         "       em.created_at, em.updated_at, " +
-        "       ks.master_key_arn, ks.encrypted_data_key, ks.key_spec, " +
+        "       ks.name, ks.master_key_arn, ks.encrypted_data_key, ks.key_spec, " +
         "       ks.created_at as key_created_at, ks.last_used_at " +
         "FROM encryption_metadata em " +
-        "JOIN key_storage ks ON em.key_id = ks.key_id " +
+        "JOIN key_storage ks ON em.key_id = ks.id " +
         "ORDER BY em.table_name, em.column_name";
 
     private static final String CHECK_COLUMN_ENCRYPTED_SQL =
@@ -74,7 +74,7 @@ public class MetadataManager {
         "       ks.master_key_arn, ks.encrypted_data_key, ks.key_spec, " +
         "       ks.created_at as key_created_at, ks.last_used_at " +
         "FROM encryption_metadata em " +
-        "JOIN key_storage ks ON em.key_id = ks.key_id " +
+        "JOIN key_storage ks ON em.key_id = ks.id " +
         "WHERE em.table_name = ? AND em.column_name = ?";
 
     public MetadataManager(PluginService pluginService, EncryptionConfig config) {
@@ -233,7 +233,7 @@ public class MetadataManager {
 
     /**
      * Updates the configuration and adjusts refresh behavior accordingly.
-     * 
+     *
      * @param newConfig New encryption configuration
      */
     public void updateConfig(EncryptionConfig newConfig) {
@@ -371,6 +371,7 @@ public class MetadataManager {
         // Build KeyMetadata
         KeyMetadata keyMetadata = KeyMetadata.builder()
                 .keyId(rs.getString("key_id"))
+                .keyName(rs.getString("name"))
                 .masterKeyArn(rs.getString("master_key_arn"))
                 .encryptedDataKey(rs.getString("encrypted_data_key"))
                 .keySpec(rs.getString("key_spec"))

@@ -8,8 +8,9 @@ import integration.container.TestEnvironment;
 import java.sql.*;
 import java.util.Base64;
 import java.util.Properties;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,11 +32,11 @@ public class KmsEncryptionIntegrationTest {
   private static final String TEST_NAME_1 = "Alice Test";
   private static final String TEST_NAME_2 = "Bob Test";
 
-  private Connection connection;
-  private String kmsKeyArn;
+  private static Connection connection;
+  private static String kmsKeyArn;
 
-  @BeforeEach
-  void setUp() throws Exception {
+  @BeforeAll
+  static void setUp() throws Exception {
     kmsKeyArn = System.getenv(KMS_KEY_ARN_ENV);
     assumeTrue(kmsKeyArn != null && !kmsKeyArn.isEmpty(),
         "KMS Key ARN must be provided via " + KMS_KEY_ARN_ENV + " environment variable");
@@ -51,6 +52,7 @@ public class KmsEncryptionIntegrationTest {
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
 
     connection = DriverManager.getConnection(url, props);
+    connection.setAutoCommit(true); // Ensure changes are committed immediately
 
     // Setup encryption metadata schema
     try (Statement stmt = connection.createStatement()) {
@@ -60,8 +62,9 @@ public class KmsEncryptionIntegrationTest {
       stmt.execute("DROP TABLE IF EXISTS users CASCADE");
 
       // Create key_storage table first (referenced by encryption_metadata)
-      stmt.execute("CREATE TABLE key_storage ("
-          + "key_id VARCHAR(255) PRIMARY KEY, "
+      stmt.execute("CREATE TABLE if not exists key_storage ("
+          + "id SERIAL PRIMARY KEY, "
+          + "name VARCHAR(255) NOT NULL, "
           + "master_key_arn VARCHAR(512) NOT NULL, "
           + "encrypted_data_key TEXT NOT NULL, "
           + "key_spec VARCHAR(50) DEFAULT 'AES_256', "
@@ -69,15 +72,15 @@ public class KmsEncryptionIntegrationTest {
           + "last_used_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP)");
 
       // Create encryption_metadata table with correct schema
-      stmt.execute("CREATE TABLE encryption_metadata ("
+      stmt.execute("CREATE TABLE if not exists encryption_metadata ("
           + "table_name VARCHAR(255) NOT NULL, "
           + "column_name VARCHAR(255) NOT NULL, "
           + "encryption_algorithm VARCHAR(50) NOT NULL, "
-          + "key_id VARCHAR(255) NOT NULL, "
+          + "key_id INTEGER NOT NULL, "
           + "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
           + "updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
           + "PRIMARY KEY (table_name, column_name), "
-          + "FOREIGN KEY (key_id) REFERENCES key_storage(key_id))");
+          + "FOREIGN KEY (key_id) REFERENCES key_storage(id))");
 
       // Insert a key into key_storage with real KMS data key
       KmsClient kmsClient = KmsClient.builder().region(software.amazon.awssdk.regions.Region.US_EAST_1).build();
@@ -89,26 +92,27 @@ public class KmsEncryptionIntegrationTest {
       String encryptedDataKeyBase64 = Base64.getEncoder().encodeToString(dataKeyResponse.ciphertextBlob().asByteArray());
 
       PreparedStatement keyStmt = connection.prepareStatement(
-          "INSERT INTO key_storage (key_id, master_key_arn, encrypted_data_key, key_spec) VALUES (?, ?, ?, ?)");
-      keyStmt.setString(1, "test-key-1");
+          "INSERT INTO key_storage (name, master_key_arn, encrypted_data_key, key_spec) VALUES (?, ?, ?, ?) RETURNING id");
+      keyStmt.setString(1, "test-key-users-ssn");
       keyStmt.setString(2, kmsKeyArn);
       keyStmt.setString(3, encryptedDataKeyBase64);
       keyStmt.setString(4, "AES_256");
-      keyStmt.executeUpdate();
+      ResultSet keyRs = keyStmt.executeQuery();
+      keyRs.next();
+      int generatedKeyId = keyRs.getInt(1);
       keyStmt.close();
 
       // Use KeyManagementUtility approach to setup encryption metadata
-      String keyId = "test-key-1";
       logger.trace("Setting up encryption metadata for users.ssn using KeyManagementUtility approach");
-      
+
       try (PreparedStatement metaStmt = connection.prepareStatement(
           "INSERT INTO encryption_metadata (table_name, column_name, encryption_algorithm, key_id) VALUES (?, ?, ?, ?)")) {
         metaStmt.setString(1, "users");
         metaStmt.setString(2, "ssn");
         metaStmt.setString(3, "AES-256-GCM");
-        metaStmt.setString(4, keyId);
+        metaStmt.setInt(4, generatedKeyId);
         metaStmt.executeUpdate();
-        logger.trace("Encryption metadata configured for key: {}", keyId);
+        logger.trace("Encryption metadata configured for key: {}", generatedKeyId);
       }
 
       // Verify the metadata was configured correctly
@@ -118,34 +122,51 @@ public class KmsEncryptionIntegrationTest {
         checkStmt.setString(2, "ssn");
         ResultSet rs = checkStmt.executeQuery();
         while (rs.next()) {
-          logger.trace("Verified metadata: {}.{} -> {} (key: {})", 
-                       rs.getString("table_name"), rs.getString("column_name"), 
-                       rs.getString("encryption_algorithm"), rs.getString("key_id"));
+          logger.trace("Verified metadata: {}.{} -> {} (key: {})",
+                       rs.getString("table_name"), rs.getString("column_name"),
+                       rs.getString("encryption_algorithm"), rs.getInt("key_id"));
         }
       }
 
       // Create users table with bytea for encrypted data
-      stmt.execute("CREATE TABLE users ("
+      stmt.execute("CREATE TABLE if not exists users ("
           + "id SERIAL PRIMARY KEY, "
           + "name VARCHAR(100), "
           + "ssn bytea, "
           + "email VARCHAR(100))");
 
       logger.trace("Test setup completed");
+
+      // Final verification that metadata exists
+      try (PreparedStatement finalCheck = connection.prepareStatement(
+          "SELECT COUNT(*) FROM encryption_metadata WHERE table_name = 'users' AND column_name = 'ssn'")) {
+        ResultSet rs = finalCheck.executeQuery();
+        rs.next();
+        int count = rs.getInt(1);
+        logger.info("Final metadata verification: {} rows found for users.ssn", count);
+        if (count == 0) {
+          throw new RuntimeException("Encryption metadata was not properly created!");
+        }
+      }
     }
   }
 
   @AfterEach
-  void tearDown() throws Exception {
-    /*
+  void cleanupTestData() throws Exception {
+    // Clean up test data between tests without dropping schema
     if (connection != null && !connection.isClosed()) {
       try (Statement stmt = connection.createStatement()) {
         stmt.execute("DELETE FROM users WHERE name LIKE '%Test'");
+        logger.trace("Cleaned up test data");
       }
+    }
+  }
+
+  @AfterAll
+  static void tearDown() throws Exception {
+    if (connection != null && !connection.isClosed()) {
       connection.close();
     }
-
-     */
   }
 
   @Test

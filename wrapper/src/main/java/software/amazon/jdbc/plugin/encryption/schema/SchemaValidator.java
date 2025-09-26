@@ -43,7 +43,7 @@ public class SchemaValidator {
     ));
     
     private static final Set<String> REQUIRED_KEY_STORAGE_COLUMNS = new HashSet<>(Arrays.asList(
-        "key_id", "master_key_arn", "encrypted_data_key", "key_spec", "created_at", "last_used_at"
+        "id", "name", "master_key_arn", "encrypted_data_key", "key_spec", "created_at", "last_used_at"
     ));
     
     /**
@@ -163,9 +163,9 @@ public class SchemaValidator {
     private List<String> validateKeyStorageConstraints(Connection connection) throws SQLException {
         List<String> issues = new ArrayList<>();
         
-        // Check for primary key on key_id
-        if (!hasPrimaryKey(connection, KEY_STORAGE_TABLE, "key_id")) {
-            issues.add("Table 'key_storage' is missing primary key on 'key_id'");
+        // Check for primary key on id
+        if (!hasPrimaryKey(connection, KEY_STORAGE_TABLE, "id")) {
+            issues.add("Table 'key_storage' is missing primary key on 'id'");
         }
         
         return issues;
@@ -177,9 +177,9 @@ public class SchemaValidator {
     private List<String> validateForeignKeyConstraints(Connection connection) throws SQLException {
         List<String> issues = new ArrayList<>();
         
-        // Check for foreign key from encryption_metadata.key_id to key_storage.key_id
-        if (!hasForeignKey(connection, ENCRYPTION_METADATA_TABLE, "key_id", KEY_STORAGE_TABLE, "key_id")) {
-            issues.add("Missing foreign key constraint from encryption_metadata.key_id to key_storage.key_id");
+        // Check for foreign key from encryption_metadata.key_id to key_storage.id
+        if (!hasForeignKey(connection, ENCRYPTION_METADATA_TABLE, "key_id", KEY_STORAGE_TABLE, "id")) {
+            issues.add("Missing foreign key constraint from encryption_metadata.key_id to key_storage.id");
         }
         
         return issues;

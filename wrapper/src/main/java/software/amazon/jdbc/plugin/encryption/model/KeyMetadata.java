@@ -27,6 +27,7 @@ import java.util.Objects;
 public class KeyMetadata {
 
     private final String keyId;
+    private final String keyName;
     private final String masterKeyArn;
     private final String encryptedDataKey;
     private final String keySpec;
@@ -35,6 +36,7 @@ public class KeyMetadata {
 
     private KeyMetadata(Builder builder) {
         this.keyId = Objects.requireNonNull(builder.keyId, "keyId cannot be null");
+        this.keyName = Objects.requireNonNull(builder.keyName, "keyName cannot be null");
         this.masterKeyArn = Objects.requireNonNull(builder.masterKeyArn, "masterKeyArn cannot be null");
         this.encryptedDataKey = Objects.requireNonNull(builder.encryptedDataKey, "encryptedDataKey cannot be null");
         this.keySpec = Objects.requireNonNull(builder.keySpec, "keySpec cannot be null");
@@ -44,6 +46,10 @@ public class KeyMetadata {
 
     public String getKeyId() {
         return keyId;
+    }
+
+    public String getKeyName() {
+        return keyName;
     }
 
     public String getMasterKeyArn() {
@@ -128,6 +134,7 @@ public class KeyMetadata {
 
     public static class Builder {
         private String keyId;
+        private String keyName;
         private String masterKeyArn;
         private String encryptedDataKey;
         private String keySpec = "AES_256"; // Default key spec
@@ -136,6 +143,11 @@ public class KeyMetadata {
 
         public Builder keyId(String keyId) {
             this.keyId = keyId;
+            return this;
+        }
+
+        public Builder keyName(String keyName) {
+            this.keyName = keyName;
             return this;
         }
 

@@ -50,14 +50,13 @@ public class KeyManager {
 
     // SQL statements for key metadata operations
     private static final String INSERT_KEY_METADATA_SQL =
-        "INSERT INTO key_storage (key_id, master_key_arn, encrypted_data_key, key_spec, created_at, last_used_at) " +
+        "INSERT INTO key_storage (name, master_key_arn, encrypted_data_key, key_spec, created_at, last_used_at) " +
         "VALUES (?, ?, ?, ?, ?, ?) " +
-        "ON CONFLICT (key_id) DO UPDATE SET " +
-        "last_used_at = EXCLUDED.last_used_at";
+        "RETURNING id";
 
     private static final String SELECT_KEY_METADATA_SQL =
-        "SELECT key_id, master_key_arn, encrypted_data_key, key_spec, created_at, last_used_at " +
-        "FROM key_storage WHERE key_id = ?";
+        "SELECT id, name, master_key_arn, encrypted_data_key, key_spec, created_at, last_used_at " +
+        "FROM key_storage WHERE id = ?";
 
     private static final String UPDATE_LAST_USED_SQL =
         "UPDATE key_storage SET last_used_at = ? WHERE key_id = ?";
@@ -189,9 +188,10 @@ public class KeyManager {
      * @param tableName Name of the table
      * @param columnName Name of the column
      * @param keyMetadata Key metadata to store
+     * @return the generated integer ID
      * @throws KeyManagementException if storage fails
      */
-    public void storeKeyMetadata(String tableName, String columnName, KeyMetadata keyMetadata)
+    public int storeKeyMetadata(String tableName, String columnName, KeyMetadata keyMetadata)
             throws KeyManagementException {
         Objects.requireNonNull(tableName, "Table name cannot be null");
         Objects.requireNonNull(columnName, "Column name cannot be null");
@@ -206,19 +206,21 @@ public class KeyManager {
         try (Connection conn = pluginService.forceConnect(pluginService.getCurrentHostSpec(), pluginService.getProperties());
              PreparedStatement stmt = conn.prepareStatement(INSERT_KEY_METADATA_SQL)) {
 
-            stmt.setString(1, keyMetadata.getKeyId());
+            stmt.setString(1, keyMetadata.getKeyName());
             stmt.setString(2, keyMetadata.getMasterKeyArn());
             stmt.setString(3, keyMetadata.getEncryptedDataKey());
             stmt.setString(4, keyMetadata.getKeySpec());
             stmt.setTimestamp(5, Timestamp.from(keyMetadata.getCreatedAt()));
             stmt.setTimestamp(6, Timestamp.from(keyMetadata.getLastUsedAt()));
 
-            int rowsAffected = stmt.executeUpdate();
-            if (rowsAffected == 0) {
-                throw new KeyManagementException("Failed to store key metadata - no rows affected");
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                int generatedId = rs.getInt(1);
+                logger.debug("Successfully stored key metadata for {}.{} with ID: {}", tableName, columnName, generatedId);
+                return generatedId;
+            } else {
+                throw new KeyManagementException("Failed to get generated key ID");
             }
-
-            logger.debug("Successfully stored key metadata for {}.{}", tableName, columnName);
 
         } catch (SQLException e) {
             logger.error("Database error storing key metadata for {}.{}", tableName, columnName, e);

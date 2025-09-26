@@ -42,23 +42,56 @@ The plugin automatically manages data keys:
 
 ### Metadata Storage
 
-Create a metadata table to store encryption configuration:
+Create the required metadata tables to store encryption configuration:
 
 ```sql
+-- Key storage table (must be created first due to foreign key)
+CREATE TABLE key_storage (
+    id SERIAL PRIMARY KEY,
+    key_id VARCHAR(255) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    master_key_arn VARCHAR(512) NOT NULL,
+    encrypted_data_key TEXT NOT NULL,
+    key_spec VARCHAR(50) DEFAULT 'AES_256',
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    last_used_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Encryption metadata table
 CREATE TABLE encryption_metadata (
     table_name VARCHAR(255) NOT NULL,
     column_name VARCHAR(255) NOT NULL,
-    key_arn VARCHAR(512) NOT NULL,
-    algorithm VARCHAR(50) DEFAULT 'AES_256_GCM',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (table_name, column_name)
+    encryption_algorithm VARCHAR(50) NOT NULL,
+    key_id INTEGER NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (table_name, column_name),
+    FOREIGN KEY (key_id) REFERENCES key_storage(id)
 );
 ```
 
-Insert encryption metadata for columns that should be encrypted:
+### Setting Up Encryption Metadata
+
+Use the KeyManagementUtility to properly configure encryption for your columns:
+
+```java
+// Initialize KeyManagementUtility
+KeyManagementUtility keyManagementUtility = new KeyManagementUtility(
+    keyManager, metadataManager, dataSource, kmsClient);
+
+// Configure encryption for a column
+String keyId = keyManagementUtility.initializeEncryptionForColumn(
+    "users",           // table name
+    "ssn",             // column name  
+    masterKeyArn,      // KMS master key ARN
+    "AES-256-GCM"      // encryption algorithm
+);
+```
+
+**Alternative: Direct metadata insertion (not recommended for production):**
 ```sql
-INSERT INTO encryption_metadata (table_name, column_name, key_arn) 
-VALUES ('users', 'ssn', 'arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012');
+INSERT INTO encryption_metadata (table_name, column_name, encryption_algorithm, key_id) 
+VALUES ('users', 'ssn', 'AES-256-GCM', 'your-generated-key-id');
 ```
 
 ### Adding JSqlParser Dependency
@@ -118,29 +151,58 @@ Connection conn = DriverManager.getConnection(url, props);
 
 ### 1. Create Encryption Metadata Table
 
-First, create a table to store encryption metadata:
+First, create the required tables to store encryption metadata and keys:
 
 ```sql
+-- Key storage table (must be created first due to foreign key)
+CREATE TABLE key_storage (
+    id SERIAL PRIMARY KEY,
+    key_id VARCHAR(255) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    master_key_arn VARCHAR(512) NOT NULL,
+    encrypted_data_key TEXT NOT NULL,
+    key_spec VARCHAR(50) DEFAULT 'AES_256',
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    last_used_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Encryption metadata table
 CREATE TABLE encryption_metadata (
     table_name VARCHAR(255) NOT NULL,
     column_name VARCHAR(255) NOT NULL,
-    encryption_type VARCHAR(50) NOT NULL DEFAULT 'AES',
-    PRIMARY KEY (table_name, column_name)
+    encryption_algorithm VARCHAR(50) NOT NULL,
+    key_id INTEGER NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (table_name, column_name),
+    FOREIGN KEY (key_id) REFERENCES key_storage(id)
 );
 ```
 
 ### 2. Configure Column Encryption
 
-Define which columns should be encrypted by inserting metadata:
+**Recommended: Use KeyManagementUtility for proper key management:**
 
+```java
+KeyManagementUtility keyManagementUtility = new KeyManagementUtility(
+    keyManager, metadataManager, dataSource, kmsClient);
+
+// Configure encryption for sensitive columns
+keyManagementUtility.initializeEncryptionForColumn("customers", "ssn", masterKeyArn);
+keyManagementUtility.initializeEncryptionForColumn("customers", "credit_card", masterKeyArn);
+keyManagementUtility.initializeEncryptionForColumn("customers", "phone", masterKeyArn);
+keyManagementUtility.initializeEncryptionForColumn("customers", "address", masterKeyArn);
+```
+
+**Alternative: Direct SQL insertion (for testing only):**
 ```sql
 -- Configure encryption for sensitive columns in the customers table
-INSERT INTO encryption_metadata (table_name, column_name, encryption_type)
+INSERT INTO encryption_metadata (table_name, column_name, encryption_algorithm, key_id)
 VALUES 
-    ('customers', 'ssn', 'AES'),
-    ('customers', 'credit_card', 'AES'),
-    ('customers', 'phone', 'AES'),
-    ('customers', 'address', 'AES');
+    ('customers', 'ssn', 'AES-256-GCM', 'generated-key-id-1'),
+    ('customers', 'credit_card', 'AES-256-GCM', 'generated-key-id-2'),
+    ('customers', 'phone', 'AES-256-GCM', 'generated-key-id-3'),
+    ('customers', 'address', 'AES-256-GCM', 'generated-key-id-4');
 ```
 
 ### 3. Create Your Application Tables
