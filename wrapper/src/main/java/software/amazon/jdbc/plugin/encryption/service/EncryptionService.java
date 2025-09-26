@@ -33,6 +33,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.sql.Date;
 import java.sql.Time;
+import java.util.Base64;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -436,6 +437,22 @@ public class EncryptionService {
         // Handle String conversions
         if (targetType == String.class) {
             return value.toString();
+        }
+
+        // Handle byte array conversions
+        if (targetType == byte[].class) {
+            if (value instanceof String) {
+                // Assume base64 encoded string, decode it
+                try {
+                    return Base64.getDecoder().decode((String) value);
+                } catch (IllegalArgumentException e) {
+                    throw EncryptionException.typeConversionFailed("String", "byte[]", e)
+                        .withContext("stringValue", value.toString().length() > 50 ? 
+                            value.toString().substring(0, 47) + "..." : value.toString());
+                }
+            } else if (value instanceof byte[]) {
+                return value;
+            }
         }
 
         // Handle numeric conversions

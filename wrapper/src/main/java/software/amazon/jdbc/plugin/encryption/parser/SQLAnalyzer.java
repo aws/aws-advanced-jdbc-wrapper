@@ -28,6 +28,9 @@ import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.update.Update;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
+import net.sf.jsqlparser.expression.BinaryExpression;
+import net.sf.jsqlparser.expression.Expression;
+import net.sf.jsqlparser.expression.Parenthesis;
 
 import java.util.*;
 
@@ -121,7 +124,7 @@ public class SQLAnalyzer {
             analysis.tables.add(table.getName());
         }
         
-        // Extract columns
+        // Extract columns from SELECT clause
         for (SelectItem selectItem : plainSelect.getSelectItems()) {
             if (selectItem instanceof SelectExpressionItem) {
                 SelectExpressionItem item = (SelectExpressionItem) selectItem;
@@ -132,6 +135,30 @@ public class SQLAnalyzer {
                 }
             }
         }
+        
+        // Extract columns from WHERE clause
+        if (plainSelect.getWhere() != null) {
+            extractColumnsFromExpression(plainSelect.getWhere(), analysis);
+        }
+    }
+
+    /**
+     * Recursively extract columns from expressions (for WHERE clauses).
+     */
+    private void extractColumnsFromExpression(Expression expression, QueryAnalysis analysis) {
+        if (expression instanceof Column) {
+            Column column = (Column) expression;
+            String tableName = analysis.tables.isEmpty() ? "unknown" : analysis.tables.iterator().next();
+            analysis.columns.add(new ColumnInfo(tableName, column.getColumnName()));
+        } else if (expression instanceof BinaryExpression) {
+            BinaryExpression binaryExpr = (BinaryExpression) expression;
+            extractColumnsFromExpression(binaryExpr.getLeftExpression(), analysis);
+            extractColumnsFromExpression(binaryExpr.getRightExpression(), analysis);
+        } else if (expression instanceof Parenthesis) {
+            Parenthesis parenthesis = (Parenthesis) expression;
+            extractColumnsFromExpression(parenthesis.getExpression(), analysis);
+        }
+        // Add more expression types as needed
     }
 
     private void extractFromInsert(Insert insert, QueryAnalysis analysis) {

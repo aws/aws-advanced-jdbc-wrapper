@@ -202,6 +202,51 @@ class SqlAnalysisServiceTest {
     }
 
     @Test
+    void testUpdateParameterMapping() {
+        // Simple UPDATE statement
+        Map<Integer, String> mapping = sqlAnalysisService.getColumnParameterMapping(
+            "UPDATE users SET ssn = ?, email = ? WHERE id = ?");
+        assertEquals(2, mapping.size());
+        assertEquals("ssn", mapping.get(1));
+        assertEquals("email", mapping.get(2));
+
+        // UPDATE with single column
+        mapping = sqlAnalysisService.getColumnParameterMapping(
+            "UPDATE customers SET name = ? WHERE id = ?");
+        assertEquals(1, mapping.size());
+        assertEquals("name", mapping.get(1));
+
+        // UPDATE with multiple columns
+        mapping = sqlAnalysisService.getColumnParameterMapping(
+            "UPDATE products SET name = ?, price = ?, description = ? WHERE category = ?");
+        assertEquals(3, mapping.size());
+        assertEquals("name", mapping.get(1));
+        assertEquals("price", mapping.get(2));
+        assertEquals("description", mapping.get(3));
+    }
+
+    @Test
+    void testSelectParameterMapping() {
+        // SELECT with WHERE clause parameter
+        Map<Integer, String> mapping = sqlAnalysisService.getColumnParameterMapping(
+            "SELECT ssn FROM users WHERE name = ?");
+        assertEquals(1, mapping.size());
+        assertEquals("name", mapping.get(1));
+
+        // SELECT with multiple WHERE parameters
+        mapping = sqlAnalysisService.getColumnParameterMapping(
+            "SELECT ssn, email FROM users WHERE name = ? AND age = ?");
+        assertEquals(2, mapping.size());
+        assertEquals("name", mapping.get(1));
+        assertEquals("age", mapping.get(2));
+
+        // SELECT with no parameters
+        mapping = sqlAnalysisService.getColumnParameterMapping(
+            "SELECT ssn FROM users WHERE name = 'John'");
+        assertEquals(0, mapping.size());
+    }
+
+    @Test
     void testMultiTableQueries() {
         // JOIN query - expect first table only
         SqlAnalysisService.SqlAnalysisResult result = sqlAnalysisService.analyzeSql(

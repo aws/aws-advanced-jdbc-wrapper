@@ -22,6 +22,7 @@ import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.key.KeyManager;
 import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
 import software.amazon.jdbc.plugin.encryption.sql.SqlAnalysisService;
+import software.amazon.jdbc.plugin.encryption.parser.SQLAnalyzer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,6 +61,7 @@ public class EncryptingPreparedStatement implements PreparedStatement {
                                      KeyManager keyManager,
                                      SqlAnalysisService sqlAnalysisService,
                                      String sql) {
+        logger.trace("EncryptingPreparedStatement created for SQL: {}", sql);
         this.delegate = delegate;
         this.metadataManager = metadataManager;
         this.encryptionService = encryptionService;
@@ -69,6 +71,7 @@ public class EncryptingPreparedStatement implements PreparedStatement {
 
         // Initialize parameter mapping
         initializeParameterMapping();
+        logger.trace("Parameter mapping initialized: {}", parameterColumnMapping);
     }
 
     /**
@@ -79,28 +82,31 @@ public class EncryptingPreparedStatement implements PreparedStatement {
      * Initializes parameter mapping using SQL analysis service.
      */
     private void initializeParameterMapping() {
+        logger.trace("initializeParameterMapping called for SQL: {}", sql);
         try {
             // Use SqlAnalysisService to analyze SQL and extract table information
             SqlAnalysisService.SqlAnalysisResult analysisResult = sqlAnalysisService.analyzeSql(sql);
+            logger.trace("Analysis result tables: {}", analysisResult.getAffectedTables());
 
             // Get the first table from analysis results
             if (!analysisResult.getAffectedTables().isEmpty()) {
                 this.tableName = analysisResult.getAffectedTables().iterator().next();
+                logger.trace("Table name set to: {}", tableName);
 
-                // Use query type from analysis result instead of parsing SQL string
-                String queryType = analysisResult.getQueryType();
-                if ("INSERT".equals(queryType)) {
-                    mapInsertParameters();
-                } else if ("UPDATE".equals(queryType)) {
-                    mapUpdateParameters();
-                }
+                // Use SqlAnalysisService to get parameter mapping
+                Map<Integer, String> mapping = sqlAnalysisService.getColumnParameterMapping(sql);
+                logger.trace("Column parameter mapping from service: {}", mapping);
+                parameterColumnMapping.putAll(mapping);
+                
+                logger.trace("Final parameter mapping: {}", parameterColumnMapping);
             }
 
             mappingInitialized = true;
-            logger.debug("Parameter mapping initialized using SQL analysis for table: {}", tableName);
+            logger.trace("Parameter mapping initialization complete for table: {}", tableName);
 
         } catch (Exception e) {
-            logger.warn("Failed to initialize parameter mapping for SQL: {}", sql, e);
+            logger.trace("Failed to initialize parameter mapping: {}", e.getMessage());
+            logger.trace("Exception details", e);
             mappingInitialized = false;
         }
     }
@@ -165,18 +171,51 @@ public class EncryptingPreparedStatement implements PreparedStatement {
      * Checks if a parameter should be encrypted and encrypts it if necessary.
      */
     private Object encryptParameterIfNeeded(int parameterIndex, Object value) throws SQLException {
+        logger.trace("encryptParameterIfNeeded called: param={}, value={}", parameterIndex, value);
+        logger.trace("mappingInitialized={}, tableName={}", mappingInitialized, tableName);
+        
         if (!mappingInitialized || tableName == null || value == null) {
+            logger.trace("Skipping encryption - early exit");
             return value;
         }
 
         try {
             String columnName = getColumnNameForParameter(parameterIndex);
+            logger.trace("Parameter {} maps to column: {}", parameterIndex, columnName);
+            logger.trace("Parameter mapping: {}", parameterColumnMapping);
+            
             if (columnName == null) {
                 return value;
             }
 
             // Check if column is configured for encryption
-            if (!metadataManager.isColumnEncrypted(tableName, columnName)) {
+            boolean isEncrypted = metadataManager.isColumnEncrypted(tableName, columnName);
+            logger.trace("Column {}.{} encrypted: {}", tableName, columnName, isEncrypted);
+            
+            // Debug metadata manager state
+            try {
+                logger.trace("Checking metadata manager for table: {}", tableName);
+                logger.trace("MetadataManager class: {}", metadataManager.getClass().getName());
+                
+                // Force refresh metadata to pick up any new configurations
+                logger.trace("Forcing metadata refresh...");
+                metadataManager.refreshMetadata();
+                logger.trace("Metadata refresh completed");
+                
+                // Try to get config directly after refresh
+                ColumnEncryptionConfig config = metadataManager.getColumnConfig(tableName, columnName);
+                logger.trace("Column config for {}.{} after refresh: {}", tableName, columnName, config);
+                
+                // Check encryption status after refresh
+                boolean isEncryptedAfterRefresh = metadataManager.isColumnEncrypted(tableName, columnName);
+                logger.trace("Column {}.{} encrypted after refresh: {}", tableName, columnName, isEncryptedAfterRefresh);
+                
+            } catch (Exception e) {
+                logger.trace("Error getting column config: {}", e.getMessage());
+                logger.trace("Exception details", e);
+            }
+            
+            if (!isEncrypted) {
                 return value;
             }
 
