@@ -262,15 +262,31 @@ class SqlAnalysisServiceTest {
     }
 
     @Test
-    void testEncryptedColumnPlaceholder() {
-        // Note: Current implementation doesn't populate encrypted columns
-        // This test verifies the structure is in place for future implementation
+    void testComplexQueryAnalysis() {
+        // Test complex UPDATE query analysis
         SqlAnalysisService.SqlAnalysisResult result = sqlAnalysisService.analyzeSql(
-            "SELECT ssn, credit_card FROM customers");
+            "UPDATE customers SET name = ?, ssn = ? WHERE id = 123");
         
-        assertNotNull(result.getEncryptedColumns());
-        assertEquals(0, result.getEncryptedColumnCount()); // Currently returns empty map
-        assertFalse(result.hasEncryptedColumns()); // Will be true when implementation is complete
+        assertEquals("UPDATE", result.getQueryType());
+        assertTrue(result.getAffectedTables().contains("customers"));
+        
+        // Test parameter mapping for UPDATE (only SET clause parameters are mapped)
+        Map<Integer, String> mapping = sqlAnalysisService.getColumnParameterMapping(
+            "UPDATE customers SET name = ?, ssn = ? WHERE id = 123");
+        assertEquals(2, mapping.size()); // Only SET clause parameters
+        assertEquals("name", mapping.get(1));
+        assertEquals("ssn", mapping.get(2));
+        
+        // Test JOIN query analysis
+        result = sqlAnalysisService.analyzeSql(
+            "SELECT c.name, c.ssn FROM customers c JOIN orders o ON c.id = o.customer_id");
+        assertEquals("SELECT", result.getQueryType());
+        assertTrue(result.getAffectedTables().contains("customers"));
+        
+        // Test DELETE query analysis
+        result = sqlAnalysisService.analyzeSql("DELETE FROM customers WHERE id = ?");
+        assertEquals("DELETE", result.getQueryType());
+        assertTrue(result.getAffectedTables().contains("customers"));
     }
 
     @Test
