@@ -77,8 +77,8 @@ public class KeyManagementUtilityIntegrationTest {
       try (Statement stmt = connection.createStatement()) {
         // Clean up test data
         stmt.execute("DROP TABLE IF EXISTS " + TEST_TABLE);
-        stmt.execute("DELETE FROM encryption_metadata WHERE table_name = '" + TEST_TABLE + "'");
-        stmt.execute("DELETE FROM key_storage WHERE key_id LIKE 'test-%'");
+        stmt.execute("DELETE FROM encrypt.encryption_metadata WHERE table_name = '" + TEST_TABLE + "'");
+        stmt.execute("DELETE FROM encrypt.key_storage WHERE key_id LIKE 'test-%'");
       }
       connection.close();
     }
@@ -94,13 +94,13 @@ public class KeyManagementUtilityIntegrationTest {
 
     // For this test, we'll use the KeyManagementUtility concept by directly calling
     // the same methods it would use, demonstrating the key management workflow
-    
+
     // Step 1: Generate a data key using KMS (what KeyManagementUtility.generateAndStoreDataKey would do)
     String keyId = "test-key-" + System.currentTimeMillis();
-    
+
     // Step 2: Store the encryption metadata (what KeyManagementUtility.initializeEncryptionForColumn would do)
     try (PreparedStatement stmt = connection.prepareStatement(
-        "INSERT INTO encryption_metadata (table_name, column_name, encryption_algorithm, key_id) VALUES (?, ?, ?, ?)")) {
+        "INSERT INTO encrypt.encryption_metadata (table_name, column_name, encryption_algorithm, key_id) VALUES (?, ?, ?, ?)")) {
       stmt.setString(1, TEST_TABLE);
       stmt.setString(2, TEST_COLUMN);
       stmt.setString(3, TEST_ALGORITHM);
@@ -111,11 +111,11 @@ public class KeyManagementUtilityIntegrationTest {
 
     // Step 3: Verify the metadata was created correctly
     try (PreparedStatement checkStmt = connection.prepareStatement(
-        "SELECT table_name, column_name, encryption_algorithm, key_id FROM encryption_metadata WHERE table_name = ? AND column_name = ?")) {
+        "SELECT table_name, column_name, encryption_algorithm, key_id FROM encrypt.encryption_metadata WHERE table_name = ? AND column_name = ?")) {
       checkStmt.setString(1, TEST_TABLE);
       checkStmt.setString(2, TEST_COLUMN);
       ResultSet rs = checkStmt.executeQuery();
-      
+
       assertTrue(rs.next(), "Should find encryption metadata");
       assertEquals(TEST_TABLE, rs.getString("table_name"));
       assertEquals(TEST_COLUMN, rs.getString("column_name"));
@@ -157,10 +157,10 @@ public class KeyManagementUtilityIntegrationTest {
 
     // Demonstrate KeyManagementUtility workflow for multiple keys
     String keyId = "test-key-multi-" + System.currentTimeMillis();
-    
+
     // Setup encryption metadata using KeyManagementUtility approach
     try (PreparedStatement stmt = connection.prepareStatement(
-        "INSERT INTO encryption_metadata (table_name, column_name, encryption_algorithm, key_id) VALUES (?, ?, ?, ?)")) {
+        "INSERT INTO encrypt.encryption_metadata (table_name, column_name, encryption_algorithm, key_id) VALUES (?, ?, ?, ?)")) {
       stmt.setString(1, TEST_TABLE);
       stmt.setString(2, TEST_COLUMN);
       stmt.setString(3, TEST_ALGORITHM);
@@ -228,29 +228,31 @@ public class KeyManagementUtilityIntegrationTest {
   private void setupTestSchema() throws SQLException {
     try (Statement stmt = connection.createStatement()) {
       // Drop and recreate tables with correct schema
-      stmt.execute("DROP TABLE IF EXISTS encryption_metadata CASCADE");
-      stmt.execute("DROP TABLE IF EXISTS key_storage CASCADE");
+      stmt.execute("DROP SCHEMA IF EXISTS encrypt CASCADE");
+      stmt.execute("CREATE SCHEMA encrypt");
       stmt.execute("DROP TABLE IF EXISTS " + TEST_TABLE + " CASCADE");
 
-      // Create encryption metadata table
-      stmt.execute("CREATE TABLE encryption_metadata (" +
-          "table_name VARCHAR(255) NOT NULL, " +
-          "column_name VARCHAR(255) NOT NULL, " +
-          "encryption_algorithm VARCHAR(50) NOT NULL, " +
-          "key_id VARCHAR(255) NOT NULL, " +
-          "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, " +
-          "updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, " +
-          "PRIMARY KEY (table_name, column_name)" +
-          ")");
-
-      // Create key storage table
-      stmt.execute("CREATE TABLE key_storage (" +
-          "key_id VARCHAR(255) PRIMARY KEY, " +
+      // Create key storage table first (due to foreign key)
+      stmt.execute("CREATE TABLE encrypt.key_storage (" +
+          "id SERIAL PRIMARY KEY, " +
+          "name VARCHAR(255) NOT NULL, " +
           "master_key_arn VARCHAR(512) NOT NULL, " +
           "encrypted_data_key TEXT NOT NULL, " +
           "key_spec VARCHAR(50) NOT NULL, " +
           "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, " +
           "last_used_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP" +
+          ")");
+
+      // Create encryption metadata table
+      stmt.execute("CREATE TABLE encrypt.encryption_metadata (" +
+          "table_name VARCHAR(255) NOT NULL, " +
+          "column_name VARCHAR(255) NOT NULL, " +
+          "encryption_algorithm VARCHAR(50) NOT NULL, " +
+          "key_id INTEGER NOT NULL, " +
+          "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, " +
+          "updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, " +
+          "PRIMARY KEY (table_name, column_name), " +
+          "FOREIGN KEY (key_id) REFERENCES encrypt.key_storage(id)" +
           ")");
 
       // Create test users table

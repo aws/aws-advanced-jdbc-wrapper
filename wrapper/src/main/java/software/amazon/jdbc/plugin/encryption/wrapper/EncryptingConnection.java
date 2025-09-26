@@ -18,8 +18,7 @@
 package software.amazon.jdbc.plugin.encryption.wrapper;
 
 import software.amazon.jdbc.plugin.encryption.KmsEncryptionPlugin;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
 
 import java.sql.*;
 import java.util.Map;
@@ -32,7 +31,7 @@ import java.util.concurrent.Executor;
  */
 public class EncryptingConnection implements Connection {
 
-    private static final Logger logger = LoggerFactory.getLogger(EncryptingConnection.class);
+    private static final Logger LOGGER = Logger.getLogger(EncryptingConnection.class.getName());
 
     private final Connection delegate;
     private final KmsEncryptionPlugin encryptionPlugin;
@@ -47,7 +46,7 @@ public class EncryptingConnection implements Connection {
         this.delegate = delegate;
         this.encryptionPlugin = encryptionPlugin;
 
-        logger.debug("Created EncryptingConnection wrapper");
+        LOGGER.finest(()->"Created EncryptingConnection wrapper");
     }
 
     @Override

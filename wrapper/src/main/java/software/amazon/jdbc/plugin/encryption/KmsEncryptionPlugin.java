@@ -30,8 +30,7 @@ import software.amazon.jdbc.plugin.encryption.wrapper.EncryptingPreparedStatemen
 import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
 import software.amazon.jdbc.plugin.encryption.wrapper.DecryptingResultSet;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kms.KmsClient;
 
@@ -50,7 +49,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class KmsEncryptionPlugin {
 
-    private static final Logger logger = LoggerFactory.getLogger(KmsEncryptionPlugin.class);
+    private static final Logger LOGGER = Logger.getLogger(KmsEncryptionPlugin.class.getName());
 
     // Plugin configuration
     private EncryptionConfig config;
@@ -83,7 +82,7 @@ public class KmsEncryptionPlugin {
      */
     public KmsEncryptionPlugin(PluginService pluginService) {
         this.pluginService = pluginService;
-        logger.debug("KmsEncryptionPlugin created with PluginService: {}", pluginService != null ? "available" : "null");
+        LOGGER.fine(() -> String.format("KmsEncryptionPlugin created with PluginService: %s", pluginService != null ? "available" : "null"));
     }
 
     /**
@@ -91,7 +90,7 @@ public class KmsEncryptionPlugin {
      */
     public KmsEncryptionPlugin() {
         this.pluginService = null;
-        logger.warn("KmsEncryptionPlugin created without PluginService - connection parameter extraction may fail");
+        LOGGER.warning("KmsEncryptionPlugin created without PluginService - connection parameter extraction may fail");
     }
 
     /**
@@ -103,9 +102,9 @@ public class KmsEncryptionPlugin {
     public void setPluginService(PluginService pluginService) {
         if (this.pluginService == null) {
             this.pluginService = pluginService;
-            logger.info("PluginService set after construction: {}", pluginService != null ? "available" : "null");
+            LOGGER.info(() -> String.format("PluginService set after construction: %s", pluginService != null ? "available" : "null"));
         } else {
-            logger.warn("PluginService already set, ignoring new instance");
+            LOGGER.warning("PluginService already set, ignoring new instance");
         }
     }
 
@@ -118,11 +117,11 @@ public class KmsEncryptionPlugin {
      */
     public void initialize(Properties properties) throws SQLException {
         if (initialized.get()) {
-            logger.warn("Plugin already initialized, skipping re-initialization");
+            LOGGER.warning("Plugin already initialized, skipping re-initialization");
             return;
         }
 
-        logger.info("Initializing KmsEncryptionPlugin");
+        LOGGER.info("Initializing KmsEncryptionPlugin");
 
         try {
             // Store properties for later use
@@ -139,14 +138,14 @@ public class KmsEncryptionPlugin {
             // Initialize core services
             this.encryptionService = new EncryptionService();
 
-            // Initialize audit logger
+            // Initialize audit LOGGER
             this.auditLogger = new AuditLogger(config.isAuditLoggingEnabled());
 
-            logger.info("KmsEncryptionPlugin initialized successfully");
+            LOGGER.info("KmsEncryptionPlugin initialized successfully");
             initialized.set(true);
 
         } catch (Exception e) {
-            logger.error("Failed to initialize KmsEncryptionPlugin", e);
+            LOGGER.severe(() -> String.format("Failed to initialize KmsEncryptionPlugin %s", e.getMessage()));
             throw new SQLException("Plugin initialization failed: " + e.getMessage(), e);
         }
     }
@@ -178,10 +177,10 @@ public class KmsEncryptionPlugin {
                 // Initialize SQL analysis service
                 this.sqlAnalysisService = new SqlAnalysisService(pluginService, metadataManager);
 
-                logger.info("Plugin initialized with PluginService connection parameters");
+                LOGGER.info("Plugin initialized with PluginService connection parameters");
 
             } else {
-                logger.error("PluginService not available - cannot create independent connections");
+                LOGGER.severe("PluginService not available - cannot create independent connections");
 
                 auditLogger.logConnectionParameterExtraction("PluginService", "PLUGIN_SERVICE", false, "PluginService not available");
 
@@ -189,10 +188,10 @@ public class KmsEncryptionPlugin {
             }
 
         } catch (MetadataException e) {
-            logger.error("Failed to initialize plugin components with database", e);
+            LOGGER.severe(()->String.format("Failed to initialize plugin components with database %s", e.getMessage()));
             throw new SQLException("Failed to initialize plugin with database: " + e.getMessage(), e);
         } catch (Exception e) {
-            logger.error("Failed to initialize plugin with PluginService", e);
+            LOGGER.severe(()->String.format("Failed to initialize plugin with PluginService %s", e.getMessage()));
             throw new SQLException("Failed to initialize plugin: " + e.getMessage(), e);
         }
     }
@@ -216,21 +215,23 @@ public class KmsEncryptionPlugin {
             try {
                 initializeWithDataSource();
             } catch (Exception e) {
-                logger.error("Failed to initialize plugin with connection", e);
+                LOGGER.severe(()->String.format("Failed to initialize plugin with connection %s", e.getMessage()));
                 throw new SQLException("Failed to initialize plugin: " + e.getMessage(), e);
             }
         }
 
-        logger.debug("Wrapping PreparedStatement for SQL: {}", sql);
+        LOGGER.fine(()->String.format("Wrapping PreparedStatement for SQL: %s", sql));
 
         // Analyze SQL to determine if encryption is needed
-        SqlAnalysisService.SqlAnalysisResult analysisResult = null;
+        SqlAnalysisService.SqlAnalysisResult analysisResult;
         if (sqlAnalysisService != null) {
             analysisResult = sqlAnalysisService.analyzeSql(sql);
-            logger.debug("SQL analysis result: {}", analysisResult);
+            LOGGER.fine(()->String.format("SQL analysis result: %s", analysisResult));
+        } else {
+          analysisResult = null;
         }
 
-        return new EncryptingPreparedStatement(
+      return new EncryptingPreparedStatement(
             statement,
             metadataManager,
             encryptionService,
@@ -257,12 +258,12 @@ public class KmsEncryptionPlugin {
             try {
                 initializeWithDataSource();
             } catch (Exception e) {
-                logger.error("Failed to initialize plugin with connection", e);
+                LOGGER.severe(()->String.format("Failed to initialize plugin with connection %s", e.getMessage()));
                 throw new SQLException("Failed to initialize plugin: " + e.getMessage(), e);
             }
         }
 
-        logger.debug("Wrapping ResultSet");
+        LOGGER.finest(()->"Wrapping ResultSet");
 
         return new DecryptingResultSet(
             resultSet,
@@ -290,14 +291,14 @@ public class KmsEncryptionPlugin {
             return;
         }
 
-        logger.info("Cleaning up KmsEncryptionPlugin resources");
+        LOGGER.info("Cleaning up KmsEncryptionPlugin resources");
 
         // Log final connection status
         if (independentDataSource != null) {
             try {
                 independentDataSource.logHealthStatus();
             } catch (Exception e) {
-                logger.warn("Error logging final DataSource health status", e);
+                LOGGER.warning(()->String.format("Error logging final DataSource health status %s", e.getMessage()));
             }
         }
 
@@ -306,11 +307,11 @@ public class KmsEncryptionPlugin {
                 kmsClient.close();
             }
         } catch (Exception e) {
-            logger.warn("Error closing KMS client", e);
+            LOGGER.warning(()->String.format("Error closing KMS client %s", e.getMessage()));
         }
 
         closed.set(true);
-        logger.info("KmsEncryptionPlugin cleanup completed");
+        LOGGER.info("KmsEncryptionPlugin cleanup completed");
     }
 
     /**
@@ -329,13 +330,13 @@ public class KmsEncryptionPlugin {
 
             EncryptionConfig config = EncryptionConfig.fromProperties(properties);
 
-            logger.info("Loaded encryption configuration: region={}, cacheEnabled={}, maxRetries={}",
-                       config.getKmsRegion(), config.isCacheEnabled(), config.getMaxRetries());
+            LOGGER.info(()->String.format("Loaded encryption configuration: region=%s, cacheEnabled=%s, maxRetries=%s",
+                       config.getKmsRegion(), config.isCacheEnabled(), config.getMaxRetries()));
 
             return config;
 
         } catch (Exception e) {
-            logger.error("Failed to load configuration from properties", e);
+            LOGGER.severe(()->String.format("Failed to load configuration from properties %s", e.getMessage()));
             throw new SQLException("Invalid configuration: " + e.getMessage(), e);
         }
     }
@@ -347,7 +348,7 @@ public class KmsEncryptionPlugin {
      * @return Configured KMS client
      */
     private KmsClient createKmsClient(EncryptionConfig config) {
-        logger.debug("Creating KMS client for region: {}", config.getKmsRegion());
+        LOGGER.fine(()->String.format("Creating KMS client for region: %s", config.getKmsRegion()));
 
         return KmsClient.builder()
                 .region(Region.of(config.getKmsRegion()))
@@ -457,18 +458,18 @@ public class KmsEncryptionPlugin {
      * This method can be called for troubleshooting purposes.
      */
     public void logCurrentStatus() {
-        logger.info("=== KmsEncryptionPlugin Status Report ===");
+        LOGGER.info("=== KmsEncryptionPlugin Status Report ===");
 
         // Log connection mode status
-        logger.info("Connection Mode: {}", getConnectionModeStatus());
+        LOGGER.info(()->String.format("Connection Mode: %s", getConnectionModeStatus()));
 
         // Log DataSource health
         if (independentDataSource != null) {
             independentDataSource.logHealthStatus();
         } else {
-            logger.info("Independent DataSource: Not configured");
+            LOGGER.info("Independent DataSource: Not configured");
         }
 
-        logger.info("=== End Status Report ===");
+        LOGGER.info("=== End Status Report ===");
     }
 }

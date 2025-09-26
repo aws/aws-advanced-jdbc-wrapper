@@ -18,8 +18,7 @@
 package software.amazon.jdbc.plugin.encryption.example;
 
 import software.amazon.jdbc.factory.EncryptingDataSourceFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
 import software.amazon.jdbc.plugin.encryption.wrapper.EncryptingDataSource;
 
 import javax.sql.DataSource;
@@ -35,7 +34,7 @@ import java.util.Properties;
  */
 public class AwsWrapperEncryptionExample {
 
-    private static final Logger logger = LoggerFactory.getLogger(AwsWrapperEncryptionExample.class);
+    private static final Logger LOGGER = Logger.getLogger(AwsWrapperEncryptionExample.class.getName());
 
     public static void main(String[] args) {
         try {
@@ -49,7 +48,7 @@ public class AwsWrapperEncryptionExample {
             demonstrateWrappingExistingDataSource();
 
         } catch (Exception e) {
-            logger.error("Example execution failed", e);
+            LOGGER.severe(()->String.format("Example execution failed", e));
         }
     }
 
@@ -57,7 +56,7 @@ public class AwsWrapperEncryptionExample {
      * Demonstrates using the builder pattern to create an encrypted DataSource.
      */
     private static void demonstrateBuilderPattern() throws SQLException {
-        logger.info("=== Builder Pattern Example ===");
+        LOGGER.info("=== Builder Pattern Example ===");
 
         EncryptingDataSource dataSource = new EncryptingDataSourceFactory.Builder()
             .jdbcUrl("jdbc:postgresql://localhost:5432/mydb")
@@ -81,7 +80,7 @@ public class AwsWrapperEncryptionExample {
      * Demonstrates using the factory with explicit properties.
      */
     private static void demonstrateFactoryWithProperties() throws SQLException {
-        logger.info("=== Factory with Properties Example ===");
+        LOGGER.info("=== Factory with Properties Example ===");
 
         Properties encryptionProperties = new Properties();
 
@@ -120,7 +119,7 @@ public class AwsWrapperEncryptionExample {
      * Demonstrates wrapping an existing DataSource with encryption.
      */
     private static void demonstrateWrappingExistingDataSource() throws SQLException {
-        logger.info("=== Wrapping Existing DataSource Example ===");
+        LOGGER.info("=== Wrapping Existing DataSource Example ===");
 
         // Create an existing DataSource (this could be from a connection pool, etc.)
         DataSource existingDataSource = createExistingDataSource();
@@ -143,7 +142,7 @@ public class AwsWrapperEncryptionExample {
      * Performs sample database operations to demonstrate encryption/decryption.
      */
     private static void performDatabaseOperations(DataSource dataSource, String exampleName) {
-        logger.info("Performing database operations for: {}", exampleName);
+        LOGGER.info(()->String.format("Performing database operations for: %s", exampleName));
 
         try (Connection connection = dataSource.getConnection()) {
 
@@ -156,10 +155,10 @@ public class AwsWrapperEncryptionExample {
             // Query and decrypt data
             queryTestData(connection);
 
-            logger.info("Database operations completed successfully for: {}", exampleName);
+            LOGGER.info(()->String.format("Database operations completed successfully for: %s", exampleName));
 
         } catch (SQLException e) {
-            logger.error("Database operations failed for: " + exampleName, e);
+            LOGGER.severe(()->String.format("Database operations failed for: " + exampleName, e));
         }
     }
 
@@ -177,7 +176,7 @@ public class AwsWrapperEncryptionExample {
 
         try (PreparedStatement stmt = connection.prepareStatement(createTableSql)) {
             stmt.executeUpdate();
-            logger.debug("Test table created or already exists");
+            LOGGER.finest(()->"Test table created or already exists");
         }
     }
 
@@ -200,7 +199,7 @@ public class AwsWrapperEncryptionExample {
             stmt.setString(3, "987-65-4321");            // Will be encrypted if configured
             stmt.executeUpdate();
 
-            logger.info("Inserted test data with automatic encryption");
+            LOGGER.info("Inserted test data with automatic encryption");
         }
     }
 
@@ -213,7 +212,7 @@ public class AwsWrapperEncryptionExample {
         try (PreparedStatement stmt = connection.prepareStatement(selectSql);
              ResultSet rs = stmt.executeQuery()) {
 
-            logger.info("Querying test data with automatic decryption:");
+            LOGGER.info("Querying test data with automatic decryption:");
 
             while (rs.next()) {
                 int id = rs.getInt("id");
@@ -221,7 +220,7 @@ public class AwsWrapperEncryptionExample {
                 String email = rs.getString("email");    // Will be decrypted if configured
                 String ssn = rs.getString("ssn");        // Will be decrypted if configured
 
-                logger.info("User {}: Name={}, Email={}, SSN={}", id, name, email, ssn);
+                LOGGER.info(()->String.format("User %s: Name=%s, Email=%s, SSN=%s", id, name, email, ssn));
             }
         }
     }

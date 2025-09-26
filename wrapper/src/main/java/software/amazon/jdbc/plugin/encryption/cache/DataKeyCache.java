@@ -18,8 +18,7 @@
 package software.amazon.jdbc.plugin.encryption.cache;
 
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -42,7 +41,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  */
 public class DataKeyCache {
 
-    private static final Logger logger = LoggerFactory.getLogger(DataKeyCache.class);
+    private static final Logger LOGGER = Logger.getLogger(DataKeyCache.class.getName());
 
     private final Map<String, CacheEntry> cache;
     private final ReadWriteLock cacheLock;
@@ -69,8 +68,8 @@ public class DataKeyCache {
         cleanupExecutor.scheduleAtFixedRate(this::cleanupExpiredEntries,
                 cleanupIntervalMs, cleanupIntervalMs, TimeUnit.MILLISECONDS);
 
-        logger.info("DataKeyCache initialized with maxSize={}, expiration={}, cleanupInterval={}ms",
-                config.getDataKeyCacheMaxSize(), config.getDataKeyCacheExpiration(), cleanupIntervalMs);
+        LOGGER.info(()->String.format("DataKeyCache initialized with maxSize=%s, expiration=%s, cleanupInterval=%sms",
+                config.getDataKeyCacheMaxSize(), config.getDataKeyCacheExpiration(), cleanupIntervalMs));
     }
 
     /**
@@ -89,19 +88,19 @@ public class DataKeyCache {
             CacheEntry entry = cache.get(keyId);
             if (entry == null) {
                 missCount.incrementAndGet();
-                logger.trace("Cache miss for key: {}", keyId);
+                LOGGER.finest(()->String.format("Cache miss for key: %s", keyId));
                 return null;
             }
 
             if (entry.isExpired(config.getDataKeyCacheExpiration())) {
                 missCount.incrementAndGet();
-                logger.trace("Cache entry expired for key: {}", keyId);
+                LOGGER.finest(()->String.format("Cache entry expired for key: %s", keyId));
                 // Remove expired entry (will be cleaned up by background thread)
                 return null;
             }
 
             hitCount.incrementAndGet();
-            logger.trace("Cache hit for key: {}", keyId);
+            LOGGER.finest(()->String.format("Cache hit for key: %s", keyId));
             return entry.getDataKey();
 
         } finally {
@@ -130,7 +129,7 @@ public class DataKeyCache {
             CacheEntry entry = new CacheEntry(dataKey.clone());
             cache.put(keyId, entry);
 
-            logger.trace("Cached data key for: {}", keyId);
+            LOGGER.finest(()->String.format("Cached data key for: %s", keyId));
 
         } finally {
             cacheLock.writeLock().unlock();
@@ -152,7 +151,7 @@ public class DataKeyCache {
             CacheEntry removed = cache.remove(keyId);
             if (removed != null) {
                 removed.clear();
-                logger.trace("Removed key from cache: {}", keyId);
+                LOGGER.finest(()->String.format("Removed key from cache: %s", keyId));
             }
         } finally {
             cacheLock.writeLock().unlock();
@@ -168,7 +167,7 @@ public class DataKeyCache {
             // Clear sensitive data before removing entries
             cache.values().forEach(CacheEntry::clear);
             cache.clear();
-            logger.info("Cache cleared");
+            LOGGER.info("Cache cleared");
         } finally {
             cacheLock.writeLock().unlock();
         }
@@ -197,7 +196,7 @@ public class DataKeyCache {
      * Shuts down the cache and cleans up resources.
      */
     public void shutdown() {
-        logger.info("Shutting down DataKeyCache");
+        LOGGER.info("Shutting down DataKeyCache");
 
         cleanupExecutor.shutdown();
         try {
@@ -236,7 +235,8 @@ public class DataKeyCache {
             }
 
             if (removedCount > 0) {
-                logger.debug("Cleaned up {} expired cache entries", removedCount);
+              int finalRemovedCount = removedCount;
+              LOGGER.finest(()->String.format("Cleaned up %d expired cache entries", finalRemovedCount));
             }
 
         } finally {
@@ -268,7 +268,8 @@ public class DataKeyCache {
             if (removed != null) {
                 removed.clear();
                 evictionCount.incrementAndGet();
-                logger.trace("Evicted oldest cache entry: {}", oldestKey);
+              String finalOldestKey = oldestKey;
+              LOGGER.finest(()->String.format("Evicted oldest cache entry: %s", finalOldestKey));
             }
         }
     }

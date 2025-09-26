@@ -17,8 +17,7 @@
 
 package software.amazon.jdbc.plugin.encryption;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.PluginService;
@@ -31,7 +30,7 @@ import java.util.Properties;
  */
 public class KmsEncryptionConnectionPluginFactory implements ConnectionPluginFactory {
 
-    private static final Logger logger = LoggerFactory.getLogger(KmsEncryptionConnectionPluginFactory.class);
+    private static final Logger LOGGER = Logger.getLogger(KmsEncryptionConnectionPluginFactory.class.getName());
 
     /**
      * Creates a new KmsEncryptionConnectionPlugin instance.
@@ -42,7 +41,7 @@ public class KmsEncryptionConnectionPluginFactory implements ConnectionPluginFac
      */
     @Override
     public ConnectionPlugin getInstance(PluginService pluginService, Properties properties) {
-        logger.info("Creating KmsEncryptionConnectionPlugin instance");
+        LOGGER.info(()->"Creating KmsEncryptionConnectionPlugin instance");
         return new KmsEncryptionConnectionPlugin(pluginService, properties);
     }
 }

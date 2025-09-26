@@ -17,8 +17,7 @@
 
 package software.amazon.jdbc.plugin.encryption.service;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
@@ -46,7 +45,7 @@ import java.util.Arrays;
  */
 public class EncryptionService {
 
-    private static final Logger logger = LoggerFactory.getLogger(EncryptionService.class);
+    private static final Logger LOGGER = Logger.getLogger(EncryptionService.class.getName());
 
     // Algorithm constants
     private static final String DEFAULT_ALGORITHM = "AES-256-GCM";
@@ -116,7 +115,7 @@ public class EncryptionService {
             return buffer.array();
 
         } catch (Exception e) {
-            logger.error("Encryption failed for value type: {}", value.getClass().getSimpleName(), e);
+            LOGGER.severe(()->String.format("Encryption failed for value type: %s %s", value.getClass().getSimpleName(), e.getMessage()));
             throw EncryptionException.encryptionFailed("Failed to encrypt value", e)
                 .withDataType(value.getClass().getSimpleName())
                 .withAlgorithm(algorithm)
@@ -184,7 +183,7 @@ public class EncryptionService {
             return result;
 
         } catch (Exception e) {
-            logger.error("Decryption failed for target type: {}", targetType.getSimpleName(), e);
+            LOGGER.severe(()->String.format("Decryption failed for target type: %s %s", targetType.getSimpleName(), e.getMessage()));
             throw EncryptionException.decryptionFailed("Failed to decrypt value", e)
                 .withDataType(targetType.getSimpleName())
                 .withAlgorithm(algorithm)
@@ -447,7 +446,7 @@ public class EncryptionService {
                     return Base64.getDecoder().decode((String) value);
                 } catch (IllegalArgumentException e) {
                     throw EncryptionException.typeConversionFailed("String", "byte[]", e)
-                        .withContext("stringValue", value.toString().length() > 50 ? 
+                        .withContext("stringValue", value.toString().length() > 50 ?
                             value.toString().substring(0, 47) + "..." : value.toString());
                 }
             } else if (value instanceof byte[]) {

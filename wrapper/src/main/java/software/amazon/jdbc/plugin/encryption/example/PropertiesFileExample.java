@@ -18,8 +18,7 @@
 package software.amazon.jdbc.plugin.encryption.example;
 
 import software.amazon.jdbc.factory.EncryptingDataSourceFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
 import software.amazon.jdbc.plugin.encryption.wrapper.EncryptingDataSource;
 
 import java.io.IOException;
@@ -35,7 +34,7 @@ import java.util.Properties;
  */
 public class PropertiesFileExample {
 
-    private static final Logger logger = LoggerFactory.getLogger(PropertiesFileExample.class);
+    private static final Logger LOGGER = Logger.getLogger(PropertiesFileExample.class.getName());
 
     public static void main(String[] args) {
         try {
@@ -52,7 +51,7 @@ public class PropertiesFileExample {
             dataSource.close();
 
         } catch (Exception e) {
-            logger.error("Example execution failed", e);
+            LOGGER.severe(()->String.format("Example execution failed %s", e.getMessage()));
         }
     }
 
@@ -70,7 +69,7 @@ public class PropertiesFileExample {
             }
 
             properties.load(inputStream);
-            logger.info("Loaded properties from file: {}", filename);
+            LOGGER.info(()->String.format("Loaded properties from file: %s", filename));
         }
 
         return properties;
@@ -88,7 +87,7 @@ public class PropertiesFileExample {
             throw new SQLException("Missing required database connection properties");
         }
 
-        logger.info("Creating EncryptingDataSource for URL: {}", jdbcUrl);
+        LOGGER.info(()->String.format("Creating EncryptingDataSource for URL: %s", jdbcUrl));
 
         return EncryptingDataSourceFactory.createWithAwsWrapper(jdbcUrl, username, password, properties);
     }
@@ -97,7 +96,7 @@ public class PropertiesFileExample {
      * Demonstrates encrypted database operations.
      */
     private static void demonstrateEncryptedOperations(EncryptingDataSource dataSource) throws SQLException {
-        logger.info("Demonstrating encrypted database operations");
+        LOGGER.info(()->"Demonstrating encrypted database operations");
 
         try (Connection connection = dataSource.getConnection()) {
 
@@ -110,7 +109,7 @@ public class PropertiesFileExample {
             // Query and decrypt data
             queryTestData(connection);
 
-            logger.info("Encrypted operations completed successfully");
+            LOGGER.info("Encrypted operations completed successfully");
         }
     }
 
@@ -128,7 +127,7 @@ public class PropertiesFileExample {
 
         try (PreparedStatement stmt = connection.prepareStatement(createTableSql)) {
             stmt.executeUpdate();
-            logger.debug("Test table created or already exists");
+            LOGGER.finest(()->"Test table created or already exists");
         }
     }
 
@@ -145,7 +144,7 @@ public class PropertiesFileExample {
             stmt.setString(3, "987-65-4321");           // Will be encrypted if configured
             stmt.executeUpdate();
 
-            logger.info("Inserted test data with automatic encryption");
+            LOGGER.info("Inserted test data with automatic encryption");
         }
     }
 
@@ -164,7 +163,7 @@ public class PropertiesFileExample {
                 String email = rs.getString("email");    // Will be decrypted if configured
                 String ssn = rs.getString("ssn");        // Will be decrypted if configured
 
-                logger.info("Retrieved user {}: Name={}, Email={}, SSN={}", id, name, email, ssn);
+                LOGGER.info(()->String.format("Retrieved user %s: Name=%s, Email=%s, SSN=%s", id, name, email, ssn));
             }
         }
     }

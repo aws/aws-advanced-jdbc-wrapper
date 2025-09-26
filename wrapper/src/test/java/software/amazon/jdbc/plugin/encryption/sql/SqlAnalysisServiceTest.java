@@ -35,7 +35,7 @@ class SqlAnalysisServiceTest {
 
     @Mock
     private PluginService pluginService;
-    
+
     @Mock
     private MetadataManager metadataManager;
 
@@ -206,20 +206,20 @@ class SqlAnalysisServiceTest {
         // Simple UPDATE statement
         Map<Integer, String> mapping = sqlAnalysisService.getColumnParameterMapping(
             "UPDATE users SET ssn = ?, email = ? WHERE id = ?");
-        assertEquals(2, mapping.size());
+        assertEquals(2, mapping.size()); // ssn, email (SET clause only)
         assertEquals("ssn", mapping.get(1));
         assertEquals("email", mapping.get(2));
 
         // UPDATE with single column
         mapping = sqlAnalysisService.getColumnParameterMapping(
             "UPDATE customers SET name = ? WHERE id = ?");
-        assertEquals(1, mapping.size());
+        assertEquals(1, mapping.size()); // name (SET clause only)
         assertEquals("name", mapping.get(1));
 
         // UPDATE with multiple columns
         mapping = sqlAnalysisService.getColumnParameterMapping(
             "UPDATE products SET name = ?, price = ?, description = ? WHERE category = ?");
-        assertEquals(3, mapping.size());
+        assertEquals(3, mapping.size()); // name, price, description (SET clause only)
         assertEquals("name", mapping.get(1));
         assertEquals("price", mapping.get(2));
         assertEquals("description", mapping.get(3));
@@ -240,7 +240,7 @@ class SqlAnalysisServiceTest {
         assertEquals("name", mapping.get(1));
         assertEquals("age", mapping.get(2));
 
-        // SELECT with no parameters
+        // SELECT with no parameters - should have no parameter mapping
         mapping = sqlAnalysisService.getColumnParameterMapping(
             "SELECT ssn FROM users WHERE name = 'John'");
         assertEquals(0, mapping.size());
@@ -266,23 +266,23 @@ class SqlAnalysisServiceTest {
         // Test complex UPDATE query analysis
         SqlAnalysisService.SqlAnalysisResult result = sqlAnalysisService.analyzeSql(
             "UPDATE customers SET name = ?, ssn = ? WHERE id = 123");
-        
+
         assertEquals("UPDATE", result.getQueryType());
         assertTrue(result.getAffectedTables().contains("customers"));
-        
+
         // Test parameter mapping for UPDATE (only SET clause parameters are mapped)
         Map<Integer, String> mapping = sqlAnalysisService.getColumnParameterMapping(
             "UPDATE customers SET name = ?, ssn = ? WHERE id = 123");
-        assertEquals(2, mapping.size()); // Only SET clause parameters
+        assertEquals(2, mapping.size()); // name, ssn (SET clause only)
         assertEquals("name", mapping.get(1));
         assertEquals("ssn", mapping.get(2));
-        
+
         // Test JOIN query analysis
         result = sqlAnalysisService.analyzeSql(
             "SELECT c.name, c.ssn FROM customers c JOIN orders o ON c.id = o.customer_id");
         assertEquals("SELECT", result.getQueryType());
         assertTrue(result.getAffectedTables().contains("customers"));
-        
+
         // Test DELETE query analysis
         result = sqlAnalysisService.analyzeSql("DELETE FROM customers WHERE id = ?");
         assertEquals("DELETE", result.getQueryType());

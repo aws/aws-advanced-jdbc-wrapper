@@ -16,25 +16,13 @@
 
 package software.amazon.jdbc.plugin.encryption.parser;
 
-import net.sf.jsqlparser.JSQLParserException;
-import net.sf.jsqlparser.parser.CCJSqlParserUtil;
-import net.sf.jsqlparser.statement.Statement;
-import net.sf.jsqlparser.statement.delete.Delete;
-import net.sf.jsqlparser.statement.insert.Insert;
-import net.sf.jsqlparser.statement.select.Select;
-import net.sf.jsqlparser.statement.select.SelectExpressionItem;
-import net.sf.jsqlparser.statement.select.SelectItem;
-import net.sf.jsqlparser.statement.select.PlainSelect;
-import net.sf.jsqlparser.statement.update.Update;
-import net.sf.jsqlparser.schema.Column;
-import net.sf.jsqlparser.schema.Table;
-import net.sf.jsqlparser.expression.BinaryExpression;
-import net.sf.jsqlparser.expression.Expression;
-import net.sf.jsqlparser.expression.Parenthesis;
+import software.amazon.jdbc.plugin.encryption.parser.ast.*;
 
 import java.util.*;
 
 public class SQLAnalyzer {
+
+    private final PostgreSqlParser parser = new PostgreSqlParser();
 
     public static class ColumnInfo {
         public String tableName;
@@ -54,46 +42,73 @@ public class SQLAnalyzer {
     public static class QueryAnalysis {
         public String queryType;
         public List<ColumnInfo> columns = new ArrayList<>();
+        public List<ColumnInfo> whereColumns = new ArrayList<>(); // Separate WHERE clause columns
         public Set<String> tables = new HashSet<>();
+        public boolean hasParameters = false;
 
         @Override
         public String toString() {
-            return String.format("QueryAnalysis{queryType='%s', tables=%s, columns=%s}",
-                queryType, tables, columns);
+            return String.format("QueryAnalysis{queryType='%s', tables=%s, columns=%s, whereColumns=%s, hasParameters=%s}",
+                queryType, tables, columns, whereColumns, hasParameters);
         }
+    }
+
+    private boolean containsParameters(Expression expression) {
+        if (expression == null) return false;
+
+        if (expression instanceof Placeholder) {
+            return true;
+        } else if (expression instanceof BinaryExpression) {
+            BinaryExpression binaryExpr = (BinaryExpression) expression;
+            return containsParameters(binaryExpr.getLeft()) || containsParameters(binaryExpr.getRight());
+        }
+        return false;
+    }
+
+    private boolean statementHasParameters(Statement statement) {
+        if (statement instanceof SelectStatement) {
+            SelectStatement select = (SelectStatement) statement;
+            return select.getWhereClause() != null && containsParameters(select.getWhereClause());
+        } else if (statement instanceof InsertStatement) {
+            return true; // INSERT with VALUES typically has parameters
+        } else if (statement instanceof UpdateStatement) {
+            UpdateStatement update = (UpdateStatement) statement;
+            return update.getWhereClause() != null && containsParameters(update.getWhereClause());
+        } else if (statement instanceof DeleteStatement) {
+            DeleteStatement delete = (DeleteStatement) statement;
+            return delete.getWhereClause() != null && containsParameters(delete.getWhereClause());
+        }
+        return false;
     }
 
     public QueryAnalysis analyze(String sql) {
         QueryAnalysis analysis = new QueryAnalysis();
 
         try {
-            Statement statement = CCJSqlParserUtil.parse(sql);
-            
-            if (statement instanceof Select) {
+            Statement statement = parser.parse(sql);
+            analysis.hasParameters = statementHasParameters(statement);
+
+            if (statement instanceof SelectStatement) {
                 analysis.queryType = "SELECT";
-                extractFromSelect((Select) statement, analysis);
-            } else if (statement instanceof Insert) {
+                extractFromSelect((SelectStatement) statement, analysis);
+            } else if (statement instanceof InsertStatement) {
                 analysis.queryType = "INSERT";
-                extractFromInsert((Insert) statement, analysis);
-            } else if (statement instanceof Update) {
+                extractFromInsert((InsertStatement) statement, analysis);
+            } else if (statement instanceof UpdateStatement) {
                 analysis.queryType = "UPDATE";
-                extractFromUpdate((Update) statement, analysis);
-            } else if (statement instanceof Delete) {
+                extractFromUpdate((UpdateStatement) statement, analysis);
+            } else if (statement instanceof DeleteStatement) {
                 analysis.queryType = "DELETE";
-                extractFromDelete((Delete) statement, analysis);
+                extractFromDelete((DeleteStatement) statement, analysis);
+            } else if (statement instanceof CreateTableStatement) {
+                analysis.queryType = "CREATE";
+                extractFromCreateTable((CreateTableStatement) statement, analysis);
             } else {
-                String className = statement.getClass().getSimpleName();
-                if (className.contains("Create")) {
-                    analysis.queryType = "CREATE";
-                } else if (className.contains("Drop")) {
-                    analysis.queryType = "DROP";
-                } else {
-                    analysis.queryType = "UNKNOWN";
-                }
+                analysis.queryType = "UNKNOWN";
             }
 
-        } catch (JSQLParserException e) {
-            // Fallback to string parsing if JSqlParser fails
+        } catch (SqlParser.ParseException e) {
+            // Fallback to string parsing if parser fails
             String trimmedSql = sql.trim().toUpperCase();
             if (trimmedSql.startsWith("SELECT")) {
                 analysis.queryType = "SELECT";
@@ -115,82 +130,156 @@ public class SQLAnalyzer {
         return analysis;
     }
 
-    private void extractFromSelect(Select select, QueryAnalysis analysis) {
-        PlainSelect plainSelect = (PlainSelect) select.getSelectBody();
-        
-        // Extract table
-        if (plainSelect.getFromItem() instanceof Table) {
-            Table table = (Table) plainSelect.getFromItem();
-            analysis.tables.add(table.getName());
+    private String extractTableName(String fullName) {
+        if (fullName.contains(".")) {
+            return fullName.substring(fullName.lastIndexOf(".") + 1);
         }
-        
-        // Extract columns from SELECT clause
-        for (SelectItem selectItem : plainSelect.getSelectItems()) {
-            if (selectItem instanceof SelectExpressionItem) {
-                SelectExpressionItem item = (SelectExpressionItem) selectItem;
-                if (item.getExpression() instanceof Column) {
-                    Column column = (Column) item.getExpression();
-                    String tableName = analysis.tables.isEmpty() ? "unknown" : analysis.tables.iterator().next();
-                    analysis.columns.add(new ColumnInfo(tableName, column.getColumnName()));
+        return fullName;
+    }
+
+    private void extractFromSelect(SelectStatement select, QueryAnalysis analysis) {
+        // Extract tables and build alias map
+        Map<String, String> aliasToTable = new HashMap<>();
+        if (select.getFromList() != null) {
+            for (TableReference table : select.getFromList()) {
+                String tableName = extractTableName(table.getTableName().getName());
+                analysis.tables.add(tableName);
+
+                // Map alias to table name
+                if (table.getAlias() != null) {
+                    aliasToTable.put(table.getAlias(), tableName);
                 }
             }
         }
-        
-        // Extract columns from WHERE clause
-        if (plainSelect.getWhere() != null) {
-            extractColumnsFromExpression(plainSelect.getWhere(), analysis);
+
+        // Extract columns from SELECT clause (skip * and literals)
+        for (SelectItem selectItem : select.getSelectList()) {
+            if (selectItem.getExpression() instanceof Identifier) {
+                Identifier column = (Identifier) selectItem.getExpression();
+                // Skip * wildcard
+                if (!"*".equals(column.getName())) {
+                    String fullName = column.getName();
+                    String tableName;
+                    String columnName;
+
+                    // Parse qualified column name (e.g., "u.name" or "name")
+                    if (fullName.contains(".")) {
+                        String[] parts = fullName.split("\\.", 2);
+                        String tableOrAlias = parts[0];
+                        columnName = parts[1];
+                        // Resolve alias to actual table name
+                        tableName = aliasToTable.getOrDefault(tableOrAlias, tableOrAlias);
+                    } else {
+                        tableName = analysis.tables.isEmpty() ? "unknown" : analysis.tables.iterator().next();
+                        columnName = fullName;
+                    }
+
+                    analysis.columns.add(new ColumnInfo(tableName, columnName));
+                }
+            }
+        }
+
+        // Extract columns from WHERE clause only if WHERE contains parameters
+        if (select.getWhereClause() != null && containsParameters(select.getWhereClause())) {
+            extractWhereColumnsFromExpression(select.getWhereClause(), analysis, aliasToTable);
         }
     }
 
-    /**
-     * Recursively extract columns from expressions (for WHERE clauses).
-     */
     private void extractColumnsFromExpression(Expression expression, QueryAnalysis analysis) {
-        if (expression instanceof Column) {
-            Column column = (Column) expression;
+        if (expression instanceof Identifier) {
+            Identifier column = (Identifier) expression;
             String tableName = analysis.tables.isEmpty() ? "unknown" : analysis.tables.iterator().next();
-            analysis.columns.add(new ColumnInfo(tableName, column.getColumnName()));
+            analysis.columns.add(new ColumnInfo(tableName, column.getName()));
         } else if (expression instanceof BinaryExpression) {
             BinaryExpression binaryExpr = (BinaryExpression) expression;
-            extractColumnsFromExpression(binaryExpr.getLeftExpression(), analysis);
-            extractColumnsFromExpression(binaryExpr.getRightExpression(), analysis);
-        } else if (expression instanceof Parenthesis) {
-            Parenthesis parenthesis = (Parenthesis) expression;
-            extractColumnsFromExpression(parenthesis.getExpression(), analysis);
+            extractColumnsFromExpression(binaryExpr.getLeft(), analysis);
+            extractColumnsFromExpression(binaryExpr.getRight(), analysis);
+        } else if (expression instanceof SubqueryExpression) {
+            SubqueryExpression subquery = (SubqueryExpression) expression;
+            // Extract tables from the subquery
+            extractFromSelect(subquery.getSelectStatement(), analysis);
         }
-        // Add more expression types as needed
     }
 
-    private void extractFromInsert(Insert insert, QueryAnalysis analysis) {
-        // Extract table
-        analysis.tables.add(insert.getTable().getName());
-        
-        // Extract columns
+    private void extractWhereColumnsFromExpression(Expression expression, QueryAnalysis analysis, Map<String, String> aliasToTable) {
+        if (expression instanceof Identifier) {
+            Identifier column = (Identifier) expression;
+            String fullName = column.getName();
+            String tableName;
+            String columnName;
+
+            // Parse qualified column name (e.g., "u.id" or "id")
+            if (fullName.contains(".")) {
+                String[] parts = fullName.split("\\.", 2);
+                String tableOrAlias = parts[0];
+                columnName = parts[1];
+                // Resolve alias to actual table name
+                tableName = aliasToTable.getOrDefault(tableOrAlias, tableOrAlias);
+            } else {
+                tableName = analysis.tables.isEmpty() ? "unknown" : analysis.tables.iterator().next();
+                columnName = fullName;
+            }
+
+            analysis.whereColumns.add(new ColumnInfo(tableName, columnName));
+        } else if (expression instanceof BinaryExpression) {
+            BinaryExpression binaryExpr = (BinaryExpression) expression;
+            extractWhereColumnsFromExpression(binaryExpr.getLeft(), analysis, aliasToTable);
+            extractWhereColumnsFromExpression(binaryExpr.getRight(), analysis, aliasToTable);
+        } else if (expression instanceof SubqueryExpression) {
+            SubqueryExpression subquery = (SubqueryExpression) expression;
+            // Extract tables from the subquery
+            extractFromSelect(subquery.getSelectStatement(), analysis);
+        }
+    }
+
+    private void extractFromInsert(InsertStatement insert, QueryAnalysis analysis) {
+        // Extract table (handle schema.table format)
+        String tableName = extractTableName(insert.getTable().getTableName().getName());
+        analysis.tables.add(tableName);
+
+        // Extract columns (only if they exist)
         if (insert.getColumns() != null) {
-            for (Column column : insert.getColumns()) {
-                String tableName = insert.getTable().getName();
-                analysis.columns.add(new ColumnInfo(tableName, column.getColumnName()));
+            for (Identifier column : insert.getColumns()) {
+                analysis.columns.add(new ColumnInfo(tableName, column.getName()));
             }
         }
     }
 
-    private void extractFromUpdate(Update update, QueryAnalysis analysis) {
+    private void extractFromUpdate(UpdateStatement update, QueryAnalysis analysis) {
         // Extract table
-        analysis.tables.add(update.getTable().getName());
-        
-        // Extract columns from UPDATE SET expressions
-        if (update.getUpdateSets() != null) {
-            update.getUpdateSets().forEach(updateSet -> {
-                updateSet.getColumns().forEach(column -> {
-                    String tableName = update.getTable().getName();
-                    analysis.columns.add(new ColumnInfo(tableName, column.getColumnName()));
-                });
-            });
+        String tableName = extractTableName(update.getTable().getTableName().getName());
+        analysis.tables.add(tableName);
+
+        // Extract columns from assignments
+        for (Assignment assignment : update.getAssignments()) {
+            analysis.columns.add(new ColumnInfo(tableName, assignment.getColumn().getName()));
+        }
+
+        // Extract columns from WHERE clause only if WHERE contains parameters
+        if (update.getWhereClause() != null && containsParameters(update.getWhereClause())) {
+            extractWhereColumnsFromExpression(update.getWhereClause(), analysis, new HashMap<>());
         }
     }
 
-    private void extractFromDelete(Delete delete, QueryAnalysis analysis) {
+    private void extractFromDelete(DeleteStatement delete, QueryAnalysis analysis) {
         // Extract table
-        analysis.tables.add(delete.getTable().getName());
+        String tableName = extractTableName(delete.getTable().getTableName().getName());
+        analysis.tables.add(tableName);
+
+        // Extract columns from WHERE clause only if WHERE contains parameters
+        if (delete.getWhereClause() != null && containsParameters(delete.getWhereClause())) {
+            extractWhereColumnsFromExpression(delete.getWhereClause(), analysis, new HashMap<>());
+        }
+    }
+
+    private void extractFromCreateTable(CreateTableStatement create, QueryAnalysis analysis) {
+        // Extract table
+        String tableName = extractTableName(create.getTableName().getName());
+        analysis.tables.add(tableName);
+
+        // Extract columns
+        for (ColumnDefinition column : create.getColumns()) {
+            analysis.columns.add(new ColumnInfo(tableName, column.getColumnName().getName()));
+        }
     }
 }

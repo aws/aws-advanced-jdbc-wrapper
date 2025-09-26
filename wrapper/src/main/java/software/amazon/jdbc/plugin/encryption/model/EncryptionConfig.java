@@ -69,6 +69,9 @@ public class EncryptionConfig {
     public static final AwsWrapperProperty METADATA_CACHE_REFRESH_INTERVAL_MS = new AwsWrapperProperty(
         "metadataCache.refreshIntervalMs", "300000", "Metadata cache refresh interval in milliseconds");
 
+    public static final AwsWrapperProperty ENCRYPTION_METADATA_SCHEMA = new AwsWrapperProperty(
+        "encryption.metadataSchema", "aws", "Schema name for encryption metadata tables");
+
     static {
         PropertyDefinition.registerPluginProperties(EncryptionConfig.class);
     }
@@ -86,6 +89,7 @@ public class EncryptionConfig {
     private final int dataKeyCacheMaxSize;
     private final Duration dataKeyCacheExpiration;
     private final Duration metadataRefreshInterval;
+    private final String encryptionMetadataSchema;
 
     private EncryptionConfig(Builder builder) {
         this.kmsRegion = Objects.requireNonNull(builder.kmsRegion, "kmsRegion cannot be null");
@@ -101,6 +105,7 @@ public class EncryptionConfig {
         this.dataKeyCacheMaxSize = builder.dataKeyCacheMaxSize;
         this.dataKeyCacheExpiration = builder.dataKeyCacheExpiration;
         this.metadataRefreshInterval = builder.metadataRefreshInterval;
+        this.encryptionMetadataSchema = Objects.requireNonNull(builder.encryptionMetadataSchema, "encryptionMetadataSchema cannot be null");
     }
 
     public String getKmsRegion() {
@@ -153,6 +158,10 @@ public class EncryptionConfig {
 
     public Duration getMetadataRefreshInterval() {
         return metadataRefreshInterval;
+    }
+
+    public String getEncryptionMetadataSchema() {
+        return encryptionMetadataSchema;
     }
 
     /**
@@ -277,6 +286,7 @@ public class EncryptionConfig {
         builder.dataKeyCacheMaxSize(DATA_KEY_CACHE_MAX_SIZE.getInteger(properties));
         builder.dataKeyCacheExpiration(Duration.ofMillis(DATA_KEY_CACHE_EXPIRATION_MS.getLong(properties)));
         builder.metadataRefreshInterval(Duration.ofMillis(METADATA_CACHE_REFRESH_INTERVAL_MS.getLong(properties)));
+        builder.encryptionMetadataSchema(ENCRYPTION_METADATA_SCHEMA.getString(properties));
 
         return builder.build();
     }
@@ -299,6 +309,7 @@ public class EncryptionConfig {
         private int dataKeyCacheMaxSize = 1000;
         private Duration dataKeyCacheExpiration = Duration.ofMinutes(30);
         private Duration metadataRefreshInterval = Duration.ofMinutes(5);
+        private String encryptionMetadataSchema = "encrypt"; // Default schema name
 
         public Builder kmsRegion(String kmsRegion) {
             this.kmsRegion = kmsRegion;
@@ -362,6 +373,11 @@ public class EncryptionConfig {
 
         public Builder metadataRefreshInterval(Duration metadataRefreshInterval) {
             this.metadataRefreshInterval = metadataRefreshInterval;
+            return this;
+        }
+
+        public Builder encryptionMetadataSchema(String encryptionMetadataSchema) {
+            this.encryptionMetadataSchema = encryptionMetadataSchema;
             return this;
         }
 

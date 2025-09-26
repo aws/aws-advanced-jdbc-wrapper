@@ -18,8 +18,7 @@
 package software.amazon.jdbc.plugin.encryption.wrapper;
 
 import software.amazon.jdbc.plugin.encryption.KmsEncryptionPlugin;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
 
 import java.sql.*;
 
@@ -30,7 +29,7 @@ import java.sql.*;
  */
 public class EncryptingStatement implements Statement {
 
-    private static final Logger logger = LoggerFactory.getLogger(EncryptingStatement.class);
+    private static final Logger LOGGER = Logger.getLogger(EncryptingStatement.class.getName());
 
     private final Statement delegate;
     private final KmsEncryptionPlugin encryptionPlugin;
@@ -45,12 +44,12 @@ public class EncryptingStatement implements Statement {
         this.delegate = delegate;
         this.encryptionPlugin = encryptionPlugin;
 
-        logger.debug("Created EncryptingStatement wrapper");
+        LOGGER.finest(()->"Created EncryptingStatement wrapper");
     }
 
     @Override
     public ResultSet executeQuery(String sql) throws SQLException {
-        logger.debug("Executing query with encryption support: {}", sql);
+        LOGGER.finest(()->String.format("Executing query with encryption support: %s", sql));
 
         ResultSet resultSet = delegate.executeQuery(sql);
         return encryptionPlugin.wrapResultSet(resultSet);
@@ -58,7 +57,7 @@ public class EncryptingStatement implements Statement {
 
     @Override
     public int executeUpdate(String sql) throws SQLException {
-        logger.debug("Executing update with encryption support: {}", sql);
+        LOGGER.finest(()->String.format("Executing update with encryption support: %s", sql));
 
         // For Statement-based updates, we can't easily encrypt embedded values
         // This is a limitation - PreparedStatement should be used for full encryption support
@@ -67,7 +66,7 @@ public class EncryptingStatement implements Statement {
 
     @Override
     public boolean execute(String sql) throws SQLException {
-        logger.debug("Executing statement with encryption support: {}", sql);
+        LOGGER.finest(()->String.format("Executing statement with encryption support: %s", sql));
 
         return delegate.execute(sql);
     }
