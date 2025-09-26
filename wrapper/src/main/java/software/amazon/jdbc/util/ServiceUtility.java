@@ -134,14 +134,6 @@ public class ServiceUtility {
     serviceContainer.setPluginManagerService(pluginService);
 
     pluginManager.initPlugins(serviceContainer, null);
-    final HostListProviderSupplier supplier = dbDialect.getHostListProvider();
-    if (supplier != null) {
-      final HostListProvider provider = supplier.getProvider(props, originalUrl, serviceContainer);
-      pluginService.setHostListProvider(provider);
-    }
-
-    pluginManager.initHostProvider(targetDriverProtocol, originalUrl, props, pluginService);
-    pluginService.refreshHostList();
     return serviceContainer;
   }
 }
