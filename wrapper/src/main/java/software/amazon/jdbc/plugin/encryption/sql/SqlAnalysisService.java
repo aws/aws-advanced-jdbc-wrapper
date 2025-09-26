@@ -24,7 +24,6 @@ import software.amazon.jdbc.plugin.encryption.parser.SQLAnalyzer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.SQLException;
 import java.util.*;
 
 /**
@@ -151,7 +150,7 @@ public class SqlAnalysisService {
      */
     public Map<Integer, String> getColumnParameterMapping(String sql) {
         Map<Integer, String> mapping = new HashMap<>();
-        
+
         try {
             SQLAnalyzer.QueryAnalysis queryAnalysis = analyzer.analyze(sql);
             if (queryAnalysis != null && !queryAnalysis.columns.isEmpty()) {
@@ -179,7 +178,7 @@ public class SqlAnalysisService {
         } catch (Exception e) {
             logger.warn("Failed to get column parameter mapping for SQL: {}", sql, e);
         }
-        
+
         return mapping;
     }
 
