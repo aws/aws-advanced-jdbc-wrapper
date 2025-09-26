@@ -1067,3 +1067,12 @@ tasks.register<Test>("test-kms-encryption-integration") {
     systemProperty("java.util.logging.config.file", "${project.layout.buildDirectory.get()}/resources/test/logging-test.properties")
     systemProperty("jdbc.drivers", "software.amazon.jdbc.Driver")
 }
+
+tasks.register<Test>("test-key-management-utility") {
+    group = "verification"
+    filter.includeTestsMatching("integration.container.tests.KeyManagementUtilityIntegrationTest")
+    classpath = sourceSets.test.get().runtimeClasspath
+    dependsOn("jar")
+    systemProperty("java.util.logging.config.file", "${project.layout.buildDirectory.get()}/resources/test/logging-test.properties")
+    systemProperty("jdbc.drivers", "software.amazon.jdbc.Driver")
+}

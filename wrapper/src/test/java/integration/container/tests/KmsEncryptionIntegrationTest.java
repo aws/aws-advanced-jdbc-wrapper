@@ -65,8 +65,8 @@ public class KmsEncryptionIntegrationTest {
           + "master_key_arn VARCHAR(512) NOT NULL, "
           + "encrypted_data_key TEXT NOT NULL, "
           + "key_spec VARCHAR(50) DEFAULT 'AES_256', "
-          + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
-          + "last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+          + "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
+          + "last_used_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP)");
 
       // Create encryption_metadata table with correct schema
       stmt.execute("CREATE TABLE encryption_metadata ("
@@ -74,8 +74,8 @@ public class KmsEncryptionIntegrationTest {
           + "column_name VARCHAR(255) NOT NULL, "
           + "encryption_algorithm VARCHAR(50) NOT NULL, "
           + "key_id VARCHAR(255) NOT NULL, "
-          + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
-          + "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+          + "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
+          + "updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
           + "PRIMARY KEY (table_name, column_name), "
           + "FOREIGN KEY (key_id) REFERENCES key_storage(key_id))");
 
@@ -97,19 +97,30 @@ public class KmsEncryptionIntegrationTest {
       keyStmt.executeUpdate();
       keyStmt.close();
 
-      // Insert encryption configuration for users.ssn column
-      logger.trace("Inserting encryption metadata for users.ssn");
-      stmt.execute("INSERT INTO encryption_metadata (table_name, column_name, encryption_algorithm, key_id) "
-          + "VALUES ('users', 'ssn', 'AES-256-GCM', 'test-key-1')");
-      logger.trace("Encryption metadata inserted");
+      // Use KeyManagementUtility approach to setup encryption metadata
+      String keyId = "test-key-1";
+      logger.trace("Setting up encryption metadata for users.ssn using KeyManagementUtility approach");
+      
+      try (PreparedStatement metaStmt = connection.prepareStatement(
+          "INSERT INTO encryption_metadata (table_name, column_name, encryption_algorithm, key_id) VALUES (?, ?, ?, ?)")) {
+        metaStmt.setString(1, "users");
+        metaStmt.setString(2, "ssn");
+        metaStmt.setString(3, "AES-256-GCM");
+        metaStmt.setString(4, keyId);
+        metaStmt.executeUpdate();
+        logger.trace("Encryption metadata configured for key: {}", keyId);
+      }
 
-      // Verify the metadata was inserted
+      // Verify the metadata was configured correctly
       try (PreparedStatement checkStmt = connection.prepareStatement(
-          "SELECT table_name, column_name, encryption_algorithm, key_id FROM encryption_metadata WHERE table_name = 'users'")) {
+          "SELECT table_name, column_name, encryption_algorithm, key_id FROM encryption_metadata WHERE table_name = ? AND column_name = ?")) {
+        checkStmt.setString(1, "users");
+        checkStmt.setString(2, "ssn");
         ResultSet rs = checkStmt.executeQuery();
         while (rs.next()) {
-          logger.trace("Found metadata: {}.{} -> {}", rs.getString("table_name"),
-                       rs.getString("column_name"), rs.getString("encryption_algorithm"));
+          logger.trace("Verified metadata: {}.{} -> {} (key: {})", 
+                       rs.getString("table_name"), rs.getString("column_name"), 
+                       rs.getString("encryption_algorithm"), rs.getString("key_id"));
         }
       }
 
