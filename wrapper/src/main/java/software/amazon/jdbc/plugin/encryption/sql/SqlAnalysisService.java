@@ -21,8 +21,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.parser.SQLAnalyzer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
 
 import java.util.*;
 
@@ -32,7 +31,7 @@ import java.util.*;
  */
 public class SqlAnalysisService {
 
-    private static final Logger logger = LoggerFactory.getLogger(SqlAnalysisService.class);
+    private static final Logger LOGGER = Logger.getLogger(SqlAnalysisService.class.getName());
 
     private final MetadataManager metadataManager;
     private final SQLAnalyzer analyzer;
@@ -61,7 +60,7 @@ public class SqlAnalysisService {
                 return analyzeFromTables(tables, queryType);
             }
         } catch (Exception e) {
-            logger.error("Error analyzing SQL: {}", e.getMessage(), e);
+            LOGGER.severe(()->String.format("Error analyzing SQL: %s", e.getMessage()));
             throw new RuntimeException("SQL analysis failed", e);
         }
 
@@ -95,7 +94,7 @@ public class SqlAnalysisService {
     private SqlAnalysisResult analyzeFromTables(Set<String> tables, String queryType) {
         Map<String, ColumnEncryptionConfig> encryptedColumns = new HashMap<>();
 
-        logger.debug("Parser analysis found {} tables", tables.size());
+        LOGGER.finest(()->String.format("Parser analysis found %s tables", tables.size()));
 
         return new SqlAnalysisResult(tables, encryptedColumns, queryType);
     }
@@ -176,7 +175,7 @@ public class SqlAnalysisService {
                 }
             }
         } catch (Exception e) {
-            logger.warn("Failed to get column parameter mapping for SQL: {}", sql, e);
+            LOGGER.warning(()->String.format("Failed to get column parameter mapping for SQL: %s", sql));
         }
 
         return mapping;

@@ -17,8 +17,7 @@
 
 package software.amazon.jdbc.plugin.encryption;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
 import software.amazon.jdbc.*;
 
 import java.sql.Connection;
@@ -37,7 +36,7 @@ import java.util.Set;
  */
 public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
 
-    private static final Logger logger = LoggerFactory.getLogger(KmsEncryptionConnectionPlugin.class);
+    private static final Logger LOGGER = Logger.getLogger(KmsEncryptionConnectionPlugin.class.getName()));
 
     private final KmsEncryptionPlugin encryptionPlugin;
     private final PluginService pluginService;
@@ -56,9 +55,9 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
 
         try {
             this.encryptionPlugin.initialize(properties);
-            logger.info("KmsEncryptionConnectionPlugin initialized successfully");
+            LOGGER.info("KmsEncryptionConnectionPlugin initialized successfully");
         } catch (SQLException e) {
-            logger.error("Failed to initialize KmsEncryptionConnectionPlugin", e);
+            LOGGER.severe("Failed to initialize KmsEncryptionConnectionPlugin", e);
             throw new RuntimeException("Failed to initialize encryption plugin", e);
         }
     }

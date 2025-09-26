@@ -23,8 +23,7 @@ import software.amazon.jdbc.plugin.encryption.key.KeyManager;
 import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
 import software.amazon.jdbc.plugin.encryption.sql.SqlAnalysisService;
 import software.amazon.jdbc.plugin.encryption.parser.SQLAnalyzer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
 
 import java.io.InputStream;
 import java.io.Reader;
@@ -41,7 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class EncryptingPreparedStatement implements PreparedStatement {
 
-    private static final Logger logger = LoggerFactory.getLogger(EncryptingPreparedStatement.class);
+    private static final Logger LOGGER = Logger.getLogger(EncryptingPreparedStatement.class.getName());
 
     private final PreparedStatement delegate;
     private final MetadataManager metadataManager;
@@ -61,7 +60,7 @@ public class EncryptingPreparedStatement implements PreparedStatement {
                                      KeyManager keyManager,
                                      SqlAnalysisService sqlAnalysisService,
                                      String sql) {
-        logger.trace("EncryptingPreparedStatement created for SQL: {}", sql);
+        LOGGER.finest(()->String.format("EncryptingPreparedStatement created for SQL: %s", sql));
         this.delegate = delegate;
         this.metadataManager = metadataManager;
         this.encryptionService = encryptionService;
@@ -71,7 +70,7 @@ public class EncryptingPreparedStatement implements PreparedStatement {
 
         // Initialize parameter mapping
         initializeParameterMapping();
-        logger.trace("Parameter mapping initialized: {}", parameterColumnMapping);
+        LOGGER.finest(()->String.format("Parameter mapping initialized: %s", parameterColumnMapping));
     }
 
     /**
@@ -82,31 +81,31 @@ public class EncryptingPreparedStatement implements PreparedStatement {
      * Initializes parameter mapping using SQL analysis service.
      */
     private void initializeParameterMapping() {
-        logger.trace("initializeParameterMapping called for SQL: {}", sql);
+        LOGGER.finest(()->String.format("initializeParameterMapping called for SQL: %s", sql));
         try {
             // Use SqlAnalysisService to analyze SQL and extract table information
             SqlAnalysisService.SqlAnalysisResult analysisResult = sqlAnalysisService.analyzeSql(sql);
-            logger.trace("Analysis result tables: {}", analysisResult.getAffectedTables());
+            LOGGER.finest(()->String.format("Analysis result tables: %s", analysisResult.getAffectedTables()));
 
             // Get the first table from analysis results
             if (!analysisResult.getAffectedTables().isEmpty()) {
                 this.tableName = analysisResult.getAffectedTables().iterator().next();
-                logger.trace("Table name set to: {}", tableName);
+                LOGGER.finest(()->String.format("Table name set to: %s", tableName));
 
                 // Use SqlAnalysisService to get parameter mapping
                 Map<Integer, String> mapping = sqlAnalysisService.getColumnParameterMapping(sql);
-                logger.trace("Column parameter mapping from service: {}", mapping);
+                LOGGER.finest(()->String.format("Column parameter mapping from service: %s", mapping));
                 parameterColumnMapping.putAll(mapping);
-                
-                logger.trace("Final parameter mapping: {}", parameterColumnMapping);
+
+                LOGGER.finest(()->String.format("Final parameter mapping: %s", parameterColumnMapping));
             }
 
             mappingInitialized = true;
-            logger.trace("Parameter mapping initialization complete for table: {}", tableName);
+            LOGGER.finest(()->String.format("Parameter mapping initialization complete for table: %s", tableName));
 
         } catch (Exception e) {
-            logger.trace("Failed to initialize parameter mapping: {}", e.getMessage());
-            logger.trace("Exception details", e);
+            LOGGER.finest(()->String.format("Failed to initialize parameter mapping: %s", e.getMessage()));
+            LOGGER.finest(()->String.format("Exception details %s", e));
             mappingInitialized = false;
         }
     }
@@ -171,50 +170,50 @@ public class EncryptingPreparedStatement implements PreparedStatement {
      * Checks if a parameter should be encrypted and encrypts it if necessary.
      */
     private Object encryptParameterIfNeeded(int parameterIndex, Object value) throws SQLException {
-        logger.trace("encryptParameterIfNeeded called: param={}, value={}", parameterIndex, value);
-        logger.trace("mappingInitialized={}, tableName={}", mappingInitialized, tableName);
-        
+        LOGGER.finest(()->String.format("encryptParameterIfNeeded called: param=%s, value=%s", parameterIndex, value));
+        LOGGER.finest(()->String.format("mappingInitialized=%s, tableName=%s", mappingInitialized, tableName));
+
         if (!mappingInitialized || tableName == null || value == null) {
-            logger.trace("Skipping encryption - early exit");
+            LOGGER.finest(()->"Skipping encryption - early exit");
             return value;
         }
 
         try {
             String columnName = getColumnNameForParameter(parameterIndex);
-            logger.trace("Parameter {} maps to column: {}", parameterIndex, columnName);
-            logger.trace("Parameter mapping: {}", parameterColumnMapping);
-            
+            LOGGER.finest(()->String.format("Parameter %s maps to column: %s", parameterIndex, columnName));
+            LOGGER.finest(()->String.format("Parameter mapping: %s", parameterColumnMapping));
+
             if (columnName == null) {
                 return value;
             }
 
             // Check if column is configured for encryption
             boolean isEncrypted = metadataManager.isColumnEncrypted(tableName, columnName);
-            logger.trace("Column {}.{} encrypted: {}", tableName, columnName, isEncrypted);
-            
+            LOGGER.finest(()->String.format("Column %s.%s encrypted: %s", tableName, columnName, isEncrypted));
+
             // Debug metadata manager state
             try {
-                logger.trace("Checking metadata manager for table: {}", tableName);
-                logger.trace("MetadataManager class: {}", metadataManager.getClass().getName());
-                
+                LOGGER.finest(()->String.format("Checking metadata manager for table: %s", tableName));
+                LOGGER.finest(()->String.format("MetadataManager class: %s", metadataManager.getClass().getName()));
+
                 // Force refresh metadata to pick up any new configurations
-                logger.trace("Forcing metadata refresh...");
+                LOGGER.finest(()->String.format("Forcing metadata refresh..."));
                 metadataManager.refreshMetadata();
-                logger.trace("Metadata refresh completed");
-                
+                LOGGER.finest(()->String.format("Metadata refresh completed"));
+
                 // Try to get config directly after refresh
                 ColumnEncryptionConfig config = metadataManager.getColumnConfig(tableName, columnName);
-                logger.trace("Column config for {}.{} after refresh: {}", tableName, columnName, config);
-                
+                LOGGER.finest(()->String.format("Column config for %s.%s after refresh: %s", tableName, columnName, config));
+
                 // Check encryption status after refresh
                 boolean isEncryptedAfterRefresh = metadataManager.isColumnEncrypted(tableName, columnName);
-                logger.trace("Column {}.{} encrypted after refresh: {}", tableName, columnName, isEncryptedAfterRefresh);
-                
+                LOGGER.finest(()->String.format("Column %s.%s encrypted after refresh: %s", tableName, columnName, isEncryptedAfterRefresh));
+
             } catch (Exception e) {
-                logger.trace("Error getting column config: {}", e.getMessage());
-                logger.trace("Exception details", e);
+                LOGGER.finest(()->String.format("Error getting column config: %s", e.getMessage()));
+                LOGGER.finest(()->String.format("Exception details", e));
             }
-            
+
             if (!isEncrypted) {
                 return value;
             }
@@ -222,7 +221,7 @@ public class EncryptingPreparedStatement implements PreparedStatement {
             // Get encryption configuration
             ColumnEncryptionConfig config = metadataManager.getColumnConfig(tableName, columnName);
             if (config == null) {
-                logger.warn("No encryption config found for column {}.{}", tableName, columnName);
+                LOGGER.warning(()->String.format("No encryption config found for column %s.%s", tableName, columnName));
                 return value;
             }
 
@@ -238,13 +237,14 @@ public class EncryptingPreparedStatement implements PreparedStatement {
             // Clear the data key from memory
             java.util.Arrays.fill(dataKey, (byte) 0);
 
-            logger.debug("Encrypted parameter {} for column {}.{}", parameterIndex, tableName, columnName);
+            LOGGER.fine(()->String.format("Encrypted parameter %s for column %s.%s", parameterIndex, tableName, columnName));
             return encryptedValue;
 
         } catch (Exception e) {
+          //TODO move this into the subscriber
             String errorMsg = String.format("Failed to encrypt parameter %d for column %s.%s",
                 parameterIndex, tableName, getColumnNameForParameter(parameterIndex));
-            logger.error(errorMsg, e);
+            LOGGER.severe(()->String.format(errorMsg));
             throw new SQLException(errorMsg, e);
         }
     }

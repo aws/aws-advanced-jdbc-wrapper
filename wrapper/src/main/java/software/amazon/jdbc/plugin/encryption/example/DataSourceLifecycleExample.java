@@ -18,8 +18,7 @@
 package software.amazon.jdbc.plugin.encryption.example;
 
 import software.amazon.jdbc.factory.EncryptingDataSourceFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
 import software.amazon.jdbc.plugin.encryption.wrapper.EncryptingDataSource;
 
 import javax.sql.DataSource;
@@ -32,7 +31,7 @@ import java.sql.SQLException;
  */
 public class DataSourceLifecycleExample {
 
-    private static final Logger logger = LoggerFactory.getLogger(DataSourceLifecycleExample.class);
+    private static final Logger LOGGER = Logger.getLogger(DataSourceLifecycleExample.class.getName());
 
     public static void main(String[] args) {
         EncryptingDataSource dataSource = null;
@@ -51,12 +50,12 @@ public class DataSourceLifecycleExample {
             demonstrateLifecycleManagement(dataSource);
 
         } catch (Exception e) {
-            logger.error("Example execution failed", e);
+            LOGGER.severe(()->String.format("Example execution failed %s", e.getMessage()));
         } finally {
             // Always clean up resources
             if (dataSource != null) {
                 dataSource.close();
-                logger.info("DataSource closed in finally block");
+                LOGGER.info("DataSource closed in finally block");
             }
         }
     }
@@ -65,7 +64,7 @@ public class DataSourceLifecycleExample {
      * Creates an EncryptingDataSource for demonstration.
      */
     private static EncryptingDataSource createDataSource() throws SQLException {
-        logger.info("=== Creating EncryptingDataSource ===");
+        LOGGER.info("=== Creating EncryptingDataSource ===");
 
         EncryptingDataSource dataSource = new EncryptingDataSourceFactory.Builder()
             .jdbcUrl("jdbc:postgresql://localhost:5432/mydb")
@@ -76,7 +75,7 @@ public class DataSourceLifecycleExample {
             .cacheEnabled(true)
             .build();
 
-        logger.info("EncryptingDataSource created successfully");
+        LOGGER.info("EncryptingDataSource created successfully");
         return dataSource;
     }
 
@@ -84,27 +83,27 @@ public class DataSourceLifecycleExample {
      * Demonstrates healthy DataSource usage patterns.
      */
     private static void demonstrateHealthyUsage(EncryptingDataSource dataSource) {
-        logger.info("=== Demonstrating Healthy Usage ===");
+        LOGGER.info("=== Demonstrating Healthy Usage ===");
 
         // Check if DataSource is available before using
         if (!dataSource.isConnectionAvailable()) {
-            logger.warn("DataSource is not available - skipping operations");
+            LOGGER.warning("DataSource is not available - skipping operations");
             return;
         }
 
         // Use try-with-resources for proper connection management
         try (Connection connection = dataSource.getConnection()) {
-            logger.info("Successfully obtained connection: {}", connection.getClass().getSimpleName());
+            LOGGER.info(()->String.format("Successfully obtained connection: %s", connection.getClass().getSimpleName()));
 
             // Verify connection is valid
             if (connection.isValid(5)) {
-                logger.info("Connection is valid");
+                LOGGER.info(()->"Connection is valid");
             } else {
-                logger.warn("Connection is not valid");
+                LOGGER.warning(()->"Connection is not valid");
             }
 
         } catch (SQLException e) {
-            logger.error("Failed to get or use connection", e);
+            LOGGER.severe(()->String.format("Failed to get or use connection %s", e.getMessage()));
         }
     }
 
@@ -112,22 +111,24 @@ public class DataSourceLifecycleExample {
      * Demonstrates error handling patterns.
      */
     private static void demonstrateErrorHandling(EncryptingDataSource dataSource) {
-        logger.info("=== Demonstrating Error Handling ===");
+        LOGGER.info(()->"=== Demonstrating Error Handling ===");
 
         // Attempt to get multiple connections to test resilience
         for (int i = 0; i < 3; i++) {
             try (Connection connection = dataSource.getConnection()) {
-                logger.info("Connection attempt {}: Success", i + 1);
+              int finalI = i;
+              LOGGER.info(()->String.format("Connection attempt %d: Success", finalI + 1));
 
                 // Simulate some work
                 Thread.sleep(100);
 
             } catch (SQLException e) {
-                logger.error("Connection attempt {} failed: {}", i + 1, e.getMessage());
+              int finalI1 = i;
+              LOGGER.severe(()->String.format("Connection attempt %s failed: %s", finalI1 + 1, e.getMessage()));
 
                 // Check if DataSource is still healthy
                 if (!dataSource.isConnectionAvailable()) {
-                    logger.error("DataSource is no longer available - stopping attempts");
+                    LOGGER.severe("DataSource is no longer available - stopping attempts");
                     break;
                 }
 
@@ -142,44 +143,44 @@ public class DataSourceLifecycleExample {
      * Demonstrates DataSource lifecycle management.
      */
     private static void demonstrateLifecycleManagement(EncryptingDataSource dataSource) {
-        logger.info("=== Demonstrating Lifecycle Management ===");
+        LOGGER.info("=== Demonstrating Lifecycle Management ===");
 
         // Check initial state
-        logger.info("DataSource closed: {}", dataSource.isClosed());
-        logger.info("Connection available: {}", dataSource.isConnectionAvailable());
+        LOGGER.info(()->String.format("DataSource closed: %s", dataSource.isClosed()));
+        LOGGER.info(()->String.format("Connection available: %s", dataSource.isConnectionAvailable()));
 
         // Get a connection before closing
         try (Connection connection = dataSource.getConnection()) {
-            logger.info("Got connection before close: {}", connection.getClass().getSimpleName());
+            LOGGER.info(()->String.format("Got connection before close: %s", connection.getClass().getSimpleName()));
         } catch (SQLException e) {
-            logger.error("Failed to get connection before close", e);
+            LOGGER.severe(()->String.format("Failed to get connection before close %s", e.getMessage()));
         }
 
         // Close the DataSource
         dataSource.close();
-        logger.info("DataSource closed: {}", dataSource.isClosed());
-        logger.info("Connection available after close: {}", dataSource.isConnectionAvailable());
+        LOGGER.info(()->String.format("DataSource closed: %s", dataSource.isClosed()));
+        LOGGER.info(()->String.format("Connection available after close: %s", dataSource.isConnectionAvailable()));
 
         // Try to get connection after close (should fail)
         try (Connection connection = dataSource.getConnection()) {
-            logger.error("Unexpectedly got connection after close!");
+            LOGGER.severe(()->"Unexpectedly got connection after close!");
         } catch (SQLException e) {
-            logger.info("Expected failure getting connection after close: {}", e.getMessage());
+            LOGGER.info(()->String.format("Expected failure getting connection after close: %s", e.getMessage()));
         }
 
         // Multiple close calls should be safe
         dataSource.close();
         dataSource.close();
-        logger.info("Multiple close calls completed safely");
+        LOGGER.info(()->"Multiple close calls completed safely");
     }
 
     /**
      * Demonstrates connection validation and recovery patterns.
-     * 
+     *
      * @param originalDataSource Original data source to wrap
      */
     public static void demonstrateConnectionRecovery(DataSource originalDataSource) {
-        logger.info("=== Demonstrating Connection Recovery ===");
+        LOGGER.info(()->"=== Demonstrating Connection Recovery ===");
 
         EncryptingDataSource dataSource = null;
 
@@ -196,14 +197,14 @@ public class DataSourceLifecycleExample {
 
             if (connection != null) {
                 try (Connection conn = connection) {
-                    logger.info("Successfully recovered connection");
+                    LOGGER.info(()->"Successfully recovered connection");
                 }
             } else {
-                logger.error("Failed to recover connection after retries");
+                LOGGER.severe(()->"Failed to recover connection after retries");
             }
 
         } catch (SQLException e) {
-            logger.error("Connection recovery demonstration failed", e);
+            LOGGER.severe(()->String.format("Connection recovery demonstration failed %s", e.getMessage()));
         } finally {
             if (dataSource != null) {
                 dataSource.close();
@@ -216,21 +217,22 @@ public class DataSourceLifecycleExample {
      */
     private static Connection getConnectionWithRetry(EncryptingDataSource dataSource, int maxRetries, long delayMs) {
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
+          int finalAttempt = attempt;
             try {
-                logger.info("Connection attempt {} of {}", attempt, maxRetries);
+              LOGGER.info(()->String.format("Connection attempt %s of %s", finalAttempt, maxRetries));
 
                 if (!dataSource.isConnectionAvailable()) {
-                    logger.warn("DataSource not available on attempt {}", attempt);
+                    LOGGER.warning(()->String.format("DataSource not available on attempt %s", finalAttempt));
                     Thread.sleep(delayMs);
                     continue;
                 }
 
                 Connection connection = dataSource.getConnection();
-                logger.info("Successfully got connection on attempt {}", attempt);
+                LOGGER.info(()->String.format("Successfully got connection on attempt %s", finalAttempt));
                 return connection;
 
             } catch (SQLException e) {
-                logger.warn("Connection attempt {} failed: {}", attempt, e.getMessage());
+                LOGGER.warning(()->String.format("Connection attempt %s failed: %s", finalAttempt, e.getMessage()));
 
                 if (attempt < maxRetries) {
                     try {

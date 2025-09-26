@@ -21,8 +21,7 @@ import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
 import software.amazon.jdbc.plugin.encryption.key.KeyManager;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
 
 import java.io.InputStream;
 import java.io.Reader;
@@ -40,7 +39,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class DecryptingResultSet implements ResultSet {
 
-    private static final Logger logger = LoggerFactory.getLogger(DecryptingResultSet.class);
+    private static final Logger LOGGER = Logger.getLogger(DecryptingResultSet.class.getName());
 
     private final ResultSet delegate;
     private final MetadataManager metadataManager;
@@ -87,18 +86,24 @@ public class DecryptingResultSet implements ResultSet {
                         ColumnEncryptionConfig config = metadataManager.getColumnConfig(tableName, columnName);
                         if (config != null) {
                             columnConfigCache.put(columnName, config);
-                            logger.debug("Cached encryption config for column {}.{}", tableName, columnName);
+                            LOGGER.finest(()->String.format("Cached encryption config for column %s.%s", tableName, columnName));
                         }
                     }
                 }
             }
 
             metadataInitialized = true;
-            logger.debug("Metadata initialized for table: {} with {} columns",
-                    tableName, rsmd.getColumnCount());
+            LOGGER.finest(()-> {
+              try {
+                return String.format("Metadata initialized for table: %s with %s columns",
+                        tableName, rsmd.getColumnCount());
+              } catch (SQLException e) {
+                return String.format("Error getting resultset metadata %s",e.getMessage());
+              }
+            });
 
         } catch (Exception e) {
-            logger.warn("Failed to initialize ResultSet metadata", e);
+            LOGGER.warning(()->String.format("Failed to initialize ResultSet metadata %s", e.getMessage()));
             metadataInitialized = false;
         }
     }
@@ -137,8 +142,8 @@ public class DecryptingResultSet implements ResultSet {
 
         // Only decrypt byte arrays - encrypted data should always be stored as bytes
         if (!(value instanceof byte[])) {
-            logger.trace("Skipping decryption for column {}.{} - value is not byte array (type: {})",
-                        tableName, columnName, value.getClass().getName());
+            LOGGER.finest(()->String.format("Skipping decryption for column %s.%s - value is not byte array (type: %s)",
+                        tableName, columnName, value.getClass().getName()));
             return value;
         }
 
@@ -146,13 +151,13 @@ public class DecryptingResultSet implements ResultSet {
             // Check if column is configured for encryption
             ColumnEncryptionConfig config = getColumnConfig(columnName);
             if (config == null) {
-                logger.trace("No encryption config found for column {}.{}", tableName, columnName);
+                LOGGER.finest(()->String.format("No encryption config found for column %s.%s", tableName, columnName));
                 return value;
             }
 
             byte[] encryptedBytes = (byte[]) value;
-            logger.trace("Attempting to decrypt byte array for column {}.{} (length: {})",
-                        tableName, columnName, encryptedBytes.length);
+            LOGGER.finest(()->String.format("Attempting to decrypt byte array for column %s.%s (length: %s)",
+                        tableName, columnName, encryptedBytes.length));
 
             // Get data key for decryption
             byte[] dataKey = keyManager.decryptDataKey(
@@ -160,7 +165,7 @@ public class DecryptingResultSet implements ResultSet {
                     config.getKeyMetadata().getMasterKeyArn());
 
             if (dataKey == null) {
-                logger.error("Failed to decrypt data key for column {}.{}", tableName, columnName);
+                LOGGER.severe(()->String.format("Failed to decrypt data key for column %s.%s", tableName, columnName));
                 throw new SQLException("Data key decryption failed");
             }
 
@@ -174,13 +179,13 @@ public class DecryptingResultSet implements ResultSet {
             // Clear the data key from memory
             java.util.Arrays.fill(dataKey, (byte) 0);
 
-            logger.debug("Successfully decrypted value for column {}.{}", tableName, columnName);
+            LOGGER.finest(()->String.format("Successfully decrypted value for column %s.%s", tableName, columnName));
             return decryptedValue;
 
         } catch (Exception e) {
-            String errorMsg = String.format("Failed to decrypt value for column %s.%s",
-                    tableName, columnName);
-            logger.error(errorMsg, e);
+            String errorMsg = String.format("Failed to decrypt value for column %s.%s %s",
+                    tableName, columnName, e.getMessage());
+            LOGGER.severe(()->errorMsg);
             throw new SQLException(errorMsg, e);
         }
     }

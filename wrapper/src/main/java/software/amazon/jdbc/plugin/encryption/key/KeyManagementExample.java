@@ -19,8 +19,7 @@ package software.amazon.jdbc.plugin.encryption.key;
 
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kms.KmsClient;
 
@@ -34,7 +33,7 @@ import java.util.List;
  */
 public class KeyManagementExample {
 
-    private static final Logger logger = LoggerFactory.getLogger(KeyManagementExample.class);
+    private static final Logger LOGGER = Logger.getLogger(KeyManagementExample.class.getName()));
 
     private final KeyManagementUtility keyManagementUtility;
 
@@ -60,17 +59,17 @@ public class KeyManagementExample {
 
     /**
      * Example: Setting up encryption for a new application.
-     * 
+     *
      * @throws KeyManagementException if key management operations fail
      */
     public void setupNewApplication() throws KeyManagementException {
-        logger.info("Setting up encryption for new application");
+        LOGGER.info("Setting up encryption for new application");
 
         // 1. Create a master key for the application
         String masterKeyArn = keyManagementUtility.createMasterKeyWithPermissions(
                 "JDBC Encryption Master Key for MyApp");
 
-        logger.info("Created master key: {}", masterKeyArn);
+        LOGGER.info("Created master key: %s", masterKeyArn);
 
         // 2. Initialize encryption for sensitive columns
         String userEmailKeyId = keyManagementUtility.initializeEncryptionForColumn(
@@ -82,18 +81,18 @@ public class KeyManagementExample {
         String orderCreditCardKeyId = keyManagementUtility.initializeEncryptionForColumn(
                 "orders", "credit_card_number", masterKeyArn);
 
-        logger.info("Initialized encryption for users.email with key: {}", userEmailKeyId);
-        logger.info("Initialized encryption for users.ssn with key: {}", userSsnKeyId);
-        logger.info("Initialized encryption for orders.credit_card_number with key: {}", orderCreditCardKeyId);
+        LOGGER.info("Initialized encryption for users.email with key: %s", userEmailKeyId);
+        LOGGER.info("Initialized encryption for users.ssn with key: %s", userSsnKeyId);
+        LOGGER.info("Initialized encryption for orders.credit_card_number with key: %s", orderCreditCardKeyId);
     }
 
     /**
      * Example: Adding encryption to an existing column.
-     * 
+     *
      * @throws KeyManagementException if key management operations fail
      */
     public void addEncryptionToExistingColumn() throws KeyManagementException {
-        logger.info("Adding encryption to existing column");
+        LOGGER.info("Adding encryption to existing column");
 
         String masterKeyArn = "arn:aws:kms:us-east-1:123456789012:key/existing-master-key";
 
@@ -106,20 +105,20 @@ public class KeyManagementExample {
         String keyId = keyManagementUtility.initializeEncryptionForColumn(
                 "customers", "phone_number", masterKeyArn, "AES-256-GCM");
 
-        logger.info("Added encryption to customers.phone_number with key: {}", keyId);
+        LOGGER.info("Added encryption to customers.phone_number with key: %s", keyId);
     }
 
     /**
      * Example: Rotating keys for security compliance.
-     * 
+     *
      * @throws KeyManagementException if key management operations fail
      */
     public void performKeyRotation() throws KeyManagementException {
-        logger.info("Performing key rotation for security compliance");
+        LOGGER.info("Performing key rotation for security compliance");
 
         // Rotate key for a specific column
         String newKeyId = keyManagementUtility.rotateDataKey("users", "ssn", null);
-        logger.info("Rotated key for users.ssn, new key ID: {}", newKeyId);
+        LOGGER.info("Rotated key for users.ssn, new key ID: %s", newKeyId);
 
         // Rotate with a new master key
         String newMasterKeyArn = keyManagementUtility.createMasterKeyWithPermissions(
@@ -128,23 +127,23 @@ public class KeyManagementExample {
         String newKeyIdWithNewMaster = keyManagementUtility.rotateDataKey(
                 "orders", "credit_card_number", newMasterKeyArn);
 
-        logger.info("Rotated key for orders.credit_card_number with new master key, new key ID: {}",
+        LOGGER.info("Rotated key for orders.credit_card_number with new master key, new key ID: %s",
                    newKeyIdWithNewMaster);
     }
 
     /**
      * Example: Auditing and managing existing keys.
-     * 
+     *
      * @throws KeyManagementException if key management operations fail
      */
     public void auditExistingKeys() throws KeyManagementException {
-        logger.info("Auditing existing encryption keys");
+        LOGGER.info("Auditing existing encryption keys");
 
         // Find all columns using a specific key
         String keyIdToAudit = "some-existing-key-id";
         List<String> columnsUsingKey = keyManagementUtility.getColumnsUsingKey(keyIdToAudit);
 
-        logger.info("Key {} is used by {} columns: {}",
+        LOGGER.info("Key %s is used by %s columns: %s",
                    keyIdToAudit, columnsUsingKey.size(), columnsUsingKey);
 
         // Validate all master keys are still accessible
@@ -156,27 +155,27 @@ public class KeyManagementExample {
 
         for (String masterKeyArn : masterKeysToValidate) {
             boolean isValid = keyManagementUtility.validateMasterKey(masterKeyArn);
-            logger.info("Master key {} validation: {}", masterKeyArn, isValid ? "VALID" : "INVALID");
+            LOGGER.info("Master key %s validation: %s", masterKeyArn, isValid ? "VALID" : "INVALID");
         }
     }
 
     /**
      * Example: Removing encryption from a column (for decommissioning).
-     * 
+     *
      * @throws KeyManagementException if key management operations fail
      */
     public void removeEncryptionFromColumn() throws KeyManagementException {
-        logger.info("Removing encryption from decommissioned column");
+        LOGGER.info("Removing encryption from decommissioned column");
 
         // Remove encryption configuration (keys remain for data recovery)
         keyManagementUtility.removeEncryptionForColumn("old_table", "deprecated_column");
 
-        logger.info("Removed encryption configuration for old_table.deprecated_column");
+        LOGGER.info("Removed encryption configuration for old_table.deprecated_column");
     }
 
     /**
      * Main method demonstrating the complete workflow.
-     * 
+     *
      * @param args Command line arguments
      */
     public static void main(String[] args) {
@@ -196,10 +195,10 @@ public class KeyManagementExample {
             // example.auditExistingKeys();
             // example.removeEncryptionFromColumn();
 
-            logger.info("Key management examples completed successfully");
+            LOGGER.info("Key management examples completed successfully");
 
         } catch (Exception e) {
-            logger.error("Error running key management examples", e);
+            LOGGER.severe("Error running key management examples", e);
         }
     }
 }
