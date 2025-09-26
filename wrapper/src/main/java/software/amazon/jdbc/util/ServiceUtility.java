@@ -22,9 +22,11 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
+import software.amazon.jdbc.HostListProvider;
 import software.amazon.jdbc.PartialPluginService;
 import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.dialect.HostListProviderSupplier;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.monitoring.MonitorService;
@@ -76,7 +78,7 @@ public class ServiceUtility {
         new ConnectionPluginManager(props, telemetryFactory, defaultConnectionProvider, effectiveConnectionProvider);
     servicesContainer.setConnectionPluginManager(pluginManager);
 
-    PluginServiceImpl pluginServiceImpl = new PluginServiceImpl(
+    PluginServiceImpl pluginService = new PluginServiceImpl(
         servicesContainer,
         props,
         originalUrl,
@@ -85,11 +87,17 @@ public class ServiceUtility {
         configurationProfile
     );
 
-    servicesContainer.setHostListProviderService(pluginServiceImpl);
-    servicesContainer.setPluginService(pluginServiceImpl);
-    servicesContainer.setPluginManagerService(pluginServiceImpl);
+    servicesContainer.setHostListProviderService(pluginService);
+    servicesContainer.setPluginService(pluginService);
+    servicesContainer.setPluginManagerService(pluginService);
 
     pluginManager.initPlugins(servicesContainer, configurationProfile);
+    final HostListProviderSupplier supplier = pluginService.getDialect().getHostListProvider();
+    if (supplier != null) {
+      final HostListProvider provider = supplier.getProvider(props, originalUrl, servicesContainer);
+      pluginService.setHostListProvider(provider);
+    }
+
     return servicesContainer;
   }
 
@@ -123,6 +131,12 @@ public class ServiceUtility {
     serviceContainer.setPluginManagerService(partialPluginService);
 
     pluginManager.initPlugins(serviceContainer, null);
+    final HostListProviderSupplier supplier = dbDialect.getHostListProvider();
+    if (supplier != null) {
+      final HostListProvider provider = supplier.getProvider(props, originalUrl, serviceContainer);
+      partialPluginService.setHostListProvider(provider);
+    }
+
     return serviceContainer;
   }
 }
