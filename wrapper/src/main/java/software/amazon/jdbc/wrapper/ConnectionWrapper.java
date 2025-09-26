@@ -106,7 +106,6 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   protected void init(final Properties props) throws SQLException {
-    this.pluginService.refreshHostList();
     if (this.pluginService.getCurrentConnection() == null) {
       final Connection conn =
           this.pluginManager.connect(

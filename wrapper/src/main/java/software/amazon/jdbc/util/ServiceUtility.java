@@ -98,6 +98,9 @@ public class ServiceUtility {
       pluginService.setHostListProvider(provider);
     }
 
+    pluginManager.initHostProvider(targetDriverProtocol, originalUrl, props, pluginService);
+    pluginService.refreshHostList();
+
     return servicesContainer;
   }
 
@@ -117,7 +120,7 @@ public class ServiceUtility {
         new ConnectionPluginManager(props, telemetryFactory, connectionProvider, null);
     serviceContainer.setConnectionPluginManager(pluginManager);
 
-    PartialPluginService partialPluginService = new PartialPluginService(
+    PartialPluginService pluginService = new PartialPluginService(
         serviceContainer,
         props,
         originalUrl,
@@ -126,17 +129,19 @@ public class ServiceUtility {
         dbDialect
     );
 
-    serviceContainer.setHostListProviderService(partialPluginService);
-    serviceContainer.setPluginService(partialPluginService);
-    serviceContainer.setPluginManagerService(partialPluginService);
+    serviceContainer.setHostListProviderService(pluginService);
+    serviceContainer.setPluginService(pluginService);
+    serviceContainer.setPluginManagerService(pluginService);
 
     pluginManager.initPlugins(serviceContainer, null);
     final HostListProviderSupplier supplier = dbDialect.getHostListProvider();
     if (supplier != null) {
       final HostListProvider provider = supplier.getProvider(props, originalUrl, serviceContainer);
-      partialPluginService.setHostListProvider(provider);
+      pluginService.setHostListProvider(provider);
     }
 
+    pluginManager.initHostProvider(targetDriverProtocol, originalUrl, props, pluginService);
+    pluginService.refreshHostList();
     return serviceContainer;
   }
 }
