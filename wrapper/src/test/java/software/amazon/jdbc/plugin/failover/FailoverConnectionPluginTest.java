@@ -24,7 +24,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -250,8 +249,8 @@ class FailoverConnectionPluginTest {
     spyPlugin.initHostProvider(
         mockHostListProviderService,
         mockInitHostProviderFunc,
-        (connectionService) -> mockReaderFailoverHandler,
-        (connectionService) -> mockWriterFailoverHandler);
+        () -> mockReaderFailoverHandler,
+        () -> mockWriterFailoverHandler);
 
     final FailoverConnectionPlugin spyPlugin = spy(this.spyPlugin);
     doNothing().when(spyPlugin).updateTopology(true);
@@ -279,8 +278,8 @@ class FailoverConnectionPluginTest {
     spyPlugin.initHostProvider(
         mockHostListProviderService,
         mockInitHostProviderFunc,
-        (connectionService) -> mockReaderFailoverHandler,
-        (connectionService) -> mockWriterFailoverHandler);
+        () -> mockReaderFailoverHandler,
+        () -> mockWriterFailoverHandler);
 
     assertThrows(SQLException.class, () -> spyPlugin.failoverReader(null));
     verify(mockReaderFailoverHandler).failover(eq(hosts), eq(null));
@@ -301,8 +300,8 @@ class FailoverConnectionPluginTest {
     spyPlugin.initHostProvider(
         mockHostListProviderService,
         mockInitHostProviderFunc,
-        (connectionService) -> mockReaderFailoverHandler,
-        (connectionService) -> mockWriterFailoverHandler);
+        () -> mockReaderFailoverHandler,
+        () -> mockWriterFailoverHandler);
 
     assertThrows(SQLException.class, () -> spyPlugin.failoverWriter());
     verify(mockWriterFailoverHandler).failover(eq(hosts));
@@ -323,8 +322,8 @@ class FailoverConnectionPluginTest {
     spyPlugin.initHostProvider(
         mockHostListProviderService,
         mockInitHostProviderFunc,
-        (connectionService) -> mockReaderFailoverHandler,
-        (connectionService) -> mockWriterFailoverHandler);
+        () -> mockReaderFailoverHandler,
+        () -> mockWriterFailoverHandler);
 
     final SQLException exception = assertThrows(SQLException.class, () -> spyPlugin.failoverWriter());
     assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), exception.getSQLState());
@@ -342,8 +341,8 @@ class FailoverConnectionPluginTest {
     spyPlugin.initHostProvider(
         mockHostListProviderService,
         mockInitHostProviderFunc,
-        (connectionService) -> mockReaderFailoverHandler,
-        (connectionService) -> mockWriterFailoverHandler);
+        () -> mockReaderFailoverHandler,
+        () -> mockWriterFailoverHandler);
 
     final SQLException exception = assertThrows(FailoverSuccessSQLException.class, () -> spyPlugin.failoverWriter());
     assertEquals(SqlState.COMMUNICATION_LINK_CHANGED.getState(), exception.getSQLState());
@@ -442,6 +441,6 @@ class FailoverConnectionPluginTest {
     spyPlugin = spy(new FailoverConnectionPlugin(mockContainer, properties));
     spyPlugin.setWriterFailoverHandler(mockWriterFailoverHandler);
     spyPlugin.setReaderFailoverHandler(mockReaderFailoverHandler);
-    doReturn(mockConnectionService).when(spyPlugin).getConnectionService();
+    // doReturn(mockConnectionService).when(spyPlugin).getConnectionService();
   }
 }

@@ -23,7 +23,10 @@ import software.amazon.jdbc.ConnectionPluginManager;
 public class ParameterMetaDataWrapperFactory implements WrapperFactory {
 
   @Override
-  public Object getInstance(@NonNull Object targetObj, @NonNull ConnectionPluginManager pluginManager) {
-    return new ParameterMetaDataWrapper((ParameterMetaData) targetObj, pluginManager);
+  public Object getInstance(
+      @NonNull Object targetObj,
+      @NonNull ConnectionWrapper connectionWrapper,
+      @NonNull ConnectionPluginManager pluginManager) {
+    return new ParameterMetaDataWrapper((ParameterMetaData) targetObj, connectionWrapper, pluginManager);
   }
 }

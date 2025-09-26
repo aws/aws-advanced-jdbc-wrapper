@@ -25,13 +25,16 @@ import software.amazon.jdbc.util.WrapperUtils;
 
 public class ParameterMetaDataWrapper implements ParameterMetaData {
 
-  protected ParameterMetaData parameterMetaData;
-  protected ConnectionPluginManager pluginManager;
+  protected final ParameterMetaData parameterMetaData;
+  protected final ConnectionWrapper connectionWrapper;
+  protected final ConnectionPluginManager pluginManager;
 
   public ParameterMetaDataWrapper(
       @NonNull ParameterMetaData parameterMetaData,
+      @NonNull ConnectionWrapper connectionWrapper,
       @NonNull ConnectionPluginManager pluginManager) {
     this.parameterMetaData = parameterMetaData;
+    this.connectionWrapper = connectionWrapper;
     this.pluginManager = pluginManager;
   }
 
@@ -41,10 +44,11 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.parameterMetaData,
           JdbcMethod.PARAMETERMETADATA_GETPARAMETERCOUNT,
-          () -> this.parameterMetaData.getParameterCount());
+          this.parameterMetaData::getParameterCount);
     } else {
       return this.parameterMetaData.getParameterCount();
     }
@@ -57,6 +61,7 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.parameterMetaData,
           JdbcMethod.PARAMETERMETADATA_ISNULLABLE,
@@ -73,6 +78,7 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.parameterMetaData,
           JdbcMethod.PARAMETERMETADATA_ISSIGNED,
@@ -89,6 +95,7 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.parameterMetaData,
           JdbcMethod.PARAMETERMETADATA_GETPRECISION,
@@ -105,6 +112,7 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.parameterMetaData,
           JdbcMethod.PARAMETERMETADATA_GETSCALE,
@@ -121,6 +129,7 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.parameterMetaData,
           JdbcMethod.PARAMETERMETADATA_GETPARAMETERTYPE,
@@ -137,6 +146,7 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.parameterMetaData,
           JdbcMethod.PARAMETERMETADATA_GETPARAMETERTYPENAME,
@@ -153,6 +163,7 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.parameterMetaData,
           JdbcMethod.PARAMETERMETADATA_GETPARAMETERCLASSNAME,
@@ -170,6 +181,7 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.parameterMetaData,
           JdbcMethod.PARAMETERMETADATA_GETPARAMETERMODE,

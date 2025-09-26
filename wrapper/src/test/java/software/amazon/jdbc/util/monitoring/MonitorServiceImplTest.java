@@ -42,14 +42,14 @@ import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.connection.ConnectionService;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 class MonitorServiceImplTest {
   @Mock StorageService mockStorageService;
-  @Mock ConnectionService mockConnectionService;
+  @Mock FullServicesContainer mockContainer;
   @Mock ConnectionProvider mockConnectionProvider;
   @Mock TelemetryFactory mockTelemetryFactory;
   @Mock TargetDriverDialect mockTargetDriverDialect;
@@ -65,8 +65,8 @@ class MonitorServiceImplTest {
     doNothing().when(spyMonitorService).initCleanupThread(anyInt());
 
     try {
-      doReturn(mockConnectionService).when(spyMonitorService)
-          .getConnectionService(any(), any(), any(), any(), any(), any(), any(), any());
+      doReturn(mockContainer).when(spyMonitorService)
+          .getNewServicesContainer(any(), any(), any(), any(), any(), any(), any(), any());
     } catch (SQLException e) {
       Assertions.fail(
           "Encountered exception while stubbing MonitorServiceImpl#getConnectionService: " + e.getMessage());
@@ -100,7 +100,7 @@ class MonitorServiceImplTest {
         mockTargetDriverDialect,
         mockDbDialect,
         new Properties(),
-        (connectionService, pluginService) -> new NoOpMonitor(spyMonitorService, 30)
+        (serviceContainer) -> new NoOpMonitor(30)
     );
 
     Monitor storedMonitor = spyMonitorService.get(NoOpMonitor.class, key);
@@ -144,7 +144,7 @@ class MonitorServiceImplTest {
         mockTargetDriverDialect,
         mockDbDialect,
         new Properties(),
-        (connectionService, pluginService) -> new NoOpMonitor(spyMonitorService, 30)
+        (serviceContainer) -> new NoOpMonitor(30)
     );
 
     Monitor storedMonitor = spyMonitorService.get(NoOpMonitor.class, key);
@@ -190,7 +190,7 @@ class MonitorServiceImplTest {
         mockTargetDriverDialect,
         mockDbDialect,
         new Properties(),
-        (connectionService, pluginService) -> new NoOpMonitor(spyMonitorService, 30)
+        (serviceContainer) -> new NoOpMonitor(30)
     );
 
     Monitor storedMonitor = spyMonitorService.get(NoOpMonitor.class, key);
@@ -225,7 +225,7 @@ class MonitorServiceImplTest {
         new Properties(),
         // indicated monitor class is CustomEndpointMonitorImpl, but actual monitor is NoOpMonitor. The monitor
         // service should detect this and throw an exception.
-        (connectionService, pluginService) -> new NoOpMonitor(spyMonitorService, 30)
+        (serviceContainer) -> new NoOpMonitor(30)
     ));
   }
 
@@ -253,7 +253,7 @@ class MonitorServiceImplTest {
         mockTargetDriverDialect,
         mockDbDialect,
         new Properties(),
-        (connectionService, pluginService) -> new NoOpMonitor(spyMonitorService, 30)
+        (serviceContainer) -> new NoOpMonitor(30)
     );
     assertNotNull(monitor);
 
@@ -288,7 +288,7 @@ class MonitorServiceImplTest {
         mockTargetDriverDialect,
         mockDbDialect,
         new Properties(),
-        (connectionService, pluginService) -> new NoOpMonitor(spyMonitorService, 30)
+        (serviceContainer) -> new NoOpMonitor(30)
     );
     assertNotNull(monitor);
 
@@ -301,7 +301,6 @@ class MonitorServiceImplTest {
 
   static class NoOpMonitor extends AbstractMonitor {
     protected NoOpMonitor(
-        MonitorService monitorService,
         long terminationTimeoutSec) {
       super(terminationTimeoutSec);
     }

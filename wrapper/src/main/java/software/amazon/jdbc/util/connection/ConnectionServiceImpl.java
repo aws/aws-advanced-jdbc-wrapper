@@ -50,12 +50,9 @@ public class ConnectionServiceImpl implements ConnectionService {
     this.targetDriverProtocol = targetDriverProtocol;
 
     FullServicesContainer
-        servicesContainer = new FullServicesContainerImpl(storageService, monitorService, telemetryFactory);
-    this.pluginManager = new ConnectionPluginManager(
-        connectionProvider,
-        null,
-        null,
-        telemetryFactory);
+        servicesContainer = new FullServicesContainerImpl(
+            storageService, monitorService, connectionProvider, telemetryFactory);
+    this.pluginManager = new ConnectionPluginManager(props, telemetryFactory, connectionProvider, null);
     servicesContainer.setConnectionPluginManager(this.pluginManager);
 
     PartialPluginService partialPluginService = new PartialPluginService(
@@ -67,8 +64,12 @@ public class ConnectionServiceImpl implements ConnectionService {
         dbDialect
     );
 
+    servicesContainer.setHostListProviderService(partialPluginService);
+    servicesContainer.setPluginService(partialPluginService);
+    servicesContainer.setPluginManagerService(partialPluginService);
+
     this.pluginService = partialPluginService;
-    this.pluginManager.init(servicesContainer, props, partialPluginService, null);
+    this.pluginManager.initPlugins(servicesContainer, null);
   }
 
   @Override
