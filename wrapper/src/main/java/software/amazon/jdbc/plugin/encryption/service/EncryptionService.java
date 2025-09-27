@@ -45,7 +45,7 @@ import java.util.Arrays;
  */
 public class EncryptionService {
 
-    private static final Logger LOGGER = Logger.getLogger(EncryptionService.class.getName()));
+    private static final Logger LOGGER = Logger.getLogger(EncryptionService.class.getName());
 
     // Algorithm constants
     private static final String DEFAULT_ALGORITHM = "AES-256-GCM";
@@ -115,7 +115,7 @@ public class EncryptionService {
             return buffer.array();
 
         } catch (Exception e) {
-            LOGGER.severe("Encryption failed for value type: %s", value.getClass().getSimpleName(), e);
+            LOGGER.severe(()->String.format("Encryption failed for value type: %s %s", value.getClass().getSimpleName(), e.getMessage()));
             throw EncryptionException.encryptionFailed("Failed to encrypt value", e)
                 .withDataType(value.getClass().getSimpleName())
                 .withAlgorithm(algorithm)
@@ -183,7 +183,7 @@ public class EncryptionService {
             return result;
 
         } catch (Exception e) {
-            LOGGER.severe("Decryption failed for target type: %s", targetType.getSimpleName(), e);
+            LOGGER.severe(()->String.format("Decryption failed for target type: %s %s", targetType.getSimpleName(), e.getMessage()));
             throw EncryptionException.decryptionFailed("Failed to decrypt value", e)
                 .withDataType(targetType.getSimpleName())
                 .withAlgorithm(algorithm)

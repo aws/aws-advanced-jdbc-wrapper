@@ -77,7 +77,7 @@ public class KeyManager {
     public String createMasterKey(String description) throws KeyManagementException {
         Objects.requireNonNull(description, "Description cannot be null");
 
-        LOGGER.info("Creating KMS master key with description: %s", description);
+        LOGGER.info(()->String.format("Creating KMS master key with description: %s", description));
 
         try {
             CreateKeyRequest request = CreateKeyRequest.builder()
@@ -89,11 +89,11 @@ public class KeyManager {
             CreateKeyResponse response = executeWithRetry(() -> kmsClient.createKey(request));
             String keyArn = response.keyMetadata().arn();
 
-            LOGGER.info("Successfully created KMS master key: %s", keyArn);
+            LOGGER.info(()->String.format("Successfully created KMS master key: %s", keyArn));
             return keyArn;
 
         } catch (Exception e) {
-            LOGGER.severe("Failed to create KMS master key", e);
+            LOGGER.severe(()->String.format("Failed to create KMS master key", e));
             throw new KeyManagementException("Failed to create KMS master key: " + e.getMessage(), e);
         }
     }
@@ -108,7 +108,7 @@ public class KeyManager {
     public DataKeyResult generateDataKey(String masterKeyArn) throws KeyManagementException {
         Objects.requireNonNull(masterKeyArn, "Master key ARN cannot be null");
 
-        LOGGER.finest(()->String.format("Generating data key using master key: %s", masterKeyArn);
+        LOGGER.finest(()->String.format("Generating data key using master key: %s", masterKeyArn));
 
         try {
             GenerateDataKeyRequest request = GenerateDataKeyRequest.builder()
@@ -121,11 +121,11 @@ public class KeyManager {
             byte[] plaintextKey = response.plaintext().asByteArray();
             String encryptedKey = Base64.getEncoder().encodeToString(response.ciphertextBlob().asByteArray());
 
-            LOGGER.finest(()->String.format("Successfully generated data key for master key: %s", masterKeyArn);
+            LOGGER.finest(()->String.format("Successfully generated data key for master key: %s", masterKeyArn));
             return new DataKeyResult(plaintextKey, encryptedKey);
 
         } catch (Exception e) {
-            LOGGER.severe("Failed to generate data key for master key: %s", masterKeyArn, e);
+            LOGGER.severe(()->String.format("Failed to generate data key for master key: %s", masterKeyArn, e));
             throw new KeyManagementException("Failed to generate data key: " + e.getMessage(), e);
         }
     }
@@ -149,12 +149,12 @@ public class KeyManager {
         if (config.isDataKeyCacheEnabled()) {
             byte[] cachedKey = dataKeyCache.get(cacheKey);
             if (cachedKey != null) {
-                LOGGER.finest(()->String.format("Cache hit for data key decryption");
+                LOGGER.finest(()->"Cache hit for data key decryption");
                 return cachedKey;
             }
         }
 
-        LOGGER.finest(()->String.format("Decrypting data key using master key: %s", masterKeyArn);
+        LOGGER.finest(()->String.format("Decrypting data key using master key: %s", masterKeyArn));
 
         try {
             byte[] encryptedKeyBytes = Base64.getDecoder().decode(encryptedDataKey);
@@ -172,11 +172,11 @@ public class KeyManager {
                 dataKeyCache.put(cacheKey, plaintextKey);
             }
 
-            LOGGER.finest(()->String.format("Successfully decrypted data key for master key: %s", masterKeyArn);
+            LOGGER.finest(()->String.format("Successfully decrypted data key for master key: %s", masterKeyArn));
             return plaintextKey;
 
         } catch (Exception e) {
-            LOGGER.severe("Failed to decrypt data key for master key: %s", masterKeyArn, e);
+            LOGGER.severe(()->String.format("Failed to decrypt data key for master key: %s", masterKeyArn, e));
             throw new KeyManagementException("Failed to decrypt data key: " + e.getMessage(), e);
         }
     }
@@ -200,7 +200,7 @@ public class KeyManager {
             throw new KeyManagementException("Invalid key metadata provided");
         }
 
-        LOGGER.finest(()->String.format("Storing key metadata for %s.%s", tableName, columnName);
+        LOGGER.finest(()->String.format("Storing key metadata for %s.%s", tableName, columnName));
 
         try (Connection conn = pluginService.forceConnect(pluginService.getCurrentHostSpec(), pluginService.getProperties());
              PreparedStatement stmt = conn.prepareStatement(INSERT_KEY_METADATA_SQL)) {
@@ -215,14 +215,14 @@ public class KeyManager {
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
                 int generatedId = rs.getInt(1);
-                LOGGER.finest(()->String.format("Successfully stored key metadata for %s.%s with ID: %s", tableName, columnName, generatedId);
+                LOGGER.finest(()->String.format("Successfully stored key metadata for %s.%s with ID: %s", tableName, columnName, generatedId));
                 return generatedId;
             } else {
                 throw new KeyManagementException("Failed to get generated key ID");
             }
 
         } catch (SQLException e) {
-            LOGGER.severe("Database error storing key metadata for %s.%s", tableName, columnName, e);
+            LOGGER.severe(()->String.format("Database error storing key metadata for %s.%s %s", tableName, columnName, e.getMessage()));
             throw new KeyManagementException("Failed to store key metadata: " + e.getMessage(), e);
         }
     }
@@ -237,7 +237,7 @@ public class KeyManager {
     public Optional<KeyMetadata> getKeyMetadata(String keyId) throws KeyManagementException {
         Objects.requireNonNull(keyId, "Key ID cannot be null");
 
-        LOGGER.finest(()->String.format("Retrieving key metadata for key ID: %s", keyId);
+        LOGGER.finest(()->String.format("Retrieving key metadata for key ID: %s", keyId));
 
         try (Connection conn = pluginService.forceConnect(pluginService.getCurrentHostSpec(), pluginService.getProperties());
              PreparedStatement stmt = conn.prepareStatement(SELECT_KEY_METADATA_SQL)) {
@@ -255,16 +255,16 @@ public class KeyManager {
                             .lastUsedAt(rs.getTimestamp("last_used_at").toInstant())
                             .build();
 
-                    LOGGER.finest(()->String.format("Successfully retrieved key metadata for key ID: %s", keyId);
+                    LOGGER.finest(()->String.format("Successfully retrieved key metadata for key ID: %s", keyId));
                     return Optional.of(metadata);
                 } else {
-                    LOGGER.finest(()->String.format("No key metadata found for key ID: %s", keyId);
+                    LOGGER.finest(()->String.format("No key metadata found for key ID: %s", keyId));
                     return Optional.empty();
                 }
             }
 
         } catch (SQLException e) {
-            LOGGER.severe("Database error retrieving key metadata for key ID: %s", keyId, e);
+            LOGGER.severe(()->String.format("Database error retrieving key metadata for key ID: %s", keyId, e));
             throw new KeyManagementException("Failed to retrieve key metadata: " + e.getMessage(), e);
         }
     }
@@ -287,7 +287,7 @@ public class KeyManager {
             stmt.executeUpdate();
 
         } catch (SQLException e) {
-            LOGGER.severe("Database error updating last used timestamp for key ID: %s", keyId, e);
+            LOGGER.severe(()->String.format("Database error updating last used timestamp for key ID: %s %s", keyId, e.getMessage()));
             throw new KeyManagementException("Failed to update last used timestamp: " + e.getMessage(), e);
         }
     }
@@ -315,14 +315,14 @@ public class KeyManager {
      */
     public void clearCache() {
         dataKeyCache.clear();
-        LOGGER.info("Data key cache cleared");
+        LOGGER.info(()->"Data key cache cleared");
     }
 
     /**
      * Shuts down the key manager and cleans up resources.
      */
     public void shutdown() {
-        LOGGER.info("Shutting down KeyManager");
+        LOGGER.info(()->"Shutting down KeyManager");
         dataKeyCache.shutdown();
     }
 
@@ -345,8 +345,9 @@ public class KeyManager {
 
                 if (isRetryableException(e)) {
                     long backoffMs = calculateBackoff(attempt);
-                    LOGGER.warning("KMS operation failed (attempt %s/%s), retrying in %sms: %s",
-                               attempt + 1, maxRetries + 1, backoffMs, e.getMessage());
+                  int finalAttempt = attempt;
+                  LOGGER.warning(()->String.format("KMS operation failed (attempt %s/%s), retrying in %sms: %s",
+                               finalAttempt + 1, maxRetries + 1, backoffMs, e.getMessage()));
 
                     try {
                         Thread.sleep(backoffMs);

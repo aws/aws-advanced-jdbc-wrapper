@@ -29,7 +29,7 @@ public class ErrorContext {
 
     private final Map<String, Object> context = new HashMap<>();
 
-    private ErrorContext() %s
+    private ErrorContext(){}
 
     /**
      * Creates a new error context builder.

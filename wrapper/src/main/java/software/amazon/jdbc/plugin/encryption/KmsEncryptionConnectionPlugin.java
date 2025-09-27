@@ -36,7 +36,7 @@ import java.util.Set;
  */
 public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
 
-    private static final Logger LOGGER = Logger.getLogger(KmsEncryptionConnectionPlugin.class.getName()));
+    private static final Logger LOGGER = Logger.getLogger(KmsEncryptionConnectionPlugin.class.getName());
 
     private final KmsEncryptionPlugin encryptionPlugin;
     private final PluginService pluginService;
@@ -55,9 +55,9 @@ public class KmsEncryptionConnectionPlugin implements ConnectionPlugin {
 
         try {
             this.encryptionPlugin.initialize(properties);
-            LOGGER.info("KmsEncryptionConnectionPlugin initialized successfully");
+            LOGGER.info(()->"KmsEncryptionConnectionPlugin initialized successfully");
         } catch (SQLException e) {
-            LOGGER.severe("Failed to initialize KmsEncryptionConnectionPlugin", e);
+            LOGGER.severe(()->String.format("Failed to initialize KmsEncryptionConnectionPlugin %s", e.getMessage()));
             throw new RuntimeException("Failed to initialize encryption plugin", e);
         }
     }

@@ -33,7 +33,7 @@ import java.util.List;
  */
 public class KeyManagementExample {
 
-    private static final Logger LOGGER = Logger.getLogger(KeyManagementExample.class.getName()));
+    private static final Logger LOGGER = Logger.getLogger(KeyManagementExample.class.getName());
 
     private final KeyManagementUtility keyManagementUtility;
 
@@ -69,7 +69,7 @@ public class KeyManagementExample {
         String masterKeyArn = keyManagementUtility.createMasterKeyWithPermissions(
                 "JDBC Encryption Master Key for MyApp");
 
-        LOGGER.info("Created master key: %s", masterKeyArn);
+        LOGGER.info(()->String.format("Created master key: %s", masterKeyArn));
 
         // 2. Initialize encryption for sensitive columns
         String userEmailKeyId = keyManagementUtility.initializeEncryptionForColumn(
@@ -81,9 +81,9 @@ public class KeyManagementExample {
         String orderCreditCardKeyId = keyManagementUtility.initializeEncryptionForColumn(
                 "orders", "credit_card_number", masterKeyArn);
 
-        LOGGER.info("Initialized encryption for users.email with key: %s", userEmailKeyId);
-        LOGGER.info("Initialized encryption for users.ssn with key: %s", userSsnKeyId);
-        LOGGER.info("Initialized encryption for orders.credit_card_number with key: %s", orderCreditCardKeyId);
+        LOGGER.info(()->String.format("Initialized encryption for users.email with key: %s", userEmailKeyId));
+        LOGGER.info(()->String.format("Initialized encryption for users.ssn with key: %s", userSsnKeyId));
+        LOGGER.info(()->String.format("Initialized encryption for orders.credit_card_number with key: %s", orderCreditCardKeyId));
     }
 
     /**
@@ -105,7 +105,7 @@ public class KeyManagementExample {
         String keyId = keyManagementUtility.initializeEncryptionForColumn(
                 "customers", "phone_number", masterKeyArn, "AES-256-GCM");
 
-        LOGGER.info("Added encryption to customers.phone_number with key: %s", keyId);
+        LOGGER.info(()->String.format("Added encryption to customers.phone_number with key: %s", keyId));
     }
 
     /**
@@ -118,7 +118,7 @@ public class KeyManagementExample {
 
         // Rotate key for a specific column
         String newKeyId = keyManagementUtility.rotateDataKey("users", "ssn", null);
-        LOGGER.info("Rotated key for users.ssn, new key ID: %s", newKeyId);
+        LOGGER.info(()->String.format("Rotated key for users.ssn, new key ID: %s", newKeyId));
 
         // Rotate with a new master key
         String newMasterKeyArn = keyManagementUtility.createMasterKeyWithPermissions(
@@ -127,8 +127,8 @@ public class KeyManagementExample {
         String newKeyIdWithNewMaster = keyManagementUtility.rotateDataKey(
                 "orders", "credit_card_number", newMasterKeyArn);
 
-        LOGGER.info("Rotated key for orders.credit_card_number with new master key, new key ID: %s",
-                   newKeyIdWithNewMaster);
+        LOGGER.info(()->String.format("Rotated key for orders.credit_card_number with new master key, new key ID: %s",
+                   newKeyIdWithNewMaster));
     }
 
     /**
@@ -143,8 +143,8 @@ public class KeyManagementExample {
         String keyIdToAudit = "some-existing-key-id";
         List<String> columnsUsingKey = keyManagementUtility.getColumnsUsingKey(keyIdToAudit);
 
-        LOGGER.info("Key %s is used by %s columns: %s",
-                   keyIdToAudit, columnsUsingKey.size(), columnsUsingKey);
+        LOGGER.info(()->String.format("Key %s is used by %s columns: %s",
+                   keyIdToAudit, columnsUsingKey.size(), columnsUsingKey));
 
         // Validate all master keys are still accessible
         String[] masterKeysToValidate = {
@@ -155,7 +155,7 @@ public class KeyManagementExample {
 
         for (String masterKeyArn : masterKeysToValidate) {
             boolean isValid = keyManagementUtility.validateMasterKey(masterKeyArn);
-            LOGGER.info("Master key %s validation: %s", masterKeyArn, isValid ? "VALID" : "INVALID");
+            LOGGER.info(()->String.format("Master key %s validation: %s", masterKeyArn, isValid ? "VALID" : "INVALID"));
         }
     }
 
@@ -198,7 +198,7 @@ public class KeyManagementExample {
             LOGGER.info("Key management examples completed successfully");
 
         } catch (Exception e) {
-            LOGGER.severe("Error running key management examples", e);
+            LOGGER.severe(()->String.format("Error running key management examples", e));
         }
     }
 }

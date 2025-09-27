@@ -34,7 +34,7 @@ import java.util.Properties;
  */
 public class PropertiesFileExample {
 
-    private static final Logger LOGGER = Logger.getLogger(PropertiesFileExample.class.getName()));
+    private static final Logger LOGGER = Logger.getLogger(PropertiesFileExample.class.getName());
 
     public static void main(String[] args) {
         try {
@@ -51,7 +51,7 @@ public class PropertiesFileExample {
             dataSource.close();
 
         } catch (Exception e) {
-            LOGGER.severe("Example execution failed", e);
+            LOGGER.severe(()->String.format("Example execution failed %s", e.getMessage()));
         }
     }
 
@@ -69,7 +69,7 @@ public class PropertiesFileExample {
             }
 
             properties.load(inputStream);
-            LOGGER.info("Loaded properties from file: %s", filename);
+            LOGGER.info(()->String.format("Loaded properties from file: %s", filename));
         }
 
         return properties;
@@ -87,7 +87,7 @@ public class PropertiesFileExample {
             throw new SQLException("Missing required database connection properties");
         }
 
-        LOGGER.info("Creating EncryptingDataSource for URL: %s", jdbcUrl);
+        LOGGER.info(()->String.format("Creating EncryptingDataSource for URL: %s", jdbcUrl));
 
         return EncryptingDataSourceFactory.createWithAwsWrapper(jdbcUrl, username, password, properties);
     }
@@ -96,7 +96,7 @@ public class PropertiesFileExample {
      * Demonstrates encrypted database operations.
      */
     private static void demonstrateEncryptedOperations(EncryptingDataSource dataSource) throws SQLException {
-        LOGGER.info("Demonstrating encrypted database operations");
+        LOGGER.info(()->"Demonstrating encrypted database operations");
 
         try (Connection connection = dataSource.getConnection()) {
 
@@ -127,7 +127,7 @@ public class PropertiesFileExample {
 
         try (PreparedStatement stmt = connection.prepareStatement(createTableSql)) {
             stmt.executeUpdate();
-            LOGGER.finest(()->String.format("Test table created or already exists");
+            LOGGER.finest(()->"Test table created or already exists");
         }
     }
 
@@ -163,7 +163,7 @@ public class PropertiesFileExample {
                 String email = rs.getString("email");    // Will be decrypted if configured
                 String ssn = rs.getString("ssn");        // Will be decrypted if configured
 
-                LOGGER.info("Retrieved user %s: Name=%s, Email=%s, SSN=%s", id, name, email, ssn);
+                LOGGER.info(()->String.format("Retrieved user %s: Name=%s, Email=%s, SSN=%s", id, name, email, ssn));
             }
         }
     }

@@ -31,7 +31,7 @@ import java.util.concurrent.Executor;
  */
 public class EncryptingConnection implements Connection {
 
-    private static final Logger LOGGER = Logger.getLogger(EncryptingConnection.class.getName()));
+    private static final Logger LOGGER = Logger.getLogger(EncryptingConnection.class.getName());
 
     private final Connection delegate;
     private final KmsEncryptionPlugin encryptionPlugin;
@@ -46,7 +46,7 @@ public class EncryptingConnection implements Connection {
         this.delegate = delegate;
         this.encryptionPlugin = encryptionPlugin;
 
-        LOGGER.finest(()->String.format("Created EncryptingConnection wrapper");
+        LOGGER.finest(()->"Created EncryptingConnection wrapper");
     }
 
     @Override

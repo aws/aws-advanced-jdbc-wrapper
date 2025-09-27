@@ -19,7 +19,6 @@ package software.amazon.jdbc.plugin.encryption.factory;
 
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.plugin.encryption.exception.IndependentConnectionException;
 import software.amazon.jdbc.plugin.encryption.logging.ErrorContext;
 import java.util.logging.Logger;
 import org.slf4j.MDC;
@@ -38,7 +37,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class IndependentDataSource implements DataSource {
 
-    private static final Logger LOGGER = Logger.getLogger(IndependentDataSource.class.getName()));
+    private static final Logger LOGGER = Logger.getLogger(IndependentDataSource.class.getName());
 
     private final PluginService pluginService;
     private final Properties connectionProperties;
@@ -77,9 +76,9 @@ public class IndependentDataSource implements DataSource {
         this.pluginService = pluginService;
         this.connectionProperties = connectionProperties != null ? connectionProperties : new Properties();
 
-        LOGGER.info("Created IndependentDataSource with PluginService");
+        LOGGER.info(()->"Created IndependentDataSource with PluginService");
         LOGGER.finest(()->String.format("IndependentDataSource configuration: PropertiesCount=%s",
-                    this.connectionProperties.size());
+                    this.connectionProperties.size()));
     }
 
     @Override
@@ -90,7 +89,7 @@ public class IndependentDataSource implements DataSource {
         MDC.put("requestId", String.valueOf(requestId));
 
         try {
-            LOGGER.finest(()->String.format("Connection request #%s - creating new independent connection via PluginService", requestId);
+            LOGGER.finest(()->String.format("Connection request #%s - creating new independent connection via PluginService", requestId));
             return createNewConnection();
         } finally {
             MDC.remove("operation");
@@ -106,7 +105,7 @@ public class IndependentDataSource implements DataSource {
         MDC.put("requestId", String.valueOf(requestId));
 
         try {
-            LOGGER.finest(()->String.format("Connection request #%s - creating new independent connection with provided credentials", requestId);
+            LOGGER.finest(()->String.format("Connection request #%s - creating new independent connection with provided credentials", requestId));
 
             // Create modified properties with the provided credentials
             Properties modifiedProps = new Properties(connectionProperties);
@@ -140,7 +139,7 @@ public class IndependentDataSource implements DataSource {
     private Connection createNewConnection(Properties props) throws SQLException {
         long startTime = System.currentTimeMillis();
 
-        LOGGER.finest(()->String.format("Creating new independent connection via PluginService");
+        LOGGER.finest(()->"Creating new independent connection via PluginService");
 
         try {
             // Get current host spec from PluginService
@@ -153,9 +152,9 @@ public class IndependentDataSource implements DataSource {
             successfulConnectionCount.incrementAndGet();
             lastSuccessfulConnectionTime = System.currentTimeMillis();
 
-            LOGGER.info("Successfully created independent connection via PluginService in %sms " +
+            LOGGER.info(()->String.format("Successfully created independent connection via PluginService in %sms " +
                        "(total successful: %s, total failed: %s)",
-                       duration, successfulConnectionCount.get(), failedConnectionCount.get());
+                       duration, successfulConnectionCount.get(), failedConnectionCount.get()));
 
             return connection;
 
@@ -164,17 +163,17 @@ public class IndependentDataSource implements DataSource {
             failedConnectionCount.incrementAndGet();
             lastFailedConnectionTime = System.currentTimeMillis();
 
-            LOGGER.severe("Failed to create independent connection via PluginService after %sms: %s " +
-                        "(total successful: %s, total failed: %s)",
+            LOGGER.severe(()->String.format("Failed to create independent connection via PluginService after %sms: %s " +
+                        "(total successful: %d, total failed: %d)",
                         duration, e.getMessage(),
-                        successfulConnectionCount.get(), failedConnectionCount.get());
+                        successfulConnectionCount.get(), failedConnectionCount.get()));
 
             // Create detailed error context for troubleshooting
             String errorDetails = ErrorContext.builder()
                 .operation("CREATE_INDEPENDENT_CONNECTION_VIA_PLUGIN_SERVICE")
                 .buildMessage("Connection creation failed: " + e.getMessage());
 
-            LOGGER.severe("Connection creation error details: %s", errorDetails);
+            LOGGER.severe(()->String.format("Connection creation error details: %s", errorDetails));
 
             throw new SQLException(
                 "Failed to create independent connection via PluginService: " + e.getMessage(),
@@ -192,7 +191,7 @@ public class IndependentDataSource implements DataSource {
         try (Connection conn = getConnection()) {
             return conn != null && !conn.isClosed();
         } catch (SQLException e) {
-            LOGGER.finest(()->String.format("Connection validation failed", e);
+            LOGGER.finest(()->String.format("Connection validation failed", e));
             return false;
         }
     }
@@ -351,9 +350,9 @@ public class IndependentDataSource implements DataSource {
         String status = getHealthStatus();
 
         if (isHealthy()) {
-            LOGGER.info("IndependentDataSource health check: %s", status);
+            LOGGER.info(()->String.format("IndependentDataSource health check: %s", status));
         } else {
-            LOGGER.warning("IndependentDataSource health check - UNHEALTHY: %s", status);
+            LOGGER.warning(()->String.format("IndependentDataSource health check - UNHEALTHY: %s", status));
         }
     }
 }

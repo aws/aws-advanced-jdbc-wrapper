@@ -44,7 +44,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  */
 public class MetadataManager {
 
-    private static final Logger LOGGER = Logger.getLogger(MetadataManager.class.getName()));
+    private static final Logger LOGGER = Logger.getLogger(MetadataManager.class.getName());
 
     private final PluginService pluginService;
     private volatile EncryptionConfig config;
@@ -92,7 +92,7 @@ public class MetadataManager {
      * @throws MetadataException if database operations fail
      */
     public Map<String, ColumnEncryptionConfig> loadEncryptionMetadata() throws MetadataException {
-        LOGGER.finest(()->String.format("Loading encryption metadata from database");
+        LOGGER.finest(()->"Loading encryption metadata from database");
 
         Map<String, ColumnEncryptionConfig> metadata = new ConcurrentHashMap<>();
 
@@ -105,14 +105,14 @@ public class MetadataManager {
                 String columnIdentifier = columnConfig.getColumnIdentifier();
                 metadata.put(columnIdentifier, columnConfig);
 
-                LOGGER.finest(()->String.format("Loaded encryption config for column: %s", columnIdentifier);
+                LOGGER.finest(()->String.format("Loaded encryption config for column: %s", columnIdentifier));
             }
 
-            LOGGER.info("Successfully loaded %s encryption configurations", metadata.size());
+            LOGGER.info(()->String.format("Successfully loaded %d encryption configurations", metadata.size()));
 
         } catch (SQLException e) {
             String errorMsg = "Failed to load encryption metadata from database";
-            LOGGER.severe(errorMsg, e);
+            LOGGER.severe(()->errorMsg + e.getMessage());
             throw new MetadataException(errorMsg, e);
         }
 
@@ -137,8 +137,8 @@ public class MetadataManager {
             metadataCache.putAll(newMetadata);
             lastRefreshTime = Instant.now();
 
-            LOGGER.info("Metadata cache refreshed successfully with %s configurations",
-                       metadataCache.size());
+            LOGGER.info(()->String.format("Metadata cache refreshed successfully with %s configurations",
+                       metadataCache.size()));
 
         } finally {
             cacheLock.writeLock().unlock();
@@ -166,7 +166,7 @@ public class MetadataManager {
             cacheLock.readLock().lock();
             try {
                 boolean result = metadataCache.containsKey(columnIdentifier);
-                LOGGER.finest(()->String.format("Cache lookup for column %s: %s", columnIdentifier, result);
+                LOGGER.finest(()->String.format("Cache lookup for column %s: %s", columnIdentifier, result));
                 return result;
             } finally {
                 cacheLock.readLock().unlock();
@@ -200,7 +200,7 @@ public class MetadataManager {
             try {
                 ColumnEncryptionConfig result = metadataCache.get(columnIdentifier);
                 LOGGER.finest(()->String.format("Cache lookup for column config %s: %s",
-                           columnIdentifier, result != null ? "found" : "not found");
+                           columnIdentifier, result != null ? "found" : "not found"));
                 return result;
             } finally {
                 cacheLock.readLock().unlock();
@@ -309,7 +309,7 @@ public class MetadataManager {
      */
     private boolean isColumnEncryptedFromDatabase(String tableName, String columnName)
             throws MetadataException {
-        LOGGER.finest(()->String.format("Checking encryption status for column %s.%s from database", tableName, columnName);
+        LOGGER.finest(()->String.format("Checking encryption status for column %s.%s from database", tableName, columnName));
 
         try (Connection connection = pluginService.forceConnect(pluginService.getCurrentHostSpec(), pluginService.getProperties());
              PreparedStatement stmt = connection.prepareStatement(CHECK_COLUMN_ENCRYPTED_SQL)) {
@@ -319,14 +319,14 @@ public class MetadataManager {
 
             try (ResultSet rs = stmt.executeQuery()) {
                 boolean result = rs.next();
-                LOGGER.finest(()->String.format("Database lookup for column %s.%s: %s", tableName, columnName, result);
+                LOGGER.finest(()->String.format("Database lookup for column %s.%s: %s", tableName, columnName, result));
                 return result;
             }
 
         } catch (SQLException e) {
             String errorMsg = String.format("Failed to check encryption status for column %s.%s",
                                           tableName, columnName);
-            LOGGER.severe(errorMsg, e);
+            LOGGER.severe(()->errorMsg + e);
             throw new MetadataException(errorMsg, e);
         }
     }
@@ -336,7 +336,7 @@ public class MetadataManager {
      */
     private ColumnEncryptionConfig getColumnConfigFromDatabase(String tableName, String columnName)
             throws MetadataException {
-        LOGGER.finest(()->String.format("Loading encryption config for column %s.%s from database", tableName, columnName);
+        LOGGER.finest(()->String.format("Loading encryption config for column %s.%s from database", tableName, columnName));
 
         try (Connection connection = pluginService.forceConnect(pluginService.getCurrentHostSpec(), pluginService.getProperties());
              PreparedStatement stmt = connection.prepareStatement(GET_COLUMN_CONFIG_SQL)) {
@@ -347,10 +347,10 @@ public class MetadataManager {
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     ColumnEncryptionConfig result = buildColumnConfigFromResultSet(rs);
-                    LOGGER.finest(()->String.format("Database lookup for column config %s.%s: found", tableName, columnName);
+                    LOGGER.finest(()->String.format("Database lookup for column config %s.%s: found", tableName, columnName));
                     return result;
                 } else {
-                    LOGGER.finest(()->String.format("Database lookup for column config %s.%s: not found", tableName, columnName);
+                    LOGGER.finest(()->String.format("Database lookup for column config %s.%s: not found", tableName, columnName));
                     return null;
                 }
             }
@@ -358,7 +358,7 @@ public class MetadataManager {
         } catch (SQLException e) {
             String errorMsg = String.format("Failed to load encryption config for column %s.%s",
                                           tableName, columnName);
-            LOGGER.severe(errorMsg, e);
+            LOGGER.severe(()->errorMsg + " " + e.getMessage());
             throw new MetadataException(errorMsg, e);
         }
     }
@@ -413,7 +413,7 @@ public class MetadataManager {
      */
     private void stopAutomaticRefresh() {
         if (refreshExecutor != null && !refreshExecutor.isShutdown()) {
-            LOGGER.finest(()->String.format("Stopping automatic metadata refresh");
+            LOGGER.finest(()->String.format("Stopping automatic metadata refresh"));
             refreshExecutor.shutdown();
             try {
                 if (!refreshExecutor.awaitTermination(2, TimeUnit.SECONDS)) {
@@ -433,7 +433,7 @@ public class MetadataManager {
         Duration refreshInterval = config.getMetadataRefreshInterval();
 
         if (refreshInterval.isZero() || refreshInterval.isNegative()) {
-            LOGGER.info("Automatic metadata refresh disabled (interval: %s)", refreshInterval);
+            LOGGER.info(()->String.format("Automatic metadata refresh disabled (interval: %s)", refreshInterval));
             return;
         }
 
@@ -445,13 +445,13 @@ public class MetadataManager {
         long intervalMs = refreshInterval.toMillis();
         refreshExecutor.scheduleAtFixedRate(() -> {
             try {
-                LOGGER.finest(()->String.format("Performing automatic metadata refresh");
+                LOGGER.finest(()->"Performing automatic metadata refresh");
                 refreshMetadata();
             } catch (Exception e) {
-                LOGGER.warning("Automatic metadata refresh failed", e);
+                LOGGER.warning(()->String.format("Automatic metadata refresh failed", e.getMessage()));
             }
         }, intervalMs, intervalMs, TimeUnit.MILLISECONDS);
 
-        LOGGER.info("Started automatic metadata refresh every %sms", intervalMs);
+        LOGGER.info(()->String.format("Started automatic metadata refresh every %sms", intervalMs));
     }
 }

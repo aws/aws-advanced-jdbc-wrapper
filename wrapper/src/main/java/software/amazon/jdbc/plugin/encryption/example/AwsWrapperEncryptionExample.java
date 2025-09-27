@@ -34,7 +34,7 @@ import java.util.Properties;
  */
 public class AwsWrapperEncryptionExample {
 
-    private static final Logger LOGGER = Logger.getLogger(AwsWrapperEncryptionExample.class.getName()));
+    private static final Logger LOGGER = Logger.getLogger(AwsWrapperEncryptionExample.class.getName());
 
     public static void main(String[] args) {
         try {
@@ -48,7 +48,7 @@ public class AwsWrapperEncryptionExample {
             demonstrateWrappingExistingDataSource();
 
         } catch (Exception e) {
-            LOGGER.severe("Example execution failed", e);
+            LOGGER.severe(()->String.format("Example execution failed", e));
         }
     }
 
@@ -142,7 +142,7 @@ public class AwsWrapperEncryptionExample {
      * Performs sample database operations to demonstrate encryption/decryption.
      */
     private static void performDatabaseOperations(DataSource dataSource, String exampleName) {
-        LOGGER.info("Performing database operations for: %s", exampleName);
+        LOGGER.info(()->String.format("Performing database operations for: %s", exampleName));
 
         try (Connection connection = dataSource.getConnection()) {
 
@@ -155,10 +155,10 @@ public class AwsWrapperEncryptionExample {
             // Query and decrypt data
             queryTestData(connection);
 
-            LOGGER.info("Database operations completed successfully for: %s", exampleName);
+            LOGGER.info(()->String.format("Database operations completed successfully for: %s", exampleName));
 
         } catch (SQLException e) {
-            LOGGER.severe("Database operations failed for: " + exampleName, e);
+            LOGGER.severe(()->String.format("Database operations failed for: " + exampleName, e));
         }
     }
 
@@ -176,7 +176,7 @@ public class AwsWrapperEncryptionExample {
 
         try (PreparedStatement stmt = connection.prepareStatement(createTableSql)) {
             stmt.executeUpdate();
-            LOGGER.finest(()->String.format("Test table created or already exists");
+            LOGGER.finest(()->"Test table created or already exists");
         }
     }
 
@@ -220,7 +220,7 @@ public class AwsWrapperEncryptionExample {
                 String email = rs.getString("email");    // Will be decrypted if configured
                 String ssn = rs.getString("ssn");        // Will be decrypted if configured
 
-                LOGGER.info("User %s: Name=%s, Email=%s, SSN=%s", id, name, email, ssn);
+                LOGGER.info(()->String.format("User %s: Name=%s, Email=%s, SSN=%s", id, name, email, ssn));
             }
         }
     }
