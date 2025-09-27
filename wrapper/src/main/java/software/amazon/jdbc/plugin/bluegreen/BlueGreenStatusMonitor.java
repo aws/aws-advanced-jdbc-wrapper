@@ -57,7 +57,7 @@ import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 public class BlueGreenStatusMonitor {
 
@@ -599,7 +599,7 @@ public class BlueGreenStatusMonitor {
       return;
     }
 
-    final ConnectionInfo originalContext = this.pluginService.getConnectionInfo();
+    final ConnectConfig originalContext = this.pluginService.getConnectConfig();
     final Properties hostListProperties = originalContext.getProps();
 
     // Need to instantiate a separate HostListProvider with
@@ -616,7 +616,7 @@ public class BlueGreenStatusMonitor {
     if (connectionHostSpecCopy != null) {
       String hostListProviderUrl =
           String.format("%s%s/", originalContext.getProtocol(), connectionHostSpecCopy.getHostAndPort());
-      ConnectionInfo newContext = new ConnectionInfo(
+      ConnectConfig newContext = new ConnectConfig(
           hostListProviderUrl, originalContext.getProtocol(), originalContext.getDriverDialect(), hostListProperties);
       this.hostListProvider =
           this.pluginService.getDialect().getHostListProvider().getProvider(newContext, this.servicesContainer);

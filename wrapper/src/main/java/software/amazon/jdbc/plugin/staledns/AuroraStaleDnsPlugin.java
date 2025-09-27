@@ -32,7 +32,7 @@ import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 /**
  * After Aurora DB cluster fail over is completed and a cluster has elected a new writer node, the corresponding
@@ -76,17 +76,17 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
 
   @Override
   public Connection connect(
-      final ConnectionInfo connectionInfo,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
     return this.helper.getVerifiedConnection(
-        isInitialConnection, this.hostListProviderService, connectionInfo, hostSpec, connectFunc);
+        isInitialConnection, this.hostListProviderService, connectConfig, hostSpec, connectFunc);
   }
 
   @Override
   public void initHostProvider(
-      final ConnectionInfo connectionInfo,
+      final ConnectConfig connectConfig,
       final HostListProviderService hostListProviderService,
       final JdbcCallable<Void, SQLException> initHostProviderFunc) throws SQLException {
     this.hostListProviderService = hostListProviderService;

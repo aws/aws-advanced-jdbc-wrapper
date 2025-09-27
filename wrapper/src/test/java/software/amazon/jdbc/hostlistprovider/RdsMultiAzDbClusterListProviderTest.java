@@ -60,7 +60,7 @@ import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider.FetchTopologyResult;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.TestStorageServiceImpl;
@@ -111,9 +111,9 @@ class RdsMultiAzDbClusterListProviderTest {
   }
 
   private RdsMultiAzDbClusterListProvider getRdsMazDbClusterHostListProvider(String originalUrl) throws SQLException {
-    ConnectionInfo connectionInfo = new ConnectionInfo(originalUrl, mockDriverDialect, new Properties());
+    ConnectConfig connectConfig = new ConnectConfig(originalUrl, mockDriverDialect, new Properties());
     RdsMultiAzDbClusterListProvider provider = new RdsMultiAzDbClusterListProvider(
-        connectionInfo,
+        connectConfig,
         mockServicesContainer,
         "foo",
         "bar",

@@ -68,7 +68,7 @@ import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -89,14 +89,14 @@ public class ConnectionPluginManagerBenchmarks {
   private static final String FIELD_SERVER_ID = "SERVER_ID";
   private static final String FIELD_SESSION_ID = "SESSION_ID";
   private static final String url = "protocol//url";
-  private ConnectionInfo pluginsContext;
-  private ConnectionInfo noPluginsContext;
+  private ConnectConfig pluginsContext;
+  private ConnectConfig noPluginsContext;
   private ConnectionPluginManager pluginManager;
   private ConnectionPluginManager pluginManagerWithNoPlugins;
 
   @Mock ConnectionProvider mockConnectionProvider;
   @Mock ConnectionWrapper mockConnectionWrapper;
-  @Mock ConnectionInfo mockConnectionInfo;
+  @Mock ConnectConfig mockConnectConfig;
   @Mock FullServicesContainer mockServicesContainer;
   @Mock PluginService mockPluginService;
   @Mock PluginManagerService mockPluginManagerService;
@@ -153,12 +153,12 @@ public class ConnectionPluginManagerBenchmarks {
 
     Properties noPluginsProps = new Properties();
     noPluginsProps.setProperty(PropertyDefinition.PLUGINS.name, "");
-    this.noPluginsContext = new ConnectionInfo(url, mockDriverDialect, noPluginsProps);
+    this.noPluginsContext = new ConnectConfig(url, mockDriverDialect, noPluginsProps);
 
     Properties pluginsProps = new Properties();
     pluginsProps.setProperty(PropertyDefinition.PROFILE_NAME.name, "benchmark");
     pluginsProps.setProperty(PropertyDefinition.ENABLE_TELEMETRY.name, "false");
-    this.pluginsContext = new ConnectionInfo(url, mockDriverDialect, pluginsProps);
+    this.pluginsContext = new ConnectConfig(url, mockDriverDialect, pluginsProps);
 
     TelemetryFactory telemetryFactory = new DefaultTelemetryFactory(pluginsProps);
 
@@ -197,7 +197,7 @@ public class ConnectionPluginManagerBenchmarks {
   @Benchmark
   public Connection connectWithPlugins() throws SQLException {
     return pluginManager.connect(
-        mockConnectionInfo,
+        mockConnectConfig,
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host").build(),
         true,
         null);
@@ -206,7 +206,7 @@ public class ConnectionPluginManagerBenchmarks {
   @Benchmark
   public Connection connectWithNoPlugins() throws SQLException {
     return pluginManagerWithNoPlugins.connect(
-        mockConnectionInfo,
+        mockConnectConfig,
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host").build(),
         true,
         null);

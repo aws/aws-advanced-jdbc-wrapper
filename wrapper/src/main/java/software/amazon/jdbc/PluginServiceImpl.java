@@ -53,7 +53,7 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Utils;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.storage.CacheMap;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -70,7 +70,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected static final long DEFAULT_STATUS_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(60);
 
   protected final ConnectionPluginManager pluginManager;
-  protected final ConnectionInfo connectionInfo;
+  protected final ConnectConfig connectConfig;
   protected volatile HostListProvider hostListProvider;
   protected List<HostSpec> allHosts = new ArrayList<>();
   protected Connection currentConnection;
@@ -88,19 +88,19 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected final ReentrantLock connectionSwitchLock = new ReentrantLock();
 
   public PluginServiceImpl(
-      @NonNull final FullServicesContainer servicesContainer, @NonNull final ConnectionInfo connectionInfo)
+      @NonNull final FullServicesContainer servicesContainer, @NonNull final ConnectConfig connectConfig)
       throws SQLException {
-    this(servicesContainer, new ExceptionManager(), connectionInfo, null, null, null);
+    this(servicesContainer, new ExceptionManager(), connectConfig, null, null, null);
   }
 
   public PluginServiceImpl(
       @NonNull final FullServicesContainer servicesContainer,
-      @NonNull final ConnectionInfo connectionInfo,
+      @NonNull final ConnectConfig connectConfig,
       @Nullable final ConfigurationProfile configurationProfile) throws SQLException {
     this(
         servicesContainer,
         new ExceptionManager(),
-        connectionInfo,
+        connectConfig,
         null,
         configurationProfile,
         null);
@@ -109,13 +109,13 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   public PluginServiceImpl(
       @NonNull final FullServicesContainer servicesContainer,
       @NonNull final ExceptionManager exceptionManager,
-      @NonNull final ConnectionInfo connectionInfo,
+      @NonNull final ConnectConfig connectConfig,
       @Nullable final DialectProvider dialectProvider,
       @Nullable final ConfigurationProfile configurationProfile,
       @Nullable final SessionStateService sessionStateService) throws SQLException {
     this.servicesContainer = servicesContainer;
     this.pluginManager = servicesContainer.getConnectionPluginManager();
-    this.connectionInfo = connectionInfo;
+    this.connectConfig = connectConfig;
     this.configurationProfile = configurationProfile;
     this.exceptionManager = exceptionManager;
     this.dialectProvider = dialectProvider != null ? dialectProvider : new DialectManager(this);
@@ -125,7 +125,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
     this.sessionStateService = sessionStateService != null
         ? sessionStateService
-        : new SessionStateServiceImpl(this, this.connectionInfo.getProps());
+        : new SessionStateServiceImpl(this, this.connectConfig.getProps());
 
     this.exceptionHandler = this.configurationProfile != null && this.configurationProfile.getExceptionHandler() != null
         ? this.configurationProfile.getExceptionHandler()
@@ -133,8 +133,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
     Dialect dialect = this.configurationProfile != null && this.configurationProfile.getDialect() != null
         ? this.configurationProfile.getDialect()
-        : this.dialectProvider.getDialect(this.connectionInfo);
-    this.connectionInfo.setDbDialect(dialect);
+        : this.dialectProvider.getDialect(this.connectConfig);
+    this.connectConfig.setDbDialect(dialect);
   }
 
   @Override
@@ -185,13 +185,13 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public ConnectionInfo getConnectionInfo() {
-    return this.connectionInfo;
+  public ConnectConfig getConnectConfig() {
+    return this.connectConfig;
   }
 
   @Override
   public String getOriginalUrl() {
-    return this.connectionInfo.getInitialConnectionString();
+    return this.connectConfig.getInitialConnectionString();
   }
 
   @Override
@@ -233,13 +233,13 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   public boolean isPooledConnectionProvider(HostSpec host, Properties props) {
     final ConnectionProvider connectionProvider =
-        this.connectionProviderManager.getConnectionProvider(this.connectionInfo, host);
+        this.connectionProviderManager.getConnectionProvider(this.connectConfig, host);
     return (connectionProvider instanceof PooledConnectionProvider);
   }
 
   @Override
   public String getDriverProtocol() {
-    return this.getConnectionInfo().getProtocol();
+    return this.getConnectConfig().getProtocol();
   }
 
   @Override
@@ -291,7 +291,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
             this.setInTransaction(false);
 
             if (isInTransaction
-                && PropertyDefinition.ROLLBACK_ON_SWITCH.getBoolean(this.connectionInfo.getProps())) {
+                && PropertyDefinition.ROLLBACK_ON_SWITCH.getBoolean(this.connectConfig.getProps())) {
               try {
                 oldConnection.rollback();
               } catch (final SQLException e) {
@@ -592,7 +592,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       final @Nullable ConnectionPlugin pluginToSkip)
       throws SQLException {
     return this.pluginManager.connect(
-        this.connectionInfo, hostSpec, this.currentConnection == null, pluginToSkip);
+        this.connectConfig, hostSpec, this.currentConnection == null, pluginToSkip);
   }
 
   @Override
@@ -610,7 +610,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       final @Nullable ConnectionPlugin pluginToSkip)
       throws SQLException {
     return this.pluginManager.forceConnect(
-        this.connectionInfo, hostSpec, this.currentConnection == null, pluginToSkip);
+        this.connectConfig, hostSpec, this.currentConnection == null, pluginToSkip);
   }
 
   private void updateHostAvailability(final List<HostSpec> hosts) {
@@ -643,7 +643,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   @Deprecated
   public boolean isNetworkException(Throwable throwable) {
-    return this.isNetworkException(throwable, this.connectionInfo.getDriverDialect());
+    return this.isNetworkException(throwable, this.connectConfig.getDriverDialect());
   }
 
   @Override
@@ -651,7 +651,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     if (this.exceptionHandler != null) {
       return this.exceptionHandler.isNetworkException(throwable, targetDriverDialect);
     }
-    return this.exceptionManager.isNetworkException(this.connectionInfo.getDbDialect(), throwable, targetDriverDialect);
+    return this.exceptionManager.isNetworkException(this.connectConfig.getDbDialect(), throwable, targetDriverDialect);
   }
 
   @Override
@@ -659,13 +659,13 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     if (this.exceptionHandler != null) {
       return this.exceptionHandler.isNetworkException(sqlState);
     }
-    return this.exceptionManager.isNetworkException(this.connectionInfo.getDbDialect(), sqlState);
+    return this.exceptionManager.isNetworkException(this.connectConfig.getDbDialect(), sqlState);
   }
 
   @Override
   @Deprecated
   public boolean isLoginException(Throwable throwable) {
-    return this.isLoginException(throwable, this.connectionInfo.getDriverDialect());
+    return this.isLoginException(throwable, this.connectConfig.getDriverDialect());
   }
 
   @Override
@@ -673,7 +673,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     if (this.exceptionHandler != null) {
       return this.exceptionHandler.isLoginException(throwable, targetDriverDialect);
     }
-    return this.exceptionManager.isLoginException(this.connectionInfo.getDbDialect(), throwable, targetDriverDialect);
+    return this.exceptionManager.isLoginException(this.connectConfig.getDbDialect(), throwable, targetDriverDialect);
   }
 
   @Override
@@ -681,30 +681,30 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     if (this.exceptionHandler != null) {
       return this.exceptionHandler.isLoginException(sqlState);
     }
-    return this.exceptionManager.isLoginException(this.connectionInfo.getDbDialect(), sqlState);
+    return this.exceptionManager.isLoginException(this.connectConfig.getDbDialect(), sqlState);
   }
 
   @Override
   public Dialect getDialect() {
-    return this.connectionInfo.getDbDialect();
+    return this.connectConfig.getDbDialect();
   }
 
   @Override
   public TargetDriverDialect getTargetDriverDialect() {
-    return this.connectionInfo.getDriverDialect();
+    return this.connectConfig.getDriverDialect();
   }
 
   public void updateDialect(final @NonNull Connection connection) throws SQLException {
-    final Dialect originalDialect = this.connectionInfo.getDbDialect();
+    final Dialect originalDialect = this.connectConfig.getDbDialect();
     Dialect currentDialect = this.dialectProvider.getDialect(
-        this.connectionInfo.getInitialConnectionString(), this.initialConnectionHostSpec, connection);
+        this.connectConfig.getInitialConnectionString(), this.initialConnectionHostSpec, connection);
     if (originalDialect == currentDialect) {
       return;
     }
 
-    this.connectionInfo.setDbDialect(currentDialect);
-    final HostListProviderSupplier supplier = this.connectionInfo.getDbDialect().getHostListProvider();
-    this.setHostListProvider(supplier.getProvider(this.connectionInfo, this.servicesContainer));
+    this.connectConfig.setDbDialect(currentDialect);
+    final HostListProviderSupplier supplier = this.connectConfig.getDbDialect().getHostListProvider();
+    this.setHostListProvider(supplier.getProvider(this.connectConfig, this.servicesContainer));
     this.refreshHostList(connection);
   }
 
@@ -747,12 +747,12 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   @Override
   public HostSpecBuilder getHostSpecBuilder() {
-    return new HostSpecBuilder(new HostAvailabilityStrategyFactory().create(this.connectionInfo.getProps()));
+    return new HostSpecBuilder(new HostAvailabilityStrategyFactory().create(this.connectConfig.getProps()));
   }
 
   @Override
   public Properties getProperties() {
-    return this.connectionInfo.getProps();
+    return this.connectConfig.getProps();
   }
 
   public TelemetryFactory getTelemetryFactory() {

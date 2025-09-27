@@ -40,7 +40,7 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.RegionUtils;
 import software.amazon.jdbc.util.StringUtils;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryGauge;
@@ -107,18 +107,18 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
 
   @Override
   public Connection connect(
-      final ConnectionInfo connectionInfo,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
-    return connectInternal(connectionInfo, hostSpec, connectFunc);
+    return connectInternal(connectConfig, hostSpec, connectFunc);
   }
 
   private Connection connectInternal(
-      ConnectionInfo connectionInfo,
+      ConnectConfig connectConfig,
       HostSpec hostSpec,
       JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
-    Properties props = connectionInfo.getProps();
+    Properties props = connectConfig.getProps();
     if (StringUtils.isNullOrEmpty(PropertyDefinition.USER.getString(props))) {
       throw new SQLException(PropertyDefinition.USER.name + " is null or empty.");
     }
@@ -226,12 +226,12 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
 
   @Override
   public Connection forceConnect(
-      final @NonNull ConnectionInfo connectionInfo,
+      final @NonNull ConnectConfig connectConfig,
       final @NonNull HostSpec hostSpec,
       final boolean isInitialConnection,
       final @NonNull JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
-    return connectInternal(connectionInfo, hostSpec, forceConnectFunc);
+    return connectInternal(connectConfig, hostSpec, forceConnectFunc);
   }
 
   public static void clearCache() {

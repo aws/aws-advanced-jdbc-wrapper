@@ -33,7 +33,7 @@ import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 /**
  * This class is a basic implementation of {@link ConnectionProvider} interface. It creates and
@@ -63,7 +63,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
   }
 
   @Override
-  public boolean acceptsUrl(@NonNull ConnectionInfo connectionInfo, @NonNull HostSpec hostSpec) {
+  public boolean acceptsUrl(@NonNull ConnectConfig connectConfig, @NonNull HostSpec hostSpec) {
     return true;
   }
 
@@ -89,19 +89,19 @@ public class DriverConnectionProvider implements ConnectionProvider {
   /**
    * Called once per connection that needs to be created.
    *
-   * @param connectionInfo the connection info for the original connection.
+   * @param connectConfig the connection info for the original connection.
    * @param hostSpec The HostSpec containing the host-port information for the host to connect to
    * @return {@link Connection} resulting from the given connection information
    * @throws SQLException if an error occurs
    */
   @Override
-  public Connection connect(final @NonNull ConnectionInfo connectionInfo, final @NonNull HostSpec hostSpec)
+  public Connection connect(final @NonNull ConnectConfig connectConfig, final @NonNull HostSpec hostSpec)
       throws SQLException {
-    final Properties propsCopy = PropertyUtils.copyProperties(connectionInfo.getProps());
+    final Properties propsCopy = PropertyUtils.copyProperties(connectConfig.getProps());
     final ConnectInfo connectInfo =
-        connectionInfo.getDriverDialect().prepareConnectInfo(connectionInfo.getProtocol(), hostSpec, propsCopy);
+        connectConfig.getDriverDialect().prepareConnectInfo(connectConfig.getProtocol(), hostSpec, propsCopy);
 
-    connectionInfo.getDbDialect().prepareConnectProperties(propsCopy, connectionInfo.getProtocol(), hostSpec);
+    connectConfig.getDbDialect().prepareConnectProperties(propsCopy, connectConfig.getProtocol(), hostSpec);
     LOGGER.finest(() -> "Connecting to " + connectInfo.url
         + PropertyUtils.logProperties(
             PropertyUtils.maskProperties(connectInfo.props),
@@ -158,8 +158,8 @@ public class DriverConnectionProvider implements ConnectionProvider {
           .host(fixedHost)
           .build();
 
-      final ConnectInfo fixedConnectInfo = connectionInfo.getDriverDialect().prepareConnectInfo(
-          connectionInfo.getProtocol(), connectionHostSpec, propsCopy);
+      final ConnectInfo fixedConnectInfo = connectConfig.getDriverDialect().prepareConnectInfo(
+          connectConfig.getProtocol(), connectionHostSpec, propsCopy);
 
       LOGGER.finest(() -> "Connecting to " + fixedConnectInfo.url
           + " after correcting the hostname from " + originalHost

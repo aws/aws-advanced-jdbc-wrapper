@@ -64,7 +64,7 @@ import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.WrapperUtils;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
@@ -76,7 +76,7 @@ public class ConnectionPluginManagerTests {
   @Mock JdbcCallable<Void, SQLException> mockSqlFunction;
   @Mock ConnectionProvider mockConnectionProvider;
   @Mock ConnectionWrapper mockConnectionWrapper;
-  @Mock ConnectionInfo mockConnectionInfo;
+  @Mock ConnectConfig mockConnectConfig;
   @Mock TelemetryFactory mockTelemetryFactory;
   @Mock TelemetryContext mockTelemetryContext;
   @Mock FullServicesContainer mockServicesContainer;
@@ -242,7 +242,7 @@ public class ConnectionPluginManagerTests {
         new ConnectionPluginManager(mockConnectionProvider,
             null, testProperties, testPlugins, mockConnectionWrapper, mockTelemetryFactory);
 
-    final Connection conn = target.connect(mockConnectionInfo,
+    final Connection conn = target.connect(mockConnectConfig,
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
         true, null);
 
@@ -275,7 +275,7 @@ public class ConnectionPluginManagerTests {
             null, testProperties, testPlugins, mockConnectionWrapper, mockTelemetryFactory);
 
     final Connection conn = target.connect(
-        mockConnectionInfo,
+        mockConnectConfig,
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
         true,
         pluginOne);
@@ -308,7 +308,7 @@ public class ConnectionPluginManagerTests {
             null, testProperties, testPlugins, mockConnectionWrapper, mockTelemetryFactory);
 
     final Connection conn = target.forceConnect(
-        mockConnectionInfo,
+        mockConnectConfig,
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
         true,
         null);
@@ -341,7 +341,7 @@ public class ConnectionPluginManagerTests {
     assertThrows(
         SQLException.class,
         () -> target.connect(
-            mockConnectionInfo,
+            mockConnectConfig,
             new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
             true,
             null));
@@ -370,7 +370,7 @@ public class ConnectionPluginManagerTests {
     assertThrows(
         SQLException.class,
         () -> target.connect(
-            mockConnectionInfo,
+            mockConnectConfig,
             new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
             true,
             null));
@@ -402,7 +402,7 @@ public class ConnectionPluginManagerTests {
     assertThrows(
         IllegalArgumentException.class,
         () -> target.connect(
-            mockConnectionInfo,
+            mockConnectConfig,
             new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
             true,
             null));
@@ -431,7 +431,7 @@ public class ConnectionPluginManagerTests {
     assertThrows(
         IllegalArgumentException.class,
         () -> target.connect(
-            mockConnectionInfo,
+            mockConnectConfig,
             new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
             true,
             null));
@@ -537,7 +537,7 @@ public class ConnectionPluginManagerTests {
             null, testProperties, testPlugins, mockConnectionWrapper, mockTelemetryFactory));
 
     Object result = target.forceConnect(
-        mockConnectionInfo,
+        mockConnectConfig,
         testHostSpec,
         true,
         null);
@@ -556,7 +556,7 @@ public class ConnectionPluginManagerTests {
     calls.clear();
 
     result = target.forceConnect(
-        mockConnectionInfo,
+        mockConnectConfig,
         testHostSpec,
         true,
         null);

@@ -55,7 +55,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.SqlState;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 public class ReadWriteSplittingPluginTest {
   private static final int TEST_PORT = 5432;
@@ -101,7 +101,7 @@ public class ReadWriteSplittingPluginTest {
   @Mock private Connection mockReaderConn3;
   @Mock private Statement mockStatement;
   @Mock private ResultSet mockResultSet;
-  @Mock private ConnectionInfo mockConnectionInfo;
+  @Mock private ConnectConfig mockConnectConfig;
   @Mock private EnumSet<NodeChangeOptions> mockChanges;
 
   @BeforeEach
@@ -402,7 +402,7 @@ public class ReadWriteSplittingPluginTest {
         null);
 
     final Connection connection =
-        plugin.connect(mockConnectionInfo, writerHostSpec, false, this.mockConnectFunc);
+        plugin.connect(mockConnectConfig, writerHostSpec, false, this.mockConnectFunc);
 
     assertEquals(mockWriterConn, connection);
     verify(mockConnectFunc).call();
@@ -421,7 +421,7 @@ public class ReadWriteSplittingPluginTest {
         null,
         null);
     final Connection connection = plugin.connect(
-        mockConnectionInfo,
+        mockConnectConfig,
         instanceUrlHostSpec,
         true,
         this.mockConnectFunc);
@@ -443,7 +443,7 @@ public class ReadWriteSplittingPluginTest {
         null,
         null);
     final Connection connection =
-        plugin.connect(mockConnectionInfo, ipUrlHostSpec, true, this.mockConnectFunc);
+        plugin.connect(mockConnectConfig, ipUrlHostSpec, true, this.mockConnectFunc);
 
     assertEquals(mockReaderConn1, connection);
     verify(mockConnectFunc).call();
@@ -459,7 +459,7 @@ public class ReadWriteSplittingPluginTest {
         null,
         null);
     final Connection connection =
-        plugin.connect(mockConnectionInfo, clusterUrlHostSpec, true, this.mockConnectFunc);
+        plugin.connect(mockConnectConfig, clusterUrlHostSpec, true, this.mockConnectFunc);
 
     assertEquals(mockWriterConn, connection);
     verify(mockConnectFunc).call();
@@ -480,7 +480,7 @@ public class ReadWriteSplittingPluginTest {
     assertThrows(
         SQLException.class,
         () -> plugin.connect(
-            mockConnectionInfo,
+            mockConnectConfig,
             ipUrlHostSpec,
             true,
             this.mockConnectFunc));

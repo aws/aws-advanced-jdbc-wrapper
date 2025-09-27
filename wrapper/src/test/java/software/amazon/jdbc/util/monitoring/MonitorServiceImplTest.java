@@ -39,7 +39,7 @@ import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -47,7 +47,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 class MonitorServiceImplTest {
   @Mock FullServicesContainer mockServicesContainer;
   @Mock StorageService mockStorageService;
-  @Mock ConnectionInfo mockConnectionInfo;
+  @Mock ConnectConfig mockConnectConfig;
   @Mock ConnectionProvider mockConnectionProvider;
   @Mock TelemetryFactory mockTelemetryFactory;
   @Mock EventPublisher mockPublisher;
@@ -63,7 +63,7 @@ class MonitorServiceImplTest {
         eq(mockStorageService),
         eq(mockConnectionProvider),
         eq(mockTelemetryFactory),
-        eq(mockConnectionInfo));
+        eq(mockConnectConfig));
   }
 
   @AfterEach
@@ -88,7 +88,7 @@ class MonitorServiceImplTest {
         mockStorageService,
         mockTelemetryFactory,
         mockConnectionProvider,
-        mockConnectionInfo,
+        mockConnectConfig,
         (mockServicesContainer) -> new NoOpMonitor(30)
     );
 
@@ -128,7 +128,7 @@ class MonitorServiceImplTest {
         mockStorageService,
         mockTelemetryFactory,
         mockConnectionProvider,
-        mockConnectionInfo,
+        mockConnectConfig,
         (mockServicesContainer) -> new NoOpMonitor(30)
     );
 
@@ -170,7 +170,7 @@ class MonitorServiceImplTest {
         mockStorageService,
         mockTelemetryFactory,
         mockConnectionProvider,
-        mockConnectionInfo,
+        mockConnectConfig,
         (mockServicesContainer) -> new NoOpMonitor(30)
     );
 
@@ -199,7 +199,7 @@ class MonitorServiceImplTest {
         mockStorageService,
         mockTelemetryFactory,
         mockConnectionProvider,
-        mockConnectionInfo,
+        mockConnectConfig,
         // indicated monitor class is CustomEndpointMonitorImpl, but actual monitor is NoOpMonitor. The monitor
         // service should detect this and throw an exception.
         (mockServicesContainer) -> new NoOpMonitor(30)
@@ -225,7 +225,7 @@ class MonitorServiceImplTest {
         mockStorageService,
         mockTelemetryFactory,
         mockConnectionProvider,
-        mockConnectionInfo,
+        mockConnectConfig,
         (mockServicesContainer) -> new NoOpMonitor(30)
     );
     assertNotNull(monitor);
@@ -256,7 +256,7 @@ class MonitorServiceImplTest {
         mockStorageService,
         mockTelemetryFactory,
         mockConnectionProvider,
-        mockConnectionInfo,
+        mockConnectConfig,
         (mockServicesContainer) -> new NoOpMonitor(30)
     );
     assertNotNull(monitor);

@@ -29,7 +29,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 public abstract class AbstractConnectionPlugin implements ConnectionPlugin {
 
@@ -50,7 +50,7 @@ public abstract class AbstractConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public Connection connect(
-      final ConnectionInfo connectionInfo,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
@@ -60,7 +60,7 @@ public abstract class AbstractConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public Connection forceConnect(
-      final ConnectionInfo connectionInfo,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> forceConnectFunc)
@@ -87,7 +87,7 @@ public abstract class AbstractConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public void initHostProvider(
-      final ConnectionInfo connectionInfo,
+      final ConnectConfig connectConfig,
       final HostListProviderService hostListProviderService,
       final JdbcCallable<Void, SQLException> initHostProviderFunc)
       throws SQLException {

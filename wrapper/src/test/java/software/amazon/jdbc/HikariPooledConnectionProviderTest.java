@@ -50,12 +50,12 @@ import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Pair;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.storage.SlidingExpirationCache;
 
 class HikariPooledConnectionProviderTest {
   @Mock Connection mockConnection;
-  @Mock ConnectionInfo mockConnectionInfo;
+  @Mock ConnectConfig mockConnectConfig;
   @Mock HikariDataSource mockDataSource;
   @Mock HostSpec mockHostSpec;
   @Mock HikariConfig mockConfig;
@@ -117,10 +117,10 @@ class HikariPooledConnectionProviderTest {
     when(mxBeanWith1Connection.getActiveConnections()).thenReturn(1);
     when(dsWith2Connections.getHikariPoolMXBean()).thenReturn(mxBeanWith2Connections);
     when(mxBeanWith2Connections.getActiveConnections()).thenReturn(2);
-    when(mockConnectionInfo.getDriverDialect()).thenReturn(mockDriverDialect);
-    when(mockConnectionInfo.getDbDialect()).thenReturn(mockDbDialect);
-    when(mockConnectionInfo.getProps()).thenReturn(defaultProps);
-    when(mockConnectionInfo.getProtocol()).thenReturn(protocol);
+    when(mockConnectConfig.getDriverDialect()).thenReturn(mockDriverDialect);
+    when(mockConnectConfig.getDbDialect()).thenReturn(mockDbDialect);
+    when(mockConnectConfig.getProps()).thenReturn(defaultProps);
+    when(mockConnectConfig.getProtocol()).thenReturn(protocol);
   }
 
   @AfterEach
@@ -144,7 +144,7 @@ class HikariPooledConnectionProviderTest {
     doReturn(new ConnectInfo("url", new Properties()))
         .when(mockDriverDialect).prepareConnectInfo(anyString(), any(), any());
 
-    try (Connection conn = provider.connect(mockConnectionInfo, mockHostSpec)) {
+    try (Connection conn = provider.connect(mockConnectConfig, mockHostSpec)) {
       assertEquals(mockConnection, conn);
       assertEquals(1, provider.getHostCount());
       final Set<String> hosts = provider.getHosts();
@@ -169,7 +169,7 @@ class HikariPooledConnectionProviderTest {
     Properties props = new Properties();
     props.setProperty(PropertyDefinition.USER.name, user1);
     props.setProperty(PropertyDefinition.PASSWORD.name, password);
-    try (Connection conn = provider.connect(mockConnectionInfo, mockHostSpec)) {
+    try (Connection conn = provider.connect(mockConnectConfig, mockHostSpec)) {
       assertEquals(mockConnection, conn);
       assertEquals(1, provider.getHostCount());
       final Set<Pair<String, String>> keys = provider.getKeys();
@@ -184,11 +184,11 @@ class HikariPooledConnectionProviderTest {
 
     assertTrue(
         provider.acceptsUrl(
-            mockConnectionInfo,
+            mockConnectConfig,
             new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host(readerUrl2Connection).build()));
     assertFalse(
         provider.acceptsUrl(
-            mockConnectionInfo,
+            mockConnectConfig,
             new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host(clusterUrl).build()));
   }
 
@@ -231,7 +231,7 @@ class HikariPooledConnectionProviderTest {
     doReturn(new ConnectInfo(protocol + readerHost1Connection.getUrl() + db, defaultProps))
         .when(mockDriverDialect).prepareConnectInfo(anyString(), any(), any());
 
-    provider.configurePool(mockConfig, mockConnectionInfo, readerHost1Connection, defaultProps);
+    provider.configurePool(mockConfig, mockConnectConfig, readerHost1Connection, defaultProps);
     verify(mockConfig).setJdbcUrl(expectedJdbcUrl);
     verify(mockConfig).setUsername(user1);
     verify(mockConfig).setPassword(password);
@@ -242,10 +242,10 @@ class HikariPooledConnectionProviderTest {
     provider = spy(new HikariPooledConnectionProvider((hostSpec, properties) -> mockConfig));
 
     doReturn(mockDataSource).when(provider)
-        .createHikariDataSource(eq(mockConnectionInfo), eq(readerHost1Connection), eq(defaultProps));
+        .createHikariDataSource(eq(mockConnectConfig), eq(readerHost1Connection), eq(defaultProps));
     when(mockDataSource.getConnection()).thenThrow(SQLException.class);
 
     assertThrows(SQLException.class,
-        () -> provider.connect(mockConnectionInfo, readerHost1Connection));
+        () -> provider.connect(mockConnectConfig, readerHost1Connection));
   }
 }

@@ -44,7 +44,7 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.WrapperUtils;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     implements CanReleaseResources {
@@ -125,7 +125,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
 
   @Override
   public void initHostProvider(
-      final ConnectionInfo connectionInfo,
+      final ConnectConfig connectConfig,
       final HostListProviderService hostListProviderService,
       final JdbcCallable<Void, SQLException> initHostProviderFunc)
       throws SQLException {
@@ -135,7 +135,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
 
   @Override
   public Connection connect(
-      final ConnectionInfo connectionInfo,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {

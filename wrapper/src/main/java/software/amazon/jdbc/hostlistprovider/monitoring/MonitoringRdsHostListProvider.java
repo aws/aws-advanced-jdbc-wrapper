@@ -31,7 +31,7 @@ import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 
@@ -56,18 +56,18 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
   protected final String writerTopologyQuery;
 
   public MonitoringRdsHostListProvider(
-      final ConnectionInfo connectionInfo,
+      final ConnectConfig connectConfig,
       final FullServicesContainer servicesContainer,
       final String topologyQuery,
       final String nodeIdQuery,
       final String isReaderQuery,
       final String writerTopologyQuery) {
-    super(connectionInfo, servicesContainer, topologyQuery, nodeIdQuery, isReaderQuery);
+    super(connectConfig, servicesContainer, topologyQuery, nodeIdQuery, isReaderQuery);
     this.servicesContainer = servicesContainer;
     this.pluginService = servicesContainer.getPluginService();
     this.writerTopologyQuery = writerTopologyQuery;
     this.highRefreshRateNano = TimeUnit.MILLISECONDS.toNanos(
-        CLUSTER_TOPOLOGY_HIGH_REFRESH_RATE_MS.getLong(this.connectionInfo.getProps()));
+        CLUSTER_TOPOLOGY_HIGH_REFRESH_RATE_MS.getLong(this.connectConfig.getProps()));
   }
 
   public static void clearCache() {
@@ -86,12 +86,12 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
         this.servicesContainer.getStorageService(),
         this.servicesContainer.getTelemetryFactory(),
         this.servicesContainer.getDefaultConnectionProvider(),
-        this.connectionInfo,
+        this.connectConfig,
         (servicesContainer) -> new ClusterTopologyMonitorImpl(
             this.servicesContainer,
             this.clusterId,
             this.initialHostSpec,
-            this.connectionInfo.getProps(),
+            this.connectConfig.getProps(),
             this.clusterInstanceTemplate,
             this.refreshRateNano,
             this.highRefreshRateNano,
@@ -127,7 +127,7 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
           this.servicesContainer.getStorageService(),
           this.servicesContainer.getTelemetryFactory(),
           this.servicesContainer.getDefaultConnectionProvider(),
-          this.connectionInfo,
+          this.connectConfig,
           (servicesContainer) -> existingMonitor);
       assert monitorService.get(ClusterTopologyMonitorImpl.class, this.clusterId) == existingMonitor;
       existingMonitor.setClusterId(this.clusterId);

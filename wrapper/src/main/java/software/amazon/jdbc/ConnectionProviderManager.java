@@ -23,7 +23,7 @@ import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 public class ConnectionProviderManager {
 
@@ -66,19 +66,19 @@ public class ConnectionProviderManager {
    * non-default ConnectionProvider will be returned. Otherwise, the default ConnectionProvider will
    * be returned. See {@link ConnectionProvider#acceptsUrl} for more info.
    *
-   * @param connectionInfo the connection info for the original connection.
+   * @param connectConfig the connection info for the original connection.
    * @param host              the host info for the connection that will be established
    * @return the {@link ConnectionProvider} to use to establish a connection using the given driver
    *     protocol, host details, and properties
    */
-  public ConnectionProvider getConnectionProvider(ConnectionInfo connectionInfo, HostSpec host) {
+  public ConnectionProvider getConnectionProvider(ConnectConfig connectConfig, HostSpec host) {
 
     final ConnectionProvider customConnectionProvider = Driver.getCustomConnectionProvider();
-    if (customConnectionProvider != null && customConnectionProvider.acceptsUrl(connectionInfo, host)) {
+    if (customConnectionProvider != null && customConnectionProvider.acceptsUrl(connectConfig, host)) {
       return customConnectionProvider;
     }
 
-    if (this.effectiveConnProvider != null && this.effectiveConnProvider.acceptsUrl(connectionInfo, host)) {
+    if (this.effectiveConnProvider != null && this.effectiveConnProvider.acceptsUrl(connectConfig, host)) {
       return this.effectiveConnProvider;
     }
 
@@ -207,7 +207,7 @@ public class ConnectionProviderManager {
 
   public void initConnection(
       final @Nullable Connection connection,
-      final @NonNull ConnectionInfo connectionInfo,
+      final @NonNull ConnectConfig connectConfig,
       final @NonNull HostSpec hostSpec) throws SQLException {
 
     final ConnectionInitFunc connectionInitFunc = Driver.getConnectionInitFunc();
@@ -215,13 +215,13 @@ public class ConnectionProviderManager {
       return;
     }
 
-    connectionInitFunc.initConnection(connection, connectionInfo, hostSpec);
+    connectionInitFunc.initConnection(connection, connectConfig, hostSpec);
   }
 
   public interface ConnectionInitFunc {
     void initConnection(
         final @Nullable Connection connection,
-        final @NonNull ConnectionInfo connectionInfo,
+        final @NonNull ConnectConfig connectConfig,
         final @NonNull HostSpec hostSpec) throws SQLException;
   }
 }

@@ -54,7 +54,7 @@ import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 public class AuroraConnectionTrackerPluginTest {
 
@@ -112,10 +112,10 @@ public class AuroraConnectionTrackerPluginTest {
         mockRdsUtils,
         mockTracker);
 
-    final ConnectionInfo connectionInfo =
-        new ConnectionInfo(protocol + hostSpec.getHost(), mockDriverDialect, EMPTY_PROPERTIES);
+    final ConnectConfig connectConfig =
+        new ConnectConfig(protocol + hostSpec.getHost(), mockDriverDialect, EMPTY_PROPERTIES);
     final Connection actualConnection = plugin.connect(
-        connectionInfo,
+        connectConfig,
         hostSpec,
         isInitialConnection,
         mockConnectionFunction);

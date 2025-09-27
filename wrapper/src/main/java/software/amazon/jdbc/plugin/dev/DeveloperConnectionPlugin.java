@@ -28,7 +28,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 public class DeveloperConnectionPlugin extends AbstractConnectionPlugin implements ExceptionSimulator {
 
@@ -142,28 +142,28 @@ public class DeveloperConnectionPlugin extends AbstractConnectionPlugin implemen
 
   @Override
   public Connection connect(
-      final ConnectionInfo connectionInfo,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
-    this.raiseExceptionOnConnectIfNeeded(connectionInfo, hostSpec, isInitialConnection);
-    return super.connect(connectionInfo, hostSpec, isInitialConnection, connectFunc);
+    this.raiseExceptionOnConnectIfNeeded(connectConfig, hostSpec, isInitialConnection);
+    return super.connect(connectConfig, hostSpec, isInitialConnection, connectFunc);
   }
 
   @Override
   public Connection forceConnect(
-      final ConnectionInfo connectionInfo,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
 
-    this.raiseExceptionOnConnectIfNeeded(connectionInfo, hostSpec, isInitialConnection);
-    return super.connect(connectionInfo, hostSpec, isInitialConnection, forceConnectFunc);
+    this.raiseExceptionOnConnectIfNeeded(connectConfig, hostSpec, isInitialConnection);
+    return super.connect(connectConfig, hostSpec, isInitialConnection, forceConnectFunc);
   }
 
   protected void raiseExceptionOnConnectIfNeeded(
-      final ConnectionInfo connectionInfo,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
       final boolean isInitialConnection)
       throws SQLException {
@@ -173,7 +173,7 @@ public class DeveloperConnectionPlugin extends AbstractConnectionPlugin implemen
     } else if (ExceptionSimulatorManager.connectCallback != null) {
       this.raiseExceptionOnConnect(
           ExceptionSimulatorManager.connectCallback.getExceptionToRaise(
-              connectionInfo, hostSpec, isInitialConnection));
+              connectConfig, hostSpec, isInitialConnection));
     }
   }
 

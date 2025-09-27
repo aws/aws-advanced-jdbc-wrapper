@@ -22,7 +22,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 /**
  * Interface for connection plugins. This class implements ways to execute a JDBC method and to clean up resources used
@@ -45,7 +45,7 @@ public interface ConnectionPlugin {
    * Establishes a connection to the given host using the given driver protocol and properties. If a
    * non-default {@link ConnectionProvider} has been set with
    * {@link Driver#setCustomConnectionProvider(ConnectionProvider)} and
-   * {@link ConnectionProvider#acceptsUrl(ConnectionInfo, HostSpec)} returns true for the given
+   * {@link ConnectionProvider#acceptsUrl(ConnectConfig, HostSpec)} returns true for the given
    * protocol, host, and properties, the connection will be created by the non-default
    * ConnectionProvider. Otherwise, the connection will be created by the default
    * ConnectionProvider. The default ConnectionProvider will be {@link DriverConnectionProvider} for
@@ -53,7 +53,7 @@ public interface ConnectionPlugin {
    * {@link DataSourceConnectionProvider} for connections requested via an
    * {@link software.amazon.jdbc.ds.AwsWrapperDataSource}.
    *
-   * @param connectionInfo      the connection info for the original connection
+   * @param connectConfig      the connection info for the original connection
    * @param hostSpec            the host details for the desired connection
    * @param isInitialConnection a boolean indicating whether the current {@link Connection} is
    *                            establishing an initial physical connection to the database or has
@@ -65,7 +65,7 @@ public interface ConnectionPlugin {
    *                      host
    */
   Connection connect(
-      final ConnectionInfo connectionInfo,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
@@ -80,7 +80,7 @@ public interface ConnectionPlugin {
    * requested via the {@link java.sql.DriverManager} and {@link DataSourceConnectionProvider} for
    * connections requested via an {@link software.amazon.jdbc.ds.AwsWrapperDataSource}.
    *
-   * @param connectionInfo      the connection info for the original connection.
+   * @param connectConfig      the connection info for the original connection.
    * @param hostSpec            the host details for the desired connection
    * @param isInitialConnection a boolean indicating whether the current {@link Connection} is
    *                            establishing an initial physical connection to the database or has
@@ -92,7 +92,7 @@ public interface ConnectionPlugin {
    *                      host
    */
   Connection forceConnect(
-      final ConnectionInfo connectionInfo,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> forceConnectFunc)
@@ -132,7 +132,7 @@ public interface ConnectionPlugin {
       throws SQLException, UnsupportedOperationException;
 
   void initHostProvider(
-      final ConnectionInfo connectionInfo,
+      final ConnectConfig connectConfig,
       final HostListProviderService hostListProviderService,
       final JdbcCallable<Void, SQLException> initHostProviderFunc)
       throws SQLException;

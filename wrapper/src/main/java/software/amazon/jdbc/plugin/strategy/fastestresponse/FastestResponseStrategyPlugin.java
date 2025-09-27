@@ -40,7 +40,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.RandomHostSelector;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.storage.CacheMap;
 
 public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
@@ -112,7 +112,7 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
 
   @Override
   public Connection connect(
-      final ConnectionInfo connectionInfo,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {

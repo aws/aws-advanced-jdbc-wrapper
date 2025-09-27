@@ -39,7 +39,7 @@ import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.WrapperUtils;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlugin {
 
@@ -120,7 +120,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
   @Override
   public void initHostProvider(
-      final ConnectionInfo connectionInfo,
+      final ConnectConfig connectConfig,
       final HostListProviderService hostListProviderService,
       final JdbcCallable<Void, SQLException> initHostProviderFunc) throws SQLException {
 
@@ -133,13 +133,13 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
   @Override
   public Connection connect(
-      final ConnectionInfo connectionInfo,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
     final RdsUrlType type = this.rdsUtils.identifyRdsType(hostSpec.getHost());
-    final Properties props = connectionInfo.getProps();
+    final Properties props = connectConfig.getProps();
     if (type == RdsUrlType.RDS_WRITER_CLUSTER
         || isInitialConnection && this.verifyOpenedConnectionType == VerifyOpenedConnectionType.WRITER) {
       Connection writerCandidateConn = this.getVerifiedWriterConnection(props, isInitialConnection, connectFunc);

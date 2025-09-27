@@ -20,14 +20,14 @@ import java.sql.SQLException;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 public class TestPluginServiceImpl extends PluginServiceImpl {
 
   public TestPluginServiceImpl(
-      @NonNull FullServicesContainer servicesContainer, @NonNull ConnectionInfo connectionInfo)
+      @NonNull FullServicesContainer servicesContainer, @NonNull ConnectConfig connectConfig)
       throws SQLException {
-    super(servicesContainer, connectionInfo);
+    super(servicesContainer, connectConfig);
   }
 
   public static void clearHostAvailabilityCache() {

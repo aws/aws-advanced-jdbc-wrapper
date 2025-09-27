@@ -48,7 +48,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -62,7 +62,7 @@ class DefaultConnectionPluginTest {
   @Mock PluginService pluginService;
   @Mock ConnectionProvider connectionProvider;
   @Mock PluginManagerService pluginManagerService;
-  @Mock ConnectionInfo mockConnectionInfo;
+  @Mock ConnectConfig mockConnectConfig;
   @Mock JdbcCallable<Void, SQLException> mockSqlFunction;
   @Mock JdbcCallable<Connection, SQLException> mockConnectFunction;
   @Mock Connection conn;
@@ -122,7 +122,7 @@ class DefaultConnectionPluginTest {
 
   @Test
   void testConnect() throws SQLException {
-    plugin.connect(mockConnectionInfo, mockHostSpec, true, mockConnectFunction);
+    plugin.connect(mockConnectConfig, mockHostSpec, true, mockConnectFunction);
     verify(connectionProvider, atLeastOnce()).connect(any(), any());
     verify(mockConnectionProviderManager, atLeastOnce()).initConnection(any(), any(), any());
   }

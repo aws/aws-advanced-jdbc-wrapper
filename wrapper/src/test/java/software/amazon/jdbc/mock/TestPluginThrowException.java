@@ -23,7 +23,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 public class TestPluginThrowException extends TestPluginOne {
 
@@ -76,7 +76,7 @@ public class TestPluginThrowException extends TestPluginOne {
 
   @Override
   public Connection connect(
-      final ConnectionInfo connectionInfo,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {

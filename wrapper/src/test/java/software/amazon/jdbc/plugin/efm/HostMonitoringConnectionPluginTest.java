@@ -63,7 +63,7 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 class HostMonitoringConnectionPluginTest {
 
@@ -77,7 +77,7 @@ class HostMonitoringConnectionPluginTest {
   @Mock PluginService pluginService;
   @Mock Dialect mockDialect;
   @Mock Connection connection;
-  @Mock ConnectionInfo mockConnectionInfo;
+  @Mock ConnectConfig mockConnectConfig;
   @Mock Statement statement;
   @Mock ResultSet resultSet;
   Properties properties = new Properties();
@@ -263,7 +263,7 @@ class HostMonitoringConnectionPluginTest {
     doThrow(new SQLException()).when(connection).createStatement();
 
     // Ensure SQLException raised in `generateHostAliases` are ignored.
-    final Connection conn = plugin.connect(mockConnectionInfo, hostSpec, true, () -> connection);
+    final Connection conn = plugin.connect(mockConnectConfig, hostSpec, true, () -> connection);
     assertNotNull(conn);
   }
 

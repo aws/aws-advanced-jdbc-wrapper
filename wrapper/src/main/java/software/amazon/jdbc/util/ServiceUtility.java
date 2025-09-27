@@ -22,7 +22,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.PartialPluginService;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -59,20 +59,20 @@ public class ServiceUtility {
       MonitorService monitorService,
       ConnectionProvider connectionProvider,
       TelemetryFactory telemetryFactory,
-      ConnectionInfo connectionInfo) throws SQLException {
+      ConnectConfig connectConfig) throws SQLException {
     FullServicesContainer servicesContainer =
         new FullServicesContainerImpl(storageService, monitorService, connectionProvider, telemetryFactory);
     ConnectionPluginManager pluginManager = new ConnectionPluginManager(
         connectionProvider, null, null, telemetryFactory);
     servicesContainer.setConnectionPluginManager(pluginManager);
 
-    PartialPluginService partialPluginService = new PartialPluginService(servicesContainer, connectionInfo);
+    PartialPluginService partialPluginService = new PartialPluginService(servicesContainer, connectConfig);
 
     servicesContainer.setHostListProviderService(partialPluginService);
     servicesContainer.setPluginService(partialPluginService);
     servicesContainer.setPluginManagerService(partialPluginService);
 
-    Properties propsCopy = PropertyUtils.copyProperties(connectionInfo.getProps());
+    Properties propsCopy = PropertyUtils.copyProperties(connectConfig.getProps());
     pluginManager.init(servicesContainer, propsCopy, partialPluginService, null);
     return servicesContainer;
   }

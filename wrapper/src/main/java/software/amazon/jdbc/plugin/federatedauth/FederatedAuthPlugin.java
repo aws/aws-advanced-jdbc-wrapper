@@ -42,7 +42,7 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.RegionUtils;
 import software.amazon.jdbc.util.StringUtils;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryGauge;
@@ -153,21 +153,21 @@ public class FederatedAuthPlugin extends AbstractConnectionPlugin {
 
   @Override
   public Connection connect(
-      final ConnectionInfo connectionInfo,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
-    return connectInternal(hostSpec, connectionInfo.getProps(), connectFunc);
+    return connectInternal(hostSpec, connectConfig.getProps(), connectFunc);
   }
 
   @Override
   public Connection forceConnect(
-      final @NonNull ConnectionInfo connectionInfo,
+      final @NonNull ConnectConfig connectConfig,
       final @NonNull HostSpec hostSpec,
       final boolean isInitialConnection,
       final @NonNull JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
-    return connectInternal(hostSpec, connectionInfo.getProps(), forceConnectFunc);
+    return connectInternal(hostSpec, connectConfig.getProps(), forceConnectFunc);
   }
 
   private Connection connectInternal(

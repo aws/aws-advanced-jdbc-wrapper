@@ -50,7 +50,7 @@ import software.amazon.jdbc.plugin.TokenInfo;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.plugin.iam.IamTokenUtility;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -77,7 +77,7 @@ class FederatedAuthPluginTest {
   @Mock private IamTokenUtility mockIamTokenUtils;
   @Mock private CompletableFuture completableFuture;
   @Mock private AwsCredentialsIdentity mockAwsCredentialsIdentity;
-  @Mock private ConnectionInfo mockConnectionInfo;
+  @Mock private ConnectConfig mockConnectConfig;
   private Properties props;
   private AutoCloseable closeable;
 
@@ -104,7 +104,7 @@ class FederatedAuthPluginTest {
     when(mockCredentialsProviderFactory.getAwsCredentialsProvider(any(), any(), any()))
         .thenReturn(mockAwsCredentialsProvider);
     when(mockAwsCredentialsProvider.resolveIdentity()).thenReturn(completableFuture);
-    when(mockConnectionInfo.getProps()).thenReturn(props);
+    when(mockConnectConfig.getProps()).thenReturn(props);
     when(completableFuture.get()).thenReturn(mockAwsCredentialsIdentity);
   }
 
@@ -121,7 +121,7 @@ class FederatedAuthPluginTest {
     String key = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:" + DEFAULT_PORT + ":iamUser";
     FederatedAuthCacheHolder.tokenCache.put(key, TEST_TOKEN_INFO);
 
-    plugin.connect(mockConnectionInfo, HOST_SPEC, true, mockLambda);
+    plugin.connect(mockConnectConfig, HOST_SPEC, true, mockLambda);
 
     assertEquals(DB_USER, PropertyDefinition.USER.getString(props));
     assertEquals(TEST_TOKEN, PropertyDefinition.PASSWORD.getString(props));
@@ -138,7 +138,7 @@ class FederatedAuthPluginTest {
         someExpiredToken, Instant.now().minusMillis(300000));
     FederatedAuthCacheHolder.tokenCache.put(key, expiredTokenInfo);
 
-    spyPlugin.connect(mockConnectionInfo, HOST_SPEC, true, mockLambda);
+    spyPlugin.connect(mockConnectConfig, HOST_SPEC, true, mockLambda);
     verify(mockIamTokenUtils).generateAuthenticationToken(mockAwsCredentialsProvider,
         Region.US_EAST_2,
         HOST_SPEC.getHost(),
@@ -153,7 +153,7 @@ class FederatedAuthPluginTest {
     FederatedAuthPlugin spyPlugin = Mockito.spy(
         new FederatedAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils));
 
-    spyPlugin.connect(mockConnectionInfo, HOST_SPEC, true, mockLambda);
+    spyPlugin.connect(mockConnectConfig, HOST_SPEC, true, mockLambda);
     verify(mockIamTokenUtils).generateAuthenticationToken(
         mockAwsCredentialsProvider,
         Region.US_EAST_2,
@@ -180,7 +180,7 @@ class FederatedAuthPluginTest {
     FederatedAuthPlugin plugin =
         new FederatedAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
 
-    plugin.connect(mockConnectionInfo, HOST_SPEC, true, mockLambda);
+    plugin.connect(mockConnectConfig, HOST_SPEC, true, mockLambda);
 
     assertEquals(DB_USER, PropertyDefinition.USER.getString(props));
     assertEquals(TEST_TOKEN, PropertyDefinition.PASSWORD.getString(props));
@@ -199,7 +199,7 @@ class FederatedAuthPluginTest {
     String key = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:" + DEFAULT_PORT + ":iamUser";
     FederatedAuthCacheHolder.tokenCache.put(key, TEST_TOKEN_INFO);
 
-    plugin.connect(mockConnectionInfo, HOST_SPEC, true, mockLambda);
+    plugin.connect(mockConnectConfig, HOST_SPEC, true, mockLambda);
 
     assertEquals(DB_USER, PropertyDefinition.USER.getString(props));
     assertEquals(TEST_TOKEN, PropertyDefinition.PASSWORD.getString(props));
@@ -213,7 +213,7 @@ class FederatedAuthPluginTest {
     FederatedAuthPlugin spyPlugin = Mockito.spy(
         new FederatedAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils));
 
-    spyPlugin.connect(mockConnectionInfo, HOST_SPEC, true, mockLambda);
+    spyPlugin.connect(mockConnectConfig, HOST_SPEC, true, mockLambda);
 
     assertEquals(DB_USER, PropertyDefinition.USER.getString(props));
     assertEquals(TEST_TOKEN, PropertyDefinition.PASSWORD.getString(props));

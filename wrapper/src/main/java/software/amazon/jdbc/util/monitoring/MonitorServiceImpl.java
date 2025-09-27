@@ -40,7 +40,7 @@ import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ServiceUtility;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.events.DataAccessEvent;
 import software.amazon.jdbc.util.events.Event;
 import software.amazon.jdbc.util.events.EventPublisher;
@@ -179,7 +179,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       StorageService storageService,
       TelemetryFactory telemetryFactory,
       ConnectionProvider defaultConnectionProvider,
-      ConnectionInfo connectionInfo,
+      ConnectConfig connectConfig,
       MonitorInitializer initializer) throws SQLException {
     CacheContainer cacheContainer = monitorCaches.get(monitorClass);
     if (cacheContainer == null) {
@@ -201,7 +201,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
             storageService,
             defaultConnectionProvider,
             telemetryFactory,
-            connectionInfo);
+            connectConfig);
         final MonitorItem monitorItemInner = new MonitorItem(() -> initializer.createMonitor(servicesContainer));
         monitorItemInner.getMonitor().start();
         return monitorItemInner;
@@ -228,13 +228,13 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       StorageService storageService,
       ConnectionProvider connectionProvider,
       TelemetryFactory telemetryFactory,
-      ConnectionInfo connectionInfo) throws SQLException {
+      ConnectConfig connectConfig) throws SQLException {
     return ServiceUtility.getInstance().createServiceContainer(
         storageService,
         this,
         connectionProvider,
         telemetryFactory,
-        connectionInfo
+        connectConfig
     );
   }
 

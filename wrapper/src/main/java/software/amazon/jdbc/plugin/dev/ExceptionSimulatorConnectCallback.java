@@ -18,11 +18,11 @@ package software.amazon.jdbc.plugin.dev;
 
 import java.sql.SQLException;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 public interface ExceptionSimulatorConnectCallback {
   SQLException getExceptionToRaise(
-      final ConnectionInfo connectionInfo,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
       final boolean isInitialConnection);
 }

@@ -47,7 +47,7 @@ import software.amazon.jdbc.plugin.TokenInfo;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.plugin.iam.IamTokenUtility;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -73,7 +73,7 @@ class OktaAuthPluginTest {
   @Mock private AwsCredentialsProvider mockAwsCredentialsProvider;
   @Mock private RdsUtils mockRdsUtils;
   @Mock private IamTokenUtility mockIamTokenUtils;
-  @Mock private ConnectionInfo mockConnectionInfo;
+  @Mock private ConnectConfig mockConnectConfig;
 
   private Properties props;
   private AutoCloseable closeable;
@@ -96,7 +96,7 @@ class OktaAuthPluginTest {
     when(mockPluginService.getDialect()).thenReturn(mockDialect);
     when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PORT);
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
-    when(mockConnectionInfo.getProps()).thenReturn(props);
+    when(mockConnectConfig.getProps()).thenReturn(props);
     when(mockTelemetryFactory.createCounter(any())).thenReturn(mockTelemetryCounter);
     when(mockTelemetryFactory.openTelemetryContext(any(), any())).thenReturn(mockTelemetryContext);
     when(mockCredentialsProviderFactory.getAwsCredentialsProvider(any(), any(), any()))
@@ -116,7 +116,7 @@ class OktaAuthPluginTest {
     String key = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:" + DEFAULT_PORT + ":iamUser";
     OktaAuthCacheHolder.tokenCache.put(key, TEST_TOKEN_INFO);
 
-    plugin.connect(mockConnectionInfo, HOST_SPEC, true, mockLambda);
+    plugin.connect(mockConnectConfig, HOST_SPEC, true, mockLambda);
 
     assertEquals(DB_USER, PropertyDefinition.USER.getString(props));
     assertEquals(TEST_TOKEN, PropertyDefinition.PASSWORD.getString(props));
@@ -133,7 +133,7 @@ class OktaAuthPluginTest {
         someExpiredToken, Instant.now().minusMillis(300000));
     OktaAuthCacheHolder.tokenCache.put(key, expiredTokenInfo);
 
-    spyPlugin.connect(mockConnectionInfo, HOST_SPEC, true, mockLambda);
+    spyPlugin.connect(mockConnectConfig, HOST_SPEC, true, mockLambda);
     verify(mockIamTokenUtils).generateAuthenticationToken(mockAwsCredentialsProvider,
         Region.US_EAST_2,
         HOST_SPEC.getHost(),
@@ -148,7 +148,7 @@ class OktaAuthPluginTest {
     final OktaAuthPlugin spyPlugin =
         new OktaAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
 
-    spyPlugin.connect(mockConnectionInfo, HOST_SPEC, true, mockLambda);
+    spyPlugin.connect(mockConnectConfig, HOST_SPEC, true, mockLambda);
     verify(mockIamTokenUtils).generateAuthenticationToken(
         mockAwsCredentialsProvider,
         Region.US_EAST_2,
@@ -175,7 +175,7 @@ class OktaAuthPluginTest {
     OktaAuthPlugin plugin =
         new OktaAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
 
-    plugin.connect(mockConnectionInfo, HOST_SPEC, true, mockLambda);
+    plugin.connect(mockConnectConfig, HOST_SPEC, true, mockLambda);
 
     assertEquals(DB_USER, PropertyDefinition.USER.getString(props));
     assertEquals(TEST_TOKEN, PropertyDefinition.PASSWORD.getString(props));
@@ -194,7 +194,7 @@ class OktaAuthPluginTest {
     final String key = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:" + DEFAULT_PORT + ":iamUser";
     OktaAuthCacheHolder.tokenCache.put(key, TEST_TOKEN_INFO);
 
-    plugin.connect(mockConnectionInfo, HOST_SPEC, true, mockLambda);
+    plugin.connect(mockConnectConfig, HOST_SPEC, true, mockLambda);
 
     assertEquals(DB_USER, PropertyDefinition.USER.getString(props));
     assertEquals(TEST_TOKEN, PropertyDefinition.PASSWORD.getString(props));
@@ -208,7 +208,7 @@ class OktaAuthPluginTest {
     OktaAuthPlugin spyPlugin = Mockito.spy(
         new OktaAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils));
 
-    spyPlugin.connect(mockConnectionInfo, HOST_SPEC, true, mockLambda);
+    spyPlugin.connect(mockConnectConfig, HOST_SPEC, true, mockLambda);
 
     assertEquals(DB_USER, PropertyDefinition.USER.getString(props));
     assertEquals(TEST_TOKEN, PropertyDefinition.PASSWORD.getString(props));

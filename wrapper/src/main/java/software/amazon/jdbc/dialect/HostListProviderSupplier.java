@@ -19,11 +19,11 @@ package software.amazon.jdbc.dialect;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostListProvider;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 @FunctionalInterface
 public interface HostListProviderSupplier {
   @NonNull HostListProvider getProvider(
-      final @NonNull ConnectionInfo connectionInfo,
+      final @NonNull ConnectConfig connectConfig,
       final @NonNull FullServicesContainer servicesContainer);
 }

@@ -89,11 +89,11 @@ public class AuroraMysqlDialect extends MysqlDialect implements BlueGreenDialect
 
   @Override
   public HostListProviderSupplier getHostListProvider() {
-    return (connectionInfo, servicesContainer) -> {
+    return (connectConfig, servicesContainer) -> {
       final PluginService pluginService = servicesContainer.getPluginService();
       if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {
         return new MonitoringRdsHostListProvider(
-            connectionInfo,
+            connectConfig,
             servicesContainer,
             TOPOLOGY_QUERY,
             NODE_ID_QUERY,
@@ -102,7 +102,7 @@ public class AuroraMysqlDialect extends MysqlDialect implements BlueGreenDialect
       }
 
       return new AuroraHostListProvider(
-          connectionInfo,
+          connectConfig,
           servicesContainer,
           TOPOLOGY_QUERY,
           NODE_ID_QUERY,

@@ -34,7 +34,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 public class TestPluginOne implements ConnectionPlugin {
 
@@ -85,7 +85,7 @@ public class TestPluginOne implements ConnectionPlugin {
 
   @Override
   public Connection connect(
-      final ConnectionInfo connectionInfo,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
@@ -98,7 +98,7 @@ public class TestPluginOne implements ConnectionPlugin {
 
   @Override
   public Connection forceConnect(
-      final ConnectionInfo connectionInfo,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> forceConnectFunc) throws SQLException {
@@ -130,7 +130,7 @@ public class TestPluginOne implements ConnectionPlugin {
 
   @Override
   public void initHostProvider(
-      ConnectionInfo connectionInfo,
+      ConnectConfig connectConfig,
       HostListProviderService hostListProviderService,
       JdbcCallable<Void, SQLException> initHostProviderFunc) {
     // do nothing

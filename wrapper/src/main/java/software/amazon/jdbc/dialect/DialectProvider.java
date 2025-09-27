@@ -20,10 +20,10 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 public interface DialectProvider {
-  Dialect getDialect(final @NonNull ConnectionInfo connectionInfo) throws SQLException;
+  Dialect getDialect(final @NonNull ConnectConfig connectConfig) throws SQLException;
 
   Dialect getDialect(
       final @NonNull String originalUrl,

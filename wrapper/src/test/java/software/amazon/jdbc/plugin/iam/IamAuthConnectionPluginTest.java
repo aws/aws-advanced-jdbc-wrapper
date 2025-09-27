@@ -55,7 +55,7 @@ import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.plugin.TokenInfo;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -262,8 +262,8 @@ class IamAuthConnectionPluginTest {
     IamAuthConnectionPlugin targetPlugin = new IamAuthConnectionPlugin(mockPluginService, mockIamTokenUtils);
     doThrow(new SQLException()).when(mockLambda).call();
 
-    ConnectionInfo connectionInfo = new ConnectionInfo(protocol + hostSpec.getHost(), mockDriverDialect, props);
-    assertThrows(SQLException.class, () -> targetPlugin.connect(connectionInfo, hostSpec, true, mockLambda));
+    ConnectConfig connectConfig = new ConnectConfig(protocol + hostSpec.getHost(), mockDriverDialect, props);
+    assertThrows(SQLException.class, () -> targetPlugin.connect(connectConfig, hostSpec, true, mockLambda));
     verify(mockLambda, times(1)).call();
 
     assertEquals(TEST_TOKEN, PropertyDefinition.PASSWORD.getString(props));
@@ -282,9 +282,9 @@ class IamAuthConnectionPluginTest {
 
     doThrow(new SQLException()).when(mockLambda).call();
 
-    ConnectionInfo connectionInfo = new ConnectionInfo(protocol + hostSpec.getHost(), mockDriverDialect, props);
+    ConnectConfig connectConfig = new ConnectConfig(protocol + hostSpec.getHost(), mockDriverDialect, props);
     assertThrows(SQLException.class,
-        () -> spyPlugin.connect(connectionInfo, hostSpec, true, mockLambda));
+        () -> spyPlugin.connect(connectConfig, hostSpec, true, mockLambda));
 
     verify(mockIamTokenUtils).generateAuthenticationToken(
         any(DefaultCredentialsProvider.class),

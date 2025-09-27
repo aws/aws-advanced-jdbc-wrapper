@@ -19,7 +19,7 @@ package software.amazon.jdbc.hostlistprovider;
 
 import java.util.logging.Logger;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 
 public class AuroraHostListProvider extends RdsHostListProvider {
@@ -27,13 +27,13 @@ public class AuroraHostListProvider extends RdsHostListProvider {
   static final Logger LOGGER = Logger.getLogger(AuroraHostListProvider.class.getName());
 
   public AuroraHostListProvider(
-      final ConnectionInfo connectionInfo,
+      final ConnectConfig connectConfig,
       final FullServicesContainer servicesContainer,
       final String topologyQuery,
       final String nodeIdQuery,
       final String isReaderQuery) {
     super(
-        connectionInfo,
+        connectConfig,
         servicesContainer,
         topologyQuery,
         nodeIdQuery,

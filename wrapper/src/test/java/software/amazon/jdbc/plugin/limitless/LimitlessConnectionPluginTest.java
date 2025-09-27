@@ -43,7 +43,7 @@ import software.amazon.jdbc.dialect.AuroraPgDialect;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.PgDialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 public class LimitlessConnectionPluginTest {
 
@@ -53,7 +53,7 @@ public class LimitlessConnectionPluginTest {
 
   private static final Dialect supportedDialect = new AuroraPgDialect();
   @Mock JdbcCallable<Connection, SQLException> mockConnectFuncLambda;
-  @Mock ConnectionInfo mockConnectionInfo;
+  @Mock ConnectConfig mockConnectConfig;
   @Mock private Connection mockConnection;
   @Mock private PluginService mockPluginService;
   @Mock private HostListProvider mockHostListProvider;
@@ -90,7 +90,7 @@ public class LimitlessConnectionPluginTest {
     }).when(mockLimitlessRouterService).establishConnection(any());
 
     final Connection expectedConnection = mockConnection;
-    final Connection actualConnection = plugin.connect(mockConnectionInfo, INPUT_HOST_SPEC, true,
+    final Connection actualConnection = plugin.connect(mockConnectConfig, INPUT_HOST_SPEC, true,
         mockConnectFuncLambda);
 
     assertEquals(expectedConnection, actualConnection);
@@ -111,7 +111,7 @@ public class LimitlessConnectionPluginTest {
 
     assertThrows(
         SQLException.class,
-        () -> plugin.connect(mockConnectionInfo, INPUT_HOST_SPEC, true, mockConnectFuncLambda));
+        () -> plugin.connect(mockConnectConfig, INPUT_HOST_SPEC, true, mockConnectFuncLambda));
 
     verify(mockPluginService, times(1)).getDialect();
     verify(mockConnectFuncLambda, times(0)).call();
@@ -127,7 +127,7 @@ public class LimitlessConnectionPluginTest {
 
     assertThrows(
         UnsupportedOperationException.class,
-        () -> plugin.connect(mockConnectionInfo, INPUT_HOST_SPEC, true, mockConnectFuncLambda));
+        () -> plugin.connect(mockConnectConfig, INPUT_HOST_SPEC, true, mockConnectFuncLambda));
 
     verify(mockPluginService, times(2)).getDialect();
     verify(mockConnectFuncLambda, times(1)).call();
@@ -142,7 +142,7 @@ public class LimitlessConnectionPluginTest {
     when(mockPluginService.getDialect()).thenReturn(unsupportedDialect, supportedDialect);
 
     final Connection expectedConnection = mockConnection;
-    final Connection actualConnection = plugin.connect(mockConnectionInfo, INPUT_HOST_SPEC, true,
+    final Connection actualConnection = plugin.connect(mockConnectConfig, INPUT_HOST_SPEC, true,
         mockConnectFuncLambda);
 
     assertEquals(expectedConnection, actualConnection);

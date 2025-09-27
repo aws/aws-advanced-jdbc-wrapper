@@ -52,7 +52,7 @@ import software.amazon.jdbc.dialect.RdsPgDialect;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.storage.StorageService;
 
 public class DialectDetectionTests {
@@ -95,15 +95,15 @@ public class DialectDetectionTests {
 
   PluginServiceImpl getPluginService(String host, String protocol) throws SQLException {
     return getPluginService(
-        new ConnectionInfo(protocol + host, protocol, mockDriverDialect, new Properties()));
+        new ConnectConfig(protocol + host, protocol, mockDriverDialect, new Properties()));
   }
 
-  PluginServiceImpl getPluginService(ConnectionInfo connectionInfo) throws SQLException {
+  PluginServiceImpl getPluginService(ConnectConfig connectConfig) throws SQLException {
     PluginServiceImpl pluginService = spy(
         new PluginServiceImpl(
             mockServicesContainer,
             new ExceptionManager(),
-            connectionInfo,
+            connectConfig,
             null,
             null,
             null));
@@ -115,10 +115,10 @@ public class DialectDetectionTests {
   @ParameterizedTest
   @MethodSource("getInitialDialectArguments")
   public void testInitialDialectDetection(String protocol, String host, Object expectedDialect) throws SQLException {
-    final ConnectionInfo connectionInfo =
-        new ConnectionInfo(protocol + host, protocol, mockDriverDialect, new Properties());
+    final ConnectConfig connectConfig =
+        new ConnectConfig(protocol + host, protocol, mockDriverDialect, new Properties());
     final DialectManager dialectManager = new DialectManager(this.getPluginService(host, protocol));
-    final Dialect dialect = dialectManager.getDialect(connectionInfo);
+    final Dialect dialect = dialectManager.getDialect(connectConfig);
     assertEquals(expectedDialect, dialect.getClass());
   }
 

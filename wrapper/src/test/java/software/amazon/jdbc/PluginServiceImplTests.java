@@ -61,7 +61,7 @@ import software.amazon.jdbc.dialect.MysqlDialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.TestStorageServiceImpl;
@@ -78,7 +78,7 @@ public class PluginServiceImplTests {
   @Mock Connection newConnection;
   @Mock Connection oldConnection;
   @Mock HostListProvider hostListProvider;
-  @Mock ConnectionInfo mockConnectionInfo;
+  @Mock ConnectConfig mockConnectConfig;
   @Mock Statement statement;
   @Mock ResultSet resultSet;
 
@@ -94,9 +94,9 @@ public class PluginServiceImplTests {
     when(statement.executeQuery(any())).thenReturn(resultSet);
     when(servicesContainer.getConnectionPluginManager()).thenReturn(pluginManager);
     when(servicesContainer.getStorageService()).thenReturn(storageService);
-    when(mockConnectionInfo.getProps()).thenReturn(props);
-    when(mockConnectionInfo.getInitialConnectionString()).thenReturn("url");
-    when(mockConnectionInfo.getProtocol()).thenReturn("jdbc:postgresql://");
+    when(mockConnectConfig.getProps()).thenReturn(props);
+    when(mockConnectConfig.getInitialConnectionString()).thenReturn("url");
+    when(mockConnectConfig.getProtocol()).thenReturn("jdbc:postgresql://");
     storageService = new TestStorageServiceImpl(mockEventPublisher);
     PluginServiceImpl.hostAvailabilityExpiringCache.clear();
   }
@@ -129,7 +129,7 @@ public class PluginServiceImplTests {
   }
 
   protected PluginServiceImpl getPluginService() throws SQLException {
-    return new PluginServiceImpl(servicesContainer, mockConnectionInfo);
+    return new PluginServiceImpl(servicesContainer, mockConnectConfig);
   }
 
   @Test

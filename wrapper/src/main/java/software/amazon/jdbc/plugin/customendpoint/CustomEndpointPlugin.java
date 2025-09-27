@@ -41,7 +41,7 @@ import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.RegionUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
-import software.amazon.jdbc.util.connection.ConnectionInfo;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.monitoring.MonitorErrorResponse;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -164,7 +164,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
 
   @Override
   public Connection connect(
-      final ConnectionInfo connectionInfo,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
@@ -217,7 +217,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
         this.servicesContainer.getStorageService(),
         this.pluginService.getTelemetryFactory(),
         this.pluginService.getDefaultConnectionProvider(),
-        this.pluginService.getConnectionInfo(),
+        this.pluginService.getConnectConfig(),
         (servicesContainer) -> new CustomEndpointMonitorImpl(
             servicesContainer.getStorageService(),
             servicesContainer.getTelemetryFactory(),
