@@ -134,20 +134,9 @@ To find all the documentation and concrete examples on how to use the AWS JDBC D
 
 #### Amazon RDS Blue/Green Deployments
 
-**Important: Service Dependency**
-
-Support for Blue/Green deployments using the AWS Advanced JDBC Wrapper requires specific metadata tables that are **not available in the current RDS and Aurora service**. Please contact your AWS account team for metadata release timelines.
-
-**Limitations:**
-
 - **Post-switchover failures:** After a Blue/Green switchover, the wrapper may not properly detect the new cluster topology, leading to failed failover attempts.
 - **Metadata inconsistencies:** Discrepancies between topology metadata and actual available endpoints prevent reliable operation.
 - **Version-specific issues:** Requirements vary between Aurora MySQL and Aurora PostgreSQL due to different internal systems.
-
-**If You Must Use Blue/Green (Not Recommended for Production):**
-
-1. Enable the `enableGreenNodeReplacement` configuration parameter.
-2. Thoroughly test in non-production environments.
 
 **Recommendation:**
 
