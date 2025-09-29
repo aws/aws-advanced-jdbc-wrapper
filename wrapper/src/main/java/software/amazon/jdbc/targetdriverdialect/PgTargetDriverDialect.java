@@ -96,9 +96,9 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   }
 
   @Override
-  public ConnectInfo prepareConnectInfo(final @NonNull String protocol,
-      final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props) throws SQLException {
+  public ConnectParams prepareConnectParams(final @NonNull String protocol,
+                                          final @NonNull HostSpec hostSpec,
+                                          final @NonNull Properties props) throws SQLException {
 
     final String databaseName =
         PropertyDefinition.DATABASE.getString(props) != null
@@ -133,7 +133,7 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
 
     String urlBuilder = protocol + hostSpec.getUrl() + databaseName;
 
-    return new ConnectInfo(urlBuilder, props);
+    return new ConnectParams(urlBuilder, props);
   }
 
   @Override

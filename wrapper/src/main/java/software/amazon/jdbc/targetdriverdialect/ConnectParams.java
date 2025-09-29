@@ -18,12 +18,12 @@ package software.amazon.jdbc.targetdriverdialect;
 
 import java.util.Properties;
 
-public class ConnectInfo {
-  public String url;
+public class ConnectParams {
+  public String connectionString;
   public Properties props;
 
-  public ConnectInfo(final String url, final Properties props) {
-    this.url = url;
+  public ConnectParams(final String connectionString, final Properties props) {
+    this.connectionString = connectionString;
     this.props = props;
   }
 }

@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
-import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
+import software.amazon.jdbc.targetdriverdialect.ConnectParams;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
@@ -317,24 +317,24 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
       final Properties connectionProps) {
     final Properties copy = PropertyUtils.copyProperties(connectionProps);
 
-    ConnectInfo connectInfo;
+    ConnectParams connectParams;
     try {
-      connectInfo = connectConfig.getDriverDialect().prepareConnectInfo(
+      connectParams = connectConfig.getDriverDialect().prepareConnectParams(
           connectConfig.getProtocol(), hostSpec, copy);
     } catch (SQLException ex) {
       throw new RuntimeException(ex);
     }
 
-    StringBuilder urlBuilder = new StringBuilder(connectInfo.url);
+    StringBuilder urlBuilder = new StringBuilder(connectParams.connectionString);
 
     final StringJoiner propsJoiner = new StringJoiner("&");
-    connectInfo.props.forEach((k, v) -> {
+    connectParams.props.forEach((k, v) -> {
       if (!PropertyDefinition.PASSWORD.name.equals(k) && !PropertyDefinition.USER.name.equals(k)) {
         propsJoiner.add(k + "=" + v);
       }
     });
 
-    if (connectInfo.url.contains("?")) {
+    if (connectParams.connectionString.contains("?")) {
       urlBuilder.append("&").append(propsJoiner);
     } else {
       urlBuilder.append("?").append(propsJoiner);
@@ -342,8 +342,8 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
 
     config.setJdbcUrl(urlBuilder.toString());
 
-    final String user = connectInfo.props.getProperty(PropertyDefinition.USER.name);
-    final String password = connectInfo.props.getProperty(PropertyDefinition.PASSWORD.name);
+    final String user = connectParams.props.getProperty(PropertyDefinition.USER.name);
+    final String password = connectParams.props.getProperty(PropertyDefinition.PASSWORD.name);
     if (user != null) {
       config.setUsername(user);
     }

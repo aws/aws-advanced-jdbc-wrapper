@@ -29,7 +29,7 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.exceptions.SQLLoginException;
-import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
+import software.amazon.jdbc.targetdriverdialect.ConnectParams;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
@@ -98,18 +98,18 @@ public class DriverConnectionProvider implements ConnectionProvider {
   public Connection connect(final @NonNull ConnectConfig connectConfig, final @NonNull HostSpec hostSpec)
       throws SQLException {
     final Properties propsCopy = PropertyUtils.copyProperties(connectConfig.getProps());
-    final ConnectInfo connectInfo =
-        connectConfig.getDriverDialect().prepareConnectInfo(connectConfig.getProtocol(), hostSpec, propsCopy);
+    final ConnectParams connectParams =
+        connectConfig.getDriverDialect().prepareConnectParams(connectConfig.getProtocol(), hostSpec, propsCopy);
 
     connectConfig.getDbDialect().prepareConnectProperties(propsCopy, connectConfig.getProtocol(), hostSpec);
-    LOGGER.finest(() -> "Connecting to " + connectInfo.url
+    LOGGER.finest(() -> "Connecting to " + connectParams.connectionString
         + PropertyUtils.logProperties(
-            PropertyUtils.maskProperties(connectInfo.props),
+            PropertyUtils.maskProperties(connectParams.props),
         "\nwith properties: \n"));
 
     Connection conn;
     try {
-      conn = this.driver.connect(connectInfo.url, connectInfo.props);
+      conn = this.driver.connect(connectParams.connectionString, connectParams.props);
 
     } catch (Throwable throwable) {
 
@@ -158,15 +158,15 @@ public class DriverConnectionProvider implements ConnectionProvider {
           .host(fixedHost)
           .build();
 
-      final ConnectInfo fixedConnectInfo = connectConfig.getDriverDialect().prepareConnectInfo(
+      final ConnectParams fixedConnectParams = connectConfig.getDriverDialect().prepareConnectParams(
           connectConfig.getProtocol(), connectionHostSpec, propsCopy);
 
-      LOGGER.finest(() -> "Connecting to " + fixedConnectInfo.url
+      LOGGER.finest(() -> "Connecting to " + fixedConnectParams.connectionString
           + " after correcting the hostname from " + originalHost
           + PropertyUtils.logProperties(
-              PropertyUtils.maskProperties(fixedConnectInfo.props), "\nwith properties: \n"));
+              PropertyUtils.maskProperties(fixedConnectParams.props), "\nwith properties: \n"));
 
-      conn = this.driver.connect(fixedConnectInfo.url, fixedConnectInfo.props);
+      conn = this.driver.connect(fixedConnectParams.connectionString, fixedConnectParams.props);
     }
 
     if (conn == null) {

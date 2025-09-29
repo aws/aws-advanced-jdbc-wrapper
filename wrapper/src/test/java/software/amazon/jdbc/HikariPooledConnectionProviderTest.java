@@ -47,7 +47,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
-import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
+import software.amazon.jdbc.targetdriverdialect.ConnectParams;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.connection.ConnectConfig;
@@ -141,8 +141,8 @@ class HikariPooledConnectionProviderTest {
     provider = spy(new HikariPooledConnectionProvider((hostSpec, properties) -> mockConfig));
 
     doReturn(mockDataSource).when(provider).createHikariDataSource(any(), any(), any());
-    doReturn(new ConnectInfo("url", new Properties()))
-        .when(mockDriverDialect).prepareConnectInfo(anyString(), any(), any());
+    doReturn(new ConnectParams("url", new Properties()))
+        .when(mockDriverDialect).prepareConnectParams(anyString(), any(), any());
 
     try (Connection conn = provider.connect(mockConnectConfig, mockHostSpec)) {
       assertEquals(mockConnection, conn);
@@ -228,8 +228,8 @@ class HikariPooledConnectionProviderTest {
     provider = new HikariPooledConnectionProvider((hostSpec, properties) -> mockConfig);
     final String expectedJdbcUrl =
         protocol + readerHost1Connection.getUrl() + db + "?database=" + db;
-    doReturn(new ConnectInfo(protocol + readerHost1Connection.getUrl() + db, defaultProps))
-        .when(mockDriverDialect).prepareConnectInfo(anyString(), any(), any());
+    doReturn(new ConnectParams(protocol + readerHost1Connection.getUrl() + db, defaultProps))
+        .when(mockDriverDialect).prepareConnectParams(anyString(), any(), any());
 
     provider.configurePool(mockConfig, mockConnectConfig, readerHost1Connection, defaultProps);
     verify(mockConfig).setJdbcUrl(expectedJdbcUrl);

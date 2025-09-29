@@ -31,7 +31,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.Dialect;
-import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
+import software.amazon.jdbc.targetdriverdialect.ConnectParams;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.connection.ConnectConfig;
@@ -99,31 +99,31 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
       @NonNull ConnectConfig connectConfig,
       @NonNull HostSpec hostSpec,
       @NonNull Properties props) {
-    ConnectInfo connectInfo;
+    ConnectParams connectParams;
 
     try {
-      connectInfo = connectConfig.getDriverDialect()
-          .prepareConnectInfo(connectConfig.getProtocol(), hostSpec, props);
+      connectParams =
+          connectConfig.getDriverDialect().prepareConnectParams(connectConfig.getProtocol(), hostSpec, props);
     } catch (SQLException ex) {
       throw new RuntimeException(ex);
     }
 
-    final StringBuilder urlBuilder = new StringBuilder(connectInfo.url);
+    final StringBuilder urlBuilder = new StringBuilder(connectParams.connectionString);
 
     final StringJoiner propsJoiner = new StringJoiner("&");
-    connectInfo.props.forEach((k, v) -> {
+    connectParams.props.forEach((k, v) -> {
       if (!PropertyDefinition.PASSWORD.name.equals(k) && !PropertyDefinition.USER.name.equals(k)) {
         propsJoiner.add(k + "=" + v);
       }
     });
 
-    urlBuilder.append(connectInfo.url.contains("?") ? "&" : "?").append(propsJoiner);
+    urlBuilder.append(connectParams.connectionString.contains("?") ? "&" : "?").append(propsJoiner);
 
     ComboPooledDataSource ds = new ComboPooledDataSource();
     ds.setJdbcUrl(urlBuilder.toString());
 
-    final String user = connectInfo.props.getProperty(PropertyDefinition.USER.name);
-    final String password = connectInfo.props.getProperty(PropertyDefinition.PASSWORD.name);
+    final String user = connectParams.props.getProperty(PropertyDefinition.USER.name);
+    final String password = connectParams.props.getProperty(PropertyDefinition.PASSWORD.name);
     if (user != null) {
       ds.setUser(user);
     }
