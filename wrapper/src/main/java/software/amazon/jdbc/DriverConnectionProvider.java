@@ -49,6 +49,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
           put(HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT, new HighestWeightHostSelector());
           put(RandomHostSelector.STRATEGY_RANDOM, new RandomHostSelector());
           put(RoundRobinHostSelector.STRATEGY_ROUND_ROBIN, new RoundRobinHostSelector());
+          put(WeightedRandomHostSelector.STRATEGY_WEIGHTED_RANDOM, new WeightedRandomHostSelector());
         }
       });
 
