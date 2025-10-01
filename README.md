@@ -134,6 +134,15 @@ To find all the documentation and concrete examples on how to use the AWS JDBC D
 
 #### Amazon RDS Blue/Green Deployments
 
+Support for Blue/Green deployments using the AWS Advanced JDBC Driver requires specific metadata tables. The following service versions provide support for Blue/Green Deployments:
+
+- Supported RDS PostgreSQL Versions: `rds_tools v1.7 (17.1, 16.5, 15.9, 14.14, 13.17, 12.21)` and above.
+- Supported Aurora PostgreSQL Versions: Engine Release `17.5, 16.9, 15.13, 14.18, 13.21` and above.
+- Supported Aurora MySQL Versions: Engine Release `3.07` and above.
+
+Please note that Aurora Global Database and RDS Multi-AZ clusters with Blue/Green deployments is currently not supported. For detailed information on supported database versions, refer to the [Blue/Green Deployment Plugin Documentation](./docs/using-the-jdbc-driver/using-plugins/UsingTheBlueGreenPlugin.md).
+
+In addition:
 - **Post-switchover failures:** After a Blue/Green switchover, the wrapper may not properly detect the new cluster topology, leading to failed failover attempts.
 - **Metadata inconsistencies:** Discrepancies between topology metadata and actual available endpoints prevent reliable operation.
 - **Version-specific issues:** Requirements vary between Aurora MySQL and Aurora PostgreSQL due to different internal systems.
