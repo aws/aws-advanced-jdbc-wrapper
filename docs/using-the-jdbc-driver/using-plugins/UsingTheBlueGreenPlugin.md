@@ -6,10 +6,6 @@ The [Blue/Green Deployment](https://docs.aws.amazon.com/whitepapers/latest/blue-
 
 The AWS JDBC Driver leverages the Blue/Green Deployment approach by intelligently managing traffic distribution between blue and green nodes, minimizing the impact of stale DNS data and connectivity disruptions on user applications.
 
-**Important: Service Dependency**
-
-Support for Blue/Green deployments using the AWS Advanced JDBC Wrapper requires specific metadata tables that are **not available in the current RDS and Aurora service**. Please contact your AWS account team for metadata release timelines.
-
 ## Prerequisites
 > [!WARNING]\
 > Currently Supported Database Deployments:
@@ -26,7 +22,13 @@ Support for Blue/Green deployments using the AWS Advanced JDBC Wrapper requires 
 >
 > **Blue/Green Support Behaviour and Version Compatibility:**
 >
-> The AWS Advanced JDBC Wrapper now includes enhanced full support for Blue/Green Deployments. This support requires a minimum database version that includes a specific metadata table. This constraint **does not** apply to RDS MySQL.
+> The AWS Advanced JDBC Wrapper now includes enhanced full support for Blue/Green Deployments. This support requires a minimum database version that includes a specific metadata table. The metadata will be accessible provided the green deployment satisfies the minimum version compatibility requirements. This constraint **does not** apply to RDS MySQL.
+>
+> For RDS Postgres, you will also need to manually install the `rds_tools` extension using the following DDL so that the metadata required by the wrapper is available:
+>
+> ```sql
+> CREATE EXTENSION rds_tools;
+> ```
 >
 > If your database version does **not** support this table, the driver will automatically detect its absence and fallback to its previous behaviour. In this fallback mode, Blue/Green handling is subject to the same limitations listed above.
 >
