@@ -105,7 +105,6 @@ class RdsHostListProviderTest {
 
   @AfterEach
   void tearDown() throws Exception {
-    RdsHostListProvider.clearAll();
     storageService.clearAll();
     closeable.close();
   }
@@ -231,7 +230,6 @@ class RdsHostListProviderTest {
 
   @Test
   void testTopologyCache() throws SQLException {
-    RdsHostListProvider.clearAll();
 
     RdsHostListProvider provider1 = Mockito.spy(getRdsHostListProvider("jdbc:something://cluster-a.domain.com/"));
     provider1.init();

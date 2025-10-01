@@ -383,14 +383,6 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   }
 
   /**
-   * Clear topology cache for all clusters.
-   */
-  public static void clearAll() {
-    // nothing to clear
-    // TODO: consider to remove
-  }
-
-  /**
    * Clear topology cache for the current cluster.
    */
   public void clear() {

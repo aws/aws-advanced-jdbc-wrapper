@@ -72,10 +72,6 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
         CLUSTER_TOPOLOGY_HIGH_REFRESH_RATE_MS.getLong(this.properties));
   }
 
-  public static void clearCache() {
-    clearAll();
-  }
-
   @Override
   protected void init() throws SQLException {
     super.init();

@@ -99,7 +99,6 @@ class RdsMultiAzDbClusterListProviderTest {
 
   @AfterEach
   void tearDown() throws Exception {
-    RdsMultiAzDbClusterListProvider.clearAll();
     storageService.clearAll();
     closeable.close();
   }
@@ -203,7 +202,6 @@ class RdsMultiAzDbClusterListProviderTest {
 
   @Test
   void testTopologyCache() throws SQLException {
-    RdsMultiAzDbClusterListProvider.clearAll();
 
     RdsMultiAzDbClusterListProvider provider1 =
         Mockito.spy(getRdsMazDbClusterHostListProvider("jdbc:something://cluster-a.domain.com/"));
