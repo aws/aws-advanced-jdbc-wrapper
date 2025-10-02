@@ -37,6 +37,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HighestWeightHostSelector;
 import software.amazon.jdbc.HostListProvider;
 import software.amazon.jdbc.HostRole;
@@ -61,6 +62,7 @@ class LimitlessRouterServiceImplTest {
   private static final String CLUSTER_ID = "someClusterId";
   @Mock private EventPublisher mockEventPublisher;
   @Mock private MonitorService mockMonitorService;
+  @Mock private ConnectionProvider mockConnectionProvider;
   @Mock private TelemetryFactory mockTelemetryFactory;
   @Mock private PluginService mockPluginService;
   @Mock private HostListProvider mockHostListProvider;
@@ -84,7 +86,8 @@ class LimitlessRouterServiceImplTest {
     when(mockHostListProvider.getClusterId()).thenReturn(CLUSTER_ID);
 
     this.storageService = new StorageServiceImpl(mockEventPublisher);
-    servicesContainer = new FullServicesContainerImpl(this.storageService, mockMonitorService, mockTelemetryFactory);
+    servicesContainer = new FullServicesContainerImpl(
+        this.storageService, mockMonitorService, mockConnectionProvider, mockTelemetryFactory);
     servicesContainer.setPluginService(mockPluginService);
   }
 

@@ -31,10 +31,10 @@ import software.amazon.jdbc.util.storage.SlidingExpirationCache;
 
 public class LeastConnectionsHostSelector implements HostSelector {
   public static final String STRATEGY_LEAST_CONNECTIONS = "leastConnections";
-  private final SlidingExpirationCache<Pair, AutoCloseable> databasePools;
+  private final SlidingExpirationCache<Pair<String, String>, AutoCloseable> databasePools;
 
   public LeastConnectionsHostSelector(
-      SlidingExpirationCache<Pair, AutoCloseable> databasePools) {
+      SlidingExpirationCache<Pair<String, String>, AutoCloseable> databasePools) {
     this.databasePools = databasePools;
   }
 
@@ -50,7 +50,7 @@ public class LeastConnectionsHostSelector implements HostSelector {
             getNumConnections(hostSpec1, this.databasePools) - getNumConnections(hostSpec2, this.databasePools))
         .collect(Collectors.toList());
 
-    if (eligibleHosts.size() == 0) {
+    if (eligibleHosts.isEmpty()) {
       throw new SQLException(Messages.get("HostSelector.noHostsMatchingRole", new Object[]{role}));
     }
 
@@ -59,10 +59,10 @@ public class LeastConnectionsHostSelector implements HostSelector {
 
   private int getNumConnections(
       final HostSpec hostSpec,
-      final SlidingExpirationCache<Pair, AutoCloseable> databasePools) {
+      final SlidingExpirationCache<Pair<String, String>, AutoCloseable> databasePools) {
     int numConnections = 0;
     final String url = hostSpec.getUrl();
-    for (final Map.Entry<Pair, AutoCloseable> entry :
+    for (final Map.Entry<Pair<String, String>, AutoCloseable> entry :
         databasePools.getEntries().entrySet()) {
       if (!url.equals(entry.getKey().getValue1())) {
         continue;

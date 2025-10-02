@@ -24,59 +24,65 @@ import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PartialPluginService;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.dialect.Dialect;
-import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.FullServicesContainerImpl;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
+/**
+ * A service used to open new connections for internal driver use.
+ *
+ * @deprecated This class is deprecated and will be removed in a future version. Use
+ *     {@link software.amazon.jdbc.util.ServiceUtility#createServiceContainer} followed by
+ *     {@link PluginService#forceConnect} instead.
+ */
+@Deprecated
 public class ConnectionServiceImpl implements ConnectionService {
-  protected final String targetDriverProtocol;
+  protected final ConnectConfig connectConfig;
   protected final ConnectionPluginManager pluginManager;
   protected final PluginService pluginService;
 
+  /**
+   * Constructs a {@link ConnectionServiceImpl} instance.
+   *
+   * @deprecated Use {@link software.amazon.jdbc.util.ServiceUtility#createServiceContainer} instead.
+   */
+  @Deprecated
   public ConnectionServiceImpl(
       StorageService storageService,
       MonitorService monitorService,
       TelemetryFactory telemetryFactory,
       ConnectionProvider connectionProvider,
-      String originalUrl,
-      String targetDriverProtocol,
-      TargetDriverDialect driverDialect,
-      Dialect dbDialect,
-      Properties props) throws SQLException {
-    this.targetDriverProtocol = targetDriverProtocol;
+      ConnectConfig connectConfig) throws SQLException {
+    this.connectConfig = connectConfig;
 
-    FullServicesContainer
-        servicesContainer = new FullServicesContainerImpl(storageService, monitorService, telemetryFactory);
+    FullServicesContainer servicesContainer =
+        new FullServicesContainerImpl(storageService, monitorService, connectionProvider, telemetryFactory);
     this.pluginManager = new ConnectionPluginManager(
         connectionProvider,
         null,
         null,
         telemetryFactory);
     servicesContainer.setConnectionPluginManager(this.pluginManager);
+    PartialPluginService partialPluginService = new PartialPluginService(servicesContainer, this.connectConfig);
 
-    PartialPluginService partialPluginService = new PartialPluginService(
-        servicesContainer,
-        props,
-        originalUrl,
-        this.targetDriverProtocol,
-        driverDialect,
-        dbDialect
-    );
+    servicesContainer.setHostListProviderService(partialPluginService);
+    servicesContainer.setPluginService(partialPluginService);
+    servicesContainer.setPluginManagerService(partialPluginService);
 
     this.pluginService = partialPluginService;
-    this.pluginManager.init(servicesContainer, props, partialPluginService, null);
+    this.pluginManager.init(servicesContainer, this.connectConfig.getProps(), partialPluginService, null);
   }
 
   @Override
+  @Deprecated
   public Connection open(HostSpec hostSpec, Properties props) throws SQLException {
-    return this.pluginManager.forceConnect(this.targetDriverProtocol, hostSpec, props, true, null);
+    return this.pluginManager.forceConnect(this.connectConfig, hostSpec, true, null);
   }
 
   @Override
+  @Deprecated
   public PluginService getPluginService() {
     return this.pluginService;
   }

@@ -67,9 +67,9 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
   }
 
   @Override
-  public ConnectInfo prepareConnectInfo(final @NonNull String protocol,
-      final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props) throws SQLException {
+  public ConnectParams prepareConnectParams(final @NonNull String protocol,
+                                          final @NonNull HostSpec hostSpec,
+                                          final @NonNull Properties props) throws SQLException {
 
     final String databaseName =
         PropertyDefinition.DATABASE.getString(props) != null
@@ -86,7 +86,7 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
         PropertyDefinition.SOCKET_TIMEOUT.name,
         PropertyDefinition.CONNECT_TIMEOUT.name);
 
-    return new ConnectInfo(urlBuilder, props);
+    return new ConnectParams(urlBuilder, props);
   }
 
   @Override

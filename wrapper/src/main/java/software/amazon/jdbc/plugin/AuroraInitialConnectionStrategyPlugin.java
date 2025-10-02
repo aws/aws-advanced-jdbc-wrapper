@@ -39,6 +39,7 @@ import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlugin {
 
@@ -97,10 +98,10 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
   }
 
   private final PluginService pluginService;
-  private HostListProviderService hostListProviderService;
   private final RdsUtils rdsUtils = new RdsUtils();
+  private final VerifyOpenedConnectionType verifyOpenedConnectionType;
+  private HostListProviderService hostListProviderService;
 
-  private VerifyOpenedConnectionType verifyOpenedConnectionType = null;
 
   static {
     PropertyDefinition.registerPluginProperties(AuroraInitialConnectionStrategyPlugin.class);
@@ -119,9 +120,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
   @Override
   public void initHostProvider(
-      final String driverProtocol,
-      final String initialUrl,
-      final Properties props,
+      final ConnectConfig connectConfig,
       final HostListProviderService hostListProviderService,
       final JdbcCallable<Void, SQLException> initHostProviderFunc) throws SQLException {
 
@@ -134,15 +133,13 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
   @Override
   public Connection connect(
-      final String driverProtocol,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
-      final Properties props,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
-
     final RdsUrlType type = this.rdsUtils.identifyRdsType(hostSpec.getHost());
-
+    final Properties props = connectConfig.getProps();
     if (type == RdsUrlType.RDS_WRITER_CLUSTER
         || isInitialConnection && this.verifyOpenedConnectionType == VerifyOpenedConnectionType.WRITER) {
       Connection writerCandidateConn = this.getVerifiedWriterConnection(props, isInitialConnection, connectFunc);
@@ -369,8 +366,6 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     if (this.pluginService.acceptsStrategy(HostRole.READER, strategy)) {
       try {
         return this.pluginService.getHostSpecByStrategy(HostRole.READER, strategy);
-      } catch (UnsupportedOperationException ex) {
-        throw ex;
       } catch (SQLException ex) {
         // host isn't found
         return null;

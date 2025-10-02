@@ -186,7 +186,7 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
   }
 
   @Override
-  public ConnectInfo prepareConnectInfo(final @NonNull String protocol,
+  public ConnectParams prepareConnectParams(final @NonNull String protocol,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props) throws SQLException {
 
@@ -200,7 +200,7 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
     // and use them to make a connection
     PropertyDefinition.removeAllExceptCredentials(props);
 
-    return new ConnectInfo(urlBuilder, props);
+    return new ConnectParams(urlBuilder, props);
   }
 
   @Override

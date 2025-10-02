@@ -48,6 +48,7 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.storage.CacheMap;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -65,8 +66,8 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
 
   protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache = new CacheMap<>();
   protected final FullServicesContainer servicesContainer;
+  protected final ConnectConfig connectConfig;
   protected final ConnectionPluginManager pluginManager;
-  protected final Properties props;
   protected volatile HostListProvider hostListProvider;
   protected List<HostSpec> allHosts = new ArrayList<>();
   protected HostSpec currentHostSpec;
@@ -74,39 +75,22 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   protected boolean isInTransaction;
   protected final ExceptionManager exceptionManager;
   protected final @Nullable ExceptionHandler exceptionHandler;
-  protected final String originalUrl;
-  protected final String driverProtocol;
-  protected TargetDriverDialect targetDriverDialect;
-  protected Dialect dbDialect;
   protected @Nullable final ConfigurationProfile configurationProfile;
   protected final ConnectionProviderManager connectionProviderManager;
 
   public PartialPluginService(
-      @NonNull final FullServicesContainer servicesContainer,
-      @NonNull final Properties props,
-      @NonNull final String originalUrl,
-      @NonNull final String targetDriverProtocol,
-      @NonNull final TargetDriverDialect targetDriverDialect,
-      @NonNull final Dialect dbDialect) {
+      @NonNull final FullServicesContainer servicesContainer, @NonNull final ConnectConfig connectConfig) {
     this(
         servicesContainer,
         new ExceptionManager(),
-        props,
-        originalUrl,
-        targetDriverProtocol,
-        targetDriverDialect,
-        dbDialect,
+        connectConfig,
         null);
   }
 
   public PartialPluginService(
       @NonNull final FullServicesContainer servicesContainer,
       @NonNull final ExceptionManager exceptionManager,
-      @NonNull final Properties props,
-      @NonNull final String originalUrl,
-      @NonNull final String targetDriverProtocol,
-      @NonNull final TargetDriverDialect targetDriverDialect,
-      @NonNull final Dialect dbDialect,
+      @NonNull final ConnectConfig connectConfig,
       @Nullable final ConfigurationProfile configurationProfile) {
     this.servicesContainer = servicesContainer;
     this.servicesContainer.setHostListProviderService(this);
@@ -114,11 +98,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
     this.servicesContainer.setPluginManagerService(this);
 
     this.pluginManager = servicesContainer.getConnectionPluginManager();
-    this.props = props;
-    this.originalUrl = originalUrl;
-    this.driverProtocol = targetDriverProtocol;
-    this.targetDriverDialect = targetDriverDialect;
-    this.dbDialect = dbDialect;
+    this.connectConfig = connectConfig;
     this.configurationProfile = configurationProfile;
     this.exceptionManager = exceptionManager;
 
@@ -130,8 +110,8 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
         ? this.configurationProfile.getExceptionHandler()
         : null;
 
-    HostListProviderSupplier supplier = this.dbDialect.getHostListProvider();
-    this.hostListProvider = supplier.getProvider(this.props, this.originalUrl, this.servicesContainer);
+    HostListProviderSupplier supplier = this.connectConfig.getDbDialect().getHostListProvider();
+    this.hostListProvider = supplier.getProvider(this.connectConfig, this.servicesContainer);
   }
 
   @Override
@@ -183,8 +163,13 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
+  public ConnectConfig getConnectConfig() {
+    return this.connectConfig;
+  }
+
+  @Override
   public String getOriginalUrl() {
-    return this.originalUrl;
+    return this.connectConfig.getInitialConnectionString();
   }
 
   @Override
@@ -229,13 +214,13 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
 
   public boolean isPooledConnectionProvider(HostSpec host, Properties props) {
     final ConnectionProvider connectionProvider =
-        this.connectionProviderManager.getConnectionProvider(this.driverProtocol, host, props);
+        this.connectionProviderManager.getConnectionProvider(this.connectConfig, host);
     return (connectionProvider instanceof PooledConnectionProvider);
   }
 
   @Override
   public String getDriverProtocol() {
-    return this.driverProtocol;
+    return this.connectConfig.getProtocol();
   }
 
   @Override
@@ -510,8 +495,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
       final HostSpec hostSpec,
       final Properties props)
       throws SQLException {
-    throw new UnsupportedOperationException(
-        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"forceConnect"}));
+    return this.forceConnect(hostSpec, props, null);
   }
 
   @Override
@@ -520,8 +504,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
       final Properties props,
       final @Nullable ConnectionPlugin pluginToSkip)
       throws SQLException {
-    throw new UnsupportedOperationException(
-        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"forceConnect"}));
+    return this.pluginManager.forceConnect(this.connectConfig, hostSpec, true, pluginToSkip);
   }
 
   private void updateHostAvailability(final List<HostSpec> hosts) {
@@ -541,7 +524,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
 
   @Override
   public boolean isNetworkException(Throwable throwable) {
-    return this.isNetworkException(throwable, this.targetDriverDialect);
+    return this.isNetworkException(throwable, this.connectConfig.getDriverDialect());
   }
 
   @Override
@@ -549,7 +532,9 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
     if (this.exceptionHandler != null) {
       return this.exceptionHandler.isNetworkException(throwable, targetDriverDialect);
     }
-    return this.exceptionManager.isNetworkException(this.dbDialect, throwable, targetDriverDialect);
+
+    return this.exceptionManager.isNetworkException(
+        this.connectConfig.getDbDialect(), throwable, targetDriverDialect);
   }
 
   @Override
@@ -557,12 +542,13 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
     if (this.exceptionHandler != null) {
       return this.exceptionHandler.isNetworkException(sqlState);
     }
-    return this.exceptionManager.isNetworkException(this.dbDialect, sqlState);
+
+    return this.exceptionManager.isNetworkException(this.connectConfig.getDbDialect(), sqlState);
   }
 
   @Override
   public boolean isLoginException(Throwable throwable) {
-    return this.isLoginException(throwable, this.targetDriverDialect);
+    return this.isLoginException(throwable, this.connectConfig.getDriverDialect());
   }
 
   @Override
@@ -570,7 +556,9 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
     if (this.exceptionHandler != null) {
       return this.exceptionHandler.isLoginException(throwable, targetDriverDialect);
     }
-    return this.exceptionManager.isLoginException(this.dbDialect, throwable, targetDriverDialect);
+
+    return this.exceptionManager.isLoginException(
+        this.connectConfig.getDbDialect(), throwable, targetDriverDialect);
   }
 
   @Override
@@ -578,17 +566,17 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
     if (this.exceptionHandler != null) {
       return this.exceptionHandler.isLoginException(sqlState);
     }
-    return this.exceptionManager.isLoginException(this.dbDialect, sqlState);
+    return this.exceptionManager.isLoginException(this.connectConfig.getDbDialect(), sqlState);
   }
 
   @Override
   public Dialect getDialect() {
-    return this.dbDialect;
+    return this.connectConfig.getDbDialect();
   }
 
   @Override
   public TargetDriverDialect getTargetDriverDialect() {
-    return this.targetDriverDialect;
+    return this.connectConfig.getDriverDialect();
   }
 
   @Override
@@ -636,12 +624,12 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
 
   @Override
   public HostSpecBuilder getHostSpecBuilder() {
-    return new HostSpecBuilder(new HostAvailabilityStrategyFactory().create(this.props));
+    return new HostSpecBuilder(new HostAvailabilityStrategyFactory().create(this.connectConfig.getProps()));
   }
 
   @Override
   public Properties getProperties() {
-    return this.props;
+    return this.connectConfig.getProps();
   }
 
   public TelemetryFactory getTelemetryFactory() {

@@ -53,6 +53,7 @@ import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -232,9 +233,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   @Override
   public void initHostProvider(
-      final String driverProtocol,
-      final String initialUrl,
-      final Properties properties,
+      final ConnectConfig connectConfig,
       final HostListProviderService hostListProviderService,
       final JdbcCallable<Void, SQLException> initHostProviderFunc)
       throws SQLException {
@@ -728,20 +727,17 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   @Override
   public Connection connect(
-      final String driverProtocol,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
-      final Properties props,
       final boolean isInitialConnection,
-      final JdbcCallable<Connection, SQLException> connectFunc)
-      throws SQLException {
-
+      final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
     this.initFailoverMode();
 
     Connection conn = null;
-
+    Properties props = connectConfig.getProps();
     if (!ENABLE_CONNECT_FAILOVER.getBoolean(props)) {
-      return this.staleDnsHelper.getVerifiedConnection(isInitialConnection, this.hostListProviderService,
-            driverProtocol, hostSpec, props, connectFunc);
+      return this.staleDnsHelper.getVerifiedConnection(
+          isInitialConnection, this.hostListProviderService, connectConfig, hostSpec, connectFunc);
     }
 
     final HostSpec hostSpecWithAvailability = this.pluginService.getHosts().stream()
@@ -753,8 +749,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         || hostSpecWithAvailability.getAvailability() != HostAvailability.NOT_AVAILABLE) {
 
       try {
-        conn = this.staleDnsHelper.getVerifiedConnection(isInitialConnection, this.hostListProviderService,
-            driverProtocol, hostSpec, props, connectFunc);
+        conn = this.staleDnsHelper.getVerifiedConnection(
+            isInitialConnection, this.hostListProviderService, connectConfig, hostSpec, connectFunc);
       } catch (final SQLException e) {
         if (!this.shouldExceptionTriggerConnectionSwitch(e)) {
           throw e;

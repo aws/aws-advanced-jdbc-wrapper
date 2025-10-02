@@ -31,7 +31,7 @@ public interface TargetDriverDialect {
 
   boolean isDialect(final String dataSourceClass);
 
-  ConnectInfo prepareConnectInfo(final @NonNull String protocol,
+  ConnectParams prepareConnectParams(final @NonNull String protocol,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props) throws SQLException;
 

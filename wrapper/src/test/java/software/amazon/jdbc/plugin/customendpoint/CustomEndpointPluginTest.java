@@ -48,6 +48,7 @@ import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -64,6 +65,7 @@ public class CustomEndpointPluginTest {
   private final HostSpec host = hostSpecBuilder.host(customEndpointUrl).build();
 
   @Mock private FullServicesContainer mockServicesContainer;
+  @Mock private ConnectConfig mockConnectConfig;
   @Mock private PluginService mockPluginService;
   @Mock private MonitorService mockMonitorService;
   @Mock private BiFunction<HostSpec, Region, RdsClient> mockRdsClientFunc;
@@ -106,7 +108,7 @@ public class CustomEndpointPluginTest {
   public void testConnect_monitorNotCreatedIfNotCustomEndpointHost() throws SQLException {
     CustomEndpointPlugin spyPlugin = getSpyPlugin();
 
-    spyPlugin.connect("", writerClusterHost, props, true, mockConnectFunc);
+    spyPlugin.connect(mockConnectConfig, writerClusterHost, true, mockConnectFunc);
 
     verify(mockConnectFunc, times(1)).call();
     verify(spyPlugin, never()).createMonitorIfAbsent(any(Properties.class));
@@ -116,7 +118,7 @@ public class CustomEndpointPluginTest {
   public void testConnect_monitorCreated() throws SQLException {
     CustomEndpointPlugin spyPlugin = getSpyPlugin();
 
-    spyPlugin.connect("", host, props, true, mockConnectFunc);
+    spyPlugin.connect(mockConnectConfig, host, true, mockConnectFunc);
 
     verify(spyPlugin, times(1)).createMonitorIfAbsent(eq(props));
     verify(mockConnectFunc, times(1)).call();
@@ -128,7 +130,7 @@ public class CustomEndpointPluginTest {
     CustomEndpointPlugin spyPlugin = getSpyPlugin();
     when(mockMonitor.hasCustomEndpointInfo()).thenReturn(false);
 
-    assertThrows(SQLException.class, () -> spyPlugin.connect("", host, props, true, mockConnectFunc));
+    assertThrows(SQLException.class, () -> spyPlugin.connect(mockConnectConfig, host, true, mockConnectFunc));
 
     verify(spyPlugin, times(1)).createMonitorIfAbsent(eq(props));
     verify(mockConnectFunc, never()).call();

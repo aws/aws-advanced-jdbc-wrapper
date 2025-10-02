@@ -22,8 +22,7 @@ import java.util.List;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.jdbc.dialect.Dialect;
-import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 /**
  * Implement this interface in order to handle the physical connection creation process.
@@ -34,14 +33,12 @@ public interface ConnectionProvider {
    * properties. Some ConnectionProvider implementations may not be able to handle certain URL
    * types or properties.
    *
-   * @param protocol the connection protocol (example "jdbc:mysql://")
+   * @param connectConfig the connection info for the original connection.
    * @param hostSpec the HostSpec containing the host-port information for the host to connect to
-   * @param props    the Properties to use for the connection
    * @return true if this ConnectionProvider can provide connections for the given URL, otherwise
    *         return false
    */
-  boolean acceptsUrl(
-      @NonNull String protocol, @NonNull HostSpec hostSpec, @NonNull Properties props);
+  boolean acceptsUrl(@NonNull ConnectConfig connectConfig, @NonNull HostSpec hostSpec);
 
   /**
    * Indicates whether the selection strategy is supported by the connection provider.
@@ -73,21 +70,12 @@ public interface ConnectionProvider {
   /**
    * Called once per connection that needs to be created.
    *
-   * @param protocol the connection protocol (example "jdbc:mysql://")
-   * @param dialect  the database dialect
-   * @param targetDriverDialect the target driver dialect
+   * @param connectConfig the connection info for the original connection.
    * @param hostSpec the HostSpec containing the host-port information for the host to connect to
-   * @param props    the Properties to use for the connection
    * @return {@link Connection} resulting from the given connection information
    * @throws SQLException if an error occurs
    */
-  Connection connect(
-      @NonNull String protocol,
-      @NonNull Dialect dialect,
-      @NonNull TargetDriverDialect targetDriverDialect,
-      @NonNull HostSpec hostSpec,
-      @NonNull Properties props)
-      throws SQLException;
+  Connection connect(@NonNull ConnectConfig connectConfig, @NonNull HostSpec hostSpec) throws SQLException;
 
   String getTargetName();
 }

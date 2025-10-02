@@ -24,7 +24,6 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
 import software.amazon.jdbc.ConnectionPlugin;
@@ -37,6 +36,7 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 public class BenchmarkPlugin implements ConnectionPlugin, CanReleaseResources {
   final List<String> resources = new ArrayList<>();
@@ -58,18 +58,21 @@ public class BenchmarkPlugin implements ConnectionPlugin, CanReleaseResources {
   }
 
   @Override
-  public Connection connect(String driverProtocol, HostSpec hostSpec, Properties props,
-      boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc)
-      throws SQLException {
+  public Connection connect(
+      final ConnectConfig connectConfig,
+      final HostSpec hostSpec,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
     LOGGER.finer(() -> String.format("connect=''%s''", hostSpec.getHost()));
     resources.add("connect");
     return connectFunc.call();
   }
 
   @Override
-  public Connection forceConnect(String driverProtocol, HostSpec hostSpec, Properties props,
-      boolean isInitialConnection, JdbcCallable<Connection, SQLException> forceConnectFunc)
-      throws SQLException {
+  public Connection forceConnect(
+      ConnectConfig connectConfig,
+      HostSpec hostSpec,
+      boolean isInitialConnection, JdbcCallable<Connection, SQLException> forceConnectFunc) throws SQLException {
     LOGGER.finer(() -> String.format("forceConnect=''%s''", hostSpec.getHost()));
     resources.add("forceConnect");
     return forceConnectFunc.call();
@@ -93,10 +96,11 @@ public class BenchmarkPlugin implements ConnectionPlugin, CanReleaseResources {
   }
 
   @Override
-  public void initHostProvider(String driverProtocol, String initialUrl, Properties props,
+  public void initHostProvider(
+      ConnectConfig connectConfig,
       HostListProviderService hostListProviderService,
       JdbcCallable<Void, SQLException> initHostProviderFunc) {
-    LOGGER.finer(() -> String.format("initHostProvider=''%s''", initialUrl));
+    LOGGER.finer(() -> String.format("initHostProvider=''%s''", connectConfig.getInitialConnectionString()));
     resources.add("initHostProvider");
   }
 
