@@ -30,11 +30,16 @@ import software.amazon.jdbc.util.WrapperUtils;
 
 public class NClobWrapper implements NClob {
 
-  protected NClob nclob;
-  protected ConnectionPluginManager pluginManager;
+  protected final NClob nclob;
+  protected final ConnectionWrapper connectionWrapper;
+  protected final ConnectionPluginManager pluginManager;
 
-  public NClobWrapper(@NonNull NClob nclob, @NonNull ConnectionPluginManager pluginManager) {
+  public NClobWrapper(
+      @NonNull NClob nclob,
+      @NonNull ConnectionWrapper connectionWrapper,
+      @NonNull ConnectionPluginManager pluginManager) {
     this.nclob = nclob;
+    this.connectionWrapper = connectionWrapper;
     this.pluginManager = pluginManager;
   }
 
@@ -44,10 +49,11 @@ public class NClobWrapper implements NClob {
       return WrapperUtils.executeWithPlugins(
           long.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.nclob,
           JdbcMethod.NCLOB_LENGTH,
-          () -> this.nclob.length());
+          this.nclob::length);
     } else {
       return this.nclob.length();
     }
@@ -59,6 +65,7 @@ public class NClobWrapper implements NClob {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.nclob,
           JdbcMethod.NCLOB_GETSUBSTRING,
@@ -76,10 +83,11 @@ public class NClobWrapper implements NClob {
       return WrapperUtils.executeWithPlugins(
           Reader.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.nclob,
           JdbcMethod.NCLOB_GETASCIISTREAM,
-          () -> this.nclob.getCharacterStream());
+          this.nclob::getCharacterStream);
     } else {
       return this.nclob.getCharacterStream();
     }
@@ -91,6 +99,7 @@ public class NClobWrapper implements NClob {
       return WrapperUtils.executeWithPlugins(
           Reader.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.nclob,
           JdbcMethod.NCLOB_GETCHARACTERSTREAM,
@@ -108,10 +117,11 @@ public class NClobWrapper implements NClob {
       return WrapperUtils.executeWithPlugins(
           InputStream.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.nclob,
           JdbcMethod.NCLOB_GETASCIISTREAM,
-          () -> this.nclob.getAsciiStream());
+          this.nclob::getAsciiStream);
     } else {
       return this.nclob.getAsciiStream();
     }
@@ -123,6 +133,7 @@ public class NClobWrapper implements NClob {
       return WrapperUtils.executeWithPlugins(
           long.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.nclob,
           JdbcMethod.NCLOB_POSITION,
@@ -140,6 +151,7 @@ public class NClobWrapper implements NClob {
       return WrapperUtils.executeWithPlugins(
           long.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.nclob,
           JdbcMethod.NCLOB_POSITION,
@@ -157,6 +169,7 @@ public class NClobWrapper implements NClob {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.nclob,
           JdbcMethod.NCLOB_SETSTRING,
@@ -174,6 +187,7 @@ public class NClobWrapper implements NClob {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.nclob,
           JdbcMethod.NCLOB_SETSTRING,
@@ -193,6 +207,7 @@ public class NClobWrapper implements NClob {
       return WrapperUtils.executeWithPlugins(
           OutputStream.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.nclob,
           JdbcMethod.NCLOB_SETASCIISTREAM,
@@ -209,6 +224,7 @@ public class NClobWrapper implements NClob {
       return WrapperUtils.executeWithPlugins(
           Writer.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.nclob,
           JdbcMethod.NCLOB_SETCHARACTERSTREAM,
@@ -224,6 +240,7 @@ public class NClobWrapper implements NClob {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.NCLOB_TRUNCATE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.nclob,
           JdbcMethod.NCLOB_TRUNCATE,
@@ -239,10 +256,11 @@ public class NClobWrapper implements NClob {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.NCLOB_FREE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.nclob,
           JdbcMethod.NCLOB_FREE,
-          () -> this.nclob.free());
+          this.nclob::free);
     } else {
       this.nclob.free();
     }

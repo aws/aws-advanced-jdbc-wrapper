@@ -74,7 +74,6 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       final PluginManagerService pluginManagerService) {
     this(pluginService,
         defaultConnProvider,
-        effectiveConnProvider,
         pluginManagerService,
         new ConnectionProviderManager(defaultConnProvider, effectiveConnProvider));
   }
@@ -82,7 +81,6 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
   public DefaultConnectionPlugin(
       final PluginService pluginService,
       final ConnectionProvider defaultConnProvider,
-      final @Nullable ConnectionProvider effectiveConnProvider,
       final PluginManagerService pluginManagerService,
       final ConnectionProviderManager connProviderManager) {
     if (pluginService == null) {

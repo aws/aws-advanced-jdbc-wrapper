@@ -45,12 +45,16 @@ import software.amazon.jdbc.util.WrapperUtils;
 
 public class ResultSetWrapper implements ResultSet {
 
-  protected ResultSet resultSet;
-  protected ConnectionPluginManager pluginManager;
+  protected final ResultSet resultSet;
+  protected final ConnectionWrapper connectionWrapper;
+  protected final ConnectionPluginManager pluginManager;
 
   public ResultSetWrapper(
-      @NonNull ResultSet resultSet, @NonNull ConnectionPluginManager pluginManager) {
+      @NonNull ResultSet resultSet,
+      @NonNull ConnectionWrapper connectionWrapper,
+      @NonNull ConnectionPluginManager pluginManager) {
     this.resultSet = resultSet;
+    this.connectionWrapper = connectionWrapper;
     this.pluginManager = pluginManager;
   }
 
@@ -60,6 +64,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_ABSOLUTE,
@@ -75,10 +80,11 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_AFTERLAST)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_AFTERLAST,
-          () -> this.resultSet.afterLast());
+          this.resultSet::afterLast);
     } else {
       this.resultSet.afterLast();
     }
@@ -89,10 +95,11 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_BEFOREFIRST)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_BEFOREFIRST,
-          () -> this.resultSet.beforeFirst());
+          this.resultSet::beforeFirst);
     } else {
       this.resultSet.beforeFirst();
     }
@@ -103,10 +110,11 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_CANCELROWUPDATES)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_CANCELROWUPDATES,
-          () -> this.resultSet.cancelRowUpdates());
+          this.resultSet::cancelRowUpdates);
     } else {
       this.resultSet.cancelRowUpdates();
     }
@@ -117,10 +125,11 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_CLEARWARNINGS)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_CLEARWARNINGS,
-          () -> this.resultSet.clearWarnings());
+          this.resultSet::clearWarnings);
     } else {
       this.resultSet.clearWarnings();
     }
@@ -131,10 +140,11 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_CLOSE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_CLOSE,
-          () -> this.resultSet.close());
+          this.resultSet::close);
     } else {
       this.resultSet.close();
     }
@@ -145,10 +155,11 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_DELETEROW)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_DELETEROW,
-          () -> this.resultSet.deleteRow());
+          this.resultSet::deleteRow);
     } else {
       this.resultSet.deleteRow();
     }
@@ -160,6 +171,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_FINDCOLUMN,
@@ -176,10 +188,11 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_FIRST,
-          () -> this.resultSet.first());
+          this.resultSet::first);
     } else {
       return this.resultSet.first();
     }
@@ -190,7 +203,8 @@ public class ResultSetWrapper implements ResultSet {
     return WrapperUtils.executeWithPlugins(
         Array.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.resultSet,
         JdbcMethod.RESULTSET_GETARRAY,
         () -> this.resultSet.getArray(columnIndex),
@@ -202,7 +216,8 @@ public class ResultSetWrapper implements ResultSet {
     return WrapperUtils.executeWithPlugins(
         Array.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.resultSet,
         JdbcMethod.RESULTSET_GETARRAY,
         () -> this.resultSet.getArray(columnLabel),
@@ -215,6 +230,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           InputStream.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETASCIISTREAM,
@@ -231,6 +247,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           InputStream.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETASCIISTREAM,
@@ -248,6 +265,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           BigDecimal.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETBIGDECIMAL,
@@ -266,6 +284,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           BigDecimal.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETBIGDECIMAL,
@@ -283,6 +302,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           BigDecimal.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETBIGDECIMAL,
@@ -299,6 +319,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           BigDecimal.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETBIGDECIMAL,
@@ -315,6 +336,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           InputStream.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETBINARYSTREAM,
@@ -331,6 +353,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           InputStream.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETBINARYSTREAM,
@@ -346,7 +369,8 @@ public class ResultSetWrapper implements ResultSet {
     return WrapperUtils.executeWithPlugins(
         Blob.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.resultSet,
         JdbcMethod.RESULTSET_GETBLOB,
         () -> this.resultSet.getBlob(columnIndex),
@@ -358,7 +382,8 @@ public class ResultSetWrapper implements ResultSet {
     return WrapperUtils.executeWithPlugins(
         Blob.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.resultSet,
         JdbcMethod.RESULTSET_GETBLOB,
         () -> this.resultSet.getBlob(columnLabel),
@@ -371,6 +396,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETBOOLEAN,
@@ -387,6 +413,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETBOOLEAN,
@@ -403,6 +430,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           byte.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETBYTE,
@@ -419,6 +447,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           byte.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETBYTE,
@@ -435,6 +464,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           byte[].class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETBYTES,
@@ -451,6 +481,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           byte[].class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETBYTES,
@@ -467,6 +498,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           Reader.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETCHARACTERSTREAM,
@@ -483,6 +515,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           Reader.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETCHARACTERSTREAM,
@@ -498,7 +531,8 @@ public class ResultSetWrapper implements ResultSet {
     return WrapperUtils.executeWithPlugins(
         Clob.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.resultSet,
         JdbcMethod.RESULTSET_GETCLOB,
         () -> this.resultSet.getClob(columnIndex),
@@ -510,7 +544,8 @@ public class ResultSetWrapper implements ResultSet {
     return WrapperUtils.executeWithPlugins(
         Clob.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.resultSet,
         JdbcMethod.RESULTSET_GETCLOB,
         () -> this.resultSet.getClob(columnLabel),
@@ -524,10 +559,11 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETCONCURRENCY,
-          () -> this.resultSet.getConcurrency());
+          this.resultSet::getConcurrency);
     } else {
       return this.resultSet.getConcurrency();
     }
@@ -539,10 +575,11 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETCURSORNAME,
-          () -> this.resultSet.getCursorName());
+          this.resultSet::getCursorName);
     } else {
       return this.resultSet.getCursorName();
     }
@@ -554,6 +591,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           Date.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETDATE,
@@ -570,6 +608,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           Date.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETDATE,
@@ -586,6 +625,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           Date.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETDATE,
@@ -603,6 +643,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           Date.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETDATE,
@@ -620,6 +661,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           double.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETDOUBLE,
@@ -636,6 +678,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           double.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETDOUBLE,
@@ -653,10 +696,11 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETFETCHDIRECTION,
-          () -> this.resultSet.getFetchDirection());
+          this.resultSet::getFetchDirection);
     } else {
       return this.resultSet.getFetchDirection();
     }
@@ -668,10 +712,11 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETFETCHSIZE,
-          () -> this.resultSet.getFetchSize());
+          this.resultSet::getFetchSize);
     } else {
       return this.resultSet.getFetchSize();
     }
@@ -683,6 +728,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           float.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETFLOAT,
@@ -699,6 +745,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           float.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETFLOAT,
@@ -716,10 +763,11 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETHOLDABILITY,
-          () -> this.resultSet.getHoldability());
+          this.resultSet::getHoldability);
     } else {
       return this.resultSet.getHoldability();
     }
@@ -731,6 +779,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETINT,
@@ -747,6 +796,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETINT,
@@ -763,6 +813,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           long.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETLONG,
@@ -779,6 +830,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           long.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETLONG,
@@ -794,10 +846,11 @@ public class ResultSetWrapper implements ResultSet {
     return WrapperUtils.executeWithPlugins(
         ResultSetMetaData.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.resultSet,
         JdbcMethod.RESULTSET_GETMETADATA,
-        () -> this.resultSet.getMetaData());
+        this.resultSet::getMetaData);
   }
 
   @Override
@@ -806,6 +859,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           Reader.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETNCHARACTERSTREAM,
@@ -822,6 +876,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           Reader.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETNCHARACTERSTREAM,
@@ -837,7 +892,8 @@ public class ResultSetWrapper implements ResultSet {
     return WrapperUtils.executeWithPlugins(
         NClob.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.resultSet,
         JdbcMethod.RESULTSET_GETNCLOB,
         () -> this.resultSet.getNClob(columnIndex),
@@ -849,7 +905,8 @@ public class ResultSetWrapper implements ResultSet {
     return WrapperUtils.executeWithPlugins(
         NClob.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.resultSet,
         JdbcMethod.RESULTSET_GETNCLOB,
         () -> this.resultSet.getNClob(columnLabel),
@@ -862,6 +919,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETNSTRING,
@@ -878,6 +936,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETNSTRING,
@@ -894,6 +953,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           Object.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETOBJECT,
@@ -910,6 +970,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           Object.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETOBJECT,
@@ -926,6 +987,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           Object.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETOBJECT,
@@ -943,6 +1005,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           Object.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETOBJECT,
@@ -960,6 +1023,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           type,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETOBJECT,
@@ -977,6 +1041,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           type,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETOBJECT,
@@ -993,7 +1058,8 @@ public class ResultSetWrapper implements ResultSet {
     return WrapperUtils.executeWithPlugins(
         Ref.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.resultSet,
         JdbcMethod.RESULTSET_GETREF,
         () -> this.resultSet.getRef(columnIndex),
@@ -1005,7 +1071,8 @@ public class ResultSetWrapper implements ResultSet {
     return WrapperUtils.executeWithPlugins(
         Ref.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.resultSet,
         JdbcMethod.RESULTSET_GETREF,
         () -> this.resultSet.getRef(columnLabel),
@@ -1018,10 +1085,11 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETROW,
-          () -> this.resultSet.getRow());
+          this.resultSet::getRow);
     } else {
       return this.resultSet.getRow();
     }
@@ -1033,6 +1101,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           RowId.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETROWID,
@@ -1049,6 +1118,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           RowId.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETROWID,
@@ -1062,10 +1132,10 @@ public class ResultSetWrapper implements ResultSet {
   @Override
   public SQLXML getSQLXML(int columnIndex) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETSQLXML)) {
-      //noinspection SpellCheckingInspection
       return WrapperUtils.executeWithPlugins(
           SQLXML.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETSQLXML,
@@ -1079,10 +1149,10 @@ public class ResultSetWrapper implements ResultSet {
   @Override
   public SQLXML getSQLXML(String columnLabel) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_GETSQLXML)) {
-      //noinspection SpellCheckingInspection
       return WrapperUtils.executeWithPlugins(
           SQLXML.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETSQLXML,
@@ -1099,6 +1169,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           short.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETSHORT,
@@ -1115,6 +1186,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           short.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETSHORT,
@@ -1130,10 +1202,11 @@ public class ResultSetWrapper implements ResultSet {
     return WrapperUtils.executeWithPlugins(
         Statement.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.resultSet,
         JdbcMethod.RESULTSET_GETSTATEMENT,
-        () -> this.resultSet.getStatement());
+        this.resultSet::getStatement);
   }
 
   @Override
@@ -1142,6 +1215,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETSTRING,
@@ -1158,6 +1232,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETSTRING,
@@ -1174,6 +1249,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           Time.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETTIME,
@@ -1190,6 +1266,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           Time.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETTIME,
@@ -1206,6 +1283,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           Time.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETTIME,
@@ -1223,6 +1301,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           Time.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETTIME,
@@ -1240,6 +1319,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           Timestamp.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETTIMESTAMP,
@@ -1256,6 +1336,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           Timestamp.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETTIMESTAMP,
@@ -1272,6 +1353,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           Timestamp.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETTIMESTAMP,
@@ -1289,6 +1371,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           Timestamp.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETTIMESTAMP,
@@ -1307,10 +1390,11 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETTYPE,
-          () -> this.resultSet.getType());
+          this.resultSet::getType);
     } else {
       return this.resultSet.getType();
     }
@@ -1322,6 +1406,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           URL.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETURL,
@@ -1338,6 +1423,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           URL.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETURL,
@@ -1355,6 +1441,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           InputStream.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETUNICODESTREAM,
@@ -1372,6 +1459,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           InputStream.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETUNICODESTREAM,
@@ -1388,10 +1476,11 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           SQLWarning.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_GETWARNINGS,
-          () -> this.resultSet.getWarnings());
+          this.resultSet::getWarnings);
     } else {
       return this.resultSet.getWarnings();
     }
@@ -1402,10 +1491,11 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_INSERTROW)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_INSERTROW,
-          () -> this.resultSet.insertRow());
+          this.resultSet::insertRow);
     } else {
       this.resultSet.insertRow();
     }
@@ -1417,10 +1507,11 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_ISAFTERLAST,
-          () -> this.resultSet.isAfterLast());
+          this.resultSet::isAfterLast);
     } else {
       return this.resultSet.isAfterLast();
     }
@@ -1432,10 +1523,11 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_ISBEFOREFIRST,
-          () -> this.resultSet.isBeforeFirst());
+          this.resultSet::isBeforeFirst);
     } else {
       return this.resultSet.isBeforeFirst();
     }
@@ -1447,10 +1539,11 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_ISCLOSED,
-          () -> this.resultSet.isClosed());
+          this.resultSet::isClosed);
     } else {
       return this.resultSet.isClosed();
     }
@@ -1462,10 +1555,11 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_ISFIRST,
-          () -> this.resultSet.isFirst());
+          this.resultSet::isFirst);
     } else {
       return this.resultSet.isFirst();
     }
@@ -1477,10 +1571,11 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_ISLAST,
-          () -> this.resultSet.isLast());
+          this.resultSet::isLast);
     } else {
       return this.resultSet.isLast();
     }
@@ -1497,10 +1592,11 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_LAST,
-          () -> this.resultSet.last());
+          this.resultSet::last);
     } else {
       return this.resultSet.last();
     }
@@ -1511,10 +1607,11 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_MOVETOCURRENTROW)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_MOVETOCURRENTROW,
-          () -> this.resultSet.moveToCurrentRow());
+          this.resultSet::moveToCurrentRow);
     } else {
       this.resultSet.moveToCurrentRow();
     }
@@ -1525,10 +1622,11 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_MOVETOINSERTROW)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_MOVETOINSERTROW,
-          () -> this.resultSet.moveToInsertRow());
+          this.resultSet::moveToInsertRow);
     } else {
       this.resultSet.moveToInsertRow();
     }
@@ -1540,10 +1638,11 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_NEXT,
-          () -> this.resultSet.next());
+          this.resultSet::next);
     } else {
       return this.resultSet.next();
     }
@@ -1555,10 +1654,11 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_PREVIOUS,
-          () -> this.resultSet.previous());
+          this.resultSet::previous);
     } else {
       return this.resultSet.previous();
     }
@@ -1569,10 +1669,11 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_REFRESHROW)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_REFRESHROW,
-          () -> this.resultSet.refreshRow());
+          this.resultSet::refreshRow);
     } else {
       this.resultSet.refreshRow();
     }
@@ -1584,6 +1685,7 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_RELATIVE,
@@ -1600,10 +1702,11 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_ROWDELETED,
-          () -> this.resultSet.rowDeleted());
+          this.resultSet::rowDeleted);
     } else {
       return this.resultSet.rowDeleted();
     }
@@ -1615,10 +1718,11 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_ROWINSERTED,
-          () -> this.resultSet.rowInserted());
+          this.resultSet::rowInserted);
     } else {
       return this.resultSet.rowInserted();
     }
@@ -1630,10 +1734,11 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_ROWUPDATED,
-          () -> this.resultSet.rowUpdated());
+          this.resultSet::rowUpdated);
     } else {
       return this.resultSet.rowUpdated();
     }
@@ -1644,6 +1749,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_SETFETCHDIRECTION)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_SETFETCHDIRECTION,
@@ -1659,6 +1765,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_SETFETCHSIZE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_SETFETCHSIZE,
@@ -1679,6 +1786,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEARRAY)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEARRAY,
@@ -1695,6 +1803,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEARRAY)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEARRAY,
@@ -1711,6 +1820,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEASCIISTREAM,
@@ -1728,6 +1838,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEASCIISTREAM,
@@ -1745,6 +1856,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEASCIISTREAM,
@@ -1763,6 +1875,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEASCIISTREAM,
@@ -1780,6 +1893,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEASCIISTREAM,
@@ -1796,6 +1910,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEASCIISTREAM,
@@ -1812,6 +1927,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBIGDECIMAL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEBIGDECIMAL,
@@ -1828,6 +1944,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBIGDECIMAL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEBIGDECIMAL,
@@ -1844,6 +1961,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBINARYSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEBINARYSTREAM,
@@ -1862,6 +1980,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBINARYSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEBINARYSTREAM,
@@ -1879,6 +1998,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBINARYSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEBINARYSTREAM,
@@ -1897,6 +2017,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBINARYSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEBINARYSTREAM,
@@ -1914,6 +2035,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBINARYSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEBINARYSTREAM,
@@ -1930,6 +2052,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBINARYSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEBINARYSTREAM,
@@ -1946,6 +2069,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEBLOB,
@@ -1962,6 +2086,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEBLOB,
@@ -1979,6 +2104,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEBLOB,
@@ -1997,6 +2123,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEBLOB,
@@ -2014,6 +2141,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEBLOB,
@@ -2030,6 +2158,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEBLOB,
@@ -2046,6 +2175,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBOOLEAN)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEBOOLEAN,
@@ -2062,6 +2192,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBOOLEAN)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEBOOLEAN,
@@ -2078,6 +2209,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBYTE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEBYTE,
@@ -2094,6 +2226,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBYTE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEBYTE,
@@ -2110,6 +2243,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBYTES)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEBYTES,
@@ -2126,6 +2260,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEBYTES)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEBYTES,
@@ -2142,6 +2277,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATECHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATECHARACTERSTREAM,
@@ -2160,6 +2296,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATECHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATECHARACTERSTREAM,
@@ -2177,6 +2314,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATECHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATECHARACTERSTREAM,
@@ -2195,6 +2333,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATECHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATECHARACTERSTREAM,
@@ -2212,6 +2351,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATECHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATECHARACTERSTREAM,
@@ -2228,6 +2368,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATECHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATECHARACTERSTREAM,
@@ -2244,6 +2385,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATECLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATECLOB,
@@ -2260,6 +2402,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATECLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATECLOB,
@@ -2276,6 +2419,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATECLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATECLOB,
@@ -2293,6 +2437,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATECLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATECLOB,
@@ -2310,6 +2455,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATECLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATECLOB,
@@ -2326,6 +2472,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATECLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATECLOB,
@@ -2342,6 +2489,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEDATE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEDATE,
@@ -2358,6 +2506,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEDATE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEDATE,
@@ -2374,6 +2523,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEDOUBLE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEDOUBLE,
@@ -2390,6 +2540,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEDOUBLE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEDOUBLE,
@@ -2406,6 +2557,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEFLOAT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEFLOAT,
@@ -2422,6 +2574,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEFLOAT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEFLOAT,
@@ -2438,6 +2591,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEINT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEINT,
@@ -2454,6 +2608,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEINT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEINT,
@@ -2470,6 +2625,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATELONG)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATELONG,
@@ -2486,6 +2642,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATELONG)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATELONG,
@@ -2502,6 +2659,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATENCHARACTERSTREAM,
@@ -2520,6 +2678,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATENCHARACTERSTREAM,
@@ -2537,6 +2696,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATENCHARACTERSTREAM,
@@ -2553,6 +2713,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATENCHARACTERSTREAM,
@@ -2570,6 +2731,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATENCLOB,
@@ -2587,6 +2749,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATENCLOB,
@@ -2603,6 +2766,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATENCLOB,
@@ -2620,6 +2784,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATENCLOB,
@@ -2637,6 +2802,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATENCLOB,
@@ -2653,6 +2819,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATENCLOB,
@@ -2670,6 +2837,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENSTRING)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATENSTRING,
@@ -2687,6 +2855,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENSTRING)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATENSTRING,
@@ -2703,6 +2872,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENULL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATENULL,
@@ -2718,6 +2888,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATENULL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATENULL,
@@ -2733,6 +2904,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEOBJECT,
@@ -2750,6 +2922,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEOBJECT,
@@ -2766,6 +2939,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEOBJECT,
@@ -2783,6 +2957,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEOBJECT,
@@ -2800,6 +2975,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEOBJECT,
@@ -2819,6 +2995,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEOBJECT,
@@ -2837,6 +3014,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEOBJECT,
@@ -2855,6 +3033,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEOBJECT,
@@ -2872,6 +3051,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEREF)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEREF,
@@ -2888,6 +3068,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEREF)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEREF,
@@ -2904,10 +3085,11 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEROW)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEROW,
-          () -> this.resultSet.updateRow());
+          this.resultSet::updateRow);
     } else {
       this.resultSet.updateRow();
     }
@@ -2918,6 +3100,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEROWID)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEROWID,
@@ -2934,6 +3117,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATEROWID)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATEROWID,
@@ -2950,6 +3134,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATESQLXML)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATESQLXML,
@@ -2966,6 +3151,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATESQLXML)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATESQLXML,
@@ -2982,6 +3168,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATESHORT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATESHORT,
@@ -2998,6 +3185,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATESHORT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATESHORT,
@@ -3014,6 +3202,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATESTRING)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATESTRING,
@@ -3030,6 +3219,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATESTRING)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATESTRING,
@@ -3046,6 +3236,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATETIME)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATETIME,
@@ -3062,6 +3253,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATETIME)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATETIME,
@@ -3078,6 +3270,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATETIMESTAMP)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATETIMESTAMP,
@@ -3094,6 +3287,7 @@ public class ResultSetWrapper implements ResultSet {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.RESULTSET_UPDATETIMESTAMP)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_UPDATETIMESTAMP,
@@ -3111,10 +3305,11 @@ public class ResultSetWrapper implements ResultSet {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSet,
           JdbcMethod.RESULTSET_WASNULL,
-          () -> this.resultSet.wasNull());
+          this.resultSet::wasNull);
     } else {
       return this.resultSet.wasNull();
     }

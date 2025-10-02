@@ -510,8 +510,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
       final HostSpec hostSpec,
       final Properties props)
       throws SQLException {
-    throw new UnsupportedOperationException(
-        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"forceConnect"}));
+    return this.forceConnect(hostSpec, props, null);
   }
 
   @Override
@@ -520,8 +519,8 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
       final Properties props,
       final @Nullable ConnectionPlugin pluginToSkip)
       throws SQLException {
-    throw new UnsupportedOperationException(
-        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"forceConnect"}));
+    return this.pluginManager.forceConnect(
+        this.driverProtocol, hostSpec, props, true, pluginToSkip);
   }
 
   private void updateHostAvailability(final List<HostSpec> hosts) {
@@ -691,12 +690,31 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
         Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getStatus"}));
   }
 
+  @Override
   public boolean isPluginInUse(final Class<? extends ConnectionPlugin> pluginClazz) {
     try {
       return this.pluginManager.isWrapperFor(pluginClazz);
     } catch (SQLException e) {
       return false;
     }
+  }
+
+  @Override
+  public <T> T unwrap(Class<T> iface) throws SQLException {
+    if (iface == PluginService.class) {
+      return iface.cast(this);
+    }
+
+    return this.pluginManager.unwrap(iface);
+  }
+
+  @Override
+  public boolean isWrapperFor(Class<?> iface) throws SQLException {
+    if (iface == PluginService.class) {
+      return true;
+    }
+
+    return this.pluginManager.isWrapperFor(iface);
   }
 
   public static void clearCache() {

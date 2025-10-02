@@ -24,11 +24,16 @@ import software.amazon.jdbc.util.WrapperUtils;
 
 public class SQLTypeWrapper implements SQLType {
 
-  protected SQLType sqlType;
-  protected ConnectionPluginManager pluginManager;
+  protected final SQLType sqlType;
+  protected final ConnectionWrapper connectionWrapper;
+  protected final ConnectionPluginManager pluginManager;
 
-  public SQLTypeWrapper(@NonNull SQLType sqlType, @NonNull ConnectionPluginManager pluginManager) {
+  public SQLTypeWrapper(
+      @NonNull SQLType sqlType,
+      @NonNull ConnectionWrapper connectionWrapper,
+      @NonNull ConnectionPluginManager pluginManager) {
     this.sqlType = sqlType;
+    this.connectionWrapper = connectionWrapper;
     this.pluginManager = pluginManager;
   }
 
@@ -37,10 +42,11 @@ public class SQLTypeWrapper implements SQLType {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLTYPE_GETNAME)) {
       return WrapperUtils.executeWithPlugins(
           String.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlType,
           JdbcMethod.SQLTYPE_GETNAME,
-          () -> this.sqlType.getName());
+          this.sqlType::getName);
     } else {
       return this.sqlType.getName();
     }
@@ -51,10 +57,11 @@ public class SQLTypeWrapper implements SQLType {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLTYPE_GETVENDOR)) {
       return WrapperUtils.executeWithPlugins(
           String.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlType,
           JdbcMethod.SQLTYPE_GETVENDOR,
-          () -> this.sqlType.getVendor());
+          this.sqlType::getVendor);
     } else {
       return this.sqlType.getVendor();
     }
@@ -65,10 +72,11 @@ public class SQLTypeWrapper implements SQLType {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLTYPE_GETVENDORTYPENUMBER)) {
       return WrapperUtils.executeWithPlugins(
           Integer.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlType,
           JdbcMethod.SQLTYPE_GETVENDORTYPENUMBER,
-          () -> this.sqlType.getVendorTypeNumber());
+          this.sqlType::getVendorTypeNumber);
     } else {
       return this.sqlType.getVendorTypeNumber();
     }

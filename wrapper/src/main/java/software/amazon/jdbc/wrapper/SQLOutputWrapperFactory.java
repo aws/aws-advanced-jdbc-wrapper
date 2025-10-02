@@ -23,7 +23,10 @@ import software.amazon.jdbc.ConnectionPluginManager;
 public class SQLOutputWrapperFactory implements WrapperFactory {
 
   @Override
-  public Object getInstance(@NonNull Object targetObj, @NonNull ConnectionPluginManager pluginManager) {
-    return new SQLOutputWrapper((SQLOutput) targetObj, pluginManager);
+  public Object getInstance(
+      @NonNull Object targetObj,
+      @NonNull ConnectionWrapper connectionWrapper,
+      @NonNull ConnectionPluginManager pluginManager) {
+    return new SQLOutputWrapper((SQLOutput) targetObj, connectionWrapper, pluginManager);
   }
 }

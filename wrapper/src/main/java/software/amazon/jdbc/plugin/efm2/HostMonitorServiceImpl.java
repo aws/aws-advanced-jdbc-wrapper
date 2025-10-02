@@ -161,9 +161,8 @@ public class HostMonitorServiceImpl implements HostMonitorService {
         this.pluginService.getTargetDriverDialect(),
         this.pluginService.getDialect(),
         this.pluginService.getProperties(),
-        (connectionService, pluginService) -> new HostMonitorImpl(
-            connectionService,
-            pluginService.getTelemetryFactory(),
+        (servicesContainer) -> new HostMonitorImpl(
+            servicesContainer,
             hostSpec,
             properties,
             failureDetectionTimeMillis,
