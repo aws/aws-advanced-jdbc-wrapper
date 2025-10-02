@@ -65,7 +65,7 @@ public class AwsIamAuthenticationDatasourceExample {
       // Attempt a connection:
       try (final Connection conn = ds.getConnection();
           final Statement statement = conn.createStatement();
-          final ResultSet rs = statement.executeQuery("SELECT * from aurora_db_instance_identifier()")) {
+          final ResultSet rs = statement.executeQuery("SELECT * from pg_catalog.aurora_db_instance_identifier()")) {
         System.out.println(Util.getResult(rs));
       }
     }

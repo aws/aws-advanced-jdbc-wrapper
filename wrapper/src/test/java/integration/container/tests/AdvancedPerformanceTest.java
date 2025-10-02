@@ -97,7 +97,7 @@ public class AdvancedPerformanceTest {
   private static final int EFM_FAILURE_DETECTION_TIME_MS = 30000;
   private static final int EFM_FAILURE_DETECTION_INTERVAL_MS = 5000;
   private static final int EFM_FAILURE_DETECTION_COUNT = 3;
-  private static final String QUERY = "SELECT pg_sleep(600)"; // 600s -> 10min
+  private static final String QUERY = "SELECT pg_catalog.pg_sleep(600)"; // 600s -> 10min
 
   private static final ConcurrentLinkedQueue<PerfStat> perfDataList = new ConcurrentLinkedQueue<>();
 

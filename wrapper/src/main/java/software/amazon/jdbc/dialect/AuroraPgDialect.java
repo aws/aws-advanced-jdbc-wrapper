@@ -36,33 +36,37 @@ public class AuroraPgDialect extends PgDialect implements AuroraLimitlessDialect
 
   private static final String extensionsSql =
       "SELECT (setting LIKE '%aurora_stat_utils%') AS aurora_stat_utils "
-          + "FROM pg_settings "
-          + "WHERE name='rds.extensions'";
+          + "FROM pg_catalog.pg_settings "
+          + "WHERE name OPERATOR(pg_catalog.=) 'rds.extensions'";
 
-  private static final String topologySql = "SELECT 1 FROM aurora_replica_status() LIMIT 1";
+  private static final String topologySql = "SELECT 1 FROM pg_catalog.aurora_replica_status() LIMIT 1";
 
   private static final String TOPOLOGY_QUERY =
-      "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
+      "SELECT SERVER_ID, CASE WHEN SESSION_ID OPERATOR(pg_catalog.=) 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
           + "CPU, COALESCE(REPLICA_LAG_IN_MSEC, 0), LAST_UPDATE_TIMESTAMP "
-          + "FROM aurora_replica_status() "
+          + "FROM pg_catalog.aurora_replica_status() "
           // filter out nodes that haven't been updated in the last 5 minutes
-          + "WHERE EXTRACT(EPOCH FROM(NOW() - LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' "
+          + "WHERE EXTRACT("
+          + "EPOCH FROM(pg_catalog.NOW() OPERATOR(pg_catalog.-) LAST_UPDATE_TIMESTAMP)) OPERATOR(pg_catalog.<=) 300 "
+          + "OR SESSION_ID OPERATOR(pg_catalog.=) 'MASTER_SESSION_ID' "
           + "OR LAST_UPDATE_TIMESTAMP IS NULL";
 
   private static final String IS_WRITER_QUERY =
-      "SELECT SERVER_ID FROM aurora_replica_status() "
-          + "WHERE SESSION_ID = 'MASTER_SESSION_ID' AND SERVER_ID = aurora_db_instance_identifier()";
+      "SELECT SERVER_ID FROM pg_catalog.aurora_replica_status() "
+          + "WHERE SESSION_ID OPERATOR(pg_catalog.=) 'MASTER_SESSION_ID' "
+          + "AND SERVER_ID OPERATOR(pg_catalog.=) pg_catalog.aurora_db_instance_identifier()";
 
-  private static final String NODE_ID_QUERY = "SELECT aurora_db_instance_identifier()";
-  private static final String IS_READER_QUERY = "SELECT pg_is_in_recovery()";
+  private static final String NODE_ID_QUERY = "SELECT pg_catalog.aurora_db_instance_identifier()";
+  private static final String IS_READER_QUERY = "SELECT pg_catalog.pg_is_in_recovery()";
   protected static final String LIMITLESS_ROUTER_ENDPOINT_QUERY =
-      "select router_endpoint, load from aurora_limitless_router_endpoints()";
+      "select router_endpoint, load from pg_catalog.aurora_limitless_router_endpoints()";
 
   private static final String BG_STATUS_QUERY =
-      "SELECT * FROM get_blue_green_fast_switchover_metadata('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
+      "SELECT * FROM "
+        + "pg_catalog.get_blue_green_fast_switchover_metadata('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
 
   private static final String TOPOLOGY_TABLE_EXIST_QUERY =
-      "SELECT 'get_blue_green_fast_switchover_metadata'::regproc";
+      "SELECT 'pg_catalog.get_blue_green_fast_switchover_metadata'::regproc";
 
   @Override
   public boolean isDialect(final Connection connection) {

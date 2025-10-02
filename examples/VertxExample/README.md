@@ -101,7 +101,7 @@ This will map requests to certain paths to methods you will define. This particu
 
 ```java
 private void getCurrentInstance(RoutingContext routingContext) {
-    write.query("select aurora_db_instance_identifier() as id, case when pg_is_in_recovery() then 'reader' else 'writer' end as role")
+    write.query("select pg_catalog.aurora_db_instance_identifier() as id, case when pg_catalog.pg_is_in_recovery() then 'reader' else 'writer' end as role")
     .execute()
     .onSuccess(
         rows -> {

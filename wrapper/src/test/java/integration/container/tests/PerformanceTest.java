@@ -502,7 +502,7 @@ public class PerformanceTest {
         TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
     switch (databaseEngine) {
       case PG:
-        return String.format("SELECT pg_sleep(%d)", seconds);
+        return String.format("SELECT pg_catalog.pg_sleep(%d)", seconds);
       case MYSQL:
       case MARIADB:
         return String.format("SELECT sleep(%d)", seconds);

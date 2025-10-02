@@ -43,8 +43,8 @@ public class TelemetryMetricsOTLPExample {
   private static final String USERNAME = "username";
   private static final String PASSWORD = "password";
 
-  private static final String SQL_DBLIST = "select datname from pg_database;";
-  private static final String SQL_SLEEP = "select pg_sleep(20);";
+  private static final String SQL_DBLIST = "select datname from pg_catalog.pg_database;";
+  private static final String SQL_SLEEP = "select pg_catalog.pg_sleep(20);";
 
   public TelemetryMetricsOTLPExample() {
   }
