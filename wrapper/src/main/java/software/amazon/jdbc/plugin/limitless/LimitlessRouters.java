@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.hostlistprovider.Topology;
 
 public class LimitlessRouters {
   private final @NonNull List<HostSpec> hosts;

@@ -23,7 +23,6 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
 public class AwsCredentialsManager {

@@ -73,7 +73,8 @@ public class DeveloperConnectionPluginTest {
   @BeforeEach
   void init() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
-    servicesContainer = new FullServicesContainerImpl(mockStorageService, mockMonitorService, mockTelemetryFactory);
+    servicesContainer = new FullServicesContainerImpl(
+        mockStorageService, mockMonitorService, mockConnectionProvider, mockTelemetryFactory);
 
     when(mockConnectionProvider.connect(any(), any(), any(), any(), any())).thenReturn(mockConnection);
     when(mockConnectCallback.getExceptionToRaise(any(), any(), any(), anyBoolean())).thenReturn(null);

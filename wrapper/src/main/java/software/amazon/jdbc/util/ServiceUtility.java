@@ -14,71 +14,68 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.util.connection;
+package software.amazon.jdbc.util;
 
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
+import java.util.concurrent.locks.ReentrantLock;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
-import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PartialPluginService;
-import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.FullServicesContainerImpl;
-import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
-/**
- * A service used to open new connections for internal driver use.
- *
- * @deprecated This class is deprecated and will be removed in a future version. Use
- *     {@link software.amazon.jdbc.util.ServiceUtility#createServiceContainer} followed by
- *     {@link PluginService#forceConnect} instead.
- */
-@Deprecated
-public class ConnectionServiceImpl implements ConnectionService {
-  protected final String targetDriverProtocol;
-  protected final ConnectionPluginManager pluginManager;
-  protected final PluginService pluginService;
+public class ServiceUtility {
+  private static volatile ServiceUtility instance;
+  private static final ReentrantLock initLock = new ReentrantLock();
 
-  /**
-   * Constructs a {@link ConnectionServiceImpl} instance.
-   *
-   * @deprecated Use {@link software.amazon.jdbc.util.ServiceUtility#createServiceContainer} instead.
-   */
-  @Deprecated
-  public ConnectionServiceImpl(
+  private ServiceUtility() {
+    if (instance != null) {
+      throw new IllegalStateException("ServiceContainerUtility singleton instance already exists.");
+    }
+  }
+
+  public static ServiceUtility getInstance() {
+    if (instance != null) {
+      return instance;
+    }
+
+    initLock.lock();
+    try {
+      if (instance == null) {
+        instance = new ServiceUtility();
+      }
+    } finally {
+      initLock.unlock();
+    }
+
+    return instance;
+  }
+
+  public FullServicesContainer createServiceContainer(
       StorageService storageService,
       MonitorService monitorService,
-      TelemetryFactory telemetryFactory,
       ConnectionProvider connectionProvider,
+      TelemetryFactory telemetryFactory,
       String originalUrl,
       String targetDriverProtocol,
       TargetDriverDialect driverDialect,
       Dialect dbDialect,
       Properties props) throws SQLException {
-    this.targetDriverProtocol = targetDriverProtocol;
-
     FullServicesContainer servicesContainer =
         new FullServicesContainerImpl(storageService, monitorService, connectionProvider, telemetryFactory);
-    this.pluginManager = new ConnectionPluginManager(
-        connectionProvider,
-        null,
-        null,
-        telemetryFactory);
-    servicesContainer.setConnectionPluginManager(this.pluginManager);
+    ConnectionPluginManager pluginManager = new ConnectionPluginManager(
+        connectionProvider, null, null, telemetryFactory);
+    servicesContainer.setConnectionPluginManager(pluginManager);
 
-    Properties propsCopy = PropertyUtils.copyProperties(props);
     PartialPluginService partialPluginService = new PartialPluginService(
         servicesContainer,
-        propsCopy,
+        props,
         originalUrl,
-        this.targetDriverProtocol,
+        targetDriverProtocol,
         driverDialect,
         dbDialect
     );
@@ -87,19 +84,7 @@ public class ConnectionServiceImpl implements ConnectionService {
     servicesContainer.setPluginService(partialPluginService);
     servicesContainer.setPluginManagerService(partialPluginService);
 
-    this.pluginService = partialPluginService;
-    this.pluginManager.init(servicesContainer, propsCopy, partialPluginService, null);
-  }
-
-  @Override
-  @Deprecated
-  public Connection open(HostSpec hostSpec, Properties props) throws SQLException {
-    return this.pluginManager.forceConnect(this.targetDriverProtocol, hostSpec, props, true, null);
-  }
-
-  @Override
-  @Deprecated
-  public PluginService getPluginService() {
-    return this.pluginService;
+    pluginManager.init(servicesContainer, props, partialPluginService, null);
+    return servicesContainer;
   }
 }
