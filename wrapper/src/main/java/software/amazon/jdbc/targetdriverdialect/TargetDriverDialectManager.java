@@ -70,28 +70,6 @@ public class TargetDriverDialectManager implements TargetDriverDialectProvider {
     PropertyDefinition.registerPluginProperties(TargetDriverDialectManager.class);
   }
 
-  /**
-   * Sets a custom target driver dialect handler.
-   *
-   * @param targetDriverDialect A custom driver dialect to use.
-   *
-   * @deprecated Use software.amazon.jdbc.Driver instead
-   */
-  @Deprecated
-  public static void setCustomDialect(final @NonNull TargetDriverDialect targetDriverDialect) {
-    software.amazon.jdbc.Driver.setCustomTargetDriverDialect(targetDriverDialect);
-  }
-
-  /**
-   * Resets a custom target driver dialect.
-   *
-   * @deprecated Use {@link software.amazon.jdbc.Driver#resetCustomTargetDriverDialect()} instead
-   */
-  @Deprecated
-  public static void resetCustomDialect() {
-    software.amazon.jdbc.Driver.resetCustomTargetDriverDialect();
-  }
-
   @Override
   public TargetDriverDialect getDialect(
       final @NonNull Driver driver,

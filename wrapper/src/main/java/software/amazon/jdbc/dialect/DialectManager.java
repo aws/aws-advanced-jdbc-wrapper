@@ -92,28 +92,6 @@ public class DialectManager implements DialectProvider {
     this.pluginService = pluginService;
   }
 
-  /**
-   * Sets a custom dialect handler.
-   *
-   * @param dialect A custom dialect to use.
-   *
-   * @deprecated Use software.amazon.jdbc.Driver instead
-   */
-  @Deprecated
-  public static void setCustomDialect(final @NonNull Dialect dialect) {
-    Driver.setCustomDialect(dialect);
-  }
-
-  /**
-   * Resets a custom dialect handler.
-   *
-   * @deprecated Use software.amazon.jdbc.Driver instead
-   */
-  @Deprecated
-  public static void resetCustomDialect() {
-    Driver.resetCustomDialect();
-  }
-
   public static void resetEndpointCache() {
     knownEndpointDialects.clear();
   }
