@@ -149,8 +149,6 @@ public class PerformanceTest {
     OpenedConnectionTracker.clearCache();
     HostMonitorThreadContainer.releaseInstance();
     HostMonitorServiceImpl.closeAllMonitors();
-    AuroraHostListProvider.clearAll();
-    MonitoringRdsHostListProvider.clearCache();
 
     enhancedFailureMonitoringPerfDataList.clear();
 
@@ -231,8 +229,6 @@ public class PerformanceTest {
     OpenedConnectionTracker.clearCache();
     HostMonitorThreadContainer.releaseInstance();
     HostMonitorServiceImpl.closeAllMonitors();
-    AuroraHostListProvider.clearAll();
-    MonitoringRdsHostListProvider.clearCache();
 
     failoverWithEfmPerfDataList.clear();
 
@@ -319,8 +315,6 @@ public class PerformanceTest {
     OpenedConnectionTracker.clearCache();
     HostMonitorThreadContainer.releaseInstance();
     HostMonitorServiceImpl.closeAllMonitors();
-    AuroraHostListProvider.clearAll();
-    MonitoringRdsHostListProvider.clearCache();
 
     failoverWithSocketTimeoutPerfDataList.clear();
 
