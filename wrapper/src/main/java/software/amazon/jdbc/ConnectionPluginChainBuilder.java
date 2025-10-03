@@ -91,6 +91,34 @@ public class ConnectionPluginChainBuilder {
         }
       };
 
+  protected static final Map<String /* clazz */, String> pluginCodeByPlugin =
+      new HashMap<String, String>() {
+        {
+          put("software.amazon.jdbc.plugin.ExecutionTimeConnectionPlugin", "executionTime");
+          put("software.amazon.jdbc.plugin.LogQueryConnectionPlugin", "logQuery");
+          put("software.amazon.jdbc.plugin.DataCacheConnectionPlugin", "dataCache");
+          put("software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin", "customEndpoint");
+          put("software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin", "efm");
+          put("software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin", "efm2");
+          put("software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin", "failover");
+          put("software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin", "failover2");
+          put("software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin", "iam");
+          put("software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin", "awsSecretsManager");
+          put("software.amazon.jdbc.plugin.federatedauth.FederatedAuthPlugin", "federatedAuth");
+          put("software.amazon.jdbc.plugin.federatedauth.OktaAuthPlugin", "okta");
+          put("software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPlugin", "auroraStaleDns");
+          put("software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin", "readWriteSplitting");
+          put("software.amazon.jdbc.plugin.AuroraConnectionTrackerPlugin", "auroraConnectionTracker");
+          put("software.amazon.jdbc.plugin.DriverMetaDataConnectionPlugin", "driverMetaData");
+          put("software.amazon.jdbc.plugin.ConnectTimeConnectionPlugin", "connectTime");
+          put("software.amazon.jdbc.plugin.dev.DeveloperConnectionPlugin", "dev");
+          put("software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPlugin",
+              "fastestResponseStrategy");
+          put("software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPlugin", "initialConnection");
+          put("software.amazon.jdbc.plugin.limitless.LimitlessConnectionPlugin", "limitless");
+        }
+      };
+
   /**
    * The final list of plugins will be sorted by weight, starting from the lowest values up to
    * the highest values. The first plugin of the list will have the lowest weight, and the
@@ -189,7 +217,7 @@ public class ConnectionPluginChainBuilder {
       }
     } else {
 
-      final List<String> pluginCodeList = getPluginCodes(props);
+      final List<String> pluginCodeList = this.getPluginCodes(props);
       pluginFactories = new ArrayList<>(pluginCodeList.size());
 
       for (final String pluginCode : pluginCodeList) {
@@ -242,12 +270,21 @@ public class ConnectionPluginChainBuilder {
     return plugins;
   }
 
-  public static List<String> getPluginCodes(final Properties props) {
+  public List<String> getPluginCodes(final Properties props) {
     String pluginCodes = PropertyDefinition.PLUGINS.getString(props);
     if (pluginCodes == null) {
       pluginCodes = DEFAULT_PLUGINS;
     }
     return StringUtils.split(pluginCodes, ",", true);
+  }
+
+  public String getPluginCodes(final List<ConnectionPlugin> plugins) {
+    return plugins.stream()
+        .filter(x -> !(x instanceof DefaultConnectionPlugin))
+        .map(x -> pluginCodeByPlugin.getOrDefault(x.getClass().getName(), "unknown"))
+        .distinct()
+        .sorted()
+        .collect(Collectors.joining("+"));
   }
 
   protected List<ConnectionPluginFactory> sortPluginFactories(
