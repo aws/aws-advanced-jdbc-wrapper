@@ -128,7 +128,7 @@ class ClusterAwareWriterFailoverHandlerTest {
         reconnectWriterIntervalMs);
 
     ClusterAwareWriterFailoverHandler spyHandler = spy(handler);
-    doReturn(mockContainer2).when(spyHandler).getNewServicesContainer();
+    doReturn(mockContainer2).when(spyHandler).newServicesContainer();
     return spyHandler;
   }
 

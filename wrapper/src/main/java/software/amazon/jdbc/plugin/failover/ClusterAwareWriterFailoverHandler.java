@@ -143,10 +143,12 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
       final CompletionService<WriterFailoverResult> completionService,
       final boolean singleTask) throws SQLException {
     final HostSpec writerHost = Utils.getWriter(currentTopology);
+    // Each task should get its own service container since they execute concurrently and PluginService was not
+    // designed to be thread-safe
     if (!singleTask) {
       completionService.submit(
           new ReconnectToWriterHandler(
-              this.getNewServicesContainer(),
+              newServicesContainer(),
               this.hostAvailabilityMap,
               writerHost,
               this.initialConnectionProps,
@@ -155,7 +157,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
 
     completionService.submit(
         new WaitForNewWriterHandler(
-            this.getNewServicesContainer(),
+            newServicesContainer(),
             this.hostAvailabilityMap,
             this.readerFailoverHandler,
             writerHost,
@@ -166,20 +168,8 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     executorService.shutdown();
   }
 
-  protected FullServicesContainer getNewServicesContainer() throws SQLException {
-    // Each task should get its own FullServicesContainer since they execute concurrently and PluginService was not
-    // designed to be thread-safe.
-    return ServiceUtility.getInstance().createServiceContainer(
-        this.servicesContainer.getStorageService(),
-        this.servicesContainer.getMonitorService(),
-        this.pluginService.getDefaultConnectionProvider(),
-        this.servicesContainer.getTelemetryFactory(),
-        this.pluginService.getOriginalUrl(),
-        this.pluginService.getDriverProtocol(),
-        this.pluginService.getTargetDriverDialect(),
-        this.pluginService.getDialect(),
-        this.initialConnectionProps
-    );
+  protected FullServicesContainer newServicesContainer() throws SQLException {
+    return ServiceUtility.getInstance().createServiceContainer(this.servicesContainer, this.initialConnectionProps);
   }
 
   private WriterFailoverResult getNextResult(

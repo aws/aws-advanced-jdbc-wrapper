@@ -178,7 +178,7 @@ class ClusterAwareReaderFailoverHandlerTest {
   private ClusterAwareReaderFailoverHandler getSpyFailoverHandler() throws SQLException {
     ClusterAwareReaderFailoverHandler handler =
         spy(new ClusterAwareReaderFailoverHandler(mockContainer1, properties));
-    doReturn(mockContainer2).when(handler).getNewServicesContainer();
+    doReturn(mockContainer2).when(handler).newServicesContainer();
     return handler;
   }
 
@@ -187,7 +187,7 @@ class ClusterAwareReaderFailoverHandlerTest {
     ClusterAwareReaderFailoverHandler handler = new ClusterAwareReaderFailoverHandler(
         mockContainer1, properties, maxFailoverTimeoutMs, timeoutMs, isStrictReaderRequired);
     ClusterAwareReaderFailoverHandler spyHandler = spy(handler);
-    doReturn(mockContainer2).when(spyHandler).getNewServicesContainer();
+    doReturn(mockContainer2).when(spyHandler).newServicesContainer();
     return spyHandler;
   }
 

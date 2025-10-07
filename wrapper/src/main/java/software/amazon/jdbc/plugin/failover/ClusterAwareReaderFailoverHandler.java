@@ -297,8 +297,8 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     final ExecutorService executor =
         ExecutorFactory.newFixedThreadPool(2, "failover");
     final CompletionService<ReaderFailoverResult> completionService = new ExecutorCompletionService<>(executor);
-    final FullServicesContainer servicesContainer1 = this.getNewServicesContainer();
-    final FullServicesContainer servicesContainer2 = this.getNewServicesContainer();
+    final FullServicesContainer servicesContainer1 = newServicesContainer();
+    final FullServicesContainer servicesContainer2 = newServicesContainer();
 
     try {
       for (int i = 0; i < hosts.size(); i += 2) {
@@ -321,6 +321,10 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     } finally {
       executor.shutdownNow();
     }
+  }
+
+  protected FullServicesContainer newServicesContainer() throws SQLException {
+    return ServiceUtility.getInstance().createServiceContainer(this.servicesContainer, this.props);
   }
 
   private ReaderFailoverResult getResultFromNextTaskBatch(
@@ -361,20 +365,6 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       }
     }
     return new ReaderFailoverResult(null, null, false);
-  }
-
-  protected FullServicesContainer getNewServicesContainer() throws SQLException {
-    return ServiceUtility.getInstance().createServiceContainer(
-        this.servicesContainer.getStorageService(),
-        this.servicesContainer.getMonitorService(),
-        this.pluginService.getDefaultConnectionProvider(),
-        this.servicesContainer.getTelemetryFactory(),
-        this.pluginService.getOriginalUrl(),
-        this.pluginService.getDriverProtocol(),
-        this.pluginService.getTargetDriverDialect(),
-        this.pluginService.getDialect(),
-        this.props
-    );
   }
 
   private ReaderFailoverResult getNextResult(final CompletionService<ReaderFailoverResult> service)

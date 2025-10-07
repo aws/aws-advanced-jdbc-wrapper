@@ -29,29 +29,11 @@ import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class ServiceUtility {
-  private static volatile ServiceUtility instance;
-  private static final ReentrantLock initLock = new ReentrantLock();
+  private static final ServiceUtility instance = new ServiceUtility();
 
-  private ServiceUtility() {
-    if (instance != null) {
-      throw new IllegalStateException("ServiceContainerUtility singleton instance already exists.");
-    }
-  }
+  private ServiceUtility() {}
 
   public static ServiceUtility getInstance() {
-    if (instance != null) {
-      return instance;
-    }
-
-    initLock.lock();
-    try {
-      if (instance == null) {
-        instance = new ServiceUtility();
-      }
-    } finally {
-      initLock.unlock();
-    }
-
     return instance;
   }
 
@@ -86,5 +68,20 @@ public class ServiceUtility {
 
     pluginManager.init(servicesContainer, props, partialPluginService, null);
     return servicesContainer;
+  }
+
+  public FullServicesContainer createServiceContainer(FullServicesContainer servicesContainer, Properties props)
+      throws SQLException {
+    return createServiceContainer(
+        servicesContainer.getStorageService(),
+        servicesContainer.getMonitorService(),
+        servicesContainer.getPluginService().getDefaultConnectionProvider(),
+        servicesContainer.getTelemetryFactory(),
+        servicesContainer.getPluginService().getOriginalUrl(),
+        servicesContainer.getPluginService().getDriverProtocol(),
+        servicesContainer.getPluginService().getTargetDriverDialect(),
+        servicesContainer.getPluginService().getDialect(),
+        props
+    );
   }
 }

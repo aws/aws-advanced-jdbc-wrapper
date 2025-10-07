@@ -501,21 +501,9 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
   protected Runnable getNodeMonitoringWorker(
       final HostSpec hostSpec, final @Nullable HostSpec writerHostSpec) throws SQLException {
-    return new NodeMonitoringWorker(this.getNewServicesContainer(), this, hostSpec, writerHostSpec);
-  }
-
-  protected FullServicesContainer getNewServicesContainer() throws SQLException {
-    return ServiceUtility.getInstance().createServiceContainer(
-        this.servicesContainer.getStorageService(),
-        this.servicesContainer.getMonitorService(),
-        this.servicesContainer.getDefaultConnectionProvider(),
-        this.servicesContainer.getTelemetryFactory(),
-        this.servicesContainer.getPluginService().getOriginalUrl(),
-        this.servicesContainer.getPluginService().getDriverProtocol(),
-        this.servicesContainer.getPluginService().getTargetDriverDialect(),
-        this.servicesContainer.getPluginService().getDialect(),
-        this.properties
-    );
+    FullServicesContainer newServiceContainer =
+        ServiceUtility.getInstance().createServiceContainer(this.servicesContainer, this.properties);
+    return new NodeMonitoringWorker(newServiceContainer, this, hostSpec, writerHostSpec);
   }
 
   protected List<HostSpec> openAnyConnectionAndUpdateTopology() {
