@@ -1,0 +1,40 @@
+dataSources:
+  ds0:
+    dataSourceClassName: com.zaxxer.hikari.HikariDataSource
+    driverClassName: software.amazon.jdbc.Driver
+    jdbcUrl: jdbc:aws-wrapper:mysql://database-mysql.cluster-XYZ.us-east-2.rds.amazonaws.com:3306/shard0
+    username: user
+    password: pass
+    exceptionOverrideClassName: software.amazon.jdbc.util.HikariCPSQLException
+    dataSourceProperties:
+      wrapperPlugins: failover2
+  ds1:
+    dataSourceClassName: com.zaxxer.hikari.HikariDataSource
+    driverClassName: software.amazon.jdbc.Driver
+    jdbcUrl: jdbc:aws-wrapper:mysql://database-mysql.cluster-XYZ.us-east-2.rds.amazonaws.com:3306/shard1
+    username: user
+    password: pass
+    exceptionOverrideClassName: software.amazon.jdbc.util.HikariCPSQLException
+    dataSourceProperties:
+      wrapperPlugins: failover2
+
+mode:
+  type: Memory
+
+rules:
+  - !SHARDING
+    tables:
+      example:
+        actualDataNodes: ds$->{0..1}.example
+        databaseStrategy:
+          standard:
+            shardingColumn: id
+            shardingAlgorithmName: example-inline
+    shardingAlgorithms:
+      example-inline:
+        type: INLINE
+        props:
+          algorithm-expression: ds$->{id % 2}
+
+props:
+  sql-show: true

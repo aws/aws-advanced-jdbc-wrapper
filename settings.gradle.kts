@@ -24,6 +24,8 @@ include(
     "dbcp",
     "driverexample",
     "springhibernate",
+    "shardingsphere",
+    "shardingspherehikari",
     "springhibernateonedatasource",
     "springhibernatetwodatasource",
     "springwildfly",
@@ -39,6 +41,7 @@ project(":hikari").projectDir = file("examples/HikariExample")
 project(":dbcp").projectDir = file("examples/DBCPExample")
 project(":driverexample").projectDir = file("examples/AWSDriverExample")
 project(":springhibernate").projectDir = file("examples/SpringHibernateExample")
+project(":shardingspherehikari").projectDir = file("examples/ShardingSphereHikariExample")
 project(":springhibernateonedatasource").projectDir = file("examples/SpringHibernateBalancedReaderOneDataSourceExample")
 project(":springhibernatetwodatasource").projectDir = file("examples/SpringHibernateBalancedReaderTwoDataSourceExample")
 project(":springwildfly").projectDir = file("examples/SpringWildflyExample/spring")
