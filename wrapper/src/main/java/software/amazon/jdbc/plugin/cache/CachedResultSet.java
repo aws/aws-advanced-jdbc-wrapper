@@ -1,11 +1,11 @@
 package software.amazon.jdbc.plugin.cache;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.Reader;
-import java.io.Serializable;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.math.BigDecimal;
@@ -42,23 +42,44 @@ import java.util.TimeZone;
 
 public class CachedResultSet implements ResultSet {
 
-  public static class CachedRow implements Serializable {
+  public static class CachedRow {
     private final Object[] rowData;
+    final byte[] @Nullable [] rawData;
 
     public CachedRow(int numColumns) {
       rowData = new Object[numColumns];
+      rawData = new byte[numColumns][];
+    }
+
+    private void checkColumnIndex(final int columnIndex) throws SQLException {
+      if (columnIndex < 1 || columnIndex > rowData.length) {
+        throw new SQLException("Invalid Column Index when operating CachedRow: " + columnIndex);
+      }
     }
 
     public void put(final int columnIndex, final Object columnValue) throws SQLException {
-      if (columnIndex < 1 || columnIndex > rowData.length) {
-        throw new SQLException("Invalid Column Index when populating CachedRow: " + columnIndex);
-      }
+      checkColumnIndex(columnIndex);
       rowData[columnIndex-1] = columnValue;
     }
 
+    public void putRaw(final int columnIndex, final byte[] rawColumnValue) throws SQLException {
+      checkColumnIndex(columnIndex);
+      rawData[columnIndex-1] = rawColumnValue;
+    }
+
     public Object get(final int columnIndex) throws SQLException {
-      if (columnIndex < 1 || columnIndex > rowData.length) {
-        throw new SQLException("Invalid Column Index when getting CachedRow value: " + columnIndex);
+      checkColumnIndex(columnIndex);
+      // De-serialize the data object from raw bytes if needed.
+      if (rowData[columnIndex-1] == null && rawData[columnIndex-1] != null) {
+        try (ByteArrayInputStream bis = new ByteArrayInputStream(rawData[columnIndex - 1]);
+             ObjectInputStream ois = new ObjectInputStream(bis)) {
+          rowData[columnIndex - 1] = ois.readObject();
+          rawData[columnIndex - 1] = null;
+        } catch (ClassNotFoundException e) {
+          throw new SQLException("ClassNotFoundException while de-serializing caching resultSet for column: " + columnIndex, e);
+        } catch (IOException e) {
+          throw new SQLException("IOException while de-serializing caching resultSet for column: " + columnIndex, e);
+        }
       }
       return rowData[columnIndex - 1];
     }
@@ -73,6 +94,12 @@ public class CachedResultSet implements ResultSet {
   private final HashMap<String, Integer> columnNames;
   private volatile boolean closed;
 
+  /**
+   * Create a CachedResultSet out of the original ResultSet queried from the database.
+   * @param resultSet The ResultSet queried from the underlying database (not a CachedResultSet).
+   * @return CachedResultSet that captures the metadata and the rows of the input ResultSet.
+   * @throws SQLException
+   */
   public CachedResultSet(final ResultSet resultSet) throws SQLException {
     ResultSetMetaData srcMetadata = resultSet.getMetaData();
     final int numColumns = srcMetadata.getColumnCount();
@@ -116,14 +143,28 @@ public class CachedResultSet implements ResultSet {
     wasNullFlag = false;
   }
 
+  // Serialize the content of metadata and data rows for the current CachedResultSet into a byte array
   public byte[] serializeIntoByteArray() throws SQLException {
     // Serialize the metadata and then the rows
     try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
          ObjectOutputStream output = new ObjectOutputStream(baos)) {
-      output.writeObject(this.metadata);
+      output.writeObject(metadata);
       output.writeInt(rows.size());
+      int numColumns = metadata.getColumnCount();
       while (this.next()) {
-        output.writeObject(rows.get(currentRow));
+        // serialize individual column fields in each row
+        CachedRow row = rows.get(currentRow);
+        for (int i = 0; i < numColumns; i++) {
+          try (ByteArrayOutputStream objBytes = new ByteArrayOutputStream();
+               ObjectOutputStream objStream = new ObjectOutputStream(objBytes)) {
+            objStream.writeObject(row.get(i + 1));
+            objStream.flush();
+            byte[] dataByteArray = objBytes.toByteArray();
+            int serializedLength = dataByteArray.length;
+            output.writeInt(serializedLength);
+            output.write(dataByteArray, 0, serializedLength);
+          }
+        }
       }
       output.flush();
       return baos.toByteArray();
@@ -132,13 +173,34 @@ public class CachedResultSet implements ResultSet {
     }
   }
 
+  /**
+   * Form a ResultSet from the raw data from the cache server. Each of the column objects are stored as
+   * raw bytes and the actual de-serialization into Java objects will happen lazily upon access later on.
+   */
   public static ResultSet deserializeFromByteArray(byte[] data) throws SQLException {
-    try (ByteArrayInputStream bis = new ByteArrayInputStream(data); ObjectInputStream ois = new ObjectInputStream(bis)) {
+    try (ByteArrayInputStream bis = new ByteArrayInputStream(data);
+         ObjectInputStream ois = new ObjectInputStream(bis)) {
       CachedResultSetMetaData metadata = (CachedResultSetMetaData) ois.readObject();
       int numRows = ois.readInt();
+      int numColumns = metadata.getColumnCount();
       ArrayList<CachedRow> resultRows = new ArrayList<>(numRows);
       for (int i = 0; i < numRows; i++) {
-        resultRows.add((CachedRow) ois.readObject());
+        // Store the raw bytes for each column object in CachedRow
+        final CachedRow row = new CachedRow(numColumns);
+        for(int j = 0; j < numColumns; j++) {
+          int nextObjSize = ois.readInt(); // The size of the next serialized object in its raw bytes form
+          byte[] objData = new byte[nextObjSize];
+          int lengthRead = 0;
+          while (lengthRead < nextObjSize) {
+            int bytesRead = ois.read(objData, lengthRead, nextObjSize-lengthRead);
+            if (bytesRead == -1) {
+              throw new SQLException("End of stream reached when reading the data for CachedResultSet");
+            }
+            lengthRead += bytesRead;
+          }
+          row.putRaw(j+1, objData);
+        }
+        resultRows.add(row);
       }
       return new CachedResultSet(metadata, resultRows);
     } catch (ClassNotFoundException e) {
