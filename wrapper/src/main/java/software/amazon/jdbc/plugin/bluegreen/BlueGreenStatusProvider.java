@@ -1082,6 +1082,10 @@ public class BlueGreenStatusProvider {
       this.roleByHost.clear();
       this.iamHostSuccessfulConnects.clear();
       this.greenNodeChangeNameTimes.clear();
+
+      if (!this.rollback && monitors[BlueGreenRole.TARGET.getValue()] != null) {
+        monitors[BlueGreenRole.TARGET.getValue()].setStop(true);
+      }
     }
   }
 
