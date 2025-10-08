@@ -1,0 +1,67 @@
+name: Run Blue/Green Integration Tests Latest
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write   # This is required for requesting the JWT
+  contents: read    # This is required for actions/checkout
+
+jobs:
+  all-bg-integration-tests-latest:
+    name: Run Blue/Green integration tests with latest engine version
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        testTask: [ "mysql-aurora-mariadb-driver", "mysql-aurora-mysql-driver", "mysql-rds-instance-mariadb-driver", "mysql-rds-instance-mysql-driver", "pg-aurora", "pg-rds-instance" ]
+    steps:
+      - name: 'Clone repository'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - name: 'Set up JDK 8'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'corretto'
+          java-version: 8
+      - name: 'Configure AWS credentials'
+        uses: aws-actions/configure-aws-credentials@v4
+        id: creds
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: run_bg_integration_test_latest
+          role-duration-seconds: 21600
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          output-credentials: true
+      - name: Run Blue/Green integration tests
+        run: |
+          ./gradlew --no-parallel --no-daemon test-bgd-${{ matrix.testTask }}
+        env:
+          AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
+          RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
+          AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}
+          AWS_SESSION_TOKEN: ${{ steps.creds.outputs.aws-session-token }}
+          MYSQL_VERSION: "latest"
+          PG_VERSION: "latest"
+      - name: Mask data
+        run: |
+          ./gradlew --no-parallel --no-daemon maskJunitHtmlReport
+      - name: Archive junit results for ${{ matrix.testTask }}
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-report-latest-${{ matrix.testTask }}
+          path: ./wrapper/build/test-results
+          retention-days: 5
+      - name: Archive html summary report for ${{ matrix.testTask }}
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: html-summary-report-latest-${{ matrix.testTask }}
+          path: ./wrapper/build/report
+          retention-days: 5
