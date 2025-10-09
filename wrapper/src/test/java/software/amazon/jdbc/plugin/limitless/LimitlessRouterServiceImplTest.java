@@ -45,7 +45,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.RoundRobinHostSelector;
+import software.amazon.jdbc.WeightedRandomHostSelector;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.util.FullServicesContainer;
@@ -229,7 +229,7 @@ class LimitlessRouterServiceImplTest {
 
     assertEquals(mockConnection, inputContext.getConnection());
     verify(mockPluginService, times(1))
-        .getHostSpecByStrategy(routerList, HostRole.WRITER, RoundRobinHostSelector.STRATEGY_ROUND_ROBIN);
+        .getHostSpecByStrategy(routerList, HostRole.WRITER, WeightedRandomHostSelector.STRATEGY_WEIGHTED_RANDOM);
     verify(mockPluginService, times(1)).connect(selectedRouter, inputContext.getProps(), null);
     verify(mockConnectFuncLambda, times(0)).call();
   }
@@ -342,7 +342,7 @@ class LimitlessRouterServiceImplTest {
     assertEquals(routers, this.storageService.get(LimitlessRouters.class, CLUSTER_ID));
     verify(mockPluginService, times(2)).getHostSpecByStrategy(any(), any(), any());
     verify(mockPluginService, times(1))
-        .getHostSpecByStrategy(routerList, HostRole.WRITER, RoundRobinHostSelector.STRATEGY_ROUND_ROBIN);
+        .getHostSpecByStrategy(routerList, HostRole.WRITER, WeightedRandomHostSelector.STRATEGY_WEIGHTED_RANDOM);
     verify(mockPluginService, times(1))
         .getHostSpecByStrategy(routerList, HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
     verify(mockPluginService, times(1)).connect(selectedRouter, inputContext.getProps(), null);
@@ -380,7 +380,7 @@ class LimitlessRouterServiceImplTest {
     assertEquals(routers, this.storageService.get(LimitlessRouters.class, CLUSTER_ID));
     verify(mockPluginService, times(2)).getHostSpecByStrategy(any(), any(), any());
     verify(mockPluginService, times(1))
-        .getHostSpecByStrategy(routerList, HostRole.WRITER, RoundRobinHostSelector.STRATEGY_ROUND_ROBIN);
+        .getHostSpecByStrategy(routerList, HostRole.WRITER, WeightedRandomHostSelector.STRATEGY_WEIGHTED_RANDOM);
     verify(mockPluginService, times(1))
         .getHostSpecByStrategy(routerList, HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
     verify(mockPluginService, times(1)).connect(selectedRouter, inputContext.getProps(), null);
@@ -422,7 +422,7 @@ class LimitlessRouterServiceImplTest {
     assertEquals(routers, this.storageService.get(LimitlessRouters.class, CLUSTER_ID));
     verify(mockPluginService, times(2)).getHostSpecByStrategy(any(), any(), any());
     verify(mockPluginService, times(1))
-        .getHostSpecByStrategy(routerList, HostRole.WRITER, RoundRobinHostSelector.STRATEGY_ROUND_ROBIN);
+        .getHostSpecByStrategy(routerList, HostRole.WRITER, WeightedRandomHostSelector.STRATEGY_WEIGHTED_RANDOM);
     verify(mockPluginService, times(1))
         .getHostSpecByStrategy(routerList, HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
     verify(mockPluginService, times(2)).connect(any(), any(), any());
