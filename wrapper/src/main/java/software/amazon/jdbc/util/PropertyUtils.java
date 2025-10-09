@@ -28,7 +28,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import software.amazon.awssdk.services.rds.endpoints.internal.Value.Bool;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.PropertyDefinition;
 

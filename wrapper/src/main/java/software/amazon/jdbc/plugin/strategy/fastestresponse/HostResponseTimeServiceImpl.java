@@ -87,8 +87,7 @@ public class HostResponseTimeServiceImpl implements HostResponseTimeService {
                 this.pluginService.getDialect(),
                 this.props,
                 (servicesContainer) ->
-                    new NodeResponseTimeMonitor(pluginService, hostSpec, this.props,
-                        this.intervalMs));
+                    new NodeResponseTimeMonitor(pluginService, hostSpec, this.props, this.intervalMs));
           } catch (SQLException e) {
             LOGGER.warning(
                 Messages.get("HostResponseTimeServiceImpl.errorStartingMonitor", new Object[] {hostSpec.getUrl(), e}));

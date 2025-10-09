@@ -33,20 +33,16 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
-import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.PartialPluginService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.FullServicesContainerImpl;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.ServiceUtility;
 import software.amazon.jdbc.util.Utils;
-import software.amazon.jdbc.util.connection.ConnectionService;
 
 /**
  * An implementation of ReaderFailoverHandler.
@@ -301,11 +297,14 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     final ExecutorService executor =
         ExecutorFactory.newFixedThreadPool(2, "failover");
     final CompletionService<ReaderFailoverResult> completionService = new ExecutorCompletionService<>(executor);
+    final FullServicesContainer servicesContainer1 = newServicesContainer();
+    final FullServicesContainer servicesContainer2 = newServicesContainer();
+
     try {
       for (int i = 0; i < hosts.size(); i += 2) {
         // submit connection attempt tasks in batches of 2
         final ReaderFailoverResult result =
-            getResultFromNextTaskBatch(hosts, executor, completionService, i);
+            getResultFromNextTaskBatch(hosts, executor, completionService, servicesContainer1, servicesContainer2, i);
         if (result.isConnected() || result.getException() != null) {
           return result;
         }
@@ -324,16 +323,22 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     }
   }
 
+  protected FullServicesContainer newServicesContainer() throws SQLException {
+    return ServiceUtility.getInstance().createServiceContainer(this.servicesContainer, this.props);
+  }
+
   private ReaderFailoverResult getResultFromNextTaskBatch(
       final List<HostSpec> hosts,
       final ExecutorService executor,
       final CompletionService<ReaderFailoverResult> completionService,
+      final FullServicesContainer servicesContainer1,
+      final FullServicesContainer servicesContainer2,
       final int i) throws SQLException {
     ReaderFailoverResult result;
     final int numTasks = i + 1 < hosts.size() ? 2 : 1;
     completionService.submit(
         new ConnectionAttemptTask(
-            getNewServicesContainer(),
+            servicesContainer1,
             this.hostAvailabilityMap,
             hosts.get(i),
             this.props,
@@ -341,7 +346,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     if (numTasks == 2) {
       completionService.submit(
           new ConnectionAttemptTask(
-              getNewServicesContainer(),
+              servicesContainer2,
               this.hostAvailabilityMap,
               hosts.get(i + 1),
               this.props,

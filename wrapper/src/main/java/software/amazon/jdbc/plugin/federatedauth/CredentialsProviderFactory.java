@@ -16,7 +16,6 @@
 
 package software.amazon.jdbc.plugin.federatedauth;
 
-import java.io.Closeable;
 import java.sql.SQLException;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
