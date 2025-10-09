@@ -54,6 +54,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -120,7 +121,7 @@ public class ReadWriteSplittingTests {
   }
 
 
-  protected static Properties getProxiedPropsWithFailover() {
+  protected Properties getProxiedPropsWithFailover() {
     final Properties props = getPropsWithFailover();
     AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props,
         "?." + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointSuffix()
@@ -128,7 +129,7 @@ public class ReadWriteSplittingTests {
     return props;
   }
 
-  protected static Properties getProxiedProps() {
+  protected Properties getProxiedProps() {
     final Properties props = getProps();
     AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props,
         "?." + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointSuffix()
@@ -145,16 +146,32 @@ public class ReadWriteSplittingTests {
     return props;
   }
 
-  protected static Properties getProps() {
+  protected Properties getProps() {
     final Properties props = getDefaultPropsNoPlugins();
     PropertyDefinition.PLUGINS.set(props, "readWriteSplitting");
     return props;
   }
 
-  protected static Properties getPropsWithFailover() {
+  protected Properties getPropsWithFailover() {
     final Properties props = getDefaultPropsNoPlugins();
     PropertyDefinition.PLUGINS.set(props, "failover,efm2,readWriteSplitting");
     return props;
+  }
+
+  protected String getWriterEndpoint() {
+    return TestEnvironment.getCurrent()
+        .getInfo()
+        .getDatabaseInfo()
+        .getInstances()
+        .get(0)
+        .getHost();
+  }
+
+  protected String getReaderEndpoint() {
+    return TestEnvironment.getCurrent()
+        .getInfo()
+        .getDatabaseInfo()
+        .getClusterReadOnlyEndpoint();
   }
 
   @TestTemplate
@@ -199,13 +216,18 @@ public class ReadWriteSplittingTests {
 
       conn.setReadOnly(true);
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
-      assertEquals(readerConnectionId, currentConnectionId);
+      assertTrue(connectedToCorrectReaderInstance(readerConnectionId, currentConnectionId));
 
       conn.setReadOnly(false);
       final String writerConnectionId = auroraUtil.queryInstanceId(conn);
       LOGGER.finest("writerConnectionId: " + writerConnectionId);
       assertNotEquals(readerConnectionId, writerConnectionId);
     }
+  }
+
+  boolean connectedToCorrectReaderInstance(String readerConnectionId, String currentConnectionId) {
+    // When connected to a reader, the ReadWriteSplittingPlugin does not change connections on conn.setReadOnly(true).
+    return Objects.equals(readerConnectionId, currentConnectionId);
   }
 
   // Assumes the writer is stored as the first instance and all other instances are readers.
@@ -217,7 +239,7 @@ public class ReadWriteSplittingTests {
 
   @TestTemplate
   public void test_connectToReaderCluster_setReadOnlyTrueFalse() throws SQLException {
-    final String url = ConnectionStringHelper.getWrapperReaderClusterUrl();
+    final String url = ConnectionStringHelper.getWrapperUrl(getReaderEndpoint());
     LOGGER.finest("Connecting to url " + url);
     try (final Connection conn = DriverManager.getConnection(url, getProps())) {
       final String readerConnectionId = auroraUtil.queryInstanceId(conn);
@@ -294,7 +316,8 @@ public class ReadWriteSplittingTests {
   @TestTemplate
   @EnableOnDatabaseEngine({DatabaseEngine.MYSQL})
   public void test_setReadOnlyTrueInTransaction() throws SQLException {
-    try (final Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), getProps())) {
+    try (final Connection conn = DriverManager.getConnection(
+        ConnectionStringHelper.getWrapperUrl(getWriterEndpoint()), getProps())) {
 
       final String writerConnectionId = auroraUtil.queryInstanceId(conn);
 
@@ -336,7 +359,9 @@ public class ReadWriteSplittingTests {
 
       final String writerConnectionId = auroraUtil.queryInstanceId(conn);
 
-      // Kill all reader instances
+      // Kill reader endpoint and all reader instances
+      ProxyHelper.disableConnectivity(TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo()
+          .getClusterReadOnlyEndpoint());
       final List<String> instanceIDs =
           TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().stream()
               .map(TestInstanceInfo::getInstanceId).collect(Collectors.toList());
@@ -448,8 +473,11 @@ public class ReadWriteSplittingTests {
 
       final String originalWriterId = auroraUtil.queryInstanceId(conn);
 
-      // Kill all reader instances
-      List<TestInstanceInfo> instances = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances();
+      // Kill reader endpoint and all reader instances
+      ProxyHelper.disableConnectivity(TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo()
+          .getClusterReadOnlyEndpoint());
+      List<TestInstanceInfo> instances = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo()
+          .getInstances();
       for (int i = 1; i < instances.size(); i++) {
         ProxyHelper.disableConnectivity(instances.get(i).getInstanceId());
       }
@@ -559,7 +587,7 @@ public class ReadWriteSplittingTests {
       final List<TestInstanceInfo> instances = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo()
           .getInstances();
 
-      // Kill all instances except the writer
+      // Kill all instances except the writer and cluster endpoint
       for (final TestInstanceInfo instance : instances) {
         final String instanceId = instance.getInstanceId();
         if (writerConnectionId.equals(instanceId)) {
@@ -567,6 +595,8 @@ public class ReadWriteSplittingTests {
         }
         ProxyHelper.disableConnectivity(instanceId);
       }
+      ProxyHelper.disableConnectivity(TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo()
+          .getClusterReadOnlyEndpoint());
 
       auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
       assertFalse(conn.isClosed());

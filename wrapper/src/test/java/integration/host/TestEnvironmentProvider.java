@@ -158,61 +158,75 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
                   }
                 }
 
-                for (boolean withMetricsFeature : Arrays.asList(false, true)) {
-                  final boolean useConfiguration = withMetricsFeature == config.testMetricsOnly;
-                  if (!useConfiguration) {
-                    continue;
+                for (boolean withRdsProxyFeature : Arrays.asList(true, false)) {
+                  if (withRdsProxyFeature) {
+                    if (config.noRdsProxy) {
+                      continue;
+                    }
+                    // Run BlueGreen test only for MultiAz Instances with 1 node or for Aurora
+                    if (deployment != DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER
+                        && deployment != DatabaseEngineDeployment.AURORA) {
+                      continue;
+                    }
                   }
 
-                  if (withMetricsFeature && instances == DatabaseInstances.SINGLE_INSTANCE) {
-                    continue;
-                  }
+                  for (boolean withMetricsFeature : Arrays.asList(false, true)) {
+                    final boolean useConfiguration = withMetricsFeature == config.testMetricsOnly;
+                    if (!useConfiguration) {
+                      continue;
+                    }
 
-                  if (withMetricsFeature && numOfInstances < 2) {
-                    continue;
-                  }
+                    if (withMetricsFeature && instances == DatabaseInstances.SINGLE_INSTANCE) {
+                      continue;
+                    }
 
-                  // Run Metrics test only for MultiAz Cluster or Aurora
-                  if (withMetricsFeature
-                      && deployment != DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER
-                      && deployment != DatabaseEngineDeployment.AURORA) {
-                    continue;
-                  }
+                    if (withMetricsFeature && numOfInstances < 2) {
+                      continue;
+                    }
 
-                  resultContextList.add(
-                      getEnvironment(
-                          new TestEnvironmentRequest(
-                              engine,
-                              instances,
-                              instances == DatabaseInstances.SINGLE_INSTANCE ? 1 : numOfInstances,
-                              deployment,
-                              jvm,
-                              TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
-                              deployment == DatabaseEngineDeployment.DOCKER
-                                  && config.noTracesTelemetry
-                                  && config.noMetricsTelemetry
-                                  ? null
-                                  : TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED,
-                              deployment == DatabaseEngineDeployment.DOCKER || config.noFailover
-                                  ? null
-                                  : TestEnvironmentFeatures.FAILOVER_SUPPORTED,
-                              deployment == DatabaseEngineDeployment.DOCKER
-                                  || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER
-                                  || config.noIam
-                                  ? null
-                                  : TestEnvironmentFeatures.IAM,
-                              config.noSecretsManager ? null : TestEnvironmentFeatures.SECRETS_MANAGER,
-                              config.noHikari ? null : TestEnvironmentFeatures.HIKARI,
-                              config.noPerformance ? null : TestEnvironmentFeatures.PERFORMANCE,
-                              config.noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
-                              config.noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
-                              config.noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null,
-                              config.testHibernateOnly ? TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY : null,
-                              config.testAutoscalingOnly ? TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY : null,
-                              config.noTracesTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED,
-                              config.noMetricsTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED,
-                              withBlueGreenFeature ? TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT : null,
-                              withMetricsFeature ? TestEnvironmentFeatures.RUN_DB_METRICS_ONLY : null)));
+                    // Run Metrics test only for MultiAz Cluster or Aurora
+                    if (withMetricsFeature
+                        && deployment != DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER
+                        && deployment != DatabaseEngineDeployment.AURORA) {
+                      continue;
+                    }
+
+                    resultContextList.add(
+                        getEnvironment(
+                            new TestEnvironmentRequest(
+                                engine,
+                                instances,
+                                instances == DatabaseInstances.SINGLE_INSTANCE ? 1 : numOfInstances,
+                                deployment,
+                                jvm,
+                                TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
+                                deployment == DatabaseEngineDeployment.DOCKER
+                                    && config.noTracesTelemetry
+                                    && config.noMetricsTelemetry
+                                    ? null
+                                    : TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED,
+                                deployment == DatabaseEngineDeployment.DOCKER || config.noFailover
+                                    ? null
+                                    : TestEnvironmentFeatures.FAILOVER_SUPPORTED,
+                                deployment == DatabaseEngineDeployment.DOCKER
+                                    || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER
+                                    || config.noIam
+                                    ? null
+                                    : TestEnvironmentFeatures.IAM,
+                                config.noSecretsManager ? null : TestEnvironmentFeatures.SECRETS_MANAGER,
+                                config.noHikari ? null : TestEnvironmentFeatures.HIKARI,
+                                config.noPerformance ? null : TestEnvironmentFeatures.PERFORMANCE,
+                                config.noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
+                                config.noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
+                                config.noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null,
+                                config.testHibernateOnly ? TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY : null,
+                                config.testAutoscalingOnly ? TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY : null,
+                                config.noTracesTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED,
+                                config.noMetricsTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED,
+                                withBlueGreenFeature ? TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT : null,
+                                withRdsProxyFeature ? TestEnvironmentFeatures.RDS_PROXY : null,
+                                withMetricsFeature ? TestEnvironmentFeatures.RUN_DB_METRICS_ONLY : null)));
+                  }
                 }
               }
             }

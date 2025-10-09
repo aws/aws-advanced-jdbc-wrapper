@@ -24,6 +24,7 @@
 | [initialConnection](./using-plugins/UsingTheAuroraInitialConnectionStrategyPlugin.md) | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span> |
 | [limitless](./using-plugins/UsingTheLimitlessConnectionPlugin.md)                     | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:red;font-size:20px">&cross;</span>    |
 | [bg](./using-plugins/UsingTheBlueGreenPlugin.md)                                      | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span> |
+| [srw](./using-plugins/UsingTheSimpleReadWriteSplittingPlugin.md)                      | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span> |
 
 <br>
 
@@ -46,6 +47,7 @@
 | [initialConnection](./using-plugins/UsingTheAuroraInitialConnectionStrategyPlugin.md) | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span>                          | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span> |
 | [limitless](./using-plugins/UsingTheLimitlessConnectionPlugin.md)                     | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span>                          | <span style="color:red;font-size:20px">&cross;</span>    | <span style="color:red;font-size:20px">&cross;</span>    |
 | [bg](./using-plugins/UsingTheBlueGreenPlugin.md)                                      | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span>                          | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span> |
+| [srw](./using-plugins/UsingTheSimpleReadWriteSplittingPlugin.md)                      | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span>                          | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span> |
 
 <br>
 
@@ -64,6 +66,7 @@
 | [initialConnection](./using-plugins/UsingTheAuroraInitialConnectionStrategyPlugin.md) | <span style="color:yellow;font-size:15px">&check;</span>  | <span style="color:yellow;font-size:15px">&check;</span>                | <span style="color:yellow;font-size:15px">&check;</span>        | <span style="color:yellow;font-size:15px">&check;</span> |
 | [limitless](./using-plugins/UsingTheLimitlessConnectionPlugin.md)                     | <span style="color:yellow;font-size:15px">&check;</span>  | <span style="color:yellow;font-size:15px">&check;</span>                | <span style="color:yellow;font-size:15px">&check;</span>        | <span style="color:yellow;font-size:15px">&check;</span> |
 | [bg](./using-plugins/UsingTheBlueGreenPlugin.md)                                      | <span style="color:yellow;font-size:15px">&check;</span>  | <span style="color:yellow;font-size:15px">&check;</span>                | <span style="color:yellow;font-size:15px">&check;</span>        | <span style="color:yellow;font-size:15px">&check;</span> |
+| [srw](./using-plugins/UsingTheSimpleReadWriteSplittingPlugin.md)                      | <span style="color:yellow;font-size:15px">&check;</span>  | <span style="color:yellow;font-size:15px">&check;</span>                | <span style="color:yellow;font-size:15px">&check;</span>        | <span style="color:yellow;font-size:15px">&check;</span> |
 
 <br>
 
@@ -78,6 +81,7 @@
 | [initialConnection](./using-plugins/UsingTheAuroraInitialConnectionStrategyPlugin.md) | <span style="color:red;font-size:20px">&cross;</span>    | <span style="color:yellow;font-size:15px">&check;</span>                  | <span style="color:yellow;font-size:15px">&check;</span>                            | <span style="color:yellow;font-size:15px">&check;</span>                    |
 | [limitless](./using-plugins/UsingTheLimitlessConnectionPlugin.md)                     | <span style="color:red;font-size:20px">&cross;</span>    | <span style="color:red;font-size:20px">&cross;</span>                     | <span style="color:red;font-size:20px">&cross;</span>                               | <span style="color:yellow;font-size:15px">&check;</span>                    |
 | [bg](./using-plugins/UsingTheBlueGreenPlugin.md)                                      | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span>                  | <span style="color:yellow;font-size:15px">&check;</span>                            | <span style="color:yellow;font-size:15px">&check;</span>                    |
+| [srw](./using-plugins/UsingTheSimpleReadWriteSplittingPlugin.md)                      | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span>                  | <span style="color:yellow;font-size:15px">&check;</span>                            | <span style="color:yellow;font-size:15px">&check;</span>                    |
 
 <br>
 
@@ -88,9 +92,11 @@
 | [initialConnection](./using-plugins/UsingTheAuroraInitialConnectionStrategyPlugin.md) | <span style="color:red;font-size:20px">&cross;</span>    | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span> |                                                                                       |
 | [limitless](./using-plugins/UsingTheLimitlessConnectionPlugin.md)                     | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:red;font-size:20px">&cross;</span>    | <span style="color:red;font-size:20px">&cross;</span>                                 |
 | [bg](./using-plugins/UsingTheBlueGreenPlugin.md)                                      | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span>                              |
+| [srw](./using-plugins/UsingTheSimpleReadWriteSplittingPlugin.md)                      | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span> | <span style="color:yellow;font-size:15px">&check;</span>                              |
 
 <br>
 
-| Plugin codes / Plugin codes                      | [limitless](./using-plugins/UsingTheLimitlessConnectionPlugin.md) | [bg](./using-plugins/UsingTheBlueGreenPlugin.md) | 
-|--------------------------------------------------|-------------------------------------------------------------------|--------------------------------------------------|
-| [bg](./using-plugins/UsingTheBlueGreenPlugin.md) | <span style="color:red;font-size:20px">&cross;</span>             |                                                  | 
+| Plugin codes / Plugin codes                                      | [limitless](./using-plugins/UsingTheLimitlessConnectionPlugin.md) | [bg](./using-plugins/UsingTheBlueGreenPlugin.md)         | 
+|------------------------------------------------------------------|-------------------------------------------------------------------|----------------------------------------------------------|
+| [bg](./using-plugins/UsingTheBlueGreenPlugin.md)                 | <span style="color:red;font-size:20px">&cross;</span>             |                                                          | 
+| [srw](./using-plugins/UsingTheSimpleReadWriteSplittingPlugin.md) | <span style="color:red;font-size:20px">&cross;</span>             | <span style="color:yellow;font-size:15px">&check;</span> | 

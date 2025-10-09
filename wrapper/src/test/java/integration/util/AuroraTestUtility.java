@@ -52,10 +52,9 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Random;
@@ -74,7 +73,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.junit.jupiter.api.Test;
 import org.testcontainers.shaded.org.apache.commons.lang3.NotImplementedException;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -98,6 +96,7 @@ import software.amazon.awssdk.services.ec2.model.SecurityGroupRule;
 import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.awssdk.services.rds.RdsClientBuilder;
 import software.amazon.awssdk.services.rds.model.ApplyMethod;
+import software.amazon.awssdk.services.rds.model.AuthScheme;
 import software.amazon.awssdk.services.rds.model.BlueGreenDeployment;
 import software.amazon.awssdk.services.rds.model.BlueGreenDeploymentNotFoundException;
 import software.amazon.awssdk.services.rds.model.CreateBlueGreenDeploymentRequest;
@@ -107,10 +106,19 @@ import software.amazon.awssdk.services.rds.model.CreateDbClusterParameterGroupRe
 import software.amazon.awssdk.services.rds.model.CreateDbClusterRequest;
 import software.amazon.awssdk.services.rds.model.CreateDbInstanceRequest;
 import software.amazon.awssdk.services.rds.model.CreateDbInstanceResponse;
+import software.amazon.awssdk.services.rds.model.CreateDbProxyEndpointRequest;
+import software.amazon.awssdk.services.rds.model.CreateDbProxyEndpointResponse;
+import software.amazon.awssdk.services.rds.model.CreateDbProxyRequest;
+import software.amazon.awssdk.services.rds.model.CreateDbProxyResponse;
 import software.amazon.awssdk.services.rds.model.DBCluster;
 import software.amazon.awssdk.services.rds.model.DBClusterMember;
 import software.amazon.awssdk.services.rds.model.DBEngineVersion;
 import software.amazon.awssdk.services.rds.model.DBInstance;
+import software.amazon.awssdk.services.rds.model.DBProxy;
+import software.amazon.awssdk.services.rds.model.DBProxyEndpoint;
+import software.amazon.awssdk.services.rds.model.DBProxyEndpointStatus;
+import software.amazon.awssdk.services.rds.model.DBProxyEndpointTargetRole;
+import software.amazon.awssdk.services.rds.model.DBProxyStatus;
 import software.amazon.awssdk.services.rds.model.DbClusterNotFoundException;
 import software.amazon.awssdk.services.rds.model.DbInstanceNotFoundException;
 import software.amazon.awssdk.services.rds.model.DeleteBlueGreenDeploymentRequest;
@@ -119,6 +127,7 @@ import software.amazon.awssdk.services.rds.model.DeleteDbClusterParameterGroupRe
 import software.amazon.awssdk.services.rds.model.DeleteDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.DeleteDbInstanceRequest;
 import software.amazon.awssdk.services.rds.model.DeleteDbInstanceResponse;
+import software.amazon.awssdk.services.rds.model.DeleteDbProxyRequest;
 import software.amazon.awssdk.services.rds.model.DescribeBlueGreenDeploymentsResponse;
 import software.amazon.awssdk.services.rds.model.DescribeDbClustersRequest;
 import software.amazon.awssdk.services.rds.model.DescribeDbClustersResponse;
@@ -126,6 +135,14 @@ import software.amazon.awssdk.services.rds.model.DescribeDbEngineVersionsRequest
 import software.amazon.awssdk.services.rds.model.DescribeDbEngineVersionsResponse;
 import software.amazon.awssdk.services.rds.model.DescribeDbInstancesRequest;
 import software.amazon.awssdk.services.rds.model.DescribeDbInstancesResponse;
+import software.amazon.awssdk.services.rds.model.DescribeDbProxiesRequest;
+import software.amazon.awssdk.services.rds.model.DescribeDbProxiesResponse;
+import software.amazon.awssdk.services.rds.model.DescribeDbProxyEndpointsRequest;
+import software.amazon.awssdk.services.rds.model.DescribeDbProxyEndpointsResponse;
+import software.amazon.awssdk.services.rds.model.DescribeDbProxyTargetsRequest;
+import software.amazon.awssdk.services.rds.model.DescribeDbProxyTargetsResponse;
+import software.amazon.awssdk.services.rds.model.DescribeDbSubnetGroupsRequest;
+import software.amazon.awssdk.services.rds.model.DescribeDbSubnetGroupsResponse;
 import software.amazon.awssdk.services.rds.model.FailoverDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.Filter;
 import software.amazon.awssdk.services.rds.model.InvalidDbClusterStateException;
@@ -140,10 +157,18 @@ import software.amazon.awssdk.services.rds.model.PromoteReadReplicaResponse;
 import software.amazon.awssdk.services.rds.model.RdsException;
 import software.amazon.awssdk.services.rds.model.RebootDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.RebootDbInstanceResponse;
+import software.amazon.awssdk.services.rds.model.RegisterDbProxyTargetsRequest;
+import software.amazon.awssdk.services.rds.model.Subnet;
 import software.amazon.awssdk.services.rds.model.SwitchoverBlueGreenDeploymentRequest;
 import software.amazon.awssdk.services.rds.model.SwitchoverBlueGreenDeploymentResponse;
 import software.amazon.awssdk.services.rds.model.Tag;
+import software.amazon.awssdk.services.rds.model.UserAuthConfig;
+import software.amazon.awssdk.services.rds.model.VpcSecurityGroupMembership;
 import software.amazon.awssdk.services.rds.waiters.RdsWaiter;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.CreateSecretRequest;
+import software.amazon.awssdk.services.secretsmanager.model.CreateSecretResponse;
+import software.amazon.awssdk.services.secretsmanager.model.DeleteSecretRequest;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RdsUtils;
@@ -166,6 +191,7 @@ public class AuroraTestUtility {
 
   private final RdsClient rdsClient;
   private final Ec2Client ec2Client;
+  private SecretsManagerClient secretsClient;
 
   public AuroraTestUtility(String region, String endpoint) {
     this(getRegionInternal(region), endpoint, DefaultCredentialsProvider.create());
@@ -2173,6 +2199,230 @@ public class AuroraTestUtility {
     }
   }
 
+  public String createRdsProxy(
+      String rdsDbProxyName,
+      String rdsDbName,
+      String engineFamily,
+      String secretArn,
+      List<String> vpcSecurityGroupIds,
+      List<String> vpcSubnetIds,
+      String iamRoleArn) {
+    LOGGER.finest("Creating proxy " + rdsDbProxyName);
+    // Create proxy
+    CreateDbProxyRequest createRequest = CreateDbProxyRequest.builder()
+        .dbProxyName(rdsDbProxyName)
+        .engineFamily(engineFamily)
+        .auth(UserAuthConfig.builder()
+            .authScheme(AuthScheme.SECRETS)
+            .secretArn(secretArn)
+            .build())
+        .roleArn(iamRoleArn)
+        .vpcSecurityGroupIds(vpcSecurityGroupIds)
+        .vpcSubnetIds(vpcSubnetIds)
+        .idleClientTimeout(1800)
+        .requireTLS(false)
+        .build();
+
+    CreateDbProxyResponse response = rdsClient.createDBProxy(createRequest);
+    String proxyEndpoint = response.dbProxy().endpoint();
+    LOGGER.finest("Proxy " + rdsDbProxyName + " created. Endpoint is " + proxyEndpoint);
+
+    // Register target database
+    RegisterDbProxyTargetsRequest registerRequest = RegisterDbProxyTargetsRequest.builder()
+          .dbProxyName(rdsDbProxyName)
+          .targetGroupName("default")
+          .dbClusterIdentifiers(rdsDbName)
+          .build();
+    rdsClient.registerDBProxyTargets(registerRequest);
+    LOGGER.finest("Proxy " + rdsDbProxyName + " is now targeting db " + rdsDbName);
+
+    // Wait for proxy to be available
+    waitForProxyToBeAvailable(rdsDbProxyName);
+    return proxyEndpoint;
+  }
+
+  public List<String>[] getVpcIds(String rdsDbName) {
+    DBCluster cluster = getDBCluster(rdsDbName);
+
+    List<String> vpcSecurityGroupIds = (cluster.vpcSecurityGroups()).stream()
+            .map(VpcSecurityGroupMembership::vpcSecurityGroupId).collect(Collectors.toList());
+
+    DescribeDbSubnetGroupsResponse response = rdsClient.describeDBSubnetGroups(
+        DescribeDbSubnetGroupsRequest.builder()
+            .dbSubnetGroupName(cluster.dbSubnetGroup())
+            .build()
+    );
+
+    List<String> vpcSubnetIds = response.dbSubnetGroups().stream()
+        .flatMap(group -> group.subnets().stream())
+        .map(Subnet::subnetIdentifier)
+        .collect(Collectors.toList());
+    LOGGER.finest("Gathered VPC security group ids and subnet ids for " + rdsDbName);
+    return new List[]{vpcSecurityGroupIds, vpcSubnetIds};
+  }
+
+  public String createRdsProxySecret(String secretName, String username, String password, String region) {
+    String secretString = String.format(
+        "{\"username\":\"%s\",\"password\":\"%s\"}",
+        username,
+        password
+    );
+
+    CreateSecretRequest request = CreateSecretRequest.builder()
+        .name(secretName)
+        .description("Test secret for RDS Proxy")
+        .secretString(secretString)
+        .build();
+
+    secretsClient = SecretsManagerClient.builder().region(getRegionInternal(region)).build();
+    CreateSecretResponse response = secretsClient.createSecret(request);
+    LOGGER.finest("Secret for new RDS Proxy successfully created.");
+    return response.arn();
+  }
+
+  private void waitForProxyToBeAvailable(String rdsDbProxyName) {
+    LOGGER.finest("Waiting for proxy " + rdsDbProxyName + " to be available.");
+    final long waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(15);
+
+    while (waitTillNanoTime > System.nanoTime()) {
+      DescribeDbProxiesRequest request = DescribeDbProxiesRequest.builder()
+          .dbProxyName(rdsDbProxyName)
+          .build();
+
+      DescribeDbProxiesResponse response = rdsClient.describeDBProxies(request);
+
+      if (!response.dbProxies().isEmpty()) {
+        DBProxyStatus status = response.dbProxies().get(0).status();
+        if (status == DBProxyStatus.AVAILABLE) {
+          LOGGER.finest("Proxy status of " + rdsDbProxyName + ": available.");
+          return;
+        }
+        if (status == DBProxyStatus.INCOMPATIBLE_NETWORK
+            || status == DBProxyStatus.INSUFFICIENT_RESOURCE_LIMITS) {
+          throw new RuntimeException("Proxy creation failed with status: " + status);
+        }
+      }
+
+      try {
+        Thread.sleep(10000); // Wait 10 seconds
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    throw new RuntimeException("Proxy did not become available within timeout");
+  }
+
+  private void waitForProxyEndpointToBeAvailable(String rdsProxyEndpointName) {
+    LOGGER.finest("Waiting for proxy endpoint " + rdsProxyEndpointName + " to be available.");
+    final long waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(15);
+
+    while (waitTillNanoTime > System.nanoTime()) {
+      DescribeDbProxyEndpointsResponse response = rdsClient.describeDBProxyEndpoints(
+          DescribeDbProxyEndpointsRequest.builder()
+              .dbProxyEndpointName(rdsProxyEndpointName)
+              .build()
+      );
+
+      if (!response.dbProxyEndpoints().isEmpty()) {
+        DBProxyEndpointStatus status = response.dbProxyEndpoints().get(0).status();
+        if (status == DBProxyEndpointStatus.AVAILABLE) {
+          LOGGER.finest("Status of proxy endpoint " + rdsProxyEndpointName + ": available.");
+          return;
+        }
+      }
+
+      try {
+        Thread.sleep(10000); // Wait 10 seconds
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    throw new RuntimeException("Proxy endpoint did not become available within timeout");
+  }
+
+  public String createReadOnlyEndpoint(
+      String rdsDbProxyName,
+      List<String> vpcSecurityGroupIds,
+      List<String> vpcSubnetIds
+  ) {
+    String readOnlyProxyEndpointName = rdsDbProxyName + "-read-only";
+    LOGGER.finest("Creating read only endpoint " + readOnlyProxyEndpointName);
+    try {
+      CreateDbProxyEndpointRequest request = CreateDbProxyEndpointRequest.builder()
+          .dbProxyName(rdsDbProxyName)
+          .dbProxyEndpointName(readOnlyProxyEndpointName)
+          .targetRole("READ_ONLY")
+          .vpcSubnetIds(vpcSubnetIds)
+          .vpcSecurityGroupIds(vpcSecurityGroupIds)
+          .build();
+
+      CreateDbProxyEndpointResponse response = rdsClient.createDBProxyEndpoint(request);
+      String readOnlyEndpoint = response.dbProxyEndpoint().endpoint();
+      LOGGER.finest("Created read-only endpoint: " + readOnlyEndpoint);
+      waitForProxyEndpointToBeAvailable(response.dbProxyEndpoint().dbProxyEndpointName());
+      return readOnlyEndpoint;
+    } catch (RdsException e) {
+      LOGGER.finest("Failed to create read-only endpoint: " + e.awsErrorDetails().errorMessage());
+      throw e;
+    }
+  }
+
+  public DBProxy getRdsProxy(String rdsDbProxyName) {
+    try {
+      DescribeDbProxiesResponse response = rdsClient.describeDBProxies(
+          DescribeDbProxiesRequest.builder()
+              .dbProxyName(rdsDbProxyName)
+              .build());
+
+      if (response.hasDbProxies() && !response.dbProxies().isEmpty()) {
+        return response.dbProxies().get(0);
+      }
+      return null;
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  // This gathers the first read-write endpoint and read-only endpoint attached to rdsDbProxyName, from the list
+  // of proxy endpoints. Does not check availability.
+  public String[] getRdsProxyEndpoints(String rdsDbProxyName) {
+    String rwEndpoint = "";
+    String roEndpoint = "";
+    // Get all endpoints for the proxy
+    DescribeDbProxyEndpointsRequest request = DescribeDbProxyEndpointsRequest.builder()
+        .dbProxyName(rdsDbProxyName)
+        .build();
+    DescribeDbProxyEndpointsResponse response = rdsClient.describeDBProxyEndpoints(request);
+    for (DBProxyEndpoint endpoint : response.dbProxyEndpoints()) {
+      if (rwEndpoint.isEmpty() && endpoint.targetRole() == DBProxyEndpointTargetRole.READ_WRITE) {
+        rwEndpoint = endpoint.endpoint();
+      } else if (roEndpoint.isEmpty() && endpoint.targetRole() == DBProxyEndpointTargetRole.READ_ONLY) {
+        roEndpoint = endpoint.endpoint();
+      }
+    }
+    if (Objects.equals(rwEndpoint, "") || Objects.equals(roEndpoint, "")) {
+      throw new RuntimeException(
+          "RDS Proxy does not have required endpoints. RW Endpoint: " + rwEndpoint + " RO Endoint: " + roEndpoint);
+    }
+    return new String[]{rwEndpoint, roEndpoint};
+  }
+
+  public boolean isRdsProxyTargetingDb(String rdsDbProxyName, String rdsDbName) {
+    try {
+      DescribeDbProxyTargetsResponse response = rdsClient.describeDBProxyTargets(
+          DescribeDbProxyTargetsRequest.builder()
+              .dbProxyName(rdsDbProxyName)
+              .build());
+
+      return response.targets().stream()
+          .anyMatch(target -> target.rdsResourceId().equals(rdsDbName));
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
   private Tag getTag() {
     ZoneId zoneId = ZoneId.of("America/Los_Angeles");
     ZonedDateTime zdt = Instant.now().atZone(zoneId);
@@ -2327,6 +2577,36 @@ public class AuroraTestUtility {
       }
     } catch (Exception ex) {
       LOGGER.warning(ex.getMessage());
+    }
+  }
+
+  public void deleteRdsProxy(String rdsDbProxyName) {
+    if (!StringUtils.isNullOrEmpty(rdsDbProxyName)) {
+      try {
+        // Delete proxy
+        DeleteDbProxyRequest deleteProxyRequest = DeleteDbProxyRequest.builder()
+            .dbProxyName(rdsDbProxyName)
+            .build();
+        rdsClient.deleteDBProxy(deleteProxyRequest);
+      } catch (Exception e) {
+        LOGGER.fine("Error deleting the RDS Proxy: " + e.getMessage());
+      }
+    }
+  }
+
+  public void deleteRdsProxySecret(String rdsDbProxySecretName) {
+    if (!StringUtils.isNullOrEmpty(rdsDbProxySecretName) && secretsClient != null) {
+      try {
+        // Delete secret
+        DeleteSecretRequest deleteSecretRequest = DeleteSecretRequest.builder()
+            .secretId(rdsDbProxySecretName)
+            .forceDeleteWithoutRecovery(true)
+            .build();
+        secretsClient.deleteSecret(deleteSecretRequest);
+
+      } catch (Exception e) {
+        LOGGER.fine("Error deleting the Secret associated with the RDS Proxy: " + e.getMessage());
+      }
     }
   }
 }

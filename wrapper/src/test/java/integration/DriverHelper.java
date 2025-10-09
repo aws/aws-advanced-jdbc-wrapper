@@ -202,6 +202,18 @@ public class DriverHelper {
     }
   }
 
+  public static String getEngineFamilyFromDatabaseEngine(DatabaseEngine databaseEngine) {
+    switch (databaseEngine) {
+      case MYSQL:
+      case MARIADB:
+        return "MYSQL";
+      case PG:
+        return "POSTGRESQL";
+      default:
+        return "";
+    }
+  }
+
   // This method should be used on connections with a target driver ONLY!
   public static void setConnectTimeout(Properties props, long timeout, TimeUnit timeUnit) {
     setConnectTimeout(TestEnvironment.getCurrent().getCurrentDriver(), props, timeout, timeUnit);

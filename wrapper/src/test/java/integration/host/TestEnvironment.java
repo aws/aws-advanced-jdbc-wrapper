@@ -92,6 +92,9 @@ public class TestEnvironment implements AutoCloseable {
   private String rdsDbName; // "cluster-mysql", "instance-name", "rds-multi-az-cluster-name"
   private String rdsDbDomain; // "XYZ.us-west-2.rds.amazonaws.com"
   private String rdsEndpoint; // "https://rds-int.amazon.com"
+  private String rdsDbProxyName; // "rds-proxy", "proxy-name"
+  private String iamRoleArn;
+  private String rdsDbProxySecretName;
 
   private String awsAccessKeyId;
   private String awsSecretAccessKey;
@@ -150,6 +153,10 @@ public class TestEnvironment implements AutoCloseable {
 
         if (request.getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)) {
           createBlueGreenDeployment(env);
+        }
+
+        if (request.getFeatures().contains(TestEnvironmentFeatures.RDS_PROXY)) {
+          createRdsProxyEndpoints(env);
         }
 
         break;
@@ -403,6 +410,77 @@ public class TestEnvironment implements AutoCloseable {
         throw new RuntimeException(ex);
       }
     }
+  }
+
+  private static void createRdsProxyEndpoints(TestEnvironment env) {
+    boolean needToCreate;
+    if (StringUtils.isNullOrEmpty(env.rdsDbProxyName)) {
+      // We need to create a name for the new RDS Proxy.
+      getNewRdsProxyName(env);
+      needToCreate = true;
+    } else {
+      needToCreate = env.auroraUtil.getRdsProxy(env.rdsDbProxyName) == null;
+    }
+
+    if (needToCreate) {
+      // Create a secret for the new RDS Proxy and store it so the secret can be deleted later.
+      env.rdsDbProxySecretName = "rds-proxy-secret-" + env.rdsDbProxyName + "-" + System.currentTimeMillis();
+      String secretArn = env.auroraUtil.createRdsProxySecret(env.rdsDbProxySecretName,
+          env.info.getDatabaseInfo().getUsername(),
+          env.info.getDatabaseInfo().getPassword(),
+          env.info.getRegion());
+
+      // Gather the VPC ids of the test database so that the proxy is created in the same VPC.
+      // vpcIds[0]: vpcSecurityGroupIds, vpcIds[1]: vpcSubnetIds
+      List<String>[] vpcIds = env.auroraUtil.getVpcIds(env.rdsDbName);
+
+      // Create both the proxy (by default already creates readWriteEndpoint) and then create the readOnlyEndpoint.
+      String readWriteEndpoint = env.auroraUtil.createRdsProxy(env.rdsDbProxyName,
+          env.rdsDbName,
+          DriverHelper.getEngineFamilyFromDatabaseEngine(env.info.getRequest().getDatabaseEngine()),
+          secretArn,
+          vpcIds[0],
+          vpcIds[1],
+          env.iamRoleArn);
+      String readOnlyEndpoint = env.auroraUtil.createReadOnlyEndpoint(env.rdsDbProxyName,
+          vpcIds[0],
+          vpcIds[1]);
+      env.info.setRdsProxyReadWriteEndpoint(readWriteEndpoint);
+      env.info.setRdsProxyReadOnlyEndpoint(readOnlyEndpoint);
+
+      return;
+    }
+
+    // Can use pre-created RDS proxy. Check if it targets the correct database
+    if (env.auroraUtil.isRdsProxyTargetingDb(env.rdsDbProxyName, env.rdsDbName)) {
+      LOGGER.finest("Proxy " + env.rdsDbProxyName + " already exists and targets " + env.rdsDbName);
+
+      // Gather both endpoints and set them.
+      String[] endpoints = env.auroraUtil.getRdsProxyEndpoints(env.rdsDbProxyName);
+      env.info.setRdsProxyReadWriteEndpoint(endpoints[0]);
+      env.info.setRdsProxyReadOnlyEndpoint(endpoints[1]);
+    } else {
+      // RDS Proxy exists but does not target the test database.
+      LOGGER.finest("Proxy" + env.rdsDbProxyName + " exists but targets wrong database.");
+      throw new RuntimeException(
+          "RDS Proxy exists and targets wrong database");
+    }
+  }
+
+  private static void getNewRdsProxyName(TestEnvironment env) {
+    int remainingTries = 5;
+    while (remainingTries-- > 0) {
+      env.rdsDbProxyName = getRandomName(env);
+      if (env.auroraUtil.getRdsProxy(env.rdsDbProxyName) == null) {
+        LOGGER.finest("RDS Proxy to create: " + env.rdsDbProxyName);
+        return;
+      } else {
+        env.info.setRandomBase(null);
+        initRandomBase(env);
+        LOGGER.finest("RDS Proxy " + env.rdsDbName + " already exists. Pick up another name.");
+      }
+    }
+    throw new RuntimeException("Can't pick up a RDS proxy name.");
   }
 
   private static void createCustomClusterParameterGroup(TestEnvironment env) {
@@ -709,6 +787,8 @@ public class TestEnvironment implements AutoCloseable {
     env.rdsDbName = config.rdsDbName; // "cluster-mysql"
     env.rdsDbDomain = config.rdsDbDomain; // "XYZ.us-west-2.rds.amazonaws.com"
     env.rdsEndpoint = config.rdsEndpoint; // "XYZ.us-west-2.rds.amazonaws.com"
+    env.rdsDbProxyName = config.rdsDbProxyName;
+    env.iamRoleArn = config.iamRoleArn;
     env.info.setRdsEndpoint(env.rdsEndpoint);
 
     env.auroraUtil =
@@ -1448,10 +1528,12 @@ public class TestEnvironment implements AutoCloseable {
         } else {
           deleteDbCluster(false);
         }
+        deleteRdsDbProxy();
         deAuthorizeIP(this);
         break;
       case RDS_MULTI_AZ_CLUSTER:
         deleteDbCluster(false);
+        deleteRdsDbProxy();
         deAuthorizeIP(this);
         break;
       case RDS_MULTI_AZ_INSTANCE:
@@ -1480,6 +1562,15 @@ public class TestEnvironment implements AutoCloseable {
       auroraUtil.deleteCluster(
           this.rdsDbName, this.info.getRequest().getDatabaseEngineDeployment(), waitForCompletion);
       LOGGER.finest("Deleted cluster " + this.rdsDbName + ".cluster-" + this.rdsDbDomain);
+    }
+  }
+
+  private void deleteRdsDbProxy() {
+    if (!this.reuseDb && this.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.RDS_PROXY)) {
+      LOGGER.finest("Deleting RDS Proxy " + this.rdsDbProxyName);
+      auroraUtil.deleteRdsProxy(this.rdsDbProxyName);
+      auroraUtil.deleteRdsProxySecret(this.rdsDbProxySecretName);
+      LOGGER.finest("Deleted RDS Proxy " + this.rdsDbProxyName);
     }
   }
 

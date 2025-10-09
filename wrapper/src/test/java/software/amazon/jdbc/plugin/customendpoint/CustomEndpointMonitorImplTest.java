@@ -39,6 +39,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.testcontainers.shaded.org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.awssdk.services.rds.model.DBClusterEndpoint;
@@ -123,9 +124,16 @@ public class CustomEndpointMonitorImplTest {
         mockRdsClientFunc);
     monitor.start();
 
-    // Wait for 2 run cycles. The first will return an unexpected number of endpoints in the API response, the second
-    // will return the expected number of endpoints (one).
-    TimeUnit.MILLISECONDS.sleep(100);
+    // Wait for after 2 run cycles. The first will return an unexpected number of endpoints in the API response, the
+    // second will return the expected number of endpoints (one).
+    @Nullable CustomEndpointInfo customEndpointInfo = CustomEndpointMonitorImpl.customEndpointInfoCache
+        .get(host.getUrl());
+    int runCycles = 0;
+    while (customEndpointInfo == null && runCycles < 5) {
+      TimeUnit.MILLISECONDS.sleep(50);
+      runCycles++;
+      customEndpointInfo = CustomEndpointMonitorImpl.customEndpointInfoCache.get(host.getUrl());
+    }
     assertEquals(expectedInfo, CustomEndpointMonitorImpl.customEndpointInfoCache.get(host.getUrl()));
     monitor.stop();
 

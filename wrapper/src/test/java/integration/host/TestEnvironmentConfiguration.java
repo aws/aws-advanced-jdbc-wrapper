@@ -84,6 +84,8 @@ public class TestEnvironmentConfiguration {
       Boolean.parseBoolean(System.getProperty("test-no-bg", "true"));
   public boolean testBlueGreenOnly =
       Boolean.parseBoolean(System.getProperty("test-bg-only", "false"));
+  public boolean noRdsProxy =
+      Boolean.parseBoolean(System.getProperty("test-no-rds-proxy", "true"));
 
   public String includeTags = System.getProperty("test-include-tags");
   public String excludeTags = System.getProperty("test-exclude-tags");
@@ -97,6 +99,8 @@ public class TestEnvironmentConfiguration {
 
   public String rdsEndpoint =
       System.getenv("RDS_ENDPOINT"); // "https://rds-int.amazon.com"
+  public String rdsDbProxyName = System.getenv("RDS_DB_PROXY_NAME");
+  public String iamRoleArn = System.getenv("IAM_ROLE_ARN");
 
   // Expected values: "latest", "default", or engine version, for example, "15.4"
   // If left as empty, will use default version

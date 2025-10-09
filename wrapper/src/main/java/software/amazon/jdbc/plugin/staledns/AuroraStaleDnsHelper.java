@@ -183,6 +183,7 @@ public class AuroraStaleDnsHelper {
         LOGGER.finest(() -> Messages.get("AuroraStaleDnsHelper.reset"));
         this.writerHostSpec = null;
         this.writerHostAddress = null;
+        return;
       }
     }
   }

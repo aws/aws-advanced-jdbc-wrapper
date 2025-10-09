@@ -37,6 +37,8 @@ public class TestEnvironmentInfo {
   private TestTelemetryInfo metricsTelemetryInfo;
 
   private String blueGreenDeploymentId;
+  private String rdsProxyReadWriteEndpoint;
+  private String rdsProxyReadOnlyEndpoint;
 
   private String clusterParameterGroupName = null;
 
@@ -161,6 +163,22 @@ public class TestEnvironmentInfo {
 
   public void setBlueGreenDeploymentId(final String blueGreenDeploymentId) {
     this.blueGreenDeploymentId = blueGreenDeploymentId;
+  }
+
+  public String getRdsProxyReadWriteEndpoint() {
+    return this.rdsProxyReadWriteEndpoint;
+  }
+
+  public void setRdsProxyReadWriteEndpoint(final String rdsProxyReadWriteEndpoint) {
+    this.rdsProxyReadWriteEndpoint = rdsProxyReadWriteEndpoint;
+  }
+
+  public String getRdsProxyReadOnlyEndpoint() {
+    return this.rdsProxyReadOnlyEndpoint;
+  }
+
+  public void setRdsProxyReadOnlyEndpoint(final String rdsProxyReadOnlyEndpoint) {
+    this.rdsProxyReadOnlyEndpoint = rdsProxyReadOnlyEndpoint;
   }
 
   public String getClusterParameterGroupName() {
