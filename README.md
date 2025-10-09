@@ -134,30 +134,13 @@ To find all the documentation and concrete examples on how to use the AWS JDBC D
 
 #### Amazon RDS Blue/Green Deployments
 
-**Important: Service Dependency**
-
-Support for Blue/Green deployments using the AWS Advanced JDBC Wrapper requires specific metadata tables that are **not available in the current RDS and Aurora service**. Please contact your AWS account team for metadata release timelines.
-
-**Limitations:**
-
-- **Post-switchover failures:** After a Blue/Green switchover, the wrapper may not properly detect the new cluster topology, leading to failed failover attempts.
-- **Metadata inconsistencies:** Discrepancies between topology metadata and actual available endpoints prevent reliable operation.
-- **Version-specific issues:** Requirements vary between Aurora MySQL and Aurora PostgreSQL due to different internal systems.
-
-**If You Must Use Blue/Green (Not Recommended for Production):**
-
-1. Enable the `enableGreenNodeReplacement` configuration parameter.
-2. Thoroughly test in non-production environments.
-
-**Recommendation:**
-
-We advise waiting for the RDS service update before enabling the Blue/Green Deployments plugin. If the metadata table does not exist, your application will continue to work; however, errors will be logged stating that relevant Blue/Green metadata cannot be found.
-
-When the RDS service update is released, the following service versions will provide support for Blue/Green Deployments:
+Support for Blue/Green deployments using the AWS Advanced JDBC Driver requires specific metadata tables. The following service versions provide support for Blue/Green Deployments:
 
 - Supported RDS PostgreSQL Versions: `rds_tools v1.7 (17.1, 16.5, 15.9, 14.14, 13.17, 12.21)` and above.
 - Supported Aurora PostgreSQL Versions: Engine Release `17.5, 16.9, 15.13, 14.18, 13.21` and above.
 - Supported Aurora MySQL Versions: Engine Release `3.07` and above.
+
+Please note that Aurora Global Database and RDS Multi-AZ clusters with Blue/Green deployments is currently not supported. For detailed information on supported database versions, refer to the [Blue/Green Deployment Plugin Documentation](./docs/using-the-jdbc-driver/using-plugins/UsingTheBlueGreenPlugin.md).
 
 #### Amazon Aurora Global Databases
 
