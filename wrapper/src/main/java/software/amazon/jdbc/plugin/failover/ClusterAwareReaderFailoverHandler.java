@@ -324,7 +324,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   }
 
   protected FullServicesContainer newServicesContainer() throws SQLException {
-    return ServiceUtility.getInstance().createServiceContainer(this.servicesContainer, this.props);
+    return ServiceUtility.getInstance().createMinimalServiceContainer(this.servicesContainer, this.props);
   }
 
   private ReaderFailoverResult getResultFromNextTaskBatch(
@@ -365,20 +365,6 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       }
     }
     return new ReaderFailoverResult(null, null, false);
-  }
-
-  protected FullServicesContainer getNewServicesContainer() throws SQLException {
-    return ServiceUtility.getInstance().createMinimalServiceContainer(
-        this.servicesContainer.getStorageService(),
-        this.servicesContainer.getMonitorService(),
-        this.pluginService.getDefaultConnectionProvider(),
-        this.servicesContainer.getTelemetryFactory(),
-        this.pluginService.getOriginalUrl(),
-        this.pluginService.getDriverProtocol(),
-        this.pluginService.getTargetDriverDialect(),
-        this.pluginService.getDialect(),
-        this.props
-    );
   }
 
   private ReaderFailoverResult getNextResult(final CompletionService<ReaderFailoverResult> service)

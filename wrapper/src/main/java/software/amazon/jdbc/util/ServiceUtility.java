@@ -18,7 +18,6 @@ package software.amazon.jdbc.util;
 
 import java.sql.SQLException;
 import java.util.Properties;
-import java.util.concurrent.locks.ReentrantLock;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
@@ -119,9 +118,9 @@ public class ServiceUtility {
     return serviceContainer;
   }
 
-  public FullServicesContainer createServiceContainer(FullServicesContainer servicesContainer, Properties props)
+  public FullServicesContainer createMinimalServiceContainer(FullServicesContainer servicesContainer, Properties props)
       throws SQLException {
-    return createServiceContainer(
+    return createMinimalServiceContainer(
         servicesContainer.getStorageService(),
         servicesContainer.getMonitorService(),
         servicesContainer.getPluginService().getDefaultConnectionProvider(),

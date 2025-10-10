@@ -169,7 +169,8 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
   }
 
   protected FullServicesContainer newServicesContainer() throws SQLException {
-    return ServiceUtility.getInstance().createServiceContainer(this.servicesContainer, this.initialConnectionProps);
+    return ServiceUtility.getInstance().createMinimalServiceContainer(
+        this.servicesContainer, this.initialConnectionProps);
   }
 
   private WriterFailoverResult getNextResult(

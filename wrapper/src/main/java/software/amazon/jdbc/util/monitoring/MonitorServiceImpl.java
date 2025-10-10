@@ -204,7 +204,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
     final List<SQLException> exceptionList = new ArrayList<>(1);
     MonitorItem monitorItem = cacheContainer.getCache().computeIfAbsent(key, k -> {
       try {
-        final FullServicesContainer servicesContainer = getNewServicesContainer(
+        final FullServicesContainer servicesContainer = newServicesContainer(
             storageService,
             defaultConnectionProvider,
             telemetryFactory,
@@ -235,7 +235,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
         Messages.get("MonitorServiceImpl.unexpectedMonitorClass", new Object[] {monitorClass, monitor}));
   }
 
-  protected FullServicesContainer getNewServicesContainer(
+  protected FullServicesContainer newServicesContainer(
       StorageService storageService,
       ConnectionProvider connectionProvider,
       TelemetryFactory telemetryFactory,

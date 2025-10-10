@@ -37,7 +37,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
  * A service used to open new connections for internal driver use.
  *
  * @deprecated This class is deprecated and will be removed in a future version. Use
- *     {@link software.amazon.jdbc.util.ServiceUtility#createServiceContainer} followed by
+ *     {@link software.amazon.jdbc.util.ServiceUtility#createMinimalServiceContainer} followed by
  *     {@link PluginService#forceConnect} instead.
  */
 @Deprecated
@@ -49,7 +49,7 @@ public class ConnectionServiceImpl implements ConnectionService {
   /**
    * Constructs a {@link ConnectionServiceImpl} instance.
    *
-   * @deprecated Use {@link software.amazon.jdbc.util.ServiceUtility#createServiceContainer} instead.
+   * @deprecated Use {@link software.amazon.jdbc.util.ServiceUtility#createMinimalServiceContainer} instead.
    */
   @Deprecated
   public ConnectionServiceImpl(

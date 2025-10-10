@@ -502,7 +502,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected Runnable getNodeMonitoringWorker(
       final HostSpec hostSpec, final @Nullable HostSpec writerHostSpec) throws SQLException {
     FullServicesContainer newServiceContainer =
-        ServiceUtility.getInstance().createServiceContainer(this.servicesContainer, this.properties);
+        ServiceUtility.getInstance().createMinimalServiceContainer(this.servicesContainer, this.properties);
     return new NodeMonitoringWorker(newServiceContainer, this, hostSpec, writerHostSpec);
   }
 

@@ -66,7 +66,7 @@ class MonitorServiceImplTest {
 
     try {
       doReturn(mockContainer).when(spyMonitorService)
-          .getNewServicesContainer(any(), any(), any(), any(), any(), any(), any(), any());
+          .newServicesContainer(any(), any(), any(), any(), any(), any(), any(), any());
     } catch (SQLException e) {
       Assertions.fail(
           "Encountered exception while stubbing MonitorServiceImpl#getConnectionService: " + e.getMessage());
