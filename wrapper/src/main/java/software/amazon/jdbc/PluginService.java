@@ -84,15 +84,6 @@ public interface PluginService extends ExceptionHandler {
   String getOriginalUrl();
 
   /**
-   * Set the collection of hosts that should be allowed and/or blocked for connections.
-   *
-   * @param allowedAndBlockedHosts An object defining the allowed and blocked sets of hosts.
-   * @deprecated use StorageService#set(key, allowedAndBlockedHosts) instead.
-   */
-  @Deprecated
-  void setAllowedAndBlockedHosts(AllowedAndBlockedHosts allowedAndBlockedHosts);
-
-  /**
    * Returns a boolean indicating if the available {@link ConnectionProvider} or
    * {@link ConnectionPlugin} instances support the selection of a host with the requested role and
    * strategy via {@link #getHostSpecByStrategy}.
@@ -239,9 +230,6 @@ public interface PluginService extends ExceptionHandler {
 
   HostSpecBuilder getHostSpecBuilder();
 
-  @Deprecated
-  ConnectionProvider getConnectionProvider();
-
   ConnectionProvider getDefaultConnectionProvider();
 
   boolean isPooledConnectionProvider(HostSpec host, Properties props);
@@ -257,14 +245,6 @@ public interface PluginService extends ExceptionHandler {
   @NonNull SessionStateService getSessionStateService();
 
   <T> T getPlugin(final Class<T> pluginClazz);
-
-  <T> void setStatus(final Class<T> clazz, final @Nullable T status, final boolean clusterBound);
-
-  <T> void setStatus(final Class<T> clazz, final @Nullable T status, final String key);
-
-  <T> T getStatus(final @NonNull Class<T> clazz, final boolean clusterBound);
-
-  <T> T getStatus(final @NonNull Class<T> clazz, final String key);
 
   boolean isPluginInUse(final Class<? extends ConnectionPlugin> pluginClazz);
 }

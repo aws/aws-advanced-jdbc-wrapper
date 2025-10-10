@@ -39,12 +39,6 @@ public class GenericExceptionHandler implements ExceptionHandler {
   );
 
   @Override
-  @Deprecated
-  public boolean isNetworkException(Throwable throwable) {
-    return this.isNetworkException(throwable, null);
-  }
-
-  @Override
   public boolean isNetworkException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     Throwable exception = throwable;
 
@@ -77,12 +71,6 @@ public class GenericExceptionHandler implements ExceptionHandler {
     }
 
     return false;
-  }
-
-  @Override
-  @Deprecated
-  public boolean isLoginException(Throwable throwable) {
-    return this.isLoginException(throwable, null);
   }
 
   @Override
