@@ -21,7 +21,6 @@ import java.sql.SQLException;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.HostListProviderService;
@@ -30,6 +29,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 public abstract class AbstractConnectionPlugin implements ConnectionPlugin {
 
@@ -50,9 +50,8 @@ public abstract class AbstractConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public Connection connect(
-      final String driverProtocol,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
-      final Properties props,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
@@ -61,9 +60,8 @@ public abstract class AbstractConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public Connection forceConnect(
-      final String driverProtocol,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
-      final Properties props,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
@@ -89,9 +87,7 @@ public abstract class AbstractConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public void initHostProvider(
-      final String driverProtocol,
-      final String initialUrl,
-      final Properties props,
+      final ConnectConfig connectConfig,
       final HostListProviderService hostListProviderService,
       final JdbcCallable<Void, SQLException> initHostProviderFunc)
       throws SQLException {

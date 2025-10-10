@@ -64,6 +64,7 @@ import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
@@ -75,6 +76,7 @@ public class ConnectionPluginManagerTests {
   @Mock JdbcCallable<Void, SQLException> mockSqlFunction;
   @Mock ConnectionProvider mockConnectionProvider;
   @Mock ConnectionWrapper mockConnectionWrapper;
+  @Mock ConnectConfig mockConnectConfig;
   @Mock TelemetryFactory mockTelemetryFactory;
   @Mock TelemetryContext mockTelemetryContext;
   @Mock FullServicesContainer mockServicesContainer;
@@ -240,8 +242,8 @@ public class ConnectionPluginManagerTests {
         new ConnectionPluginManager(mockConnectionProvider,
             null, testProperties, testPlugins, mockConnectionWrapper, mockTelemetryFactory);
 
-    final Connection conn = target.connect("any",
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(), testProperties,
+    final Connection conn = target.connect(mockConnectConfig,
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
         true, null);
 
     assertEquals(expectedConnection, conn);
@@ -272,9 +274,11 @@ public class ConnectionPluginManagerTests {
         new ConnectionPluginManager(mockConnectionProvider,
             null, testProperties, testPlugins, mockConnectionWrapper, mockTelemetryFactory);
 
-    final Connection conn = target.connect("any",
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(), testProperties,
-        true, pluginOne);
+    final Connection conn = target.connect(
+        mockConnectConfig,
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
+        true,
+        pluginOne);
 
     assertEquals(expectedConnection, conn);
     assertEquals(2, calls.size());
@@ -303,8 +307,9 @@ public class ConnectionPluginManagerTests {
         new ConnectionPluginManager(mockConnectionProvider,
             null, testProperties, testPlugins, mockConnectionWrapper, mockTelemetryFactory);
 
-    final Connection conn = target.forceConnect("any",
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(), testProperties,
+    final Connection conn = target.forceConnect(
+        mockConnectConfig,
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
         true,
         null);
 
@@ -335,8 +340,11 @@ public class ConnectionPluginManagerTests {
 
     assertThrows(
         SQLException.class,
-        () -> target.connect("any", new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
-            testProperties, true, null));
+        () -> target.connect(
+            mockConnectConfig,
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
+            true,
+            null));
 
     assertEquals(2, calls.size());
     assertEquals("TestPluginOne:before connect", calls.get(0));
@@ -361,8 +369,11 @@ public class ConnectionPluginManagerTests {
 
     assertThrows(
         SQLException.class,
-        () -> target.connect("any", new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
-            testProperties, true, null));
+        () -> target.connect(
+            mockConnectConfig,
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
+            true,
+            null));
 
     assertEquals(5, calls.size());
     assertEquals("TestPluginOne:before connect", calls.get(0));
@@ -388,12 +399,13 @@ public class ConnectionPluginManagerTests {
         new ConnectionPluginManager(mockConnectionProvider,
             null, testProperties, testPlugins, mockConnectionWrapper, mockTelemetryFactory);
 
-    final Exception ex =
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> target.connect("any",
-                new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
-                testProperties, true, null));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> target.connect(
+            mockConnectConfig,
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
+            true,
+            null));
 
     assertEquals(2, calls.size());
     assertEquals("TestPluginOne:before connect", calls.get(0));
@@ -416,12 +428,13 @@ public class ConnectionPluginManagerTests {
         new ConnectionPluginManager(mockConnectionProvider,
             null, testProperties, testPlugins, mockConnectionWrapper, mockTelemetryFactory);
 
-    final Exception ex =
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> target.connect("any",
-                new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
-                testProperties, true, null));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> target.connect(
+            mockConnectConfig,
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
+            true,
+            null));
 
     assertEquals(5, calls.size());
     assertEquals("TestPluginOne:before connect", calls.get(0));
@@ -524,9 +537,8 @@ public class ConnectionPluginManagerTests {
             null, testProperties, testPlugins, mockConnectionWrapper, mockTelemetryFactory));
 
     Object result = target.forceConnect(
-        "any",
+        mockConnectConfig,
         testHostSpec,
-        testProperties,
         true,
         null);
 
@@ -544,9 +556,8 @@ public class ConnectionPluginManagerTests {
     calls.clear();
 
     result = target.forceConnect(
-        "any",
+        mockConnectConfig,
         testHostSpec,
-        testProperties,
         true,
         null);
 
@@ -667,7 +678,7 @@ public class ConnectionPluginManagerTests {
   }
 
   @Test
-  public void testTwoConnectionsDoNotBlockOneAnother() throws Exception {
+  public void testTwoConnectionsDoNotBlockOneAnother() {
 
     final Properties testProperties = new Properties();
     final ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();

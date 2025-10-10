@@ -64,7 +64,9 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider.FetchTopologyResult;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.TestStorageServiceImpl;
@@ -81,6 +83,7 @@ class RdsHostListProviderTest {
   @Mock private HostListProviderService mockHostListProviderService;
   @Mock private EventPublisher mockEventPublisher;
   @Mock Dialect mockTopologyAwareDialect;
+  @Mock TargetDriverDialect mockDriverDialect;
   @Captor private ArgumentCaptor<String> queryCaptor;
 
   private AutoCloseable closeable;
@@ -115,9 +118,9 @@ class RdsHostListProviderTest {
   }
 
   private RdsHostListProvider getRdsHostListProvider(String originalUrl) throws SQLException {
+    ConnectConfig connectConfig = new ConnectConfig(originalUrl, mockDriverDialect, new Properties());
     RdsHostListProvider provider = new RdsHostListProvider(
-        new Properties(),
-        originalUrl,
+        connectConfig,
         mockServicesContainer,
         "foo", "bar", "baz");
     provider.init();

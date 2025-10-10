@@ -42,6 +42,7 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.RegionUtils;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryGauge;
@@ -152,27 +153,26 @@ public class FederatedAuthPlugin extends AbstractConnectionPlugin {
 
   @Override
   public Connection connect(
-      final String driverProtocol,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
-      final Properties props,
       final boolean isInitialConnection,
-      final JdbcCallable<Connection, SQLException> connectFunc)
-      throws SQLException {
-    return connectInternal(hostSpec, props, connectFunc);
+      final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
+    return connectInternal(hostSpec, connectConfig.getProps(), connectFunc);
   }
 
   @Override
   public Connection forceConnect(
-      final @NonNull String driverProtocol,
+      final @NonNull ConnectConfig connectConfig,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props,
       final boolean isInitialConnection,
       final @NonNull JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
-    return connectInternal(hostSpec, props, forceConnectFunc);
+    return connectInternal(hostSpec, connectConfig.getProps(), forceConnectFunc);
   }
 
-  private Connection connectInternal(final HostSpec hostSpec, final Properties props,
+  private Connection connectInternal(
+      final HostSpec hostSpec,
+      final Properties props,
       final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
 
     this.samlUtils.checkIdpCredentialsWithFallback(IDP_USERNAME, IDP_PASSWORD, props);

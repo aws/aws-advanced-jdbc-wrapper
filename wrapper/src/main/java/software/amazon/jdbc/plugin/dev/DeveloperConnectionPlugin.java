@@ -20,7 +20,6 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -29,6 +28,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 public class DeveloperConnectionPlugin extends AbstractConnectionPlugin implements ExceptionSimulator {
 
@@ -142,34 +142,29 @@ public class DeveloperConnectionPlugin extends AbstractConnectionPlugin implemen
 
   @Override
   public Connection connect(
-      final String driverProtocol,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
-      final Properties props,
       final boolean isInitialConnection,
-      final JdbcCallable<Connection, SQLException> connectFunc)
-      throws SQLException {
-
-    this.raiseExceptionOnConnectIfNeeded(driverProtocol, hostSpec, props, isInitialConnection);
-    return super.connect(driverProtocol, hostSpec, props, isInitialConnection, connectFunc);
+      final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
+    this.raiseExceptionOnConnectIfNeeded(connectConfig, hostSpec, isInitialConnection);
+    return super.connect(connectConfig, hostSpec, isInitialConnection, connectFunc);
   }
 
   @Override
   public Connection forceConnect(
-      final String driverProtocol,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
-      final Properties props,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
 
-    this.raiseExceptionOnConnectIfNeeded(driverProtocol, hostSpec, props, isInitialConnection);
-    return super.connect(driverProtocol, hostSpec, props, isInitialConnection, forceConnectFunc);
+    this.raiseExceptionOnConnectIfNeeded(connectConfig, hostSpec, isInitialConnection);
+    return super.connect(connectConfig, hostSpec, isInitialConnection, forceConnectFunc);
   }
 
   protected void raiseExceptionOnConnectIfNeeded(
-      final String driverProtocol,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
-      final Properties props,
       final boolean isInitialConnection)
       throws SQLException {
 
@@ -178,10 +173,7 @@ public class DeveloperConnectionPlugin extends AbstractConnectionPlugin implemen
     } else if (ExceptionSimulatorManager.connectCallback != null) {
       this.raiseExceptionOnConnect(
           ExceptionSimulatorManager.connectCallback.getExceptionToRaise(
-            driverProtocol,
-            hostSpec,
-            props,
-            isInitialConnection));
+              connectConfig, hostSpec, isInitialConnection));
     }
   }
 

@@ -33,7 +33,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Properties;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,6 +48,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -62,6 +62,7 @@ class DefaultConnectionPluginTest {
   @Mock PluginService pluginService;
   @Mock ConnectionProvider connectionProvider;
   @Mock PluginManagerService pluginManagerService;
+  @Mock ConnectConfig mockConnectConfig;
   @Mock JdbcCallable<Void, SQLException> mockSqlFunction;
   @Mock JdbcCallable<Connection, SQLException> mockConnectFunction;
   @Mock Connection conn;
@@ -86,11 +87,11 @@ class DefaultConnectionPluginTest {
     when(mockTelemetryFactory.createCounter(anyString())).thenReturn(mockTelemetryCounter);
     // noinspection unchecked
     when(mockTelemetryFactory.createGauge(anyString(), any(GaugeCallable.class))).thenReturn(mockTelemetryGauge);
-    when(mockConnectionProviderManager.getConnectionProvider(anyString(), any(), any()))
+    when(mockConnectionProviderManager.getConnectionProvider(any(), any()))
         .thenReturn(connectionProvider);
 
     plugin = new DefaultConnectionPlugin(
-        pluginService, connectionProvider, null, pluginManagerService, mockConnectionProviderManager);
+        pluginService, connectionProvider, pluginManagerService, mockConnectionProviderManager);
   }
 
   @AfterEach
@@ -121,9 +122,9 @@ class DefaultConnectionPluginTest {
 
   @Test
   void testConnect() throws SQLException {
-    plugin.connect("anyProtocol", mockHostSpec, new Properties(), true, mockConnectFunction);
-    verify(connectionProvider, atLeastOnce()).connect(anyString(), any(), any(), any(), any());
-    verify(mockConnectionProviderManager, atLeastOnce()).initConnection(any(), anyString(), any(), any());
+    plugin.connect(mockConnectConfig, mockHostSpec, true, mockConnectFunction);
+    verify(connectionProvider, atLeastOnce()).connect(any(), any());
+    verify(mockConnectionProviderManager, atLeastOnce()).initConnection(any(), any(), any());
   }
 
   private static Stream<Arguments> multiStatementQueries() {

@@ -31,7 +31,6 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.StringUtils;
-import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -56,7 +55,6 @@ public class NodeResponseTimeMonitor extends AbstractMonitor {
 
   private final @NonNull Properties props;
   private final @NonNull PluginService pluginService;
-  private final @NonNull ConnectionService connectionService;
 
   private final TelemetryFactory telemetryFactory;
   private final TelemetryGauge responseTimeMsGauge;
@@ -65,14 +63,12 @@ public class NodeResponseTimeMonitor extends AbstractMonitor {
 
   public NodeResponseTimeMonitor(
       final @NonNull PluginService pluginService,
-      final @NonNull ConnectionService connectionService,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props,
       int intervalMs) {
     super(TERMINATION_TIMEOUT_SEC);
 
     this.pluginService = pluginService;
-    this.connectionService = connectionService;
     this.hostSpec = hostSpec;
     this.props = props;
     this.intervalMs = intervalMs;
@@ -197,7 +193,7 @@ public class NodeResponseTimeMonitor extends AbstractMonitor {
         LOGGER.finest(() -> Messages.get(
                 "NodeResponseTimeMonitor.openingConnection",
                 new Object[] {this.hostSpec.getUrl()}));
-        this.monitoringConn = this.connectionService.open(this.hostSpec, monitoringConnProperties);
+        this.monitoringConn = this.pluginService.forceConnect(this.hostSpec, monitoringConnProperties);
         LOGGER.finest(() -> Messages.get(
             "NodeResponseTimeMonitor.openedConnection",
             new Object[] {this.monitoringConn}));

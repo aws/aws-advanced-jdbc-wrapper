@@ -21,9 +21,9 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Properties;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 public class TestPluginThrowException extends TestPluginOne {
 
@@ -76,12 +76,10 @@ public class TestPluginThrowException extends TestPluginOne {
 
   @Override
   public Connection connect(
-      String driverProtocol,
-      HostSpec hostSpec,
-      Properties props,
-      boolean isInitialConnection,
-      JdbcCallable<Connection, SQLException> connectFunc)
-      throws SQLException {
+      final ConnectConfig connectConfig,
+      final HostSpec hostSpec,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
 
     this.calls.add(this.getClass().getSimpleName() + ":before");
     if (this.isBefore) {

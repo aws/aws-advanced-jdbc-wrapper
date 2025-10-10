@@ -55,6 +55,7 @@ import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.storage.CacheMap;
 
 public class RdsHostListProvider implements DynamicHostListProvider {
@@ -94,7 +95,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
 
   protected final FullServicesContainer servicesContainer;
   protected final HostListProviderService hostListProviderService;
-  protected final String originalUrl;
+  protected final ConnectConfig connectConfig;
   protected final String topologyQuery;
   protected final String nodeIdQuery;
   protected final String isReaderQuery;
@@ -116,21 +117,17 @@ public class RdsHostListProvider implements DynamicHostListProvider {
 
   protected volatile boolean isInitialized = false;
 
-  protected Properties properties;
-
   static {
     PropertyDefinition.registerPluginProperties(RdsHostListProvider.class);
   }
 
   public RdsHostListProvider(
-      final Properties properties,
-      final String originalUrl,
+      final ConnectConfig connectConfig,
       final FullServicesContainer servicesContainer,
       final String topologyQuery,
       final String nodeIdQuery,
       final String isReaderQuery) {
-    this.properties = properties;
-    this.originalUrl = originalUrl;
+    this.connectConfig = connectConfig;
     this.servicesContainer = servicesContainer;
     this.hostListProviderService = servicesContainer.getHostListProviderService();
     this.topologyQuery = topologyQuery;
@@ -151,22 +148,23 @@ public class RdsHostListProvider implements DynamicHostListProvider {
 
       // initial topology is based on connection string
       this.initialHostList =
-          connectionUrlParser.getHostsFromConnectionUrl(this.originalUrl, false,
+          connectionUrlParser.getHostsFromConnectionUrl(this.connectConfig.getInitialConnectionString(), false,
               this.hostListProviderService::getHostSpecBuilder);
       if (this.initialHostList == null || this.initialHostList.isEmpty()) {
         throw new SQLException(Messages.get("RdsHostListProvider.parsedListEmpty",
-            new Object[] {this.originalUrl}));
+            new Object[] {this.connectConfig.getInitialConnectionString()}));
       }
       this.initialHostSpec = this.initialHostList.get(0);
       this.hostListProviderService.setInitialConnectionHostSpec(this.initialHostSpec);
 
       this.clusterId = UUID.randomUUID().toString();
       this.isPrimaryClusterId = false;
+      Properties props = this.connectConfig.getProps();
       this.refreshRateNano =
-          TimeUnit.MILLISECONDS.toNanos(CLUSTER_TOPOLOGY_REFRESH_RATE_MS.getInteger(properties));
+          TimeUnit.MILLISECONDS.toNanos(CLUSTER_TOPOLOGY_REFRESH_RATE_MS.getInteger(props));
 
       HostSpecBuilder hostSpecBuilder = this.hostListProviderService.getHostSpecBuilder();
-      String clusterInstancePattern = CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties);
+      String clusterInstancePattern = CLUSTER_INSTANCE_HOST_PATTERN.getString(props);
       if (clusterInstancePattern != null) {
         this.clusterInstanceTemplate =
             ConnectionUrlParser.parseHostPortPair(clusterInstancePattern, () -> hostSpecBuilder);
@@ -183,7 +181,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
 
       this.rdsUrlType = rdsHelper.identifyRdsType(this.initialHostSpec.getHost());
 
-      final String clusterIdSetting = CLUSTER_ID.getString(this.properties);
+      final String clusterIdSetting = CLUSTER_ID.getString(props);
       if (!StringUtils.isNullOrEmpty(clusterIdSetting)) {
         this.clusterId = clusterIdSetting;
       } else if (rdsUrlType == RdsUrlType.RDS_PROXY) {
@@ -297,9 +295,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       if (key.equals(url)) {
         return new ClusterSuggestedResult(url, isPrimaryCluster);
       }
-      if (hosts == null) {
-        continue;
-      }
+
       for (final HostSpec host : hosts) {
         if (host.getHostAndPort().equals(url)) {
           LOGGER.finest(() -> Messages.get("RdsHostListProvider.suggestedClusterId",

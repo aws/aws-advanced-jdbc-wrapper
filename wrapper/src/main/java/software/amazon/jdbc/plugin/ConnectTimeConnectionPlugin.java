@@ -21,12 +21,12 @@ import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 public class ConnectTimeConnectionPlugin extends AbstractConnectionPlugin {
 
@@ -43,8 +43,11 @@ public class ConnectTimeConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   @Override
-  public Connection connect(String driverProtocol, HostSpec hostSpec, Properties props,
-      boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
+  public Connection connect(
+      ConnectConfig connectConfig,
+      HostSpec hostSpec,
+      boolean isInitialConnection,
+      JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
     final long startTime = System.nanoTime();
 
     final Connection result = connectFunc.call();
@@ -59,9 +62,11 @@ public class ConnectTimeConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   @Override
-  public Connection forceConnect(String driverProtocol, HostSpec hostSpec, Properties props,
-      boolean isInitialConnection, JdbcCallable<Connection, SQLException> forceConnectFunc)
-      throws SQLException {
+  public Connection forceConnect(
+      ConnectConfig connectConfig,
+      HostSpec hostSpec,
+      boolean isInitialConnection,
+      JdbcCallable<Connection, SQLException> forceConnectFunc) throws SQLException {
     final long startTime = System.nanoTime();
 
     final Connection result = forceConnectFunc.call();

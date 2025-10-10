@@ -23,6 +23,7 @@ import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 public class ConnectionProviderManager {
 
@@ -32,11 +33,10 @@ public class ConnectionProviderManager {
   /**
    * {@link ConnectionProviderManager} constructor.
    *
-   * @param defaultProvider the default {@link ConnectionProvider} to use if a non-default
-   *                        ConnectionProvider has not been set or the non-default
-   *                        ConnectionProvider has been set but does not accept a requested URL
+   * @param defaultProvider       the default {@link ConnectionProvider} to use if a non-default
+   *                              ConnectionProvider has not been set or the non-default
+   *                              ConnectionProvider has been set but does not accept a requested URL
    * @param effectiveConnProvider the non-default {@link ConnectionProvider} to use
-   *
    */
   public ConnectionProviderManager(
       final ConnectionProvider defaultProvider,
@@ -66,21 +66,19 @@ public class ConnectionProviderManager {
    * non-default ConnectionProvider will be returned. Otherwise, the default ConnectionProvider will
    * be returned. See {@link ConnectionProvider#acceptsUrl} for more info.
    *
-   * @param driverProtocol the driver protocol that will be used to establish the connection
-   * @param host           the host info for the connection that will be established
-   * @param props          the connection properties for the connection that will be established
+   * @param connectConfig the connection info for the original connection.
+   * @param host              the host info for the connection that will be established
    * @return the {@link ConnectionProvider} to use to establish a connection using the given driver
    *     protocol, host details, and properties
    */
-  public ConnectionProvider getConnectionProvider(
-      String driverProtocol, HostSpec host, Properties props) {
+  public ConnectionProvider getConnectionProvider(ConnectConfig connectConfig, HostSpec host) {
 
     final ConnectionProvider customConnectionProvider = Driver.getCustomConnectionProvider();
-    if (customConnectionProvider != null && customConnectionProvider.acceptsUrl(driverProtocol, host, props)) {
+    if (customConnectionProvider != null && customConnectionProvider.acceptsUrl(connectConfig, host)) {
       return customConnectionProvider;
     }
 
-    if (this.effectiveConnProvider != null && this.effectiveConnProvider.acceptsUrl(driverProtocol, host, props)) {
+    if (this.effectiveConnProvider != null && this.effectiveConnProvider.acceptsUrl(connectConfig, host)) {
       return this.effectiveConnProvider;
     }
 
@@ -190,7 +188,6 @@ public class ConnectionProviderManager {
    * for every brand-new database connection.
    *
    * @param func A function that initialize a new connection
-   *
    * @deprecated @see Driver#setConnectionInitFunc(ConnectionInitFunc)
    */
   @Deprecated
@@ -210,23 +207,21 @@ public class ConnectionProviderManager {
 
   public void initConnection(
       final @Nullable Connection connection,
-      final @NonNull String protocol,
-      final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props) throws SQLException {
+      final @NonNull ConnectConfig connectConfig,
+      final @NonNull HostSpec hostSpec) throws SQLException {
 
     final ConnectionInitFunc connectionInitFunc = Driver.getConnectionInitFunc();
     if (connectionInitFunc == null) {
       return;
     }
 
-    connectionInitFunc.initConnection(connection, protocol, hostSpec, props);
+    connectionInitFunc.initConnection(connection, connectConfig, hostSpec);
   }
 
   public interface ConnectionInitFunc {
     void initConnection(
         final @Nullable Connection connection,
-        final @NonNull String protocol,
-        final @NonNull HostSpec hostSpec,
-        final @NonNull Properties props) throws SQLException;
+        final @NonNull ConnectConfig connectConfig,
+        final @NonNull HostSpec hostSpec) throws SQLException;
   }
 }

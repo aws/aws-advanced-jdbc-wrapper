@@ -60,10 +60,10 @@ import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
- * Multithreaded tests for {@link MultiThreadedDefaultHostHostMonitorServiceTest}. Repeats each testcase
+ * Multithreaded tests for {@link MultiThreadedDefaultHostMonitorServiceTest}. Repeats each testcase
  * multiple times. Use a cyclic barrier to ensure threads start at the same time.
  */
-class MultiThreadedDefaultHostHostMonitorServiceTest {
+class MultiThreadedDefaultHostMonitorServiceTest {
 
   @Mock HostMonitorInitializer monitorInitializer;
   @Mock ExecutorServiceInitializer executorServiceInitializer;

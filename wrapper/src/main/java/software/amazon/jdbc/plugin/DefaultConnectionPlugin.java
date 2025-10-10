@@ -25,7 +25,6 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -46,6 +45,7 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
@@ -74,27 +74,15 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       final PluginManagerService pluginManagerService) {
     this(pluginService,
         defaultConnProvider,
-        effectiveConnProvider,
         pluginManagerService,
         new ConnectionProviderManager(defaultConnProvider, effectiveConnProvider));
   }
 
   public DefaultConnectionPlugin(
-      final PluginService pluginService,
-      final ConnectionProvider defaultConnProvider,
-      final @Nullable ConnectionProvider effectiveConnProvider,
-      final PluginManagerService pluginManagerService,
-      final ConnectionProviderManager connProviderManager) {
-    if (pluginService == null) {
-      throw new IllegalArgumentException("pluginService");
-    }
-    if (pluginManagerService == null) {
-      throw new IllegalArgumentException("pluginManagerService");
-    }
-    if (defaultConnProvider == null) {
-      throw new IllegalArgumentException("connectionProvider");
-    }
-
+      final @NonNull PluginService pluginService,
+      final @NonNull ConnectionProvider defaultConnProvider,
+      final @NonNull PluginManagerService pluginManagerService,
+      final @NonNull ConnectionProviderManager connProviderManager) {
     this.pluginService = pluginService;
     this.pluginManagerService = pluginManagerService;
     this.defaultConnProvider = defaultConnProvider;
@@ -166,47 +154,37 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public Connection connect(
-      final String driverProtocol,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
-      final Properties props,
       final boolean isInitialConnection,
-      final JdbcCallable<Connection, SQLException> connectFunc)
-      throws SQLException {
+      final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
 
-    ConnectionProvider connProvider = this.connProviderManager.getConnectionProvider(driverProtocol, hostSpec, props);
+    ConnectionProvider connProvider = this.connProviderManager.getConnectionProvider(connectConfig, hostSpec);
 
     // It's guaranteed that this plugin is always the last in plugin chain so connectFunc can be
     // ignored.
-    return connectInternal(driverProtocol, hostSpec, props, connProvider, isInitialConnection);
+    return connectInternal(connectConfig, hostSpec, connProvider, isInitialConnection);
   }
 
   private Connection connectInternal(
-      String driverProtocol,
-      HostSpec hostSpec,
-      Properties props,
-      ConnectionProvider connProvider,
-      final boolean isInitialConnection)
-      throws SQLException {
-
+      final ConnectConfig connectConfig,
+      final HostSpec hostSpec,
+      final ConnectionProvider connProvider,
+      final boolean isInitialConnection) throws SQLException {
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
         connProvider.getTargetName(), TelemetryTraceLevel.NESTED);
 
     Connection conn;
     try {
-      conn = connProvider.connect(
-          driverProtocol,
-          this.pluginService.getDialect(),
-          this.pluginService.getTargetDriverDialect(),
-          hostSpec,
-          props);
+      conn = connProvider.connect(connectConfig, hostSpec);
     } finally {
       if (telemetryContext != null) {
         telemetryContext.closeContext();
       }
     }
 
-    this.connProviderManager.initConnection(conn, driverProtocol, hostSpec, props);
+    this.connProviderManager.initConnection(conn, connectConfig, hostSpec);
 
     this.pluginService.setAvailability(hostSpec.asAliases(), HostAvailability.AVAILABLE);
     if (isInitialConnection) {
@@ -218,16 +196,15 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public Connection forceConnect(
-      final String driverProtocol,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
-      final Properties props,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
 
     // It's guaranteed that this plugin is always the last in plugin chain so forceConnectFunc can be
     // ignored.
-    return connectInternal(driverProtocol, hostSpec, props, this.defaultConnProvider, isInitialConnection);
+    return connectInternal(connectConfig, hostSpec, this.defaultConnProvider, isInitialConnection);
   }
 
   @Override
@@ -265,9 +242,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public void initHostProvider(
-      final String driverProtocol,
-      final String initialUrl,
-      final Properties props,
+      final ConnectConfig connectConfig,
       final HostListProviderService hostListProviderService,
       final JdbcCallable<Void, SQLException> initHostProviderFunc)
       throws SQLException {

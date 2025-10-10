@@ -17,13 +17,12 @@
 package software.amazon.jdbc.plugin.dev;
 
 import java.sql.SQLException;
-import java.util.Properties;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 public interface ExceptionSimulatorConnectCallback {
   SQLException getExceptionToRaise(
-      final String driverProtocol,
+      final ConnectConfig connectConfig,
       final HostSpec hostSpec,
-      final Properties props,
       final boolean isInitialConnection);
 }

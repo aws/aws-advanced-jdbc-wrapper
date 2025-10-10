@@ -20,7 +20,7 @@ import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.storage.SlidingExpirationCache;
 
 public class HikariPoolsHolder {
-  static SlidingExpirationCache<Pair, AutoCloseable> databasePools =
+  static SlidingExpirationCache<Pair<String, String>, AutoCloseable> databasePools =
       new SlidingExpirationCache<>(
           null,
           (hikariDataSource) -> {

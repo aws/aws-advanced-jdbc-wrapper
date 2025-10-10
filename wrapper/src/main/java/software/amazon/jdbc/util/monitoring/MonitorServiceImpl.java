@@ -23,7 +23,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -33,17 +32,15 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionProvider;
-import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.hostlistprovider.monitoring.ClusterTopologyMonitorImpl;
 import software.amazon.jdbc.hostlistprovider.monitoring.MultiAzClusterTopologyMonitorImpl;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.NodeResponseTimeMonitor;
-import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ExecutorFactory;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.PropertyUtils;
-import software.amazon.jdbc.util.connection.ConnectionService;
-import software.amazon.jdbc.util.connection.ConnectionServiceImpl;
+import software.amazon.jdbc.util.ServiceUtility;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.events.DataAccessEvent;
 import software.amazon.jdbc.util.events.Event;
 import software.amazon.jdbc.util.events.EventPublisher;
@@ -182,11 +179,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       StorageService storageService,
       TelemetryFactory telemetryFactory,
       ConnectionProvider defaultConnectionProvider,
-      String originalUrl,
-      String driverProtocol,
-      TargetDriverDialect driverDialect,
-      Dialect dbDialect,
-      Properties originalProps,
+      ConnectConfig connectConfig,
       MonitorInitializer initializer) throws SQLException {
     CacheContainer cacheContainer = monitorCaches.get(monitorClass);
     if (cacheContainer == null) {
@@ -204,20 +197,12 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
     final List<SQLException> exceptionList = new ArrayList<>(1);
     MonitorItem monitorItem = cacheContainer.getCache().computeIfAbsent(key, k -> {
       try {
-        final ConnectionService connectionService =
-            getConnectionService(
-                storageService,
-                telemetryFactory,
-                defaultConnectionProvider,
-                originalUrl,
-                driverProtocol,
-                driverDialect,
-                dbDialect,
-                originalProps);
-        final MonitorItem monitorItemInner = new MonitorItem(() -> initializer.createMonitor(
-            connectionService,
-            connectionService.getPluginService())
-        );
+        final FullServicesContainer servicesContainer = getNewServicesContainer(
+            storageService,
+            defaultConnectionProvider,
+            telemetryFactory,
+            connectConfig);
+        final MonitorItem monitorItemInner = new MonitorItem(() -> initializer.createMonitor(servicesContainer));
         monitorItemInner.getMonitor().start();
         return monitorItemInner;
       } catch (SQLException e) {
@@ -239,26 +224,18 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
         Messages.get("MonitorServiceImpl.unexpectedMonitorClass", new Object[] {monitorClass, monitor}));
   }
 
-  protected ConnectionService getConnectionService(
+  protected FullServicesContainer getNewServicesContainer(
       StorageService storageService,
+      ConnectionProvider connectionProvider,
       TelemetryFactory telemetryFactory,
-      ConnectionProvider defaultConnectionProvider,
-      String originalUrl,
-      String driverProtocol,
-      TargetDriverDialect driverDialect,
-      Dialect dbDialect,
-      Properties originalProps) throws SQLException {
-    final Properties propsCopy = PropertyUtils.copyProperties(originalProps);
-    return new ConnectionServiceImpl(
+      ConnectConfig connectConfig) throws SQLException {
+    return ServiceUtility.getInstance().createServiceContainer(
         storageService,
         this,
+        connectionProvider,
         telemetryFactory,
-        defaultConnectionProvider,
-        originalUrl,
-        driverProtocol,
-        driverDialect,
-        dbDialect,
-        propsCopy);
+        connectConfig
+    );
   }
 
   @Override

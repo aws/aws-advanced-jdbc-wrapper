@@ -21,10 +21,10 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Properties;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 public class TestPluginThree extends TestPluginOne {
 
@@ -45,12 +45,10 @@ public class TestPluginThree extends TestPluginOne {
 
   @Override
   public Connection connect(
-      String driverProtocol,
-      HostSpec hostSpec,
-      Properties props,
-      boolean isInitialConnection,
-      JdbcCallable<Connection, SQLException> connectFunc)
-      throws SQLException {
+      final ConnectConfig connectConfig,
+      final HostSpec hostSpec,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
 
     this.calls.add(this.getClass().getSimpleName() + ":before connect");
 
@@ -65,14 +63,12 @@ public class TestPluginThree extends TestPluginOne {
     return result;
   }
 
+  @Override
   public Connection forceConnect(
-      String driverProtocol,
-      HostSpec hostSpec,
-      Properties props,
-      boolean isInitialConnection,
-      JdbcCallable<Connection, SQLException> forceConnectFunc)
-      throws SQLException {
-
+      final ConnectConfig connectConfig,
+      final HostSpec hostSpec,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> forceConnectFunc) throws SQLException {
     this.calls.add(this.getClass().getSimpleName() + ":before forceConnect");
 
     if (this.connection != null) {

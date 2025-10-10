@@ -30,14 +30,13 @@ import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.exceptions.SQLLoginException;
-import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 
 /**
  * This class is a basic implementation of {@link ConnectionProvider} interface. It creates and
@@ -68,20 +67,8 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
     this.dataSourceClassName = dataSource.getClass().getName();
   }
 
-  /**
-   * Indicates whether this ConnectionProvider can provide connections for the given host and
-   * properties. Some ConnectionProvider implementations may not be able to handle certain URL
-   * types or properties.
-   *
-   * @param protocol The connection protocol (example "jdbc:mysql://")
-   * @param hostSpec The HostSpec containing the host-port information for the host to connect to
-   * @param props    The Properties to use for the connection
-   * @return true if this ConnectionProvider can provide connections for the given URL, otherwise
-   *         return false
-   */
   @Override
-  public boolean acceptsUrl(
-      @NonNull String protocol, @NonNull HostSpec hostSpec, @NonNull Properties props) {
+  public boolean acceptsUrl(@NonNull ConnectConfig connectConfig, @NonNull HostSpec hostSpec) {
     return true;
   }
 
@@ -107,23 +94,16 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
   /**
    * Called once per connection that needs to be created.
    *
-   * @param protocol The connection protocol (example "jdbc:mysql://")
+   * @param connectConfig the connection info for the original connection.
    * @param hostSpec The HostSpec containing the host-port information for the host to connect to
-   * @param props The Properties to use for the connection
    * @return {@link Connection} resulting from the given connection information
    * @throws SQLException if an error occurs
    */
   @Override
   public Connection connect(
-      final @NonNull String protocol,
-      final @NonNull Dialect dialect,
-      final @NonNull TargetDriverDialect targetDriverDialect,
-      final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props)
-      throws SQLException {
-
-    final Properties copy = PropertyUtils.copyProperties(props);
-    dialect.prepareConnectProperties(copy, protocol, hostSpec);
+      final @NonNull ConnectConfig connectConfig, final @NonNull HostSpec hostSpec) throws SQLException {
+    final Properties propsCopy = PropertyUtils.copyProperties(connectConfig.getProps());
+    connectConfig.getDbDialect().prepareConnectProperties(propsCopy, connectConfig.getProtocol(), hostSpec);
 
     Connection conn;
 
@@ -132,7 +112,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       LOGGER.finest(() -> "Use a separate DataSource object to create a connection.");
       // use a new data source instance to instantiate a connection
       final DataSource ds = createDataSource();
-      conn = this.openConnection(ds, protocol, targetDriverDialect, hostSpec, copy);
+      conn = this.openConnection(ds, connectConfig, hostSpec, propsCopy);
 
     } else {
 
@@ -141,7 +121,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       this.lock.lock();
       LOGGER.finest(() -> "Use main DataSource object to create a connection.");
       try {
-        conn = this.openConnection(this.dataSource, protocol, targetDriverDialect, hostSpec, copy);
+        conn = this.openConnection(this.dataSource, connectConfig, hostSpec, propsCopy);
       } finally {
         this.lock.unlock();
       }
@@ -156,16 +136,15 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
 
   protected Connection openConnection(
       final @NonNull DataSource ds,
-      final @NonNull String protocol,
-      final @NonNull TargetDriverDialect targetDriverDialect,
+      final @NonNull ConnectConfig connectConfig,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props)
       throws SQLException {
     final boolean enableGreenNodeReplacement = PropertyDefinition.ENABLE_GREEN_NODE_REPLACEMENT.getBoolean(props);
     try {
-      targetDriverDialect.prepareDataSource(
+      connectConfig.getDriverDialect().prepareDataSource(
           ds,
-          protocol,
+          connectConfig.getProtocol(),
           hostSpec,
           props);
       return ds.getConnection();
@@ -214,9 +193,9 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
           .host(fixedHost)
           .build();
 
-      targetDriverDialect.prepareDataSource(
+      connectConfig.getDriverDialect().prepareDataSource(
           this.dataSource,
-          protocol,
+          connectConfig.getProtocol(),
           connectionHostSpec,
           props);
 

@@ -158,12 +158,11 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       if (this.isLoginException(e)) {
         throw e;
       }
-      if (selectedHostSpec != null) {
-        LOGGER.fine(Messages.get(
-            "LimitlessRouterServiceImpl.failedToConnectToHost",
-            new Object[] {selectedHostSpec.getHost()}));
-        selectedHostSpec.setAvailability(HostAvailability.NOT_AVAILABLE);
-      }
+
+      LOGGER.fine(Messages.get(
+          "LimitlessRouterServiceImpl.failedToConnectToHost",
+          new Object[] {selectedHostSpec.getHost()}));
+      selectedHostSpec.setAvailability(HostAvailability.NOT_AVAILABLE);
       // Retry connect prioritising the healthiest router for best chance of
       // connection over load-balancing with round-robin.
       retryConnectWithLeastLoadedRouters(context);
@@ -316,10 +315,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
   }
 
   @Override
-  public void startMonitoring(final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props,
-      final int intervalMs) {
-
+  public void startMonitoring(final @NonNull HostSpec hostSpec, final @NonNull Properties props, final int intervalMs) {
     try {
       final String limitlessRouterMonitorKey = pluginService.getHostListProvider().getClusterId();
       this.servicesContainer.getMonitorService().runIfAbsent(
@@ -328,17 +324,10 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
           this.servicesContainer.getStorageService(),
           this.servicesContainer.getTelemetryFactory(),
           this.pluginService.getDefaultConnectionProvider(),
-          this.pluginService.getOriginalUrl(),
-          this.pluginService.getDriverProtocol(),
-          this.pluginService.getTargetDriverDialect(),
-          this.pluginService.getDialect(),
-          props,
-          (connectionService, pluginService) -> new LimitlessRouterMonitor(
-                  pluginService,
-                  connectionService,
-                  this.servicesContainer.getTelemetryFactory(),
+          this.pluginService.getConnectConfig(),
+          (servicesContainer) -> new LimitlessRouterMonitor(
+                  servicesContainer,
                   hostSpec,
-                  this.servicesContainer.getStorageService(),
                   limitlessRouterMonitorKey,
                   props,
                   intervalMs));

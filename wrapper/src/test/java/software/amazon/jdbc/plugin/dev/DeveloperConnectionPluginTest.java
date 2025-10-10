@@ -73,10 +73,11 @@ public class DeveloperConnectionPluginTest {
   @BeforeEach
   void init() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
-    servicesContainer = new FullServicesContainerImpl(mockStorageService, mockMonitorService, mockTelemetryFactory);
+    servicesContainer = new FullServicesContainerImpl(
+        mockStorageService, mockMonitorService, mockConnectionProvider, mockTelemetryFactory);
 
-    when(mockConnectionProvider.connect(any(), any(), any(), any(), any())).thenReturn(mockConnection);
-    when(mockConnectCallback.getExceptionToRaise(any(), any(), any(), anyBoolean())).thenReturn(null);
+    when(mockConnectionProvider.connect(any(), any())).thenReturn(mockConnection);
+    when(mockConnectCallback.getExceptionToRaise(any(), any(), anyBoolean())).thenReturn(null);
 
     when(mockConnectionPluginManager.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
@@ -325,7 +326,7 @@ public class DeveloperConnectionPluginTest {
     props.put(DialectManager.DIALECT.name, DialectCodes.PG);
 
     final SQLException exception = new SQLException("test");
-    when(mockConnectCallback.getExceptionToRaise(any(), any(), any(), anyBoolean()))
+    when(mockConnectCallback.getExceptionToRaise(any(), any(), anyBoolean()))
         .thenReturn(exception)
         .thenReturn(null);
     ExceptionSimulatorManager.setCallback(mockConnectCallback);

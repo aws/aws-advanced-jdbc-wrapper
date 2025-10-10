@@ -51,14 +51,13 @@ import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.HostListProviderSupplier;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.FullServicesContainerImpl;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
-import software.amazon.jdbc.util.connection.ConnectionService;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -67,19 +66,16 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
   private static final Logger LOGGER = Logger.getLogger(ConnectionWrapper.class.getName());
 
+  protected ConnectConfig connectConfig;
   protected ConnectionPluginManager pluginManager;
   protected TelemetryFactory telemetryFactory;
   protected PluginService pluginService;
   protected HostListProviderService hostListProviderService;
 
   protected PluginManagerService pluginManagerService;
-  protected String targetDriverProtocol;
-  protected String originalUrl;
   protected @Nullable ConfigurationProfile configurationProfile;
 
   protected @Nullable Throwable openConnectionStacktrace;
-
-  protected final ConnectionUrlParser connectionUrlParser = new ConnectionUrlParser();
 
   public ConnectionWrapper(
       @NonNull final FullServicesContainer servicesContainer,
@@ -95,8 +91,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       throw new IllegalArgumentException("url");
     }
 
-    this.originalUrl = url;
-    this.targetDriverProtocol = connectionUrlParser.getProtocol(url);
+    this.connectConfig = new ConnectConfig(url, driverDialect, props);
     this.configurationProfile = configurationProfile;
 
     final ConnectionPluginManager pluginManager =
@@ -106,18 +101,14 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
             this,
             servicesContainer.getTelemetryFactory());
     servicesContainer.setConnectionPluginManager(pluginManager);
-    final PluginServiceImpl pluginService = new PluginServiceImpl(
-        servicesContainer,
-        props,
-        url,
-        this.targetDriverProtocol,
-        driverDialect,
-        this.configurationProfile);
+
+    final PluginServiceImpl pluginService =
+        new PluginServiceImpl(servicesContainer, this.connectConfig, this.configurationProfile);
     servicesContainer.setHostListProviderService(pluginService);
     servicesContainer.setPluginService(pluginService);
     servicesContainer.setPluginManagerService(pluginService);
 
-    init(props, servicesContainer, defaultConnectionProvider, driverDialect);
+    init(props, servicesContainer);
 
     if (PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(props)) {
       this.openConnectionStacktrace = new Throwable(Messages.get("ConnectionWrapper.unclosedConnectionInstantiated"));
@@ -136,8 +127,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       @NonNull final HostListProviderService hostListProviderService,
       @NonNull final PluginManagerService pluginManagerService,
       @NonNull final StorageService storageService,
-      @NonNull final MonitorService monitorService,
-      @NonNull final ConnectionService connectionService)
+      @NonNull final MonitorService monitorService)
       throws SQLException {
 
     if (StringUtils.isNullOrEmpty(url)) {
@@ -147,6 +137,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     FullServicesContainer servicesContainer = new FullServicesContainerImpl(
         storageService,
         monitorService,
+        defaultConnectionProvider,
         telemetryFactory,
         connectionPluginManager,
         hostListProviderService,
@@ -154,13 +145,10 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         pluginManagerService
     );
 
-    init(props, servicesContainer, defaultConnectionProvider, driverDialect);
+    init(props, servicesContainer);
   }
 
-  protected void init(final Properties props,
-      final FullServicesContainer servicesContainer,
-      final ConnectionProvider defaultConnectionProvider,
-      final TargetDriverDialect driverDialect) throws SQLException {
+  protected void init(final Properties props, final FullServicesContainer servicesContainer) throws SQLException {
     this.pluginManager = servicesContainer.getConnectionPluginManager();
     this.telemetryFactory = servicesContainer.getTelemetryFactory();
     this.pluginService = servicesContainer.getPluginService();
@@ -171,24 +159,15 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
     final HostListProviderSupplier supplier = this.pluginService.getDialect().getHostListProvider();
     if (supplier != null) {
-      final HostListProvider provider = supplier.getProvider(props, this.originalUrl, servicesContainer);
+      final HostListProvider provider = supplier.getProvider(this.connectConfig, servicesContainer);
       hostListProviderService.setHostListProvider(provider);
     }
 
-    this.pluginManager.initHostProvider(
-        this.targetDriverProtocol, this.originalUrl, props, this.hostListProviderService);
-
+    this.pluginManager.initHostProvider(this.connectConfig, this.hostListProviderService);
     this.pluginService.refreshHostList();
-
     if (this.pluginService.getCurrentConnection() == null) {
-      final Connection conn =
-          this.pluginManager.connect(
-              this.targetDriverProtocol,
-              this.pluginService.getInitialConnectionHostSpec(),
-              props,
-              true,
-              null);
-
+      final Connection conn = this.pluginManager.connect(
+          this.connectConfig, this.pluginService.getInitialConnectionHostSpec(), true, null);
       if (conn == null) {
         throw new SQLException(Messages.get("ConnectionWrapper.connectionNotOpen"), SqlState.UNKNOWN_STATE.getState());
       }

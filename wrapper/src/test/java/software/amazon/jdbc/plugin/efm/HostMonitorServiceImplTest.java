@@ -49,7 +49,7 @@ import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
-class HostHostMonitorServiceImplTest {
+class HostMonitorServiceImplTest {
 
   private static final Set<String> NODE_KEYS =
       new HashSet<>(Collections.singletonList("any.node.domain"));

@@ -27,7 +27,7 @@ public interface Monitor {
    * submitted during the call to {@link #start()}. Additionally, the monitoring loop should regularly update the last
    * activity timestamp so that the {@link MonitorService} can detect whether the monitor is stuck or not.
    */
-  void monitor();
+  void monitor() throws Exception;
 
   /**
    * Stops the monitoring tasks for this monitor and closes all resources.

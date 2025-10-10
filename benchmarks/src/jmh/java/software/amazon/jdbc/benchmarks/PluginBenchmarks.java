@@ -63,7 +63,7 @@ import software.amazon.jdbc.benchmarks.testplugin.TestConnectionWrapper;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.connection.ConnectionService;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
@@ -94,7 +94,6 @@ public class PluginBenchmarks {
 
   @Mock private StorageService mockStorageService;
   @Mock private MonitorService mockMonitorService;
-  @Mock private ConnectionService mockConnectionService;
   @Mock private PluginService mockPluginService;
   @Mock private TargetDriverDialect mockTargetDriverDialect;
   @Mock private Dialect mockDialect;
@@ -124,7 +123,7 @@ public class PluginBenchmarks {
   @Setup(Level.Iteration)
   public void setUpIteration() throws Exception {
     closeable = MockitoAnnotations.openMocks(this);
-    when(mockConnectionPluginManager.connect(any(), any(), any(Properties.class), anyBoolean(), any()))
+    when(mockConnectionPluginManager.connect(any(), any(), anyBoolean(), any()))
         .thenReturn(mockConnection);
     when(mockConnectionPluginManager.execute(
         any(), any(), any(), eq(JdbcMethod.CONNECTION_CREATESTATEMENT), any(), any()))
@@ -135,12 +134,7 @@ public class PluginBenchmarks {
     when(mockTelemetryFactory.createCounter(anyString())).thenReturn(mockTelemetryCounter);
     // noinspection unchecked
     when(mockTelemetryFactory.createGauge(anyString(), any(GaugeCallable.class))).thenReturn(mockTelemetryGauge);
-    when(mockConnectionProvider.connect(
-        anyString(),
-        any(Dialect.class),
-        any(TargetDriverDialect.class),
-        any(HostSpec.class),
-        any(Properties.class))).thenReturn(mockConnection);
+    when(mockConnectionProvider.connect(any(ConnectConfig.class), any(HostSpec.class))).thenReturn(mockConnection);
     when(mockConnection.createStatement()).thenReturn(mockStatement);
     when(mockStatement.executeQuery(anyString())).thenReturn(mockResultSet);
     when(mockResultSet.next()).thenReturn(true, true, false);
@@ -183,8 +177,7 @@ public class PluginBenchmarks {
         mockHostListProviderService,
         mockPluginManagerService,
         mockStorageService,
-        mockMonitorService,
-        mockConnectionService);
+        mockMonitorService);
   }
 
   @Benchmark

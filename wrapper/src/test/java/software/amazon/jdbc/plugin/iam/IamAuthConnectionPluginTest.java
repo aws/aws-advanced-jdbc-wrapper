@@ -44,20 +44,18 @@ import org.mockito.MockitoAnnotations;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.rds.RdsUtilities;
-import software.amazon.awssdk.services.rds.TestDefaultRdsUtilities;
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.dialect.Dialect;
-import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.plugin.TokenInfo;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.connection.ConnectConfig;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -73,8 +71,8 @@ class IamAuthConnectionPluginTest {
       + DEFAULT_PG_PORT + ":postgresqlUser";
   private static final String MYSQL_CACHE_KEY = "us-east-2:mysql.testdb.us-east-2.rds.amazonaws.com:"
       + DEFAULT_MYSQL_PORT + ":mysqlUser";
-  private static final String PG_DRIVER_PROTOCOL = "jdbc:postgresql:";
-  private static final String MYSQL_DRIVER_PROTOCOL = "jdbc:mysql:";
+  private static final String PG_DRIVER_PROTOCOL = "jdbc:postgresql://";
+  private static final String MYSQL_DRIVER_PROTOCOL = "jdbc:mysql://";
   private static final HostSpec PG_HOST_SPEC = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
       .host("pg.testdb.us-east-2.rds.amazonaws.com").build();
   private static final HostSpec PG_HOST_SPEC_WITH_PORT = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
@@ -91,6 +89,7 @@ class IamAuthConnectionPluginTest {
   @Mock TelemetryContext mockTelemetryContext;
   @Mock JdbcCallable<Connection, SQLException> mockLambda;
   @Mock Dialect mockDialect;
+  @Mock TargetDriverDialect mockDriverDialect;
   @Mock private RdsUtils mockRdsUtils;
   @Mock private IamTokenUtility mockIamTokenUtils;
   private AutoCloseable closable;
@@ -263,7 +262,8 @@ class IamAuthConnectionPluginTest {
     IamAuthConnectionPlugin targetPlugin = new IamAuthConnectionPlugin(mockPluginService, mockIamTokenUtils);
     doThrow(new SQLException()).when(mockLambda).call();
 
-    assertThrows(SQLException.class, () -> targetPlugin.connect(protocol, hostSpec, props, true, mockLambda));
+    ConnectConfig connectConfig = new ConnectConfig(protocol + hostSpec.getHost(), mockDriverDialect, props);
+    assertThrows(SQLException.class, () -> targetPlugin.connect(connectConfig, hostSpec, true, mockLambda));
     verify(mockLambda, times(1)).call();
 
     assertEquals(TEST_TOKEN, PropertyDefinition.PASSWORD.getString(props));
@@ -282,8 +282,9 @@ class IamAuthConnectionPluginTest {
 
     doThrow(new SQLException()).when(mockLambda).call();
 
+    ConnectConfig connectConfig = new ConnectConfig(protocol + hostSpec.getHost(), mockDriverDialect, props);
     assertThrows(SQLException.class,
-        () -> spyPlugin.connect(protocol, hostSpec, props, true, mockLambda));
+        () -> spyPlugin.connect(connectConfig, hostSpec, true, mockLambda));
 
     verify(mockIamTokenUtils).generateAuthenticationToken(
         any(DefaultCredentialsProvider.class),

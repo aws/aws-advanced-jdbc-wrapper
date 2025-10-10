@@ -116,9 +116,12 @@ public class BadPlugin extends AbstractConnectionPlugin {
         return new HashSet<>(Collections.singletonList("*"));
     }
 
-    @Override
-    public Connection connect(String driverProtocol, HostSpec hostSpec, Properties props, boolean isInitialConnection,
-            JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
+  @Override
+  public Connection connect(
+      final ConnectConfig connectConfig,
+      final HostSpec hostSpec,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
         // Bad Practice #2: using driver-specific objects.
         // Not all drivers support the same configuration parameters. For instance, while MySQL Connector/J Supports "database",
         // PGJDBC uses "dbname" for database names.
@@ -167,9 +170,12 @@ public class GoodExample extends AbstractConnectionPlugin {
       return jdbcMethodFunc.call();
     }
 
-    @Override
-    public Connection connect(String driverProtocol, HostSpec hostSpec, Properties props, boolean isInitialConnection,
-            JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
+  @Override
+  public Connection connect(
+      final ConnectConfig connectConfig,
+      final HostSpec hostSpec,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
         if (PropertyDefinition.USER.getString(props) == null) {
             PropertyDefinition.TARGET_DRIVER_USER_PROPERTY_NAME.set(props, "defaultUser");
         }
