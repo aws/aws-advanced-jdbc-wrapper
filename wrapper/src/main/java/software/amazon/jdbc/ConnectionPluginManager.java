@@ -29,7 +29,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.jetbrains.annotations.NotNull;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.plugin.AuroraConnectionTrackerPlugin;
 import software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPlugin;
@@ -180,8 +179,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       final FullServicesContainer servicesContainer,
       final Properties props,
       final PluginManagerService pluginManagerService,
-      @Nullable ConfigurationProfile configurationProfile)
-      throws SQLException {
+      @Nullable ConfigurationProfile configurationProfile) throws SQLException {
 
     this.props = props;
     this.servicesContainer = servicesContainer;

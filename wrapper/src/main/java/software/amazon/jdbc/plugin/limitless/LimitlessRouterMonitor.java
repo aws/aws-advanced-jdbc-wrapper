@@ -25,11 +25,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.Utils;
-import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -45,27 +44,24 @@ public class LimitlessRouterMonitor extends AbstractMonitor {
   protected static final long TERMINATION_TIMEOUT_SEC = 5;
   protected final int intervalMs;
   protected final @NonNull HostSpec hostSpec;
+  protected final @NonNull FullServicesContainer servicesContainer;
   protected final @NonNull StorageService storageService;
   protected final @NonNull String limitlessRouterCacheKey;
   protected final @NonNull Properties props;
-  protected final @NonNull ConnectionService connectionService;
   protected final @NonNull LimitlessQueryHelper queryHelper;
   protected final @NonNull TelemetryFactory telemetryFactory;
   protected Connection monitoringConn = null;
 
   public LimitlessRouterMonitor(
-      final @NonNull PluginService pluginService,
-      final @NonNull ConnectionService connectionService,
-      final @NonNull TelemetryFactory telemetryFactory,
+      final @NonNull FullServicesContainer servicesContainer,
       final @NonNull HostSpec hostSpec,
-      final @NonNull StorageService storageService,
       final @NonNull String limitlessRouterCacheKey,
       final @NonNull Properties props,
       final int intervalMs) {
     super(TERMINATION_TIMEOUT_SEC);
-    this.connectionService = connectionService;
-    this.storageService = storageService;
-    this.telemetryFactory = telemetryFactory;
+    this.servicesContainer = servicesContainer;
+    this.storageService = servicesContainer.getStorageService();
+    this.telemetryFactory = servicesContainer.getTelemetryFactory();
     this.hostSpec = hostSpec;
     this.limitlessRouterCacheKey = limitlessRouterCacheKey;
     this.props = PropertyUtils.copyProperties(props);
@@ -81,7 +77,7 @@ public class LimitlessRouterMonitor extends AbstractMonitor {
     this.props.setProperty(LimitlessConnectionPlugin.WAIT_FOR_ROUTER_INFO.name, "false");
 
     this.intervalMs = intervalMs;
-    this.queryHelper = new LimitlessQueryHelper(pluginService);
+    this.queryHelper = new LimitlessQueryHelper(servicesContainer.getPluginService());
   }
 
   @Override
@@ -170,7 +166,7 @@ public class LimitlessRouterMonitor extends AbstractMonitor {
         LOGGER.finest(() -> Messages.get(
             "LimitlessRouterMonitor.openingConnection",
             new Object[] {this.hostSpec.getUrl()}));
-        this.monitoringConn = this.connectionService.open(this.hostSpec, this.props);
+        this.monitoringConn = this.servicesContainer.getPluginService().forceConnect(this.hostSpec, this.props);
         LOGGER.finest(() -> Messages.get(
             "LimitlessRouterMonitor.openedConnection",
             new Object[] {this.monitoringConn}));

@@ -16,8 +16,6 @@
 
 package software.amazon.jdbc.hostavailability;
 
-import software.amazon.jdbc.AwsWrapperProperty;
-
 public interface HostAvailabilityStrategy {
 
   void setHostAvailability(HostAvailability hostAvailability);

@@ -333,12 +333,9 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
           this.pluginService.getTargetDriverDialect(),
           this.pluginService.getDialect(),
           props,
-          (connectionService, pluginService) -> new LimitlessRouterMonitor(
-                  pluginService,
-                  connectionService,
-                  this.servicesContainer.getTelemetryFactory(),
+          (servicesContainer) -> new LimitlessRouterMonitor(
+                  servicesContainer,
                   hostSpec,
-                  this.servicesContainer.getStorageService(),
                   limitlessRouterMonitorKey,
                   props,
                   intervalMs));
