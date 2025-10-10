@@ -428,8 +428,10 @@ public class BlueGreenStatusMonitor {
           // It's normal to expect that the status table has no entries after BGD is completed.
           // Old1 cluster/instance has been separated and no longer receives
           // updates from related green cluster/instance.
+          // Metadata at new blue cluster/instance can be removed after switchover, and it's also expected to get
+          // no records.
           if (this.role != BlueGreenRole.SOURCE) {
-            LOGGER.warning(() -> Messages.get("bgd.noEntriesInStatusTable", new Object[] {this.role}));
+            LOGGER.finest(() -> Messages.get("bgd.noEntriesInStatusTable", new Object[] {this.role}));
           }
           this.currentPhase = null;
         }
@@ -489,6 +491,15 @@ public class BlueGreenStatusMonitor {
       if (!this.isConnectionClosed(conn)) {
         // It's normal to get connection closed during BGD switchover.
         // If connection isn't closed but there's an exception then let's log it.
+
+        // For PG databases
+        if (e.getMessage() != null
+            && e.getMessage().contains("An error occured while retrieving the blue/green fast switchover metadata")) {
+          this.currentPhase = BlueGreenPhase.NOT_CREATED;
+          return;
+        }
+
+        // Let's log it.
         if (LOGGER.isLoggable(Level.FINEST)) {
           LOGGER.log(Level.FINEST, Messages.get("bgd.unhandledSqlException", new Object[] {this.role}), e);
         }
