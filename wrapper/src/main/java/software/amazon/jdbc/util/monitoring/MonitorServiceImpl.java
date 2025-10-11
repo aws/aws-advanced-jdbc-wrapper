@@ -179,6 +179,28 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   public <T extends Monitor> T runIfAbsent(
       Class<T> monitorClass,
       Object key,
+      FullServicesContainer servicesContainer,
+      Properties originalProps,
+      MonitorInitializer initializer) throws SQLException {
+    return this.runIfAbsent(
+        monitorClass,
+        key,
+        servicesContainer.getStorageService(),
+        servicesContainer.getTelemetryFactory(),
+        servicesContainer.getDefaultConnectionProvider(),
+        servicesContainer.getPluginService().getOriginalUrl(),
+        servicesContainer.getPluginService().getDriverProtocol(),
+        servicesContainer.getPluginService().getTargetDriverDialect(),
+        servicesContainer.getPluginService().getDialect(),
+        originalProps,
+        initializer
+    );
+  }
+
+  @Override
+  public <T extends Monitor> T runIfAbsent(
+      Class<T> monitorClass,
+      Object key,
       StorageService storageService,
       TelemetryFactory telemetryFactory,
       ConnectionProvider defaultConnectionProvider,

@@ -23,6 +23,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -49,6 +50,28 @@ public interface MonitorService {
       long heartbeatTimeoutNanos,
       Set<MonitorErrorResponse> errorResponses,
       @Nullable Class<?> producedDataClass);
+
+  /**
+   * Creates and starts the given monitor if it does not already exist and stores it under the given monitor type and
+   * key. If the monitor already exists, its expiration time will be renewed, even if it was already expired.
+   *
+   * @param monitorClass              the concrete class of the monitor, eg `CustomEndpointMonitorImpl.class`.
+   * @param key                       the key for the monitor, eg
+   *                                  "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
+   * @param servicesContainer         the source service container for the monitor. The new monitor will create its own
+   *                                  service container but will reuse some components from the source container.
+   * @param originalProps             the properties of the original database connection.
+   * @param initializer               an initializer function to use to create the monitor if it does not already exist.
+   * @param <T>                       the type of the monitor.
+   * @return the new or existing monitor.
+   * @throws SQLException if an error occurs while trying to create the monitor.
+   */
+  <T extends Monitor> T runIfAbsent(
+      Class<T> monitorClass,
+      Object key,
+      FullServicesContainer servicesContainer,
+      Properties originalProps,
+      MonitorInitializer initializer) throws SQLException;
 
   /**
    * Creates and starts the given monitor if it does not already exist and stores it under the given monitor type and

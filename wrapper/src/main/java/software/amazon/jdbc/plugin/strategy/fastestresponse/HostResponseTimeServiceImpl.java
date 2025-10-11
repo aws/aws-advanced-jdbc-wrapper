@@ -78,13 +78,7 @@ public class HostResponseTimeServiceImpl implements HostResponseTimeService {
             this.servicesContainer.getMonitorService().runIfAbsent(
                 NodeResponseTimeMonitor.class,
                 hostSpec.getUrl(),
-                servicesContainer.getStorageService(),
-                servicesContainer.getTelemetryFactory(),
-                servicesContainer.getDefaultConnectionProvider(),
-                this.pluginService.getOriginalUrl(),
-                this.pluginService.getDriverProtocol(),
-                this.pluginService.getTargetDriverDialect(),
-                this.pluginService.getDialect(),
+                servicesContainer,
                 this.props,
                 (servicesContainer) ->
                     new NodeResponseTimeMonitor(pluginService, hostSpec, this.props, this.intervalMs));

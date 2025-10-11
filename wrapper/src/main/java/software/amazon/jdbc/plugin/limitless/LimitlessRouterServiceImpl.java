@@ -325,13 +325,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       this.servicesContainer.getMonitorService().runIfAbsent(
           LimitlessRouterMonitor.class,
           limitlessRouterMonitorKey,
-          this.servicesContainer.getStorageService(),
-          this.servicesContainer.getTelemetryFactory(),
-          this.pluginService.getDefaultConnectionProvider(),
-          this.pluginService.getOriginalUrl(),
-          this.pluginService.getDriverProtocol(),
-          this.pluginService.getTargetDriverDialect(),
-          this.pluginService.getDialect(),
+          this.servicesContainer,
           props,
           (servicesContainer) -> new LimitlessRouterMonitor(
                   servicesContainer,
