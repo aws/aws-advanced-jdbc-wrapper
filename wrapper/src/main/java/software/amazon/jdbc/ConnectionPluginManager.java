@@ -51,11 +51,9 @@ import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Utils;
-import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
-import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 /**
  * This class creates and handles a chain of {@link ConnectionPlugin} for each connection.
@@ -92,29 +90,25 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
         }
       };
 
-  private final ReentrantLock lock = new ReentrantLock();
-
-  protected Properties props = new Properties();
-  protected List<ConnectionPlugin> plugins;
-  protected final @NonNull ConnectionProvider defaultConnProvider;
-  protected final @Nullable ConnectionProvider effectiveConnProvider;
-  protected final ConnectionWrapper connectionWrapper;
-  protected FullServicesContainer servicesContainer;
-  protected PluginService pluginService;
-  protected TelemetryFactory telemetryFactory;
-  protected boolean isTelemetryInUse;
   @SuppressWarnings("rawtypes")
   protected final PluginChainJdbcCallableInfo[] pluginChainFuncMap =
       new PluginChainJdbcCallableInfo[JdbcMethod.ALL.id + 1]; // it should be the last element in JdbcMethod enum
+  protected final ReentrantLock lock = new ReentrantLock();
+  protected final Properties props;
+  protected final TelemetryFactory telemetryFactory;
+  protected final boolean isTelemetryInUse;
+  protected final ConnectionProvider defaultConnProvider;
+  protected final @Nullable ConnectionProvider effectiveConnProvider;
+  protected List<ConnectionPlugin> plugins;
 
   public ConnectionPluginManager(
+      final @NonNull Properties props,
+      final @NonNull TelemetryFactory telemetryFactory,
       final @NonNull ConnectionProvider defaultConnProvider,
-      final @Nullable ConnectionProvider effectiveConnProvider,
-      final @Nullable ConnectionWrapper connectionWrapper,
-      final @NonNull TelemetryFactory telemetryFactory) {
+      final @Nullable ConnectionProvider effectiveConnProvider) {
+    this.props = props;
     this.defaultConnProvider = defaultConnProvider;
     this.effectiveConnProvider = effectiveConnProvider;
-    this.connectionWrapper = connectionWrapper;
     this.telemetryFactory = telemetryFactory;
     this.isTelemetryInUse = telemetryFactory.inUse();
   }
@@ -127,28 +121,11 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       final @Nullable ConnectionProvider effectiveConnProvider,
       final Properties props,
       final List<ConnectionPlugin> plugins,
-      final ConnectionWrapper connectionWrapper,
-      final PluginService pluginService,
-      final TelemetryFactory telemetryFactory) {
-    this(defaultConnProvider, effectiveConnProvider, props, plugins, connectionWrapper, telemetryFactory);
-    this.pluginService = pluginService;
-  }
-
-  /**
-   * This constructor is for testing purposes only.
-   */
-  ConnectionPluginManager(
-      final @NonNull ConnectionProvider defaultConnProvider,
-      final @Nullable ConnectionProvider effectiveConnProvider,
-      final Properties props,
-      final List<ConnectionPlugin> plugins,
-      final ConnectionWrapper connectionWrapper,
       final TelemetryFactory telemetryFactory) {
     this.defaultConnProvider = defaultConnProvider;
     this.effectiveConnProvider = effectiveConnProvider;
     this.props = props;
     this.plugins = plugins;
-    this.connectionWrapper = connectionWrapper;
     this.telemetryFactory = telemetryFactory;
     this.isTelemetryInUse = telemetryFactory.inUse();
   }
@@ -170,30 +147,18 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    * connection plugin in the chain.
    *
    * @param servicesContainer     the service container for the services required by this class.
-   * @param props                the configuration of the connection
-   * @param pluginManagerService a reference to a plugin manager service
    * @param configurationProfile a profile configuration defined by the user
    * @throws SQLException if errors occurred during the execution
    */
-  public void init(
+  public void initPlugins(
       final FullServicesContainer servicesContainer,
-      final Properties props,
-      final PluginManagerService pluginManagerService,
       @Nullable ConfigurationProfile configurationProfile) throws SQLException {
-
-    this.props = props;
-    this.servicesContainer = servicesContainer;
-    this.pluginService = servicesContainer.getPluginService();
-    this.telemetryFactory = servicesContainer.getTelemetryFactory();
-    this.isTelemetryInUse = telemetryFactory.inUse();
-
     ConnectionPluginChainBuilder pluginChainBuilder = new ConnectionPluginChainBuilder();
     this.plugins = pluginChainBuilder.getPlugins(
-        this.servicesContainer,
+        servicesContainer,
         this.defaultConnProvider,
         this.effectiveConnProvider,
-        pluginManagerService,
-        props,
+        this.props,
         configurationProfile);
   }
 
@@ -223,14 +188,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       this.pluginChainFuncMap[jdbcMethod.id] = pluginChainJdbcCallableInfo;
     }
 
-
-    if (pluginChainJdbcCallableInfo == null) {
-      throw new RuntimeException("Error processing this JDBC call.");
-    }
-
     if (jdbcMethod.alwaysUsePipeline || pluginChainJdbcCallableInfo.isSubscribed) {
       // noinspection unchecked
-      @SuppressWarnings("unchecked")
       PluginChainJdbcCallable<T, E> pluginChainFunc = pluginChainJdbcCallableInfo.func;
       return pluginChainFunc.call(pluginPipeline, jdbcMethodFunc, pluginToSkip);
     } else {
@@ -320,10 +279,6 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
     }
   }
 
-  public ConnectionWrapper getConnectionWrapper() {
-    return this.connectionWrapper;
-  }
-
   public TelemetryFactory getTelemetryFactory() {
     return this.telemetryFactory;
   }
@@ -345,18 +300,6 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       final JdbcCallable<T, E> jdbcMethodFunc,
       final Object[] jdbcMethodArgs)
       throws E {
-
-    // The target driver may block on Statement.getConnection().
-    if (jdbcMethod.shouldLockConnection && jdbcMethod.checkBoundedConnection) {
-      final Connection conn = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
-      if (conn != null && conn != this.pluginService.getCurrentConnection()) {
-        throw WrapperUtils.wrapExceptionIfNeeded(
-            exceptionClass,
-            new SQLException(
-                Messages.get("ConnectionPluginManager.invokedAgainstOldConnection", new Object[]{methodInvokeOn})));
-      }
-    }
-
     return executeWithSubscribedPlugins(
         jdbcMethod,
         (plugin, func) ->
@@ -635,9 +578,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
     if (iface == ConnectionPluginManager.class) {
       return iface.cast(this);
     }
-    if (iface == PluginService.class) {
-      return iface.cast(this.pluginService);
-    }
+
     if (this.plugins == null) {
       return null;
     }
@@ -647,6 +588,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
         return iface.cast(p);
       }
     }
+
     return null;
   }
 

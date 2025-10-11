@@ -20,13 +20,15 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.storage.SlidingExpirationCacheWithCleanupThread;
 
 public class HostResponseTimeServiceImpl implements HostResponseTimeService {
 
@@ -64,25 +66,19 @@ public class HostResponseTimeServiceImpl implements HostResponseTimeService {
 
   @Override
   public void setHosts(final @NonNull List<HostSpec> hosts) {
-    List<HostSpec> oldHosts = this.hosts;
+    Set<String> oldHosts = this.hosts.stream().map(HostSpec::getUrl).collect(Collectors.toSet());
     this.hosts = hosts;
 
     // Going through all hosts in the topology and trying to find new ones.
     this.hosts.stream()
         // hostSpec is not in the set of hosts that already being monitored
-        .filter(hostSpec -> !Utils.containsHostAndPort(oldHosts, hostSpec.getHostAndPort()))
+        .filter(hostSpec -> !oldHosts.contains(hostSpec.getUrl()))
         .forEach(hostSpec -> {
           try {
             this.servicesContainer.getMonitorService().runIfAbsent(
                 NodeResponseTimeMonitor.class,
                 hostSpec.getUrl(),
-                servicesContainer.getStorageService(),
-                servicesContainer.getTelemetryFactory(),
-                servicesContainer.getDefaultConnectionProvider(),
-                this.pluginService.getOriginalUrl(),
-                this.pluginService.getDriverProtocol(),
-                this.pluginService.getTargetDriverDialect(),
-                this.pluginService.getDialect(),
+                servicesContainer,
                 this.props,
                 (servicesContainer) ->
                     new NodeResponseTimeMonitor(pluginService, hostSpec, this.props, this.intervalMs));

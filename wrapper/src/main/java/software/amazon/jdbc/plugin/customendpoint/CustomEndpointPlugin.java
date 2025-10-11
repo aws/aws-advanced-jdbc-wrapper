@@ -215,13 +215,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     return this.servicesContainer.getMonitorService().runIfAbsent(
         CustomEndpointMonitorImpl.class,
         this.customEndpointHostSpec.getUrl(),
-        this.servicesContainer.getStorageService(),
-        this.pluginService.getTelemetryFactory(),
-        this.pluginService.getDefaultConnectionProvider(),
-        this.pluginService.getOriginalUrl(),
-        this.pluginService.getDriverProtocol(),
-        this.pluginService.getTargetDriverDialect(),
-        this.pluginService.getDialect(),
+        this.servicesContainer,
         this.props,
         (servicesContainer) -> new CustomEndpointMonitorImpl(
             servicesContainer.getStorageService(),

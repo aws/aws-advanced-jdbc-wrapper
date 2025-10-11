@@ -84,13 +84,7 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
     return this.servicesContainer.getMonitorService().runIfAbsent(
         ClusterTopologyMonitorImpl.class,
         this.clusterId,
-        this.servicesContainer.getStorageService(),
-        this.servicesContainer.getTelemetryFactory(),
-        this.servicesContainer.getDefaultConnectionProvider(),
-        this.originalUrl,
-        this.pluginService.getDriverProtocol(),
-        this.pluginService.getTargetDriverDialect(),
-        this.pluginService.getDialect(),
+        this.servicesContainer,
         this.properties,
         (servicesContainer) -> new ClusterTopologyMonitorImpl(
             this.servicesContainer,
@@ -129,13 +123,7 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
       this.servicesContainer.getMonitorService().runIfAbsent(
           ClusterTopologyMonitorImpl.class,
           this.clusterId,
-          this.servicesContainer.getStorageService(),
-          this.servicesContainer.getTelemetryFactory(),
-          this.servicesContainer.getDefaultConnectionProvider(),
-          this.originalUrl,
-          this.pluginService.getDriverProtocol(),
-          this.pluginService.getTargetDriverDialect(),
-          this.pluginService.getDialect(),
+          this.servicesContainer,
           this.properties,
           (servicesContainer) -> existingMonitor);
       assert monitorService.get(ClusterTopologyMonitorImpl.class, this.clusterId) == existingMonitor;

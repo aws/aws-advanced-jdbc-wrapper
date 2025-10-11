@@ -67,6 +67,7 @@ public class ConnectionPluginChainBuilderTests {
     closeable = MockitoAnnotations.openMocks(this);
     when(mockServicesContainer.getPluginService()).thenReturn(mockPluginService);
     when(mockServicesContainer.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
+    when(mockServicesContainer.getPluginManagerService()).thenReturn(mockPluginManagerService);
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
     when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
@@ -84,7 +85,6 @@ public class ConnectionPluginChainBuilderTests {
         mockServicesContainer,
         mockConnectionProvider,
         null,
-        mockPluginManagerService,
         props,
         null);
 
@@ -107,7 +107,6 @@ public class ConnectionPluginChainBuilderTests {
         mockServicesContainer,
         mockConnectionProvider,
         null,
-        mockPluginManagerService,
         props,
         null);
 
@@ -129,7 +128,6 @@ public class ConnectionPluginChainBuilderTests {
         mockServicesContainer,
         mockConnectionProvider,
         null,
-        mockPluginManagerService,
         props,
         null);
 

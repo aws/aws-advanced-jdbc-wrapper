@@ -52,8 +52,9 @@ import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.util.FullServicesContainer;
 
 class ClusterAwareWriterFailoverHandlerTest {
-  @Mock FullServicesContainer mockContainer1;
-  @Mock FullServicesContainer mockContainer2;
+  @Mock FullServicesContainer mockContainer;
+  @Mock FullServicesContainer mockTask1Container;
+  @Mock FullServicesContainer mockTask2Container;
   @Mock PluginService mockPluginService;
   @Mock Connection mockConnection;
   @Mock ReaderFailoverHandler mockReaderFailoverHandler;
@@ -79,8 +80,9 @@ class ClusterAwareWriterFailoverHandlerTest {
   @BeforeEach
   void setUp() {
     closeable = MockitoAnnotations.openMocks(this);
-    when(mockContainer1.getPluginService()).thenReturn(mockPluginService);
-    when(mockContainer2.getPluginService()).thenReturn(mockPluginService);
+    when(mockContainer.getPluginService()).thenReturn(mockPluginService);
+    when(mockTask1Container.getPluginService()).thenReturn(mockPluginService);
+    when(mockTask2Container.getPluginService()).thenReturn(mockPluginService);
     writer.addAlias("writer-host");
     newWriterHost.addAlias("new-writer-host");
     readerA.addAlias("reader-a-host");
@@ -120,7 +122,7 @@ class ClusterAwareWriterFailoverHandlerTest {
       final int readTopologyIntervalMs,
       final int reconnectWriterIntervalMs) throws SQLException {
     ClusterAwareWriterFailoverHandler handler = new ClusterAwareWriterFailoverHandler(
-        mockContainer1,
+        mockContainer,
         mockReaderFailoverHandler,
         properties,
         failoverTimeoutMs,
@@ -128,7 +130,7 @@ class ClusterAwareWriterFailoverHandlerTest {
         reconnectWriterIntervalMs);
 
     ClusterAwareWriterFailoverHandler spyHandler = spy(handler);
-    doReturn(mockContainer2).when(spyHandler).newServicesContainer();
+    doReturn(mockTask1Container, mockTask2Container).when(spyHandler).newServicesContainer();
     return spyHandler;
   }
 

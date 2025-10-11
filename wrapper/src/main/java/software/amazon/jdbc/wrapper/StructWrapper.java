@@ -26,11 +26,16 @@ import software.amazon.jdbc.util.WrapperUtils;
 
 public class StructWrapper implements Struct {
 
-  protected Struct struct;
-  protected ConnectionPluginManager pluginManager;
+  protected final Struct struct;
+  protected final ConnectionWrapper connectionWrapper;
+  protected final ConnectionPluginManager pluginManager;
 
-  public StructWrapper(@NonNull Struct struct, @NonNull ConnectionPluginManager pluginManager) {
+  public StructWrapper(
+      @NonNull Struct struct,
+      @NonNull ConnectionWrapper connectionWrapper,
+      @NonNull ConnectionPluginManager pluginManager) {
     this.struct = struct;
+    this.connectionWrapper = connectionWrapper;
     this.pluginManager = pluginManager;
   }
 
@@ -40,10 +45,11 @@ public class StructWrapper implements Struct {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.struct,
           JdbcMethod.STRUCT_GETSQLTYPENAME,
-          () -> this.struct.getSQLTypeName());
+          this.struct::getSQLTypeName);
     } else {
       return this.struct.getSQLTypeName();
     }
@@ -55,10 +61,11 @@ public class StructWrapper implements Struct {
       return WrapperUtils.executeWithPlugins(
           Object[].class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.struct,
           JdbcMethod.STRUCT_GETATTRIBUTES,
-          () -> this.struct.getAttributes());
+          this.struct::getAttributes);
     } else {
       return this.struct.getAttributes();
     }
@@ -70,6 +77,7 @@ public class StructWrapper implements Struct {
       return WrapperUtils.executeWithPlugins(
           Object[].class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.struct,
           JdbcMethod.STRUCT_GETATTRIBUTES,

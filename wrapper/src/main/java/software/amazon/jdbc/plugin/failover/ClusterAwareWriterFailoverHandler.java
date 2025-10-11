@@ -148,7 +148,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     if (!singleTask) {
       completionService.submit(
           new ReconnectToWriterHandler(
-              newServicesContainer(),
+              this.newServicesContainer(),
               this.hostAvailabilityMap,
               writerHost,
               this.initialConnectionProps,
@@ -157,7 +157,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
 
     completionService.submit(
         new WaitForNewWriterHandler(
-            newServicesContainer(),
+            this.newServicesContainer(),
             this.hostAvailabilityMap,
             this.readerFailoverHandler,
             writerHost,
@@ -169,7 +169,8 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
   }
 
   protected FullServicesContainer newServicesContainer() throws SQLException {
-    return ServiceUtility.getInstance().createServiceContainer(this.servicesContainer, this.initialConnectionProps);
+    return ServiceUtility.getInstance().createMinimalServiceContainer(
+        this.servicesContainer, this.initialConnectionProps);
   }
 
   private WriterFailoverResult getNextResult(
@@ -488,7 +489,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
         return false;
       }
 
-      return hostSpec1.getHostAndPort().equals(hostSpec2.getHostAndPort());
+      return hostSpec1.getUrl().equals(hostSpec2.getUrl());
     }
 
     private boolean connectToWriter(final HostSpec writerCandidate) {

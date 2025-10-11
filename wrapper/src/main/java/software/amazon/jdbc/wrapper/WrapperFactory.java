@@ -20,5 +20,8 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.ConnectionPluginManager;
 
 public interface WrapperFactory {
-  Object getInstance(@NonNull Object targetObj, @NonNull ConnectionPluginManager pluginManager);
+  Object getInstance(
+      @NonNull Object targetObj,
+      @NonNull ConnectionWrapper connectionWrapper,
+      @NonNull ConnectionPluginManager pluginManager);
 }

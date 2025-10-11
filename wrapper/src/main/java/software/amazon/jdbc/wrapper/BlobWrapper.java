@@ -27,11 +27,16 @@ import software.amazon.jdbc.util.WrapperUtils;
 
 public class BlobWrapper implements Blob {
 
-  protected Blob blob;
-  protected ConnectionPluginManager pluginManager;
+  protected final Blob blob;
+  protected final ConnectionWrapper connectionWrapper;
+  protected final ConnectionPluginManager pluginManager;
 
-  public BlobWrapper(@NonNull Blob blob, @NonNull ConnectionPluginManager pluginManager) {
+  public BlobWrapper(
+      @NonNull Blob blob,
+      @NonNull ConnectionWrapper connectionWrapper,
+      @NonNull ConnectionPluginManager pluginManager) {
     this.blob = blob;
+    this.connectionWrapper = connectionWrapper;
     this.pluginManager = pluginManager;
   }
 
@@ -41,10 +46,11 @@ public class BlobWrapper implements Blob {
       return WrapperUtils.executeWithPlugins(
           long.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.blob,
           JdbcMethod.BLOB_LENGTH,
-          () -> this.blob.length());
+          this.blob::length);
     } else {
       return this.blob.length();
     }
@@ -56,6 +62,7 @@ public class BlobWrapper implements Blob {
       return WrapperUtils.executeWithPlugins(
           byte[].class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.blob,
           JdbcMethod.BLOB_GETBYTES,
@@ -73,10 +80,11 @@ public class BlobWrapper implements Blob {
       return WrapperUtils.executeWithPlugins(
           InputStream.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.blob,
           JdbcMethod.BLOB_GETBINARYSTREAM,
-          () -> this.blob.getBinaryStream());
+          this.blob::getBinaryStream);
     } else {
       return this.blob.getBinaryStream();
     }
@@ -88,6 +96,7 @@ public class BlobWrapper implements Blob {
       return WrapperUtils.executeWithPlugins(
           InputStream.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.blob,
           JdbcMethod.BLOB_GETBINARYSTREAM,
@@ -105,6 +114,7 @@ public class BlobWrapper implements Blob {
       return WrapperUtils.executeWithPlugins(
           long.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.blob,
           JdbcMethod.BLOB_POSITION,
@@ -122,6 +132,7 @@ public class BlobWrapper implements Blob {
       return WrapperUtils.executeWithPlugins(
           long.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.blob,
           JdbcMethod.BLOB_POSITION,
@@ -139,6 +150,7 @@ public class BlobWrapper implements Blob {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.blob,
           JdbcMethod.BLOB_SETBYTES,
@@ -156,6 +168,7 @@ public class BlobWrapper implements Blob {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.blob,
           JdbcMethod.BLOB_SETBYTES,
@@ -175,6 +188,7 @@ public class BlobWrapper implements Blob {
       return WrapperUtils.executeWithPlugins(
           OutputStream.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.blob,
           JdbcMethod.BLOB_SETBINARYSTREAM,
@@ -190,6 +204,7 @@ public class BlobWrapper implements Blob {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.BLOB_TRUNCATE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.blob,
           JdbcMethod.BLOB_TRUNCATE,
@@ -205,10 +220,11 @@ public class BlobWrapper implements Blob {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.BLOB_FREE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.blob,
           JdbcMethod.BLOB_FREE,
-          () -> this.blob.free());
+          this.blob::free);
     } else {
       this.blob.free();
     }

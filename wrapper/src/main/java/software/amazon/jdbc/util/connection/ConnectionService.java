@@ -27,7 +27,7 @@ import software.amazon.jdbc.util.FullServicesContainer;
  * A service used to open new connections for internal driver use.
  *
  * @deprecated This interface is deprecated and will be removed in a future version. Use
- *     {@link software.amazon.jdbc.util.ServiceUtility#createServiceContainer} followed by
+ *     {@link software.amazon.jdbc.util.ServiceUtility#createMinimalServiceContainer} followed by
  *     {@link PluginService#forceConnect} instead.
  */
 @Deprecated
@@ -40,7 +40,7 @@ public interface ConnectionService {
    * @param props    the properties for the auxiliary connection.
    * @return a new connection to the given host using the given props.
    * @throws SQLException if an error occurs while opening the connection.
-   * @deprecated Use {@link software.amazon.jdbc.util.ServiceUtility#createServiceContainer} followed by
+   * @deprecated Use {@link software.amazon.jdbc.util.ServiceUtility#createMinimalServiceContainer} followed by
    *     {@link PluginService#forceConnect} instead.
    */
   @Deprecated
@@ -50,7 +50,7 @@ public interface ConnectionService {
    * Get the {@link PluginService} associated with this {@link ConnectionService}.
    *
    * @return the {@link PluginService} associated with this {@link ConnectionService}
-   * @deprecated Use {@link software.amazon.jdbc.util.ServiceUtility#createServiceContainer} followed by
+   * @deprecated Use {@link software.amazon.jdbc.util.ServiceUtility#createMinimalServiceContainer} followed by
    *     {@link FullServicesContainer#getPluginService()} instead.
    */
   @Deprecated

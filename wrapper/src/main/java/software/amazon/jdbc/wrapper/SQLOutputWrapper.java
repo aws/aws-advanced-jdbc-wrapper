@@ -42,12 +42,16 @@ import software.amazon.jdbc.util.WrapperUtils;
 
 public class SQLOutputWrapper implements SQLOutput {
 
-  protected SQLOutput sqlOutput;
-  protected ConnectionPluginManager pluginManager;
+  protected final SQLOutput sqlOutput;
+  protected final ConnectionWrapper connectionWrapper;
+  protected final ConnectionPluginManager pluginManager;
 
   public SQLOutputWrapper(
-      @NonNull SQLOutput sqlOutput, @NonNull ConnectionPluginManager pluginManager) {
+      @NonNull SQLOutput sqlOutput,
+      @NonNull ConnectionWrapper connectionWrapper,
+      @NonNull ConnectionPluginManager pluginManager) {
     this.sqlOutput = sqlOutput;
+    this.connectionWrapper = connectionWrapper;
     this.pluginManager = pluginManager;
   }
 
@@ -56,6 +60,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITESTRING)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITESTRING,
@@ -71,6 +76,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITEBOOLEAN)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITEBOOLEAN,
@@ -86,6 +92,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITEBYTE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITEBYTE,
@@ -101,6 +108,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITESHORT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITESHORT,
@@ -116,6 +124,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITEINT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITEINT,
@@ -131,6 +140,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITELONG)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITELONG,
@@ -146,6 +156,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITEFLOAT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITEFLOAT,
@@ -161,6 +172,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITEDOUBLE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITEDOUBLE,
@@ -176,6 +188,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITEBIGDECIMAL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITEBIGDECIMAL,
@@ -191,6 +204,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITEBYTES)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITEBYTES,
@@ -206,6 +220,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITEDATE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITEDATE,
@@ -221,6 +236,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITETIME)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITETIME,
@@ -236,6 +252,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITETIMESTAMP)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITETIMESTAMP,
@@ -251,6 +268,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITECHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITECHARACTERSTREAM,
@@ -266,6 +284,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITEASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITEASCIISTREAM,
@@ -281,6 +300,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITEBINARYSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITEBINARYSTREAM,
@@ -296,6 +316,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITEOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITEOBJECT,
@@ -311,6 +332,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITEOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITEOBJECT,
@@ -327,6 +349,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITEREF)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITEREF,
@@ -342,6 +365,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITEBLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITEBLOB,
@@ -357,6 +381,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITECLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITECLOB,
@@ -372,6 +397,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITESTRUCT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITESTRUCT,
@@ -387,6 +413,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITEARRAY)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITEARRAY,
@@ -402,6 +429,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITEURL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITEURL,
@@ -417,6 +445,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITENSTRING)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITENSTRING,
@@ -432,6 +461,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITENCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITENCLOB,
@@ -447,6 +477,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITEROWID)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITEROWID,
@@ -462,6 +493,7 @@ public class SQLOutputWrapper implements SQLOutput {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLOUTPUT_WRITESQLXML)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlOutput,
           JdbcMethod.SQLOUTPUT_WRITESQLXML,

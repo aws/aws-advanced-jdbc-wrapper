@@ -27,11 +27,16 @@ import software.amazon.jdbc.util.WrapperUtils;
 
 public class SQLDataWrapper implements SQLData {
 
-  protected SQLData sqlData;
-  protected ConnectionPluginManager pluginManager;
+  protected final SQLData sqlData;
+  protected final ConnectionWrapper connectionWrapper;
+  protected final ConnectionPluginManager pluginManager;
 
-  public SQLDataWrapper(@NonNull SQLData sqlData, @NonNull ConnectionPluginManager pluginManager) {
+  public SQLDataWrapper(
+      @NonNull SQLData sqlData,
+      @NonNull ConnectionWrapper connectionWrapper,
+      @NonNull ConnectionPluginManager pluginManager) {
     this.sqlData = sqlData;
+    this.connectionWrapper = connectionWrapper;
     this.pluginManager = pluginManager;
   }
 
@@ -41,10 +46,11 @@ public class SQLDataWrapper implements SQLData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlData,
           JdbcMethod.SQLDATA_GETSQLTYPENAME,
-          () -> this.sqlData.getSQLTypeName());
+          this.sqlData::getSQLTypeName);
     } else {
       return this.sqlData.getSQLTypeName();
     }
@@ -55,6 +61,7 @@ public class SQLDataWrapper implements SQLData {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLDATA_READSQL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlData,
           JdbcMethod.SQLDATA_READSQL,
@@ -71,6 +78,7 @@ public class SQLDataWrapper implements SQLData {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.SQLDATA_WRITESQL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlData,
           JdbcMethod.SQLDATA_WRITESQL,

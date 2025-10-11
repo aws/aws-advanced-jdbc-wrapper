@@ -37,7 +37,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
  * A service used to open new connections for internal driver use.
  *
  * @deprecated This class is deprecated and will be removed in a future version. Use
- *     {@link software.amazon.jdbc.util.ServiceUtility#createServiceContainer} followed by
+ *     {@link software.amazon.jdbc.util.ServiceUtility#createMinimalServiceContainer} followed by
  *     {@link PluginService#forceConnect} instead.
  */
 @Deprecated
@@ -49,7 +49,7 @@ public class ConnectionServiceImpl implements ConnectionService {
   /**
    * Constructs a {@link ConnectionServiceImpl} instance.
    *
-   * @deprecated Use {@link software.amazon.jdbc.util.ServiceUtility#createServiceContainer} instead.
+   * @deprecated Use {@link software.amazon.jdbc.util.ServiceUtility#createMinimalServiceContainer} instead.
    */
   @Deprecated
   public ConnectionServiceImpl(
@@ -66,11 +66,7 @@ public class ConnectionServiceImpl implements ConnectionService {
 
     FullServicesContainer servicesContainer =
         new FullServicesContainerImpl(storageService, monitorService, connectionProvider, telemetryFactory);
-    this.pluginManager = new ConnectionPluginManager(
-        connectionProvider,
-        null,
-        null,
-        telemetryFactory);
+    this.pluginManager = new ConnectionPluginManager(props, telemetryFactory, connectionProvider, null);
     servicesContainer.setConnectionPluginManager(this.pluginManager);
 
     Properties propsCopy = PropertyUtils.copyProperties(props);
@@ -88,7 +84,7 @@ public class ConnectionServiceImpl implements ConnectionService {
     servicesContainer.setPluginManagerService(partialPluginService);
 
     this.pluginService = partialPluginService;
-    this.pluginManager.init(servicesContainer, propsCopy, partialPluginService, null);
+    this.pluginManager.initPlugins(servicesContainer, null);
   }
 
   @Override

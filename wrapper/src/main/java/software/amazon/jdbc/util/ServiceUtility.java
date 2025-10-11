@@ -18,11 +18,15 @@ package software.amazon.jdbc.util;
 
 import java.sql.SQLException;
 import java.util.Properties;
-import java.util.concurrent.locks.ReentrantLock;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
+import software.amazon.jdbc.HostListProvider;
 import software.amazon.jdbc.PartialPluginService;
+import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.dialect.HostListProviderSupplier;
+import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
@@ -37,7 +41,51 @@ public class ServiceUtility {
     return instance;
   }
 
-  public FullServicesContainer createServiceContainer(
+  public FullServicesContainer createStandardServiceContainer(
+      StorageService storageService,
+      MonitorService monitorService,
+      ConnectionProvider defaultConnectionProvider,
+      ConnectionProvider effectiveConnectionProvider,
+      TelemetryFactory telemetryFactory,
+      String originalUrl,
+      String targetDriverProtocol,
+      TargetDriverDialect driverDialect,
+      Properties props,
+      @Nullable ConfigurationProfile configurationProfile) throws SQLException {
+    FullServicesContainer servicesContainer =
+        new FullServicesContainerImpl(storageService, monitorService, defaultConnectionProvider, telemetryFactory);
+
+    ConnectionPluginManager pluginManager =
+        new ConnectionPluginManager(props, telemetryFactory, defaultConnectionProvider, effectiveConnectionProvider);
+    servicesContainer.setConnectionPluginManager(pluginManager);
+
+    PluginServiceImpl pluginService = new PluginServiceImpl(
+        servicesContainer,
+        props,
+        originalUrl,
+        targetDriverProtocol,
+        driverDialect,
+        configurationProfile
+    );
+
+    servicesContainer.setHostListProviderService(pluginService);
+    servicesContainer.setPluginService(pluginService);
+    servicesContainer.setPluginManagerService(pluginService);
+
+    pluginManager.initPlugins(servicesContainer, configurationProfile);
+    final HostListProviderSupplier supplier = pluginService.getDialect().getHostListProvider();
+    if (supplier != null) {
+      final HostListProvider provider = supplier.getProvider(props, originalUrl, servicesContainer);
+      pluginService.setHostListProvider(provider);
+    }
+
+    pluginManager.initHostProvider(targetDriverProtocol, originalUrl, props, pluginService);
+    pluginService.refreshHostList();
+
+    return servicesContainer;
+  }
+
+  public FullServicesContainer createMinimalServiceContainer(
       StorageService storageService,
       MonitorService monitorService,
       ConnectionProvider connectionProvider,
@@ -47,14 +95,14 @@ public class ServiceUtility {
       TargetDriverDialect driverDialect,
       Dialect dbDialect,
       Properties props) throws SQLException {
-    FullServicesContainer servicesContainer =
+    FullServicesContainer serviceContainer =
         new FullServicesContainerImpl(storageService, monitorService, connectionProvider, telemetryFactory);
-    ConnectionPluginManager pluginManager = new ConnectionPluginManager(
-        connectionProvider, null, null, telemetryFactory);
-    servicesContainer.setConnectionPluginManager(pluginManager);
+    ConnectionPluginManager pluginManager =
+        new ConnectionPluginManager(props, telemetryFactory, connectionProvider, null);
+    serviceContainer.setConnectionPluginManager(pluginManager);
 
-    PartialPluginService partialPluginService = new PartialPluginService(
-        servicesContainer,
+    PartialPluginService pluginService = new PartialPluginService(
+        serviceContainer,
         props,
         originalUrl,
         targetDriverProtocol,
@@ -62,17 +110,17 @@ public class ServiceUtility {
         dbDialect
     );
 
-    servicesContainer.setHostListProviderService(partialPluginService);
-    servicesContainer.setPluginService(partialPluginService);
-    servicesContainer.setPluginManagerService(partialPluginService);
+    serviceContainer.setHostListProviderService(pluginService);
+    serviceContainer.setPluginService(pluginService);
+    serviceContainer.setPluginManagerService(pluginService);
 
-    pluginManager.init(servicesContainer, props, partialPluginService, null);
-    return servicesContainer;
+    pluginManager.initPlugins(serviceContainer, null);
+    return serviceContainer;
   }
 
-  public FullServicesContainer createServiceContainer(FullServicesContainer servicesContainer, Properties props)
+  public FullServicesContainer createMinimalServiceContainer(FullServicesContainer servicesContainer, Properties props)
       throws SQLException {
-    return createServiceContainer(
+    return createMinimalServiceContainer(
         servicesContainer.getStorageService(),
         servicesContainer.getMonitorService(),
         servicesContainer.getPluginService().getDefaultConnectionProvider(),

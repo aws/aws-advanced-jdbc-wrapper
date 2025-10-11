@@ -59,10 +59,10 @@ import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.CoreServicesContainer;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.FullServicesContainerImpl;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.ServiceUtility;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.monitoring.MonitorService;
@@ -110,6 +110,7 @@ public class Driver implements java.sql.Driver {
 
   private final StorageService storageService;
   private final MonitorService monitorService;
+  private final ConnectionUrlParser urlParser = new ConnectionUrlParser();
 
   public Driver() {
     this(CoreServicesContainer.getInstance());
@@ -239,18 +240,20 @@ public class Driver implements java.sql.Driver {
         effectiveConnectionProvider = configurationProfile.getConnectionProvider();
       }
 
-      FullServicesContainer servicesContainer =
-          new FullServicesContainerImpl(storageService, monitorService, defaultConnectionProvider, telemetryFactory);
-
-      return new ConnectionWrapper(
-          servicesContainer,
-          props,
-          driverUrl,
+      String targetDriverProtocol = urlParser.getProtocol(driverUrl);
+      FullServicesContainer servicesContainer = ServiceUtility.getInstance().createStandardServiceContainer(
+          storageService,
+          monitorService,
           defaultConnectionProvider,
           effectiveConnectionProvider,
+          telemetryFactory,
+          driverUrl,
+          targetDriverProtocol,
           targetDriverDialect,
+          props,
           configurationProfile);
 
+      return new ConnectionWrapper(servicesContainer, props, url, targetDriverProtocol, configurationProfile);
     } catch (Exception ex) {
       if (context != null) {
         context.setException(ex);

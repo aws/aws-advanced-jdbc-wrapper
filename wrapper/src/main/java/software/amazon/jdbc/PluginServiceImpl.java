@@ -20,6 +20,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Wrapper;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -57,7 +58,7 @@ import software.amazon.jdbc.util.storage.CacheMap;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class PluginServiceImpl implements PluginService, CanReleaseResources,
-    HostListProviderService, PluginManagerService {
+    HostListProviderService, PluginManagerService, Wrapper {
 
   private static final Logger LOGGER = Logger.getLogger(PluginServiceImpl.class.getName());
   protected static final long DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(5);
@@ -855,5 +856,23 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     } catch (SQLException e) {
       return false;
     }
+  }
+
+  @Override
+  public <T> T unwrap(Class<T> iface) throws SQLException {
+    if (iface == PluginService.class) {
+      return iface.cast(this);
+    }
+
+    return this.pluginManager.unwrap(iface);
+  }
+
+  @Override
+  public boolean isWrapperFor(Class<?> iface) throws SQLException {
+    if (iface == PluginService.class) {
+      return true;
+    }
+
+    return this.pluginManager.isWrapperFor(iface);
   }
 }

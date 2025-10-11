@@ -39,12 +39,16 @@ import software.amazon.jdbc.util.WrapperUtils;
 
 public class SQLInputWrapper implements SQLInput {
 
-  protected SQLInput sqlInput;
-  protected ConnectionPluginManager pluginManager;
+  protected final SQLInput sqlInput;
+  protected final ConnectionWrapper connectionWrapper;
+  protected final ConnectionPluginManager pluginManager;
 
   public SQLInputWrapper(
-      @NonNull SQLInput sqlInput, @NonNull ConnectionPluginManager pluginManager) {
+      @NonNull SQLInput sqlInput,
+      @NonNull ConnectionWrapper connectionWrapper,
+      @NonNull ConnectionPluginManager pluginManager) {
     this.sqlInput = sqlInput;
+    this.connectionWrapper = connectionWrapper;
     this.pluginManager = pluginManager;
   }
 
@@ -54,10 +58,11 @@ public class SQLInputWrapper implements SQLInput {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlInput,
           JdbcMethod.SQLINPUT_READSTRING,
-          () -> this.sqlInput.readString());
+          this.sqlInput::readString);
     } else {
       return this.sqlInput.readString();
     }
@@ -69,10 +74,11 @@ public class SQLInputWrapper implements SQLInput {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlInput,
           JdbcMethod.SQLINPUT_READBOOLEAN,
-          () -> this.sqlInput.readBoolean());
+          this.sqlInput::readBoolean);
     } else {
       return this.sqlInput.readBoolean();
     }
@@ -84,10 +90,11 @@ public class SQLInputWrapper implements SQLInput {
       return WrapperUtils.executeWithPlugins(
           byte.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlInput,
           JdbcMethod.SQLINPUT_READBYTE,
-          () -> this.sqlInput.readByte());
+          this.sqlInput::readByte);
     } else {
       return this.sqlInput.readByte();
     }
@@ -99,10 +106,11 @@ public class SQLInputWrapper implements SQLInput {
       return WrapperUtils.executeWithPlugins(
           short.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlInput,
           JdbcMethod.SQLINPUT_READSHORT,
-          () -> this.sqlInput.readShort());
+          this.sqlInput::readShort);
     } else {
       return this.sqlInput.readShort();
     }
@@ -114,10 +122,11 @@ public class SQLInputWrapper implements SQLInput {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlInput,
           JdbcMethod.SQLINPUT_READINT,
-          () -> this.sqlInput.readInt());
+          this.sqlInput::readInt);
     } else {
       return this.sqlInput.readInt();
     }
@@ -129,10 +138,11 @@ public class SQLInputWrapper implements SQLInput {
       return WrapperUtils.executeWithPlugins(
           long.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlInput,
           JdbcMethod.SQLINPUT_READLONG,
-          () -> this.sqlInput.readLong());
+          this.sqlInput::readLong);
     } else {
       return this.sqlInput.readLong();
     }
@@ -144,10 +154,11 @@ public class SQLInputWrapper implements SQLInput {
       return WrapperUtils.executeWithPlugins(
           float.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlInput,
           JdbcMethod.SQLINPUT_READFLOAT,
-          () -> this.sqlInput.readFloat());
+          this.sqlInput::readFloat);
     } else {
       return this.sqlInput.readFloat();
     }
@@ -159,10 +170,11 @@ public class SQLInputWrapper implements SQLInput {
       return WrapperUtils.executeWithPlugins(
           double.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlInput,
           JdbcMethod.SQLINPUT_READDOUBLE,
-          () -> this.sqlInput.readDouble());
+          this.sqlInput::readDouble);
     } else {
       return this.sqlInput.readDouble();
     }
@@ -174,10 +186,11 @@ public class SQLInputWrapper implements SQLInput {
       return WrapperUtils.executeWithPlugins(
           BigDecimal.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlInput,
           JdbcMethod.SQLINPUT_READBIGDECIMAL,
-          () -> this.sqlInput.readBigDecimal());
+          this.sqlInput::readBigDecimal);
     } else {
       return this.sqlInput.readBigDecimal();
     }
@@ -189,10 +202,11 @@ public class SQLInputWrapper implements SQLInput {
       return WrapperUtils.executeWithPlugins(
           byte[].class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlInput,
           JdbcMethod.SQLINPUT_READBYTES,
-          () -> this.sqlInput.readBytes());
+          this.sqlInput::readBytes);
     } else {
       return this.sqlInput.readBytes();
     }
@@ -204,10 +218,11 @@ public class SQLInputWrapper implements SQLInput {
       return WrapperUtils.executeWithPlugins(
           Date.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlInput,
           JdbcMethod.SQLINPUT_READDATE,
-          () -> this.sqlInput.readDate());
+          this.sqlInput::readDate);
     } else {
       return this.sqlInput.readDate();
     }
@@ -219,10 +234,11 @@ public class SQLInputWrapper implements SQLInput {
       return WrapperUtils.executeWithPlugins(
           Time.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlInput,
           JdbcMethod.SQLINPUT_READTIME,
-          () -> this.sqlInput.readTime());
+          this.sqlInput::readTime);
     } else {
       return this.sqlInput.readTime();
     }
@@ -234,10 +250,11 @@ public class SQLInputWrapper implements SQLInput {
       return WrapperUtils.executeWithPlugins(
           Timestamp.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlInput,
           JdbcMethod.SQLINPUT_READTIMESTAMP,
-          () -> this.sqlInput.readTimestamp());
+          this.sqlInput::readTimestamp);
     } else {
       return this.sqlInput.readTimestamp();
     }
@@ -249,10 +266,11 @@ public class SQLInputWrapper implements SQLInput {
       return WrapperUtils.executeWithPlugins(
           Reader.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlInput,
           JdbcMethod.SQLINPUT_READCHARACTERSTREAM,
-          () -> this.sqlInput.readCharacterStream());
+          this.sqlInput::readCharacterStream);
     } else {
       return this.sqlInput.readCharacterStream();
     }
@@ -264,10 +282,11 @@ public class SQLInputWrapper implements SQLInput {
       return WrapperUtils.executeWithPlugins(
           InputStream.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlInput,
           JdbcMethod.SQLINPUT_READASCIISTREAM,
-          () -> this.sqlInput.readAsciiStream());
+          this.sqlInput::readAsciiStream);
     } else {
       return this.sqlInput.readAsciiStream();
     }
@@ -279,10 +298,11 @@ public class SQLInputWrapper implements SQLInput {
       return WrapperUtils.executeWithPlugins(
           InputStream.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlInput,
           JdbcMethod.SQLINPUT_READBINARYSTREAM,
-          () -> this.sqlInput.readBinaryStream());
+          this.sqlInput::readBinaryStream);
     } else {
       return this.sqlInput.readBinaryStream();
     }
@@ -294,10 +314,11 @@ public class SQLInputWrapper implements SQLInput {
       return WrapperUtils.executeWithPlugins(
           Object.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlInput,
           JdbcMethod.SQLINPUT_READOBJECT,
-          () -> this.sqlInput.readObject());
+          this.sqlInput::readObject);
     } else {
       return this.sqlInput.readObject();
     }
@@ -309,6 +330,7 @@ public class SQLInputWrapper implements SQLInput {
       return WrapperUtils.executeWithPlugins(
           type,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlInput,
           JdbcMethod.SQLINPUT_READOBJECT,
@@ -324,10 +346,11 @@ public class SQLInputWrapper implements SQLInput {
     return WrapperUtils.executeWithPlugins(
         Ref.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.sqlInput,
         JdbcMethod.SQLINPUT_READREF,
-        () -> this.sqlInput.readRef());
+        this.sqlInput::readRef);
   }
 
   @Override
@@ -335,10 +358,11 @@ public class SQLInputWrapper implements SQLInput {
     return WrapperUtils.executeWithPlugins(
         Blob.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.sqlInput,
         JdbcMethod.SQLINPUT_READBLOB,
-        () -> this.sqlInput.readBlob());
+        this.sqlInput::readBlob);
   }
 
   @Override
@@ -346,10 +370,11 @@ public class SQLInputWrapper implements SQLInput {
     return WrapperUtils.executeWithPlugins(
         Clob.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.sqlInput,
         JdbcMethod.SQLINPUT_READCLOB,
-        () -> this.sqlInput.readClob());
+        this.sqlInput::readClob);
   }
 
   @Override
@@ -357,10 +382,11 @@ public class SQLInputWrapper implements SQLInput {
     return WrapperUtils.executeWithPlugins(
         Array.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.sqlInput,
         JdbcMethod.SQLINPUT_READARRAY,
-        () -> this.sqlInput.readArray());
+        this.sqlInput::readArray);
   }
 
   @Override
@@ -369,10 +395,11 @@ public class SQLInputWrapper implements SQLInput {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlInput,
           JdbcMethod.SQLINPUT_WASNULL,
-          () -> this.sqlInput.wasNull());
+          this.sqlInput::wasNull);
     } else {
       return this.sqlInput.wasNull();
     }
@@ -384,10 +411,11 @@ public class SQLInputWrapper implements SQLInput {
       return WrapperUtils.executeWithPlugins(
           URL.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlInput,
           JdbcMethod.SQLINPUT_READURL,
-          () -> this.sqlInput.readURL());
+          this.sqlInput::readURL);
     } else {
       return this.sqlInput.readURL();
     }
@@ -398,10 +426,11 @@ public class SQLInputWrapper implements SQLInput {
     return WrapperUtils.executeWithPlugins(
         NClob.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.sqlInput,
         JdbcMethod.SQLINPUT_READNCLOB,
-        () -> this.sqlInput.readNClob());
+        this.sqlInput::readNClob);
   }
 
   @Override
@@ -410,10 +439,11 @@ public class SQLInputWrapper implements SQLInput {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlInput,
           JdbcMethod.SQLINPUT_READNSTRING,
-          () -> this.sqlInput.readNString());
+          this.sqlInput::readNString);
     } else {
       return this.sqlInput.readNString();
     }
@@ -425,10 +455,11 @@ public class SQLInputWrapper implements SQLInput {
       return WrapperUtils.executeWithPlugins(
           SQLXML.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlInput,
           JdbcMethod.SQLINPUT_READSQLXML,
-          () -> this.sqlInput.readSQLXML());
+          this.sqlInput::readSQLXML);
     } else {
       return this.sqlInput.readSQLXML();
     }
@@ -440,10 +471,11 @@ public class SQLInputWrapper implements SQLInput {
       return WrapperUtils.executeWithPlugins(
           RowId.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.sqlInput,
           JdbcMethod.SQLINPUT_READROWID,
-          () -> this.sqlInput.readRowId());
+          this.sqlInput::readRowId);
     } else {
       return this.sqlInput.readRowId();
     }
