@@ -5,6 +5,10 @@ The JDBC Wrapper also supports [connection pooling](./DataSource.md#Using-the-Aw
 ## Using the AWS JDBC Driver with plain RDS databases
 It is possible to use the AWS JDBC Driver with plain RDS databases, but individual features may or may not be compatible. For example, failover handling and enhanced failure monitoring are not compatible with plain RDS databases and the relevant plugins must be disabled. Plugins can be enabled or disabled as seen in the [Connection Plugin Manager Parameters](#connection-plugin-manager-parameters) section. Please note that some plugins have been enabled by default. Plugin compatibility can be verified in the [plugins table](#list-of-available-plugins).
 
+## Using the AWS JDBC Driver with custom endpoints and other non-standard URLs
+> [!WARNING]\
+> If connecting using a non-standard RDS URL (e.g. a custom endpoint, ip address, rds proxy, or custom domain URL), the clusterId property must be set. If the `clusterId` is omitted when using a non-standard RDS URL, you may experience various issues. For more information, please see the [AWS Advanced JDBC Driver Parameters](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#aws-advanced-jdbc-driver-parameters) section. 
+
 ## Wrapper Protocol
 The AWS JDBC Driver uses the protocol prefix `jdbc:aws-wrapper:`. Internally, the JDBC Wrapper will replace this protocol prefix with `jdbc:`, making the final protocol `jdbc:aws-wrapper:{suffix}` where `suffix` is specific to the desired underlying protocol. For example, to connect to a PostgreSQL database, you would use the protocol `jdbc:aws-wrapper:postgresql:`, and inside the AWS JDBC Driver, the final protocol that will be used to connect to a database will be `jdbc:postgresql:`.
 
