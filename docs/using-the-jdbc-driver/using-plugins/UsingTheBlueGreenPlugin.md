@@ -18,7 +18,7 @@ The AWS JDBC Driver leverages the Blue/Green Deployment approach by intelligentl
 >
 > Additional Requirements:
 > - AWS cluster and instance endpoints must be directly accessible from the client side
-> - :warning: If connecting with non-admin users, permissions must be granted to the users so that the blue/green metadata table can be properly queried. If the permissions are not granted, the metadata table will not be visible and blue/green plugin functionality will not work properly. Please see the [Connecting with non-admin users](#connecting-with-non-admin-users) section below.
+> - :warning: If connecting with non-admin users, permissions must be granted to the users so that the blue/green metadata table/function can be properly queried. If the permissions are not granted, the metadata table/function will not be visible and blue/green plugin functionality will not work properly. Please see the [Connecting with non-admin users](#connecting-with-non-admin-users) section below.
 > - Connecting to database nodes using CNAME aliases is not supported
 >
 > **Blue/Green Support Behaviour and Version Compatibility:**
@@ -93,7 +93,7 @@ properties.setProperty("blue-green-monitoring-socketTimeout", "10000");
 
 ## Connecting with non-admin users
 > [!WARNING]\
-> If connecting with non-admin users, permissions must be granted to the users so that the blue/green metadata table can be properly queried. If the permissions are not granted, the metadata table will not be visible and blue/green plugin functionality will not work properly.
+> If connecting with non-admin users, permissions must be granted to the users so that the blue/green metadata table/function can be properly queried. If the permissions are not granted, the metadata table/function will not be visible and blue/green plugin functionality will not work properly.
 
 | Environment       | Required permission statements                                                                                        |
 |-------------------|-----------------------------------------------------------------------------------------------------------------------|
