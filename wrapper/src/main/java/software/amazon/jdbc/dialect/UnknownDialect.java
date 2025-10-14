@@ -65,12 +65,12 @@ public class UnknownDialect implements Dialect {
   }
 
   @Override
-  public String getServerVersionQuery() {
+  public String getServerVersionQuery(final Properties properties) {
     return null;
   }
 
   @Override
-  public boolean isDialect(final Connection connection) {
+  public boolean isDialect(final Connection connection, final Properties properties) {
     return false;
   }
 

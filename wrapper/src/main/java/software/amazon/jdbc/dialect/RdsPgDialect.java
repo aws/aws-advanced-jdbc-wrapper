@@ -22,6 +22,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Properties;
 import java.util.logging.Logger;
 import software.amazon.jdbc.util.DriverInfo;
 
@@ -51,41 +52,25 @@ public class RdsPgDialect extends PgDialect implements BlueGreenDialect {
       "SELECT 'rds_tools.show_topology'::regproc";
 
   @Override
-  public boolean isDialect(final Connection connection) {
-    if (!super.isDialect(connection)) {
+  public boolean isDialect(final Connection connection, final Properties properties) {
+    if (!super.isDialect(connection, properties)) {
       return false;
     }
-    Statement stmt = null;
-    ResultSet rs = null;
 
     try {
-      stmt = connection.createStatement();
-      rs = stmt.executeQuery(extensionsSql);
-      while (rs.next()) {
-        final boolean rdsTools = rs.getBoolean("rds_tools");
-        final boolean auroraUtils = rs.getBoolean("aurora_stat_utils");
-        LOGGER.finest(() -> String.format("rdsTools: %b, auroraUtils: %b", rdsTools, auroraUtils));
-        if (rdsTools && !auroraUtils) {
-          return true;
+      try (Statement stmt = connection.createStatement();
+          ResultSet rs = stmt.executeQuery(extensionsSql)) {
+        while (rs.next()) {
+          final boolean rdsTools = rs.getBoolean("rds_tools");
+          final boolean auroraUtils = rs.getBoolean("aurora_stat_utils");
+          LOGGER.finest(() -> String.format("rdsTools: %b, auroraUtils: %b", rdsTools, auroraUtils));
+          if (rdsTools && !auroraUtils) {
+            return true;
+          }
         }
       }
-    } catch (final SQLException ex) {
-      // ignore
-    } finally {
-      if (stmt != null) {
-        try {
-          stmt.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
-      if (rs != null) {
-        try {
-          rs.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
+    } catch (SQLException ex) {
+      // do nothing
     }
     return false;
   }

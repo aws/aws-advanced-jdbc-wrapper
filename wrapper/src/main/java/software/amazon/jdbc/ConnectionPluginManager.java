@@ -67,6 +67,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
   private static final Logger LOGGER = Logger.getLogger(ConnectionPluginManager.class.getName());
 
+  public static final String EFFECTIVE_PLUGIN_CODES_PROPERTY = "46762024-847c-41c8-aa46-0c65e8560c89";
+
   protected static final Map<Class<? extends ConnectionPlugin>, String> pluginNameByClass =
       new HashMap<Class<? extends ConnectionPlugin>, String>() {
         {
@@ -96,6 +98,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
   protected Properties props = new Properties();
   protected List<ConnectionPlugin> plugins;
+  protected String effectivePluginCodes;
   protected final @NonNull ConnectionProvider defaultConnProvider;
   protected final @Nullable ConnectionProvider effectiveConnProvider;
   protected final ConnectionWrapper connectionWrapper;
@@ -195,6 +198,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
         pluginManagerService,
         props,
         configurationProfile);
+    this.effectivePluginCodes = pluginChainBuilder.getPluginCodes(this.plugins);
+    this.props.setProperty(EFFECTIVE_PLUGIN_CODES_PROPERTY, this.effectivePluginCodes);
   }
 
   protected <T, E extends Exception> T executeWithSubscribedPlugins(

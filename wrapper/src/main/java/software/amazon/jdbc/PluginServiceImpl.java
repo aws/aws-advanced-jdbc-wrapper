@@ -721,7 +721,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     this.dialect = this.dialectProvider.getDialect(
         this.originalUrl,
         this.initialConnectionHostSpec,
-        connection);
+        connection,
+        this.props);
     if (originalDialect == this.dialect) {
       return;
     }

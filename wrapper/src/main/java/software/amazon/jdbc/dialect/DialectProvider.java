@@ -31,5 +31,6 @@ public interface DialectProvider {
   Dialect getDialect(
       final @NonNull String originalUrl,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Connection connection) throws SQLException;
+      final @NonNull Connection connection,
+      final @NonNull Properties properties) throws SQLException;
 }

@@ -234,7 +234,8 @@ public class DialectManager implements DialectProvider {
   public Dialect getDialect(
       final @NonNull String originalUrl,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Connection connection) throws SQLException {
+      final @NonNull Connection connection,
+      final @NonNull Properties properties) throws SQLException {
 
     if (!this.canUpdate) {
       this.logCurrentDialect();
@@ -249,7 +250,7 @@ public class DialectManager implements DialectProvider {
           throw new SQLException(
               Messages.get("DialectManager.unknownDialectCode", new Object[] {dialectCandidateCode}));
         }
-        boolean isDialect = dialectCandidate.isDialect(connection);
+        boolean isDialect = dialectCandidate.isDialect(connection, properties);
         if (isDialect) {
           this.canUpdate = false;
           this.dialectCode = dialectCandidateCode;

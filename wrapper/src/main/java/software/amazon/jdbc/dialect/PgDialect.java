@@ -25,11 +25,13 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.PgExceptionHandler;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverRestriction;
+import software.amazon.jdbc.util.DriverInfo;
 
 /**
  * Generic dialect for any Postgresql database.
@@ -64,39 +66,31 @@ public class PgDialect implements Dialect {
   }
 
   @Override
-  public String getServerVersionQuery() {
-    return "SELECT 'version', VERSION()";
+  public String getServerVersionQuery(final Properties properties) {
+    // We'd like to make this query as "unique" as possible so we add such wierd WHERE conditions.
+    // That helps to keep this query in pg_stat_statements.
+    return String.format(
+        "SELECT /* _driver:aws_jdbc_driver,_driver_version:%s,_jdbc_wrapper_plugins:%s */ 'version', VERSION()"
+            + " WHERE 1 > 0 AND 0 < 1",
+        DriverInfo.DRIVER_VERSION,
+        properties.getProperty(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY));
   }
 
   @Override
-  public boolean isDialect(final Connection connection) {
-    Statement stmt = null;
-    ResultSet rs = null;
+  public boolean isDialect(final Connection connection, final Properties properties) {
     try {
-      stmt = connection.createStatement();
-      rs = stmt.executeQuery("SELECT 1 FROM pg_proc LIMIT 1");
-      if (rs.next()) {
-        return true;
-      }
-    } catch (final SQLException ex) {
-      // ignore
-    } finally {
-      if (stmt != null) {
-        try {
-          stmt.close();
-        } catch (SQLException ex) {
-          // ignore
+      try (Statement stmt = connection.createStatement();
+          ResultSet rs = stmt.executeQuery(this.getServerVersionQuery(properties))) {
+        if (!rs.next()) {
+          return false;
         }
+
+        String version = rs.getString(2);
+        return version != null && version.toLowerCase().contains("postgresql");
       }
-      if (rs != null) {
-        try {
-          rs.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
+    } catch (SQLException ex) {
+      return false;
     }
-    return false;
   }
 
   @Override
