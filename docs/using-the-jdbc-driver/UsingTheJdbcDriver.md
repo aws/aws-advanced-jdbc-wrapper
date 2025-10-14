@@ -378,7 +378,7 @@ public static void main(String[] args) throws SQLException {
 public static void main(String[] args) throws SQLException {
 
     final Properties properties = new Properties();
-    properties.setProperty("wrapperPlugins", "awsSecretsManagers");
+    properties.setProperty("wrapperPlugins", "awsSecretsManager");
     properties.setProperty("secretsManagerSecretId", "secretId");
     properties.setProperty("secretsManagerRegion", "us-east-2");
 
