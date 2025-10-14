@@ -153,13 +153,7 @@ public class HostMonitorServiceImpl implements HostMonitorService {
     return this.coreMonitorService.runIfAbsent(
         HostMonitorImpl.class,
         monitorKey,
-        this.serviceContainer.getStorageService(),
-        this.telemetryFactory,
-        this.pluginService.getDefaultConnectionProvider(),
-        this.pluginService.getOriginalUrl(),
-        this.pluginService.getDriverProtocol(),
-        this.pluginService.getTargetDriverDialect(),
-        this.pluginService.getDialect(),
+        this.serviceContainer,
         this.pluginService.getProperties(),
         (servicesContainer) -> new HostMonitorImpl(
             servicesContainer,

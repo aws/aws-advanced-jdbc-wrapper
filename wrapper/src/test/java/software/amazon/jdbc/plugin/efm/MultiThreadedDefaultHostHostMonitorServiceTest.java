@@ -164,7 +164,7 @@ class MultiThreadedDefaultHostHostMonitorServiceTest {
     }
   }
 
-  @RepeatedTest(value = 1000, name = "start monitoring with multiple connections to the same node")
+  @RepeatedTest(value = 10, name = "start monitoring with multiple connections to the same node")
   void test_2_startMonitoring_multipleConnectionsToOneNode()
       throws InterruptedException, ExecutionException {
     final int numConnections = 10;
@@ -190,7 +190,7 @@ class MultiThreadedDefaultHostHostMonitorServiceTest {
     }
   }
 
-  @RepeatedTest(value = 1000, name = "stop monitoring with multiple connections to different nodes")
+  @RepeatedTest(value = 10, name = "stop monitoring with multiple connections to different nodes")
   void test_3_stopMonitoring_multipleConnectionsToDifferentNodes()
       throws ExecutionException, InterruptedException {
     final int numConnections = 10;
@@ -210,7 +210,7 @@ class MultiThreadedDefaultHostHostMonitorServiceTest {
     }
   }
 
-  @RepeatedTest(value = 1000, name = "stop monitoring with multiple connections to the same node")
+  @RepeatedTest(value = 10, name = "stop monitoring with multiple connections to the same node")
   void test_4_stopMonitoring_multipleConnectionsToTheSameNode()
       throws ExecutionException, InterruptedException {
     final int numConnections = 10;

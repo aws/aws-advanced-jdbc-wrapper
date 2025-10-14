@@ -23,7 +23,10 @@ import software.amazon.jdbc.ConnectionPluginManager;
 public class RefWrapperFactory implements WrapperFactory {
 
   @Override
-  public Object getInstance(@NonNull Object targetObj, @NonNull ConnectionPluginManager pluginManager) {
-    return new RefWrapper((Ref) targetObj, pluginManager);
+  public Object getInstance(
+      @NonNull Object targetObj,
+      @NonNull ConnectionWrapper connectionWrapper,
+      @NonNull ConnectionPluginManager pluginManager) {
+    return new RefWrapper((Ref) targetObj, connectionWrapper, pluginManager);
   }
 }

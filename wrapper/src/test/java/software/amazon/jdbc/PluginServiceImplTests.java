@@ -671,7 +671,7 @@ public class PluginServiceImplTests {
 
     final HostSpec hostA = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.NOT_AVAILABLE)
-        .build();;
+        .build();
     hostA.addAlias("ip-10-10-10-10");
     hostA.addAlias("hostA.custom.domain.com");
     final HostSpec hostB = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())

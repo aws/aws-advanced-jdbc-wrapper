@@ -26,11 +26,16 @@ import software.amazon.jdbc.util.WrapperUtils;
 
 public class RefWrapper implements Ref {
 
-  protected Ref ref;
-  protected ConnectionPluginManager pluginManager;
+  protected final Ref ref;
+  protected final ConnectionWrapper connectionWrapper;
+  protected final ConnectionPluginManager pluginManager;
 
-  public RefWrapper(@NonNull Ref ref, @NonNull ConnectionPluginManager pluginManager) {
+  public RefWrapper(
+      @NonNull Ref ref,
+      @NonNull ConnectionWrapper connectionWrapper,
+      @NonNull ConnectionPluginManager pluginManager) {
     this.ref = ref;
+    this.connectionWrapper = connectionWrapper;
     this.pluginManager = pluginManager;
   }
 
@@ -40,10 +45,11 @@ public class RefWrapper implements Ref {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.ref,
           JdbcMethod.REF_GETBASETYPENAME,
-          () -> this.ref.getBaseTypeName());
+          this.ref::getBaseTypeName);
     } else {
       return this.ref.getBaseTypeName();
     }
@@ -55,6 +61,7 @@ public class RefWrapper implements Ref {
       return WrapperUtils.executeWithPlugins(
           Object.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.ref,
           JdbcMethod.REF_GETOBJECT,
@@ -71,10 +78,11 @@ public class RefWrapper implements Ref {
       return WrapperUtils.executeWithPlugins(
           Object.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.ref,
           JdbcMethod.REF_GETOBJECT,
-          () -> this.ref.getObject());
+          this.ref::getObject);
     } else {
       return this.ref.getObject();
     }
@@ -85,6 +93,7 @@ public class RefWrapper implements Ref {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.REF_SETOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.ref,
           JdbcMethod.REF_SETOBJECT,

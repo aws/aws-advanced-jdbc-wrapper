@@ -21,8 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
@@ -33,6 +33,7 @@ import java.util.HashSet;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -47,33 +48,29 @@ import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 class MonitorServiceImplTest {
-  @Mock FullServicesContainer mockServicesContainer;
   @Mock StorageService mockStorageService;
+  @Mock FullServicesContainer mockContainer;
   @Mock ConnectionProvider mockConnectionProvider;
   @Mock TelemetryFactory mockTelemetryFactory;
   @Mock TargetDriverDialect mockTargetDriverDialect;
   @Mock Dialect mockDbDialect;
   @Mock EventPublisher mockPublisher;
-  String url = "jdbc:postgresql://somehost/somedb";
-  String protocol = "someProtocol";
-  Properties props = new Properties();
   MonitorServiceImpl spyMonitorService;
   private AutoCloseable closeable;
 
   @BeforeEach
-  void setUp() throws SQLException {
+  void setUp() {
     closeable = MockitoAnnotations.openMocks(this);
     spyMonitorService = spy(new MonitorServiceImpl(mockPublisher));
     doNothing().when(spyMonitorService).initCleanupThread(anyInt());
-    doReturn(mockServicesContainer).when(spyMonitorService).getNewServicesContainer(
-        eq(mockStorageService),
-        eq(mockConnectionProvider),
-        eq(mockTelemetryFactory),
-        eq(url),
-        eq(protocol),
-        eq(mockTargetDriverDialect),
-        eq(mockDbDialect),
-        eq(props));
+
+    try {
+      doReturn(mockContainer).when(spyMonitorService)
+          .newServicesContainer(any(), any(), any(), any(), any(), any(), any(), any());
+    } catch (SQLException e) {
+      Assertions.fail(
+          "Encountered exception while stubbing MonitorServiceImpl#getConnectionService: " + e.getMessage());
+    }
   }
 
   @AfterEach
@@ -98,12 +95,12 @@ class MonitorServiceImplTest {
         mockStorageService,
         mockTelemetryFactory,
         mockConnectionProvider,
-        url,
-        protocol,
+        "jdbc:postgresql://somehost/somedb",
+        "someProtocol",
         mockTargetDriverDialect,
         mockDbDialect,
-        props,
-        (mockServicesContainer) -> new NoOpMonitor(30)
+        new Properties(),
+        (serviceContainer) -> new NoOpMonitor(30)
     );
 
     Monitor storedMonitor = spyMonitorService.get(NoOpMonitor.class, key);
@@ -142,12 +139,12 @@ class MonitorServiceImplTest {
         mockStorageService,
         mockTelemetryFactory,
         mockConnectionProvider,
-        url,
-        protocol,
+        "jdbc:postgresql://somehost/somedb",
+        "someProtocol",
         mockTargetDriverDialect,
         mockDbDialect,
-        props,
-        (mockServicesContainer) -> new NoOpMonitor(30)
+        new Properties(),
+        (serviceContainer) -> new NoOpMonitor(30)
     );
 
     Monitor storedMonitor = spyMonitorService.get(NoOpMonitor.class, key);
@@ -188,12 +185,12 @@ class MonitorServiceImplTest {
         mockStorageService,
         mockTelemetryFactory,
         mockConnectionProvider,
-        url,
-        protocol,
+        "jdbc:postgresql://somehost/somedb",
+        "someProtocol",
         mockTargetDriverDialect,
         mockDbDialect,
-        props,
-        (mockServicesContainer) -> new NoOpMonitor(30)
+        new Properties(),
+        (serviceContainer) -> new NoOpMonitor(30)
     );
 
     Monitor storedMonitor = spyMonitorService.get(NoOpMonitor.class, key);
@@ -221,14 +218,14 @@ class MonitorServiceImplTest {
         mockStorageService,
         mockTelemetryFactory,
         mockConnectionProvider,
-        url,
-        protocol,
+        "jdbc:postgresql://somehost/somedb",
+        "someProtocol",
         mockTargetDriverDialect,
         mockDbDialect,
-        props,
+        new Properties(),
         // indicated monitor class is CustomEndpointMonitorImpl, but actual monitor is NoOpMonitor. The monitor
         // service should detect this and throw an exception.
-        (mockServicesContainer) -> new NoOpMonitor(30)
+        (serviceContainer) -> new NoOpMonitor(30)
     ));
   }
 
@@ -251,12 +248,12 @@ class MonitorServiceImplTest {
         mockStorageService,
         mockTelemetryFactory,
         mockConnectionProvider,
-        url,
-        protocol,
+        "jdbc:postgresql://somehost/somedb",
+        "someProtocol",
         mockTargetDriverDialect,
         mockDbDialect,
-        props,
-        (mockServicesContainer) -> new NoOpMonitor(30)
+        new Properties(),
+        (serviceContainer) -> new NoOpMonitor(30)
     );
     assertNotNull(monitor);
 
@@ -286,12 +283,12 @@ class MonitorServiceImplTest {
         mockStorageService,
         mockTelemetryFactory,
         mockConnectionProvider,
-        url,
-        protocol,
+        "jdbc:postgresql://somehost/somedb",
+        "someProtocol",
         mockTargetDriverDialect,
         mockDbDialect,
-        props,
-        (mockServicesContainer) -> new NoOpMonitor(30)
+        new Properties(),
+        (serviceContainer) -> new NoOpMonitor(30)
     );
     assertNotNull(monitor);
 
@@ -303,7 +300,8 @@ class MonitorServiceImplTest {
   }
 
   static class NoOpMonitor extends AbstractMonitor {
-    protected NoOpMonitor(long terminationTimeoutSec) {
+    protected NoOpMonitor(
+        long terminationTimeoutSec) {
       super(terminationTimeoutSec);
     }
 

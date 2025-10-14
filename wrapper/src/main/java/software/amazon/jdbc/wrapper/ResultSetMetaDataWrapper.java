@@ -25,13 +25,16 @@ import software.amazon.jdbc.util.WrapperUtils;
 
 public class ResultSetMetaDataWrapper implements ResultSetMetaData {
 
-  protected ResultSetMetaData resultSetMetaData;
-  protected ConnectionPluginManager pluginManager;
+  protected final ResultSetMetaData resultSetMetaData;
+  protected final ConnectionWrapper connectionWrapper;
+  protected final ConnectionPluginManager pluginManager;
 
   public ResultSetMetaDataWrapper(
       @NonNull ResultSetMetaData resultSetMetaData,
+      @NonNull ConnectionWrapper connectionWrapper,
       @NonNull ConnectionPluginManager pluginManager) {
     this.resultSetMetaData = resultSetMetaData;
+    this.connectionWrapper = connectionWrapper;
     this.pluginManager = pluginManager;
   }
 
@@ -41,10 +44,11 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSetMetaData,
           JdbcMethod.RESULTSETMETADATA_GETCOLUMNCOUNT,
-          () -> this.resultSetMetaData.getColumnCount());
+          this.resultSetMetaData::getColumnCount);
     } else {
       return this.resultSetMetaData.getColumnCount();
     }
@@ -56,6 +60,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSetMetaData,
           JdbcMethod.RESULTSETMETADATA_ISAUTOINCREMENT,
@@ -72,6 +77,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSetMetaData,
           JdbcMethod.RESULTSETMETADATA_ISCASESENSITIVE,
@@ -88,6 +94,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSetMetaData,
           JdbcMethod.RESULTSETMETADATA_ISSEARCHABLE,
@@ -104,6 +111,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSetMetaData,
           JdbcMethod.RESULTSETMETADATA_ISCURRENCY,
@@ -121,6 +129,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSetMetaData,
           JdbcMethod.RESULTSETMETADATA_ISNULLABLE,
@@ -137,6 +146,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSetMetaData,
           JdbcMethod.RESULTSETMETADATA_ISSIGNED,
@@ -153,6 +163,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSetMetaData,
           JdbcMethod.RESULTSETMETADATA_GETCOLUMNDISPLAYSIZE,
@@ -169,6 +180,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSetMetaData,
           JdbcMethod.RESULTSETMETADATA_GETCOLUMNLABEL,
@@ -185,6 +197,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSetMetaData,
           JdbcMethod.RESULTSETMETADATA_GETCOLUMNNAME,
@@ -201,6 +214,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSetMetaData,
           JdbcMethod.RESULTSETMETADATA_GETSCHEMANAME,
@@ -217,6 +231,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSetMetaData,
           JdbcMethod.RESULTSETMETADATA_GETPRECISION,
@@ -233,6 +248,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSetMetaData,
           JdbcMethod.RESULTSETMETADATA_GETSCALE,
@@ -249,6 +265,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSetMetaData,
           JdbcMethod.RESULTSETMETADATA_GETTABLENAME,
@@ -265,6 +282,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSetMetaData,
           JdbcMethod.RESULTSETMETADATA_GETCATALOGNAME,
@@ -281,6 +299,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSetMetaData,
           JdbcMethod.RESULTSETMETADATA_GETCOLUMNTYPE,
@@ -297,6 +316,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSetMetaData,
           JdbcMethod.RESULTSETMETADATA_GETCOLUMNTYPENAME,
@@ -313,6 +333,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSetMetaData,
           JdbcMethod.RESULTSETMETADATA_ISREADONLY,
@@ -329,6 +350,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSetMetaData,
           JdbcMethod.RESULTSETMETADATA_ISWRITABLE,
@@ -345,6 +367,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSetMetaData,
           JdbcMethod.RESULTSETMETADATA_ISDEFINITELYWRITABLE,
@@ -361,6 +384,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
       return WrapperUtils.executeWithPlugins(
           String.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.resultSetMetaData,
           JdbcMethod.RESULTSETMETADATA_GETCOLUMNCLASSNAME,

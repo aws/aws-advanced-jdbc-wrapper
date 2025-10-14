@@ -48,6 +48,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.stubbing.Answer;
+import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
@@ -58,9 +59,11 @@ import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.util.FullServicesContainer;
 
 class ClusterAwareReaderFailoverHandlerTest {
-  @Mock FullServicesContainer mockContainer1;
-  @Mock FullServicesContainer mockContainer2;
+  @Mock FullServicesContainer mockContainer;
+  @Mock FullServicesContainer mockTask1Container;
+  @Mock FullServicesContainer mockTask2Container;
   @Mock PluginService mockPluginService;
+  @Mock ConnectionPluginManager mockPluginManager;
   @Mock Connection mockConnection;
 
   private AutoCloseable closeable;
@@ -83,8 +86,10 @@ class ClusterAwareReaderFailoverHandlerTest {
   @BeforeEach
   void setUp() {
     closeable = MockitoAnnotations.openMocks(this);
-    when(mockContainer1.getPluginService()).thenReturn(mockPluginService);
-    when(mockContainer2.getPluginService()).thenReturn(mockPluginService);
+    when(mockContainer.getConnectionPluginManager()).thenReturn(mockPluginManager);
+    when(mockContainer.getPluginService()).thenReturn(mockPluginService);
+    when(mockTask1Container.getPluginService()).thenReturn(mockPluginService);
+    when(mockTask2Container.getPluginService()).thenReturn(mockPluginService);
   }
 
   @AfterEach
@@ -177,17 +182,17 @@ class ClusterAwareReaderFailoverHandlerTest {
 
   private ClusterAwareReaderFailoverHandler getSpyFailoverHandler() throws SQLException {
     ClusterAwareReaderFailoverHandler handler =
-        spy(new ClusterAwareReaderFailoverHandler(mockContainer1, properties));
-    doReturn(mockContainer2).when(handler).newServicesContainer();
+        spy(new ClusterAwareReaderFailoverHandler(mockContainer, properties));
+    doReturn(mockTask1Container, mockTask2Container).when(handler).newServicesContainer();
     return handler;
   }
 
   private ClusterAwareReaderFailoverHandler getSpyFailoverHandler(
       int maxFailoverTimeoutMs, int timeoutMs, boolean isStrictReaderRequired) throws SQLException {
     ClusterAwareReaderFailoverHandler handler = new ClusterAwareReaderFailoverHandler(
-        mockContainer1, properties, maxFailoverTimeoutMs, timeoutMs, isStrictReaderRequired);
+        mockContainer, properties, maxFailoverTimeoutMs, timeoutMs, isStrictReaderRequired);
     ClusterAwareReaderFailoverHandler spyHandler = spy(handler);
-    doReturn(mockContainer2).when(spyHandler).newServicesContainer();
+    doReturn(mockTask1Container, mockTask2Container).when(spyHandler).newServicesContainer();
     return spyHandler;
   }
 
@@ -381,7 +386,7 @@ class ClusterAwareReaderFailoverHandlerTest {
     List<HostSpec> hostsByPriority = target.getHostsByPriority(hosts);
     assertEquals(expectedHostsByPriority, hostsByPriority);
 
-    // Should pick the reader even if unavailable. The unavailable reader will have lower priority than the writer.
+    // Should pick the reader even if unavailable. The writer will be prioritized over the unavailable reader.
     reader.setAvailability(HostAvailability.NOT_AVAILABLE);
     expectedHostsByPriority = Arrays.asList(writer, reader);
 

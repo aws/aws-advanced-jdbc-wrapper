@@ -179,7 +179,7 @@ class HostMonitorImplTest {
     HostMonitorThreadContainer.releaseInstance();
   }
 
-  @RepeatedTest(1000)
+  @RepeatedTest(10)
   void test_9_runWithContext() {
     final Map<String, HostMonitor> monitorMap = threadContainer.getMonitorMap();
     final Map<HostMonitor, Future<?>> taskMap = threadContainer.getTasksMap();

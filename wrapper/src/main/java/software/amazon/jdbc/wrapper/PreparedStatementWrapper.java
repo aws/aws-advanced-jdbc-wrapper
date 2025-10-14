@@ -46,12 +46,16 @@ import software.amazon.jdbc.util.WrapperUtils;
 
 public class PreparedStatementWrapper implements PreparedStatement {
 
-  protected PreparedStatement statement;
-  protected ConnectionPluginManager pluginManager;
+  protected final PreparedStatement statement;
+  protected final ConnectionWrapper connectionWrapper;
+  protected final ConnectionPluginManager pluginManager;
 
   public PreparedStatementWrapper(
-      @NonNull PreparedStatement statement, @NonNull ConnectionPluginManager pluginManager) {
+      @NonNull PreparedStatement statement,
+      @NonNull ConnectionWrapper connectionWrapper,
+      @NonNull ConnectionPluginManager pluginManager) {
     this.statement = statement;
+    this.connectionWrapper = connectionWrapper;
     this.pluginManager = pluginManager;
   }
 
@@ -60,10 +64,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_ADDBATCH)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_ADDBATCH,
-          () -> this.statement.addBatch());
+          this.statement::addBatch);
     } else {
       this.statement.addBatch();
     }
@@ -74,6 +79,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_ADDBATCH)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_ADDBATCH,
@@ -89,10 +95,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_CANCEL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_CANCEL,
-          () -> this.statement.cancel());
+          this.statement::cancel);
     } else {
       this.statement.cancel();
     }
@@ -103,10 +110,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_CLEARBATCH)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_CLEARBATCH,
-          () -> this.statement.clearBatch());
+          this.statement::clearBatch);
     } else {
       this.statement.clearBatch();
     }
@@ -117,10 +125,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_CLEARPARAMETERS)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_CLEARPARAMETERS,
-          () -> this.statement.clearParameters());
+          this.statement::clearParameters);
     } else {
       this.statement.clearParameters();
     }
@@ -131,10 +140,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_CLEARWARNINGS)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_CLEARWARNINGS,
-          () -> this.statement.clearWarnings());
+          this.statement::clearWarnings);
     } else {
       this.statement.clearWarnings();
     }
@@ -145,10 +155,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_CLOSE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_CLOSE,
-          () -> this.statement.close());
+          this.statement::close);
     } else {
       this.statement.close();
     }
@@ -159,10 +170,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_CLOSEONCOMPLETION)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_CLOSEONCOMPLETION,
-          () -> this.statement.closeOnCompletion());
+          this.statement::closeOnCompletion);
     } else {
       this.statement.closeOnCompletion();
     }
@@ -174,10 +186,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_EXECUTE,
-          () -> this.statement.execute());
+          this.statement::execute);
     } else {
       return this.statement.execute();
     }
@@ -189,6 +202,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_EXECUTE,
@@ -205,6 +219,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_EXECUTE,
@@ -222,6 +237,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_EXECUTE,
@@ -239,6 +255,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_EXECUTE,
@@ -256,10 +273,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           int[].class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_EXECUTEBATCH,
-          () -> this.statement.executeBatch());
+          this.statement::executeBatch);
     } else {
       return this.statement.executeBatch();
     }
@@ -271,10 +289,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           long.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_EXECUTELARGEUPDATE,
-          () -> this.statement.executeLargeUpdate());
+          this.statement::executeLargeUpdate);
     } else {
       return this.statement.executeLargeUpdate();
     }
@@ -285,10 +304,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY,
-        () -> this.statement.executeQuery());
+        this.statement::executeQuery);
   }
 
   @Override
@@ -296,7 +316,8 @@ public class PreparedStatementWrapper implements PreparedStatement {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY,
         () -> this.statement.executeQuery(sql),
@@ -309,10 +330,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE,
-          () -> this.statement.executeUpdate());
+          this.statement::executeUpdate);
     } else {
       return this.statement.executeUpdate();
     }
@@ -324,6 +346,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE,
@@ -340,6 +363,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE,
@@ -357,6 +381,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE,
@@ -374,6 +399,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE,
@@ -390,10 +416,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
     return WrapperUtils.executeWithPlugins(
         Connection.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.PREPAREDSTATEMENT_GETCONNECTION,
-        () -> this.pluginManager.getConnectionWrapper());
+        () -> this.connectionWrapper);
   }
 
   @SuppressWarnings("MagicConstant")
@@ -403,10 +430,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_GETFETCHDIRECTION,
-          () -> this.statement.getFetchDirection());
+          this.statement::getFetchDirection);
     } else {
       return this.statement.getFetchDirection();
     }
@@ -418,10 +446,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_GETFETCHSIZE,
-          () -> this.statement.getFetchSize());
+          this.statement::getFetchSize);
     } else {
       return this.statement.getFetchSize();
     }
@@ -432,10 +461,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.PREPAREDSTATEMENT_GETGENERATEDKEYS,
-        () -> this.statement.getGeneratedKeys());
+        this.statement::getGeneratedKeys);
   }
 
   @Override
@@ -444,10 +474,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_GETMAXFIELDSIZE,
-          () -> this.statement.getMaxFieldSize());
+          this.statement::getMaxFieldSize);
     } else {
       return this.statement.getMaxFieldSize();
     }
@@ -459,10 +490,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_GETMAXROWS,
-          () -> this.statement.getMaxRows());
+          this.statement::getMaxRows);
     } else {
       return this.statement.getMaxRows();
     }
@@ -473,10 +505,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
     return WrapperUtils.executeWithPlugins(
         ResultSetMetaData.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.PREPAREDSTATEMENT_GETMETADATA,
-        () -> this.statement.getMetaData());
+        this.statement::getMetaData);
   }
 
   @Override
@@ -485,10 +518,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_GETMORERESULTS,
-          () -> this.statement.getMoreResults());
+          this.statement::getMoreResults);
     } else {
       return this.statement.getMoreResults();
     }
@@ -500,6 +534,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_GETMORERESULTS,
@@ -515,10 +550,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
     return WrapperUtils.executeWithPlugins(
         ParameterMetaData.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.PREPAREDSTATEMENT_GETPARAMETERMETADATA,
-        () -> this.statement.getParameterMetaData());
+        this.statement::getParameterMetaData);
   }
 
   @Override
@@ -527,10 +563,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_GETQUERYTIMEOUT,
-          () -> this.statement.getQueryTimeout());
+          this.statement::getQueryTimeout);
     } else {
       return this.statement.getQueryTimeout();
     }
@@ -541,10 +578,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.pluginManager,
+        this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.PREPAREDSTATEMENT_GETRESULTSET,
-        () -> this.statement.getResultSet());
+        this.statement::getResultSet);
   }
 
   @SuppressWarnings("MagicConstant")
@@ -554,10 +592,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_GETRESULTSETCONCURRENCY,
-          () -> this.statement.getResultSetConcurrency());
+          this.statement::getResultSetConcurrency);
     } else {
       return this.statement.getResultSetConcurrency();
     }
@@ -569,10 +608,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_GETRESULTSETHOLDABILITY,
-          () -> this.statement.getResultSetHoldability());
+          this.statement::getResultSetHoldability);
     } else {
       return this.statement.getResultSetHoldability();
     }
@@ -585,10 +625,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_GETRESULTSETTYPE,
-          () -> this.statement.getResultSetType());
+          this.statement::getResultSetType);
     } else {
       return this.statement.getResultSetType();
     }
@@ -600,10 +641,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_GETUPDATECOUNT,
-          () -> this.statement.getUpdateCount());
+          this.statement::getUpdateCount);
     } else {
       return this.statement.getUpdateCount();
     }
@@ -615,10 +657,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           SQLWarning.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_GETWARNINGS,
-          () -> this.statement.getWarnings());
+          this.statement::getWarnings);
     } else {
       return this.statement.getWarnings();
     }
@@ -630,10 +673,11 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_ISCLOSEONCOMPLETION,
-          () -> this.statement.isCloseOnCompletion());
+          this.statement::isCloseOnCompletion);
     } else {
       return this.statement.isCloseOnCompletion();
     }
@@ -645,26 +689,27 @@ public class PreparedStatementWrapper implements PreparedStatement {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_ISCLOSED,
-          () -> this.statement.isClosed());
+          this.statement::isClosed);
     } else {
       return this.statement.isClosed();
     }
   }
 
-  @SuppressWarnings("SpellCheckingInspection")
   @Override
   public boolean isPoolable() throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_ISPOOLABLE)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_ISPOOLABLE,
-          () -> this.statement.isPoolable());
+          this.statement::isPoolable);
     } else {
       return this.statement.isPoolable();
     }
@@ -680,6 +725,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETARRAY)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETARRAY,
@@ -696,6 +742,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETASCIISTREAM,
@@ -713,6 +760,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETASCIISTREAM,
@@ -730,6 +778,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETASCIISTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETASCIISTREAM,
@@ -746,6 +795,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBIGDECIMAL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETBIGDECIMAL,
@@ -762,6 +812,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBINARYSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETBINARYSTREAM,
@@ -779,6 +830,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBINARYSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETBINARYSTREAM,
@@ -796,6 +848,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBINARYSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETBINARYSTREAM,
@@ -812,6 +865,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETBLOB,
@@ -829,6 +883,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETBLOB,
@@ -846,6 +901,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETBLOB,
@@ -862,6 +918,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBOOLEAN)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETBOOLEAN,
@@ -878,6 +935,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBYTE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETBYTE,
@@ -894,6 +952,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETBYTES)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETBYTES,
@@ -911,6 +970,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETCHARACTERSTREAM,
@@ -929,6 +989,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETCHARACTERSTREAM,
@@ -946,6 +1007,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETCHARACTERSTREAM,
@@ -962,6 +1024,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETCLOB,
@@ -978,6 +1041,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETCLOB,
@@ -995,6 +1059,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETCLOB,
@@ -1011,6 +1076,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETCURSORNAME)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETCURSORNAME,
@@ -1026,6 +1092,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETDATE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETDATE,
@@ -1042,6 +1109,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETDATE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETDATE,
@@ -1059,6 +1127,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETDOUBLE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETDOUBLE,
@@ -1075,6 +1144,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETESCAPEPROCESSING)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETESCAPEPROCESSING,
@@ -1090,6 +1160,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETFETCHDIRECTION)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETFETCHDIRECTION,
@@ -1105,6 +1176,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETFETCHSIZE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETFETCHSIZE,
@@ -1120,6 +1192,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETFLOAT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETFLOAT,
@@ -1136,6 +1209,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETINT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETINT,
@@ -1152,6 +1226,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETLONG)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETLONG,
@@ -1168,6 +1243,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETMAXFIELDSIZE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETMAXFIELDSIZE,
@@ -1183,6 +1259,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETMAXROWS)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETMAXROWS,
@@ -1199,6 +1276,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETNCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETNCHARACTERSTREAM,
@@ -1216,6 +1294,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETNCHARACTERSTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETNCHARACTERSTREAM,
@@ -1232,6 +1311,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETNCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETNCLOB,
@@ -1248,6 +1328,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETNCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETNCLOB,
@@ -1265,6 +1346,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETNCLOB)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETNCLOB,
@@ -1281,6 +1363,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETNSTRING)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETNSTRING,
@@ -1297,6 +1380,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETNULL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETNULL,
@@ -1313,6 +1397,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETNULL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETNULL,
@@ -1330,6 +1415,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETOBJECT,
@@ -1347,6 +1433,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETOBJECT,
@@ -1364,6 +1451,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETOBJECT,
@@ -1383,6 +1471,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETOBJECT,
@@ -1401,6 +1490,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETOBJECT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETOBJECT,
@@ -1419,6 +1509,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETPOOLABLE)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETPOOLABLE,
@@ -1434,6 +1525,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETQUERYTIMEOUT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETQUERYTIMEOUT,
@@ -1449,6 +1541,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETREF)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETREF,
@@ -1465,6 +1558,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETROWID)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETROWID,
@@ -1481,6 +1575,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETSQLXML)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETSQLXML,
@@ -1497,6 +1592,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETSHORT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETSHORT,
@@ -1513,6 +1609,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETSTRING)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETSTRING,
@@ -1529,6 +1626,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETTIME)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETTIME,
@@ -1545,6 +1643,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETTIME)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETTIME,
@@ -1562,6 +1661,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETTIMESTAMP)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETTIMESTAMP,
@@ -1578,6 +1678,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETTIMESTAMP)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETTIMESTAMP,
@@ -1595,6 +1696,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETURL)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETURL,
@@ -1612,6 +1714,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.PREPAREDSTATEMENT_SETUNICODESTREAM)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
+          this.connectionWrapper,
           this.pluginManager,
           this.statement,
           JdbcMethod.PREPAREDSTATEMENT_SETUNICODESTREAM,

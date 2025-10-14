@@ -18,6 +18,7 @@ package software.amazon.jdbc;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Wrapper;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
@@ -34,7 +35,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 /**
  * Interface for retrieving the current active {@link Connection} and its {@link HostSpec}.
  */
-public interface PluginService extends ExceptionHandler {
+public interface PluginService extends ExceptionHandler, Wrapper {
 
   Connection getCurrentConnection();
 
