@@ -1048,6 +1048,9 @@ public class AuroraTestUtility {
   public String getAuroraParameterGroupFamily(String engine, String engineVersion) {
     switch (engine) {
       case "aurora-postgresql":
+        if (StringUtils.isNullOrEmpty(engineVersion) || engineVersion.startsWith("17.")) {
+          return "aurora-postgresql17";
+        }
         return "aurora-postgresql16";
       case "aurora-mysql":
         if (StringUtils.isNullOrEmpty(engineVersion) || engineVersion.contains("8.0")) {
