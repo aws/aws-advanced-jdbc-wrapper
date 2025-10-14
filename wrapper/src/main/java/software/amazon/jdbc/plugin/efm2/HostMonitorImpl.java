@@ -52,6 +52,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
   private static final long THREAD_SLEEP_NANO = TimeUnit.MILLISECONDS.toNanos(100);
   private static final long TERMINATION_TIMEOUT_SEC = 30;
   private static final String MONITORING_PROPERTY_PREFIX = "monitoring-";
+  private static final int MIN_VALIDITY_CHECK_TIMEOUT_SEC = 1;
 
   protected static final Executor ABORT_EXECUTOR =
       ExecutorFactory.newSingleThreadExecutor("abort");
@@ -323,7 +324,8 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
       // Some drivers, like MySQL Connector/J, execute isValid() in a double of specified timeout time.
       final int validTimeout = (int) TimeUnit.NANOSECONDS.toSeconds(
           this.failureDetectionIntervalNano - THREAD_SLEEP_NANO) / 2;
-      return this.monitoringConn.isValid(validTimeout);
+      // validTimeout could get rounded down to 0.
+      return this.monitoringConn.isValid(Math.max(MIN_VALIDITY_CHECK_TIMEOUT_SEC, validTimeout));
     } catch (final SQLException sqlEx) {
       return false;
     } finally {
