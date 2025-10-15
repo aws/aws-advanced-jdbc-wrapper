@@ -36,6 +36,8 @@ class SqlAnalyzerTest {
     assertEquals("SELECT", result.queryType);
     assertTrue(result.tables.contains("users"));
     assertEquals(2, result.columns.size());
+    assertTrue(result.columns.stream().anyMatch(c -> "users".equals(c.tableName) && "name".equals(c.columnName)));
+    assertTrue(result.columns.stream().anyMatch(c -> "users".equals(c.tableName) && "age".equals(c.columnName)));
   }
 
   @Test
@@ -63,8 +65,15 @@ class SqlAnalyzerTest {
     SQLAnalyzer.QueryAnalysis result = analyzer.analyze(
         "SELECT u.name, u.email, p.title FROM users u JOIN posts p ON u.id = p.user_id WHERE u.active = true");
     assertEquals("SELECT", result.queryType);
+    assertEquals(2, result.tables.size());
     assertTrue(result.tables.contains("users"));
+    assertTrue(result.tables.contains("posts"));
     assertEquals(3, result.columns.size());
+    
+    // Verify columns have correct table names (not aliases)
+    assertTrue(result.columns.stream().anyMatch(c -> "users".equals(c.tableName) && "name".equals(c.columnName)));
+    assertTrue(result.columns.stream().anyMatch(c -> "users".equals(c.tableName) && "email".equals(c.columnName)));
+    assertTrue(result.columns.stream().anyMatch(c -> "posts".equals(c.tableName) && "title".equals(c.columnName)));
   }
 
   @Test
@@ -79,6 +88,8 @@ class SqlAnalyzerTest {
     assertEquals("INSERT", result.queryType);
     assertTrue(result.tables.contains("users"));
     assertEquals(2, result.columns.size());
+    assertTrue(result.columns.stream().anyMatch(c -> "users".equals(c.tableName) && "name".equals(c.columnName)));
+    assertTrue(result.columns.stream().anyMatch(c -> "users".equals(c.tableName) && "email".equals(c.columnName)));
   }
 
   @Test
@@ -87,6 +98,9 @@ class SqlAnalyzerTest {
     assertEquals("INSERT", result.queryType);
     assertTrue(result.tables.contains("users"));
     assertEquals(3, result.columns.size());
+    assertTrue(result.columns.stream().anyMatch(c -> "users".equals(c.tableName) && "name".equals(c.columnName)));
+    assertTrue(result.columns.stream().anyMatch(c -> "users".equals(c.tableName) && "email".equals(c.columnName)));
+    assertTrue(result.columns.stream().anyMatch(c -> "users".equals(c.tableName) && "age".equals(c.columnName)));
   }
 
   @Test
@@ -94,7 +108,9 @@ class SqlAnalyzerTest {
     SQLAnalyzer.QueryAnalysis result = analyzer.analyze("UPDATE users SET name = 'Jane', email = 'jane@example.com' WHERE id = 1");
     assertEquals("UPDATE", result.queryType);
     assertTrue(result.tables.contains("users"));
-    assertEquals(2, result.columns.size());
+    assertEquals(2, result.columns.size()); // name, email (SET clause only)
+    assertTrue(result.columns.stream().anyMatch(c -> "users".equals(c.tableName) && "name".equals(c.columnName)));
+    assertTrue(result.columns.stream().anyMatch(c -> "users".equals(c.tableName) && "email".equals(c.columnName)));
   }
 
   @Test
@@ -102,7 +118,9 @@ class SqlAnalyzerTest {
     SQLAnalyzer.QueryAnalysis result = analyzer.analyze("UPDATE users SET name = ?, email = ? WHERE id = ?");
     assertEquals("UPDATE", result.queryType);
     assertTrue(result.tables.contains("users"));
-    assertEquals(2, result.columns.size());
+    assertEquals(2, result.columns.size()); // name, email (SET clause only)
+    assertTrue(result.columns.stream().anyMatch(c -> "users".equals(c.tableName) && "name".equals(c.columnName)));
+    assertTrue(result.columns.stream().anyMatch(c -> "users".equals(c.tableName) && "email".equals(c.columnName)));
   }
 
   @Test

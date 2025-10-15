@@ -152,22 +152,16 @@ public class SqlAnalysisService {
 
         try {
             SQLAnalyzer.QueryAnalysis queryAnalysis = analyzer.analyze(sql);
-            if (queryAnalysis != null && !queryAnalysis.columns.isEmpty()) {
-                // For SELECT statements, only map WHERE clause parameters
+            if (queryAnalysis != null) {
+                // For SELECT statements, map parameters to WHERE clause columns (where ? placeholders are)
                 if ("SELECT".equals(queryAnalysis.queryType)) {
-                    // For SELECT, we need to identify WHERE clause columns
-                    // This is a simplified approach - count parameters in SQL and map to last columns
-                    int paramCount = countParameters(sql);
-                    if (paramCount > 0 && queryAnalysis.columns.size() >= paramCount) {
-                        // Map parameters to the last N columns (WHERE clause columns)
-                        int startIndex = queryAnalysis.columns.size() - paramCount;
-                        for (int i = 0; i < paramCount; i++) {
-                            SQLAnalyzer.ColumnInfo column = queryAnalysis.columns.get(startIndex + i);
-                            mapping.put(i + 1, column.columnName);
-                        }
+                    // Map parameters to WHERE clause columns
+                    for (int i = 0; i < queryAnalysis.whereColumns.size(); i++) {
+                        SQLAnalyzer.ColumnInfo column = queryAnalysis.whereColumns.get(i);
+                        mapping.put(i + 1, column.columnName);
                     }
-                } else {
-                    // For INSERT/UPDATE, map parameters to columns in order
+                } else if (!queryAnalysis.columns.isEmpty()) {
+                    // For INSERT/UPDATE, map parameters to main columns in order
                     int parameterIndex = 1;
                     for (SQLAnalyzer.ColumnInfo column : queryAnalysis.columns) {
                         mapping.put(parameterIndex++, column.columnName);
