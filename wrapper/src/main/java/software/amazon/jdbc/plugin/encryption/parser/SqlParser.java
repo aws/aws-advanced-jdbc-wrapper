@@ -221,18 +221,24 @@ public class SqlParser {
             if (nextType == Token.Type.COMMA) {
                 consume(Token.Type.COMMA);
                 tables.add(parseTableReference());
-            } else if (nextType == Token.Type.JOIN || nextType == Token.Type.INNER || 
-                      nextType == Token.Type.LEFT || nextType == Token.Type.RIGHT) {
+            } else if (nextType == Token.Type.JOIN || nextType == Token.Type.INNER ||
+                      nextType == Token.Type.LEFT || nextType == Token.Type.RIGHT ||
+                      nextType == Token.Type.CROSS) {
                 // Handle JOIN - consume JOIN keywords and add the joined table
-                if (nextType == Token.Type.INNER || nextType == Token.Type.LEFT || nextType == Token.Type.RIGHT) {
-                    consume(nextType); // consume INNER/LEFT/RIGHT
+                if (nextType == Token.Type.INNER || nextType == Token.Type.LEFT ||
+                    nextType == Token.Type.RIGHT || nextType == Token.Type.CROSS) {
+                    consume(nextType); // consume INNER/LEFT/RIGHT/CROSS
+                    // Optional OUTER keyword after LEFT/RIGHT/FULL
+                    if (peek().getType() == Token.Type.OUTER) {
+                        consume(Token.Type.OUTER);
+                    }
                 }
                 if (peek().getType() == Token.Type.JOIN) {
                     consume(Token.Type.JOIN);
                 }
                 tables.add(parseTableReference());
-                
-                // Skip ON clause for now
+
+                // Skip ON clause for now (not needed for CROSS JOIN)
                 if (peek().getType() == Token.Type.ON) {
                     consume(Token.Type.ON);
                     parseExpression(); // consume but ignore the join condition
@@ -410,6 +416,10 @@ public class SqlParser {
             case FALSE:
                 consume(Token.Type.FALSE);
                 return new BooleanLiteral(false);
+            case CASE:
+                return parseCaseExpression();
+            case CAST:
+                return parseCastExpression();
             case LPAREN:
                 consume(Token.Type.LPAREN);
                 // Check if this is a subquery
@@ -480,8 +490,15 @@ public class SqlParser {
             Expression expr = parseExpression();
             OrderByItem.Direction direction = OrderByItem.Direction.ASC;
 
+            // Handle ASC/DESC
             Token token = peek();
-            if (token.getType() == Token.Type.IDENT) {
+            if (token.getType() == Token.Type.ASC) {
+                consume(Token.Type.ASC);
+                direction = OrderByItem.Direction.ASC;
+            } else if (token.getType() == Token.Type.DESC) {
+                consume(Token.Type.DESC);
+                direction = OrderByItem.Direction.DESC;
+            } else if (token.getType() == Token.Type.IDENT) {
                 String dir = token.getValue().toUpperCase();
                 if ("ASC".equals(dir)) {
                     consume(Token.Type.IDENT);
@@ -489,6 +506,16 @@ public class SqlParser {
                 } else if ("DESC".equals(dir)) {
                     consume(Token.Type.IDENT);
                     direction = OrderByItem.Direction.DESC;
+                }
+            }
+
+            // Handle NULLS FIRST/LAST
+            if (peek().getType() == Token.Type.NULLS) {
+                consume(Token.Type.NULLS);
+                if (peek().getType() == Token.Type.FIRST) {
+                    consume(Token.Type.FIRST);
+                } else if (peek().getType() == Token.Type.LAST) {
+                    consume(Token.Type.LAST);
                 }
             }
 
@@ -590,6 +617,45 @@ public class SqlParser {
         }
         position++;
         return token;
+    }
+
+    private Expression parseCaseExpression() {
+        consume(Token.Type.CASE);
+
+        // Skip WHEN/THEN/ELSE/END for now - just consume tokens until END
+        int depth = 1;
+        while (depth > 0 && peek().getType() != Token.Type.EOF) {
+            if (peek().getType() == Token.Type.CASE) {
+                depth++;
+            } else if (peek().getType() == Token.Type.END) {
+                depth--;
+                if (depth == 0) {
+                    consume(Token.Type.END);
+                    break;
+                }
+            }
+            consume();
+        }
+
+        return new Identifier("CASE");
+    }
+
+    private Expression parseCastExpression() {
+        consume(Token.Type.CAST);
+        consume(Token.Type.LPAREN);
+
+        // Parse the expression being cast
+        parseExpression();
+
+        // Skip AS and type
+        if (peek().getType() == Token.Type.AS) {
+            consume(Token.Type.AS);
+            consume(Token.Type.IDENT); // type name
+        }
+
+        consume(Token.Type.RPAREN);
+
+        return new Identifier("CAST");
     }
 
     private Token consume() {

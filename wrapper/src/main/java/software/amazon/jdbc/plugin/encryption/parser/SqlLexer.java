@@ -44,6 +44,8 @@ public class SqlLexer {
         KEYWORDS.put("BETWEEN", Token.Type.BETWEEN);
         KEYWORDS.put("LIKE", Token.Type.LIKE);
         KEYWORDS.put("IS", Token.Type.IS);
+        KEYWORDS.put("ISNULL", Token.Type.ISNULL);
+        KEYWORDS.put("NOTNULL", Token.Type.NOTNULL);
         KEYWORDS.put("ORDER", Token.Type.ORDER);
         KEYWORDS.put("BY", Token.Type.BY);
         KEYWORDS.put("GROUP", Token.Type.GROUP);
@@ -56,6 +58,7 @@ public class SqlLexer {
         KEYWORDS.put("FULL", Token.Type.FULL);
         KEYWORDS.put("OUTER", Token.Type.OUTER);
         KEYWORDS.put("JOIN", Token.Type.JOIN);
+        KEYWORDS.put("CROSS", Token.Type.CROSS);
         KEYWORDS.put("UNION", Token.Type.UNION);
         KEYWORDS.put("INTERSECT", Token.Type.INTERSECT);
         KEYWORDS.put("EXCEPT", Token.Type.EXCEPT);
@@ -65,6 +68,27 @@ public class SqlLexer {
         KEYWORDS.put("SET", Token.Type.SET);
         KEYWORDS.put("PRIMARY", Token.Type.PRIMARY);
         KEYWORDS.put("KEY", Token.Type.KEY);
+        KEYWORDS.put("FOREIGN", Token.Type.FOREIGN);
+        KEYWORDS.put("REFERENCES", Token.Type.REFERENCES);
+        KEYWORDS.put("CASE", Token.Type.CASE);
+        KEYWORDS.put("WHEN", Token.Type.WHEN);
+        KEYWORDS.put("THEN", Token.Type.THEN);
+        KEYWORDS.put("ELSE", Token.Type.ELSE);
+        KEYWORDS.put("END", Token.Type.END);
+        KEYWORDS.put("CAST", Token.Type.CAST);
+        KEYWORDS.put("RETURNING", Token.Type.RETURNING);
+        KEYWORDS.put("WITH", Token.Type.WITH);
+        KEYWORDS.put("RECURSIVE", Token.Type.RECURSIVE);
+        KEYWORDS.put("WINDOW", Token.Type.WINDOW);
+        KEYWORDS.put("OVER", Token.Type.OVER);
+        KEYWORDS.put("PARTITION", Token.Type.PARTITION);
+        KEYWORDS.put("ROWS", Token.Type.ROWS);
+        KEYWORDS.put("RANGE", Token.Type.RANGE);
+        KEYWORDS.put("NULLS", Token.Type.NULLS);
+        KEYWORDS.put("FIRST", Token.Type.FIRST);
+        KEYWORDS.put("LAST", Token.Type.LAST);
+        KEYWORDS.put("ASC", Token.Type.ASC);
+        KEYWORDS.put("DESC", Token.Type.DESC);
     }
 
     public SqlLexer(String input) {

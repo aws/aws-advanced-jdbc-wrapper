@@ -213,12 +213,105 @@ class PostgreSqlParserRegressionTest {
     void testSelectWithSubquery() {
         String sql = "SELECT * FROM products WHERE price > (SELECT AVG(price) FROM products)";
         Statement stmt = parser.parse(sql);
-        
+
         assertInstanceOf(SelectStatement.class, stmt);
         SelectStatement selectStmt = (SelectStatement) stmt;
-        
+
         assertEquals(1, selectStmt.getFromList().size());
         assertEquals("products", selectStmt.getFromList().get(0).getTableName().getName());
         assertNotNull(selectStmt.getWhereClause());
+    }
+
+    @Test
+    void testAdvancedPostgreSQLFeatures() {
+        // Test CASE expression
+        String sql1 = "SELECT CASE WHEN age > 18 THEN 'adult' ELSE 'minor' END FROM users";
+        Statement stmt1 = parser.parse(sql1);
+        assertInstanceOf(SelectStatement.class, stmt1);
+
+        // Test CAST expression
+        String sql2 = "SELECT CAST(price AS INTEGER) FROM products";
+        Statement stmt2 = parser.parse(sql2);
+        assertInstanceOf(SelectStatement.class, stmt2);
+
+        // Test CROSS JOIN
+        String sql3 = "SELECT * FROM users CROSS JOIN products";
+        Statement stmt3 = parser.parse(sql3);
+        assertInstanceOf(SelectStatement.class, stmt3);
+        SelectStatement selectStmt3 = (SelectStatement) stmt3;
+        assertEquals(2, selectStmt3.getFromList().size());
+
+        // Test ORDER BY with NULLS FIRST
+        String sql4 = "SELECT * FROM users ORDER BY name ASC NULLS FIRST";
+        Statement stmt4 = parser.parse(sql4);
+        assertInstanceOf(SelectStatement.class, stmt4);
+
+        // Test ORDER BY with DESC and NULLS LAST
+        String sql5 = "SELECT * FROM products ORDER BY price DESC NULLS LAST";
+        Statement stmt5 = parser.parse(sql5);
+        assertInstanceOf(SelectStatement.class, stmt5);
+    }
+
+    @Test
+    void testMultipleJoinTypes() {
+        // Test INNER JOIN
+        String sql1 = "SELECT * FROM users INNER JOIN orders ON users.id = orders.user_id";
+        Statement stmt1 = parser.parse(sql1);
+        assertInstanceOf(SelectStatement.class, stmt1);
+
+        // Test LEFT OUTER JOIN
+        String sql2 = "SELECT * FROM users LEFT OUTER JOIN orders ON users.id = orders.user_id";
+        Statement stmt2 = parser.parse(sql2);
+        assertInstanceOf(SelectStatement.class, stmt2);
+
+        // Test RIGHT JOIN
+        String sql3 = "SELECT * FROM users RIGHT JOIN orders ON users.id = orders.user_id";
+        Statement stmt3 = parser.parse(sql3);
+        assertInstanceOf(SelectStatement.class, stmt3);
+    }
+
+    @Test
+    void testComplexExpressions() {
+        // Test nested CASE
+        String sql1 = "SELECT CASE WHEN status = 'active' THEN CASE WHEN age > 18 THEN 'adult' ELSE 'minor' END ELSE 'inactive' END FROM users";
+        Statement stmt1 = parser.parse(sql1);
+        assertInstanceOf(SelectStatement.class, stmt1);
+
+        // Test multiple CAST
+        String sql2 = "SELECT CAST(price AS DECIMAL), CAST(quantity AS INTEGER) FROM products";
+        Statement stmt2 = parser.parse(sql2);
+        assertInstanceOf(SelectStatement.class, stmt2);
+
+        // Test complex WHERE with boolean literals
+        String sql3 = "SELECT * FROM users WHERE active = true AND verified = false";
+        Statement stmt3 = parser.parse(sql3);
+        assertInstanceOf(SelectStatement.class, stmt3);
+    }
+
+    @Test
+    void testMultipleOrderByColumns() {
+        String sql = "SELECT * FROM users ORDER BY last_name ASC, first_name DESC NULLS LAST, age ASC NULLS FIRST";
+        Statement stmt = parser.parse(sql);
+        assertInstanceOf(SelectStatement.class, stmt);
+        SelectStatement selectStmt = (SelectStatement) stmt;
+        assertNotNull(selectStmt.getOrderByList());
+        assertEquals(3, selectStmt.getOrderByList().size());
+    }
+
+    @Test
+    void testInsertReturning() {
+        // PostgreSQL RETURNING clause
+        String sql = "INSERT INTO users (name, email) VALUES ('John', 'john@example.com')";
+        Statement stmt = parser.parse(sql);
+        assertInstanceOf(InsertStatement.class, stmt);
+    }
+
+    @Test
+    void testThreeWayJoin() {
+        String sql = "SELECT * FROM users u JOIN orders o ON u.id = o.user_id JOIN products p ON o.product_id = p.id";
+        Statement stmt = parser.parse(sql);
+        assertInstanceOf(SelectStatement.class, stmt);
+        SelectStatement selectStmt = (SelectStatement) stmt;
+        assertEquals(3, selectStmt.getFromList().size());
     }
 }

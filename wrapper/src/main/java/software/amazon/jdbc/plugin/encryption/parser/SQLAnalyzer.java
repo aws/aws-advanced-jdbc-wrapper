@@ -54,7 +54,7 @@ public class SQLAnalyzer {
 
     private boolean containsParameters(Expression expression) {
         if (expression == null) return false;
-        
+
         if (expression instanceof Placeholder) {
             return true;
         } else if (expression instanceof BinaryExpression) {
@@ -69,7 +69,7 @@ public class SQLAnalyzer {
 
         try {
             Statement statement = parser.parse(sql);
-            
+
             if (statement instanceof SelectStatement) {
                 analysis.queryType = "SELECT";
                 extractFromSelect((SelectStatement) statement, analysis);
@@ -126,14 +126,14 @@ public class SQLAnalyzer {
             for (TableReference table : select.getFromList()) {
                 String tableName = extractTableName(table.getTableName().getName());
                 analysis.tables.add(tableName);
-                
+
                 // Map alias to table name
                 if (table.getAlias() != null) {
                     aliasToTable.put(table.getAlias(), tableName);
                 }
             }
         }
-        
+
         // Extract columns from SELECT clause (skip * and literals)
         for (SelectItem selectItem : select.getSelectList()) {
             if (selectItem.getExpression() instanceof Identifier) {
@@ -143,7 +143,7 @@ public class SQLAnalyzer {
                     String fullName = column.getName();
                     String tableName;
                     String columnName;
-                    
+
                     // Parse qualified column name (e.g., "u.name" or "name")
                     if (fullName.contains(".")) {
                         String[] parts = fullName.split("\\.", 2);
@@ -155,12 +155,12 @@ public class SQLAnalyzer {
                         tableName = analysis.tables.isEmpty() ? "unknown" : analysis.tables.iterator().next();
                         columnName = fullName;
                     }
-                    
+
                     analysis.columns.add(new ColumnInfo(tableName, columnName));
                 }
             }
         }
-        
+
         // Extract columns from WHERE clause only if WHERE contains parameters
         if (select.getWhereClause() != null && containsParameters(select.getWhereClause())) {
             extractWhereColumnsFromExpression(select.getWhereClause(), analysis);
@@ -203,7 +203,7 @@ public class SQLAnalyzer {
         // Extract table (handle schema.table format)
         String tableName = extractTableName(insert.getTable().getTableName().getName());
         analysis.tables.add(tableName);
-        
+
         // Extract columns (only if they exist)
         if (insert.getColumns() != null) {
             for (Identifier column : insert.getColumns()) {
@@ -216,12 +216,12 @@ public class SQLAnalyzer {
         // Extract table
         String tableName = extractTableName(update.getTable().getTableName().getName());
         analysis.tables.add(tableName);
-        
+
         // Extract columns from assignments
         for (Assignment assignment : update.getAssignments()) {
             analysis.columns.add(new ColumnInfo(tableName, assignment.getColumn().getName()));
         }
-        
+
         // Extract columns from WHERE clause only if WHERE contains parameters
         if (update.getWhereClause() != null && containsParameters(update.getWhereClause())) {
             extractWhereColumnsFromExpression(update.getWhereClause(), analysis);
@@ -232,7 +232,7 @@ public class SQLAnalyzer {
         // Extract table
         String tableName = extractTableName(delete.getTable().getTableName().getName());
         analysis.tables.add(tableName);
-        
+
         // Extract columns from WHERE clause only if WHERE contains parameters
         if (delete.getWhereClause() != null && containsParameters(delete.getWhereClause())) {
             extractWhereColumnsFromExpression(delete.getWhereClause(), analysis);
@@ -243,7 +243,7 @@ public class SQLAnalyzer {
         // Extract table
         String tableName = extractTableName(create.getTableName().getName());
         analysis.tables.add(tableName);
-        
+
         // Extract columns
         for (ColumnDefinition column : create.getColumns()) {
             analysis.columns.add(new ColumnInfo(tableName, column.getColumnName().getName()));
