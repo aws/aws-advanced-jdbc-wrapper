@@ -206,6 +206,10 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     if (canDirectExecute(methodName)) {
+      if (JdbcMethod.CONNECTION_CLOSE.methodName.equals(methodName)
+          || JdbcMethod.CONNECTION_ABORT.methodName.equals(methodName)) {
+        this.closedExplicitly = true;
+      }
       return jdbcMethodFunc.call();
     }
 
