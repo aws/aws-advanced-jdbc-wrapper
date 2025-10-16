@@ -47,24 +47,27 @@ public class KeyManager {
     private final EncryptionConfig config;
     private final DataKeyCache dataKeyCache;
 
-    // SQL statements for key metadata operations
-    private static final String INSERT_KEY_METADATA_SQL =
-        "INSERT INTO encrypt.key_storage (name, master_key_arn, encrypted_data_key, key_spec, created_at, last_used_at) " +
-        "VALUES (?, ?, ?, ?, ?, ?) " +
-        "RETURNING id";
-
-    private static final String SELECT_KEY_METADATA_SQL =
-        "SELECT id, name, master_key_arn, encrypted_data_key, key_spec, created_at, last_used_at " +
-        "FROM encrypt.key_storage WHERE id = ?";
-
-    private static final String UPDATE_LAST_USED_SQL =
-        "UPDATE encrypt.key_storage SET last_used_at = ? WHERE key_id = ?";
-
     public KeyManager(KmsClient kmsClient, PluginService pluginService, EncryptionConfig config) {
         this.kmsClient = Objects.requireNonNull(kmsClient, "KmsClient cannot be null");
         this.pluginService = Objects.requireNonNull(pluginService, "DataSource cannot be null");
         this.config = Objects.requireNonNull(config, "EncryptionConfig cannot be null");
         this.dataKeyCache = new DataKeyCache(config);
+    }
+
+    private String getInsertKeyMetadataSql() {
+        String schema = config.getEncryptionMetadataSchema();
+        return "INSERT INTO " + schema + ".key_storage (name, master_key_arn, encrypted_data_key, key_spec, created_at, last_used_at) " +
+               "VALUES (?, ?, ?, ?, ?, ?) " +
+               "RETURNING id";
+    }
+
+    private String getSelectKeyMetadataSql() {
+        return "SELECT id, name, master_key_arn, encrypted_data_key, key_spec, created_at, last_used_at " +
+               "FROM " + config.getEncryptionMetadataSchema() + ".key_storage WHERE id = ?";
+    }
+
+    private String getUpdateLastUsedSql() {
+        return "UPDATE " + config.getEncryptionMetadataSchema() + ".key_storage SET last_used_at = ? WHERE key_id = ?";
     }
 
     /**
@@ -203,7 +206,7 @@ public class KeyManager {
         LOGGER.finest(()->String.format("Storing key metadata for %s.%s", tableName, columnName));
 
         try (Connection conn = pluginService.forceConnect(pluginService.getCurrentHostSpec(), pluginService.getProperties());
-             PreparedStatement stmt = conn.prepareStatement(INSERT_KEY_METADATA_SQL)) {
+             PreparedStatement stmt = conn.prepareStatement(getInsertKeyMetadataSql())) {
 
             stmt.setString(1, keyMetadata.getKeyName());
             stmt.setString(2, keyMetadata.getMasterKeyArn());
@@ -240,7 +243,7 @@ public class KeyManager {
         LOGGER.finest(()->String.format("Retrieving key metadata for key ID: %s", keyId));
 
         try (Connection conn = pluginService.forceConnect(pluginService.getCurrentHostSpec(), pluginService.getProperties());
-             PreparedStatement stmt = conn.prepareStatement(SELECT_KEY_METADATA_SQL)) {
+             PreparedStatement stmt = conn.prepareStatement(getSelectKeyMetadataSql())) {
 
             stmt.setString(1, keyId);
 
@@ -279,7 +282,7 @@ public class KeyManager {
         Objects.requireNonNull(keyId, "Key ID cannot be null");
 
         try (Connection conn = pluginService.forceConnect(pluginService.getCurrentHostSpec(), pluginService.getProperties());
-             PreparedStatement stmt = conn.prepareStatement(UPDATE_LAST_USED_SQL)) {
+             PreparedStatement stmt = conn.prepareStatement(getUpdateLastUsedSql())) {
 
             stmt.setTimestamp(1, Timestamp.from(Instant.now()));
             stmt.setString(2, keyId);
@@ -293,7 +296,7 @@ public class KeyManager {
     }
 
     /**
-     * Generates a unique key ID for new keys.
+     * Generates a unique key ID for new keys to store in the database.
      *
      * @return Unique key ID
      */

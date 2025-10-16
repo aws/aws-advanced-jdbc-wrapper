@@ -53,29 +53,6 @@ public class MetadataManager {
     private volatile Instant lastRefreshTime;
     private volatile ScheduledExecutorService refreshExecutor;
 
-    // SQL queries for metadata operations
-    private static final String LOAD_ENCRYPTION_METADATA_SQL =
-        "SELECT em.table_name, em.column_name, em.encryption_algorithm, em.key_id, " +
-        "       em.created_at, em.updated_at, " +
-        "       ks.name, ks.master_key_arn, ks.encrypted_data_key, ks.key_spec, " +
-        "       ks.created_at as key_created_at, ks.last_used_at " +
-        "FROM encrypt.encryption_metadata em " +
-        "JOIN encrypt.key_storage ks ON em.key_id = ks.id " +
-        "ORDER BY em.table_name, em.column_name";
-
-    private static final String CHECK_COLUMN_ENCRYPTED_SQL =
-        "SELECT 1 FROM encrypt.encryption_metadata " +
-        "WHERE table_name = ? AND column_name = ?";
-
-    private static final String GET_COLUMN_CONFIG_SQL =
-        "SELECT em.table_name, em.column_name, em.encryption_algorithm, em.key_id, " +
-        "       em.created_at, em.updated_at, " +
-        "       ks.master_key_arn, ks.encrypted_data_key, ks.key_spec, " +
-        "       ks.created_at as key_created_at, ks.last_used_at " +
-        "FROM encrypt.encryption_metadata em " +
-        "JOIN encrypt.key_storage ks ON em.key_id = ks.id " +
-        "WHERE em.table_name = ? AND em.column_name = ?";
-
     public MetadataManager(PluginService pluginService, EncryptionConfig config) {
         this.pluginService = pluginService;
         this.config = config;
@@ -83,6 +60,33 @@ public class MetadataManager {
         this.cacheLock = new ReentrantReadWriteLock();
         this.lastRefreshTime = Instant.EPOCH;
         this.refreshExecutor = createRefreshExecutor();
+    }
+
+    private String getLoadEncryptionMetadataSql() {
+        String schema = config.getEncryptionMetadataSchema();
+        return "SELECT em.table_name, em.column_name, em.encryption_algorithm, em.key_id, " +
+               "       em.created_at, em.updated_at, " +
+               "       ks.name, ks.master_key_arn, ks.encrypted_data_key, ks.key_spec, " +
+               "       ks.created_at as key_created_at, ks.last_used_at " +
+               "FROM " + schema + ".encryption_metadata em " +
+               "JOIN " + schema + ".key_storage ks ON em.key_id = ks.id " +
+               "ORDER BY em.table_name, em.column_name";
+    }
+
+    private String getCheckColumnEncryptedSql() {
+        return "SELECT 1 FROM " + config.getEncryptionMetadataSchema() + ".encryption_metadata " +
+               "WHERE table_name = ? AND column_name = ?";
+    }
+
+    private String getColumnConfigSql() {
+        String schema = config.getEncryptionMetadataSchema();
+        return "SELECT em.table_name, em.column_name, em.encryption_algorithm, em.key_id, " +
+               "       em.created_at, em.updated_at, " +
+               "       ks.master_key_arn, ks.encrypted_data_key, ks.key_spec, " +
+               "       ks.created_at as key_created_at, ks.last_used_at " +
+               "FROM " + schema + ".encryption_metadata em " +
+               "JOIN " + schema + ".key_storage ks ON em.key_id = ks.id " +
+               "WHERE em.table_name = ? AND em.column_name = ?";
     }
 
     /**
@@ -97,7 +101,7 @@ public class MetadataManager {
         Map<String, ColumnEncryptionConfig> metadata = new ConcurrentHashMap<>();
 
         try (Connection connection = pluginService.forceConnect(pluginService.getCurrentHostSpec(), pluginService.getProperties());
-             PreparedStatement stmt = connection.prepareStatement(LOAD_ENCRYPTION_METADATA_SQL);
+             PreparedStatement stmt = connection.prepareStatement(getLoadEncryptionMetadataSql());
              ResultSet rs = stmt.executeQuery()) {
 
             while (rs.next()) {
@@ -312,7 +316,7 @@ public class MetadataManager {
         LOGGER.finest(()->String.format("Checking encryption status for column %s.%s from database", tableName, columnName));
 
         try (Connection connection = pluginService.forceConnect(pluginService.getCurrentHostSpec(), pluginService.getProperties());
-             PreparedStatement stmt = connection.prepareStatement(CHECK_COLUMN_ENCRYPTED_SQL)) {
+             PreparedStatement stmt = connection.prepareStatement(getCheckColumnEncryptedSql())) {
 
             stmt.setString(1, tableName);
             stmt.setString(2, columnName);
@@ -339,7 +343,7 @@ public class MetadataManager {
         LOGGER.finest(()->String.format("Loading encryption config for column %s.%s from database", tableName, columnName));
 
         try (Connection connection = pluginService.forceConnect(pluginService.getCurrentHostSpec(), pluginService.getProperties());
-             PreparedStatement stmt = connection.prepareStatement(GET_COLUMN_CONFIG_SQL)) {
+             PreparedStatement stmt = connection.prepareStatement(getColumnConfigSql())) {
 
             stmt.setString(1, tableName);
             stmt.setString(2, columnName);

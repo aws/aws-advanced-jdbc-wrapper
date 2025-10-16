@@ -20,6 +20,7 @@ package software.amazon.jdbc.plugin.encryption.key;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataException;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
+import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.KeyMetadata;
 import java.util.logging.Logger;
 import software.amazon.awssdk.services.kms.KmsClient;
@@ -45,32 +46,38 @@ public class KeyManagementUtility {
     private final MetadataManager metadataManager;
     private final DataSource dataSource;
     private final KmsClient kmsClient;
-
-    // SQL statements for encryption metadata operations
-    private static final String INSERT_ENCRYPTION_METADATA_SQL =
-        "INSERT INTO encrypt.encryption_metadata (table_name, column_name, encryption_algorithm, key_id, created_at, updated_at) " +
-        "VALUES (?, ?, ?, ?, ?, ?) " +
-        "ON CONFLICT (table_name, column_name) DO UPDATE SET " +
-        "encryption_algorithm = EXCLUDED.encryption_algorithm, " +
-        "key_id = EXCLUDED.key_id, " +
-        "updated_at = EXCLUDED.updated_at";
-
-    private static final String UPDATE_ENCRYPTION_METADATA_KEY_SQL =
-        "UPDATE encrypt.encryption_metadata SET key_id = ?, updated_at = ? " +
-        "WHERE table_name = ? AND column_name = ?";
-
-    private static final String SELECT_COLUMNS_WITH_KEY_SQL =
-        "SELECT table_name, column_name FROM encrypt.encryption_metadata WHERE key_id = ?";
-
-    private static final String DELETE_ENCRYPTION_METADATA_SQL =
-        "DELETE FROM encrypt.encryption_metadata WHERE table_name = ? AND column_name = ?";
+    private final EncryptionConfig config;
 
     public KeyManagementUtility(KeyManager keyManager, MetadataManager metadataManager,
-                               DataSource dataSource, KmsClient kmsClient) {
+                               DataSource dataSource, KmsClient kmsClient, EncryptionConfig config) {
         this.keyManager = Objects.requireNonNull(keyManager, "KeyManager cannot be null");
         this.metadataManager = Objects.requireNonNull(metadataManager, "MetadataManager cannot be null");
         this.dataSource = Objects.requireNonNull(dataSource, "DataSource cannot be null");
         this.kmsClient = Objects.requireNonNull(kmsClient, "KmsClient cannot be null");
+        this.config = Objects.requireNonNull(config, "EncryptionConfig cannot be null");
+    }
+
+    private String getInsertEncryptionMetadataSql() {
+        String schema = config.getEncryptionMetadataSchema();
+        return "INSERT INTO " + schema + ".encryption_metadata (table_name, column_name, encryption_algorithm, key_id, created_at, updated_at) " +
+               "VALUES (?, ?, ?, ?, ?, ?) " +
+               "ON CONFLICT (table_name, column_name) DO UPDATE SET " +
+               "encryption_algorithm = EXCLUDED.encryption_algorithm, " +
+               "key_id = EXCLUDED.key_id, " +
+               "updated_at = EXCLUDED.updated_at";
+    }
+
+    private String getUpdateEncryptionMetadataKeySql() {
+        return "UPDATE " + config.getEncryptionMetadataSchema() + ".encryption_metadata SET key_id = ?, updated_at = ? " +
+               "WHERE table_name = ? AND column_name = ?";
+    }
+
+    private String getSelectColumnsWithKeySql() {
+        return "SELECT table_name, column_name FROM " + config.getEncryptionMetadataSchema() + ".encryption_metadata WHERE key_id = ?";
+    }
+
+    private String getDeleteEncryptionMetadataSql() {
+        return "DELETE FROM " + config.getEncryptionMetadataSchema() + ".encryption_metadata WHERE table_name = ? AND column_name = ?";
     }
 
     /**
@@ -157,8 +164,6 @@ public class KeyManagementUtility {
                    tableName, columnName, masterKeyArn));
 
         try {
-            // Generate a unique key ID
-            String keyId = keyManager.generateKeyId();
 
             // Generate the data key using KMS
             KeyManager.DataKeyResult dataKeyResult = keyManager.generateDataKey(masterKeyArn);
@@ -329,7 +334,7 @@ public class KeyManagementUtility {
         LOGGER.info(()->String.format("Removing encryption configuration for %s.%s", tableName, columnName));
 
         try (Connection conn = dataSource.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(DELETE_ENCRYPTION_METADATA_SQL)) {
+             PreparedStatement stmt = conn.prepareStatement(getDeleteEncryptionMetadataSql())) {
 
             stmt.setString(1, tableName);
             stmt.setString(2, columnName);
@@ -367,7 +372,7 @@ public class KeyManagementUtility {
         LOGGER.finest(()->String.format("Finding columns using key ID: %s", keyId));
 
         try (Connection conn = dataSource.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(SELECT_COLUMNS_WITH_KEY_SQL)) {
+             PreparedStatement stmt = conn.prepareStatement(getSelectColumnsWithKeySql())) {
 
             stmt.setString(1, keyId);
 
@@ -426,7 +431,7 @@ public class KeyManagementUtility {
     private void storeEncryptionMetadata(String tableName, String columnName,
                                        String algorithm, int keyId) throws SQLException {
         try (Connection conn = dataSource.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(INSERT_ENCRYPTION_METADATA_SQL)) {
+             PreparedStatement stmt = conn.prepareStatement(getInsertEncryptionMetadataSql())) {
 
             Timestamp now = Timestamp.from(Instant.now());
 
@@ -452,7 +457,7 @@ public class KeyManagementUtility {
     private void updateEncryptionMetadataKey(String tableName, String columnName, String newKeyId)
             throws SQLException {
         try (Connection conn = dataSource.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(UPDATE_ENCRYPTION_METADATA_KEY_SQL)) {
+             PreparedStatement stmt = conn.prepareStatement(getUpdateEncryptionMetadataKeySql())) {
 
             stmt.setString(1, newKeyId);
             stmt.setTimestamp(2, Timestamp.from(Instant.now()));

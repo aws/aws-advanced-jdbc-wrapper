@@ -48,6 +48,9 @@ public class KmsEncryptionIntegrationTest {
     props.setProperty(EncryptionConfig.KMS_MASTER_KEY_ARN.name, kmsKeyArn);
     props.setProperty(EncryptionConfig.KMS_REGION.name, "us-east-1");
 
+    // Get the metadata schema from config (defaults to "encrypt")
+    String metadataSchema = EncryptionConfig.ENCRYPTION_METADATA_SCHEMA.defaultValue;
+
     String url = String.format("jdbc:aws-wrapper:postgresql://%s:%d/%s",
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint(),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpointPort(),
@@ -63,12 +66,12 @@ public class KmsEncryptionIntegrationTest {
       // Setup encryption metadata schema
       try (Statement stmt = directConnection.createStatement()) {
         // Drop and recreate tables with correct schema
-        stmt.execute("DROP SCHEMA IF EXISTS encrypt CASCADE");
-        stmt.execute("CREATE SCHEMA encrypt");
+        stmt.execute("DROP SCHEMA IF EXISTS " + metadataSchema + " CASCADE");
+        stmt.execute("CREATE SCHEMA " + metadataSchema);
         stmt.execute("DROP TABLE IF EXISTS users CASCADE");
 
         // Create key_storage table first (referenced by encryption_metadata)
-        stmt.execute("CREATE TABLE if not exists encrypt.key_storage ("
+        stmt.execute("CREATE TABLE if not exists " + metadataSchema + ".key_storage ("
             + "id SERIAL PRIMARY KEY, "
             + "name VARCHAR(255) NOT NULL, "
             + "master_key_arn VARCHAR(512) NOT NULL, "
@@ -78,7 +81,7 @@ public class KmsEncryptionIntegrationTest {
             + "last_used_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP)");
 
         // Create encryption_metadata table with correct schema
-        stmt.execute("CREATE TABLE if not exists encrypt.encryption_metadata ("
+        stmt.execute("CREATE TABLE if not exists " + metadataSchema + ".encryption_metadata ("
             + "table_name VARCHAR(255) NOT NULL, "
             + "column_name VARCHAR(255) NOT NULL, "
             + "encryption_algorithm VARCHAR(50) NOT NULL, "
@@ -86,7 +89,7 @@ public class KmsEncryptionIntegrationTest {
             + "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
             + "updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
             + "PRIMARY KEY (table_name, column_name), "
-            + "FOREIGN KEY (key_id) REFERENCES encrypt.key_storage(id))");
+            + "FOREIGN KEY (key_id) REFERENCES " + metadataSchema + ".key_storage(id))");
 
         // Insert a key into key_storage with real KMS data key
         KmsClient kmsClient = KmsClient.builder().region(software.amazon.awssdk.regions.Region.US_EAST_1).build();
@@ -98,7 +101,7 @@ public class KmsEncryptionIntegrationTest {
         String encryptedDataKeyBase64 = Base64.getEncoder().encodeToString(dataKeyResponse.ciphertextBlob().asByteArray());
 
         PreparedStatement keyStmt = directConnection.prepareStatement(
-            "INSERT INTO encrypt.key_storage (name, master_key_arn, encrypted_data_key, key_spec) VALUES (?, ?, ?, ?) RETURNING id");
+            "INSERT INTO " + metadataSchema + ".key_storage (name, master_key_arn, encrypted_data_key, key_spec) VALUES (?, ?, ?, ?) RETURNING id");
         keyStmt.setString(1, "test-key-users-ssn");
         keyStmt.setString(2, kmsKeyArn);
         keyStmt.setString(3, encryptedDataKeyBase64);
@@ -112,7 +115,7 @@ public class KmsEncryptionIntegrationTest {
         logger.trace("Setting up encryption metadata for users.ssn using KeyManagementUtility approach");
 
         try (PreparedStatement metaStmt = directConnection.prepareStatement(
-            "INSERT INTO encrypt.encryption_metadata (table_name, column_name, encryption_algorithm, key_id) VALUES (?, ?, ?, ?)")) {
+            "INSERT INTO " + metadataSchema + ".encryption_metadata (table_name, column_name, encryption_algorithm, key_id) VALUES (?, ?, ?, ?)")) {
           metaStmt.setString(1, "users");
           metaStmt.setString(2, "ssn");
           metaStmt.setString(3, "AES-256-GCM");
@@ -123,7 +126,7 @@ public class KmsEncryptionIntegrationTest {
 
         // Verify the metadata was configured correctly
         try (PreparedStatement checkStmt = directConnection.prepareStatement(
-            "SELECT table_name, column_name, encryption_algorithm, key_id FROM encrypt.encryption_metadata WHERE table_name = ? AND column_name = ?")) {
+            "SELECT table_name, column_name, encryption_algorithm, key_id FROM " + EncryptionConfig.ENCRYPTION_METADATA_SCHEMA.defaultValue + ".encryption_metadata WHERE table_name = ? AND column_name = ?")) {
           checkStmt.setString(1, "users");
           checkStmt.setString(2, "ssn");
           ResultSet rs = checkStmt.executeQuery();
@@ -145,7 +148,7 @@ public class KmsEncryptionIntegrationTest {
 
         // Final verification that metadata exists
         try (PreparedStatement finalCheck = directConnection.prepareStatement(
-            "SELECT COUNT(*) FROM encrypt.encryption_metadata WHERE table_name = 'users' AND column_name = 'ssn'")) {
+            "SELECT COUNT(*) FROM " + EncryptionConfig.ENCRYPTION_METADATA_SCHEMA.defaultValue + ".encryption_metadata WHERE table_name = 'users' AND column_name = 'ssn'")) {
           ResultSet rs = finalCheck.executeQuery();
           rs.next();
           int count = rs.getInt(1);
@@ -265,7 +268,7 @@ public class KmsEncryptionIntegrationTest {
   @Test
   void testEncryptionMetadataSetup() throws Exception {
     // Verify encryption metadata was created with master key ARN
-    String metadataSql = "SELECT table_name, column_name, encryption_algorithm FROM encrypt.encryption_metadata WHERE table_name = 'users'";
+    String metadataSql = "SELECT table_name, column_name, encryption_algorithm FROM " + EncryptionConfig.ENCRYPTION_METADATA_SCHEMA.defaultValue + ".encryption_metadata WHERE table_name = 'users'";
     try (PreparedStatement pstmt = connection.prepareStatement(metadataSql)) {
       try (ResultSet rs = pstmt.executeQuery()) {
         assertTrue(rs.next());
@@ -276,7 +279,7 @@ public class KmsEncryptionIntegrationTest {
     }
 
     // Verify key storage table exists and is ready for KMS key storage
-    String keyStorageSql = "SELECT COUNT(*) FROM encrypt.key_storage";
+    String keyStorageSql = "SELECT COUNT(*) FROM " + EncryptionConfig.ENCRYPTION_METADATA_SCHEMA.defaultValue + ".key_storage";
     try (PreparedStatement pstmt = connection.prepareStatement(keyStorageSql)) {
       try (ResultSet rs = pstmt.executeQuery()) {
         assertTrue(rs.next());

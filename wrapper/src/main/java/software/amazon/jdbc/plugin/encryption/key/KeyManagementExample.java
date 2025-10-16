@@ -54,7 +54,7 @@ public class KeyManagementExample {
 
         // Create utility
         this.keyManagementUtility = new KeyManagementUtility(
-                keyManager, metadataManager, dataSource, kmsClient);
+                keyManager, metadataManager, dataSource, kmsClient, config);
     }
 
     /**
