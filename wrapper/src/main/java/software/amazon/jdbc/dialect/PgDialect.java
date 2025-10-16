@@ -60,12 +60,12 @@ public class PgDialect implements Dialect {
 
   @Override
   public String getHostAliasQuery() {
-    return "SELECT CONCAT(inet_server_addr(), ':', inet_server_port())";
+    return "SELECT pg_catalog.CONCAT(pg_catalog.inet_server_addr(), ':', pg_catalog.inet_server_port())";
   }
 
   @Override
   public String getServerVersionQuery() {
-    return "SELECT 'version', VERSION()";
+    return "SELECT 'version', pg_catalog.VERSION()";
   }
 
   @Override
@@ -74,7 +74,7 @@ public class PgDialect implements Dialect {
     ResultSet rs = null;
     try {
       stmt = connection.createStatement();
-      rs = stmt.executeQuery("SELECT 1 FROM pg_proc LIMIT 1");
+      rs = stmt.executeQuery("SELECT 1 FROM pg_catalog.pg_proc LIMIT 1");
       if (rs.next()) {
         return true;
       }

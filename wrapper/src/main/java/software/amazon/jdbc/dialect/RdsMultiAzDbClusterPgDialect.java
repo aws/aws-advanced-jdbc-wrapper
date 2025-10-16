@@ -42,7 +42,7 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
   // For reader nodes, the query should return a writer node ID. For a writer node, the query should return no data.
   private static final String FETCH_WRITER_NODE_QUERY =
       "SELECT multi_az_db_cluster_source_dbi_resource_id FROM rds_tools.multi_az_db_cluster_source_dbi_resource_id()"
-          + " WHERE multi_az_db_cluster_source_dbi_resource_id !="
+          + " WHERE multi_az_db_cluster_source_dbi_resource_id OPERATOR(pg_catalog.!=)"
           + " (SELECT dbi_resource_id FROM rds_tools.dbi_resource_id())";
 
   private static final String IS_RDS_CLUSTER_QUERY =
@@ -52,7 +52,7 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
 
   private static final String NODE_ID_QUERY = "SELECT dbi_resource_id FROM rds_tools.dbi_resource_id()";
 
-  private static final String IS_READER_QUERY = "SELECT pg_is_in_recovery()";
+  private static final String IS_READER_QUERY = "SELECT pg_catalog.pg_is_in_recovery()";
 
   @Override
   public ExceptionHandler getExceptionHandler() {

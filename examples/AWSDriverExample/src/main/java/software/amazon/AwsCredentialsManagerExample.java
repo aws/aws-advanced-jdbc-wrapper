@@ -61,7 +61,7 @@ public class AwsCredentialsManagerExample {
     // Connect to Postgres
     try (Connection conn = DriverManager.getConnection(POSTGRESQL_CONNECTION_STRING, postgresProps);
          Statement statement = conn.createStatement();
-         ResultSet result = statement.executeQuery("SELECT aurora_db_instance_identifier()")) {
+         ResultSet result = statement.executeQuery("SELECT pg_catalog.aurora_db_instance_identifier()")) {
 
       System.out.println(Util.getResult(result));
     }

@@ -1200,8 +1200,8 @@ public class AuroraTestUtility {
             break;
           case PG:
             retrieveTopologySql =
-                "SELECT SERVER_ID, SESSION_ID FROM aurora_replica_status() "
-                    + "ORDER BY CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN 0 ELSE 1 END";
+                "SELECT SERVER_ID, SESSION_ID FROM pg_catalog.aurora_replica_status() "
+                    + "ORDER BY CASE WHEN SESSION_ID OPERATOR(pg_catalog.=) 'MASTER_SESSION_ID' THEN 0 ELSE 1 END";
             break;
           default:
             throw new UnsupportedOperationException(databaseEngine.toString());
@@ -1803,7 +1803,7 @@ public class AuroraTestUtility {
           case MYSQL:
             return "SELECT @@aurora_server_id as id";
           case PG:
-            return "SELECT aurora_db_instance_identifier()";
+            return "SELECT pg_catalog.aurora_db_instance_identifier()";
           default:
             throw new UnsupportedOperationException(databaseEngine.toString());
         }
