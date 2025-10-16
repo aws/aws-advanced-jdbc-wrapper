@@ -67,8 +67,8 @@ public class ContainerHelper {
   private static final String OTLP_TELEMETRY_IMAGE_NAME = "amazon/aws-otel-collector";
 
   private static final String RETRIEVE_TOPOLOGY_SQL_POSTGRES =
-      "SELECT SERVER_ID, SESSION_ID FROM aurora_replica_status() "
-          + "ORDER BY CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN 0 ELSE 1 END";
+      "SELECT SERVER_ID, SESSION_ID FROM pg_catalog.aurora_replica_status() "
+          + "ORDER BY CASE WHEN SESSION_ID OPERATOR(pg_catalog.=) 'MASTER_SESSION_ID' THEN 0 ELSE 1 END";
   private static final String RETRIEVE_TOPOLOGY_SQL_MYSQL =
       "SELECT SERVER_ID, SESSION_ID FROM information_schema.replica_host_status "
           + "ORDER BY IF(SESSION_ID = 'MASTER_SESSION_ID', 0, 1)";

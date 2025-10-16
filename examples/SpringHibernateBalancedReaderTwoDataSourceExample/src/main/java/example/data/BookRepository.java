@@ -23,12 +23,12 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface BookRepository extends JpaRepository<Book, Integer> {
 
-  @Query(value = "select aurora_db_instance_identifier()", nativeQuery = true)
+  @Query(value = "select pg_catalog.aurora_db_instance_identifier()", nativeQuery = true)
   String getNodeId();
 
-  @Query(value = "select pg_backend_pid()", nativeQuery = true)
+  @Query(value = "select pg_catalog.pg_backend_pid()", nativeQuery = true)
   long getNodeSessionId();
 
-  @Query(value = "select cast(pg_sleep(120) as text)", nativeQuery = true)
+  @Query(value = "select cast(pg_catalog.pg_sleep(120) as text)", nativeQuery = true)
   void sleepQuery();
 }

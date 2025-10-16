@@ -545,7 +545,7 @@ public class DatabasePerformanceMetricTest {
 
     switch (databaseEngine) {
       case PG:
-        return "SELECT 9999, pg_sleep(600)"; // 10 min
+        return "SELECT 9999, pg_catalog.pg_sleep(600)"; // 10 min
       case MYSQL:
       case MARIADB:
         //return "SELECT sleep(600)"; // 10 min
@@ -649,9 +649,10 @@ public class DatabasePerformanceMetricTest {
             break;
           case PG:
             retrieveTopologySql =
-                "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN 1 ELSE 0 END "
-                    + "FROM aurora_replica_status() "
-                    + "ORDER BY CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN 0 ELSE 1 END, SERVER_ID";
+                "SELECT SERVER_ID, CASE WHEN SESSION_ID OPERATOR(pg_catalog.=) 'MASTER_SESSION_ID' THEN 1 ELSE 0 END "
+                    + "FROM pg_catalog.aurora_replica_status() "
+                    + "ORDER BY "
+                    + "CASE WHEN SESSION_ID OPERATOR(pg_catalog.=) 'MASTER_SESSION_ID' THEN 0 ELSE 1 END, SERVER_ID";
             break;
           default:
             throw new UnsupportedOperationException(databaseEngine.toString());
@@ -720,7 +721,7 @@ public class DatabasePerformanceMetricTest {
             break;
           case PG:
             retrieveReadOnlySql =
-                "SELECT CASE WHEN pg_is_in_recovery() THEN 1 ELSE 0 END";
+                "SELECT CASE WHEN pg_catalog.pg_is_in_recovery() THEN 1 ELSE 0 END";
             break;
           default:
             throw new UnsupportedOperationException(databaseEngine.toString());

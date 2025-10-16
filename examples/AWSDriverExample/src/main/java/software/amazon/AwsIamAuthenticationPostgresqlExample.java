@@ -40,7 +40,7 @@ public class AwsIamAuthenticationPostgresqlExample {
     // Attempt a connection
     try (Connection conn = DriverManager.getConnection(POSTGRESQL_CONNECTION_STRING, properties);
         Statement statement = conn.createStatement();
-        ResultSet result = statement.executeQuery("select aurora_db_instance_identifier()")) {
+        ResultSet result = statement.executeQuery("select pg_catalog.aurora_db_instance_identifier()")) {
 
       System.out.println(Util.getResult(result));
     }

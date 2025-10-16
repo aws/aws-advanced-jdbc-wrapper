@@ -41,8 +41,8 @@ public class RdsPgDialect extends PgDialect implements BlueGreenDialect {
 
   private static final String extensionsSql = "SELECT (setting LIKE '%rds_tools%') AS rds_tools, "
       + "(setting LIKE '%aurora_stat_utils%') AS aurora_stat_utils "
-      + "FROM pg_settings "
-      + "WHERE name='rds.extensions'";
+      + "FROM pg_catalog.pg_settings "
+      + "WHERE name OPERATOR(pg_catalog.=) 'rds.extensions'";
 
   private static final String BG_STATUS_QUERY =
       "SELECT * FROM rds_tools.show_topology('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";

@@ -88,7 +88,7 @@ public class MainVerticle extends AbstractVerticle {
   }
 
   private void getCurrentInstance(RoutingContext routingContext) {
-    write.query("select aurora_db_instance_identifier() as id, case when pg_is_in_recovery() then 'reader' else 'writer' end as role").execute().onSuccess(
+    write.query("select pg_catalog.aurora_db_instance_identifier() as id, case when pg_catalog.pg_is_in_recovery() then 'reader' else 'writer' end as role").execute().onSuccess(
       rows -> {
         for (Row row : rows) {
           Instance instance = new Instance(
@@ -107,7 +107,7 @@ public class MainVerticle extends AbstractVerticle {
   }
 
   private void getTopology(RoutingContext routingContext) {
-    write.query("select server_id from aurora_replica_status()").execute().onSuccess(
+    write.query("select server_id from pg_catalog.aurora_replica_status()").execute().onSuccess(
       rows -> {
         ArrayList<String> arr = new ArrayList<>();
         for (Row row : rows) {
