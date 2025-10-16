@@ -33,13 +33,15 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.dialect.PgDialect;
 
 class SqlMethodAnalyzerTest {
   private static final String EXECUTE_METHOD = "execute";
   private static final String EMPTY_SQL = "";
 
   @Mock Connection conn;
-
+  @Mock PluginService pluginService;
 
   private final SqlMethodAnalyzer sqlMethodAnalyzer = new SqlMethodAnalyzer();
   private AutoCloseable closeable;
@@ -47,6 +49,7 @@ class SqlMethodAnalyzerTest {
   @BeforeEach
   void setUp() {
     closeable = MockitoAnnotations.openMocks(this);
+    when(pluginService.getDialect()).thenReturn(new PgDialect());
   }
 
   @AfterEach
@@ -67,13 +70,13 @@ class SqlMethodAnalyzerTest {
     }
 
     when(conn.getAutoCommit()).thenReturn(autocommit);
-    final boolean actual = sqlMethodAnalyzer.doesOpenTransaction(conn, methodName, args);
+    final boolean actual = sqlMethodAnalyzer.doesOpenTransaction(conn, methodName, args, pluginService);
     assertEquals(expected, actual);
   }
 
   @Test
   void testOpenTransactionWithEmptySqlDoesNotThrow() {
-    assertDoesNotThrow(() -> sqlMethodAnalyzer.doesOpenTransaction(conn, EXECUTE_METHOD, new String[]{EMPTY_SQL}));
+    assertDoesNotThrow(() -> sqlMethodAnalyzer.doesOpenTransaction(conn, EXECUTE_METHOD, new String[]{EMPTY_SQL}, pluginService));
   }
 
   @ParameterizedTest
@@ -86,39 +89,39 @@ class SqlMethodAnalyzerTest {
       args = new Object[] {};
     }
 
-    final boolean actual = sqlMethodAnalyzer.doesCloseTransaction(conn, methodName, args);
+    final boolean actual = sqlMethodAnalyzer.doesCloseTransaction(conn, methodName, args, pluginService);
     assertEquals(expected, actual);
   }
 
   @Test
   void testCloseTransactionWithEmptySqlDoesNotThrow() {
-    assertDoesNotThrow(() -> sqlMethodAnalyzer.doesCloseTransaction(conn, EXECUTE_METHOD, new String[]{EMPTY_SQL}));
+    assertDoesNotThrow(() -> sqlMethodAnalyzer.doesCloseTransaction(conn, EXECUTE_METHOD, new String[]{EMPTY_SQL}, pluginService));
   }
 
   @Test
   void testDoesSwitchAutoCommitFalseTrue() throws SQLException {
     assertFalse(sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(conn, "Connection.setAutoCommit",
-        new Object[] {false}));
+        new Object[] {false}, pluginService));
     assertFalse(sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(conn, "Statement.execute",
-        new Object[] {"SET autocommit = 0"}));
+        new Object[] {"SET autocommit = 0"}, pluginService));
 
     assertTrue(sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(conn, "Connection.setAutoCommit",
-        new Object[] {true}));
+        new Object[] {true}, pluginService));
     assertTrue(sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(conn, "Statement.execute",
-        new Object[] {"SET autocommit = 1"}));
+        new Object[] {"SET autocommit = 1"}, pluginService));
 
     when(conn.getAutoCommit()).thenReturn(true);
 
     assertFalse(sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(conn, "Connection.setAutoCommit",
-        new Object[] {false}));
+        new Object[] {false}, pluginService));
     assertFalse(sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(conn, "Statement.execute",
-        new Object[] {"SET autocommit = 0"}));
+        new Object[] {"SET autocommit = 0"}, pluginService));
     assertFalse(sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(conn, "Connection.setAutoCommit",
-        new Object[] {true}));
+        new Object[] {true}, pluginService));
     assertFalse(sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(conn, "Statement.execute",
-        new Object[] {"SET autocommit = 1"}));
+        new Object[] {"SET autocommit = 1"}, pluginService));
     assertFalse(sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(conn, "Statement.execute",
-        new Object[] {"SET TIME ZONE 'UTC'"}));
+        new Object[] {"SET TIME ZONE 'UTC'"}, pluginService));
   }
 
   @ParameterizedTest
@@ -132,13 +135,13 @@ class SqlMethodAnalyzerTest {
       args = new Object[] {};
     }
 
-    final boolean actual = sqlMethodAnalyzer.isStatementSettingAutoCommit(methodName, args);
+    final boolean actual = sqlMethodAnalyzer.isStatementSettingAutoCommit(methodName, args, pluginService);
     assertEquals(expected, actual);
   }
 
   @Test
   void testIsStatementSettingAutoCommitWithEmptySqlDoesNotThrow() {
-    assertDoesNotThrow(() -> sqlMethodAnalyzer.isStatementSettingAutoCommit(EXECUTE_METHOD, new String[]{EMPTY_SQL}));
+    assertDoesNotThrow(() -> sqlMethodAnalyzer.isStatementSettingAutoCommit(EXECUTE_METHOD, new String[]{EMPTY_SQL}, pluginService));
   }
 
   @ParameterizedTest
