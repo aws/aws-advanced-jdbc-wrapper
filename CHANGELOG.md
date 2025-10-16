@@ -3,6 +3,33 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [2.6.5] - 2025-10-16
+
+### :magic_wand: Added
+- Weighted random host selector strategy ([PR #1537](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1537)).
+
+### :bug: Fixed
+- Problem where monitor plugin chains were created unnecessarily, leading to performance degradation ([PR #1530](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1530)).
+- Limitless rounding bug for host weights ([PR #1537](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1537)).
+- Issue with Blue/Green metadata retrieval for PG databases after switchover is completed ([PR #1552](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1552)).
+- Issue where host monitors would occasionally call isValid() without a timeout ([PR #1546](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1546)).
+- Verify connection is not a stale writer in the cluster topology monitor ([PR #1322](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1322)).
+- Issue where the closedExplicitly flag in the Failover2 plugin was not updated correctly ([PR #1560](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1560)).
+
+### :crab: Changed
+- Refactor failover handler tasks to use separate PluginService instances ([PR #1514](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1514)).
+- Replace ConnectionService with ServiceUtility ([PR #1534](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1534)).
+- Decouple initialization objects and clean up initialization logic ([PR #1541](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1541)).
+- Refactor PG SQL queries to be fully qualified ([PR #1561](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1561)).
+- Documentation:
+  - Required permissions for non-admin to the Blue/Green docs ([PR #1559](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1559)).
+  - Remove important service dependency in the Blue/Green docs ([PR #1544](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1544)).
+  - Supported service versions required for Blue/Green support ([PR #1548](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1548)).
+  - Remove outdated information regarding Blue/Green support ([PR #1549](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1549)).
+  - Correct property for the Secrets Manager plugin ([PR #1556](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1556)).
+  - ClusterId requirement when using non-standard RDS URLs([PR #1553](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1553) and [PR #1558](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1558)).
+  - RDS Proxy compatibility ([PR #1535](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1535)).
+
 ## [2.6.4] - 2025-08-28
 
 ### :bug: Fixed
@@ -508,6 +535,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[2.6.5]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.4...2.6.5
 [2.6.4]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.3...2.6.4
 [2.6.3]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.2...2.6.3
 [2.6.2]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.1...2.6.2
