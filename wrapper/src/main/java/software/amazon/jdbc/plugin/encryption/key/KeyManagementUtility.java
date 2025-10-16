@@ -48,7 +48,7 @@ public class KeyManagementUtility {
 
     // SQL statements for encryption metadata operations
     private static final String INSERT_ENCRYPTION_METADATA_SQL =
-        "INSERT INTO encryption_metadata (table_name, column_name, encryption_algorithm, key_id, created_at, updated_at) " +
+        "INSERT INTO encrypt.encryption_metadata (table_name, column_name, encryption_algorithm, key_id, created_at, updated_at) " +
         "VALUES (?, ?, ?, ?, ?, ?) " +
         "ON CONFLICT (table_name, column_name) DO UPDATE SET " +
         "encryption_algorithm = EXCLUDED.encryption_algorithm, " +
@@ -56,14 +56,14 @@ public class KeyManagementUtility {
         "updated_at = EXCLUDED.updated_at";
 
     private static final String UPDATE_ENCRYPTION_METADATA_KEY_SQL =
-        "UPDATE encryption_metadata SET key_id = ?, updated_at = ? " +
+        "UPDATE encrypt.encryption_metadata SET key_id = ?, updated_at = ? " +
         "WHERE table_name = ? AND column_name = ?";
 
     private static final String SELECT_COLUMNS_WITH_KEY_SQL =
-        "SELECT table_name, column_name FROM encryption_metadata WHERE key_id = ?";
+        "SELECT table_name, column_name FROM encrypt.encryption_metadata WHERE key_id = ?";
 
     private static final String DELETE_ENCRYPTION_METADATA_SQL =
-        "DELETE FROM encryption_metadata WHERE table_name = ? AND column_name = ?";
+        "DELETE FROM encrypt.encryption_metadata WHERE table_name = ? AND column_name = ?";
 
     public KeyManagementUtility(KeyManager keyManager, MetadataManager metadataManager,
                                DataSource dataSource, KmsClient kmsClient) {

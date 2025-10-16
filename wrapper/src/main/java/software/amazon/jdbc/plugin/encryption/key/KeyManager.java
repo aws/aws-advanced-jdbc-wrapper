@@ -49,16 +49,16 @@ public class KeyManager {
 
     // SQL statements for key metadata operations
     private static final String INSERT_KEY_METADATA_SQL =
-        "INSERT INTO key_storage (name, master_key_arn, encrypted_data_key, key_spec, created_at, last_used_at) " +
+        "INSERT INTO encrypt.key_storage (name, master_key_arn, encrypted_data_key, key_spec, created_at, last_used_at) " +
         "VALUES (?, ?, ?, ?, ?, ?) " +
         "RETURNING id";
 
     private static final String SELECT_KEY_METADATA_SQL =
         "SELECT id, name, master_key_arn, encrypted_data_key, key_spec, created_at, last_used_at " +
-        "FROM key_storage WHERE id = ?";
+        "FROM encrypt.key_storage WHERE id = ?";
 
     private static final String UPDATE_LAST_USED_SQL =
-        "UPDATE key_storage SET last_used_at = ? WHERE key_id = ?";
+        "UPDATE encrypt.key_storage SET last_used_at = ? WHERE key_id = ?";
 
     public KeyManager(KmsClient kmsClient, PluginService pluginService, EncryptionConfig config) {
         this.kmsClient = Objects.requireNonNull(kmsClient, "KmsClient cannot be null");

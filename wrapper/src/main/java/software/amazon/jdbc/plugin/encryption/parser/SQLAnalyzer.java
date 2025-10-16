@@ -44,11 +44,12 @@ public class SQLAnalyzer {
         public List<ColumnInfo> columns = new ArrayList<>();
         public List<ColumnInfo> whereColumns = new ArrayList<>(); // Separate WHERE clause columns
         public Set<String> tables = new HashSet<>();
+        public boolean hasParameters = false;
 
         @Override
         public String toString() {
-            return String.format("QueryAnalysis{queryType='%s', tables=%s, columns=%s, whereColumns=%s}",
-                queryType, tables, columns, whereColumns);
+            return String.format("QueryAnalysis{queryType='%s', tables=%s, columns=%s, whereColumns=%s, hasParameters=%s}",
+                queryType, tables, columns, whereColumns, hasParameters);
         }
     }
 
@@ -64,11 +65,28 @@ public class SQLAnalyzer {
         return false;
     }
 
+    private boolean statementHasParameters(Statement statement) {
+        if (statement instanceof SelectStatement) {
+            SelectStatement select = (SelectStatement) statement;
+            return select.getWhereClause() != null && containsParameters(select.getWhereClause());
+        } else if (statement instanceof InsertStatement) {
+            return true; // INSERT with VALUES typically has parameters
+        } else if (statement instanceof UpdateStatement) {
+            UpdateStatement update = (UpdateStatement) statement;
+            return update.getWhereClause() != null && containsParameters(update.getWhereClause());
+        } else if (statement instanceof DeleteStatement) {
+            DeleteStatement delete = (DeleteStatement) statement;
+            return delete.getWhereClause() != null && containsParameters(delete.getWhereClause());
+        }
+        return false;
+    }
+
     public QueryAnalysis analyze(String sql) {
         QueryAnalysis analysis = new QueryAnalysis();
 
         try {
             Statement statement = parser.parse(sql);
+            analysis.hasParameters = statementHasParameters(statement);
 
             if (statement instanceof SelectStatement) {
                 analysis.queryType = "SELECT";
@@ -163,7 +181,7 @@ public class SQLAnalyzer {
 
         // Extract columns from WHERE clause only if WHERE contains parameters
         if (select.getWhereClause() != null && containsParameters(select.getWhereClause())) {
-            extractWhereColumnsFromExpression(select.getWhereClause(), analysis);
+            extractWhereColumnsFromExpression(select.getWhereClause(), analysis, aliasToTable);
         }
     }
 
@@ -183,15 +201,30 @@ public class SQLAnalyzer {
         }
     }
 
-    private void extractWhereColumnsFromExpression(Expression expression, QueryAnalysis analysis) {
+    private void extractWhereColumnsFromExpression(Expression expression, QueryAnalysis analysis, Map<String, String> aliasToTable) {
         if (expression instanceof Identifier) {
             Identifier column = (Identifier) expression;
-            String tableName = analysis.tables.isEmpty() ? "unknown" : analysis.tables.iterator().next();
-            analysis.whereColumns.add(new ColumnInfo(tableName, column.getName()));
+            String fullName = column.getName();
+            String tableName;
+            String columnName;
+
+            // Parse qualified column name (e.g., "u.id" or "id")
+            if (fullName.contains(".")) {
+                String[] parts = fullName.split("\\.", 2);
+                String tableOrAlias = parts[0];
+                columnName = parts[1];
+                // Resolve alias to actual table name
+                tableName = aliasToTable.getOrDefault(tableOrAlias, tableOrAlias);
+            } else {
+                tableName = analysis.tables.isEmpty() ? "unknown" : analysis.tables.iterator().next();
+                columnName = fullName;
+            }
+
+            analysis.whereColumns.add(new ColumnInfo(tableName, columnName));
         } else if (expression instanceof BinaryExpression) {
             BinaryExpression binaryExpr = (BinaryExpression) expression;
-            extractWhereColumnsFromExpression(binaryExpr.getLeft(), analysis);
-            extractWhereColumnsFromExpression(binaryExpr.getRight(), analysis);
+            extractWhereColumnsFromExpression(binaryExpr.getLeft(), analysis, aliasToTable);
+            extractWhereColumnsFromExpression(binaryExpr.getRight(), analysis, aliasToTable);
         } else if (expression instanceof SubqueryExpression) {
             SubqueryExpression subquery = (SubqueryExpression) expression;
             // Extract tables from the subquery
@@ -224,7 +257,7 @@ public class SQLAnalyzer {
 
         // Extract columns from WHERE clause only if WHERE contains parameters
         if (update.getWhereClause() != null && containsParameters(update.getWhereClause())) {
-            extractWhereColumnsFromExpression(update.getWhereClause(), analysis);
+            extractWhereColumnsFromExpression(update.getWhereClause(), analysis, new HashMap<>());
         }
     }
 
@@ -235,7 +268,7 @@ public class SQLAnalyzer {
 
         // Extract columns from WHERE clause only if WHERE contains parameters
         if (delete.getWhereClause() != null && containsParameters(delete.getWhereClause())) {
-            extractWhereColumnsFromExpression(delete.getWhereClause(), analysis);
+            extractWhereColumnsFromExpression(delete.getWhereClause(), analysis, new HashMap<>());
         }
     }
 

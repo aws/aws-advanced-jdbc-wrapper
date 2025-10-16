@@ -264,4 +264,67 @@ class SqlAnalyzerTest {
     assertTrue(result.tables.contains("users"));
     assertTrue(result.tables.contains("orders"));
   }
+
+  @Test
+  public void testInsertWithSchemaQualifiedTable() {
+    SQLAnalyzer.QueryAnalysis result = analyzer.analyze(
+        "INSERT INTO myschema.users (name, ssn) VALUES (?, ?)");
+    assertEquals("INSERT", result.queryType);
+    assertTrue(result.tables.contains("users"));
+    assertEquals(2, result.columns.size());
+    assertTrue(result.columns.stream().anyMatch(c -> "users".equals(c.tableName) && "name".equals(c.columnName)));
+    assertTrue(result.columns.stream().anyMatch(c -> "users".equals(c.tableName) && "ssn".equals(c.columnName)));
+    assertTrue(result.hasParameters);
+  }
+
+  @Test
+  public void testUpdateWithSchemaQualifiedTable() {
+    SQLAnalyzer.QueryAnalysis result = analyzer.analyze(
+        "UPDATE app_data.customers SET email = ? WHERE id = ?");
+    assertEquals("UPDATE", result.queryType);
+    assertTrue(result.tables.contains("customers"));
+    assertEquals(1, result.columns.size());
+    assertTrue(result.columns.stream().anyMatch(c -> "customers".equals(c.tableName) && "email".equals(c.columnName)));
+    assertEquals(1, result.whereColumns.size());
+    assertTrue(result.whereColumns.stream().anyMatch(c -> "customers".equals(c.tableName) && "id".equals(c.columnName)));
+    assertTrue(result.hasParameters);
+  }
+
+  @Test
+  public void testSelectWithSchemaQualifiedTableAndColumns() {
+    SQLAnalyzer.QueryAnalysis result = analyzer.analyze(
+        "SELECT u.name, u.ssn FROM hr.users u WHERE u.id = ?");
+    assertEquals("SELECT", result.queryType);
+    assertTrue(result.tables.contains("users"));
+    assertEquals(2, result.columns.size());
+    assertTrue(result.columns.stream().anyMatch(c -> "users".equals(c.tableName) && "name".equals(c.columnName)));
+    assertTrue(result.columns.stream().anyMatch(c -> "users".equals(c.tableName) && "ssn".equals(c.columnName)));
+    assertEquals(1, result.whereColumns.size());
+    assertTrue(result.whereColumns.stream().anyMatch(c -> "users".equals(c.tableName) && "id".equals(c.columnName)));
+    assertTrue(result.hasParameters);
+  }
+
+  @Test
+  public void testJoinWithMixedSchemaQualifiedTables() {
+    SQLAnalyzer.QueryAnalysis result = analyzer.analyze(
+        "SELECT u.name, o.total FROM public.users u JOIN sales.orders o ON u.id = o.user_id");
+    assertEquals("SELECT", result.queryType);
+    assertEquals(2, result.tables.size());
+    assertTrue(result.tables.contains("users"));
+    assertTrue(result.tables.contains("orders"));
+    assertEquals(2, result.columns.size());
+    assertTrue(result.columns.stream().anyMatch(c -> "users".equals(c.tableName) && "name".equals(c.columnName)));
+    assertTrue(result.columns.stream().anyMatch(c -> "orders".equals(c.tableName) && "total".equals(c.columnName)));
+  }
+
+  @Test
+  public void testDeleteWithSchemaQualifiedTable() {
+    SQLAnalyzer.QueryAnalysis result = analyzer.analyze(
+        "DELETE FROM archive.old_records WHERE created_at < ?");
+    assertEquals("DELETE", result.queryType);
+    assertTrue(result.tables.contains("old_records"));
+    assertEquals(1, result.whereColumns.size());
+    assertTrue(result.whereColumns.stream().anyMatch(c -> "old_records".equals(c.tableName) && "created_at".equals(c.columnName)));
+    assertTrue(result.hasParameters);
+  }
 }

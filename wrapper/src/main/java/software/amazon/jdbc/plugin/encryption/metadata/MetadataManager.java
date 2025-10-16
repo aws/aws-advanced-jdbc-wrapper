@@ -59,12 +59,12 @@ public class MetadataManager {
         "       em.created_at, em.updated_at, " +
         "       ks.name, ks.master_key_arn, ks.encrypted_data_key, ks.key_spec, " +
         "       ks.created_at as key_created_at, ks.last_used_at " +
-        "FROM encryption_metadata em " +
-        "JOIN key_storage ks ON em.key_id = ks.id " +
+        "FROM encrypt.encryption_metadata em " +
+        "JOIN encrypt.key_storage ks ON em.key_id = ks.id " +
         "ORDER BY em.table_name, em.column_name";
 
     private static final String CHECK_COLUMN_ENCRYPTED_SQL =
-        "SELECT 1 FROM encryption_metadata " +
+        "SELECT 1 FROM encrypt.encryption_metadata " +
         "WHERE table_name = ? AND column_name = ?";
 
     private static final String GET_COLUMN_CONFIG_SQL =
@@ -72,8 +72,8 @@ public class MetadataManager {
         "       em.created_at, em.updated_at, " +
         "       ks.master_key_arn, ks.encrypted_data_key, ks.key_spec, " +
         "       ks.created_at as key_created_at, ks.last_used_at " +
-        "FROM encryption_metadata em " +
-        "JOIN key_storage ks ON em.key_id = ks.id " +
+        "FROM encrypt.encryption_metadata em " +
+        "JOIN encrypt.key_storage ks ON em.key_id = ks.id " +
         "WHERE em.table_name = ? AND em.column_name = ?";
 
     public MetadataManager(PluginService pluginService, EncryptionConfig config) {

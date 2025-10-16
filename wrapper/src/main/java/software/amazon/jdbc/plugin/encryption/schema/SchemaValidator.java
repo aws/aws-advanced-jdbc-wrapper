@@ -34,44 +34,44 @@ import java.util.stream.Collectors;
  * and has the correct structure.
  */
 public class SchemaValidator {
-    
-    private static final String ENCRYPTION_METADATA_TABLE = "encryption_metadata";
-    private static final String KEY_STORAGE_TABLE = "key_storage";
-    
+
+    private static final String ENCRYPTION_METADATA_TABLE = "encrypt.encryption_metadata";
+    private static final String KEY_STORAGE_TABLE = "encrypt.key_storage";
+
     private static final Set<String> REQUIRED_ENCRYPTION_METADATA_COLUMNS = new HashSet<>(Arrays.asList(
         "id", "table_name", "column_name", "encryption_algorithm", "key_id", "created_at", "updated_at"
     ));
-    
+
     private static final Set<String> REQUIRED_KEY_STORAGE_COLUMNS = new HashSet<>(Arrays.asList(
         "id", "name", "master_key_arn", "encrypted_data_key", "key_spec", "created_at", "last_used_at"
     ));
-    
+
     /**
      * Validates that all required tables and columns exist in the database.
-     * 
+     *
      * @param connection Database connection to validate against
      * @return ValidationResult containing validation status and any issues found
      * @throws SQLException if database access fails
      */
     public ValidationResult validateSchema(Connection connection) throws SQLException {
         List<String> issues = new ArrayList<>();
-        
+
         // Validate encryption_metadata table
         if (!tableExists(connection, ENCRYPTION_METADATA_TABLE)) {
-            issues.add("Table 'encryption_metadata' does not exist");
+            issues.add("Table 'encrypt.encryption_metadata' does not exist");
         } else {
             issues.addAll(validateTableColumns(connection, ENCRYPTION_METADATA_TABLE, REQUIRED_ENCRYPTION_METADATA_COLUMNS));
             issues.addAll(validateEncryptionMetadataConstraints(connection));
         }
-        
+
         // Validate key_storage table
         if (!tableExists(connection, KEY_STORAGE_TABLE)) {
-            issues.add("Table 'key_storage' does not exist");
+            issues.add("Table 'encrypt.key_storage' does not exist");
         } else {
             issues.addAll(validateTableColumns(connection, KEY_STORAGE_TABLE, REQUIRED_KEY_STORAGE_COLUMNS));
             issues.addAll(validateKeyStorageConstraints(connection));
         }
-        
+
         // Validate foreign key relationship
         if (issues.isEmpty()) {
             issues.addAll(validateForeignKeyConstraints(connection));
@@ -142,46 +142,45 @@ public class SchemaValidator {
         
         return issues;
     }
-    
     /**
      * Validates constraints specific to encryption_metadata table.
      */
     private List<String> validateEncryptionMetadataConstraints(Connection connection) throws SQLException {
         List<String> issues = new ArrayList<>();
-        
+
         // Check for unique constraint on table_name, column_name
         if (!hasUniqueConstraint(connection, ENCRYPTION_METADATA_TABLE, Arrays.asList("table_name", "column_name"))) {
-            issues.add("Table 'encryption_metadata' is missing unique constraint on (table_name, column_name)");
+            issues.add("Table 'encrypt.encryption_metadata' is missing unique constraint on (table_name, column_name)");
         }
-        
+
         return issues;
     }
-    
+
     /**
      * Validates constraints specific to key_storage table.
      */
     private List<String> validateKeyStorageConstraints(Connection connection) throws SQLException {
         List<String> issues = new ArrayList<>();
-        
+
         // Check for primary key on id
         if (!hasPrimaryKey(connection, KEY_STORAGE_TABLE, "id")) {
-            issues.add("Table 'key_storage' is missing primary key on 'id'");
+            issues.add("Table 'encrypt.key_storage' is missing primary key on 'id'");
         }
-        
+
         return issues;
     }
-    
+
     /**
      * Validates foreign key constraints between tables.
      */
     private List<String> validateForeignKeyConstraints(Connection connection) throws SQLException {
         List<String> issues = new ArrayList<>();
-        
+
         // Check for foreign key from encryption_metadata.key_id to key_storage.id
         if (!hasForeignKey(connection, ENCRYPTION_METADATA_TABLE, "key_id", KEY_STORAGE_TABLE, "id")) {
-            issues.add("Missing foreign key constraint from encryption_metadata.key_id to key_storage.id");
+            issues.add("Missing foreign key constraint from encrypt.encryption_metadata.key_id to encrypt.key_storage.id");
         }
-        
+
         return issues;
     }
     
