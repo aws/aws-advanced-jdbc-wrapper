@@ -38,13 +38,13 @@ public class HostSpec {
 
   protected final String host;
   protected final int port;
+  protected final HostRole role;
+  protected final Timestamp lastUpdateTime;
+  protected final Set<String> aliases = ConcurrentHashMap.newKeySet();
+  protected final Set<String> allAliases = ConcurrentHashMap.newKeySet();
   protected volatile HostAvailability availability;
-  protected HostRole role;
-  protected Set<String> aliases = ConcurrentHashMap.newKeySet();
-  protected Set<String> allAliases = ConcurrentHashMap.newKeySet();
   protected long weight; // Greater or equal 0. Lesser the weight, the healthier node.
   protected String hostId;
-  protected Timestamp lastUpdateTime;
   protected HostAvailabilityStrategy hostAvailabilityStrategy;
 
   private HostSpec(
@@ -212,7 +212,7 @@ public class HostSpec {
 
   @Override
   public int hashCode() {
-    return Objects.hash(this.host, this.port, this.availability, this.role, this.weight, this.lastUpdateTime);
+    return Objects.hash(this.host, this.port, this.role);
   }
 
   @Override
@@ -227,8 +227,6 @@ public class HostSpec {
     final HostSpec spec = (HostSpec) obj;
     return Objects.equals(this.host, spec.host)
         && this.port == spec.port
-        && this.availability == spec.availability
-        && this.role == spec.role
-        && this.weight == spec.weight;
+        && this.role == spec.role;
   }
 }
