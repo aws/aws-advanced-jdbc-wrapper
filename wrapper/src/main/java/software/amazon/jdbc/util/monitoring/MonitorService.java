@@ -40,7 +40,8 @@ public interface MonitorService {
    * @param heartbeatTimeoutNanos  a duration in nanoseconds defining the maximum amount of time that a monitor should
    *                               take between updating its last-updated timestamp. If a monitor has not updated its
    *                               last-updated timestamp within this duration it will be considered stuck.
-   * @param errorResponses         a {@link EnumSet} defining actions to take if the monitor is stuck or in an error state.
+   * @param errorResponses         a {@link EnumSet} defining actions to take if the monitor is stuck or in an error
+   *                               state.
    * @param producedDataClass      the class of data produced by the monitor.
    * @param <T>                    the type of the monitor.
    */
