@@ -227,6 +227,8 @@ public class HostSpec {
     final HostSpec spec = (HostSpec) obj;
     return Objects.equals(this.host, spec.host)
         && this.port == spec.port
-        && this.role == spec.role;
+        && this.availability == spec.availability
+        && this.role == spec.role
+        && this.weight == spec.weight;
   }
 }
