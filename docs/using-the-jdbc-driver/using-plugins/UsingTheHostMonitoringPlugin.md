@@ -90,3 +90,4 @@ The `efm2` plugin is designed to address [some of the issues](https://github.com
 - Reviewed and redesigned stopping of idle monitoring threads
 - Reviewed and simplified monitoring logic
 
+Verify plugin compatibility within your driver configuration using the [compatibility guide](../Compatibility.md).

@@ -59,6 +59,7 @@ All factors mentioned above may cause application disruption. The AWS Advanced J
 - Automatically rejects new connection requests to green nodes when the switchover is completed but DNS entries for green nodes remain temporarily available
 - Intelligently detects switchover failures and rollbacks to the original state, implementing appropriate connection handling measures to maintain application stability
 
+Verify plugin compatibility within your driver configuration using the [compatibility guide](../Compatibility.md).
 
 ## How do I use Blue/Green Deployment Plugin with the AWS JDBC Driver?
 
