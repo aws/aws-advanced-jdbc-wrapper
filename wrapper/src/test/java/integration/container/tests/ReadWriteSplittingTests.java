@@ -54,6 +54,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -120,7 +121,7 @@ public class ReadWriteSplittingTests {
   }
 
 
-  protected static Properties getProxiedPropsWithFailover() {
+  protected Properties getProxiedPropsWithFailover() {
     final Properties props = getPropsWithFailover();
     AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props,
         "?." + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointSuffix()
@@ -128,7 +129,7 @@ public class ReadWriteSplittingTests {
     return props;
   }
 
-  protected static Properties getProxiedProps() {
+  protected Properties getProxiedProps() {
     final Properties props = getProps();
     AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props,
         "?." + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointSuffix()
@@ -145,13 +146,13 @@ public class ReadWriteSplittingTests {
     return props;
   }
 
-  protected static Properties getProps() {
+  protected Properties getProps() {
     final Properties props = getDefaultPropsNoPlugins();
     PropertyDefinition.PLUGINS.set(props, "readWriteSplitting");
     return props;
   }
 
-  protected static Properties getPropsWithFailover() {
+  protected Properties getPropsWithFailover() {
     final Properties props = getDefaultPropsNoPlugins();
     PropertyDefinition.PLUGINS.set(props, "failover,efm2,readWriteSplitting");
     return props;
@@ -199,13 +200,18 @@ public class ReadWriteSplittingTests {
 
       conn.setReadOnly(true);
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
-      assertEquals(readerConnectionId, currentConnectionId);
+      assertTrue(connectedToCorrectReaderInstance(readerConnectionId, currentConnectionId));
 
       conn.setReadOnly(false);
       final String writerConnectionId = auroraUtil.queryInstanceId(conn);
       LOGGER.finest("writerConnectionId: " + writerConnectionId);
       assertNotEquals(readerConnectionId, writerConnectionId);
     }
+  }
+
+  boolean connectedToCorrectReaderInstance(String readerConnectionId, String currentConnectionId) {
+    // When already connected to a reader, the ReadWriteSplittingPlugin does not change connections on conn.setReadOnly(true).
+    return Objects.equals(readerConnectionId, currentConnectionId);
   }
 
   // Assumes the writer is stored as the first instance and all other instances are readers.
