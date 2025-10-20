@@ -20,6 +20,8 @@ To enable the IAM Authentication Connection Plugin, add the plugin code `iam` to
 
 This plugin requires valid AWS credentials. See more details at [AWS Credentials Configuration](../custom-configuration/AwsCredentialsConfiguration.md)
 
+Verify plugin compatibility within your driver configuration using the [compatibility guide](../Compatibility.md).
+
 ## AWS IAM Database Authentication
 The AWS JDBC Driver supports Amazon AWS Identity and Access Management (IAM) authentication. When using AWS IAM database authentication, the host URL must be a valid Amazon endpoint, and not a custom domain or an IP address.
 <br>ie. `db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com`

@@ -18,6 +18,8 @@ At this point, the JDBC Driver will connect to the new primary DB instance and r
 ## Using the Failover Plugin
 The Failover Plugin v1 will **NOT** be enabled by default. Instead, the newer [Failover Plugin v2](./UsingTheFailover2Plugin.md) will be enabled by default if the [`wrapperPlugins`](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters) value is not specified. If you would like to use the Failover Plugin v1 instead of v2, it must be explicitly included by adding the plugin code `failover` to the [`wrapperPlugins`](../UsingTheJdbcDriver.md#aws-advanced-jdbc-driver-parameters) value, or by adding it to the current [driver profile](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters). After you load the plugin, the failover feature will be enabled by default and the enableClusterAwareFailover parameter will be set to true. <br> <br> Please refer to the [failover configuration guide](../FailoverConfigurationGuide.md) for tips to keep in mind when using the failover plugin.
 
+Verify plugin compatibility within your driver configuration using the [compatibility guide](../Compatibility.md).
+
 ### Failover Parameters
 In addition to the parameters that you can configure for the underlying driver, you can pass the following parameters to the AWS JDBC Driver through the connection URL to specify additional failover behavior.
 

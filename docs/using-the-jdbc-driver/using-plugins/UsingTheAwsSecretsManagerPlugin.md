@@ -9,6 +9,8 @@ To enable the AWS Secrets Manager Connection Plugin, add the plugin code `awsSec
 
 This plugin requires valid AWS credentials. See more details at [AWS Credentials Configuration](../custom-configuration/AwsCredentialsConfiguration.md)
 
+Verify plugin compatibility within your driver configuration using the [compatibility guide](../Compatibility.md).
+
 ## AWS Secrets Manager Connection Plugin Parameters
 The following properties are required for the AWS Secrets Manager Connection Plugin to retrieve database credentials from the AWS Secrets Manager.
 

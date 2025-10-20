@@ -50,6 +50,7 @@ Please refer to the [failover configuration guide](../FailoverConfigurationGuide
 > [!WARNING]
 > Do not use the `failover` and `failover2` plugins at the same time for the same connection! 
 
+Verify plugin compatibility within your driver configuration using the [compatibility guide](../Compatibility.md).
 
 ### Failover Plugin v2 Configuration Parameters
 In addition to the parameters that you can configure for the underlying driver, you can pass the following parameters for the AWS JDBC Driver through the connection URL to specify additional failover behavior.

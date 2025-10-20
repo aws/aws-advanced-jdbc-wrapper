@@ -225,6 +225,8 @@ The AWS JDBC Driver has several built-in plugins that are available to use. Plea
 In addition to the built-in plugins, you can also create custom plugins more suitable for your needs.
 For more information, see [Custom Plugins](../development-guide/LoadablePlugins.md#using-custom-plugins).
 
+Some plugins, database types and database URL types may be incompatible. For more information see the [compatibility guide](./Compatibility.md).
+
 ### Using a Snapshot of the Driver
 If there is an unreleased feature you would like to try, it may be available in a snapshot build of the driver.
 To use a snapshot build in your project, check the following examples. More information available within this [documentation](https://central.sonatype.org/publish/publish-portal-snapshots/#publishing-via-other-methods).

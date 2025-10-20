@@ -24,6 +24,8 @@ In the case of AD FS, the user signs into the AD FS sign in page. This generates
 >
 > It's recommended to use [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) when it's possible.
 
+Verify plugin compatibility within your driver configuration using the [compatibility guide](../Compatibility.md).
+
 ### Bundled Uber JAR
 Included in AWS JDBC Driver release, is an Uber JAR that bundles the AWS JDBC Driver and all the package dependencies needed to use the Federated Authentication Plugin. 
 It is suffixed with `-bundle-federated-auth`.
