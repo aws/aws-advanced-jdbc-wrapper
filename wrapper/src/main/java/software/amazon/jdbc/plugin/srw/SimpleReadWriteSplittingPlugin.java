@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
@@ -296,6 +297,8 @@ public class SimpleReadWriteSplittingPlugin extends AbstractConnectionPlugin
       if (!isWriteEndpoint(currentHost)) {
         try {
           switchToWriterConnection();
+          LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.switchedFromReaderToWriter",
+              new Object[] {writeEndpointHostSpec.getUrl()}));
         } catch (final SQLException e) {
           logAndThrowException(Messages.get("ReadWriteSplittingPlugin.errorSwitchingToWriter"),
               e);
@@ -369,18 +372,13 @@ public class SimpleReadWriteSplittingPlugin extends AbstractConnectionPlugin
     } else {
       switchCurrentConnectionTo(this.writerConnection, this.writeEndpointHostSpec);
     }
-
-    LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.switchedFromReaderToWriter",
-        new Object[] {writeEndpointHostSpec.getUrl()}));
   }
 
   private void initializeReaderConnection() throws SQLException {
     if (readEndpoint == null) {
-      if (!isConnectionUsable(this.writerConnection)) {
-        getNewWriterConnection();
-      }
       LOGGER.warning(() -> Messages.get("SimpleReadWriteSplittingPlugin.noReaderEndpointProvided",
           new Object[] {writeEndpointHostSpec.getUrl()}));
+      switchToWriterConnection();
     } else {
       getNewReaderConnection();
       LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.switchedFromWriterToReader",
@@ -409,7 +407,19 @@ public class SimpleReadWriteSplittingPlugin extends AbstractConnectionPlugin
     if (this.readEndpointHostSpec == null) {
       this.readEndpointHostSpec = createHostSpec(this.readEndpoint, HostRole.READER);
     }
-    final Connection conn = this.pluginService.connect(this.readEndpointHostSpec, this.properties, this);
+    Connection conn = null;
+    try {
+      conn = this.pluginService.connect(this.readEndpointHostSpec, this.properties, this);
+    } catch (final SQLException e) {
+      if (LOGGER.isLoggable(Level.WARNING)) {
+        LOGGER.log(Level.WARNING,
+            Messages.get(
+                "ReadWriteSplittingPlugin.failedToConnectToReader",
+                new Object[]{
+                    this.readEndpoint}),
+            e);
+      }
+    }
 
     if (conn == null || readEndpoint == null) {
       logAndThrowException(Messages.get("ReadWriteSplittingPlugin.noReadersAvailable"),

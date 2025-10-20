@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import java.util.Properties;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
@@ -45,22 +46,47 @@ import java.util.Properties;
 
 
 public class SimpleReadWriteSplittingTest extends ReadWriteSplittingTests {
+  String pluginCode = "srw";
+  String pluginCodesWithFailover = "failover,efm2,srw";
 
   @Override
-  protected Properties getProps() {
-    final Properties props = getDefaultPropsNoPlugins();
-    PropertyDefinition.PLUGINS.set(props, "srw");
-    props.setProperty("readWriteEndpoint", TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint());
-    props.setProperty("readOnlyEndpoint", TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterReadOnlyEndpoint());
+  protected Properties getProxiedPropsWithFailover() {
+    final Properties props = getProps(true, pluginCodesWithFailover);
+    AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props,
+        "?." + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointSuffix()
+            + ":" + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointPort());
     return props;
   }
 
   @Override
+  protected Properties getProxiedProps() {
+    final Properties props = getProps(true, pluginCode);
+    AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props,
+        "?." + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointSuffix()
+            + ":" + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointPort());
+    return props;
+  }
+
+  @Override
+  protected Properties getProps() {
+    return getProps(false, pluginCode);
+  }
+
+  @Override
   protected Properties getPropsWithFailover() {
+    return getProps(false, pluginCodesWithFailover);
+  }
+
+  protected Properties getProps(boolean proxied, String plugins) {
     final Properties props = getDefaultPropsNoPlugins();
-    PropertyDefinition.PLUGINS.set(props, "failover,efm2,srw");
-    props.setProperty("readWriteEndpoint", TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint());
-    props.setProperty("readOnlyEndpoint", TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterReadOnlyEndpoint());
+    PropertyDefinition.PLUGINS.set(props, plugins);
+    if (proxied) {
+      props.setProperty("readWriteEndpoint", TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getClusterEndpoint());
+      props.setProperty("readOnlyEndpoint", TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getClusterReadOnlyEndpoint());
+    } else {
+      props.setProperty("readWriteEndpoint", TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint());
+      props.setProperty("readOnlyEndpoint", TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterReadOnlyEndpoint());
+    }
     return props;
   }
 
