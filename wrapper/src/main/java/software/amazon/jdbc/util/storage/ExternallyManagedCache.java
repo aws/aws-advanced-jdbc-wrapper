@@ -125,7 +125,25 @@ public class ExternallyManagedCache<K, V> {
       cacheItem.extendExpiration(this.timeToLiveNanos);
     } else {
       LOGGER.finest(Messages.get("ExternallyManagedCache.extendExpirationOnNonExistingKey", new Object[] {key}));
+      for (K mapKey : cache.keySet()) {
+        LOGGER.finest("Key type: " + mapKey.getClass());
+        LOGGER.finest("Val type: " + (cache.get(mapKey) == null ? "null" : cache.get(mapKey).getClass()));
+
+        if (String.class == mapKey.getClass()) {
+          String editedKey = editHostName((String) mapKey);
+          LOGGER.finest("asdf Key: " + editedKey);
+        } else {
+          LOGGER.finest("asdf wrong key type: " + mapKey.getClass());
+        }
+      }
     }
+  }
+
+  public static String editHostName(String hostname) {
+    return hostname.replaceAll(
+        "(?<=\\.|-)[a-z0-9]{12}.*?\\.com",
+        "***"
+    );
   }
 
   /**
