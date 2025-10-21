@@ -108,6 +108,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
         Object key = entry.getKey();
         MonitorItem removedItem = cache.removeIf(key, mi -> mi.getMonitor().getState() == MonitorState.STOPPED);
         if (removedItem != null) {
+          LOGGER.finest("asdf removed checkMonitors1: " + removedItem.getMonitor() + " at key " + key);
           removedItem.getMonitor().stop();
           continue;
         }
@@ -116,7 +117,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
         removedItem = cache.removeIf(key, mi -> mi.getMonitor().getState() == MonitorState.ERROR);
         if (removedItem != null) {
           LOGGER.finest(
-              Messages.get("MonitorServiceImpl.removedErrorMonitor", new Object[] {removedItem.getMonitor()}));
+              Messages.get("asdf Removed checkMonitors2: " + removedItem.getMonitor() + " at key " + key));
           handleMonitorError(container, key, removedItem);
           continue;
         }
@@ -127,8 +128,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
         if (removedItem != null) {
           // Monitor has been inactive for longer than the inactive timeout and is considered stuck.
           LOGGER.fine(
-              Messages.get("MonitorServiceImpl.monitorStuck",
-                  new Object[] {removedItem.getMonitor(), TimeUnit.NANOSECONDS.toMillis(inactiveTimeoutNanos)}));
+              "asdf removed checkMonitors3: " + removedItem.getMonitor() + " at key " + key + ", inactive: " + TimeUnit.NANOSECONDS.toMillis(inactiveTimeoutNanos));
           handleMonitorError(container, key, removedItem);
           continue;
         }
@@ -136,7 +136,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
         removedItem = cache.removeExpiredIf(key, mi -> mi.getMonitor().canDispose());
         if (removedItem != null) {
           LOGGER.fine(
-              Messages.get("MonitorServiceImpl.removedExpiredMonitor", new Object[] {removedItem.getMonitor()}));
+              "asdf removed checkMonitors4: " + removedItem.getMonitor() + " at key " + key);
           removedItem.getMonitor().stop();
         }
       }
@@ -317,6 +317,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       return null;
     }
 
+    LOGGER.finest("asdf removed monitor at key " + key);
     return monitorClass.cast(item.getMonitor());
   }
 
@@ -330,6 +331,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
 
     MonitorItem monitorItem = cacheContainer.getCache().remove(key);
     if (monitorItem != null) {
+      LOGGER.finest("asdf removed monitor at stopAndRemove: " + key);
       monitorItem.getMonitor().stop();
     }
   }
@@ -346,6 +348,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
     for (Map.Entry<Object, MonitorItem> entry : cache.getEntries().entrySet()) {
       MonitorItem monitorItem = cache.remove(entry.getKey());
       if (monitorItem != null) {
+        LOGGER.finest("asdf removed from stopAndRemoveMonitors: " + entry.getKey());
         monitorItem.getMonitor().stop();
       }
     }
@@ -379,6 +382,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
 
       // The data produced by the monitor in this cache with this key has been accessed recently, so we extend the
       // monitor's expiration.
+      LOGGER.finest("asdf extending expiration for data access event: " + accessEvent);
       container.getCache().extendExpiration(accessEvent.getKey());
     }
   }

@@ -16,6 +16,8 @@
 
 package software.amazon.jdbc.util.storage;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -63,6 +65,7 @@ public class ExternallyManagedCache<K, V> {
    */
   public @Nullable V put(@NonNull K key, @NonNull V value) {
     CacheItem<V> cacheItem = this.cache.put(key, new CacheItem<>(value, System.nanoTime() + timeToLiveNanos));
+    LOGGER.finest("asdf add put key: " + key);
     if (cacheItem == null) {
       return null;
     }
@@ -104,6 +107,7 @@ public class ExternallyManagedCache<K, V> {
         (k, valueItem) -> {
           if (valueItem == null) {
             // The key is absent; compute and store the new value.
+            LOGGER.fine("asdf add computeIfAbsent key: " + key);
             return new CacheItem<>(
                 mappingFunction.apply(k),
                 System.nanoTime() + this.timeToLiveNanos);
@@ -143,6 +147,11 @@ public class ExternallyManagedCache<K, V> {
           LOGGER.finest("Val type: " + m.getClass() + ", val: " + m);
         }
       }
+
+      StringWriter sw = new StringWriter();
+      PrintWriter pw = new PrintWriter(sw);
+      new Exception("Stack trace").printStackTrace(pw);
+      LOGGER.fine(sw.toString());
     }
   }
 
@@ -161,6 +170,7 @@ public class ExternallyManagedCache<K, V> {
    */
   public @Nullable V remove(K key) {
     CacheItem<V> cacheItem = cache.remove(key);
+    LOGGER.finest("asdf remove key: " + key);
     if (cacheItem == null) {
       return null;
     }
@@ -185,6 +195,7 @@ public class ExternallyManagedCache<K, V> {
         (k, valueItem) -> {
           if (predicate.test(valueItem.item)) {
             removedItemList.add(valueItem.item);
+            LOGGER.finest("asdf removeIf key: " + key);
             return null;
           }
 
@@ -215,6 +226,7 @@ public class ExternallyManagedCache<K, V> {
         key,
         (k, valueItem) -> {
           if (valueItem.isExpired() && predicate.test(valueItem.item)) {
+            LOGGER.finest("asdf removeExpiredIf: " + key);
             removedItemList.add(valueItem.item);
             return null;
           }

@@ -47,6 +47,13 @@ public class DataAccessEvent implements Event {
   }
 
   @Override
+  public String toString() {
+    return "DataAccessEvent{"
+        + "dataClass=" + dataClass.getName()
+        + ", key=" + key + '}';
+  }
+
+  @Override
   public boolean equals(Object obj) {
     if (this == obj) {
       return true;
