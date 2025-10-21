@@ -6,6 +6,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   hibernate-integration-tests:
     name: 'Run Hibernate ORM integration tests'
