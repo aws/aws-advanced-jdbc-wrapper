@@ -220,12 +220,6 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
-  @Deprecated
-  public void setAllowedAndBlockedHosts(AllowedAndBlockedHosts allowedAndBlockedHosts) {
-    this.servicesContainer.getStorageService().set(this.initialConnectionHostSpec.getHost(), allowedAndBlockedHosts);
-  }
-
-  @Override
   public boolean acceptsStrategy(HostRole role, String strategy) throws SQLException {
     return this.pluginManager.acceptsStrategy(role, strategy);
   }
@@ -243,12 +237,6 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   public HostRole getHostRole(Connection conn) throws SQLException {
     return this.hostListProvider.getHostRole(conn);
-  }
-
-  @Override
-  @Deprecated
-  public ConnectionProvider getConnectionProvider() {
-    return this.pluginManager.defaultConnProvider;
   }
 
   @Override
@@ -665,12 +653,6 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
-  @Deprecated
-  public boolean isNetworkException(Throwable throwable) {
-    return this.isNetworkException(throwable, this.targetDriverDialect);
-  }
-
-  @Override
   public boolean isNetworkException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     if (this.exceptionHandler != null) {
       return this.exceptionHandler.isNetworkException(throwable, targetDriverDialect);
@@ -684,12 +666,6 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       return this.exceptionHandler.isNetworkException(sqlState);
     }
     return this.exceptionManager.isNetworkException(this.dialect, sqlState);
-  }
-
-  @Override
-  @Deprecated
-  public boolean isLoginException(Throwable throwable) {
-    return this.isLoginException(throwable, this.targetDriverDialect);
   }
 
   @Override
@@ -804,51 +780,6 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   public static void clearCache() {
     hostAvailabilityExpiringCache.clear();
-  }
-
-  @Deprecated  // Use StorageService#set instead.
-  public <T> void setStatus(final Class<T> clazz, final @Nullable T status, final boolean clusterBound) {
-    String clusterId = null;
-    if (clusterBound) {
-      try {
-        clusterId = this.hostListProvider.getClusterId();
-      } catch (Exception ex) {
-        // do nothing
-      }
-    }
-    this.setStatus(clazz, status, clusterId);
-  }
-
-  @Deprecated  // Use StorageService#set instead.
-  public <T> void setStatus(final Class<T> clazz, final @Nullable T status, final String key) {
-    final String cacheKey = this.getStatusCacheKey(clazz, key);
-    if (status == null) {
-      statusesExpiringCache.remove(cacheKey);
-    } else {
-      statusesExpiringCache.put(cacheKey, status, DEFAULT_STATUS_CACHE_EXPIRE_NANO);
-    }
-  }
-
-  @Deprecated  // Use StorageService#get instead.
-  public <T> T getStatus(final @NonNull Class<T> clazz, final boolean clusterBound) {
-    String clusterId = null;
-    if (clusterBound) {
-      try {
-        clusterId = this.hostListProvider.getClusterId();
-      } catch (Exception ex) {
-        // do nothing
-      }
-    }
-    return this.getStatus(clazz, clusterId);
-  }
-
-  @Deprecated  // Use StorageService#get instead.
-  public <T> T getStatus(final @NonNull Class<T> clazz, String key) {
-    return clazz.cast(statusesExpiringCache.get(this.getStatusCacheKey(clazz, key)));
-  }
-
-  protected <T> String getStatusCacheKey(final Class<T> clazz, final String key) {
-    return String.format("%s::%s", key == null ? "" : key.trim().toLowerCase(), clazz.getName());
   }
 
   public boolean isPluginInUse(final Class<? extends ConnectionPlugin> pluginClazz) {

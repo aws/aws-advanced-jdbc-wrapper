@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### :crab: Changed
 - Breaking Change: Remove suggested ClusterId functionality. For applications that use a single cluster database **no changes are required**. For application that access multiple database clusters, all connection string **should be** reviewed and a mandatory `clusterId` parameter **should be added**. ([PR #1570](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1570)).
+- Breaking Change: Remove deprecated code. ([PR #1572](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1572)).
 
 ### :magic_wand: Added
 
