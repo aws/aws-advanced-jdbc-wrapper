@@ -21,10 +21,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.logging.Logger;
-import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
-import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.DriverInfo;
 
 /**
@@ -139,26 +136,14 @@ public class AuroraPgDialect extends PgDialect implements AuroraLimitlessDialect
 
   @Override
   public HostListProviderSupplier getHostListProvider() {
-    return (properties, initialUrl, servicesContainer) -> {
-      final PluginService pluginService = servicesContainer.getPluginService();
-      if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {
-        return new MonitoringRdsHostListProvider(
-            properties,
-            initialUrl,
-            servicesContainer,
-            TOPOLOGY_QUERY,
-            NODE_ID_QUERY,
-            IS_READER_QUERY,
-            IS_WRITER_QUERY);
-      }
-      return new AuroraHostListProvider(
-          properties,
-          initialUrl,
-          servicesContainer,
-          TOPOLOGY_QUERY,
-          NODE_ID_QUERY,
-          IS_READER_QUERY);
-    };
+    return (properties, initialUrl, servicesContainer) -> new MonitoringRdsHostListProvider(
+        properties,
+        initialUrl,
+        servicesContainer,
+        TOPOLOGY_QUERY,
+        NODE_ID_QUERY,
+        IS_READER_QUERY,
+        IS_WRITER_QUERY);
   }
 
   @Override
