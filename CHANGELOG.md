@@ -3,6 +3,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [3.0.0] - TBD
+
+### :bug: Fixed
+
+### :crab: Changed
+- Breaking Change: Remove suggested ClusterId functionality. For applications that use a single cluster database **no changes are required**. For application that access multiple database clusters, all connection string **should be** reviewed and a mandatory `clusterId` parameter **should be added**. ([PR #1570](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1570)).
+
+### :magic_wand: Added
+
 ## [2.6.7] - 2025-11-25
 
 ### :bug: Fixed
