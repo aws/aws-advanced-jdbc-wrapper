@@ -32,6 +32,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -66,7 +67,11 @@ public class AuroraStaleDnsHelper {
       final Properties props,
       final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
 
-    if (!this.rdsUtils.isWriterClusterDns(hostSpec.getHost())) {
+    final RdsUrlType type = this.rdsUtils.identifyRdsType(hostSpec.getHost());
+
+    if (type != RdsUrlType.RDS_WRITER_CLUSTER
+        && type != RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER) {
+      // It's not a writer cluster endpoint. Continue with a normal workflow.
       return connectFunc.call();
     }
 

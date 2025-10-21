@@ -51,8 +51,8 @@ public class GlobalDbClusterTopologyMonitorImpl extends ClusterTopologyMonitorIm
       final Map<String, HostSpec> globalClusterInstanceTemplateByAwsRegion,
       final String regionByNodeIdQuery) {
 
-    super (servicesContainer, clusterId, initialHostSpec, properties, clusterInstanceTemplate,
-      refreshRateNano, highRefreshRateNano, topologyQuery, writerTopologyQuery, nodeIdQuery);
+    super(servicesContainer, clusterId, initialHostSpec, properties, clusterInstanceTemplate,
+        refreshRateNano, highRefreshRateNano, topologyQuery, writerTopologyQuery, nodeIdQuery);
     this.globalClusterInstanceTemplateByAwsRegion = globalClusterInstanceTemplateByAwsRegion;
     this.regionByNodeIdQuery = regionByNodeIdQuery;
   }
