@@ -27,6 +27,8 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.monitoring.Monitor;
+import software.amazon.jdbc.util.monitoring.MonitorServiceImpl;
 
 /**
  * A cache with expiration functionality that does not automatically remove expired entries. The removal of expired
@@ -125,15 +127,20 @@ public class ExternallyManagedCache<K, V> {
       cacheItem.extendExpiration(this.timeToLiveNanos);
     } else {
       LOGGER.finest(Messages.get("ExternallyManagedCache.extendExpirationOnNonExistingKey", new Object[] {key}));
-      for (K mapKey : cache.keySet()) {
+      for (Map.Entry<K, CacheItem<V>> entry : cache.entrySet()) {
+        K mapKey = entry.getKey();
         LOGGER.finest("Key type: " + mapKey.getClass());
-        LOGGER.finest("Val type: " + (cache.get(mapKey) == null ? "null" : cache.get(mapKey).getClass()));
-
         if (String.class == mapKey.getClass()) {
           String editedKey = editHostName((String) mapKey);
           LOGGER.finest("asdf Key: " + editedKey);
         } else {
           LOGGER.finest("asdf wrong key type: " + mapKey.getClass());
+        }
+
+        V val = entry.getValue().item;
+        if (val instanceof MonitorServiceImpl.MonitorItem) {
+          Monitor m = ((MonitorServiceImpl.MonitorItem) val).getMonitor();
+          LOGGER.finest("Val type: " + m.getClass() + ", val: " + m);
         }
       }
     }

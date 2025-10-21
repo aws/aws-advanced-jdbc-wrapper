@@ -421,7 +421,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
    * A container object that holds a monitor together with the supplier used to generate the monitor. The supplier can
    * be used to recreate the monitor if it encounters an error or becomes stuck.
    */
-  protected static class MonitorItem {
+  public static class MonitorItem {
     private @NonNull final Supplier<? extends Monitor> monitorSupplier;
     private @NonNull final Monitor monitor;
 
