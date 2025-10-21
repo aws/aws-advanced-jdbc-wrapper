@@ -22,28 +22,6 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 
 public class ExceptionManager {
 
-  /**
-   * Sets a custom exception handler.
-   *
-   * @param exceptionHandler A custom exception handler to use.
-   *
-   * @deprecated Use software.amazon.jdbc.Driver instead
-   */
-  @Deprecated
-  public static void setCustomHandler(final ExceptionHandler exceptionHandler) {
-    Driver.setCustomExceptionHandler(exceptionHandler);
-  }
-
-  /**
-   * Resets a custom exception handler.
-   *
-   * @deprecated Use software.amazon.jdbc.Driver instead
-   */
-  @Deprecated
-  public static void resetCustomHandler() {
-    Driver.resetCustomExceptionHandler();
-  }
-
   public boolean isLoginException(
       final Dialect dialect, final Throwable throwable, final TargetDriverDialect targetDriverDialect) {
     final ExceptionHandler handler = getHandler(dialect);

@@ -46,20 +46,6 @@ public class ConnectionProviderManager {
   }
 
   /**
-   * Setter that can optionally be called to request a non-default {@link ConnectionProvider}. The
-   * requested ConnectionProvider will be used to establish future connections unless it does not
-   * support a requested URL, in which case the default ConnectionProvider will be used. See
-   * {@link ConnectionProvider#acceptsUrl} for more info.
-   *
-   * @param connProvider the {@link ConnectionProvider} to use to establish new connections
-   * @deprecated Use {@link Driver#setCustomConnectionProvider(ConnectionProvider)} instead.
-   */
-  @Deprecated
-  public static void setConnectionProvider(ConnectionProvider connProvider) {
-    Driver.setCustomConnectionProvider(connProvider);
-  }
-
-  /**
    * Get the {@link ConnectionProvider} to use to establish a connection using the given driver
    * protocol, host details, and properties. If a non-default ConnectionProvider has been set using
    * {@link #setConnectionProvider} and {@link ConnectionProvider#acceptsUrl} returns true, the
@@ -164,18 +150,6 @@ public class ConnectionProviderManager {
   }
 
   /**
-   * Clears the non-default {@link ConnectionProvider} if it has been set. The default
-   * ConnectionProvider will be used if the non-default ConnectionProvider has not been set or has
-   * been cleared.
-   *
-   * @deprecated Use {@link Driver#resetCustomConnectionProvider()} instead
-   */
-  @Deprecated
-  public static void resetProvider() {
-    Driver.resetCustomConnectionProvider();
-  }
-
-  /**
    * Releases any resources held by the available {@link ConnectionProvider} instances.
    */
   public static void releaseResources() {
@@ -183,29 +157,6 @@ public class ConnectionProviderManager {
     if (customConnectionProvider instanceof CanReleaseResources) {
       ((CanReleaseResources) customConnectionProvider).releaseResources();
     }
-  }
-
-  /**
-   * Sets a custom connection initialization function. It'll be used
-   * for every brand-new database connection.
-   *
-   * @param func A function that initialize a new connection
-   *
-   * @deprecated @see Driver#setConnectionInitFunc(ConnectionInitFunc)
-   */
-  @Deprecated
-  public static void setConnectionInitFunc(final @NonNull ConnectionInitFunc func) {
-    Driver.setConnectionInitFunc(func);
-  }
-
-  /**
-   * Resets a custom connection initialization function.
-   *
-   * @deprecated Use {@link Driver#resetConnectionInitFunc()} instead
-   */
-  @Deprecated
-  public static void resetConnectionInitFunc() {
-    Driver.resetConnectionInitFunc();
   }
 
   public void initConnection(
