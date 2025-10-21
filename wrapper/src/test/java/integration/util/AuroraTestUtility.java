@@ -49,8 +49,11 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -71,6 +74,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.junit.jupiter.api.Test;
 import org.testcontainers.shaded.org.apache.commons.lang3.NotImplementedException;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -81,10 +85,16 @@ import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.waiters.WaiterResponse;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupRulesRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupRulesResponse;
+import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsRequest;
 import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsResponse;
 import software.amazon.awssdk.services.ec2.model.Ec2Exception;
 import software.amazon.awssdk.services.ec2.model.IpPermission;
 import software.amazon.awssdk.services.ec2.model.IpRange;
+import software.amazon.awssdk.services.ec2.model.RevokeSecurityGroupIngressRequest;
+import software.amazon.awssdk.services.ec2.model.SecurityGroup;
+import software.amazon.awssdk.services.ec2.model.SecurityGroupRule;
 import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.awssdk.services.rds.RdsClientBuilder;
 import software.amazon.awssdk.services.rds.model.ApplyMethod;
@@ -2171,5 +2181,152 @@ public class AuroraTestUtility {
         .key("env").value("test-runner")
         .key("created").value(timeStr)
         .build();
+  }
+
+  public void testClustersCleanUp() {
+    try {
+      DescribeDbClustersResponse describeDbClustersResponse = rdsClient.describeDBClusters();
+      for (DBCluster dbCluster : describeDbClustersResponse.dbClusters()) {
+        //LOGGER.finest(String.format("Test cluster: %s, status: %s, create time: %s, now: %s",
+        //    dbCluster.dbClusterIdentifier(), dbCluster.status(), dbCluster.clusterCreateTime(), Instant.now()));
+        if (!dbCluster.dbClusterIdentifier().startsWith("test-")) {
+          continue;
+        }
+        if (!"available".equalsIgnoreCase(dbCluster.status())
+            && !"rebooting".equalsIgnoreCase(dbCluster.status())) {
+          continue;
+        }
+        if (dbCluster.clusterCreateTime().plus(12, ChronoUnit.HOURS).isAfter(Instant.now())) {
+          // cluster is created less than 12 hours ago
+          continue;
+        }
+
+        if (dbCluster.engine().startsWith("aurora-")) {
+          if (dbCluster.dbClusterMembers().isEmpty()) {
+            // empty cluster
+            LOGGER.finest("Deleting cluster " + dbCluster.dbClusterIdentifier());
+            try {
+              rdsClient.deleteDBCluster(builder -> builder
+                  .dbClusterIdentifier(dbCluster.dbClusterIdentifier())
+                  .skipFinalSnapshot(true)
+                  .build());
+            } catch (Exception ex) {
+              LOGGER.warning(ex.getMessage());
+            }
+          } else {
+            for (DBClusterMember dbClusterMember : dbCluster.dbClusterMembers()) {
+              if (!dbClusterMember.dbInstanceIdentifier().startsWith("test-")) {
+                continue;
+              }
+              LOGGER.finest("Deleting instance " + dbClusterMember.dbInstanceIdentifier());
+              try {
+                rdsClient.deleteDBInstance(builder -> builder
+                    .dbInstanceIdentifier(dbClusterMember.dbInstanceIdentifier())
+                    .skipFinalSnapshot(true)
+                    .build());
+              } catch (Exception ex) {
+                LOGGER.warning(ex.getMessage());
+              }
+            }
+          }
+        } else {
+          LOGGER.finest("Deleting cluster " + dbCluster.dbClusterIdentifier());
+          try {
+            rdsClient.deleteDBCluster(builder -> builder
+                .dbClusterIdentifier(dbCluster.dbClusterIdentifier())
+                .skipFinalSnapshot(true)
+                .build());
+          } catch (Exception ex) {
+            LOGGER.warning(ex.getMessage());
+          }
+        }
+      }
+    } catch (Exception ex) {
+      LOGGER.warning(ex.getMessage());
+    }
+  }
+
+  public void testInstancesCleanUp() {
+    try {
+      DescribeDbInstancesResponse describeDbInstancesResponse = rdsClient.describeDBInstances();
+      for (DBInstance dbInstance : describeDbInstancesResponse.dbInstances()) {
+        //LOGGER.fine("Test instance: " + dbInstance.dbInstanceIdentifier());
+        if (!dbInstance.dbInstanceIdentifier().startsWith("test-")) {
+          continue;
+        }
+        if (!"available".equalsIgnoreCase(dbInstance.dbInstanceStatus())) {
+          continue;
+        }
+        if (dbInstance.instanceCreateTime() != null
+            && dbInstance.instanceCreateTime().plus(12, ChronoUnit.HOURS).isAfter(Instant.now())) {
+          // cluster is created less than 12 hours ago
+          continue;
+        }
+        LOGGER.finest("Deleting instance " + dbInstance.dbInstanceIdentifier());
+        try {
+          rdsClient.deleteDBInstance(builder -> builder
+              .dbInstanceIdentifier(dbInstance.dbInstanceIdentifier())
+              .skipFinalSnapshot(true)
+              .build());
+        } catch (Exception ex) {
+          LOGGER.warning(ex.getMessage());
+        }
+      }
+    } catch (Exception ex) {
+      LOGGER.warning(ex.getMessage());
+    }
+  }
+
+  public void securityGroupRulesCleanUp() {
+    try {
+      DescribeSecurityGroupsResponse groupResponse = ec2Client.describeSecurityGroups(
+          DescribeSecurityGroupsRequest.builder().groupNames("default").build());
+
+      if (groupResponse.securityGroups().isEmpty()) {
+        return;
+      }
+
+      SecurityGroup defaultSecurityGroup = groupResponse.securityGroups().get(0);
+
+      final software.amazon.awssdk.services.ec2.model.Filter groupIdFilter =
+          software.amazon.awssdk.services.ec2.model.Filter.builder()
+              .name("group-id")
+              .values(defaultSecurityGroup.groupId())
+              .build();
+      DescribeSecurityGroupRulesResponse rulesResponse = ec2Client.describeSecurityGroupRules(
+          DescribeSecurityGroupRulesRequest.builder().filters(groupIdFilter).build());
+
+      if (rulesResponse.securityGroupRules().isEmpty()) {
+        return;
+      }
+
+      for (SecurityGroupRule rule : rulesResponse.securityGroupRules()) {
+        if (!rule.isEgress() && rule.description() != null && rule.description().startsWith("Test run at ")) {
+          try {
+            String instantStr = rule.description().replaceAll("Test run at ", "");
+            Instant createdAt = Instant.parse(instantStr);
+            if (createdAt.plus(12, ChronoUnit.HOURS).isAfter(Instant.now())) {
+              continue;
+            }
+
+            LOGGER.finest("Deleting security group rule: " + rule.securityGroupRuleId());
+            try {
+              ec2Client.revokeSecurityGroupIngress(
+                  RevokeSecurityGroupIngressRequest.builder()
+                      .groupId(rule.groupId())
+                      .securityGroupRuleIds(rule.securityGroupRuleId())
+                      .build());
+            } catch (Exception ex) {
+              LOGGER.warning("Error deleting security group rule: " + ex.getMessage());
+            }
+
+          } catch (Exception ex) {
+            LOGGER.warning(ex.getMessage());
+          }
+        }
+      }
+    } catch (Exception ex) {
+      LOGGER.warning(ex.getMessage());
+    }
   }
 }
