@@ -194,6 +194,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
           // Writer is not found. It seems that topology is outdated.
           writerCandidateConn = connectFunc.call();
+          // TODO: forceRefreshHostList
           this.pluginService.forceRefreshHostList(writerCandidateConn);
           writerCandidate = this.pluginService.identifyConnection(writerCandidateConn);
 
@@ -215,6 +216,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
         if (this.pluginService.getHostRole(writerCandidateConn) != HostRole.WRITER) {
           // If the new connection resolves to a reader instance, this means the topology is outdated.
           // Force refresh to update the topology.
+          // TODO: forceRefreshHostList
           this.pluginService.forceRefreshHostList(writerCandidateConn);
           this.closeConnection(writerCandidateConn);
           this.delay(retryDelayMs);
@@ -271,6 +273,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
           // Reader is not found. It seems that topology is outdated.
           readerCandidateConn = connectFunc.call();
+          // TODO: forceRefreshHostList
           this.pluginService.forceRefreshHostList(readerCandidateConn);
           readerCandidate = this.pluginService.identifyConnection(readerCandidateConn);
 
@@ -305,6 +308,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
         if (this.pluginService.getHostRole(readerCandidateConn) != HostRole.READER) {
           // If the new connection resolves to a writer instance, this means the topology is outdated.
           // Force refresh to update the topology.
+          // TODO: forceRefreshHostList
           this.pluginService.forceRefreshHostList(readerCandidateConn);
 
           if (this.hasNoReaders()) {
