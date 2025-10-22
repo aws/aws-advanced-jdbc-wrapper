@@ -52,14 +52,9 @@ import software.amazon.jdbc.util.StringUtils;
 // Abstraction layer on top of a connection to a remote cache server
 public class CacheConnection {
   private static final Logger LOGGER = Logger.getLogger(CacheConnection.class.getName());
-  // Adding support for read and write connection pools to the remote cache server
-  private static volatile GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readConnectionPool;
-  private static volatile GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writeConnectionPool;
-  private static final GenericObjectPoolConfig<StatefulRedisConnection<byte[], byte[]>> poolConfig = createPoolConfig();
 
-  private static final int DEFAULT_POOL_SIZE  = 20;
-  private static final int DEFAULT_POOL_MAX_IDLE = 20;
   private static final int DEFAULT_POOL_MIN_IDLE = 0;
+  private static final int DEFAULT_MAX_POOL_SIZE = 200;
   private static final long DEFAULT_MAX_BORROW_WAIT_MS = 100;
   private static final long TOKEN_CACHE_DURATION = 15 * 60 - 30;
 
@@ -113,12 +108,31 @@ public class CacheConnection {
           null,
           "Explicit cache name for ElastiCache IAM authentication. ");
 
+  protected static final AwsWrapperProperty CACHE_CONNECTION_TIMEOUT =
+      new AwsWrapperProperty(
+          "cacheConnectionTimeout",
+          "2000",
+          "Cache connection request timeout duration in milliseconds.");
+
+  protected static final AwsWrapperProperty CACHE_CONNECTION_POOL_SIZE =
+      new AwsWrapperProperty(
+          "cacheConnectionPoolSize",
+          "20",
+          "Cache connection pool size.");
+
+  // Adding support for read and write connection pools to the remote cache server
+  private static volatile GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readConnectionPool;
+  private static volatile GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writeConnectionPool;
+  private static final GenericObjectPoolConfig<StatefulRedisConnection<byte[], byte[]>> poolConfig = createPoolConfig();
+
   private final boolean useSSL;
   private final boolean iamAuthEnabled;
   private final String cacheIamRegion;
   private final String cacheUsername;
   private final String cacheName;
   private final String cachePassword;
+  private final Duration cacheConnectionTimeout;
+  private final int cacheConnectionPoolSize;
   private final Properties awsProfileProperties;
   private final AwsCredentialsProvider credentialsProvider;
 
@@ -134,6 +148,15 @@ public class CacheConnection {
     this.cacheIamRegion = CACHE_IAM_REGION.getString(properties);
     this.cacheUsername = CACHE_USERNAME.getString(properties);
     this.cachePassword = CACHE_PASSWORD.getString(properties);
+    this.cacheConnectionTimeout = Duration.ofMillis(CACHE_CONNECTION_TIMEOUT.getInteger(properties));
+    this.cacheConnectionPoolSize = CACHE_CONNECTION_POOL_SIZE.getInteger(properties);
+    if (this.cacheConnectionPoolSize <= 0 || this.cacheConnectionPoolSize > DEFAULT_MAX_POOL_SIZE) {
+      throw new IllegalArgumentException(
+          "Cache connection pool size must be within valid range: 1-" + DEFAULT_MAX_POOL_SIZE + ", but was: " + this.cacheConnectionPoolSize);
+    }
+    // Update the static poolConfig with user values
+    poolConfig.setMaxTotal(this.cacheConnectionPoolSize);
+    poolConfig.setMaxIdle(this.cacheConnectionPoolSize);
     this.iamAuthEnabled = !StringUtils.isNullOrEmpty(this.cacheIamRegion);
     boolean hasTraditionalAuth = !StringUtils.isNullOrEmpty(this.cachePassword);
     // Validate authentication configuration
@@ -254,8 +277,6 @@ public class CacheConnection {
 
   private static GenericObjectPoolConfig<StatefulRedisConnection<byte[], byte[]>> createPoolConfig() {
     GenericObjectPoolConfig<StatefulRedisConnection<byte[], byte[]>> poolConfig = new GenericObjectPoolConfig<>();
-    poolConfig.setMaxTotal(DEFAULT_POOL_SIZE);
-    poolConfig.setMaxIdle(DEFAULT_POOL_MAX_IDLE);
     poolConfig.setMinIdle(DEFAULT_POOL_MIN_IDLE);
     poolConfig.setMaxWait(Duration.ofMillis(DEFAULT_MAX_BORROW_WAIT_MS));
     return poolConfig;
@@ -359,12 +380,18 @@ public class CacheConnection {
     writeConnectionPool = writePool;
   }
 
+  // Used for unit testing only
+  protected void triggerPoolInit(boolean isRead) {
+    initializeCacheConnectionIfNeeded(isRead);
+  }
+
   protected RedisURI buildRedisURI(String hostname, int port) {
     RedisURI.Builder uriBuilder = RedisURI.Builder.redis(hostname)
         .withPort(port)
         .withSsl(useSSL)
         .withVerifyPeer(false)
-        .withLibraryName("aws-sql-jdbc-lettuce");
+        .withLibraryName("aws-sql-jdbc-lettuce")
+        .withTimeout(cacheConnectionTimeout);
 
     if (this.iamAuthEnabled) {
       // Create a credentials provider that Lettuce will call whenever authentication is needed
