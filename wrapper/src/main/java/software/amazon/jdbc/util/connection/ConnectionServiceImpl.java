@@ -49,6 +49,16 @@ public class ConnectionServiceImpl implements ConnectionService {
   /**
    * Constructs a {@link ConnectionServiceImpl} instance.
    *
+   * @param storageService An instance of storage service
+   * @param monitorService An instance of monitor service
+   * @param telemetryFactory An instance of telemetry factory
+   * @param connectionProvider An instance of connection provider
+   * @param originalUrl An original Url
+   * @param targetDriverProtocol A target driver protocol
+   * @param driverDialect An instance of driver dialect
+   * @param dbDialect An instance of database dialect
+   * @param props Properties
+   * @throws SQLException if errors occurred while creating an instance
    * @deprecated Use {@link software.amazon.jdbc.util.ServiceUtility#createMinimalServiceContainer} instead.
    */
   @Deprecated
