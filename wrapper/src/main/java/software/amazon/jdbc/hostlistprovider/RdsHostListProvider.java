@@ -88,8 +88,8 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   protected static final RdsUtils rdsHelper = new RdsUtils();
   protected static final ConnectionUrlParser connectionUrlParser = new ConnectionUrlParser();
   protected static final int defaultTopologyQueryTimeoutMs = 5000;
-  protected final FullServicesContainer servicesContainer;
 
+  protected final FullServicesContainer servicesContainer;
   protected final HostListProviderService hostListProviderService;
   protected final String originalUrl;
   protected final String topologyQuery;
@@ -141,44 +141,47 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       if (this.isInitialized) {
         return;
       }
-
-      // initial topology is based on connection string
-      this.initialHostList =
-          connectionUrlParser.getHostsFromConnectionUrl(this.originalUrl, false,
-              this.hostListProviderService::getHostSpecBuilder);
-      if (this.initialHostList == null || this.initialHostList.isEmpty()) {
-        throw new SQLException(Messages.get("RdsHostListProvider.parsedListEmpty",
-            new Object[] {this.originalUrl}));
-      }
-      this.initialHostSpec = this.initialHostList.get(0);
-      this.hostListProviderService.setInitialConnectionHostSpec(this.initialHostSpec);
-
-      this.clusterId = CLUSTER_ID.getString(this.properties);
-      this.refreshRateNano =
-          TimeUnit.MILLISECONDS.toNanos(CLUSTER_TOPOLOGY_REFRESH_RATE_MS.getInteger(properties));
-
-      HostSpecBuilder hostSpecBuilder = this.hostListProviderService.getHostSpecBuilder();
-      String clusterInstancePattern = CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties);
-      if (clusterInstancePattern != null) {
-        this.clusterInstanceTemplate =
-            ConnectionUrlParser.parseHostPortPair(clusterInstancePattern, () -> hostSpecBuilder);
-      } else {
-        this.clusterInstanceTemplate =
-            hostSpecBuilder
-                .host(rdsHelper.getRdsInstanceHostPattern(this.initialHostSpec.getHost()))
-                .hostId(this.initialHostSpec.getHostId())
-                .port(this.initialHostSpec.getPort())
-                .build();
-      }
-
-      validateHostPatternSetting(this.clusterInstanceTemplate.getHost());
-
-      this.rdsUrlType = rdsHelper.identifyRdsType(this.initialHostSpec.getHost());
+      this.initSettings();
       this.isInitialized = true;
-
     } finally {
       lock.unlock();
     }
+  }
+
+  protected void initSettings() throws SQLException {
+
+    // initial topology is based on connection string
+    this.initialHostList =
+        connectionUrlParser.getHostsFromConnectionUrl(this.originalUrl, false,
+            this.hostListProviderService::getHostSpecBuilder);
+    if (this.initialHostList == null || this.initialHostList.isEmpty()) {
+      throw new SQLException(Messages.get("RdsHostListProvider.parsedListEmpty",
+          new Object[] {this.originalUrl}));
+    }
+    this.initialHostSpec = this.initialHostList.get(0);
+    this.hostListProviderService.setInitialConnectionHostSpec(this.initialHostSpec);
+
+    this.clusterId = CLUSTER_ID.getString(this.properties);
+    this.refreshRateNano =
+        TimeUnit.MILLISECONDS.toNanos(CLUSTER_TOPOLOGY_REFRESH_RATE_MS.getInteger(properties));
+
+    HostSpecBuilder hostSpecBuilder = this.hostListProviderService.getHostSpecBuilder();
+    String clusterInstancePattern = CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties);
+    if (clusterInstancePattern != null) {
+      this.clusterInstanceTemplate =
+          ConnectionUrlParser.parseHostPortPair(clusterInstancePattern, () -> hostSpecBuilder);
+    } else {
+      this.clusterInstanceTemplate =
+          hostSpecBuilder
+              .host(rdsHelper.getRdsInstanceHostPattern(this.initialHostSpec.getHost()))
+              .hostId(this.initialHostSpec.getHostId())
+              .port(this.initialHostSpec.getPort())
+              .build();
+    }
+
+    validateHostPatternSetting(this.clusterInstanceTemplate.getHost());
+
+    this.rdsUrlType = rdsHelper.identifyRdsType(this.initialHostSpec.getHost());
   }
 
   /**
@@ -332,19 +335,20 @@ public class RdsHostListProvider implements DynamicHostListProvider {
     // Calculate weight based on node lag in time and CPU utilization.
     final long weight = Math.round(nodeLag) * 100L + Math.round(cpuUtilization);
 
-    return createHost(hostName, isWriter, weight, lastUpdateTime);
+    return createHost(hostName, isWriter, weight, lastUpdateTime, this.clusterInstanceTemplate);
   }
 
   protected HostSpec createHost(
       String host,
       final boolean isWriter,
       final long weight,
-      final Timestamp lastUpdateTime) {
+      final Timestamp lastUpdateTime,
+      final HostSpec clusterInstanceTemplate) {
 
     host = host == null ? "?" : host;
-    final String endpoint = getHostEndpoint(host);
-    final int port = this.clusterInstanceTemplate.isPortSpecified()
-        ? this.clusterInstanceTemplate.getPort()
+    final String endpoint = getHostEndpoint(host, clusterInstanceTemplate);
+    final int port = clusterInstanceTemplate.isPortSpecified()
+        ? clusterInstanceTemplate.getPort()
         : this.initialHostSpec.getPort();
 
     final HostSpec hostSpec = this.hostListProviderService.getHostSpecBuilder()
@@ -366,8 +370,8 @@ public class RdsHostListProvider implements DynamicHostListProvider {
    * @param nodeName A host name.
    * @return Host dns endpoint
    */
-  protected String getHostEndpoint(final String nodeName) {
-    final String host = this.clusterInstanceTemplate.getHost();
+  protected String getHostEndpoint(final String nodeName, final HostSpec clusterInstanceTemplate) {
+    final String host = clusterInstanceTemplate.getHost();
     return host.replace("?", nodeName);
   }
 
@@ -431,7 +435,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
     return this.rdsUrlType;
   }
 
-  private void validateHostPatternSetting(final String hostPattern) {
+  protected void validateHostPatternSetting(final String hostPattern) {
     if (!rdsHelper.isDnsPatternValid(hostPattern)) {
       // "Invalid value for the 'clusterInstanceHostPattern' configuration setting - the host
       // pattern must contain a '?'

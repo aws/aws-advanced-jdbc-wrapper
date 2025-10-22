@@ -143,7 +143,13 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
     final RdsUrlType type = this.rdsUtils.identifyRdsType(hostSpec.getHost());
 
+    if (!type.isRdsCluster()) {
+      // It's not a cluster endpoint. Continue with a normal workflow.
+      return connectFunc.call();
+    }
+
     if (type == RdsUrlType.RDS_WRITER_CLUSTER
+        || type == RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER
         || isInitialConnection && this.verifyOpenedConnectionType == VerifyOpenedConnectionType.WRITER) {
       Connection writerCandidateConn = this.getVerifiedWriterConnection(props, isInitialConnection, connectFunc);
       if (writerCandidateConn == null) {
@@ -190,7 +196,9 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
       try {
         writerCandidate = Utils.getWriter(this.pluginService.getAllHosts());
 
-        if (writerCandidate == null || this.rdsUtils.isRdsClusterDns(writerCandidate.getHost())) {
+        if (writerCandidate == null
+            || this.rdsUtils.isRdsClusterDns(writerCandidate.getHost())
+            || this.rdsUtils.isGlobalDbWriterClusterDns(writerCandidate.getHost())) {
 
           // Writer is not found. It seems that topology is outdated.
           writerCandidateConn = connectFunc.call();

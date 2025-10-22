@@ -83,7 +83,7 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
         this.servicesContainer,
         this.properties,
         (servicesContainer) -> new ClusterTopologyMonitorImpl(
-            this.servicesContainer,
+            servicesContainer,
             this.clusterId,
             this.initialHostSpec,
             this.properties,
