@@ -101,6 +101,10 @@ public class ConnectionUrlParser {
    * "url:port", for example: "instance-1.XYZ.us-east-2.rds.amazonaws.com:9999"
    * "[region_name]url", for example: "us-east-2:instance-1.any-domain.com"
    * "[region_name]url:port", for example: "us-east-2:instance-1.any-domain.com:9999"
+   *
+   * @param urlWithRegionPrefix Url with region prexix
+   * @param hostSpecBuilderSupplier A host builder supplier
+   * @return A pair of region and HostSpec
    */
   public static Pair<String, HostSpec> parseHostPortPairWithRegionPrefix(
       final String urlWithRegionPrefix,

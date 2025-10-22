@@ -368,6 +368,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
    * Build a host dns endpoint based on host/node name.
    *
    * @param nodeName A host name.
+   * @param clusterInstanceTemplate A cluster instance template
    * @return Host dns endpoint
    */
   protected String getHostEndpoint(final String nodeName, final HostSpec clusterInstanceTemplate) {
