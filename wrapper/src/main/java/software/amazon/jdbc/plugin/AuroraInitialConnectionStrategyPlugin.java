@@ -21,11 +21,14 @@ import java.sql.SQLException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import org.jetbrains.annotations.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
@@ -37,6 +40,7 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.WrapperUtils;
 
@@ -161,7 +165,8 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
     if (type == RdsUrlType.RDS_READER_CLUSTER
         || isInitialConnection && this.verifyOpenedConnectionType == VerifyOpenedConnectionType.READER) {
-      Connection readerCandidateConn = this.getVerifiedReaderConnection(props, isInitialConnection, connectFunc);
+      Connection readerCandidateConn =
+          this.getVerifiedReaderConnection(type, hostSpec, props, isInitialConnection, connectFunc);
       if (readerCandidateConn == null) {
         // Can't get a reader connection. Continue with a normal workflow.
         LOGGER.finest("Continue with normal workflow.");
@@ -255,6 +260,8 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
   }
 
   private Connection getVerifiedReaderConnection(
+      final RdsUrlType rdsUrlType,
+      final HostSpec hostSpec,
       final Properties props,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
@@ -267,6 +274,9 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
     Connection readerCandidateConn;
     HostSpec readerCandidate;
+    final String awsRegion = rdsUrlType == RdsUrlType.RDS_READER_CLUSTER
+        ? this.rdsUtils.getRdsRegion(hostSpec.getHost())
+        : null;
 
     while (this.getTime() < endTimeNano) {
 
@@ -274,7 +284,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
       readerCandidate = null;
 
       try {
-        readerCandidate = this.getReader(props);
+        readerCandidate = this.getReader(props, awsRegion);
 
         if (readerCandidate == null || this.rdsUtils.isRdsClusterDns(readerCandidate.getHost())) {
 
@@ -372,12 +382,20 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     }
   }
 
-  private HostSpec getReader(final Properties props) throws SQLException {
+  private HostSpec getReader(final Properties props, final @Nullable String awsRegion) throws SQLException {
 
     final String strategy = READER_HOST_SELECTOR_STRATEGY.getString(props);
     if (this.pluginService.acceptsStrategy(HostRole.READER, strategy)) {
       try {
-        return this.pluginService.getHostSpecByStrategy(HostRole.READER, strategy);
+        if (!StringUtils.isNullOrEmpty(awsRegion)) {
+          final List<HostSpec> hostsInRegion = this.pluginService.getHosts()
+              .stream()
+              .filter(x -> awsRegion.equalsIgnoreCase(this.rdsUtils.getRdsRegion(x.getHost())))
+              .collect(Collectors.toList());
+          return this.pluginService.getHostSpecByStrategy(hostsInRegion, HostRole.READER, strategy);
+        } else {
+          return this.pluginService.getHostSpecByStrategy(HostRole.READER, strategy);
+        }
       } catch (UnsupportedOperationException ex) {
         throw ex;
       } catch (SQLException ex) {
