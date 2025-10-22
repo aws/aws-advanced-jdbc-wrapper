@@ -573,7 +573,7 @@ public class WrapperUtils {
       }
     } catch (final SQLException | UnsupportedOperationException e) {
       // Do nothing. The UnsupportedOperationException comes from ResultSets returned by
-      // DataCacheConnectionPlugin and will be triggered when getStatement is called.
+      // DataLocalCacheConnectionPlugin and will be triggered when getStatement is called.
     }
 
     return null;

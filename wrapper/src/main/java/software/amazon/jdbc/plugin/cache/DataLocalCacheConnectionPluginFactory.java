@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin;
+package software.amazon.jdbc.plugin.cache;
 
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.PluginService;
 
-public class DataCacheConnectionPluginFactory implements ConnectionPluginFactory {
+public class DataLocalCacheConnectionPluginFactory implements ConnectionPluginFactory {
 
   @Override
   public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
-    return new DataCacheConnectionPlugin(pluginService, props);
+    return new DataLocalCacheConnectionPlugin(pluginService, props);
   }
 }
