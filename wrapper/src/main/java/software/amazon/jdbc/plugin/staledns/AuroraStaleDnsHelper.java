@@ -92,10 +92,10 @@ public class AuroraStaleDnsHelper {
       // If the new connection resolves to a reader instance, this means the topology is outdated.
       // Force refresh to update the topology.
       // TODO: forceRefreshHostList
-      this.pluginService.forceRefreshHostList(conn);
+      this.pluginService.forceRefreshHostList();
     } else {
       // TODO: refreshHostList
-      this.pluginService.refreshHostList(conn);
+      this.pluginService.refreshHostList();
     }
 
     LOGGER.finest(() -> Utils.logTopology(this.pluginService.getAllHosts()));
