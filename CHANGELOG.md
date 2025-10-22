@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Breaking Change: Remove deprecated code. ([PR #1572](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1572)).
 
 ### :magic_wand: Added
+- Added support of Global Databases including and Global Database endpoint. ([PR #1573](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1573)).
 
 ## [2.6.5] - 2025-10-16
 
