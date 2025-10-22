@@ -48,7 +48,7 @@ public class ConnectionProviderManager {
   /**
    * Get the {@link ConnectionProvider} to use to establish a connection using the given driver
    * protocol, host details, and properties. If a non-default ConnectionProvider has been set using
-   * {@link #setConnectionProvider} and {@link ConnectionProvider#acceptsUrl} returns true, the
+   * {@link Driver#setCustomConnectionProvider} and {@link ConnectionProvider#acceptsUrl} returns true, the
    * non-default ConnectionProvider will be returned. Otherwise, the default ConnectionProvider will
    * be returned. See {@link ConnectionProvider#acceptsUrl} for more info.
    *
