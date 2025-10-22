@@ -34,8 +34,9 @@ import software.amazon.jdbc.plugin.failover.FailoverRestriction;
 public class MysqlDialect implements Dialect {
 
   private static final List<String> dialectUpdateCandidates = Arrays.asList(
-      DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER,
+      DialectCodes.GLOBAL_AURORA_MYSQL,
       DialectCodes.AURORA_MYSQL,
+      DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER,
       DialectCodes.RDS_MYSQL
   );
   private static MySQLExceptionHandler mySQLExceptionHandler;

@@ -81,7 +81,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected final long highRefreshRateNano;
   protected final FullServicesContainer servicesContainer;
   protected final Properties properties;
-  protected final Properties monitoringProperties;
+  protected Properties monitoringProperties;
   protected final HostSpec initialHostSpec;
   protected final String topologyQuery;
   protected final String nodeIdQuery;
@@ -129,6 +129,10 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     this.writerTopologyQuery = writerTopologyQuery;
     this.nodeIdQuery = nodeIdQuery;
 
+    this.initSettings();
+  }
+
+  protected void initSettings() {
     this.monitoringProperties = PropertyUtils.copyProperties(properties);
     this.properties.stringPropertyNames().stream()
         .filter(p -> p.startsWith(MONITORING_PROPERTY_PREFIX))
@@ -534,7 +538,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
             } else {
               final String nodeId = this.getNodeId(this.monitoringConnection.get());
               if (!StringUtils.isNullOrEmpty(nodeId)) {
-                this.writerHostSpec.set(this.createHost(nodeId, true, 0, null));
+                this.writerHostSpec.set(this.createHost(nodeId, true, 0, null,
+                    this.getClusterInstanceTemplate(nodeId, this.monitoringConnection.get())));
                 LOGGER.finest(
                     Messages.get(
                         "ClusterTopologyMonitorImpl.writerMonitoringConnection",
@@ -573,6 +578,10 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     }
 
     return hosts;
+  }
+
+  protected HostSpec getClusterInstanceTemplate(String nodeId, Connection connection) {
+    return this.clusterInstanceTemplate;
   }
 
   protected String getNodeId(final Connection connection) {
@@ -691,7 +700,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   }
 
   protected String getSuggestedWriterNodeId(final Connection connection) throws SQLException {
-    // Aurora topology query can detect a writer for itself so it doesn't need any suggested writer node ID.
+    // Aurora topology query can detect a writer for itself, so it doesn't need any suggested writer node ID.
     return null; // intentionally null
   }
 
@@ -771,19 +780,20 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     // Calculate weight based on node lag in time and CPU utilization.
     final long weight = Math.round(nodeLag) * 100L + Math.round(cpuUtilization);
 
-    return createHost(hostName, isWriter, weight, lastUpdateTime);
+    return createHost(hostName, isWriter, weight, lastUpdateTime, this.clusterInstanceTemplate);
   }
 
   protected HostSpec createHost(
       String nodeName,
       final boolean isWriter,
       final long weight,
-      final Timestamp lastUpdateTime) {
+      final Timestamp lastUpdateTime,
+      final HostSpec clusterInstanceTemplate) {
 
     nodeName = nodeName == null ? "?" : nodeName;
-    final String endpoint = getHostEndpoint(nodeName);
-    final int port = this.clusterInstanceTemplate.isPortSpecified()
-        ? this.clusterInstanceTemplate.getPort()
+    final String endpoint = getHostEndpoint(nodeName, clusterInstanceTemplate);
+    final int port = clusterInstanceTemplate.isPortSpecified()
+        ? clusterInstanceTemplate.getPort()
         : this.initialHostSpec.getPort();
 
     final HostSpec hostSpec = this.servicesContainer.getHostListProviderService().getHostSpecBuilder()
@@ -799,8 +809,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     return hostSpec;
   }
 
-  protected String getHostEndpoint(final String nodeName) {
-    final String host = this.clusterInstanceTemplate.getHost();
+  protected String getHostEndpoint(final String nodeName, final HostSpec clusterInstanceTemplate) {
+    final String host = clusterInstanceTemplate.getHost();
     return host.replace("?", nodeName);
   }
 
@@ -903,12 +913,12 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
               if (this.monitor.nodeThreadsWriterConnection.get() == null) {
                 // while writer connection isn't yet established this reader connection may update topology
                 if (updateTopology) {
-                  this.readerThreadFetchTopology(connection, writerHostSpec);
+                  this.readerThreadFetchTopology(connection, this.writerHostSpec);
                 } else if (this.monitor.nodeThreadsReaderConnection.get() == null) {
                   if (this.monitor.nodeThreadsReaderConnection.compareAndSet(null, connection)) {
                     // let's use this connection to update topology
                     updateTopology = true;
-                    this.readerThreadFetchTopology(connection, writerHostSpec);
+                    this.readerThreadFetchTopology(connection, this.writerHostSpec);
                   }
                 }
               }
