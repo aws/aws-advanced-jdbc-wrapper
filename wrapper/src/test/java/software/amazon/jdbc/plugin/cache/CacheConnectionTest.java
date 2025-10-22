@@ -22,6 +22,7 @@ import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.async.RedisAsyncCommands;
 import io.lettuce.core.api.sync.RedisCommands;
 import org.apache.commons.pool2.impl.GenericObjectPool;
+import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,7 +33,9 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.jdbc.plugin.iam.ElastiCacheIamTokenUtility;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.function.BiConsumer;
 import java.util.Properties;
 
@@ -362,6 +365,97 @@ public class CacheConnectionTest {
     verify(mockConnection).sync();
     verify(mockSyncCommands).get(any());
     verify(mockReadConnPool).invalidateObject(mockConnection);
+  }
+
+  @Test
+  void test_cacheConnectionPoolSize_default() throws Exception {
+    clearStaticPools();
+
+    Properties props = new Properties();
+    props.setProperty("cacheEndpointAddrRw", "localhost:6379");
+    props.setProperty("cacheEndpointAddrRo", "localhost:6380");
+
+    CacheConnection connection = new CacheConnection(props);
+
+    // Create real pools (no network until borrow)
+    connection.triggerPoolInit(true);
+    connection.triggerPoolInit(false);
+
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readPool  = getStaticPool("readConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writePool = getStaticPool("writeConnectionPool");
+
+    assertNotNull(readPool, "read pool should be created");
+    assertNotNull(writePool, "write pool should be created");
+
+    assertEquals(20, readPool.getMaxTotal());
+    assertEquals(20, readPool.getMaxIdle());
+    assertEquals(20, writePool.getMaxTotal());
+    assertEquals(20, writePool.getMaxIdle());
+    assertNotEquals(8, readPool.getMaxTotal()); // making sure it does not set the default values of Generic pool
+    assertNotEquals(8, writePool.getMaxIdle());
+  }
+
+  @Test
+  void test_cacheConnectionPoolSize_Initialization() throws Exception {
+    clearStaticPools();
+
+    Properties props = new Properties();
+    props.setProperty("cacheEndpointAddrRw", "localhost:6379");
+    props.setProperty("cacheEndpointAddrRo", "localhost:6380");
+    props.setProperty("cacheConnectionPoolSize", "15");
+
+    CacheConnection connection = new CacheConnection(props);
+
+    // Create real pools (no network until borrow)
+    connection.triggerPoolInit(true);
+    connection.triggerPoolInit(false);
+
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readPool  = getStaticPool("readConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writePool = getStaticPool("writeConnectionPool");
+
+    assertNotNull(readPool, "read pool should be created");
+    assertNotNull(writePool, "write pool should be created");
+
+    assertEquals(15, readPool.getMaxTotal());
+    assertEquals(15, readPool.getMaxIdle());
+    assertEquals(15, writePool.getMaxTotal());
+    assertEquals(15, writePool.getMaxIdle());
+  }
+
+  @Test
+  void test_cacheConnectionTimeout_Initialization() throws Exception {
+    Properties props = new Properties();
+    props.setProperty("cacheEndpointAddrRw", "localhost:6379");
+    props.setProperty("cacheConnectionTimeout", "5000");
+
+    CacheConnection connection = new CacheConnection(props);
+    Duration timeout = (Duration) getField(connection, "cacheConnectionTimeout");
+    assertEquals(Duration.ofMillis(5000), timeout);
+  }
+
+  @Test
+  void test_cacheConnectionTimeout_default() throws Exception {
+    Properties props = new Properties();
+    props.setProperty("cacheEndpointAddrRw", "localhost:6379");
+
+    CacheConnection connection = new CacheConnection(props);
+    Duration timeout = (Duration) getField(connection, "cacheConnectionTimeout");
+    assertEquals(Duration.ofMillis(2000), timeout, "default should be 2000 ms");
+  }
+
+  @SuppressWarnings("unchecked")
+  private static GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> getStaticPool(String field) throws Exception {
+    Field f = CacheConnection.class.getDeclaredField(field);
+    f.setAccessible(true);
+    return (GenericObjectPool<StatefulRedisConnection<byte[], byte[]>>) f.get(null);
+  }
+
+  private static void clearStaticPools() throws Exception {
+    for (String fieldName : new String[]{"readConnectionPool", "writeConnectionPool"}) {
+      Field f = CacheConnection.class.getDeclaredField(fieldName);
+      f.setAccessible(true);
+      f.set(null, null);
+    }
   }
 
   private Object getField(Object obj, String fieldName) throws Exception {
