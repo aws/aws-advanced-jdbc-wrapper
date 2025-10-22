@@ -730,7 +730,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     final HostListProviderSupplier supplier = this.dialect.getHostListProvider();
     this.setHostListProvider(supplier.getProvider(this.props, this.originalUrl, this.servicesContainer));
     // TODO: refreshHostList
-    this.refreshHostList(connection);
+    this.refreshHostList();
   }
 
   @Override
