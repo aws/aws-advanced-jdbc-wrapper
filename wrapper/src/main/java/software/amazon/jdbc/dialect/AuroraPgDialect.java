@@ -58,7 +58,8 @@ public class AuroraPgDialect extends PgDialect implements AuroraLimitlessDialect
           + "WHERE SESSION_ID OPERATOR(pg_catalog.=) 'MASTER_SESSION_ID' "
           + "AND SERVER_ID OPERATOR(pg_catalog.=) pg_catalog.aurora_db_instance_identifier()";
 
-  protected final String nodeIdQuery = "SELECT pg_catalog.aurora_db_instance_identifier()";
+  protected final String nodeIdQuery =
+      "SELECT pg_catalog.aurora_db_instance_identifier(), pg_catalog.aurora_db_instance_identifier()";
   protected final String isReaderQuery = "SELECT pg_catalog.pg_is_in_recovery()";
   protected static final String LIMITLESS_ROUTER_ENDPOINT_QUERY =
       "select router_endpoint, load from pg_catalog.aurora_limitless_router_endpoints()";

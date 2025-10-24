@@ -205,9 +205,9 @@ public class HostSpec {
   }
 
   public String toString() {
-    return String.format("HostSpec@%s [host=%s, port=%d, %s, %s, weight=%d, %s]",
+    return String.format("HostSpec@%s [hostId=%s, host=%s, port=%d, %s, %s, weight=%d, %s]",
         Integer.toHexString(System.identityHashCode(this)),
-        this.host, this.port, this.role, this.availability, this.weight, this.lastUpdateTime);
+        this.hostId, this.host, this.port, this.role, this.availability, this.weight, this.lastUpdateTime);
   }
 
   @Override

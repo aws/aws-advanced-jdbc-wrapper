@@ -105,6 +105,7 @@ public class GlobalDbClusterTopologyMonitorImpl extends ClusterTopologyMonitorIm
       throw new SQLException("Can't find cluster template for region " + awsRegion);
     }
 
-    return createHost(hostName, isWriter, weight, Timestamp.from(Instant.now()), clusterInstanceTemplateForRegion);
+    return createHost(
+        hostName, hostName, isWriter, weight, Timestamp.from(Instant.now()), clusterInstanceTemplateForRegion);
   }
 }

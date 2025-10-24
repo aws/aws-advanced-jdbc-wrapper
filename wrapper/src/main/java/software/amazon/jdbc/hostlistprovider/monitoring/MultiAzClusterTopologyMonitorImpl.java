@@ -123,6 +123,6 @@ public class MultiAzClusterTopologyMonitorImpl extends ClusterTopologyMonitorImp
     String hostId = resultSet.getString("id"); // "1034958454"
     final boolean isWriter = hostId.equals(suggestedWriterNodeId);
 
-    return createHost(instanceName, isWriter, 0, Timestamp.from(Instant.now()), this.clusterInstanceTemplate);
+    return createHost(hostId, instanceName, isWriter, 0, Timestamp.from(Instant.now()), this.clusterInstanceTemplate);
   }
 }

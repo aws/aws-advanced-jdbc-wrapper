@@ -41,7 +41,7 @@ public class AuroraMysqlDialect extends MysqlDialect implements BlueGreenDialect
       "SELECT SERVER_ID FROM information_schema.replica_host_status "
       + "WHERE SESSION_ID = 'MASTER_SESSION_ID' AND SERVER_ID = @@aurora_server_id";
 
-  protected final String nodeIdQuery = "SELECT @@aurora_server_id";
+  protected final String nodeIdQuery = "SELECT @@aurora_server_id, @@aurora_server_id";
   protected final String isReaderQuery = "SELECT @@innodb_read_only";
 
   private static final String BG_STATUS_QUERY =
