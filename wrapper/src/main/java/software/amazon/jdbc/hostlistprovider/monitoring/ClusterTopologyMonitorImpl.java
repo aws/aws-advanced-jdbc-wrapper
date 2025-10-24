@@ -50,6 +50,7 @@ import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.ServiceUtility;
@@ -536,10 +537,10 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
                       "ClusterTopologyMonitorImpl.writerMonitoringConnection",
                       new Object[]{this.writerHostSpec.get().getHost()}));
             } else {
-              final String nodeId = this.getNodeId(this.monitoringConnection.get());
-              if (!StringUtils.isNullOrEmpty(nodeId)) {
-                this.writerHostSpec.set(this.createHost(nodeId, true, 0, null,
-                    this.getClusterInstanceTemplate(nodeId, this.monitoringConnection.get())));
+              final Pair<String, String> pair = this.getNodeId(this.monitoringConnection.get());
+              if (pair != null) {
+                this.writerHostSpec.set(this.createHost(pair.getValue1(), pair.getValue2(), true, 0, null,
+                    this.getClusterInstanceTemplate(pair.getValue2(), this.monitoringConnection.get())));
                 LOGGER.finest(
                     Messages.get(
                         "ClusterTopologyMonitorImpl.writerMonitoringConnection",
@@ -584,12 +585,12 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     return this.clusterInstanceTemplate;
   }
 
-  protected String getNodeId(final Connection connection) {
+  protected Pair<String /* nodeId */, String /* nodeName */> getNodeId(final Connection connection) {
     try {
       try (final Statement stmt = connection.createStatement();
           final ResultSet resultSet = stmt.executeQuery(this.nodeIdQuery)) {
         if (resultSet.next()) {
-          return resultSet.getString(1);
+          return Pair.create(resultSet.getString(1), resultSet.getString(2));
         }
       }
     } catch (SQLException ex) {
@@ -780,10 +781,11 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     // Calculate weight based on node lag in time and CPU utilization.
     final long weight = Math.round(nodeLag) * 100L + Math.round(cpuUtilization);
 
-    return createHost(hostName, isWriter, weight, lastUpdateTime, this.clusterInstanceTemplate);
+    return createHost(hostName, hostName, isWriter, weight, lastUpdateTime, this.clusterInstanceTemplate);
   }
 
   protected HostSpec createHost(
+      String nodeId,
       String nodeName,
       final boolean isWriter,
       final long weight,
@@ -797,6 +799,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
         : this.initialHostSpec.getPort();
 
     final HostSpec hostSpec = this.servicesContainer.getHostListProviderService().getHostSpecBuilder()
+        .hostId(nodeId)
         .host(endpoint)
         .port(port)
         .role(isWriter ? HostRole.WRITER : HostRole.READER)

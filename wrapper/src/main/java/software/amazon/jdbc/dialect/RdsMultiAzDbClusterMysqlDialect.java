@@ -47,7 +47,9 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
 
   private static final String FETCH_WRITER_NODE_QUERY_COLUMN_NAME = "Source_Server_Id";
 
-  private static final String NODE_ID_QUERY = "SELECT @@server_id";
+  private static final String NODE_ID_QUERY = "SELECT id, SUBSTRING_INDEX(endpoint, '.', 1)"
+      + " FROM mysql.rds_topology"
+      + " WHERE id = @@server_id";
   private static final String IS_READER_QUERY = "SELECT @@read_only";
 
   private static final EnumSet<FailoverRestriction> RDS_MULTI_AZ_RESTRICTIONS =
