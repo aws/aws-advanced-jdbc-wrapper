@@ -28,8 +28,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
 import java.sql.SQLException;
-import java.util.Collections;
-import java.util.HashSet;
+import java.util.EnumSet;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
@@ -86,7 +85,7 @@ class MonitorServiceImplTest {
         NoOpMonitor.class,
         TimeUnit.MINUTES.toNanos(1),
         TimeUnit.MINUTES.toNanos(1),
-        new HashSet<>(Collections.singletonList(MonitorErrorResponse.RECREATE)),
+        EnumSet.of(MonitorErrorResponse.RECREATE),
         null
     );
     String key = "testMonitor";
@@ -131,7 +130,7 @@ class MonitorServiceImplTest {
         NoOpMonitor.class,
         TimeUnit.MINUTES.toNanos(1),
         1, // heartbeat times out immediately
-        new HashSet<>(Collections.singletonList(MonitorErrorResponse.RECREATE)),
+        EnumSet.of(MonitorErrorResponse.RECREATE),
         null
     );
     String key = "testMonitor";
@@ -178,7 +177,7 @@ class MonitorServiceImplTest {
         TimeUnit.MINUTES.toNanos(1),
         // even though we pass a re-create policy, we should not re-create it if the monitor is expired since this
         // indicates it is not being used.
-        new HashSet<>(Collections.singletonList(MonitorErrorResponse.RECREATE)),
+        EnumSet.of(MonitorErrorResponse.RECREATE),
         null
     );
     String key = "testMonitor";
@@ -242,7 +241,7 @@ class MonitorServiceImplTest {
         TimeUnit.MINUTES.toNanos(1),
         // even though we pass a re-create policy, we should not re-create it if the monitor is expired since this
         // indicates it is not being used.
-        new HashSet<>(Collections.singletonList(MonitorErrorResponse.RECREATE)),
+        EnumSet.of(MonitorErrorResponse.RECREATE),
         null
     );
 
@@ -278,7 +277,7 @@ class MonitorServiceImplTest {
         TimeUnit.MINUTES.toNanos(1),
         // even though we pass a re-create policy, we should not re-create it if the monitor is expired since this
         // indicates it is not being used.
-        new HashSet<>(Collections.singletonList(MonitorErrorResponse.RECREATE)),
+        EnumSet.of(MonitorErrorResponse.RECREATE),
         null
     );
 
