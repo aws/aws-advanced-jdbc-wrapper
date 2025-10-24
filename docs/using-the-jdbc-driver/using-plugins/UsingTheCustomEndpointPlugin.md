@@ -2,6 +2,8 @@
 
 The Custom Endpoint Plugin adds support for RDS custom endpoints. When the Custom Endpoint Plugin is in use, the driver will analyse custom endpoint information to ensure instances used in connections are part of the custom endpoint being used. This includes connections used in failover and read-write splitting.
 
+Verify plugin compatibility within your driver configuration using the [compatibility guide](../Compatibility.md).
+
 ## Prerequisites
 - This plugin requires the following runtime dependencies to be registered separately in the classpath:
     - [AWS Java SDK RDS v2.7.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds)

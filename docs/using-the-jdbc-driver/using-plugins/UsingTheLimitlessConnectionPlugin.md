@@ -40,6 +40,8 @@ The Limitless Connection Plugin is compatible with authentication type plugins s
 However, we don't recommend using them with the Limitless Connection Plugin because they're not designed to be used with Aurora Limitless Database. 
 They don't provide any extra value, and add unnecessary computation and memory overhead.
 
+Verify plugin compatibility within your driver configuration using the [compatibility guide](../Compatibility.md).
+
 ### Use with Connection Pools
 Connection pools keep connections open for reuse, but this can work against the client-side load-balancing of the Limitless Connection Plugin and cause an imbalanced load on transaction routers.
 To mitigate this, consider setting connection properties that can reduce the number of idle connections or increase the lifetime of connections.

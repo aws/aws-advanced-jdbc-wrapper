@@ -3,6 +3,8 @@
 This plugin tracks all the opened connections. In the event of a cluster failover, this plugin will close all the impacted connections.
 If no plugins are explicitly specified, this plugin is enabled by default.
 
+Verify plugin compatibility within your driver configuration using the [compatibility guide](../Compatibility.md).
+
 ## Use Case
 User applications can have two types of connections:
 
@@ -15,3 +17,4 @@ When the application tries to continue the workflow with the idle connection tha
 
 Since the Aurora Connection Tracker Plugin keeps track of all the open connections, the plugin can close all impacted connections after failover.
 When the application tries to use the outdated idle connection, the application will get a `connection's closed` error instead.
+
