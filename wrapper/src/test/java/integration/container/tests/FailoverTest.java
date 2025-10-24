@@ -505,11 +505,11 @@ public class FailoverTest {
 
   /**
    * Current writer dies, a reader instance is nominated to be a new writer, failover to the new
-   * writer. Autocommit is set to false and the keepSessionStateOnFailover property is set to true.
+   * writer. Autocommit is set to false.
    */
   @TestTemplate
   @EnableOnNumOfInstances(min = 2)
-  public void test_failFromWriterWhereKeepSessionStateOnFailoverIsTrue() throws SQLException {
+  public void test_failFromWriter() throws SQLException {
 
     final String initialWriterId = this.currentWriter;
     TestInstanceInfo initialWriterInstanceInfo =
