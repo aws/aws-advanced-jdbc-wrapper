@@ -6,6 +6,9 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   ubuntu-latest-jdbc-wrapper-snapshot-to-maven:
     name: 'Build And Upload Snapshot to Maven'

@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin.customendpoint;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
@@ -53,8 +54,8 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointPlugin.class.getName());
   protected static final String TELEMETRY_WAIT_FOR_INFO_COUNTER = "customEndpoint.waitForInfo.counter";
   protected static final RegionUtils regionUtils = new RegionUtils();
-  protected static final Set<MonitorErrorResponse> monitorErrorResponses =
-      new HashSet<>(Collections.singletonList(MonitorErrorResponse.RECREATE));
+  protected static final EnumSet<MonitorErrorResponse> monitorErrorResponses =
+      EnumSet.of(MonitorErrorResponse.RECREATE);
 
   public static final AwsWrapperProperty CUSTOM_ENDPOINT_INFO_REFRESH_RATE_MS = new AwsWrapperProperty(
       "customEndpointInfoRefreshRateMs", "30000",
