@@ -29,9 +29,13 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
+import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.dialect.TopologyDialect;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.TopologyUtils;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 
@@ -53,20 +57,14 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
   protected final FullServicesContainer servicesContainer;
   protected final PluginService pluginService;
   protected final long highRefreshRateNano;
-  protected final String writerTopologyQuery;
 
   public MonitoringRdsHostListProvider(
       final Properties properties,
       final String originalUrl,
-      final FullServicesContainer servicesContainer,
-      final String topologyQuery,
-      final String nodeIdQuery,
-      final String isReaderQuery,
-      final String writerTopologyQuery) {
-    super(properties, originalUrl, servicesContainer, topologyQuery, nodeIdQuery, isReaderQuery);
+      final FullServicesContainer servicesContainer) {
+    super(properties, originalUrl, servicesContainer);
     this.servicesContainer = servicesContainer;
     this.pluginService = servicesContainer.getPluginService();
-    this.writerTopologyQuery = writerTopologyQuery;
     this.highRefreshRateNano = TimeUnit.MILLISECONDS.toNanos(
         CLUSTER_TOPOLOGY_HIGH_REFRESH_RATE_MS.getLong(this.properties));
   }
@@ -81,6 +79,13 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
   }
 
   protected ClusterTopologyMonitor initMonitor() throws SQLException {
+    Dialect dialect = this.servicesContainer.getPluginService().getDialect();
+    if (!(dialect instanceof TopologyDialect)) {
+      throw new SQLException(
+          Messages.get("TopologyUtils.topologyDialectRequired", new Object[]{dialect.getClass().getName()}));
+    }
+
+    TopologyDialect topologyDialect = (TopologyDialect) dialect;
     return this.servicesContainer.getMonitorService().runIfAbsent(
         ClusterTopologyMonitorImpl.class,
         this.clusterId,
@@ -88,15 +93,13 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
         this.properties,
         (servicesContainer) -> new ClusterTopologyMonitorImpl(
             this.servicesContainer,
+            topologyDialect,
             this.clusterId,
             this.initialHostSpec,
             this.properties,
             this.clusterInstanceTemplate,
             this.refreshRateNano,
-            this.highRefreshRateNano,
-            this.topologyQuery,
-            this.writerTopologyQuery,
-            this.nodeIdQuery));
+            this.highRefreshRateNano));
   }
 
   @Override

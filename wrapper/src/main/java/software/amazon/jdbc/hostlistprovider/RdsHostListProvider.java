@@ -95,9 +95,6 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   protected final FullServicesContainer servicesContainer;
   protected final HostListProviderService hostListProviderService;
   protected final String originalUrl;
-  protected final String topologyQuery;
-  protected final String nodeIdQuery;
-  protected final String isReaderQuery;
   protected RdsUrlType rdsUrlType;
   protected long refreshRateNano = CLUSTER_TOPOLOGY_REFRESH_RATE_MS.defaultValue != null
       ? TimeUnit.MILLISECONDS.toNanos(Long.parseLong(CLUSTER_TOPOLOGY_REFRESH_RATE_MS.defaultValue))
@@ -125,17 +122,11 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   public RdsHostListProvider(
       final Properties properties,
       final String originalUrl,
-      final FullServicesContainer servicesContainer,
-      final String topologyQuery,
-      final String nodeIdQuery,
-      final String isReaderQuery) {
+      final FullServicesContainer servicesContainer) {
     this.properties = properties;
     this.originalUrl = originalUrl;
     this.servicesContainer = servicesContainer;
     this.hostListProviderService = servicesContainer.getHostListProviderService();
-    this.topologyQuery = topologyQuery;
-    this.nodeIdQuery = nodeIdQuery;
-    this.isReaderQuery = isReaderQuery;
   }
 
   protected void init() throws SQLException {

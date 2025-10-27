@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.plugin;
 
+import java.beans.beancontext.BeanContext;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;

@@ -20,17 +20,18 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Collections;
 import java.util.List;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.MultiAzDbClusterPgExceptionHandler;
 import software.amazon.jdbc.hostlistprovider.RdsMultiAzDbClusterListProvider;
-import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsMultiAzHostListProvider;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.DriverInfo;
 
-public class RdsMultiAzDbClusterPgDialect extends PgDialect {
+public class RdsMultiAzDbClusterPgDialect extends PgDialect implements TopologyDialect {
 
   private static final Logger LOGGER = Logger.getLogger(RdsMultiAzDbClusterPgDialect.class.getName());
 
@@ -53,6 +54,9 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
   private static final String NODE_ID_QUERY = "SELECT dbi_resource_id FROM rds_tools.dbi_resource_id()";
 
   private static final String IS_READER_QUERY = "SELECT pg_catalog.pg_is_in_recovery()";
+
+  protected final MultiAzDialectUtils dialectUtils = new MultiAzDialectUtils(
+      FETCH_WRITER_NODE_QUERY, FETCH_WRITER_NODE_QUERY_COLUMN_NAME, NODE_ID_QUERY);
 
   @Override
   public ExceptionHandler getExceptionHandler() {
@@ -83,7 +87,7 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
     return (properties, initialUrl, servicesContainer) -> {
       final PluginService pluginService = servicesContainer.getPluginService();
       if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {
-        return new MonitoringRdsMultiAzHostListProvider(
+        return new MonitoringRdsHostListProvider(
             properties,
             initialUrl,
             servicesContainer,
@@ -106,5 +110,25 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
             FETCH_WRITER_NODE_QUERY_COLUMN_NAME);
       }
     };
+  }
+
+  @Override
+  public String getTopologyQuery() {
+    return TOPOLOGY_QUERY;
+  }
+
+  @Override
+  public @Nullable String getWriterId(final Connection connection) throws SQLException {
+    return dialectUtils.getSuggestedWriterId(connection);
+  }
+
+  @Override
+  public boolean isWriterInstance(Connection connection) throws SQLException {
+    return dialectUtils.isWriterInstance(connection);
+  }
+
+  @Override
+  public @Nullable List<TopologyQueryHostSpec> processQueryResults(ResultSet rs, String suggestedWriterId) throws SQLException {
+    return this.dialectUtils.processQueryResults(rs, suggestedWriterId);
   }
 }

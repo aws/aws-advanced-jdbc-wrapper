@@ -20,7 +20,9 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.List;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 import software.amazon.jdbc.util.DriverInfo;
 
@@ -28,7 +30,7 @@ import software.amazon.jdbc.util.DriverInfo;
  * Suitable for the following AWS PG configurations.
  * - Regional Cluster
  */
-public class AuroraPgDialect extends PgDialect implements AuroraLimitlessDialect, BlueGreenDialect {
+public class AuroraPgDialect extends PgDialect implements TopologyDialect, AuroraLimitlessDialect, BlueGreenDialect {
   private static final Logger LOGGER = Logger.getLogger(AuroraPgDialect.class.getName());
 
   private static final String extensionsSql =
@@ -64,6 +66,8 @@ public class AuroraPgDialect extends PgDialect implements AuroraLimitlessDialect
 
   private static final String TOPOLOGY_TABLE_EXIST_QUERY =
       "SELECT 'pg_catalog.get_blue_green_fast_switchover_metadata'::regproc";
+
+  private static final AuroraDialectUtils dialectUtils = new AuroraDialectUtils(IS_WRITER_QUERY);
 
   @Override
   public boolean isDialect(final Connection connection) {
@@ -144,6 +148,28 @@ public class AuroraPgDialect extends PgDialect implements AuroraLimitlessDialect
         NODE_ID_QUERY,
         IS_READER_QUERY,
         IS_WRITER_QUERY);
+  }
+
+  @Override
+  public String getTopologyQuery() {
+    return TOPOLOGY_QUERY;
+  }
+
+  @Override
+  @Nullable public String getWriterId(final Connection connection) {
+    // The Aurora topology query can detect the writer without a suggested writer ID, so we intentionally return null.
+    return null;
+  }
+
+  @Override
+  public boolean isWriterInstance(Connection connection) throws SQLException {
+    return AuroraPgDialect.dialectUtils.isWriterInstance(connection);
+  }
+
+  @Override
+  public @Nullable List<TopologyQueryHostSpec> processQueryResults(ResultSet rs, @Nullable String suggestedWriterId)
+      throws SQLException {
+    return AuroraPgDialect.dialectUtils.processQueryResults(rs);
   }
 
   @Override

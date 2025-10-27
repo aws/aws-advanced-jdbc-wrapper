@@ -36,7 +36,6 @@ import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.hostlistprovider.monitoring.ClusterTopologyMonitorImpl;
-import software.amazon.jdbc.hostlistprovider.monitoring.MultiAzClusterTopologyMonitorImpl;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.NodeResponseTimeMonitor;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ExecutorFactory;
@@ -65,7 +64,6 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
         TimeUnit.MINUTES.toNanos(15), TimeUnit.MINUTES.toNanos(3), recreateOnError);
 
     suppliers.put(ClusterTopologyMonitorImpl.class, () -> new CacheContainer(defaultSettings, Topology.class));
-    suppliers.put(MultiAzClusterTopologyMonitorImpl.class, () -> new CacheContainer(defaultSettings, Topology.class));
     suppliers.put(NodeResponseTimeMonitor.class, () -> new CacheContainer(defaultSettings, null));
     defaultSuppliers = Collections.unmodifiableMap(suppliers);
   }

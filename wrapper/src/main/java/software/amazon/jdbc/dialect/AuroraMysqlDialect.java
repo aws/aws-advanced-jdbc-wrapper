@@ -22,9 +22,10 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Collections;
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 
-public class AuroraMysqlDialect extends MysqlDialect implements BlueGreenDialect {
+public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect, BlueGreenDialect {
 
   private static final String TOPOLOGY_QUERY =
       "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
@@ -46,6 +47,8 @@ public class AuroraMysqlDialect extends MysqlDialect implements BlueGreenDialect
   private static final String TOPOLOGY_TABLE_EXIST_QUERY =
       "SELECT 1 AS tmp FROM information_schema.tables WHERE"
           + " table_schema = 'mysql' AND table_name = 'rds_topology'";
+
+  private static final AuroraDialectUtils dialectUtils = new AuroraDialectUtils(IS_WRITER_QUERY);
 
   @Override
   public boolean isDialect(final Connection connection) {
@@ -113,5 +116,26 @@ public class AuroraMysqlDialect extends MysqlDialect implements BlueGreenDialect
     }
   }
 
+  @Override
+  public String getTopologyQuery() {
+    return TOPOLOGY_QUERY;
+  }
+
+  @Override
+  public @Nullable List<TopologyQueryHostSpec> processQueryResults(ResultSet rs, @Nullable String suggestedWriterId)
+      throws SQLException {
+    return AuroraMysqlDialect.dialectUtils.processQueryResults(rs);
+  }
+
+  @Override
+  @Nullable public String getWriterId(final Connection connection) {
+    // The Aurora topology query can detect the writer without a suggested writer ID, so we intentionally return null.
+    return null;
+  }
+
+  @Override
+  public boolean isWriterInstance(Connection connection) throws SQLException {
+    return dialectUtils.isWriterInstance(connection);
+  }
 }
 

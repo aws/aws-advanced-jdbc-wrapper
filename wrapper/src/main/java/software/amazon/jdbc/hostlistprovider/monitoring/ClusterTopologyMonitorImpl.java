@@ -22,10 +22,7 @@ import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
 import java.sql.Statement;
 import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
@@ -39,12 +36,12 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.dialect.TopologyDialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.util.ExecutorFactory;
@@ -55,6 +52,7 @@ import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.ServiceUtility;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
+import software.amazon.jdbc.util.TopologyUtils;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
 
@@ -79,13 +77,11 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
   protected final long refreshRateNano;
   protected final long highRefreshRateNano;
+  protected final TopologyDialect dialect;
   protected final FullServicesContainer servicesContainer;
   protected final Properties properties;
   protected final Properties monitoringProperties;
   protected final HostSpec initialHostSpec;
-  protected final String topologyQuery;
-  protected final String nodeIdQuery;
-  protected final String writerTopologyQuery;
   protected final HostSpec clusterInstanceTemplate;
 
   protected String clusterId;
@@ -107,27 +103,23 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
   public ClusterTopologyMonitorImpl(
       final FullServicesContainer servicesContainer,
+      final TopologyDialect dialect,
       final String clusterId,
       final HostSpec initialHostSpec,
       final Properties properties,
       final HostSpec clusterInstanceTemplate,
       final long refreshRateNano,
-      final long highRefreshRateNano,
-      final String topologyQuery,
-      final String writerTopologyQuery,
-      final String nodeIdQuery) {
+      final long highRefreshRateNano) {
     super(monitorTerminationTimeoutSec);
 
-    this.clusterId = clusterId;
     this.servicesContainer = servicesContainer;
+    this.dialect = dialect;
+    this.clusterId = clusterId;
     this.initialHostSpec = initialHostSpec;
     this.clusterInstanceTemplate = clusterInstanceTemplate;
     this.properties = properties;
     this.refreshRateNano = refreshRateNano;
     this.highRefreshRateNano = highRefreshRateNano;
-    this.topologyQuery = topologyQuery;
-    this.writerTopologyQuery = writerTopologyQuery;
-    this.nodeIdQuery = nodeIdQuery;
 
     this.monitoringProperties = PropertyUtils.copyProperties(properties);
     this.properties.stringPropertyNames().stream()
@@ -526,7 +518,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
             new Object[]{this.initialHostSpec.getHost()}));
 
         try {
-          if (!StringUtils.isNullOrEmpty(this.getWriterNodeId(this.monitoringConnection.get()))) {
+          if (this.dialect.isWriterInstance(this.monitoringConnection.get())) {
             this.isVerifiedWriterConnection = true;
             writerVerifiedByThisThread = true;
 
@@ -537,7 +529,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
                       "ClusterTopologyMonitorImpl.writerMonitoringConnection",
                       new Object[]{this.writerHostSpec.get().getHost()}));
             } else {
-              final String nodeId = this.getNodeId(this.monitoringConnection.get());
+              final String nodeId = this.dialect.getInstanceId(this.monitoringConnection.get());
               if (!StringUtils.isNullOrEmpty(nodeId)) {
                 this.writerHostSpec.set(this.createHost(nodeId, true, 0, null));
                 LOGGER.finest(
@@ -580,20 +572,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     return hosts;
   }
 
-  protected String getNodeId(final Connection connection) {
-    try {
-      try (final Statement stmt = connection.createStatement();
-          final ResultSet resultSet = stmt.executeQuery(this.nodeIdQuery)) {
-        if (resultSet.next()) {
-          return resultSet.getString(1);
-        }
-      }
-    } catch (SQLException ex) {
-      // do nothing
-    }
-    return null;
-  }
-
   protected void closeConnection(final @Nullable Connection connection) {
     try {
       if (connection != null && !connection.isClosed()) {
@@ -633,7 +611,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       return null;
     }
     try {
-      final List<HostSpec> hosts = this.queryForTopology(connection);
+      final List<HostSpec> hosts = this.topologyUtils.queryForTopology(connection);
       if (!Utils.isNullOrEmpty(hosts)) {
         this.updateTopologyCache(hosts);
       }
@@ -655,128 +633,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
         this.topologyUpdated.notifyAll();
       }
     }
-  }
-
-  // Returns a writer node ID if connected to a writer node. Returns null otherwise.
-  protected String getWriterNodeId(final Connection connection) throws SQLException {
-    try (final Statement stmt = connection.createStatement()) {
-      try (final ResultSet resultSet = stmt.executeQuery(this.writerTopologyQuery)) {
-        if (resultSet.next()) {
-          return resultSet.getString(1);
-        }
-      }
-    }
-    return null;
-  }
-
-  protected @Nullable List<HostSpec> queryForTopology(final Connection conn) throws SQLException {
-    int networkTimeout = -1;
-    try {
-      networkTimeout = conn.getNetworkTimeout();
-      // The topology query is not monitored by the EFM plugin, so it needs a socket timeout
-      if (networkTimeout == 0) {
-        conn.setNetworkTimeout(networkTimeoutExecutor, defaultTopologyQueryTimeoutMs);
-      }
-    } catch (SQLException e) {
-      LOGGER.warning(() -> Messages.get("ClusterTopologyMonitorImpl.errorGettingNetworkTimeout",
-          new Object[] {e.getMessage()}));
-    }
-
-    final String suggestedWriterNodeId = this.getSuggestedWriterNodeId(conn);
-    try (final Statement stmt = conn.createStatement();
-        final ResultSet resultSet = stmt.executeQuery(this.topologyQuery)) {
-      return this.processQueryResults(resultSet, suggestedWriterNodeId);
-    } catch (final SQLSyntaxErrorException e) {
-      throw new SQLException(Messages.get("ClusterTopologyMonitorImpl.invalidQuery"), e);
-    } finally {
-      if (networkTimeout == 0 && !conn.isClosed()) {
-        conn.setNetworkTimeout(networkTimeoutExecutor, networkTimeout);
-      }
-    }
-  }
-
-  protected String getSuggestedWriterNodeId(final Connection connection) throws SQLException {
-    // Aurora topology query can detect a writer for itself so it doesn't need any suggested writer node ID.
-    return null; // intentionally null
-  }
-
-  protected @Nullable List<HostSpec> processQueryResults(
-      final ResultSet resultSet,
-      final String suggestedWriterNodeId) throws SQLException {
-
-    final HashMap<String, HostSpec> hostMap = new HashMap<>();
-
-    if (resultSet.getMetaData().getColumnCount() == 0) {
-      // We expect at least 4 columns. Note that the server may return 0 columns if failover has occurred.
-      LOGGER.finest(Messages.get("ClusterTopologyMonitorImpl.unexpectedTopologyQueryColumnCount"));
-      return null;
-    }
-
-    // Data is result set is ordered by last updated time so the latest records go last.
-    // When adding hosts to a map, the newer records replace the older ones.
-    while (resultSet.next()) {
-      try {
-        final HostSpec host = createHost(resultSet, suggestedWriterNodeId);
-        hostMap.put(host.getHost(), host);
-      } catch (Exception e) {
-        LOGGER.finest(
-            Messages.get("ClusterTopologyMonitorImpl.errorProcessingQueryResults", new Object[]{e.getMessage()}));
-        return null;
-      }
-    }
-
-    final List<HostSpec> hosts = new ArrayList<>();
-    final List<HostSpec> writers = new ArrayList<>();
-
-    for (final HostSpec host : hostMap.values()) {
-      if (host.getRole() != HostRole.WRITER) {
-        hosts.add(host);
-      } else {
-        writers.add(host);
-      }
-    }
-
-    int writerCount = writers.size();
-
-    if (writerCount == 0) {
-      LOGGER.warning(() -> Messages.get("ClusterTopologyMonitorImpl.invalidTopology"));
-      hosts.clear();
-    } else if (writerCount == 1) {
-      hosts.add(writers.get(0));
-    } else {
-      // Take the latest updated writer node as the current writer. All others will be ignored.
-      List<HostSpec> sortedWriters = writers.stream()
-          .sorted(Comparator.comparing(HostSpec::getLastUpdateTime, Comparator.nullsLast(Comparator.reverseOrder())))
-          .collect(Collectors.toList());
-      hosts.add(sortedWriters.get(0));
-    }
-
-    return hosts;
-  }
-
-  protected HostSpec createHost(
-      final ResultSet resultSet,
-      final String suggestedWriterNodeId) throws SQLException {
-
-    // suggestedWriterNodeId is not used for Aurora clusters. Topology query can detect a writer for itself.
-
-    // According to the topology query the result set
-    // should contain 4 columns: node ID, 1/0 (writer/reader), CPU utilization, node lag in time.
-    String hostName = resultSet.getString(1);
-    final boolean isWriter = resultSet.getBoolean(2);
-    final float cpuUtilization = resultSet.getFloat(3);
-    final float nodeLag = resultSet.getFloat(4);
-    Timestamp lastUpdateTime;
-    try {
-      lastUpdateTime = resultSet.getTimestamp(5);
-    } catch (Exception e) {
-      lastUpdateTime = Timestamp.from(Instant.now());
-    }
-
-    // Calculate weight based on node lag in time and CPU utilization.
-    final long weight = Math.round(nodeLag) * 100L + Math.round(cpuUtilization);
-
-    return createHost(hostName, isWriter, weight, lastUpdateTime);
   }
 
   protected HostSpec createHost(
@@ -854,10 +710,9 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
           if (connection != null) {
 
-            String writerId = null;
+            boolean isWriter = false;
             try {
-              writerId = this.monitor.getWriterNodeId(connection);
-
+              isWriter = this.dialect.isWriterInstance(connection);
             } catch (SQLSyntaxErrorException ex) {
               LOGGER.severe(() -> Messages.get("NodeMonitoringThread.invalidWriterQuery",
                   new Object[] {ex.getMessage()}));
@@ -868,11 +723,11 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
               connection = null;
             }
 
-            if (!StringUtils.isNullOrEmpty(writerId)) {
+            if (isWriter) {
               try {
                 if (this.servicesContainer.getPluginService().getHostRole(connection) != HostRole.WRITER) {
                   // The first connection after failover may be stale.
-                  writerId = null;
+                  isWriter = false;
                 }
               } catch (SQLException e) {
                 // Invalid connection, retry.
@@ -880,7 +735,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
               }
             }
 
-            if (!StringUtils.isNullOrEmpty(writerId)) {
+            if (isWriter) {
               // this prevents closing connection in finally block
               if (!this.monitor.nodeThreadsWriterConnection.compareAndSet(null, connection)) {
                 // writer connection is already setup
@@ -888,7 +743,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
               } else {
                 // writer connection is successfully set to writerConnection
-                LOGGER.fine(Messages.get("NodeMonitoringThread.detectedWriter", new Object[]{writerId}));
+                LOGGER.fine(Messages.get("NodeMonitoringThread.detectedWriter", new Object[]{hostSpec.getUrl()}));
                 // When nodeThreadsWriterConnection and nodeThreadsWriterHostSpec are both set, the topology monitor may
                 // set ignoreNewTopologyRequestsEndTimeNano, in which case other threads will use the cached topology
                 // for the ignore duration, so we need to update the topology before setting nodeThreadsWriterHostSpec.
@@ -938,7 +793,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
       List<HostSpec> hosts;
       try {
-        hosts = this.monitor.queryForTopology(connection);
+        hosts = this.monitor.topologyUtils.queryForTopology(connection);
         if (hosts == null) {
           return;
         }

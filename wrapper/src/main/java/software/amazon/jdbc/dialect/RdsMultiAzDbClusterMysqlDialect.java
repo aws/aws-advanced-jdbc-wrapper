@@ -24,17 +24,18 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.RdsMultiAzDbClusterListProvider;
-import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsMultiAzHostListProvider;
+import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverRestriction;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 
-public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
+public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect implements TopologyDialect {
 
   private static final String TOPOLOGY_QUERY = "SELECT id, endpoint, port FROM mysql.rds_topology";
 
@@ -54,6 +55,8 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
       EnumSet.of(FailoverRestriction.DISABLE_TASK_A, FailoverRestriction.ENABLE_WRITER_IN_TASK_B);
 
   protected final RdsUtils rdsUtils = new RdsUtils();
+  protected final MultiAzDialectUtils dialectUtils = new MultiAzDialectUtils(
+      FETCH_WRITER_NODE_QUERY, FETCH_WRITER_NODE_QUERY_COLUMN_NAME, NODE_ID_QUERY);
 
   @Override
   public boolean isDialect(final Connection connection) {
@@ -97,7 +100,7 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
     return (properties, initialUrl, servicesContainer) -> {
       final PluginService pluginService = servicesContainer.getPluginService();
       if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {
-        return new MonitoringRdsMultiAzHostListProvider(
+        return new MonitoringRdsHostListProvider(
             properties,
             initialUrl,
             servicesContainer,
@@ -135,5 +138,26 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
   @Override
   public EnumSet<FailoverRestriction> getFailoverRestrictions() {
     return RDS_MULTI_AZ_RESTRICTIONS;
+  }
+
+  @Override
+  public String getTopologyQuery() {
+    return TOPOLOGY_QUERY;
+  }
+
+  @Override
+  public List<TopologyQueryHostSpec> processQueryResults(ResultSet rs, @Nullable String suggestedWriterId)
+      throws SQLException {
+    return dialectUtils.processQueryResults(rs, suggestedWriterId);
+  }
+
+  @Override
+  public @Nullable String getWriterId(Connection connection) throws SQLException {
+    return dialectUtils.getSuggestedWriterId(connection);
+  }
+
+  @Override
+  public boolean isWriterInstance(Connection connection) throws SQLException {
+    return dialectUtils.isWriterInstance(connection);
   }
 }
