@@ -609,6 +609,11 @@ public class ConnectionPluginManagerTests {
     final ConnectionProvider mockConnectionProvider1 = Mockito.mock(ConnectionProvider.class);
     final ConnectionWrapper mockConnectionWrapper1 = Mockito.mock(ConnectionWrapper.class);
     final PluginService mockPluginService1 = Mockito.mock(PluginService.class);
+    final PluginManagerService mockPluginManagerService1 = Mockito.mock(PluginManagerService.class);
+    final FullServicesContainer mockServicesContainer1 = Mockito.mock(FullServicesContainer.class);
+    when(mockConnectionWrapper1.getServicesContainer()).thenReturn(mockServicesContainer1);
+    when(mockServicesContainer1.getPluginService()).thenReturn(mockPluginService1);
+    when(mockServicesContainer1.getPluginManagerService()).thenReturn(mockPluginManagerService1);
     final TelemetryFactory mockTelemetryFactory1 = Mockito.mock(TelemetryFactory.class);
     final Object object1 = new Object();
     when(mockPluginService1.getTelemetryFactory()).thenReturn(mockTelemetryFactory1);
@@ -617,10 +622,14 @@ public class ConnectionPluginManagerTests {
 
     final ConnectionPluginManager pluginManager1 = new ConnectionPluginManager(
         mockConnectionProvider1, null, testProperties, testPlugins, mockTelemetryFactory1);
-
     final ConnectionProvider mockConnectionProvider2 = Mockito.mock(ConnectionProvider.class);
     final ConnectionWrapper mockConnectionWrapper2 = Mockito.mock(ConnectionWrapper.class);
     final PluginService mockPluginService2 = Mockito.mock(PluginService.class);
+    final PluginManagerService mockPluginManagerService2 = Mockito.mock(PluginManagerService.class);
+    final FullServicesContainer mockServicesContainer2 = Mockito.mock(FullServicesContainer.class);
+    when(mockConnectionWrapper2.getServicesContainer()).thenReturn(mockServicesContainer2);
+    when(mockServicesContainer2.getPluginService()).thenReturn(mockPluginService2);
+    when(mockServicesContainer2.getPluginManagerService()).thenReturn(mockPluginManagerService2);
     final TelemetryFactory mockTelemetryFactory2 = Mockito.mock(TelemetryFactory.class);
     final Object object2 = new Object();
     when(mockPluginService2.getTelemetryFactory()).thenReturn(mockTelemetryFactory2);

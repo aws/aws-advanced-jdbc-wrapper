@@ -233,6 +233,7 @@ public interface PluginService extends ExceptionHandler, Wrapper {
 
   ConnectionProvider getDefaultConnectionProvider();
 
+  @Deprecated
   boolean isPooledConnectionProvider(HostSpec host, Properties props);
 
   String getDriverProtocol();
@@ -248,4 +249,19 @@ public interface PluginService extends ExceptionHandler, Wrapper {
   <T> T getPlugin(final Class<T> pluginClazz);
 
   boolean isPluginInUse(final Class<? extends ConnectionPlugin> pluginClazz);
+
+  // JDBC call context functions
+
+  /**
+  * Retrieves details about the most recent {@link PluginService#connect} or
+  * {@link PluginService#forceConnect} calls. Specifically indicates whether the
+  * returned connection was obtained from a connection pool or newly created.
+  *
+  * <p>Note: The {@link ConnectionPlugin} must process or store this information during
+  * the current JDBC call, as these details will be reset before the next JDBC call
+  * is processed, or another {@link PluginService#connect} or {@link PluginService#forceConnect}
+  * is made.
+  *
+  */
+  @Nullable Boolean isPooledConnection();
 }
