@@ -73,6 +73,20 @@ public class RdsUtils {
   // Governmental endpoints
   // https://aws.amazon.com/compliance/fips/#FIPS_Endpoints_by_Service
   // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/s3/model/Region.html
+  //
+  //
+  // Aurora Global Database
+  // https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Concepts.Aurora_Fea_Regions_DB-eng.Feature.GlobalDatabase.html
+  // Global Database Endpoint: <gdb-name>.global-<xyz>.global.rds.amazonaws.com
+  // Example: test-global-db-name.global-123456789012.global.rds.amazonaws.com
+  //
+  //
+  // RDS Proxy
+  // RDS Proxy Endpoint: <proxy-name>.proxy-<xyz>.<aws-region>.rds.amazonaws.com
+  // Example: test-rds-proxy-name.proxy-123456789012.us-east-2.rds.amazonaws.com
+  //
+  // RDS Proxy Custom Endpoint: <custom-endpoint-name>.endpoint.proxy-<xyz>.<aws-region>.rds.amazonaws.com
+  // Example: test-custom-endpoint-name.endpoint.proxy-123456789012.us-east-2.rds.amazonaws.com
 
   private static final Pattern AURORA_DNS_PATTERN =
       Pattern.compile(
@@ -184,6 +198,30 @@ public class RdsUtils {
               + "(?<domain>[a-zA-Z0-9]+\\.global\\.rds\\.amazonaws\\.com\\.?)$",
           Pattern.CASE_INSENSITIVE);
 
+  private static final Pattern RDS_PROXY_ENDPOINT_DNS_PATTERN =
+      Pattern.compile(
+          "^(?<instance>.+)\\.endpoint\\."
+              + "(?<dns>proxy-)?"
+              + "(?<domain>[a-zA-Z0-9]+\\.(?<region>[a-zA-Z0-9\\-]+)"
+              + "\\.rds\\.amazonaws\\.com\\.?)$",
+          Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern RDS_PROXY_ENDPOINT_CHINA_DNS_PATTERN =
+      Pattern.compile(
+          "^(?<instance>.+)\\.endpoint\\."
+              + "(?<dns>proxy-)+"
+              + "(?<domain>[a-zA-Z0-9]+\\.rds\\.(?<region>[a-zA-Z0-9\\-]+)"
+              + "\\.amazonaws\\.com\\.cn\\.?)$",
+          Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern RDS_PROXY_ENDPOINT_OLD_CHINA_DNS_PATTERN =
+      Pattern.compile(
+          "^(?<instance>.+)\\.endpoint\\."
+              + "(?<dns>proxy-)?"
+              + "(?<domain>[a-zA-Z0-9]+\\.(?<region>[a-zA-Z0-9\\-]+)"
+              + "\\.rds\\.amazonaws\\.com\\.cn\\.?)$",
+          Pattern.CASE_INSENSITIVE);
+
   private static final Map<String, Matcher> cachedPatterns = new ConcurrentHashMap<>();
   private static final Map<String, String> cachedDnsPatterns = new ConcurrentHashMap<>();
 
@@ -223,6 +261,21 @@ public class RdsUtils {
   public boolean isRdsProxyDns(final String host) {
     final String dnsGroup = getDnsGroup(getPreparedHost(host));
     return dnsGroup != null && dnsGroup.startsWith("proxy-");
+  }
+
+  public boolean isRdsProxyEndpointDns(final String host) {
+    final String preparedHost = getPreparedHost(host);
+    if (StringUtils.isNullOrEmpty(preparedHost)) {
+      return false;
+    }
+
+    final Matcher matcher = cacheMatcher(preparedHost,
+        RDS_PROXY_ENDPOINT_DNS_PATTERN, RDS_PROXY_ENDPOINT_CHINA_DNS_PATTERN, RDS_PROXY_ENDPOINT_OLD_CHINA_DNS_PATTERN);
+    if (getRegexGroup(matcher, DNS_GROUP) != null) {
+      return getRegexGroup(matcher, INSTANCE_GROUP) != null;
+    }
+
+    return false;
   }
 
   public @Nullable String getRdsClusterId(final String host) {
@@ -372,6 +425,8 @@ public class RdsUtils {
       return RdsUrlType.RDS_AURORA_LIMITLESS_DB_SHARD_GROUP;
     } else if (isRdsProxyDns(host)) {
       return RdsUrlType.RDS_PROXY;
+    } else if (isRdsProxyEndpointDns(host)) {
+      return RdsUrlType.RDS_PROXY_ENDPOINT;
     } else if (isRdsDns(host)) {
       return RdsUrlType.RDS_INSTANCE;
     } else {

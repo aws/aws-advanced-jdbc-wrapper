@@ -257,6 +257,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   protected boolean isFailoverEnabled() {
     return !RdsUrlType.RDS_PROXY.equals(this.rdsUrlType)
+        && !RdsUrlType.RDS_PROXY_ENDPOINT.equals(this.rdsUrlType)
         && !Utils.isNullOrEmpty(this.pluginService.getAllHosts());
   }
 
