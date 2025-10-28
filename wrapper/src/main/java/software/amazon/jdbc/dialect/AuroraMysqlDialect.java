@@ -23,6 +23,8 @@ import java.sql.Statement;
 import java.util.Collections;
 import java.util.List;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.HostRole;
+import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 
 public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect, BlueGreenDialect {
@@ -136,6 +138,21 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect,
   @Override
   public boolean isWriterInstance(Connection connection) throws SQLException {
     return dialectUtils.isWriterInstance(connection);
+  }
+
+  @Override
+  public HostSpec identifyConnection(Connection connection) throws SQLException {
+    return null;
+  }
+
+  @Override
+  public HostRole getHostRole(Connection conn) throws SQLException {
+    return null;
+  }
+
+  @Override
+  public String getIsReaderQuery() {
+    return "";
   }
 }
 

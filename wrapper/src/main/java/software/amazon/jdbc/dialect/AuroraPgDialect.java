@@ -92,6 +92,7 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
     } catch (SQLException ex) {
       // ignore
     } finally {
+      // TODO: switch to try-with-resources here and check for any other places that can be cleaned up similarly
       if (stmt != null) {
         try {
           stmt.close();

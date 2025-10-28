@@ -146,4 +146,8 @@ public class TopologyUtils {
 
     throw new SQLException(Messages.get("RdsHostListProvider.errorGettingHostRole"));
   }
+
+  HostSpec identifyConnection(Connection connection) throws SQLException {
+
+  }
 }

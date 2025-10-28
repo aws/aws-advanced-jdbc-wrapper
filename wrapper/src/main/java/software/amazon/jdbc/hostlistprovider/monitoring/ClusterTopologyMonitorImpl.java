@@ -17,10 +17,8 @@
 package software.amazon.jdbc.hostlistprovider.monitoring;
 
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
-import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
@@ -77,7 +75,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
   protected final long refreshRateNano;
   protected final long highRefreshRateNano;
-  protected final TopologyDialect dialect;
+  protected final TopologyUtils topologyUtils;
   protected final FullServicesContainer servicesContainer;
   protected final Properties properties;
   protected final Properties monitoringProperties;
@@ -103,7 +101,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
   public ClusterTopologyMonitorImpl(
       final FullServicesContainer servicesContainer,
-      final TopologyDialect dialect,
+      final TopologyUtils topologyUtils,
       final String clusterId,
       final HostSpec initialHostSpec,
       final Properties properties,
@@ -113,7 +111,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     super(monitorTerminationTimeoutSec);
 
     this.servicesContainer = servicesContainer;
-    this.dialect = dialect;
+    this.topologyUtils = topologyUtils;
     this.clusterId = clusterId;
     this.initialHostSpec = initialHostSpec;
     this.clusterInstanceTemplate = clusterInstanceTemplate;

@@ -86,6 +86,8 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
     }
 
     TopologyDialect topologyDialect = (TopologyDialect) dialect;
+    TopologyUtils topologyUtils = new TopologyUtils(
+        topologyDialect, this.clusterInstanceTemplate, this.initialHostSpec, this.pluginService.getHostSpecBuilder());
     return this.servicesContainer.getMonitorService().runIfAbsent(
         ClusterTopologyMonitorImpl.class,
         this.clusterId,

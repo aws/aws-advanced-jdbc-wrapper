@@ -37,7 +37,9 @@ public interface TopologyDialect {
   // TODO: can we remove this and use getHostRole instead?
   boolean isWriterInstance(final Connection connection) throws SQLException;
 
-  HostSpec identifyConnection(Connection connection) throws SQLException;
+  HostSpec identifyConnection(Connection connection) throws SQLException
 
-  HostRole getHostRole(Connection conn) throws SQLException;
+  String getIsReaderQuery();
+
+  String get
 }
