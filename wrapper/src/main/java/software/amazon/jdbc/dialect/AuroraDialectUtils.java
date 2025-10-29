@@ -26,15 +26,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.jsoup.internal.StringUtil;
-import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
-import software.amazon.jdbc.util.Utils;
 
 public class AuroraDialectUtils {
   private static final Logger LOGGER = Logger.getLogger(AuroraDialectUtils.class.getName());
-  protected String writerIdQuery;
+  protected final String writerIdQuery;
 
   public AuroraDialectUtils(String writerIdQuery) {
     this.writerIdQuery = writerIdQuery;
@@ -66,7 +63,7 @@ public class AuroraDialectUtils {
 
   protected TopologyQueryHostSpec createHost(final ResultSet resultSet) throws SQLException {
     // According to the topology query the result set should contain 4 columns:
-    // node ID, 1/0 (writer/reader), CPU utilization, instance lag
+    // instance ID, 1/0 (writer/reader), CPU utilization, instance lag
     String hostName = resultSet.getString(1);
     final boolean isWriter = resultSet.getBoolean(2);
     final float cpuUtilization = resultSet.getFloat(3);
@@ -78,7 +75,7 @@ public class AuroraDialectUtils {
       lastUpdateTime = Timestamp.from(Instant.now());
     }
 
-    // Calculate weight based on node lag in time and CPU utilization.
+    // Calculate weight based on instance lag in time and CPU utilization.
     final long weight = Math.round(instanceLag) * 100L + Math.round(cpuUtilization);
 
     return new TopologyQueryHostSpec(hostName, isWriter, weight, lastUpdateTime);

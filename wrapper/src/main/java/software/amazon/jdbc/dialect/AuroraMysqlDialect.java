@@ -23,8 +23,6 @@ import java.sql.Statement;
 import java.util.Collections;
 import java.util.List;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.jdbc.HostRole;
-import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 
 public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect, BlueGreenDialect {
@@ -33,14 +31,14 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect,
       "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
           + "CPU, REPLICA_LAG_IN_MILLISECONDS, LAST_UPDATE_TIMESTAMP "
           + "FROM information_schema.replica_host_status "
-          // filter out nodes that haven't been updated in the last 5 minutes
+          // filter out instances that haven't been updated in the last 5 minutes
           + "WHERE time_to_sec(timediff(now(), LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' ";
 
   private static final String IS_WRITER_QUERY =
       "SELECT SERVER_ID FROM information_schema.replica_host_status "
       + "WHERE SESSION_ID = 'MASTER_SESSION_ID' AND SERVER_ID = @@aurora_server_id";
 
-  private static final String NODE_ID_QUERY = "SELECT @@aurora_server_id";
+  private static final String INSTANCE_ID_QUERY = "SELECT @@aurora_server_id";
   private static final String IS_READER_QUERY = "SELECT @@innodb_read_only";
 
   private static final String BG_STATUS_QUERY =
@@ -118,7 +116,7 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect,
   }
 
   @Override
-  public @Nullable List<TopologyQueryHostSpec> processQueryResults(ResultSet rs, @Nullable String suggestedWriterId)
+  public @Nullable List<TopologyQueryHostSpec> processQueryResults(ResultSet rs, @Nullable String writerId)
       throws SQLException {
     return AuroraMysqlDialect.dialectUtils.processQueryResults(rs);
   }
@@ -141,7 +139,7 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect,
 
   @Override
   public String getInstanceIdQuery() {
-    return NODE_ID_QUERY;
+    return INSTANCE_ID_QUERY;
   }
 }
 

@@ -41,12 +41,12 @@ public class MultiAzDialectUtils {
     this.instanceIdQuery = instanceIdQuery;
   }
 
-  public @Nullable List<TopologyQueryHostSpec> processQueryResults(ResultSet resultSet, String suggestedWriterId)
+  public @Nullable List<TopologyQueryHostSpec> processQueryResults(ResultSet resultSet, String writerId)
       throws SQLException {
     List<TopologyQueryHostSpec> hosts = new ArrayList<>();
     while (resultSet.next()) {
       try {
-        final TopologyQueryHostSpec host = createHost(resultSet, suggestedWriterId);
+        final TopologyQueryHostSpec host = createHost(resultSet, writerId);
         hosts.add(host);
       } catch (Exception e) {
         LOGGER.finest(
@@ -60,12 +60,12 @@ public class MultiAzDialectUtils {
 
   protected TopologyQueryHostSpec createHost(
       final ResultSet resultSet,
-      final String suggestedWriterNodeId) throws SQLException {
+      final String writerId) throws SQLException {
 
     String endpoint = resultSet.getString("endpoint"); // "instance-name.XYZ.us-west-2.rds.amazonaws.com"
     String instanceName = endpoint.substring(0, endpoint.indexOf(".")); // "instance-name"
     String hostId = resultSet.getString("id"); // "1034958454"
-    final boolean isWriter = hostId.equals(suggestedWriterNodeId);
+    final boolean isWriter = hostId.equals(writerId);
 
     return new TopologyQueryHostSpec(instanceName, isWriter, 0, Timestamp.from(Instant.now()));
   }
@@ -96,10 +96,10 @@ public class MultiAzDialectUtils {
     try (final Statement stmt = connection.createStatement()) {
       try (final ResultSet resultSet = stmt.executeQuery(this.writerIdQuery)) {
         if (resultSet.next()) {
-          String nodeId = resultSet.getString(this.writerIdQueryColumn);
+          String instanceId = resultSet.getString(this.writerIdQueryColumn);
           // The writer ID is only returned when connected to a reader, so if the query does not return a value, it
           // means we are connected to a writer.
-          return StringUtils.isNullOrEmpty(nodeId);
+          return StringUtils.isNullOrEmpty(instanceId);
         }
       }
     }

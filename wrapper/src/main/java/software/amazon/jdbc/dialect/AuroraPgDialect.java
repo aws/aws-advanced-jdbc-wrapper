@@ -23,7 +23,6 @@ import java.sql.Statement;
 import java.util.List;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 import software.amazon.jdbc.util.DriverInfo;
 
@@ -45,18 +44,18 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
       "SELECT SERVER_ID, CASE WHEN SESSION_ID OPERATOR(pg_catalog.=) 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
           + "CPU, COALESCE(REPLICA_LAG_IN_MSEC, 0), LAST_UPDATE_TIMESTAMP "
           + "FROM pg_catalog.aurora_replica_status() "
-          // filter out nodes that haven't been updated in the last 5 minutes
+          // filter out instances that haven't been updated in the last 5 minutes
           + "WHERE EXTRACT("
           + "EPOCH FROM(pg_catalog.NOW() OPERATOR(pg_catalog.-) LAST_UPDATE_TIMESTAMP)) OPERATOR(pg_catalog.<=) 300 "
           + "OR SESSION_ID OPERATOR(pg_catalog.=) 'MASTER_SESSION_ID' "
           + "OR LAST_UPDATE_TIMESTAMP IS NULL";
 
-  private static final String IS_WRITER_QUERY =
+  private static final String WRITER_ID_QUERY =
       "SELECT SERVER_ID FROM pg_catalog.aurora_replica_status() "
           + "WHERE SESSION_ID OPERATOR(pg_catalog.=) 'MASTER_SESSION_ID' "
           + "AND SERVER_ID OPERATOR(pg_catalog.=) pg_catalog.aurora_db_instance_identifier()";
 
-  private static final String NODE_ID_QUERY = "SELECT pg_catalog.aurora_db_instance_identifier()";
+  private static final String INSTANCE_ID_QUERY = "SELECT pg_catalog.aurora_db_instance_identifier()";
   private static final String IS_READER_QUERY = "SELECT pg_catalog.pg_is_in_recovery()";
   protected static final String LIMITLESS_ROUTER_ENDPOINT_QUERY =
       "select router_endpoint, load from pg_catalog.aurora_limitless_router_endpoints()";
@@ -68,7 +67,7 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
   private static final String TOPOLOGY_TABLE_EXIST_QUERY =
       "SELECT 'pg_catalog.get_blue_green_fast_switchover_metadata'::regproc";
 
-  private static final AuroraDialectUtils dialectUtils = new AuroraDialectUtils(IS_WRITER_QUERY);
+  private static final AuroraDialectUtils dialectUtils = new AuroraDialectUtils(WRITER_ID_QUERY);
 
   @Override
   public boolean isDialect(final Connection connection) {
@@ -158,7 +157,7 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
 
   @Override
   public String getInstanceIdQuery() {
-    return NODE_ID_QUERY;
+    return INSTANCE_ID_QUERY;
   }
 
   @Override
@@ -173,7 +172,7 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
   }
 
   @Override
-  public @Nullable List<TopologyQueryHostSpec> processQueryResults(ResultSet rs, @Nullable String suggestedWriterId)
+  public @Nullable List<TopologyQueryHostSpec> processQueryResults(ResultSet rs, @Nullable String writerId)
       throws SQLException {
     return AuroraPgDialect.dialectUtils.processQueryResults(rs);
   }

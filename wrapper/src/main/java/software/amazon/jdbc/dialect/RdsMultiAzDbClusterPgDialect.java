@@ -40,8 +40,9 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect implements TopologyD
   private static final String TOPOLOGY_QUERY =
       "SELECT id, endpoint, port FROM rds_tools.show_topology('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
 
-  // For reader nodes, the query should return a writer node ID. For a writer node, the query should return no data.
-  private static final String FETCH_WRITER_NODE_QUERY =
+  // For reader instances, the query should return a writer instance ID.
+  // For a writer instance, the query should return no data.
+  private static final String WRITER_ID_QUERY =
       "SELECT multi_az_db_cluster_source_dbi_resource_id FROM rds_tools.multi_az_db_cluster_source_dbi_resource_id()"
           + " WHERE multi_az_db_cluster_source_dbi_resource_id OPERATOR(pg_catalog.!=)"
           + " (SELECT dbi_resource_id FROM rds_tools.dbi_resource_id())";
@@ -49,14 +50,14 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect implements TopologyD
   private static final String IS_RDS_CLUSTER_QUERY =
       "SELECT multi_az_db_cluster_source_dbi_resource_id FROM rds_tools.multi_az_db_cluster_source_dbi_resource_id()";
 
-  private static final String FETCH_WRITER_NODE_QUERY_COLUMN_NAME = "multi_az_db_cluster_source_dbi_resource_id";
+  private static final String WRITER_ID_QUERY_COLUMN = "multi_az_db_cluster_source_dbi_resource_id";
 
-  private static final String NODE_ID_QUERY = "SELECT dbi_resource_id FROM rds_tools.dbi_resource_id()";
+  private static final String INSTANCE_ID_QUERY = "SELECT dbi_resource_id FROM rds_tools.dbi_resource_id()";
 
   private static final String IS_READER_QUERY = "SELECT pg_catalog.pg_is_in_recovery()";
 
   protected final MultiAzDialectUtils dialectUtils = new MultiAzDialectUtils(
-      FETCH_WRITER_NODE_QUERY, FETCH_WRITER_NODE_QUERY_COLUMN_NAME, NODE_ID_QUERY);
+      WRITER_ID_QUERY, WRITER_ID_QUERY_COLUMN, INSTANCE_ID_QUERY);
 
   @Override
   public ExceptionHandler getExceptionHandler() {
@@ -116,12 +117,12 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect implements TopologyD
 
   @Override
   public String getInstanceIdQuery() {
-    return NODE_ID_QUERY;
+    return INSTANCE_ID_QUERY;
   }
 
   @Override
-  public @Nullable List<TopologyQueryHostSpec> processQueryResults(ResultSet rs, String suggestedWriterId)
+  public @Nullable List<TopologyQueryHostSpec> processQueryResults(ResultSet rs, String writerId)
       throws SQLException {
-    return this.dialectUtils.processQueryResults(rs, suggestedWriterId);
+    return this.dialectUtils.processQueryResults(rs, writerId);
   }
 }

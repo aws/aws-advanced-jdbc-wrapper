@@ -43,12 +43,12 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect implements Top
       "SELECT 1 AS tmp FROM information_schema.tables WHERE"
       + " table_schema = 'mysql' AND table_name = 'rds_topology'";
 
-  // For reader nodes, the query returns a writer node ID. For a writer node, the query returns no data.
-  private static final String FETCH_WRITER_NODE_QUERY = "SHOW REPLICA STATUS";
+  // For reader instances, the query returns a writer instance ID. For a writer instance, the query returns no data.
+  private static final String WRITER_ID_QUERY = "SHOW REPLICA STATUS";
 
-  private static final String FETCH_WRITER_NODE_QUERY_COLUMN_NAME = "Source_Server_Id";
+  private static final String WRITER_ID_QUERY_COLUMN = "Source_Server_Id";
 
-  private static final String NODE_ID_QUERY = "SELECT @@server_id";
+  private static final String INSTANCE_ID_QUERY = "SELECT @@server_id";
   private static final String IS_READER_QUERY = "SELECT @@read_only";
 
   private static final EnumSet<FailoverRestriction> RDS_MULTI_AZ_RESTRICTIONS =
@@ -56,7 +56,7 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect implements Top
 
   protected final RdsUtils rdsUtils = new RdsUtils();
   protected final MultiAzDialectUtils dialectUtils = new MultiAzDialectUtils(
-      FETCH_WRITER_NODE_QUERY, FETCH_WRITER_NODE_QUERY_COLUMN_NAME, NODE_ID_QUERY);
+      WRITER_ID_QUERY, WRITER_ID_QUERY_COLUMN, INSTANCE_ID_QUERY);
 
   @Override
   public boolean isDialect(final Connection connection) {
@@ -130,9 +130,9 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect implements Top
   }
 
   @Override
-  public List<TopologyQueryHostSpec> processQueryResults(ResultSet rs, @Nullable String suggestedWriterId)
+  public List<TopologyQueryHostSpec> processQueryResults(ResultSet rs, @Nullable String writerId)
       throws SQLException {
-    return dialectUtils.processQueryResults(rs, suggestedWriterId);
+    return dialectUtils.processQueryResults(rs, writerId);
   }
 
   @Override
@@ -152,6 +152,6 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect implements Top
 
   @Override
   public String getInstanceIdQuery() {
-    return NODE_ID_QUERY;
+    return INSTANCE_ID_QUERY;
   }
 }

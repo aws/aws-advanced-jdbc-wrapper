@@ -26,8 +26,7 @@ public interface TopologyDialect extends Dialect {
   String getTopologyQuery();
 
   @Nullable
-  List<TopologyQueryHostSpec> processQueryResults(ResultSet rs, @Nullable String suggestedWriterId)
-      throws SQLException;
+  List<TopologyQueryHostSpec> processQueryResults(ResultSet rs, @Nullable String writerId) throws SQLException;
 
   @Nullable
   String getWriterId(final Connection connection) throws SQLException;
