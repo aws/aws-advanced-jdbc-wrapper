@@ -23,6 +23,7 @@ import java.sql.Statement;
 import java.util.List;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 import software.amazon.jdbc.util.DriverInfo;
 
@@ -141,19 +142,23 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
 
   @Override
   public HostListProviderSupplier getHostListProvider() {
-    return (properties, initialUrl, servicesContainer) -> new MonitoringRdsHostListProvider(
-        properties,
-        initialUrl,
-        servicesContainer,
-        TOPOLOGY_QUERY,
-        NODE_ID_QUERY,
-        IS_READER_QUERY,
-        IS_WRITER_QUERY);
+    return (properties, initialUrl, servicesContainer) ->
+        new MonitoringRdsHostListProvider(this, properties, initialUrl, servicesContainer);
   }
 
   @Override
   public String getTopologyQuery() {
     return TOPOLOGY_QUERY;
+  }
+
+  @Override
+  public String getIsReaderQuery() {
+    return IS_READER_QUERY;
+  }
+
+  @Override
+  public String getInstanceIdQuery() {
+    return NODE_ID_QUERY;
   }
 
   @Override

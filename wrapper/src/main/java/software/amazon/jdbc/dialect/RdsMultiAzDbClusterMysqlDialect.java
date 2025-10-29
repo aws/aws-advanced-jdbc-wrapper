@@ -100,26 +100,10 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect implements Top
     return (properties, initialUrl, servicesContainer) -> {
       final PluginService pluginService = servicesContainer.getPluginService();
       if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {
-        return new MonitoringRdsHostListProvider(
-            properties,
-            initialUrl,
-            servicesContainer,
-            TOPOLOGY_QUERY,
-            NODE_ID_QUERY,
-            IS_READER_QUERY,
-            FETCH_WRITER_NODE_QUERY,
-            FETCH_WRITER_NODE_QUERY_COLUMN_NAME);
+        return new MonitoringRdsHostListProvider(this, properties, initialUrl, servicesContainer);
 
       } else {
-        return new RdsMultiAzDbClusterListProvider(
-            properties,
-            initialUrl,
-            servicesContainer,
-            TOPOLOGY_QUERY,
-            NODE_ID_QUERY,
-            IS_READER_QUERY,
-            FETCH_WRITER_NODE_QUERY,
-            FETCH_WRITER_NODE_QUERY_COLUMN_NAME);
+        return new RdsMultiAzDbClusterListProvider(this, properties, initialUrl, servicesContainer);
       }
     };
   }
@@ -153,11 +137,21 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect implements Top
 
   @Override
   public @Nullable String getWriterId(Connection connection) throws SQLException {
-    return dialectUtils.getSuggestedWriterId(connection);
+    return dialectUtils.getWriterId(connection);
   }
 
   @Override
   public boolean isWriterInstance(Connection connection) throws SQLException {
     return dialectUtils.isWriterInstance(connection);
+  }
+
+  @Override
+  public String getIsReaderQuery() {
+    return IS_READER_QUERY;
+  }
+
+  @Override
+  public String getInstanceIdQuery() {
+    return NODE_ID_QUERY;
   }
 }

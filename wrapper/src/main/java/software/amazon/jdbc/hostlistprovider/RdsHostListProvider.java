@@ -17,16 +17,9 @@
 package software.amazon.jdbc.hostlistprovider;
 
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.SQLSyntaxErrorException;
-import java.sql.Statement;
-import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -37,7 +30,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
@@ -46,7 +38,7 @@ import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.dialect.TopologyDialect;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
@@ -54,6 +46,7 @@ import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
+import software.amazon.jdbc.util.TopologyUtils;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.storage.CacheMap;
 
@@ -92,9 +85,13 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   protected static final CacheMap<String, String> suggestedPrimaryClusterIdCache = new CacheMap<>();
   protected static final CacheMap<String, Boolean> primaryClusterIdCache = new CacheMap<>();
 
+  protected final ReentrantLock lock = new ReentrantLock();
+  protected final TopologyDialect dialect;
+  protected final Properties properties;
+  protected final String originalUrl;
   protected final FullServicesContainer servicesContainer;
   protected final HostListProviderService hostListProviderService;
-  protected final String originalUrl;
+
   protected RdsUrlType rdsUrlType;
   protected long refreshRateNano = CLUSTER_TOPOLOGY_REFRESH_RATE_MS.defaultValue != null
       ? TimeUnit.MILLISECONDS.toNanos(Long.parseLong(CLUSTER_TOPOLOGY_REFRESH_RATE_MS.defaultValue))
@@ -102,10 +99,9 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   protected List<HostSpec> hostList = new ArrayList<>();
   protected List<HostSpec> initialHostList = new ArrayList<>();
   protected HostSpec initialHostSpec;
-
-  protected final ReentrantLock lock = new ReentrantLock();
   protected String clusterId;
   protected HostSpec clusterInstanceTemplate;
+  protected TopologyUtils topologyUtils;
 
   // A primary clusterId is a clusterId that is based off of a cluster endpoint URL
   // (rather than a GUID or a value provided by the user).
@@ -113,16 +109,16 @@ public class RdsHostListProvider implements DynamicHostListProvider {
 
   protected volatile boolean isInitialized = false;
 
-  protected Properties properties;
-
   static {
     PropertyDefinition.registerPluginProperties(RdsHostListProvider.class);
   }
 
   public RdsHostListProvider(
+      final TopologyDialect dialect,
       final Properties properties,
       final String originalUrl,
       final FullServicesContainer servicesContainer) {
+    this.dialect = dialect;
     this.properties = properties;
     this.originalUrl = originalUrl;
     this.servicesContainer = servicesContainer;
@@ -200,6 +196,12 @@ public class RdsHostListProvider implements DynamicHostListProvider {
         }
       }
 
+      this.topologyUtils = new TopologyUtils(
+          this.dialect,
+          this.clusterInstanceTemplate,
+          this.initialHostSpec,
+          this.servicesContainer.getPluginService().getHostSpecBuilder());
+
       this.isInitialized = true;
     } finally {
       lock.unlock();
@@ -251,7 +253,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       }
 
       // fetch topology from the DB
-      final List<HostSpec> hosts = queryForTopology(conn);
+      final List<HostSpec> hosts = this.topologyUtils.queryForTopology(conn);
 
       if (!Utils.isNullOrEmpty(hosts)) {
         this.servicesContainer.getStorageService().set(this.clusterId, new Topology(hosts));
@@ -274,7 +276,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
     // do nothing
   }
 
-  protected ClusterSuggestedResult getSuggestedClusterId(final String url) {
+  protected @Nullable ClusterSuggestedResult getSuggestedClusterId(final String url) {
     Map<String, Topology> entries = this.servicesContainer.getStorageService().getEntries(Topology.class);
     if (entries == null) {
       return null;
@@ -288,9 +290,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       if (key.equals(url)) {
         return new ClusterSuggestedResult(url, isPrimaryCluster);
       }
-      if (hosts == null) {
-        continue;
-      }
+
       for (final HostSpec host : hosts) {
         if (host.getHostAndPort().equals(url)) {
           LOGGER.finest(() -> Messages.get("RdsHostListProvider.suggestedClusterId",
@@ -345,131 +345,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
    * @throws SQLException if errors occurred while retrieving the topology.
    */
   protected List<HostSpec> queryForTopology(final Connection conn) throws SQLException {
-    int networkTimeout = -1;
-    try {
-      networkTimeout = conn.getNetworkTimeout();
-      // The topology query is not monitored by the EFM plugin, so it needs a socket timeout
-      if (networkTimeout == 0) {
-        conn.setNetworkTimeout(networkTimeoutExecutor, defaultTopologyQueryTimeoutMs);
-      }
-    } catch (SQLException e) {
-      LOGGER.warning(() -> Messages.get("RdsHostListProvider.errorGettingNetworkTimeout",
-          new Object[] {e.getMessage()}));
-    }
-
-    try (final Statement stmt = conn.createStatement();
-         final ResultSet resultSet = stmt.executeQuery(this.topologyQuery)) {
-      return processQueryResults(resultSet);
-    } catch (final SQLSyntaxErrorException e) {
-      throw new SQLException(Messages.get("RdsHostListProvider.invalidQuery"), e);
-    } finally {
-      if (networkTimeout == 0 && !conn.isClosed()) {
-        conn.setNetworkTimeout(networkTimeoutExecutor, networkTimeout);
-      }
-    }
-  }
-
-  /**
-   * Form a list of hosts from the results of the topology query.
-   *
-   * @param resultSet The results of the topology query
-   * @return a list of {@link HostSpec} objects representing
-   *     the topology that was returned by the
-   *     topology query. The list will be empty if the topology query returned an invalid topology
-   *     (no writer instance).
-   */
-  private List<HostSpec> processQueryResults(final ResultSet resultSet) throws SQLException {
-
-    final HashMap<String, HostSpec> hostMap = new HashMap<>();
-
-    // Data is result set is ordered by last updated time so the latest records go last.
-    // When adding hosts to a map, the newer records replace the older ones.
-    while (resultSet.next()) {
-      final HostSpec host = createHost(resultSet);
-      hostMap.put(host.getHost(), host);
-    }
-
-    final List<HostSpec> hosts = new ArrayList<>();
-    final List<HostSpec> writers = new ArrayList<>();
-
-    for (final HostSpec host : hostMap.values()) {
-      if (host.getRole() != HostRole.WRITER) {
-        hosts.add(host);
-      } else {
-        writers.add(host);
-      }
-    }
-
-    int writerCount = writers.size();
-
-    if (writerCount == 0) {
-      LOGGER.severe(
-          () -> Messages.get(
-              "RdsHostListProvider.invalidTopology"));
-      hosts.clear();
-    } else if (writerCount == 1) {
-      hosts.add(writers.get(0));
-    } else {
-      // Take the latest updated writer node as the current writer. All others will be ignored.
-      List<HostSpec> sortedWriters = writers.stream()
-          .sorted(Comparator.comparing(HostSpec::getLastUpdateTime, Comparator.nullsLast(Comparator.reverseOrder())))
-          .collect(Collectors.toList());
-      hosts.add(sortedWriters.get(0));
-    }
-
-    return hosts;
-  }
-
-  /**
-   * Creates an instance of HostSpec which captures details about a connectable host.
-   *
-   * @param resultSet the result set from querying the topology
-   * @return a {@link HostSpec} instance for a specific instance from the cluster
-   * @throws SQLException If unable to retrieve the hostName from the result set
-   */
-  protected HostSpec createHost(final ResultSet resultSet) throws SQLException {
-    // According to the topology query the result set
-    // should contain 4 columns: node ID, 1/0 (writer/reader), CPU utilization, node lag in time.
-    String hostName = resultSet.getString(1);
-    final boolean isWriter = resultSet.getBoolean(2);
-    final double cpuUtilization = resultSet.getDouble(3);
-    final double nodeLag = resultSet.getDouble(4);
-    Timestamp lastUpdateTime;
-    try {
-      lastUpdateTime = resultSet.getTimestamp(5);
-    } catch (Exception e) {
-      lastUpdateTime = Timestamp.from(Instant.now());
-    }
-
-    // Calculate weight based on node lag in time and CPU utilization.
-    final long weight = Math.round(nodeLag) * 100L + Math.round(cpuUtilization);
-
-    return createHost(hostName, isWriter, weight, lastUpdateTime);
-  }
-
-  protected HostSpec createHost(
-      String host,
-      final boolean isWriter,
-      final long weight,
-      final Timestamp lastUpdateTime) {
-
-    host = host == null ? "?" : host;
-    final String endpoint = getHostEndpoint(host);
-    final int port = this.clusterInstanceTemplate.isPortSpecified()
-        ? this.clusterInstanceTemplate.getPort()
-        : this.initialHostSpec.getPort();
-
-    final HostSpec hostSpec = this.hostListProviderService.getHostSpecBuilder()
-        .host(endpoint)
-        .port(port)
-        .role(isWriter ? HostRole.WRITER : HostRole.READER)
-        .availability(HostAvailability.AVAILABLE)
-        .weight(weight)
-        .lastUpdateTime(lastUpdateTime)
-        .build();
-    hostSpec.addAlias(host);
-    hostSpec.setHostId(host);
-    return hostSpec;
+    return this.topologyUtils.queryForTopology(conn);
   }
 
   /**
@@ -593,64 +469,52 @@ public class RdsHostListProvider implements DynamicHostListProvider {
 
   @Override
   public HostRole getHostRole(Connection conn) throws SQLException {
-    try (final Statement stmt = conn.createStatement();
-         final ResultSet rs = stmt.executeQuery(this.isReaderQuery)) {
-      if (rs.next()) {
-        boolean isReader = rs.getBoolean(1);
-        return isReader ? HostRole.READER : HostRole.WRITER;
-      }
-    } catch (SQLException e) {
-      throw new SQLException(Messages.get("RdsHostListProvider.errorGettingHostRole"), e);
-    }
-
-    throw new SQLException(Messages.get("RdsHostListProvider.errorGettingHostRole"));
+    return this.topologyUtils.getHostRole(conn);
   }
 
   @Override
-  public HostSpec identifyConnection(Connection connection) throws SQLException {
-    try (final Statement stmt = connection.createStatement();
-         final ResultSet resultSet = stmt.executeQuery(this.nodeIdQuery)) {
-      if (resultSet.next()) {
-        final String instanceName = resultSet.getString(1);
+  public @Nullable HostSpec identifyConnection(Connection connection) throws SQLException {
+    // TODO: why do we return null in some unexpected scenarios and throw an exception in others?
+    try {
+      String instanceId = this.topologyUtils.getInstanceId(connection);
+      if (instanceId == null) {
+        throw new SQLException(Messages.get("RdsHostListProvider.errorIdentifyConnection"));
+      }
 
-        List<HostSpec> topology = this.refresh(connection);
+      List<HostSpec> topology = this.refresh(connection);
+      boolean isForcedRefresh = false;
+      if (topology == null) {
+        topology = this.forceRefresh(connection);
+        isForcedRefresh = true;
+      }
 
-        boolean isForcedRefresh = false;
-        if (topology == null) {
-          topology = this.forceRefresh(connection);
-          isForcedRefresh = true;
-        }
+      if (topology == null) {
+        return null;
+      }
 
+      HostSpec foundHost = topology
+          .stream()
+          .filter(host -> Objects.equals(instanceId, host.getHostId()))
+          .findAny()
+          .orElse(null);
+
+      if (foundHost == null && !isForcedRefresh) {
+        topology = this.forceRefresh(connection);
         if (topology == null) {
           return null;
         }
 
-        HostSpec foundHost = topology
+        foundHost = topology
             .stream()
-            .filter(host -> Objects.equals(instanceName, host.getHostId()))
+            .filter(host -> Objects.equals(instanceId, host.getHostId()))
             .findAny()
             .orElse(null);
-
-        if (foundHost == null && !isForcedRefresh) {
-          topology = this.forceRefresh(connection);
-          if (topology == null) {
-            return null;
-          }
-
-          foundHost = topology
-              .stream()
-              .filter(host -> Objects.equals(instanceName, host.getHostId()))
-              .findAny()
-              .orElse(null);
-        }
-
-        return foundHost;
       }
+
+      return foundHost;
     } catch (final SQLException e) {
       throw new SQLException(Messages.get("RdsHostListProvider.errorIdentifyConnection"), e);
     }
-
-    throw new SQLException(Messages.get("RdsHostListProvider.errorIdentifyConnection"));
   }
 
   @Override

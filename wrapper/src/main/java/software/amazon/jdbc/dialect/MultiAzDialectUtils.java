@@ -70,19 +70,19 @@ public class MultiAzDialectUtils {
     return new TopologyQueryHostSpec(instanceName, isWriter, 0, Timestamp.from(Instant.now()));
   }
 
-  public @Nullable String getSuggestedWriterId(Connection connection) throws SQLException {
+  public @Nullable String getWriterId(Connection connection) throws SQLException {
     try (final Statement stmt = connection.createStatement()) {
       try (final ResultSet resultSet = stmt.executeQuery(this.writerIdQuery)) {
         if (resultSet.next()) {
           String writerId = resultSet.getString(this.writerIdQueryColumn);
           if (!StringUtils.isNullOrEmpty(writerId)) {
-            // Replica status exists and shows a writer instance ID, which means that this instance is a reader.
             return writerId;
           }
         }
       }
 
-      // Replica status doesn't exist, which means that this instance is a writer.
+      // Replica status doesn't exist, which means that this instance is a writer. We execute instanceIdQuery to get the
+      // ID of this writer instance.
       try (final ResultSet resultSet = stmt.executeQuery(this.instanceIdQuery)) {
         if (resultSet.next()) {
           return resultSet.getString(1);

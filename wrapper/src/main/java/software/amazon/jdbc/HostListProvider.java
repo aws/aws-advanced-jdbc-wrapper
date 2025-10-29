@@ -19,6 +19,7 @@ package software.amazon.jdbc;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public interface HostListProvider {
 
@@ -40,6 +41,7 @@ public interface HostListProvider {
    */
   HostRole getHostRole(Connection connection) throws SQLException;
 
+  @Nullable
   HostSpec identifyConnection(Connection connection) throws SQLException;
 
   String getClusterId() throws UnsupportedOperationException, SQLException;

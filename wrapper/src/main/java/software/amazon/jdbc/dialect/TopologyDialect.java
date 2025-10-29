@@ -21,10 +21,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.jdbc.HostRole;
-import software.amazon.jdbc.HostSpec;
 
-public interface TopologyDialect {
+public interface TopologyDialect extends Dialect {
   String getTopologyQuery();
 
   @Nullable
@@ -37,9 +35,7 @@ public interface TopologyDialect {
   // TODO: can we remove this and use getHostRole instead?
   boolean isWriterInstance(final Connection connection) throws SQLException;
 
-  HostSpec identifyConnection(Connection connection) throws SQLException
-
   String getIsReaderQuery();
 
-  String get
+  String getInstanceIdQuery();
 }

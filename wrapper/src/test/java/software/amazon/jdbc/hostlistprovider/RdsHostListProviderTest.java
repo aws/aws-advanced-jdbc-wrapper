@@ -60,7 +60,7 @@ import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.dialect.TopologyDialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider.FetchTopologyResult;
@@ -80,7 +80,7 @@ class RdsHostListProviderTest {
   @Mock private PluginService mockPluginService;
   @Mock private HostListProviderService mockHostListProviderService;
   @Mock private EventPublisher mockEventPublisher;
-  @Mock Dialect mockTopologyAwareDialect;
+  @Mock private TopologyDialect mockDialect;
   @Captor private ArgumentCaptor<String> queryCaptor;
 
   private AutoCloseable closeable;
@@ -101,7 +101,7 @@ class RdsHostListProviderTest {
     when(mockPluginService.getCurrentHostSpec()).thenReturn(currentHostSpec);
     when(mockConnection.createStatement()).thenReturn(mockStatement);
     when(mockStatement.executeQuery(queryCaptor.capture())).thenReturn(mockResultSet);
-    when(mockHostListProviderService.getDialect()).thenReturn(mockTopologyAwareDialect);
+    when(mockHostListProviderService.getDialect()).thenReturn(mockDialect);
     when(mockHostListProviderService.getHostSpecBuilder())
         .thenReturn(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
     when(mockHostListProviderService.getCurrentConnection()).thenReturn(mockConnection);
@@ -115,11 +115,8 @@ class RdsHostListProviderTest {
   }
 
   private RdsHostListProvider getRdsHostListProvider(String originalUrl) throws SQLException {
-    RdsHostListProvider provider = new RdsHostListProvider(
-        new Properties(),
-        originalUrl,
-        mockServicesContainer,
-        "foo", "bar", "baz");
+    RdsHostListProvider provider =
+        new RdsHostListProvider(mockDialect, new Properties(), originalUrl, mockServicesContainer);
     provider.init();
     return provider;
   }

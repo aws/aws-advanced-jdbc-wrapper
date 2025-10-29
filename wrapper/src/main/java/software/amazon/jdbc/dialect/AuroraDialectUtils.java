@@ -95,16 +95,4 @@ public class AuroraDialectUtils {
 
     return false;
   }
-
-  // Returns a writer node ID if connected to a writer node. Returns null otherwise.
-  protected String getWriterNodeId(final Connection connection) throws SQLException {
-    try (final Statement stmt = connection.createStatement()) {
-      try (final ResultSet resultSet = stmt.executeQuery(this.writerIdQuery)) {
-        if (resultSet.next()) {
-          return resultSet.getString(1);
-        }
-      }
-    }
-    return null;
-  }
 }

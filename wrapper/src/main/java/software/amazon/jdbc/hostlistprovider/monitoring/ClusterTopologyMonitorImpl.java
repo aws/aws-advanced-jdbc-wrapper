@@ -39,7 +39,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.dialect.TopologyDialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.util.ExecutorFactory;
@@ -62,16 +61,28 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected static final Executor networkTimeoutExecutor = new SynchronousExecutor();
   protected static final RdsUtils rdsHelper = new RdsUtils();
   protected static final long monitorTerminationTimeoutSec = 30;
-
-  protected static final int defaultTopologyQueryTimeoutMs = 1000;
   protected static final int closeConnectionNetworkTimeoutMs = 500;
-
   protected static final int defaultConnectionTimeoutMs = 5000;
   protected static final int defaultSocketTimeoutMs = 5000;
 
   // Keep monitoring topology with a high rate for 30s after failover.
   protected static final long highRefreshPeriodAfterPanicNano = TimeUnit.SECONDS.toNanos(30);
   protected static final long ignoreTopologyRequestNano = TimeUnit.SECONDS.toNanos(10);
+
+  protected final AtomicReference<HostSpec> writerHostSpec = new AtomicReference<>(null);
+  protected final AtomicReference<Connection> monitoringConnection = new AtomicReference<>(null);
+
+  protected final Object topologyUpdated = new Object();
+  protected final AtomicBoolean requestToUpdateTopology = new AtomicBoolean(false);
+  protected final AtomicLong ignoreNewTopologyRequestsEndTimeNano = new AtomicLong(-1);
+  protected final ConcurrentHashMap<String, Boolean> submittedNodes = new ConcurrentHashMap<>();
+
+  protected final ReentrantLock nodeExecutorLock = new ReentrantLock();
+  protected final AtomicBoolean nodeThreadsStop = new AtomicBoolean(false);
+  protected final AtomicReference<Connection> nodeThreadsWriterConnection = new AtomicReference<>(null);
+  protected final AtomicReference<HostSpec> nodeThreadsWriterHostSpec = new AtomicReference<>(null);
+  protected final AtomicReference<Connection> nodeThreadsReaderConnection = new AtomicReference<>(null);
+  protected final AtomicReference<List<HostSpec>> nodeThreadsLatestTopology = new AtomicReference<>(null);
 
   protected final long refreshRateNano;
   protected final long highRefreshRateNano;
@@ -82,22 +93,10 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected final HostSpec initialHostSpec;
   protected final HostSpec clusterInstanceTemplate;
 
-  protected String clusterId;
-  protected final AtomicReference<HostSpec> writerHostSpec = new AtomicReference<>(null);
-  protected final AtomicReference<Connection> monitoringConnection = new AtomicReference<>(null);
+  protected ExecutorService nodeExecutorService = null;
   protected boolean isVerifiedWriterConnection = false;
   protected long highRefreshRateEndTimeNano = 0;
-  protected final Object topologyUpdated = new Object();
-  protected final AtomicBoolean requestToUpdateTopology = new AtomicBoolean(false);
-  protected final AtomicLong ignoreNewTopologyRequestsEndTimeNano = new AtomicLong(-1);
-  protected final ConcurrentHashMap<String, Boolean> submittedNodes = new ConcurrentHashMap<>();
-  protected ExecutorService nodeExecutorService = null;
-  protected final ReentrantLock nodeExecutorLock = new ReentrantLock();
-  protected final AtomicBoolean nodeThreadsStop = new AtomicBoolean(false);
-  protected final AtomicReference<Connection> nodeThreadsWriterConnection = new AtomicReference<>(null);
-  protected final AtomicReference<HostSpec> nodeThreadsWriterHostSpec = new AtomicReference<>(null);
-  protected final AtomicReference<Connection> nodeThreadsReaderConnection = new AtomicReference<>(null);
-  protected final AtomicReference<List<HostSpec>> nodeThreadsLatestTopology = new AtomicReference<>(null);
+  protected String clusterId;
 
   public ClusterTopologyMonitorImpl(
       final FullServicesContainer servicesContainer,
@@ -516,7 +515,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
             new Object[]{this.initialHostSpec.getHost()}));
 
         try {
-          if (this.dialect.isWriterInstance(this.monitoringConnection.get())) {
+          if (this.topologyUtils.isWriterInstance(this.monitoringConnection.get())) {
             this.isVerifiedWriterConnection = true;
             writerVerifiedByThisThread = true;
 
@@ -527,7 +526,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
                       "ClusterTopologyMonitorImpl.writerMonitoringConnection",
                       new Object[]{this.writerHostSpec.get().getHost()}));
             } else {
-              final String nodeId = this.dialect.getInstanceId(this.monitoringConnection.get());
+              final String nodeId = this.topologyUtils.getInstanceId(this.monitoringConnection.get());
               if (!StringUtils.isNullOrEmpty(nodeId)) {
                 this.writerHostSpec.set(this.createHost(nodeId, true, 0, null));
                 LOGGER.finest(
@@ -710,7 +709,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
             boolean isWriter = false;
             try {
-              isWriter = this.dialect.isWriterInstance(connection);
+              isWriter = this.monitor.topologyUtils.isWriterInstance(connection);
             } catch (SQLSyntaxErrorException ex) {
               LOGGER.severe(() -> Messages.get("NodeMonitoringThread.invalidWriterQuery",
                   new Object[] {ex.getMessage()}));

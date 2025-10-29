@@ -25,6 +25,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -47,14 +48,17 @@ public class TopologyUtils {
   protected final HostSpecBuilder hostSpecBuilder;
 
   public TopologyUtils(
-      TopologyDialect dialect, HostSpec clusterInstanceTemplate, HostSpec initialHostSpec, HostSpecBuilder hostSpecBuilder) {
+      TopologyDialect dialect,
+      HostSpec clusterInstanceTemplate,
+      HostSpec initialHostSpec,
+      HostSpecBuilder hostSpecBuilder) {
     this.dialect = dialect;
     this.clusterInstanceTemplate = clusterInstanceTemplate;
     this.initialHostSpec = initialHostSpec;
     this.hostSpecBuilder = hostSpecBuilder;
   }
 
-  public List<HostSpec> queryForTopology(Connection conn) throws SQLException {
+  public @Nullable List<HostSpec> queryForTopology(Connection conn) throws SQLException {
     int networkTimeout = -1;
     try {
       networkTimeout = conn.getNetworkTimeout();
@@ -133,9 +137,27 @@ public class TopologyUtils {
     return hostSpec;
   }
 
+  public @Nullable String getInstanceId(final Connection connection) {
+    try {
+      try (final Statement stmt = connection.createStatement();
+           final ResultSet resultSet = stmt.executeQuery(this.dialect.getInstanceIdQuery())) {
+        if (resultSet.next()) {
+          return resultSet.getString(1);
+        }
+      }
+    } catch (SQLException ex) {
+      // do nothing
+    }
+    return null;
+  }
+
+  public boolean isWriterInstance(Connection connection) throws SQLException {
+    return this.dialect.isWriterInstance(connection);
+  }
+
   public HostRole getHostRole(Connection conn) throws SQLException {
     try (final Statement stmt = conn.createStatement();
-         final ResultSet rs = stmt.executeQuery(this.isReaderQuery)) {
+         final ResultSet rs = stmt.executeQuery(this.dialect.getIsReaderQuery())) {
       if (rs.next()) {
         boolean isReader = rs.getBoolean(1);
         return isReader ? HostRole.READER : HostRole.WRITER;
@@ -145,9 +167,5 @@ public class TopologyUtils {
     }
 
     throw new SQLException(Messages.get("RdsHostListProvider.errorGettingHostRole"));
-  }
-
-  HostSpec identifyConnection(Connection connection) throws SQLException {
-
   }
 }

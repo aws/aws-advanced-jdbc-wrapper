@@ -91,14 +91,8 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect,
 
   @Override
   public HostListProviderSupplier getHostListProvider() {
-    return (properties, initialUrl, servicesContainer) -> new MonitoringRdsHostListProvider(
-        properties,
-        initialUrl,
-        servicesContainer,
-        TOPOLOGY_QUERY,
-        NODE_ID_QUERY,
-        IS_READER_QUERY,
-        IS_WRITER_QUERY);
+    return (properties, initialUrl, servicesContainer) ->
+        new MonitoringRdsHostListProvider(this, properties, initialUrl, servicesContainer);
   }
 
   @Override
@@ -141,18 +135,13 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect,
   }
 
   @Override
-  public HostSpec identifyConnection(Connection connection) throws SQLException {
-    return null;
-  }
-
-  @Override
-  public HostRole getHostRole(Connection conn) throws SQLException {
-    return null;
-  }
-
-  @Override
   public String getIsReaderQuery() {
-    return "";
+    return IS_READER_QUERY;
+  }
+
+  @Override
+  public String getInstanceIdQuery() {
+    return NODE_ID_QUERY;
   }
 }
 

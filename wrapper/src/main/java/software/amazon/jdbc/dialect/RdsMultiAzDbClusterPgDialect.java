@@ -20,7 +20,6 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Collections;
 import java.util.List;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -28,6 +27,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.MultiAzDbClusterPgExceptionHandler;
 import software.amazon.jdbc.hostlistprovider.RdsMultiAzDbClusterListProvider;
+import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.DriverInfo;
 
@@ -87,27 +87,9 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect implements TopologyD
     return (properties, initialUrl, servicesContainer) -> {
       final PluginService pluginService = servicesContainer.getPluginService();
       if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {
-        return new MonitoringRdsHostListProvider(
-            properties,
-            initialUrl,
-            servicesContainer,
-            TOPOLOGY_QUERY,
-            NODE_ID_QUERY,
-            IS_READER_QUERY,
-            FETCH_WRITER_NODE_QUERY,
-            FETCH_WRITER_NODE_QUERY_COLUMN_NAME);
-
+        return new MonitoringRdsHostListProvider(this, properties, initialUrl, servicesContainer);
       } else {
-
-        return new RdsMultiAzDbClusterListProvider(
-            properties,
-            initialUrl,
-            servicesContainer,
-            TOPOLOGY_QUERY,
-            NODE_ID_QUERY,
-            IS_READER_QUERY,
-            FETCH_WRITER_NODE_QUERY,
-            FETCH_WRITER_NODE_QUERY_COLUMN_NAME);
+        return new RdsMultiAzDbClusterListProvider(this, properties, initialUrl, servicesContainer);
       }
     };
   }
@@ -119,7 +101,7 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect implements TopologyD
 
   @Override
   public @Nullable String getWriterId(final Connection connection) throws SQLException {
-    return dialectUtils.getSuggestedWriterId(connection);
+    return dialectUtils.getWriterId(connection);
   }
 
   @Override
@@ -128,7 +110,18 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect implements TopologyD
   }
 
   @Override
-  public @Nullable List<TopologyQueryHostSpec> processQueryResults(ResultSet rs, String suggestedWriterId) throws SQLException {
+  public String getIsReaderQuery() {
+    return IS_READER_QUERY;
+  }
+
+  @Override
+  public String getInstanceIdQuery() {
+    return NODE_ID_QUERY;
+  }
+
+  @Override
+  public @Nullable List<TopologyQueryHostSpec> processQueryResults(ResultSet rs, String suggestedWriterId)
+      throws SQLException {
     return this.dialectUtils.processQueryResults(rs, suggestedWriterId);
   }
 }
