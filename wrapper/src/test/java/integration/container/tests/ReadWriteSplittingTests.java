@@ -73,7 +73,7 @@ import software.amazon.jdbc.HikariPoolConfigurator;
 import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
+import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
@@ -122,7 +122,7 @@ public class ReadWriteSplittingTests {
 
   protected static Properties getProxiedPropsWithFailover() {
     final Properties props = getPropsWithFailover();
-    AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props,
+    RdsHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props,
         "?." + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointSuffix()
             + ":" + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointPort());
     return props;
@@ -130,7 +130,7 @@ public class ReadWriteSplittingTests {
 
   protected static Properties getProxiedProps() {
     final Properties props = getProps();
-    AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props,
+    RdsHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props,
         "?." + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointSuffix()
             + ":" + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointPort());
     return props;

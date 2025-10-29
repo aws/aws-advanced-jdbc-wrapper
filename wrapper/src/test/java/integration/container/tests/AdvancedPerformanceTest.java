@@ -29,7 +29,6 @@ import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
-import integration.container.aurora.TestAuroraHostListProvider;
 import integration.container.aurora.TestPluginServiceImpl;
 import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnTestFeature;
@@ -66,6 +65,7 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.provider.Arguments;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.plugin.efm.HostMonitorThreadContainer;
 import software.amazon.jdbc.plugin.efm2.HostMonitorServiceImpl;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
@@ -686,7 +686,7 @@ public class AdvancedPerformanceTest {
 
     auroraUtil.makeSureInstancesUp(TimeUnit.MINUTES.toSeconds(5));
 
-    TestAuroraHostListProvider.clearCache();
+    RdsHostListProvider.clearAll();
     TestPluginServiceImpl.clearHostAvailabilityCache();
     HostMonitorThreadContainer.releaseInstance();
     HostMonitorServiceImpl.closeAllMonitors();

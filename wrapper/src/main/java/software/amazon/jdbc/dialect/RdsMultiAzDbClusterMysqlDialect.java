@@ -27,7 +27,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.hostlistprovider.RdsMultiAzDbClusterListProvider;
+import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverRestriction;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
@@ -103,7 +103,7 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect implements Top
         return new MonitoringRdsHostListProvider(this, properties, initialUrl, servicesContainer);
 
       } else {
-        return new RdsMultiAzDbClusterListProvider(this, properties, initialUrl, servicesContainer);
+        return new RdsHostListProvider(this, properties, initialUrl, servicesContainer);
       }
     };
   }

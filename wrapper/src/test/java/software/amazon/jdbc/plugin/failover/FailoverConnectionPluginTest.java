@@ -58,7 +58,7 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
-import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
+import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.RdsUrlType;
@@ -87,7 +87,7 @@ class FailoverConnectionPluginTest {
   @Mock Connection mockConnection;
   @Mock HostSpec mockHostSpec;
   @Mock HostListProviderService mockHostListProviderService;
-  @Mock AuroraHostListProvider mockHostListProvider;
+  @Mock RdsHostListProvider mockHostListProvider;
   @Mock JdbcCallable<Void, SQLException> mockInitHostProviderFunc;
   @Mock ReaderFailoverHandler mockReaderFailoverHandler;
   @Mock WriterFailoverHandler mockWriterFailoverHandler;

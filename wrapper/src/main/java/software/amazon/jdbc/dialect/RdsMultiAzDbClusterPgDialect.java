@@ -26,7 +26,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.MultiAzDbClusterPgExceptionHandler;
-import software.amazon.jdbc.hostlistprovider.RdsMultiAzDbClusterListProvider;
+import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.DriverInfo;
@@ -89,7 +89,7 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect implements TopologyD
       if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {
         return new MonitoringRdsHostListProvider(this, properties, initialUrl, servicesContainer);
       } else {
-        return new RdsMultiAzDbClusterListProvider(this, properties, initialUrl, servicesContainer);
+        return new RdsHostListProvider(this, properties, initialUrl, servicesContainer);
       }
     };
   }
