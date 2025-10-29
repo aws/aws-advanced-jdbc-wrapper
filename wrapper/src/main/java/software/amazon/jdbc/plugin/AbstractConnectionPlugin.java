@@ -24,7 +24,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.HostListProviderService;
+import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;

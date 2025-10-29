@@ -21,7 +21,7 @@ import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
-import software.amazon.jdbc.HostListProvider;
+import software.amazon.jdbc.hostlistprovider.HostListProvider;
 import software.amazon.jdbc.PartialPluginService;
 import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.dialect.Dialect;

@@ -53,7 +53,7 @@ import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.HikariPooledConnectionProvider;
-import software.amazon.jdbc.HostListProviderService;
+import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcMethod;

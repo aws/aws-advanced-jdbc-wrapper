@@ -39,7 +39,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HighestWeightHostSelector;
-import software.amazon.jdbc.HostListProvider;
+import software.amazon.jdbc.hostlistprovider.HostListProvider;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;

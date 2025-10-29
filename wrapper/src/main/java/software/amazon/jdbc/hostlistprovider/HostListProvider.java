@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc;
+package software.amazon.jdbc.hostlistprovider;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.HostRole;
+import software.amazon.jdbc.HostSpec;
 
 public interface HostListProvider {
 
