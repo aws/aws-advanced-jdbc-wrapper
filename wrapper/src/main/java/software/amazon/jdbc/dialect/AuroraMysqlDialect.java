@@ -116,15 +116,8 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect,
   }
 
   @Override
-  public @Nullable List<TopologyQueryHostSpec> processQueryResults(ResultSet rs, @Nullable String writerId)
-      throws SQLException {
+  public @Nullable List<TopologyQueryHostSpec> processQueryResults(Connection conn, ResultSet rs) throws SQLException {
     return AuroraMysqlDialect.dialectUtils.processQueryResults(rs);
-  }
-
-  @Override
-  @Nullable public String getWriterId(final Connection connection) {
-    // The Aurora topology query can detect the writer without a suggested writer ID, so we intentionally return null.
-    return null;
   }
 
   @Override

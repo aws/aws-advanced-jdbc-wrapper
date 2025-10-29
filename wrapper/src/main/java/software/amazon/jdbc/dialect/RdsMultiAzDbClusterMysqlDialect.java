@@ -130,14 +130,9 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect implements Top
   }
 
   @Override
-  public List<TopologyQueryHostSpec> processQueryResults(ResultSet rs, @Nullable String writerId)
+  public List<TopologyQueryHostSpec> processQueryResults(Connection conn, ResultSet rs)
       throws SQLException {
-    return dialectUtils.processQueryResults(rs, writerId);
-  }
-
-  @Override
-  public @Nullable String getWriterId(Connection connection) throws SQLException {
-    return dialectUtils.getWriterId(connection);
+    return dialectUtils.processQueryResults(conn, rs);
   }
 
   @Override

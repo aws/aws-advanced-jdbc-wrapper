@@ -161,18 +161,12 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
   }
 
   @Override
-  @Nullable public String getWriterId(final Connection connection) {
-    // The Aurora topology query can detect the writer without a suggested writer ID, so we intentionally return null.
-    return null;
-  }
-
-  @Override
   public boolean isWriterInstance(Connection connection) throws SQLException {
     return AuroraPgDialect.dialectUtils.isWriterInstance(connection);
   }
 
   @Override
-  public @Nullable List<TopologyQueryHostSpec> processQueryResults(ResultSet rs, @Nullable String writerId)
+  public @Nullable List<TopologyQueryHostSpec> processQueryResults(Connection conn, ResultSet rs)
       throws SQLException {
     return AuroraPgDialect.dialectUtils.processQueryResults(rs);
   }

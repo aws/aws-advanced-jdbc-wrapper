@@ -101,11 +101,6 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect implements TopologyD
   }
 
   @Override
-  public @Nullable String getWriterId(final Connection connection) throws SQLException {
-    return dialectUtils.getWriterId(connection);
-  }
-
-  @Override
   public boolean isWriterInstance(Connection connection) throws SQLException {
     return dialectUtils.isWriterInstance(connection);
   }
@@ -121,8 +116,8 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect implements TopologyD
   }
 
   @Override
-  public @Nullable List<TopologyQueryHostSpec> processQueryResults(ResultSet rs, String writerId)
+  public @Nullable List<TopologyQueryHostSpec> processQueryResults(Connection conn, ResultSet rs)
       throws SQLException {
-    return this.dialectUtils.processQueryResults(rs, writerId);
+    return this.dialectUtils.processQueryResults(conn, rs);
   }
 }

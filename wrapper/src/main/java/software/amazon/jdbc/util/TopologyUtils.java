@@ -71,10 +71,9 @@ public class TopologyUtils {
           new Object[] {e.getMessage()}));
     }
 
-    final String writerId = this.dialect.getWriterId(conn);
     try (final Statement stmt = conn.createStatement();
          final ResultSet resultSet = stmt.executeQuery(this.dialect.getTopologyQuery())) {
-      List<TopologyQueryHostSpec> queryHosts = this.dialect.processQueryResults(resultSet, writerId);
+      List<TopologyQueryHostSpec> queryHosts = this.dialect.processQueryResults(conn, resultSet);
       return this.processQueryResults(queryHosts);
     } catch (final SQLSyntaxErrorException e) {
       throw new SQLException(Messages.get("TopologyUtils.invalidQuery"), e);

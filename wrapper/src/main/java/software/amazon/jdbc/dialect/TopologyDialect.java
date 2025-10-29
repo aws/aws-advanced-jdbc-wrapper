@@ -26,10 +26,7 @@ public interface TopologyDialect extends Dialect {
   String getTopologyQuery();
 
   @Nullable
-  List<TopologyQueryHostSpec> processQueryResults(ResultSet rs, @Nullable String writerId) throws SQLException;
-
-  @Nullable
-  String getWriterId(final Connection connection) throws SQLException;
+  List<TopologyQueryHostSpec> processQueryResults(Connection conn, ResultSet rs) throws SQLException;
 
   // TODO: can we remove this and use getHostRole instead?
   boolean isWriterInstance(final Connection connection) throws SQLException;

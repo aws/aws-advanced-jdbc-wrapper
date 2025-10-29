@@ -41,12 +41,12 @@ public class MultiAzDialectUtils {
     this.instanceIdQuery = instanceIdQuery;
   }
 
-  public @Nullable List<TopologyQueryHostSpec> processQueryResults(ResultSet resultSet, String writerId)
+  public @Nullable List<TopologyQueryHostSpec> processQueryResults(Connection conn, ResultSet resultSet)
       throws SQLException {
     List<TopologyQueryHostSpec> hosts = new ArrayList<>();
     while (resultSet.next()) {
       try {
-        final TopologyQueryHostSpec host = createHost(resultSet, writerId);
+        final TopologyQueryHostSpec host = createHost(resultSet, this.getWriterId(conn));
         hosts.add(host);
       } catch (Exception e) {
         LOGGER.finest(
@@ -60,7 +60,7 @@ public class MultiAzDialectUtils {
 
   protected TopologyQueryHostSpec createHost(
       final ResultSet resultSet,
-      final String writerId) throws SQLException {
+      final @Nullable String writerId) throws SQLException {
 
     String endpoint = resultSet.getString("endpoint"); // "instance-name.XYZ.us-west-2.rds.amazonaws.com"
     String instanceName = endpoint.substring(0, endpoint.indexOf(".")); // "instance-name"
@@ -70,7 +70,7 @@ public class MultiAzDialectUtils {
     return new TopologyQueryHostSpec(instanceName, isWriter, 0, Timestamp.from(Instant.now()));
   }
 
-  public @Nullable String getWriterId(Connection connection) throws SQLException {
+  protected @Nullable String getWriterId(Connection connection) throws SQLException {
     try (final Statement stmt = connection.createStatement()) {
       try (final ResultSet resultSet = stmt.executeQuery(this.writerIdQuery)) {
         if (resultSet.next()) {
