@@ -47,6 +47,8 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
 
   private static final String FETCH_WRITER_NODE_QUERY_COLUMN_NAME = "Source_Server_Id";
 
+  // The query return nodeId and nodeName.
+  // For example: "1845128080", "test-multiaz-instance-1"
   private static final String NODE_ID_QUERY = "SELECT id, SUBSTRING_INDEX(endpoint, '.', 1)"
       + " FROM mysql.rds_topology"
       + " WHERE id = @@server_id";

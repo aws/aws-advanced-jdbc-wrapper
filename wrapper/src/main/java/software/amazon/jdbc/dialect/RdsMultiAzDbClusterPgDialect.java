@@ -50,6 +50,8 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
 
   private static final String FETCH_WRITER_NODE_QUERY_COLUMN_NAME = "multi_az_db_cluster_source_dbi_resource_id";
 
+  // The query return nodeId and nodeName.
+  // For example: "db-WQFQKBTL2LQUPIEFIFBGENS4ZQ", "test-multiaz-instance-1"
   private static final String NODE_ID_QUERY = "SELECT id, SUBSTRING(endpoint FROM 0 FOR POSITION('.' IN endpoint))"
       + " FROM rds_tools.show_topology()"
       + " WHERE id OPERATOR(pg_catalog.=) rds_tools.dbi_resource_id()";

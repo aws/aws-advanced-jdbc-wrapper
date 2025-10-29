@@ -585,6 +585,17 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     return this.clusterInstanceTemplate;
   }
 
+  /**
+  * Identifies nodes across different database types using nodeId and nodeName values.
+  *
+  * <p>Database types handle these identifiers differently:
+  * - Aurora: Uses the instance (node) name as both nodeId and nodeName
+  *   Example: "test-instance-1" for both values
+  * - RDS Cluster: Uses distinct values for nodeId and nodeName
+  *   Example:
+  *      nodeId: "db-WQFQKBTL2LQUPIEFIFBGENS4ZQ"
+  *      nodeName: "test-multiaz-instance-1"
+  */
   protected Pair<String /* nodeId */, String /* nodeName */> getNodeId(final Connection connection) {
     try {
       try (final Statement stmt = connection.createStatement();
