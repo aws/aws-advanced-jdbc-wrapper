@@ -50,7 +50,7 @@ public class MultiAzDialectUtils {
         hosts.add(host);
       } catch (Exception e) {
         LOGGER.finest(
-            Messages.get("ClusterTopologyMonitorImpl.errorProcessingQueryResults", new Object[]{e.getMessage()}));
+            Messages.get("MultiAzDialectUtils.errorProcessingQueryResults", new Object[]{e.getMessage()}));
         return null;
       }
     }

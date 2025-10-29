@@ -102,7 +102,7 @@ public class TopologyUtils {
 
     int writerCount = writers.size();
     if (writerCount == 0) {
-      LOGGER.warning(() -> Messages.get("ClusterTopologyMonitorImpl.invalidTopology"));
+      LOGGER.warning(() -> Messages.get("TopologyUtils.invalidTopology"));
       return null;
     } else if (writerCount == 1) {
       hosts.add(writers.get(0));
@@ -163,9 +163,9 @@ public class TopologyUtils {
         return isReader ? HostRole.READER : HostRole.WRITER;
       }
     } catch (SQLException e) {
-      throw new SQLException(Messages.get("RdsHostListProvider.errorGettingHostRole"), e);
+      throw new SQLException(Messages.get("TopologyUtils.errorGettingHostRole"), e);
     }
 
-    throw new SQLException(Messages.get("RdsHostListProvider.errorGettingHostRole"));
+    throw new SQLException(Messages.get("TopologyUtils.errorGettingHostRole"));
   }
 }

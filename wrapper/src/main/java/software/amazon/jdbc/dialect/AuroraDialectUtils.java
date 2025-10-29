@@ -44,7 +44,7 @@ public class AuroraDialectUtils {
       throws SQLException {
     if (resultSet.getMetaData().getColumnCount() == 0) {
       // We expect at least 4 columns. Note that the server may return 0 columns if failover has occurred.
-      LOGGER.finest(Messages.get("AuroraTopologyProcessor.unexpectedTopologyQueryColumnCount"));
+      LOGGER.finest(Messages.get("AuroraDialectUtils.unexpectedTopologyQueryColumnCount"));
       return null;
     }
 
@@ -56,7 +56,7 @@ public class AuroraDialectUtils {
         hosts.add(createHost(resultSet));
       } catch (Exception e) {
         LOGGER.finest(
-            Messages.get("AuroraTopologyProcessor.errorProcessingQueryResults", new Object[]{e.getMessage()}));
+            Messages.get("AuroraDialectUtils.errorProcessingQueryResults", new Object[]{e.getMessage()}));
         return null;
       }
     }
