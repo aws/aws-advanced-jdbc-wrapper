@@ -17,13 +17,15 @@ public class DatabaseConnectionWithCacheExample {
   // Both IAM and traditional auth uses the same CACHE_USERNAME
   private static final String CACHE_USERNAME = env.get("CACHE_USERNAME"); // e.g., "iam-user-01" / "username"
   private static final String CACHE_IAM_REGION = env.get("CACHE_IAM_REGION"); // e.g., "us-west-2"
+  private static final String CACHE_USE_SSL = env.get("CACHE_USE_SSL");
   // If the cache server is authenticated with traditional username password
   // private static final String CACHE_PASSWORD = env.get("CACHE_PASSWORD");
   private static final String USERNAME = env.get("DB_USERNAME");
   private static final String PASSWORD = env.get("DB_PASSWORD");
-  private static final String USE_SSL = env.get("USE_SSL");
   private static final int THREAD_COUNT = 8; //Use 8 Threads
   private static final long TEST_DURATION_MS = 16000; //Test duration for 16 seconds
+  private static final String CACHE_CONNECTION_TIMEOUT = env.get("CACHE_CONNECTION_TIMEOUT"); //Set connection timeout in milliseconds
+  private static final String CACHE_CONNECTION_POOL_SIZE = env.get("CACHE_CONNECTION_POOL_SIZE"); //Set connection pool size
 
   public static void main(String[] args) throws SQLException {
     final Properties properties = new Properties();
@@ -43,8 +45,10 @@ public class DatabaseConnectionWithCacheExample {
     properties.setProperty("cacheIamRegion", CACHE_IAM_REGION);
     // If the cache server is authenticated with traditional username password
     // properties.setProperty("cachePassword", PASSWORD);
-    properties.setProperty("cacheUseSSL", USE_SSL); // "true" or "false"
+    properties.setProperty("cacheUseSSL", CACHE_USE_SSL); // "true" or "false"
     properties.setProperty("wrapperLogUnclosedConnections", "true");
+    properties.setProperty("cacheConnectionTimeout", CACHE_CONNECTION_TIMEOUT);
+    properties.setProperty("cacheConnectionPoolSize", CACHE_CONNECTION_POOL_SIZE);
     String queryStr = "/*+ CACHE_PARAM(ttl=300s) */ select * from cinemas";
 
     // Create threads for concurrent connection testing
