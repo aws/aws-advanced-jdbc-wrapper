@@ -108,7 +108,7 @@ public class MysqlDialect implements Dialect {
       final @NonNull HostSpec hostSpec) {
 
     final String connectionAttributes = String.format(
-        "_jdbc_wrapper_name:aws_jdbc_driver,_jdbc_wrapper_version:%s,_jdbc_wrapper_plugins:%s",
+        "_d:aws_jdbc_wrapper,_v:%s,_p:%s",
         DriverInfo.DRIVER_VERSION,
         connectProperties.getProperty(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY));
     connectProperties.setProperty("connectionAttributes",

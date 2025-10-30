@@ -154,7 +154,7 @@ public class AuroraPgDialect extends PgDialect implements AuroraLimitlessDialect
       final @NonNull HostSpec hostSpec) {
 
     final String driverInfoOption = String.format(
-        "-c aurora.connection_str=_jdbc_wrapper_name:aws_jdbc_driver,_jdbc_wrapper_version:%s,_jdbc_wrapper_plugins:%s",
+        "-c aurora.connection_str=_d:aws_jdbc_wrapper,_v:%s,_p:%s",
         DriverInfo.DRIVER_VERSION,
         connectProperties.getProperty(ConnectionPluginManager.EFFECTIVE_PLUGIN_CODES_PROPERTY));
     connectProperties.setProperty("options",

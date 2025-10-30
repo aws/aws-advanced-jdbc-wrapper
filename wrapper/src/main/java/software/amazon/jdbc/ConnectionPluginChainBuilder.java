@@ -91,31 +91,32 @@ public class ConnectionPluginChainBuilder {
         }
       };
 
+  // Shortened names of plugins
   protected static final Map<String /* clazz */, String> pluginCodeByPlugin =
       new HashMap<String, String>() {
         {
-          put("software.amazon.jdbc.plugin.ExecutionTimeConnectionPlugin", "executionTime");
-          put("software.amazon.jdbc.plugin.LogQueryConnectionPlugin", "logQuery");
-          put("software.amazon.jdbc.plugin.DataCacheConnectionPlugin", "dataCache");
-          put("software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin", "customEndpoint");
-          put("software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin", "efm");
-          put("software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin", "efm2");
-          put("software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin", "failover");
-          put("software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin", "failover2");
-          put("software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin", "iam");
-          put("software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin", "awsSecretsManager");
-          put("software.amazon.jdbc.plugin.federatedauth.FederatedAuthPlugin", "federatedAuth");
-          put("software.amazon.jdbc.plugin.federatedauth.OktaAuthPlugin", "okta");
-          put("software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPlugin", "auroraStaleDns");
-          put("software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin", "readWriteSplitting");
-          put("software.amazon.jdbc.plugin.AuroraConnectionTrackerPlugin", "auroraConnectionTracker");
-          put("software.amazon.jdbc.plugin.DriverMetaDataConnectionPlugin", "driverMetaData");
-          put("software.amazon.jdbc.plugin.ConnectTimeConnectionPlugin", "connectTime");
-          put("software.amazon.jdbc.plugin.dev.DeveloperConnectionPlugin", "dev");
+          put("software.amazon.jdbc.plugin.ExecutionTimeConnectionPlugin", "et");
+          put("software.amazon.jdbc.plugin.LogQueryConnectionPlugin", "lq");
+          put("software.amazon.jdbc.plugin.DataCacheConnectionPlugin", "dc");
+          put("software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin", "ce");
+          put("software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin", "e");
+          put("software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin", "e2");
+          put("software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin", "f");
+          put("software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin", "f2");
+          put("software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin", "i");
+          put("software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin", "sm");
+          put("software.amazon.jdbc.plugin.federatedauth.FederatedAuthPlugin", "fa");
+          put("software.amazon.jdbc.plugin.federatedauth.OktaAuthPlugin", "o");
+          put("software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPlugin", "asd");
+          put("software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin", "rw");
+          put("software.amazon.jdbc.plugin.AuroraConnectionTrackerPlugin", "act");
+          put("software.amazon.jdbc.plugin.DriverMetaDataConnectionPlugin", "dm");
+          put("software.amazon.jdbc.plugin.ConnectTimeConnectionPlugin", "ct");
+          put("software.amazon.jdbc.plugin.dev.DeveloperConnectionPlugin", "d");
           put("software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPlugin",
-              "fastestResponseStrategy");
-          put("software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPlugin", "initialConnection");
-          put("software.amazon.jdbc.plugin.limitless.LimitlessConnectionPlugin", "limitless");
+              "frs");
+          put("software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPlugin", "ic");
+          put("software.amazon.jdbc.plugin.limitless.LimitlessConnectionPlugin", "l");
         }
       };
 
