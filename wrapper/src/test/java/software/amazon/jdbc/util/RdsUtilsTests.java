@@ -37,6 +37,8 @@ public class RdsUtilsTests {
       "instance-test-name.XYZ.us-east-2.rds.amazonaws.com";
   private static final String usEastRegionProxy =
       "proxy-test-name.proxy-XYZ.us-east-2.rds.amazonaws.com";
+  private static final String usEastRegionProxyEndpoint =
+      "endpoint-test-name.endpoint.proxy-XYZ.us-east-2.rds.amazonaws.com";
   private static final String usEastRegionCustomDomain =
       "custom-test-name.cluster-custom-XYZ.us-east-2.rds.amazonaws.com";
   private static final String usEastRegionLimitlessDbShardGroup =
@@ -132,6 +134,7 @@ public class RdsUtilsTests {
     assertTrue(target.isRdsDns(usEastRegionClusterReadOnly));
     assertTrue(target.isRdsDns(usEastRegionInstance));
     assertTrue(target.isRdsDns(usEastRegionProxy));
+    assertTrue(target.isRdsDns(usEastRegionProxyEndpoint));
     assertTrue(target.isRdsDns(usEastRegionCustomDomain));
     assertFalse(target.isRdsDns(usEastRegionElbUrl));
     assertFalse(target.isRdsDns(usEastRegionElbUrlTrailingDot));
@@ -221,6 +224,7 @@ public class RdsUtilsTests {
     assertTrue(target.isRdsClusterDns(usEastRegionClusterReadOnly));
     assertFalse(target.isRdsClusterDns(usEastRegionInstance));
     assertFalse(target.isRdsClusterDns(usEastRegionProxy));
+    assertFalse(target.isRdsClusterDns(usEastRegionProxyEndpoint));
     assertFalse(target.isRdsClusterDns(usEastRegionCustomDomain));
     assertFalse(target.isRdsClusterDns(usEastRegionElbUrl));
     assertFalse(target.isRdsClusterDns(usEastRegionLimitlessDbShardGroup));
@@ -260,6 +264,7 @@ public class RdsUtilsTests {
     assertFalse(target.isWriterClusterDns(usEastRegionClusterReadOnly));
     assertFalse(target.isWriterClusterDns(usEastRegionInstance));
     assertFalse(target.isWriterClusterDns(usEastRegionProxy));
+    assertFalse(target.isWriterClusterDns(usEastRegionProxyEndpoint));
     assertFalse(target.isWriterClusterDns(usEastRegionCustomDomain));
     assertFalse(target.isWriterClusterDns(usEastRegionElbUrl));
     assertFalse(target.isWriterClusterDns(usEastRegionLimitlessDbShardGroup));
@@ -299,6 +304,7 @@ public class RdsUtilsTests {
     assertTrue(target.isReaderClusterDns(usEastRegionClusterReadOnly));
     assertFalse(target.isReaderClusterDns(usEastRegionInstance));
     assertFalse(target.isReaderClusterDns(usEastRegionProxy));
+    assertFalse(target.isReaderClusterDns(usEastRegionProxyEndpoint));
     assertFalse(target.isReaderClusterDns(usEastRegionCustomDomain));
     assertFalse(target.isReaderClusterDns(usEastRegionElbUrl));
     assertFalse(target.isReaderClusterDns(usEastRegionLimitlessDbShardGroup));
@@ -338,6 +344,7 @@ public class RdsUtilsTests {
     assertFalse(target.isLimitlessDbShardGroupDns(usEastRegionClusterReadOnly));
     assertFalse(target.isLimitlessDbShardGroupDns(usEastRegionInstance));
     assertFalse(target.isLimitlessDbShardGroupDns(usEastRegionProxy));
+    assertFalse(target.isLimitlessDbShardGroupDns(usEastRegionProxyEndpoint));
     assertFalse(target.isLimitlessDbShardGroupDns(usEastRegionCustomDomain));
     assertFalse(target.isLimitlessDbShardGroupDns(usEastRegionElbUrl));
     assertTrue(target.isLimitlessDbShardGroupDns(usEastRegionLimitlessDbShardGroup));
@@ -378,6 +385,7 @@ public class RdsUtilsTests {
     assertEquals(expectedHostPattern, target.getRdsRegion(usEastRegionClusterReadOnly));
     assertEquals(expectedHostPattern, target.getRdsRegion(usEastRegionInstance));
     assertEquals(expectedHostPattern, target.getRdsRegion(usEastRegionProxy));
+    assertEquals(expectedHostPattern, target.getRdsRegion(usEastRegionProxyEndpoint));
     assertEquals(expectedHostPattern, target.getRdsRegion(usEastRegionCustomDomain));
     assertEquals(expectedHostPattern, target.getRdsRegion(usEastRegionElbUrl));
     assertEquals(expectedHostPattern, target.getRdsRegion(usEastRegionLimitlessDbShardGroup));
@@ -421,6 +429,12 @@ public class RdsUtilsTests {
   public void testIsGlobalDbWriterClusterDns() {
     assertFalse(target.isGlobalDbWriterClusterDns(usEastRegionCluster));
     assertTrue(target.isGlobalDbWriterClusterDns(globalDbWriterCluster));
+  }
+
+  @Test
+  public void testisRdsProxyEndpointDns() {
+    assertFalse(target.isRdsProxyEndpointDns(usEastRegionProxy));
+    assertTrue(target.isRdsProxyEndpointDns(usEastRegionProxyEndpoint));
   }
 
   @Test
