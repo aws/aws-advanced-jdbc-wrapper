@@ -22,6 +22,7 @@ public enum RdsUrlType {
   RDS_READER_CLUSTER(true, true),
   RDS_CUSTOM_CLUSTER(true, true),
   RDS_PROXY(true, false),
+  RDS_PROXY_ENDPOINT(true, false),
   RDS_INSTANCE(true, false),
   RDS_AURORA_LIMITLESS_DB_SHARD_GROUP(true, false),
   RDS_GLOBAL_WRITER_CLUSTER(true, true),

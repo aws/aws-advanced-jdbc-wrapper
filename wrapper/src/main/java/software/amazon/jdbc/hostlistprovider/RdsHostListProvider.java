@@ -447,7 +447,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
     }
 
     final RdsUrlType rdsUrlType = rdsHelper.identifyRdsType(hostPattern);
-    if (rdsUrlType == RdsUrlType.RDS_PROXY) {
+    if (rdsUrlType == RdsUrlType.RDS_PROXY || rdsUrlType == RdsUrlType.RDS_PROXY_ENDPOINT) {
       // "An RDS Proxy url can't be used as the 'clusterInstanceHostPattern' configuration setting."
       final String message =
           Messages.get("RdsHostListProvider.clusterInstanceHostPatternNotSupportedForRDSProxy");
