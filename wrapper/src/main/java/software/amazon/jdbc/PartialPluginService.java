@@ -215,6 +215,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
     return this.connectionProviderManager.getDefaultProvider();
   }
 
+  @Deprecated
   public boolean isPooledConnectionProvider(HostSpec host, Properties props) {
     final ConnectionProvider connectionProvider =
         this.connectionProviderManager.getConnectionProvider(this.driverProtocol, host, props);
@@ -650,6 +651,26 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
     } catch (SQLException e) {
       return false;
     }
+  }
+
+  @Override
+  public Boolean isPooledConnection() {
+    // This service implementation doesn't support call context.
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getSessionStateService"}));
+  }
+
+  @Override
+  public void setIsPooledConnection(Boolean pooledConnection) {
+    // This service implementation doesn't support call context.
+    // Do nothing.
+  }
+
+  @Override
+  public void resetCallContext() {
+    // This service implementation doesn't support call context.
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getSessionStateService"}));
   }
 
   @Override

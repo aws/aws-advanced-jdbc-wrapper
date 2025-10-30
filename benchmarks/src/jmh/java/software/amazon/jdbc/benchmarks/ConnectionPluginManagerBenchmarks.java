@@ -50,6 +50,7 @@ import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
+import software.amazon.jdbc.ConnectionInfo;
 import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
@@ -126,7 +127,7 @@ public class ConnectionPluginManagerBenchmarks {
         any(Dialect.class),
         any(TargetDriverDialect.class),
         any(HostSpec.class),
-        any(Properties.class))).thenReturn(mockConnection);
+        any(Properties.class))).thenReturn(new ConnectionInfo(mockConnection, false));
     when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
     when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
     when(mockTelemetryFactory.createCounter(anyString())).thenReturn(mockTelemetryCounter);
