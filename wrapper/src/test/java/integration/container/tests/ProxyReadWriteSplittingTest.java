@@ -17,14 +17,19 @@
 package integration.container.tests;
 
 import integration.TestEnvironmentFeatures;
+import integration.container.ConnectionStringHelper;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnNumOfInstances;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
+import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Properties;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
@@ -52,13 +57,73 @@ import software.amazon.jdbc.plugin.srw.SimpleReadWriteSplittingPlugin;
 
 
 public class ProxyReadWriteSplittingTest extends SimpleReadWriteSplittingTest {
+
+  private static final Logger LOGGER = Logger.getLogger(ProxyReadWriteSplittingTest.class.getName());
+
+  /**
+   * Verifies connectivity to the read-only proxy endpoint before running tests.
+   * Uses longer timeouts and retry logic to handle DNS propagation delays.
+   */
+  private void verifyReadOnlyEndpointConnectivity() throws SQLException {
+    String readOnlyEndpoint = getReaderEndpoint();
+    LOGGER.info("Verifying connectivity to read-only endpoint: " + readOnlyEndpoint);
+
+    Properties props = new Properties();
+    props.setProperty("user", TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
+    props.setProperty("password", TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+    props.setProperty("connectTimeout", "60000"); // 60 seconds
+    props.setProperty("socketTimeout", "30000");  // 30 seconds
+
+    String url = ConnectionStringHelper.getWrapperUrl(readOnlyEndpoint);
+
+    int maxRetries = 3;
+    SQLException lastException = null;
+
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        LOGGER.info("Connection attempt " + attempt + " to read-only endpoint");
+        try (Connection conn = DriverManager.getConnection(url, props);
+             Statement stmt = conn.createStatement()) {
+          stmt.executeQuery("SELECT 1");
+          LOGGER.info("Successfully connected to read-only endpoint");
+          return;
+        }
+      } catch (SQLException e) {
+        lastException = e;
+        LOGGER.warning("Connection attempt " + attempt + " failed: " + e.getMessage());
+        if (attempt < maxRetries) {
+          try {
+            Thread.sleep(10000); // Wait 10 seconds between retries
+          } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new SQLException("Interrupted while waiting to retry connection", ie);
+          }
+        }
+      }
+    }
+
+    throw new SQLException("Failed to connect to read-only endpoint after " + maxRetries + " attempts", lastException);
+  }
+
   @Override
   protected Properties getProps() {
+    // Verify read-only endpoint connectivity before running tests
+    try {
+      verifyReadOnlyEndpointConnectivity();
+    } catch (SQLException e) {
+      throw new RuntimeException("Read-only endpoint connectivity verification failed", e);
+    }
+
     final Properties props = getDefaultPropsNoPlugins();
     PropertyDefinition.PLUGINS.set(props, "srw");
     props.setProperty(SimpleReadWriteSplittingPlugin.VERIFY_NEW_SRW_CONNECTIONS.name, "false");
     props.setProperty(SimpleReadWriteSplittingPlugin.SRW_WRITE_ENDPOINT.name, getWriterEndpoint());
     props.setProperty(SimpleReadWriteSplittingPlugin.SRW_READ_ENDPOINT.name, getReaderEndpoint());
+
+    // Use longer timeouts for RDS Proxy connections
+    props.setProperty("connectTimeout", "60000"); // 60 seconds
+    props.setProperty("socketTimeout", "30000");  // 30 seconds
+
     return props;
   }
 

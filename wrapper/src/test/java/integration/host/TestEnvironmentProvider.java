@@ -159,6 +159,12 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
                 }
 
                 for (boolean withRdsProxyFeature : Arrays.asList(true, false)) {
+                  if (!withRdsProxyFeature) {
+                    if (!config.noRdsProxy) {
+                      continue;
+                    }
+                  }
+
                   if (withRdsProxyFeature) {
                     if (config.noRdsProxy) {
                       continue;

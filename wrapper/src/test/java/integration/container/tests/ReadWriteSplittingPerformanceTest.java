@@ -57,7 +57,9 @@ import software.amazon.jdbc.util.StringUtils;
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
 @EnableOnTestFeature(TestEnvironmentFeatures.PERFORMANCE)
-@DisableOnTestFeature(TestEnvironmentFeatures.RUN_DB_METRICS_ONLY)
+@DisableOnTestFeature({TestEnvironmentFeatures.RUN_DB_METRICS_ONLY,
+    TestEnvironmentFeatures.RDS_PROXY,
+})
 @EnableOnNumOfInstances(min = 5)
 @Tag("rw-splitting")
 @Order(11)

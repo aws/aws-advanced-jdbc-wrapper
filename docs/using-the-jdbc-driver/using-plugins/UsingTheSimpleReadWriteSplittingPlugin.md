@@ -50,7 +50,7 @@ connection multiplexing. Connecting exclusively through the proxy endpoint ensur
 and providing a stable abstraction layer that remains consistent even when database topology changes. By providing the read/write endpoint and a read-only endpoint to the simple read/write splitting plugin, the AWS JDBC Driver will connect using 
 these endpoints any time setReadOnly is called. 
 
-To take full advantage of the many benefits of RDS Proxy it is recommended to only connect through the proxy endpoints. Other plugins such as the [Failover Plugin](UsingTheFailoverPlugin.md) connect using instance endpoints.
+To take full advantage of the benefits of RDS Proxy it is recommended to only connect through the proxy endpoints. See [Using the AWS JDBC Driver with RDS Proxy](./../../../README.md#rds-proxy) for limitations.
 
 ## Using the Simple Read/Write Splitting Plugin against non-Aurora clusters
 

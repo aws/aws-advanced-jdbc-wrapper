@@ -305,8 +305,8 @@ public class SimpleReadWriteSplittingPlugin extends AbstractConnectionPlugin
           LOGGER.fine(() -> Messages.get(
               "SimpleReadWriteSplittingPlugin.fallbackToCurrentConnection",
               new Object[] {
-                  e.getMessage(),
-                  this.pluginService.getCurrentHostSpec().getUrl()}));
+                  this.pluginService.getCurrentHostSpec().getUrl(),
+                  e.getMessage()}));
         }
       }
     } else {
@@ -432,21 +432,15 @@ public class SimpleReadWriteSplittingPlugin extends AbstractConnectionPlugin
     try {
       conn = this.pluginService.connect(this.readEndpointHostSpec, this.properties, this);
     } catch (final SQLException e) {
-      if (LOGGER.isLoggable(Level.WARNING)) {
-        LOGGER.log(Level.WARNING,
-            Messages.get(
-                "ReadWriteSplittingPlugin.failedToConnectToReader",
-                new Object[]{
-                    this.readEndpoint}),
-            e);
-      }
+      logAndThrowException(Messages.get("ReadWriteSplittingPlugin.failedToConnectToReader",
+              new Object[]{this.readEndpoint}),
+          SqlState.CONNECTION_UNABLE_TO_CONNECT);
     }
 
     if (conn == null) {
       logAndThrowException(Messages.get("ReadWriteSplittingPlugin.failedToConnectToReader",
               new Object[]{this.readEndpoint}),
           SqlState.CONNECTION_UNABLE_TO_CONNECT);
-      return;
     } else if (this.verifyNewConnections && this.pluginService.getHostRole(conn) != HostRole.READER) {
       // Warn if the reader connection is to a writer. Do not store connection.
       LOGGER.severe(
