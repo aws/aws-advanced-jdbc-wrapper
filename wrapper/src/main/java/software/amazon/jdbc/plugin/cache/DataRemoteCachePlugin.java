@@ -252,6 +252,12 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
       final JdbcCallable<T, E> jdbcMethodFunc,
       final Object[] jdbcMethodArgs)
       throws E {
+    if (resultClass != ResultSet.class) {
+      return jdbcMethodFunc.call();
+    }
+
+    incrCounter(totalQueryCounter);
+
     ResultSet result;
     boolean needToCache = false;
     final String sql = getQuery(jdbcMethodArgs);
@@ -272,8 +278,6 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
         mainQuery = sql.substring(endOfQueryHint + QUERY_HINT_END_PATTERN.length()).trim();
       }
     }
-
-    incrCounter(totalQueryCounter);
 
     // Query result can be served from the cache if it has a configured TTL value, and it is
     // not executed in a transaction as a transaction typically need to return consistent results.
