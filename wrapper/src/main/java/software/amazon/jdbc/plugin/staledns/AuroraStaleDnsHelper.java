@@ -91,10 +91,8 @@ public class AuroraStaleDnsHelper {
       // This is if-statement is only reached if the connection url is a writer cluster endpoint.
       // If the new connection resolves to a reader instance, this means the topology is outdated.
       // Force refresh to update the topology.
-      // TODO: forceRefreshHostList
       this.pluginService.forceRefreshHostList(conn);
     } else {
-      // TODO: refreshHostList
       this.pluginService.refreshHostList(conn);
     }
 

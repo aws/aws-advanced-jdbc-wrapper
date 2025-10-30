@@ -787,7 +787,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     if (isInitialConnection) {
-      // TODO: refreshHostList
       this.pluginService.refreshHostList(conn);
     }
 

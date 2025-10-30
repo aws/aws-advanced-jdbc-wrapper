@@ -23,7 +23,10 @@ import java.sql.Statement;
 import java.util.List;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
+import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.DriverInfo;
 
 /**
@@ -141,8 +144,13 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
 
   @Override
   public HostListProviderSupplier getHostListProvider() {
-    return (properties, initialUrl, servicesContainer) ->
-        new MonitoringRdsHostListProvider(this, properties, initialUrl, servicesContainer);
+    return (properties, initialUrl, servicesContainer) -> {
+      final PluginService pluginService = servicesContainer.getPluginService();
+      if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {
+        return new MonitoringRdsHostListProvider(this, properties, initialUrl, servicesContainer);
+      }
+      return new RdsHostListProvider(this, properties, initialUrl, servicesContainer);
+    };
   }
 
   @Override
