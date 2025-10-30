@@ -16,13 +16,26 @@
 
 package software.amazon.jdbc;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
+import java.sql.Connection;
 
-public interface PluginManagerService {
+public class ConnectionInfo {
+  private final Connection connection;
+  private final boolean isPooled;
 
-  void setInTransaction(boolean inTransaction);
+  public ConnectionInfo(Connection connection, boolean isPooled) {
+    this.connection = connection;
+    this.isPooled = isPooled;
+  }
 
-  void setIsPooledConnection(@Nullable Boolean pooledConnection);
+  public ConnectionInfo(Connection connection) {
+    this(connection, false);
+  }
 
-  void resetCallContext();
+  public Connection getConnection() {
+    return connection;
+  }
+
+  public boolean isPooled() {
+    return isPooled;
+  }
 }

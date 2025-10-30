@@ -92,6 +92,9 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   protected final ReentrantLock connectionSwitchLock = new ReentrantLock();
 
+  // JDBC call context members
+  protected Boolean pooledConnection = null;
+
   public PluginServiceImpl(
       @NonNull final FullServicesContainer servicesContainer,
       @NonNull final Properties props,
@@ -244,6 +247,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     return this.connectionProviderManager.getDefaultProvider();
   }
 
+  @Deprecated
   public boolean isPooledConnectionProvider(HostSpec host, Properties props) {
     final ConnectionProvider connectionProvider =
         this.connectionProviderManager.getConnectionProvider(this.driverProtocol, host, props);
@@ -788,6 +792,21 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     } catch (SQLException e) {
       return false;
     }
+  }
+
+  @Override
+  public Boolean isPooledConnection() {
+    return this.pooledConnection;
+  }
+
+  @Override
+  public void setIsPooledConnection(Boolean pooledConnection) {
+    this.pooledConnection = pooledConnection;
+  }
+
+  @Override
+  public void resetCallContext() {
+    this.pooledConnection = null;
   }
 
   @Override
