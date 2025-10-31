@@ -71,10 +71,10 @@ public class DialectDetectionTests {
   @Mock private Statement mockStatement;
   @Mock private ResultSet mockSuccessResultSet;
   @Mock private ResultSet mockFailResultSet;
+  @Mock private ResultSetMetaData mockResultSetMetaData;
   @Mock private HostSpec mockHost;
   @Mock private ConnectionPluginManager mockPluginManager;
   @Mock private TargetDriverDialect mockTargetDriverDialect;
-  @Mock private ResultSetMetaData mockResultSetMetaData;
 
   @BeforeEach
   void setUp() throws SQLException {
@@ -84,6 +84,8 @@ public class DialectDetectionTests {
     when(this.mockServicesContainer.getStorageService()).thenReturn(mockStorageService);
     when(this.mockConnection.createStatement()).thenReturn(this.mockStatement);
     when(this.mockHost.getUrl()).thenReturn("url");
+    when(this.mockFailResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
+    when(this.mockResultSetMetaData.getColumnCount()).thenReturn(4);
     when(this.mockFailResultSet.next()).thenReturn(false);
     mockPluginManager.plugins = new ArrayList<>();
   }

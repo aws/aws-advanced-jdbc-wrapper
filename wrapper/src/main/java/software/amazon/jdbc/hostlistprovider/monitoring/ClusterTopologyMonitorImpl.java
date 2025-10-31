@@ -41,6 +41,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostlistprovider.Topology;
+import software.amazon.jdbc.hostlistprovider.TopologyUtils;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
@@ -49,7 +50,6 @@ import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.ServiceUtility;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
-import software.amazon.jdbc.hostlistprovider.TopologyUtils;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
 

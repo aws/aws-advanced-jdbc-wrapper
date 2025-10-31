@@ -73,8 +73,6 @@ class RdsHostListProviderTest {
   private RdsHostListProvider rdsHostListProvider;
 
   @Mock private Connection mockConnection;
-  @Mock private Statement mockStatement;
-  @Mock private ResultSet mockResultSet;
   @Mock private FullServicesContainer mockServicesContainer;
   @Mock private PluginService mockPluginService;
   @Mock private HostListProviderService mockHostListProviderService;
@@ -102,8 +100,6 @@ class RdsHostListProviderTest {
     when(mockPluginService.connect(any(HostSpec.class), any(Properties.class))).thenReturn(mockConnection);
     when(mockPluginService.getCurrentHostSpec()).thenReturn(currentHostSpec);
     when(mockPluginService.getHostSpecBuilder()).thenReturn(mockHostSpecBuilder);
-    when(mockConnection.createStatement()).thenReturn(mockStatement);
-    when(mockStatement.executeQuery(queryCaptor.capture())).thenReturn(mockResultSet);
     when(mockHostListProviderService.getDialect()).thenReturn(mockDialect);
     when(mockHostListProviderService.getHostSpecBuilder())
         .thenReturn(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
@@ -413,7 +409,6 @@ class RdsHostListProviderTest {
   void testIdentifyConnectionWithInvalidNodeIdQuery() throws SQLException {
     rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
 
-    when(mockResultSet.next()).thenReturn(false);
     assertThrows(SQLException.class, () -> rdsHostListProvider.identifyConnection(mockConnection));
 
     when(mockConnection.createStatement()).thenThrow(new SQLException("exception"));
