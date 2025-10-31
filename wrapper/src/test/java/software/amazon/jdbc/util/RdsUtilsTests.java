@@ -42,6 +42,9 @@ public class RdsUtilsTests {
   private static final String usEastRegionLimitlessDbShardGroup =
       "database-test-name.shardgrp-XYZ.us-east-2.rds.amazonaws.com";
 
+  private static final String euRedshift =
+      "redshift-test-name.XYZ.eusc-de-east-1.rds.amazonaws.eu";
+
   private static final String chinaRegionCluster =
       "database-test-name.cluster-XYZ.rds.cn-northwest-1.amazonaws.com.cn";
   private static final String chinaRegionClusterTrailingDot =
@@ -133,6 +136,7 @@ public class RdsUtilsTests {
     assertFalse(target.isRdsDns(usEastRegionElbUrl));
     assertFalse(target.isRdsDns(usEastRegionElbUrlTrailingDot));
     assertTrue(target.isRdsDns(usEastRegionLimitlessDbShardGroup));
+    assertTrue(target.isRdsDns(euRedshift));
 
     assertTrue(target.isRdsDns(chinaRegionCluster));
     assertTrue(target.isRdsDns(chinaRegionClusterTrailingDot));
@@ -210,6 +214,9 @@ public class RdsUtilsTests {
     assertEquals(oldChinaExpectedHostPattern, target.getRdsInstanceHostPattern(oldChinaRegionProxy));
     assertEquals(oldChinaExpectedHostPattern, target.getRdsInstanceHostPattern(oldChinaRegionCustomDomain));
     assertEquals(oldChinaExpectedHostPattern, target.getRdsInstanceHostPattern(oldChinaRegionLimitlessDbShardGroup));
+
+    final String euRedshiftExpectedHostPattern = "?.XYZ.eusc-de-east-1.rds.amazonaws.eu";
+    assertEquals(euRedshiftExpectedHostPattern, target.getRdsInstanceHostPattern(euRedshift));
   }
 
   @Test
@@ -221,6 +228,7 @@ public class RdsUtilsTests {
     assertFalse(target.isRdsClusterDns(usEastRegionCustomDomain));
     assertFalse(target.isRdsClusterDns(usEastRegionElbUrl));
     assertFalse(target.isRdsClusterDns(usEastRegionLimitlessDbShardGroup));
+    assertFalse(target.isRdsClusterDns(euRedshift));
 
     assertTrue(target.isRdsClusterDns(usIsobEastRegionCluster));
     assertTrue(target.isRdsClusterDns(usIsobEastRegionClusterReadOnly));
@@ -260,6 +268,7 @@ public class RdsUtilsTests {
     assertFalse(target.isWriterClusterDns(usEastRegionCustomDomain));
     assertFalse(target.isWriterClusterDns(usEastRegionElbUrl));
     assertFalse(target.isWriterClusterDns(usEastRegionLimitlessDbShardGroup));
+    assertFalse(target.isWriterClusterDns(euRedshift));
 
     assertTrue(target.isWriterClusterDns(usIsobEastRegionCluster));
     assertFalse(target.isWriterClusterDns(usIsobEastRegionClusterReadOnly));
@@ -299,6 +308,7 @@ public class RdsUtilsTests {
     assertFalse(target.isReaderClusterDns(usEastRegionCustomDomain));
     assertFalse(target.isReaderClusterDns(usEastRegionElbUrl));
     assertFalse(target.isReaderClusterDns(usEastRegionLimitlessDbShardGroup));
+    assertFalse(target.isReaderClusterDns(euRedshift));
 
     assertFalse(target.isReaderClusterDns(usIsobEastRegionCluster));
     assertTrue(target.isReaderClusterDns(usIsobEastRegionClusterReadOnly));
@@ -338,6 +348,7 @@ public class RdsUtilsTests {
     assertFalse(target.isLimitlessDbShardGroupDns(usEastRegionCustomDomain));
     assertFalse(target.isLimitlessDbShardGroupDns(usEastRegionElbUrl));
     assertTrue(target.isLimitlessDbShardGroupDns(usEastRegionLimitlessDbShardGroup));
+    assertFalse(target.isLimitlessDbShardGroupDns(euRedshift));
 
     assertFalse(target.isLimitlessDbShardGroupDns(usIsobEastRegionCluster));
     assertFalse(target.isLimitlessDbShardGroupDns(usIsobEastRegionClusterReadOnly));
@@ -412,6 +423,9 @@ public class RdsUtilsTests {
     assertEquals(chinaExpectedHostPattern, target.getRdsRegion(oldChinaRegionProxy));
     assertEquals(chinaExpectedHostPattern, target.getRdsRegion(oldChinaRegionCustomDomain));
     assertEquals(chinaExpectedHostPattern, target.getRdsRegion(oldChinaRegionLimitlessDbShardGroup));
+
+    final String euRedshiftExpectedHostPattern = "eusc-de-east-1";
+    assertEquals(euRedshiftExpectedHostPattern, target.getRdsRegion(euRedshift));
   }
 
   @Test

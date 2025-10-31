@@ -178,6 +178,24 @@ public class TestEnvironment implements AutoCloseable {
     return env;
   }
 
+  private static void cleanUp(TestEnvironment env) {
+    DatabaseEngineDeployment deployment = env.info.getRequest().getDatabaseEngineDeployment();
+    if (deployment == DatabaseEngineDeployment.AURORA
+        || deployment == DatabaseEngineDeployment.RDS
+        || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE
+        || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER) {
+      // These environment require creating external database cluster that should be publicly available.
+      // Corresponding AWS Security Groups should be configured and the test task runner IP address
+      // should be whitelisted.
+
+      if (env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED)) {
+        env.auroraUtil.testClustersCleanUp();
+        env.auroraUtil.testInstancesCleanUp();
+        env.auroraUtil.securityGroupRulesCleanUp();
+      }
+    }
+  }
+
   private static void authorizeRunnerIpAddress(TestEnvironment env) {
     DatabaseEngineDeployment deployment = env.info.getRequest().getDatabaseEngineDeployment();
     if (deployment == DatabaseEngineDeployment.AURORA
@@ -256,18 +274,21 @@ public class TestEnvironment implements AutoCloseable {
       switch (request.getDatabaseEngineDeployment()) {
         case RDS_MULTI_AZ_INSTANCE:
           initEnv(env);
+          cleanUp(env);
           authorizeRunnerIpAddress(env);
           createMultiAzInstance(env);
           configureIamAccess(env);
           break;
         case RDS_MULTI_AZ_CLUSTER:
           initEnv(env);
+          cleanUp(env);
           authorizeRunnerIpAddress(env);
           createDbCluster(env);
           configureIamAccess(env);
           break;
         case AURORA:
           initEnv(env);
+          cleanUp(env);
           authorizeRunnerIpAddress(env);
 
           if (!env.reuseDb
