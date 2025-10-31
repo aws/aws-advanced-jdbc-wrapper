@@ -15,7 +15,7 @@
  */
 
 
-package software.amazon.jdbc.util;
+package software.amazon.jdbc.hostlistprovider;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -35,6 +35,8 @@ import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.dialect.TopologyDialect;
 import software.amazon.jdbc.dialect.TopologyQueryHostSpec;
 import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.SynchronousExecutor;
 
 public class TopologyUtils {
   private static final Logger LOGGER = Logger.getLogger(TopologyUtils.class.getName());
@@ -144,7 +146,7 @@ public class TopologyUtils {
         }
       }
     } catch (SQLException ex) {
-      // do nothing
+      return null;
     }
 
     return null;
