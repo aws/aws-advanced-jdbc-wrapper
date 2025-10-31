@@ -121,6 +121,17 @@ public class RdsHostListProvider implements DynamicHostListProvider {
     this.hostListProviderService = servicesContainer.getHostListProviderService();
   }
 
+  // For testing purposes only
+  public RdsHostListProvider(
+      final TopologyDialect dialect,
+      final Properties properties,
+      final String originalUrl,
+      final FullServicesContainer servicesContainer,
+      final TopologyUtils topologyUtils) {
+    this(dialect, properties, originalUrl, servicesContainer);
+    this.topologyUtils = topologyUtils;
+  }
+
   protected void init() throws SQLException {
     if (this.isInitialized) {
       return;
@@ -192,11 +203,13 @@ public class RdsHostListProvider implements DynamicHostListProvider {
         }
       }
 
-      this.topologyUtils = new TopologyUtils(
-          this.dialect,
-          this.clusterInstanceTemplate,
-          this.initialHostSpec,
-          this.servicesContainer.getPluginService().getHostSpecBuilder());
+      if (this.topologyUtils == null) {
+        this.topologyUtils = new TopologyUtils(
+            this.dialect,
+            this.clusterInstanceTemplate,
+            this.initialHostSpec,
+            this.servicesContainer.getPluginService().getHostSpecBuilder());
+      }
 
       this.isInitialized = true;
     } finally {

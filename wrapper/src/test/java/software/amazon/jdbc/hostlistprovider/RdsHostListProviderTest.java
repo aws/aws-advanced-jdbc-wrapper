@@ -64,6 +64,7 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider.FetchTopologyResult;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.TopologyUtils;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.TestStorageServiceImpl;
@@ -78,7 +79,9 @@ class RdsHostListProviderTest {
   @Mock private FullServicesContainer mockServicesContainer;
   @Mock private PluginService mockPluginService;
   @Mock private HostListProviderService mockHostListProviderService;
+  @Mock private HostSpecBuilder mockHostSpecBuilder;
   @Mock private EventPublisher mockEventPublisher;
+  @Mock private TopologyUtils mockTopologyUtils;
   @Mock private TopologyDialect mockDialect;
   @Captor private ArgumentCaptor<String> queryCaptor;
 
@@ -95,9 +98,11 @@ class RdsHostListProviderTest {
     storageService = new TestStorageServiceImpl(mockEventPublisher);
     when(mockServicesContainer.getHostListProviderService()).thenReturn(mockHostListProviderService);
     when(mockServicesContainer.getStorageService()).thenReturn(storageService);
+    when(mockServicesContainer.getPluginService()).thenReturn(mockPluginService);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.connect(any(HostSpec.class), any(Properties.class))).thenReturn(mockConnection);
     when(mockPluginService.getCurrentHostSpec()).thenReturn(currentHostSpec);
+    when(mockPluginService.getHostSpecBuilder()).thenReturn(mockHostSpecBuilder);
     when(mockConnection.createStatement()).thenReturn(mockStatement);
     when(mockStatement.executeQuery(queryCaptor.capture())).thenReturn(mockResultSet);
     when(mockHostListProviderService.getDialect()).thenReturn(mockDialect);
@@ -114,8 +119,8 @@ class RdsHostListProviderTest {
   }
 
   private RdsHostListProvider getRdsHostListProvider(String originalUrl) throws SQLException {
-    RdsHostListProvider provider =
-        new RdsHostListProvider(mockDialect, new Properties(), originalUrl, mockServicesContainer);
+    RdsHostListProvider provider = new RdsHostListProvider(
+        mockDialect, new Properties(), originalUrl, mockServicesContainer, mockTopologyUtils);
     provider.init();
     return provider;
   }
