@@ -353,6 +353,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
    * @throws SQLException if errors occurred while retrieving the topology.
    */
   protected List<HostSpec> queryForTopology(final Connection conn) throws SQLException {
+    init();
     return this.topologyUtils.queryForTopology(conn);
   }
 
@@ -466,11 +467,13 @@ public class RdsHostListProvider implements DynamicHostListProvider {
 
   @Override
   public HostRole getHostRole(Connection conn) throws SQLException {
+    init();
     return this.topologyUtils.getHostRole(conn);
   }
 
   @Override
   public @Nullable HostSpec identifyConnection(Connection connection) throws SQLException {
+    init();
     try {
       String instanceId = this.topologyUtils.getInstanceId(connection);
       if (instanceId == null) {

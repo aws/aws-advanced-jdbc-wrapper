@@ -68,11 +68,6 @@ public class MonitoringRdsHostListProvider
     clearAll();
   }
 
-  @Override
-  protected void init() throws SQLException {
-    super.init();
-  }
-
   protected ClusterTopologyMonitor initMonitor() throws SQLException {
     return this.servicesContainer.getMonitorService().runIfAbsent(
         ClusterTopologyMonitorImpl.class,
