@@ -146,7 +146,7 @@ class RdsHostListProviderTest {
 
     final List<HostSpec> newHosts = Collections.singletonList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("newHost").build());
-    doReturn(newHosts).when(rdsHostListProvider).queryForTopology(mockConnection);
+    doReturn(newHosts).when(mockTopologyUtils).queryForTopology(mockConnection);
 
     final FetchTopologyResult result = rdsHostListProvider.getTopology(mockConnection, true);
     verify(rdsHostListProvider, atMostOnce()).queryForTopology(mockConnection);
@@ -194,9 +194,7 @@ class RdsHostListProviderTest {
     final List<HostSpec> expectedPostgres = Collections.singletonList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("postgresql").port(HostSpec.NO_PORT)
             .role(HostRole.WRITER).availability(HostAvailability.AVAILABLE).weight(0).build());
-    when(mockResultSet.next()).thenReturn(true, false);
-    when(mockResultSet.getBoolean(eq(2))).thenReturn(true);
-    when(mockResultSet.getString(eq(1))).thenReturn("mysql");
+    when(mockTopologyUtils.queryForTopology(mockConnection)).thenReturn(expectedMySQL).thenReturn(expectedPostgres);
 
 
     rdsHostListProvider = getRdsHostListProvider("mysql://url/");
@@ -204,22 +202,9 @@ class RdsHostListProviderTest {
     List<HostSpec> hosts = rdsHostListProvider.queryForTopology(mockConnection);
     assertEquals(expectedMySQL, hosts);
 
-    when(mockResultSet.next()).thenReturn(true, false);
-    when(mockResultSet.getString(eq(1))).thenReturn("postgresql");
-
     rdsHostListProvider = getRdsHostListProvider("postgresql://url/");
     hosts = rdsHostListProvider.queryForTopology(mockConnection);
     assertEquals(expectedPostgres, hosts);
-  }
-
-  @Test
-  void testQueryForTopology_queryResultsInException() throws SQLException {
-    rdsHostListProvider = getRdsHostListProvider("protocol://url/");
-    when(mockStatement.executeQuery(queryCaptor.capture())).thenThrow(new SQLSyntaxErrorException());
-
-    assertThrows(
-        SQLException.class,
-        () -> rdsHostListProvider.queryForTopology(mockConnection));
   }
 
   @Test
@@ -298,7 +283,7 @@ class RdsHostListProviderTest {
             .role(HostRole.READER)
             .build());
 
-    doReturn(topologyClusterA).when(provider1).queryForTopology(any(Connection.class));
+    doReturn(topologyClusterA).when(mockTopologyUtils).queryForTopology(any(Connection.class));
 
     assertEquals(0, storageService.size(Topology.class));
 
@@ -441,8 +426,7 @@ class RdsHostListProviderTest {
     rdsHostListProvider.clusterInstanceTemplate = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("?.pattern").build();
 
-    when(mockResultSet.next()).thenReturn(true);
-    when(mockResultSet.getString(eq(1))).thenReturn("instance-1");
+    when(mockTopologyUtils.getInstanceId(mockConnection)).thenReturn("instance-1");
     doReturn(null).when(rdsHostListProvider).refresh(mockConnection);
     doReturn(null).when(rdsHostListProvider).forceRefresh(mockConnection);
 
@@ -459,8 +443,7 @@ class RdsHostListProviderTest {
             .build());
 
     rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
-    when(mockResultSet.next()).thenReturn(true);
-    when(mockResultSet.getString(eq(1))).thenReturn("instance-1");
+    when(mockTopologyUtils.getInstanceId(mockConnection)).thenReturn("instance-1");
     doReturn(cachedTopology).when(rdsHostListProvider).refresh(mockConnection);
     doReturn(cachedTopology).when(rdsHostListProvider).forceRefresh(mockConnection);
 
@@ -478,8 +461,7 @@ class RdsHostListProviderTest {
     final List<HostSpec> cachedTopology = Collections.singletonList(expectedHost);
 
     rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
-    when(mockResultSet.next()).thenReturn(true);
-    when(mockResultSet.getString(eq(1))).thenReturn("instance-a-1");
+    when(mockTopologyUtils.getInstanceId(mockConnection)).thenReturn("instance-a-1");
     doReturn(cachedTopology).when(rdsHostListProvider).refresh(mockConnection);
     doReturn(cachedTopology).when(rdsHostListProvider).forceRefresh(mockConnection);
 
@@ -488,123 +470,9 @@ class RdsHostListProviderTest {
     assertEquals("instance-a-1", actual.getHostId());
   }
 
-  @Test
-  void testGetTopology_StaleRecord() throws SQLException {
-    rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
-    rdsHostListProvider.isInitialized = true;
 
-    final String hostName1 = "hostName1";
-    final String hostName2 = "hostName2";
-    final Double cpuUtilization = 11.1D;
-    final Double nodeLag = 0.123D;
-    final Timestamp firstTimestamp = Timestamp.from(Instant.now());
-    final Timestamp secondTimestamp = new Timestamp(firstTimestamp.getTime() + 100);
-    when(mockResultSet.next()).thenReturn(true, true, false);
-    when(mockResultSet.getString(1)).thenReturn(hostName1).thenReturn(hostName2);
-    when(mockResultSet.getBoolean(2)).thenReturn(true).thenReturn(true);
-    when(mockResultSet.getDouble(3)).thenReturn(cpuUtilization).thenReturn(cpuUtilization);
-    when(mockResultSet.getDouble(4)).thenReturn(nodeLag).thenReturn(nodeLag);
-    when(mockResultSet.getTimestamp(5)).thenReturn(firstTimestamp).thenReturn(secondTimestamp);
-    long weight = Math.round(nodeLag) * 100L + Math.round(cpuUtilization);
-    final HostSpec expectedWriter = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host(hostName2)
-        .port(-1)
-        .role(HostRole.WRITER)
-        .availability(HostAvailability.AVAILABLE)
-        .weight(weight)
-        .lastUpdateTime(secondTimestamp)
-        .build();
 
-    final FetchTopologyResult result = rdsHostListProvider.getTopology(mockConnection, true);
-    verify(rdsHostListProvider, atMostOnce()).queryForTopology(mockConnection);
-    assertEquals(1, result.hosts.size());
-    assertEquals(expectedWriter, result.hosts.get(0));
-  }
 
-  @Test
-  void testGetTopology_InvalidLastUpdatedTimestamp() throws SQLException {
-    rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
-    rdsHostListProvider.isInitialized = true;
-
-    final String hostName = "hostName";
-    final Double cpuUtilization = 11.1D;
-    final Double nodeLag = 0.123D;
-    when(mockResultSet.next()).thenReturn(true, false);
-    when(mockResultSet.getString(1)).thenReturn(hostName);
-    when(mockResultSet.getBoolean(2)).thenReturn(true);
-    when(mockResultSet.getDouble(3)).thenReturn(cpuUtilization);
-    when(mockResultSet.getDouble(4)).thenReturn(nodeLag);
-    when(mockResultSet.getTimestamp(5)).thenThrow(WrongArgumentException.class);
-
-    final FetchTopologyResult result = rdsHostListProvider.getTopology(mockConnection, true);
-    verify(rdsHostListProvider, atMostOnce()).queryForTopology(mockConnection);
-
-    final String expectedLastUpdatedTimeStampRounded = Timestamp.from(Instant.now()).toString().substring(0, 16);
-    assertEquals(1, result.hosts.size());
-    assertEquals(
-        expectedLastUpdatedTimeStampRounded,
-        result.hosts.get(0).getLastUpdateTime().toString().substring(0, 16));
-  }
-
-  @Test
-  void testGetTopology_returnsLatestWriter() throws SQLException {
-    rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
-    rdsHostListProvider.isInitialized = true;
-
-    HostSpec expectedWriterHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host("expectedWriterHost")
-        .role(HostRole.WRITER)
-        .lastUpdateTime(Timestamp.valueOf("3000-01-01 00:00:00"))
-        .build();
-
-    HostSpec unexpectedWriterHost0 = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host("unexpectedWriterHost0")
-        .role(HostRole.WRITER)
-        .lastUpdateTime(Timestamp.valueOf("1000-01-01 00:00:00"))
-        .build();
-
-    HostSpec unexpectedWriterHost1 = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host("unexpectedWriterHost1")
-        .role(HostRole.WRITER)
-        .lastUpdateTime(Timestamp.valueOf("2000-01-01 00:00:00"))
-        .build();
-
-    HostSpec unexpectedWriterHostWithNullLastUpdateTime0 = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host("unexpectedWriterHostWithNullLastUpdateTime0")
-        .role(HostRole.WRITER)
-        .lastUpdateTime(null)
-        .build();
-
-    HostSpec unexpectedWriterHostWithNullLastUpdateTime1 = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host("unexpectedWriterHostWithNullLastUpdateTime1")
-        .role(HostRole.WRITER)
-        .lastUpdateTime(null)
-        .build();
-
-    when(mockResultSet.next()).thenReturn(true, true, true, true, true, false);
-
-    when(mockResultSet.getString(1)).thenReturn(
-        unexpectedWriterHostWithNullLastUpdateTime0.getHost(),
-        unexpectedWriterHost0.getHost(),
-        expectedWriterHost.getHost(),
-        unexpectedWriterHost1.getHost(),
-        unexpectedWriterHostWithNullLastUpdateTime1.getHost());
-    when(mockResultSet.getBoolean(2)).thenReturn(true, true, true, true, true);
-    when(mockResultSet.getFloat(3)).thenReturn((float) 0, (float) 0, (float) 0, (float) 0, (float) 0);
-    when(mockResultSet.getFloat(4)).thenReturn((float) 0, (float) 0, (float) 0, (float) 0, (float) 0);
-    when(mockResultSet.getTimestamp(5)).thenReturn(
-        unexpectedWriterHostWithNullLastUpdateTime0.getLastUpdateTime(),
-        unexpectedWriterHost0.getLastUpdateTime(),
-        expectedWriterHost.getLastUpdateTime(),
-        unexpectedWriterHost1.getLastUpdateTime(),
-        unexpectedWriterHostWithNullLastUpdateTime1.getLastUpdateTime()
-    );
-
-    final FetchTopologyResult result = rdsHostListProvider.getTopology(mockConnection, true);
-    verify(rdsHostListProvider, atMostOnce()).queryForTopology(mockConnection);
-
-    assertEquals(expectedWriterHost.getHost(), result.hosts.get(0).getHost());
-  }
 
   @Test
   void testClusterUrlUsedAsDefaultClusterId() throws SQLException {

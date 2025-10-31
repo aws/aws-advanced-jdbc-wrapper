@@ -261,7 +261,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       }
 
       // fetch topology from the DB
-      final List<HostSpec> hosts = this.topologyUtils.queryForTopology(conn);
+      final List<HostSpec> hosts = this.queryForTopology(conn);
 
       if (!Utils.isNullOrEmpty(hosts)) {
         this.servicesContainer.getStorageService().set(this.clusterId, new Topology(hosts));
