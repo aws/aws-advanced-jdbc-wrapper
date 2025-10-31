@@ -21,56 +21,37 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
-import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.MultiAzDbClusterPgExceptionHandler;
-import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
-import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
-import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.DriverInfo;
 
 public class RdsMultiAzDbClusterPgDialect extends PgDialect implements TopologyDialect {
 
-  private static final Logger LOGGER = Logger.getLogger(RdsMultiAzDbClusterPgDialect.class.getName());
-
-  private static MultiAzDbClusterPgExceptionHandler exceptionHandler;
-
-  private static final String TOPOLOGY_QUERY =
+  protected static final String IS_RDS_CLUSTER_QUERY =
+      "SELECT multi_az_db_cluster_source_dbi_resource_id FROM rds_tools.multi_az_db_cluster_source_dbi_resource_id()";
+  protected static final String TOPOLOGY_QUERY =
       "SELECT id, endpoint, port FROM rds_tools.show_topology('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
 
+  protected static final String INSTANCE_ID_QUERY = "SELECT dbi_resource_id FROM rds_tools.dbi_resource_id()";
   // For reader instances, the query should return a writer instance ID.
   // For a writer instance, the query should return no data.
-  private static final String WRITER_ID_QUERY =
+  protected static final String WRITER_ID_QUERY =
       "SELECT multi_az_db_cluster_source_dbi_resource_id FROM rds_tools.multi_az_db_cluster_source_dbi_resource_id()"
           + " WHERE multi_az_db_cluster_source_dbi_resource_id OPERATOR(pg_catalog.!=)"
           + " (SELECT dbi_resource_id FROM rds_tools.dbi_resource_id())";
+  protected static final String WRITER_ID_QUERY_COLUMN = "multi_az_db_cluster_source_dbi_resource_id";
+  protected static final String IS_READER_QUERY = "SELECT pg_catalog.pg_is_in_recovery()";
 
-  private static final String IS_RDS_CLUSTER_QUERY =
-      "SELECT multi_az_db_cluster_source_dbi_resource_id FROM rds_tools.multi_az_db_cluster_source_dbi_resource_id()";
-
-  private static final String WRITER_ID_QUERY_COLUMN = "multi_az_db_cluster_source_dbi_resource_id";
-
-  private static final String INSTANCE_ID_QUERY = "SELECT dbi_resource_id FROM rds_tools.dbi_resource_id()";
-
-  private static final String IS_READER_QUERY = "SELECT pg_catalog.pg_is_in_recovery()";
+  private static MultiAzDbClusterPgExceptionHandler exceptionHandler;
 
   protected final MultiAzDialectUtils dialectUtils = new MultiAzDialectUtils(
-      WRITER_ID_QUERY, WRITER_ID_QUERY_COLUMN, INSTANCE_ID_QUERY);
-
-  @Override
-  public ExceptionHandler getExceptionHandler() {
-    if (exceptionHandler == null) {
-      exceptionHandler = new MultiAzDbClusterPgExceptionHandler();
-    }
-    return exceptionHandler;
-  }
+      INSTANCE_ID_QUERY, WRITER_ID_QUERY, WRITER_ID_QUERY_COLUMN);
 
   @Override
   public boolean isDialect(final Connection connection) {
     try (Statement stmt = connection.createStatement();
-        ResultSet rs = stmt.executeQuery(IS_RDS_CLUSTER_QUERY)) {
+         ResultSet rs = stmt.executeQuery(IS_RDS_CLUSTER_QUERY)) {
       return rs.next() && rs.getString(1) != null;
     } catch (final SQLException ex) {
       // ignore
@@ -84,20 +65,32 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect implements TopologyD
   }
 
   @Override
+  public ExceptionHandler getExceptionHandler() {
+    if (exceptionHandler == null) {
+      exceptionHandler = new MultiAzDbClusterPgExceptionHandler();
+    }
+    return exceptionHandler;
+  }
+
+  @Override
   public HostListProviderSupplier getHostListProvider() {
-    return (properties, initialUrl, servicesContainer) -> {
-      final PluginService pluginService = servicesContainer.getPluginService();
-      if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {
-        return new MonitoringRdsHostListProvider(this, properties, initialUrl, servicesContainer);
-      } else {
-        return new RdsHostListProvider(this, properties, initialUrl, servicesContainer);
-      }
-    };
+    return this.dialectUtils.getHostListProviderSupplier(this);
   }
 
   @Override
   public String getTopologyQuery() {
     return TOPOLOGY_QUERY;
+  }
+
+  @Override
+  public @Nullable List<TopologyQueryHostSpec> processTopologyResults(Connection conn, ResultSet rs)
+      throws SQLException {
+    return this.dialectUtils.processTopologyResults(conn, rs);
+  }
+
+  @Override
+  public String getInstanceIdQuery() {
+    return INSTANCE_ID_QUERY;
   }
 
   @Override
@@ -108,16 +101,5 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect implements TopologyD
   @Override
   public String getIsReaderQuery() {
     return IS_READER_QUERY;
-  }
-
-  @Override
-  public String getInstanceIdQuery() {
-    return INSTANCE_ID_QUERY;
-  }
-
-  @Override
-  public @Nullable List<TopologyQueryHostSpec> processQueryResults(Connection conn, ResultSet rs)
-      throws SQLException {
-    return this.dialectUtils.processQueryResults(conn, rs);
   }
 }

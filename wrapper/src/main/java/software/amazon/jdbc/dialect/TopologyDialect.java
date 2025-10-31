@@ -26,12 +26,13 @@ public interface TopologyDialect extends Dialect {
   String getTopologyQuery();
 
   @Nullable
-  List<TopologyQueryHostSpec> processQueryResults(Connection conn, ResultSet rs) throws SQLException;
+  List<TopologyQueryHostSpec> processTopologyResults(Connection conn, ResultSet rs) throws SQLException;
 
-  // TODO: can we remove this and use getHostRole instead?
+  String getInstanceIdQuery();
+
+  // TODO: dialects have an isWriterInstance method (uses is_writer query) and a getHostRole method
+  //  (uses is_reader query). Can we merge them into one getHostRole method?
   boolean isWriterInstance(final Connection connection) throws SQLException;
 
   String getIsReaderQuery();
-
-  String getInstanceIdQuery();
 }

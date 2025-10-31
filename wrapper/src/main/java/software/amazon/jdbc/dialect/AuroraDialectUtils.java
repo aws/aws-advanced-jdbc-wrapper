@@ -30,14 +30,16 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
 public class AuroraDialectUtils {
-  private static final Logger LOGGER = Logger.getLogger(AuroraDialectUtils.class.getName());
+
   protected final String writerIdQuery;
+
+  private static final Logger LOGGER = Logger.getLogger(AuroraDialectUtils.class.getName());
 
   public AuroraDialectUtils(String writerIdQuery) {
     this.writerIdQuery = writerIdQuery;
   }
 
-  public @Nullable List<TopologyQueryHostSpec> processQueryResults(ResultSet resultSet)
+  public @Nullable List<TopologyQueryHostSpec> processTopologyResults(ResultSet resultSet)
       throws SQLException {
     if (resultSet.getMetaData().getColumnCount() == 0) {
       // We expect at least 4 columns. Note that the server may return 0 columns if failover has occurred.

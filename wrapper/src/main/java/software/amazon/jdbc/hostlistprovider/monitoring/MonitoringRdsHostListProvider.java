@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.logging.Logger;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.BlockingHostListProvider;
 import software.amazon.jdbc.HostSpec;
@@ -36,10 +35,8 @@ import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 
-public class MonitoringRdsHostListProvider extends RdsHostListProvider
-    implements BlockingHostListProvider, CanReleaseResources {
-
-  private static final Logger LOGGER = Logger.getLogger(MonitoringRdsHostListProvider.class.getName());
+public class MonitoringRdsHostListProvider
+    extends RdsHostListProvider implements BlockingHostListProvider, CanReleaseResources {
 
   public static final AwsWrapperProperty CLUSTER_TOPOLOGY_HIGH_REFRESH_RATE_MS =
       new AwsWrapperProperty(

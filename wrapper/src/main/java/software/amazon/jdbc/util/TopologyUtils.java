@@ -25,7 +25,6 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -73,8 +72,8 @@ public class TopologyUtils {
 
     try (final Statement stmt = conn.createStatement();
          final ResultSet resultSet = stmt.executeQuery(this.dialect.getTopologyQuery())) {
-      List<TopologyQueryHostSpec> queryHosts = this.dialect.processQueryResults(conn, resultSet);
-      return this.processQueryResults(queryHosts);
+      List<TopologyQueryHostSpec> queryHosts = this.dialect.processTopologyResults(conn, resultSet);
+      return this.processTopologyResults(queryHosts);
     } catch (final SQLSyntaxErrorException e) {
       throw new SQLException(Messages.get("TopologyUtils.invalidQuery"), e);
     } finally {
@@ -84,7 +83,7 @@ public class TopologyUtils {
     }
   }
 
-  protected @Nullable List<HostSpec> processQueryResults(@Nullable List<TopologyQueryHostSpec> queryHosts) {
+  protected @Nullable List<HostSpec> processTopologyResults(@Nullable List<TopologyQueryHostSpec> queryHosts) {
     if (queryHosts == null) {
       return null;
     }
@@ -147,6 +146,7 @@ public class TopologyUtils {
     } catch (SQLException ex) {
       // do nothing
     }
+
     return null;
   }
 

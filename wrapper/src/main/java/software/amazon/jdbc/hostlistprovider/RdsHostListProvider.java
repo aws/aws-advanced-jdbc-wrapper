@@ -26,7 +26,6 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.UUID;
-import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
@@ -44,7 +43,6 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
-import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.TopologyUtils;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.storage.CacheMap;
@@ -76,7 +74,6 @@ public class RdsHostListProvider implements DynamicHostListProvider {
               + "This pattern is required to be specified for IP address or custom domain connections to AWS RDS "
               + "clusters. Otherwise, if unspecified, the pattern will be automatically created for AWS RDS clusters.");
 
-  protected static final Executor networkTimeoutExecutor = new SynchronousExecutor();
   protected static final RdsUtils rdsHelper = new RdsUtils();
   protected static final ConnectionUrlParser connectionUrlParser = new ConnectionUrlParser();
   protected static final int defaultTopologyQueryTimeoutMs = 5000;
@@ -348,17 +345,6 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   }
 
   /**
-   * Build a host dns endpoint based on host/node name.
-   *
-   * @param nodeName A host name.
-   * @return Host dns endpoint
-   */
-  protected String getHostEndpoint(final String nodeName) {
-    final String host = this.clusterInstanceTemplate.getHost();
-    return host.replace("?", nodeName);
-  }
-
-  /**
    * Get cached topology.
    *
    * @return list of hosts that represents topology. If there's no topology in the cache or the
@@ -473,7 +459,6 @@ public class RdsHostListProvider implements DynamicHostListProvider {
 
   @Override
   public @Nullable HostSpec identifyConnection(Connection connection) throws SQLException {
-    // TODO: why do we return null in some unexpected scenarios and throw an exception in others?
     try {
       String instanceId = this.topologyUtils.getInstanceId(connection);
       if (instanceId == null) {
@@ -488,6 +473,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       }
 
       if (topology == null) {
+        // TODO: above, we throw an exception, but here, we return null. Should we stick with just one?
         return null;
       }
 

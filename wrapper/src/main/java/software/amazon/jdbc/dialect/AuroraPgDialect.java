@@ -29,21 +29,14 @@ import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListPro
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.DriverInfo;
 
-/**
- * Suitable for the following AWS PG configurations.
- * - Regional Cluster
- */
 public class AuroraPgDialect extends PgDialect implements TopologyDialect, AuroraLimitlessDialect, BlueGreenDialect {
-  private static final Logger LOGGER = Logger.getLogger(AuroraPgDialect.class.getName());
 
-  private static final String extensionsSql =
+  protected static final String AURORA_UTILS_EXIST_QUERY =
       "SELECT (setting LIKE '%aurora_stat_utils%') AS aurora_stat_utils "
           + "FROM pg_catalog.pg_settings "
           + "WHERE name OPERATOR(pg_catalog.=) 'rds.extensions'";
-
-  private static final String topologySql = "SELECT 1 FROM pg_catalog.aurora_replica_status() LIMIT 1";
-
-  private static final String TOPOLOGY_QUERY =
+  protected static final String TOPOLOGY_EXISTS_QUERY = "SELECT 1 FROM pg_catalog.aurora_replica_status() LIMIT 1";
+  protected static final String TOPOLOGY_QUERY =
       "SELECT SERVER_ID, CASE WHEN SESSION_ID OPERATOR(pg_catalog.=) 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
           + "CPU, COALESCE(REPLICA_LAG_IN_MSEC, 0), LAST_UPDATE_TIMESTAMP "
           + "FROM pg_catalog.aurora_replica_status() "
@@ -53,24 +46,25 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
           + "OR SESSION_ID OPERATOR(pg_catalog.=) 'MASTER_SESSION_ID' "
           + "OR LAST_UPDATE_TIMESTAMP IS NULL";
 
-  private static final String WRITER_ID_QUERY =
+  protected static final String INSTANCE_ID_QUERY = "SELECT pg_catalog.aurora_db_instance_identifier()";
+  protected static final String WRITER_ID_QUERY =
       "SELECT SERVER_ID FROM pg_catalog.aurora_replica_status() "
           + "WHERE SESSION_ID OPERATOR(pg_catalog.=) 'MASTER_SESSION_ID' "
           + "AND SERVER_ID OPERATOR(pg_catalog.=) pg_catalog.aurora_db_instance_identifier()";
+  protected static final String IS_READER_QUERY = "SELECT pg_catalog.pg_is_in_recovery()";
 
-  private static final String INSTANCE_ID_QUERY = "SELECT pg_catalog.aurora_db_instance_identifier()";
-  private static final String IS_READER_QUERY = "SELECT pg_catalog.pg_is_in_recovery()";
   protected static final String LIMITLESS_ROUTER_ENDPOINT_QUERY =
       "select router_endpoint, load from pg_catalog.aurora_limitless_router_endpoints()";
 
-  private static final String BG_STATUS_QUERY =
+  protected static final String BG_TOPOLOGY_EXISTS_QUERY =
+      "SELECT 'pg_catalog.get_blue_green_fast_switchover_metadata'::regproc";
+  protected static final String BG_STATUS_QUERY =
       "SELECT * FROM "
         + "pg_catalog.get_blue_green_fast_switchover_metadata('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
 
-  private static final String TOPOLOGY_TABLE_EXIST_QUERY =
-      "SELECT 'pg_catalog.get_blue_green_fast_switchover_metadata'::regproc";
+  private static final Logger LOGGER = Logger.getLogger(AuroraPgDialect.class.getName());
 
-  private static final AuroraDialectUtils dialectUtils = new AuroraDialectUtils(WRITER_ID_QUERY);
+  protected final AuroraDialectUtils dialectUtils = new AuroraDialectUtils(WRITER_ID_QUERY);
 
   @Override
   public boolean isDialect(final Connection connection) {
@@ -78,13 +72,9 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
       return false;
     }
 
-    Statement stmt = null;
-    ResultSet rs = null;
     boolean hasExtensions = false;
-    boolean hasTopology = false;
-    try {
-      stmt = connection.createStatement();
-      rs = stmt.executeQuery(extensionsSql);
+    try (Statement stmt = connection.createStatement();
+         ResultSet rs = stmt.executeQuery(AURORA_UTILS_EXIST_QUERY)) {
       if (rs.next()) {
         final boolean auroraUtils = rs.getBoolean("aurora_stat_utils");
         LOGGER.finest(() -> String.format("auroraUtils: %b", auroraUtils));
@@ -93,53 +83,24 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
         }
       }
     } catch (SQLException ex) {
-      // ignore
-    } finally {
-      // TODO: switch to try-with-resources here and check for any other places that can be cleaned up similarly
-      if (stmt != null) {
-        try {
-          stmt.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
-      if (rs != null) {
-        try {
-          rs.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
+      return false;
     }
+
     if (!hasExtensions) {
       return false;
     }
-    try {
-      stmt = connection.createStatement();
-      rs = stmt.executeQuery(topologySql);
+
+    try (Statement stmt = connection.createStatement();
+         ResultSet rs = stmt.executeQuery(TOPOLOGY_EXISTS_QUERY)) {
       if (rs.next()) {
         LOGGER.finest(() -> "hasTopology: true");
-        hasTopology = true;
+        return true;
       }
     } catch (final SQLException ex) {
-      // ignore
-    } finally {
-      if (stmt != null) {
-        try {
-          stmt.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
-      if (rs != null) {
-        try {
-          rs.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
+      return false;
     }
-    return hasExtensions && hasTopology;
+
+    return false;
   }
 
   @Override
@@ -159,8 +120,9 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
   }
 
   @Override
-  public String getIsReaderQuery() {
-    return IS_READER_QUERY;
+  public @Nullable List<TopologyQueryHostSpec> processTopologyResults(Connection conn, ResultSet rs)
+      throws SQLException {
+    return this.dialectUtils.processTopologyResults(rs);
   }
 
   @Override
@@ -170,13 +132,12 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
 
   @Override
   public boolean isWriterInstance(Connection connection) throws SQLException {
-    return AuroraPgDialect.dialectUtils.isWriterInstance(connection);
+    return this.dialectUtils.isWriterInstance(connection);
   }
 
   @Override
-  public @Nullable List<TopologyQueryHostSpec> processQueryResults(Connection conn, ResultSet rs)
-      throws SQLException {
-    return AuroraPgDialect.dialectUtils.processQueryResults(rs);
+  public String getIsReaderQuery() {
+    return IS_READER_QUERY;
   }
 
   @Override
@@ -185,19 +146,19 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
   }
 
   @Override
-  public String getBlueGreenStatusQuery() {
-    return BG_STATUS_QUERY;
-  }
-
-  @Override
   public boolean isBlueGreenStatusAvailable(final Connection connection) {
     try {
       try (Statement statement = connection.createStatement();
-          ResultSet rs = statement.executeQuery(TOPOLOGY_TABLE_EXIST_QUERY)) {
+           ResultSet rs = statement.executeQuery(BG_TOPOLOGY_EXISTS_QUERY)) {
         return rs.next();
       }
     } catch (SQLException ex) {
       return false;
     }
+  }
+
+  @Override
+  public String getBlueGreenStatusQuery() {
+    return BG_STATUS_QUERY;
   }
 }

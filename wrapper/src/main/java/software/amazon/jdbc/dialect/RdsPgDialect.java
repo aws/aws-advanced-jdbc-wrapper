@@ -33,34 +33,29 @@ import software.amazon.jdbc.util.DriverInfo;
  */
 public class RdsPgDialect extends PgDialect implements BlueGreenDialect {
 
-  private static final Logger LOGGER = Logger.getLogger(RdsPgDialect.class.getName());
-
-  private static final List<String> dialectUpdateCandidates = Arrays.asList(
-      DialectCodes.RDS_MULTI_AZ_PG_CLUSTER,
-      DialectCodes.AURORA_PG);
-
-  private static final String extensionsSql = "SELECT (setting LIKE '%rds_tools%') AS rds_tools, "
+  protected static final String EXTENSIONS_EXIST_SQL = "SELECT (setting LIKE '%rds_tools%') AS rds_tools, "
       + "(setting LIKE '%aurora_stat_utils%') AS aurora_stat_utils "
       + "FROM pg_catalog.pg_settings "
       + "WHERE name OPERATOR(pg_catalog.=) 'rds.extensions'";
+  protected static final String TOPOLOGY_TABLE_EXISTS_QUERY =
+      "SELECT 'rds_tools.show_topology'::regproc";
 
-  private static final String BG_STATUS_QUERY =
+  protected static final String BG_STATUS_QUERY =
       "SELECT * FROM rds_tools.show_topology('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
 
-  private static final String TOPOLOGY_TABLE_EXIST_QUERY =
-      "SELECT 'rds_tools.show_topology'::regproc";
+  private static final Logger LOGGER = Logger.getLogger(RdsPgDialect.class.getName());
+  private static final List<String> dialectUpdateCandidates = Arrays.asList(
+      DialectCodes.RDS_MULTI_AZ_PG_CLUSTER,
+      DialectCodes.AURORA_PG);
 
   @Override
   public boolean isDialect(final Connection connection) {
     if (!super.isDialect(connection)) {
       return false;
     }
-    Statement stmt = null;
-    ResultSet rs = null;
 
-    try {
-      stmt = connection.createStatement();
-      rs = stmt.executeQuery(extensionsSql);
+    try (Statement stmt = connection.createStatement();
+         ResultSet rs = stmt.executeQuery(EXTENSIONS_EXIST_SQL)) {
       while (rs.next()) {
         final boolean rdsTools = rs.getBoolean("rds_tools");
         final boolean auroraUtils = rs.getBoolean("aurora_stat_utils");
@@ -70,23 +65,9 @@ public class RdsPgDialect extends PgDialect implements BlueGreenDialect {
         }
       }
     } catch (final SQLException ex) {
-      // ignore
-    } finally {
-      if (stmt != null) {
-        try {
-          stmt.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
-      if (rs != null) {
-        try {
-          rs.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
+      return false;
     }
+
     return false;
   }
 
@@ -96,19 +77,19 @@ public class RdsPgDialect extends PgDialect implements BlueGreenDialect {
   }
 
   @Override
-  public String getBlueGreenStatusQuery() {
-    return BG_STATUS_QUERY;
-  }
-
-  @Override
   public boolean isBlueGreenStatusAvailable(final Connection connection) {
     try {
       try (Statement statement = connection.createStatement();
-          ResultSet rs = statement.executeQuery(TOPOLOGY_TABLE_EXIST_QUERY)) {
+           ResultSet rs = statement.executeQuery(TOPOLOGY_TABLE_EXISTS_QUERY)) {
         return rs.next();
       }
     } catch (SQLException ex) {
       return false;
     }
+  }
+
+  @Override
+  public String getBlueGreenStatusQuery() {
+    return BG_STATUS_QUERY;
   }
 }

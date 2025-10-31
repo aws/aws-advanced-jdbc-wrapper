@@ -26,22 +26,26 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
+import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
+import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
 public class MultiAzDialectUtils {
   private static final Logger LOGGER = Logger.getLogger(MultiAzDialectUtils.class.getName());
+  private final String instanceIdQuery;
   private final String writerIdQuery;
   private final String writerIdQueryColumn;
-  private final String instanceIdQuery;
 
-  public MultiAzDialectUtils(String writerIdQuery, String writerIdQueryColumn, String instanceIdQuery) {
+  public MultiAzDialectUtils(String instanceIdQuery, String writerIdQuery, String writerIdQueryColumn) {
+    this.instanceIdQuery = instanceIdQuery;
     this.writerIdQuery = writerIdQuery;
     this.writerIdQueryColumn = writerIdQueryColumn;
-    this.instanceIdQuery = instanceIdQuery;
   }
 
-  public @Nullable List<TopologyQueryHostSpec> processQueryResults(Connection conn, ResultSet resultSet)
+  public @Nullable List<TopologyQueryHostSpec> processTopologyResults(Connection conn, ResultSet resultSet)
       throws SQLException {
     List<TopologyQueryHostSpec> hosts = new ArrayList<>();
     while (resultSet.next()) {
@@ -104,5 +108,17 @@ public class MultiAzDialectUtils {
       }
     }
     return false;
+  }
+
+  protected HostListProviderSupplier getHostListProviderSupplier(TopologyDialect dialect) {
+    return (properties, initialUrl, servicesContainer) -> {
+      final PluginService pluginService = servicesContainer.getPluginService();
+      if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {
+        return new MonitoringRdsHostListProvider(dialect, properties, initialUrl, servicesContainer);
+
+      } else {
+        return new RdsHostListProvider(dialect, properties, initialUrl, servicesContainer);
+      }
+    };
   }
 }
