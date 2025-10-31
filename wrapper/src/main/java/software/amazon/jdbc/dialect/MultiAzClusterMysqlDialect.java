@@ -89,7 +89,7 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect implements Top
   }
 
   @Override
-  public HostListProviderSupplier getHostListProvider() {
+  public HostListProviderSupplier getHostListProviderSupplier() {
     return this.dialectUtils.getHostListProviderSupplier(this);
   }
 

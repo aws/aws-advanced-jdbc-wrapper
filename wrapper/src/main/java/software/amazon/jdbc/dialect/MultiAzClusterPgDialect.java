@@ -73,7 +73,7 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect implements TopologyD
   }
 
   @Override
-  public HostListProviderSupplier getHostListProvider() {
+  public HostListProviderSupplier getHostListProviderSupplier() {
     return this.dialectUtils.getHostListProviderSupplier(this);
   }
 
