@@ -26,7 +26,7 @@ import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.MultiAzDbClusterPgExceptionHandler;
 import software.amazon.jdbc.util.DriverInfo;
 
-public class RdsMultiAzDbClusterPgDialect extends PgDialect implements TopologyDialect {
+public class MultiAzClusterPgDialect extends PgDialect implements TopologyDialect {
 
   protected static final String IS_RDS_CLUSTER_QUERY =
       "SELECT multi_az_db_cluster_source_dbi_resource_id FROM rds_tools.multi_az_db_cluster_source_dbi_resource_id()";

@@ -35,7 +35,6 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import software.amazon.jdbc.hostlistprovider.HostListProvider;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
@@ -45,6 +44,7 @@ import software.amazon.jdbc.dialect.AuroraPgDialect;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.PgDialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.hostlistprovider.HostListProvider;
 
 public class LimitlessConnectionPluginTest {
 

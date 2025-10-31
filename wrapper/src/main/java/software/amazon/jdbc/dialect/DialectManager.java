@@ -57,9 +57,9 @@ public class DialectManager implements DialectProvider {
           put(DialectCodes.PG, new PgDialect());
           put(DialectCodes.MARIADB, new MariaDbDialect());
           put(DialectCodes.RDS_MYSQL, new RdsMysqlDialect());
-          put(DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER, new RdsMultiAzDbClusterMysqlDialect());
+          put(DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER, new MultiAzClusterMysqlDialect());
           put(DialectCodes.RDS_PG, new RdsPgDialect());
-          put(DialectCodes.RDS_MULTI_AZ_PG_CLUSTER, new RdsMultiAzDbClusterPgDialect());
+          put(DialectCodes.RDS_MULTI_AZ_PG_CLUSTER, new MultiAzClusterPgDialect());
           put(DialectCodes.AURORA_MYSQL, new AuroraMysqlDialect());
           put(DialectCodes.AURORA_PG, new AuroraPgDialect());
           put(DialectCodes.UNKNOWN, new UnknownDialect());

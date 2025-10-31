@@ -43,10 +43,10 @@ import software.amazon.jdbc.dialect.AuroraPgDialect;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.dialect.MariaDbDialect;
+import software.amazon.jdbc.dialect.MultiAzClusterMysqlDialect;
+import software.amazon.jdbc.dialect.MultiAzClusterPgDialect;
 import software.amazon.jdbc.dialect.MysqlDialect;
 import software.amazon.jdbc.dialect.PgDialect;
-import software.amazon.jdbc.dialect.RdsMultiAzDbClusterMysqlDialect;
-import software.amazon.jdbc.dialect.RdsMultiAzDbClusterPgDialect;
 import software.amazon.jdbc.dialect.RdsMysqlDialect;
 import software.amazon.jdbc.dialect.RdsPgDialect;
 import software.amazon.jdbc.exceptions.ExceptionManager;
@@ -220,7 +220,7 @@ public class DialectDetectionTests {
     final PluginServiceImpl target = getPluginService(LOCALHOST, PG_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
-    assertEquals(RdsMultiAzDbClusterPgDialect.class, target.dialect.getClass());
+    assertEquals(MultiAzClusterPgDialect.class, target.dialect.getClass());
   }
 
   @Test
@@ -273,7 +273,7 @@ public class DialectDetectionTests {
     final PluginServiceImpl target = getPluginService(LOCALHOST, MARIA_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
-    assertEquals(RdsMultiAzDbClusterMysqlDialect.class, target.dialect.getClass());
+    assertEquals(MultiAzClusterMysqlDialect.class, target.dialect.getClass());
   }
 
   @Test

@@ -18,9 +18,9 @@ package software.amazon.jdbc.util;
 
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
-import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;

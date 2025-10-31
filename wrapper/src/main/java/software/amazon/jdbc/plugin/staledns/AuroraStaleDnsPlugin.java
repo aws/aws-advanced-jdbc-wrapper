@@ -25,12 +25,12 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
-import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 
 /**

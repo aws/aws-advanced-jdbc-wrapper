@@ -104,7 +104,7 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
   }
 
   @Override
-  public HostListProviderSupplier getHostListProvider() {
+  public HostListProviderSupplier getHostListProviderSupplier() {
     return (properties, initialUrl, servicesContainer) -> {
       final PluginService pluginService = servicesContainer.getPluginService();
       if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {

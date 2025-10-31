@@ -30,7 +30,7 @@ import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 
-public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect implements TopologyDialect {
+public class MultiAzClusterMysqlDialect extends MysqlDialect implements TopologyDialect {
 
   protected static final String REPORT_HOST_EXISTS_QUERY = "SHOW VARIABLES LIKE 'report_host'";
   protected static final String TOPOLOGY_TABLE_EXISTS_QUERY =

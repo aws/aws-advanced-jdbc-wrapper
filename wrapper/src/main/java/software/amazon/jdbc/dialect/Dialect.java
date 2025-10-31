@@ -35,7 +35,7 @@ public interface Dialect {
 
   ExceptionHandler getExceptionHandler();
 
-  HostListProviderSupplier getHostListProvider();
+  HostListProviderSupplier getHostListProviderSupplier();
 
   String getHostAliasQuery();
 

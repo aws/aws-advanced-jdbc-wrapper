@@ -80,7 +80,7 @@ public class MariaDbDialect implements Dialect {
     return mariaDBExceptionHandler;
   }
 
-  public HostListProviderSupplier getHostListProvider() {
+  public HostListProviderSupplier getHostListProviderSupplier() {
     return (properties, initialUrl, servicesContainer) ->
         new ConnectionStringHostListProvider(properties, initialUrl, servicesContainer.getHostListProviderService());
   }

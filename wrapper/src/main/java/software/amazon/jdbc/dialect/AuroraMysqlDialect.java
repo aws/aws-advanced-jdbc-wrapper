@@ -72,7 +72,7 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect,
   }
 
   @Override
-  public HostListProviderSupplier getHostListProvider() {
+  public HostListProviderSupplier getHostListProviderSupplier() {
     return (properties, initialUrl, servicesContainer) -> {
       final PluginService pluginService = servicesContainer.getPluginService();
       if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {

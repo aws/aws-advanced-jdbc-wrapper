@@ -81,7 +81,7 @@ public class MysqlDialect implements Dialect {
     return mySQLExceptionHandler;
   }
 
-  public HostListProviderSupplier getHostListProvider() {
+  public HostListProviderSupplier getHostListProviderSupplier() {
     return (properties, initialUrl, servicesContainer) ->
         new ConnectionStringHostListProvider(properties, initialUrl, servicesContainer.getHostListProviderService());
   }

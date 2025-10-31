@@ -82,7 +82,7 @@ public class PgDialect implements Dialect {
   }
 
   @Override
-  public HostListProviderSupplier getHostListProvider() {
+  public HostListProviderSupplier getHostListProviderSupplier() {
     return (properties, initialUrl, servicesContainer) ->
         new ConnectionStringHostListProvider(properties, initialUrl, servicesContainer.getHostListProviderService());
   }
