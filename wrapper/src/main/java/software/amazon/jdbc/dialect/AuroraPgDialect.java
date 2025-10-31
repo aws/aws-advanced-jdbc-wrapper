@@ -20,6 +20,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -101,6 +102,13 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
     }
 
     return false;
+  }
+
+  @Override
+  public List<String> getDialectUpdateCandidates() {
+    return Arrays.asList(DialectCodes.GLOBAL_AURORA_PG,
+        DialectCodes.RDS_MULTI_AZ_PG_CLUSTER,
+        DialectCodes.RDS_PG);
   }
 
   @Override

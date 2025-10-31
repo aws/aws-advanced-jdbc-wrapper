@@ -46,6 +46,7 @@ public class RdsPgDialect extends PgDialect implements BlueGreenDialect {
   private static final Logger LOGGER = Logger.getLogger(RdsPgDialect.class.getName());
   private static final List<String> dialectUpdateCandidates = Arrays.asList(
       DialectCodes.RDS_MULTI_AZ_PG_CLUSTER,
+      DialectCodes.GLOBAL_AURORA_PG,
       DialectCodes.AURORA_PG);
 
   @Override

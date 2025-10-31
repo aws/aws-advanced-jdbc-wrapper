@@ -86,15 +86,6 @@ public interface PluginService extends ExceptionHandler, Wrapper {
   String getOriginalUrl();
 
   /**
-   * Set the collection of hosts that should be allowed and/or blocked for connections.
-   *
-   * @param allowedAndBlockedHosts An object defining the allowed and blocked sets of hosts.
-   * @deprecated use StorageService#set(key, allowedAndBlockedHosts) instead.
-   */
-  @Deprecated
-  void setAllowedAndBlockedHosts(AllowedAndBlockedHosts allowedAndBlockedHosts);
-
-  /**
    * Returns a boolean indicating if the available {@link ConnectionProvider} or
    * {@link ConnectionPlugin} instances support the selection of a host with the requested role and
    * strategy via {@link #getHostSpecByStrategy}.
@@ -241,11 +232,9 @@ public interface PluginService extends ExceptionHandler, Wrapper {
 
   HostSpecBuilder getHostSpecBuilder();
 
-  @Deprecated
-  ConnectionProvider getConnectionProvider();
-
   ConnectionProvider getDefaultConnectionProvider();
 
+  @Deprecated
   boolean isPooledConnectionProvider(HostSpec host, Properties props);
 
   String getDriverProtocol();
@@ -260,13 +249,20 @@ public interface PluginService extends ExceptionHandler, Wrapper {
 
   <T> T getPlugin(final Class<T> pluginClazz);
 
-  <T> void setStatus(final Class<T> clazz, final @Nullable T status, final boolean clusterBound);
-
-  <T> void setStatus(final Class<T> clazz, final @Nullable T status, final String key);
-
-  <T> T getStatus(final @NonNull Class<T> clazz, final boolean clusterBound);
-
-  <T> T getStatus(final @NonNull Class<T> clazz, final String key);
-
   boolean isPluginInUse(final Class<? extends ConnectionPlugin> pluginClazz);
+
+  // JDBC call context functions
+
+  /**
+  * Retrieves details about the most recent {@link PluginService#connect} or
+  * {@link PluginService#forceConnect} calls. Specifically indicates whether the
+  * returned connection was obtained from a connection pool or newly created.
+  *
+  * <p>Note: The {@link ConnectionPlugin} must process or store this information during
+  * the current JDBC call, as these details will be reset before the next JDBC call
+  * is processed, or another {@link PluginService#connect} or {@link PluginService#forceConnect}
+  * is made.
+  *
+  */
+  @Nullable Boolean isPooledConnection();
 }

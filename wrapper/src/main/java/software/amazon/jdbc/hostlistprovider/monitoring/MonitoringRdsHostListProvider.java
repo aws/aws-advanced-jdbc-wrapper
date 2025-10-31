@@ -64,10 +64,6 @@ public class MonitoringRdsHostListProvider
         CLUSTER_TOPOLOGY_HIGH_REFRESH_RATE_MS.getLong(this.properties));
   }
 
-  public static void clearCache() {
-    clearAll();
-  }
-
   protected ClusterTopologyMonitor initMonitor() throws SQLException {
     return this.servicesContainer.getMonitorService().runIfAbsent(
         ClusterTopologyMonitorImpl.class,
@@ -97,31 +93,6 @@ public class MonitoringRdsHostListProvider
       return monitor.forceRefresh(conn, defaultTopologyQueryTimeoutMs);
     } catch (TimeoutException ex) {
       return null;
-    }
-  }
-
-  @Override
-  protected void clusterIdChanged(final String oldClusterId) throws SQLException {
-    MonitorService monitorService = this.servicesContainer.getMonitorService();
-    final ClusterTopologyMonitorImpl existingMonitor =
-        monitorService.get(ClusterTopologyMonitorImpl.class, oldClusterId);
-    if (existingMonitor != null) {
-      this.servicesContainer.getMonitorService().runIfAbsent(
-          ClusterTopologyMonitorImpl.class,
-          this.clusterId,
-          this.servicesContainer,
-          this.properties,
-          (servicesContainer) -> existingMonitor);
-      assert monitorService.get(ClusterTopologyMonitorImpl.class, this.clusterId) == existingMonitor;
-      existingMonitor.setClusterId(this.clusterId);
-      monitorService.remove(ClusterTopologyMonitorImpl.class, oldClusterId);
-    }
-
-    final StorageService storageService = this.servicesContainer.getStorageService();
-    final Topology existingTopology = storageService.get(Topology.class, oldClusterId);
-    final List<HostSpec> existingHosts = existingTopology == null ? null : existingTopology.getHosts();
-    if (existingHosts != null) {
-      storageService.set(this.clusterId, new Topology(existingHosts));
     }
   }
 

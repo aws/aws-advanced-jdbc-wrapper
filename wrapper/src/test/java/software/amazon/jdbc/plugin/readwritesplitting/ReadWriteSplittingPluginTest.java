@@ -567,7 +567,7 @@ public class ReadWriteSplittingPluginTest {
         .when(this.mockPluginService).getCurrentHostSpec();
     doReturn(mockReaderConn1).when(mockPluginService).connect(readerHostSpec1, null);
     when(mockPluginService.getDriverProtocol()).thenReturn("jdbc:postgresql://");
-    when(mockPluginService.isPooledConnectionProvider(any(), any())).thenReturn(true);
+    when(mockPluginService.isPooledConnection()).thenReturn(true);
 
     final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
@@ -593,7 +593,7 @@ public class ReadWriteSplittingPluginTest {
         .when(this.mockPluginService).getCurrentHostSpec();
     doReturn(mockWriterConn).when(mockPluginService).connect(writerHostSpec, null);
     when(mockPluginService.getDriverProtocol()).thenReturn("jdbc:postgresql://");
-    when(mockPluginService.isPooledConnectionProvider(any(), any())).thenReturn(true);
+    when(mockPluginService.isPooledConnection()).thenReturn(true);
 
     final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,

@@ -69,6 +69,7 @@ import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.plugin.efm.HostMonitorThreadContainer;
 import software.amazon.jdbc.plugin.efm2.HostMonitorServiceImpl;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
+import software.amazon.jdbc.util.CoreServicesContainer;
 import software.amazon.jdbc.util.StringUtils;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
@@ -686,7 +687,7 @@ public class AdvancedPerformanceTest {
 
     auroraUtil.makeSureInstancesUp(TimeUnit.MINUTES.toSeconds(5));
 
-    RdsHostListProvider.clearAll();
+    CoreServicesContainer.getInstance().getStorageService().clearAll();
     TestPluginServiceImpl.clearHostAvailabilityCache();
     HostMonitorThreadContainer.releaseInstance();
     HostMonitorServiceImpl.closeAllMonitors();

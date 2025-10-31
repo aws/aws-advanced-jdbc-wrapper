@@ -45,6 +45,7 @@ import software.amazon.jdbc.hostlistprovider.TopologyUtils;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.ServiceUtility;
@@ -118,6 +119,10 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     this.refreshRateNano = refreshRateNano;
     this.highRefreshRateNano = highRefreshRateNano;
 
+    this.initSettings();
+  }
+
+  protected void initSettings() {
     this.monitoringProperties = PropertyUtils.copyProperties(properties);
     this.properties.stringPropertyNames().stream()
         .filter(p -> p.startsWith(MONITORING_PROPERTY_PREFIX))
@@ -143,11 +148,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   @Override
   public boolean canDispose() {
     return true;
-  }
-
-  @Override
-  public void setClusterId(String clusterId) {
-    this.clusterId = clusterId;
   }
 
   @Override
@@ -526,9 +526,10 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
                       "ClusterTopologyMonitorImpl.writerMonitoringConnection",
                       new Object[]{this.writerHostSpec.get().getHost()}));
             } else {
-              final String nodeId = this.topologyUtils.getInstanceId(this.monitoringConnection.get());
-              if (!StringUtils.isNullOrEmpty(nodeId)) {
-                this.writerHostSpec.set(this.createHost(nodeId, true, 0, null));
+              final Pair<String, String> pair = this.topologyUtils.getInstanceId(this.monitoringConnection.get());
+              if (pair != null) {
+                this.writerHostSpec.set(this.createHost(pair.getValue1(), pair.getValue2(), true, 0, null,
+                    this.getClusterInstanceTemplate(pair.getValue2(), this.monitoringConnection.get())));
                 LOGGER.finest(
                     Messages.get(
                         "ClusterTopologyMonitorImpl.writerMonitoringConnection",
@@ -567,6 +568,35 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     }
 
     return hosts;
+  }
+
+  protected HostSpec getClusterInstanceTemplate(String nodeId, Connection connection) {
+    return this.clusterInstanceTemplate;
+  }
+
+  /**
+  * Identifies nodes across different database types using nodeId and nodeName values.
+  *
+  * <p>Database types handle these identifiers differently:
+  * - Aurora: Uses the instance (node) name as both nodeId and nodeName
+  *   Example: "test-instance-1" for both values
+  * - RDS Cluster: Uses distinct values for nodeId and nodeName
+  *   Example:
+  *      nodeId: "db-WQFQKBTL2LQUPIEFIFBGENS4ZQ"
+  *      nodeName: "test-multiaz-instance-1"
+  */
+  protected Pair<String /* nodeId */, String /* nodeName */> getNodeId(final Connection connection) {
+    try {
+      try (final Statement stmt = connection.createStatement();
+          final ResultSet resultSet = stmt.executeQuery(this.nodeIdQuery)) {
+        if (resultSet.next()) {
+          return Pair.create(resultSet.getString(1), resultSet.getString(2));
+        }
+      }
+    } catch (SQLException ex) {
+      // do nothing
+    }
+    return null;
   }
 
   protected void closeConnection(final @Nullable Connection connection) {
@@ -632,18 +662,21 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   }
 
   protected HostSpec createHost(
+      String nodeId,
       String nodeName,
       final boolean isWriter,
       final long weight,
-      final Timestamp lastUpdateTime) {
+      final Timestamp lastUpdateTime,
+      final HostSpec clusterInstanceTemplate) {
 
     nodeName = nodeName == null ? "?" : nodeName;
-    final String endpoint = getHostEndpoint(nodeName);
-    final int port = this.clusterInstanceTemplate.isPortSpecified()
-        ? this.clusterInstanceTemplate.getPort()
+    final String endpoint = getHostEndpoint(nodeName, clusterInstanceTemplate);
+    final int port = clusterInstanceTemplate.isPortSpecified()
+        ? clusterInstanceTemplate.getPort()
         : this.initialHostSpec.getPort();
 
     final HostSpec hostSpec = this.servicesContainer.getHostListProviderService().getHostSpecBuilder()
+        .hostId(nodeId)
         .host(endpoint)
         .port(port)
         .role(isWriter ? HostRole.WRITER : HostRole.READER)
@@ -656,8 +689,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     return hostSpec;
   }
 
-  protected String getHostEndpoint(final String nodeName) {
-    final String host = this.clusterInstanceTemplate.getHost();
+  protected String getHostEndpoint(final String nodeName, final HostSpec clusterInstanceTemplate) {
+    final String host = clusterInstanceTemplate.getHost();
     return host.replace("?", nodeName);
   }
 
@@ -759,12 +792,12 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
               if (this.monitor.nodeThreadsWriterConnection.get() == null) {
                 // while writer connection isn't yet established this reader connection may update topology
                 if (updateTopology) {
-                  this.readerThreadFetchTopology(connection, writerHostSpec);
+                  this.readerThreadFetchTopology(connection, this.writerHostSpec);
                 } else if (this.monitor.nodeThreadsReaderConnection.get() == null) {
                   if (this.monitor.nodeThreadsReaderConnection.compareAndSet(null, connection)) {
                     // let's use this connection to update topology
                     updateTopology = true;
-                    this.readerThreadFetchTopology(connection, writerHostSpec);
+                    this.readerThreadFetchTopology(connection, this.writerHostSpec);
                   }
                 }
               }

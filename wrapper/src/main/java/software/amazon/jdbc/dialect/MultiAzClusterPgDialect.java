@@ -33,7 +33,12 @@ public class MultiAzClusterPgDialect extends PgDialect implements TopologyDialec
   protected static final String TOPOLOGY_QUERY =
       "SELECT id, endpoint, port FROM rds_tools.show_topology('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
 
-  protected static final String INSTANCE_ID_QUERY = "SELECT dbi_resource_id FROM rds_tools.dbi_resource_id()";
+  // The query return nodeId and nodeName.
+  // For example: "db-WQFQKBTL2LQUPIEFIFBGENS4ZQ", "test-multiaz-instance-1"
+  private static final String INSTANCE_ID_QUERY = "SELECT id, SUBSTRING(endpoint FROM 0 FOR POSITION('.' IN endpoint))"
+      + " FROM rds_tools.show_topology()"
+      + " WHERE id OPERATOR(pg_catalog.=) rds_tools.dbi_resource_id()";
+
   // For reader instances, the query should return a writer instance ID.
   // For a writer instance, the query should return no data.
   protected static final String WRITER_ID_QUERY =

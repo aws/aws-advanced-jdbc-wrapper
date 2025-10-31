@@ -45,6 +45,8 @@ import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
+import software.amazon.jdbc.PluginManagerService;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.wrapper.CallableStatementWrapper;
@@ -55,7 +57,10 @@ import software.amazon.jdbc.wrapper.StatementWrapper;
 public class WrapperUtilsTest {
 
   @Mock ConnectionWrapper mockConnectionWrapper;
+  @Mock FullServicesContainer mockServicesContainer;
   @Mock ConnectionPluginManager mockPluginManager;
+  @Mock PluginService mockPluginService;
+  @Mock PluginManagerService mockPluginManagerService;
   @Mock TelemetryFactory mockTelemetryFactory;
   @Mock TelemetryContext mockTelemetryContext;
   @Mock Object object;
@@ -73,6 +78,10 @@ public class WrapperUtilsTest {
     when(mockPluginManager.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
     when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
+    when(mockConnectionWrapper.getServicesContainer()).thenReturn(mockServicesContainer);
+    when(mockServicesContainer.getConnectionPluginManager()).thenReturn(mockPluginManager);
+    when(mockServicesContainer.getPluginService()).thenReturn(mockPluginService);
+    when(mockServicesContainer.getPluginManagerService()).thenReturn(mockPluginManagerService);
   }
 
   private void mockExecuteReturnValue(Object returnValue) {

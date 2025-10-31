@@ -40,8 +40,9 @@ public class MysqlDialect implements Dialect {
   private static final EnumSet<FailoverRestriction> NO_FAILOVER_RESTRICTIONS =
       EnumSet.noneOf(FailoverRestriction.class);
   private static final List<String> dialectUpdateCandidates = Arrays.asList(
-      DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER,
+      DialectCodes.GLOBAL_AURORA_MYSQL,
       DialectCodes.AURORA_MYSQL,
+      DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER,
       DialectCodes.RDS_MYSQL
   );
 

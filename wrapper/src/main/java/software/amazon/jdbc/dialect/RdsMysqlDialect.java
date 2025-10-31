@@ -36,6 +36,7 @@ public class RdsMysqlDialect extends MysqlDialect implements BlueGreenDialect {
 
   private static final List<String> dialectUpdateCandidates = Arrays.asList(
       DialectCodes.AURORA_MYSQL,
+      DialectCodes.GLOBAL_AURORA_MYSQL,
       DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER);
 
   @Override

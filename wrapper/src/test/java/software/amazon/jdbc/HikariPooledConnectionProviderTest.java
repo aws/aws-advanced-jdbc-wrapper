@@ -141,13 +141,26 @@ class HikariPooledConnectionProviderTest {
     Properties props = new Properties();
     props.setProperty(PropertyDefinition.USER.name, user1);
     props.setProperty(PropertyDefinition.PASSWORD.name, password);
-    try (Connection conn = provider.connect(protocol, mockDialect, mockTargetDriverDialect, mockHostSpec, props)) {
+
+    ConnectionInfo connectionInfo = null;
+    try {
+      connectionInfo =
+          provider.connect(protocol, mockDialect, mockTargetDriverDialect, mockHostSpec, props);
+      Connection conn = connectionInfo.getConnection();
       assertEquals(mockConnection, conn);
       assertEquals(1, provider.getHostCount());
       final Set<String> hosts = provider.getHosts();
       assertEquals(expectedUrls, hosts);
       final Set<Pair> keys = provider.getKeys();
       assertEquals(expectedKeys, keys);
+    } finally {
+      if (connectionInfo != null && connectionInfo.getConnection() != null) {
+        try {
+          connectionInfo.getConnection().close();
+        } catch (Exception ex) {
+          // ignore
+        }
+      }
     }
   }
 
@@ -166,11 +179,24 @@ class HikariPooledConnectionProviderTest {
     Properties props = new Properties();
     props.setProperty(PropertyDefinition.USER.name, user1);
     props.setProperty(PropertyDefinition.PASSWORD.name, password);
-    try (Connection conn = provider.connect(protocol, mockDialect, mockTargetDriverDialect, mockHostSpec, props)) {
+
+    ConnectionInfo connectionInfo = null;
+    try {
+      connectionInfo =
+          provider.connect(protocol, mockDialect, mockTargetDriverDialect, mockHostSpec, props);
+      Connection conn = connectionInfo.getConnection();
       assertEquals(mockConnection, conn);
       assertEquals(1, provider.getHostCount());
       final Set<Pair> keys = provider.getKeys();
       assertEquals(expectedKeys, keys);
+    } finally {
+      if (connectionInfo != null && connectionInfo.getConnection() != null) {
+        try {
+          connectionInfo.getConnection().close();
+        } catch (Exception ex) {
+          // ignore
+        }
+      }
     }
   }
 

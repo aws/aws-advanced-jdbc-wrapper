@@ -39,8 +39,8 @@ import java.lang.reflect.Method;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -187,7 +187,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
               @Override
               public void afterEach(ExtensionContext context) throws Exception {
 
-                Set<TestEnvironmentFeatures> features = TestEnvironment.getCurrent()
+                EnumSet<TestEnvironmentFeatures> features = TestEnvironment.getCurrent()
                     .getInfo()
                     .getRequest()
                     .getFeatures();

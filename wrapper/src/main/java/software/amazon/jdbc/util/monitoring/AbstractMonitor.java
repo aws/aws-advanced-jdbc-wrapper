@@ -92,7 +92,6 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
       Thread.currentThread().interrupt();
       this.monitorExecutor.shutdownNow();
     } finally {
-      // TODO: Should this be removed? close() should be called in the run() method finally block
       close();
       this.state.set(MonitorState.STOPPED);
     }

@@ -268,7 +268,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
 
   private void getNewWriterConnection(final HostSpec writerHostSpec) throws SQLException {
     final Connection conn = this.pluginService.connect(writerHostSpec, this.properties, this);
-    this.isWriterConnFromInternalPool = this.pluginService.isPooledConnectionProvider(writerHostSpec, this.properties);
+    this.isWriterConnFromInternalPool = Boolean.TRUE.equals(this.pluginService.isPooledConnection());
     setWriterConnection(conn, writerHostSpec);
     switchCurrentConnectionTo(this.writerConnection, writerHostSpec);
   }
@@ -492,7 +492,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       HostSpec hostSpec = this.pluginService.getHostSpecByStrategy(HostRole.READER, this.readerSelectorStrategy);
       try {
         conn = this.pluginService.connect(hostSpec, this.properties, this);
-        this.isReaderConnFromInternalPool = this.pluginService.isPooledConnectionProvider(hostSpec, this.properties);
+        this.isReaderConnFromInternalPool = Boolean.TRUE.equals(this.pluginService.isPooledConnection());
         readerHost = hostSpec;
         break;
       } catch (final SQLException e) {
