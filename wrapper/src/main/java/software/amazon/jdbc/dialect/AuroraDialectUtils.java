@@ -79,7 +79,6 @@ public class AuroraDialectUtils {
 
     // Calculate weight based on instance lag in time and CPU utilization.
     final long weight = Math.round(instanceLag) * 100L + Math.round(cpuUtilization);
-
     return new TopologyQueryHostSpec(hostName, isWriter, weight, lastUpdateTime);
   }
 

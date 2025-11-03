@@ -49,7 +49,6 @@ import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.ServiceUtility;
-import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
@@ -119,10 +118,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     this.refreshRateNano = refreshRateNano;
     this.highRefreshRateNano = highRefreshRateNano;
 
-    this.initSettings();
-  }
-
-  protected void initSettings() {
     this.monitoringProperties = PropertyUtils.copyProperties(properties);
     this.properties.stringPropertyNames().stream()
         .filter(p -> p.startsWith(MONITORING_PROPERTY_PREFIX))
@@ -574,31 +569,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     return this.clusterInstanceTemplate;
   }
 
-  /**
-  * Identifies nodes across different database types using nodeId and nodeName values.
-  *
-  * <p>Database types handle these identifiers differently:
-  * - Aurora: Uses the instance (node) name as both nodeId and nodeName
-  *   Example: "test-instance-1" for both values
-  * - RDS Cluster: Uses distinct values for nodeId and nodeName
-  *   Example:
-  *      nodeId: "db-WQFQKBTL2LQUPIEFIFBGENS4ZQ"
-  *      nodeName: "test-multiaz-instance-1"
-  */
-  protected Pair<String /* nodeId */, String /* nodeName */> getNodeId(final Connection connection) {
-    try {
-      try (final Statement stmt = connection.createStatement();
-          final ResultSet resultSet = stmt.executeQuery(this.nodeIdQuery)) {
-        if (resultSet.next()) {
-          return Pair.create(resultSet.getString(1), resultSet.getString(2));
-        }
-      }
-    } catch (SQLException ex) {
-      // do nothing
-    }
-    return null;
-  }
-
   protected void closeConnection(final @Nullable Connection connection) {
     try {
       if (connection != null && !connection.isClosed()) {
@@ -638,7 +608,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       return null;
     }
     try {
-      final List<HostSpec> hosts = this.topologyUtils.queryForTopology(connection);
+      final List<HostSpec> hosts = this.queryForTopology(connection);
       if (!Utils.isNullOrEmpty(hosts)) {
         this.updateTopologyCache(hosts);
       }
@@ -647,6 +617,10 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       LOGGER.finest(Messages.get("ClusterTopologyMonitorImpl.errorFetchingTopology", new Object[]{ex}));
     }
     return null;
+  }
+
+  protected List<HostSpec> queryForTopology(Connection connection) throws SQLException {
+    return this.topologyUtils.queryForTopology(connection, this.clusterInstanceTemplate);
   }
 
   protected void updateTopologyCache(final @NonNull List<HostSpec> hosts) {
@@ -822,7 +796,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
       List<HostSpec> hosts;
       try {
-        hosts = this.monitor.topologyUtils.queryForTopology(connection);
+        hosts = this.monitor.topologyUtils.queryForTopology(connection, this.monitor.clusterInstanceTemplate);
         if (hosts == null) {
           return;
         }

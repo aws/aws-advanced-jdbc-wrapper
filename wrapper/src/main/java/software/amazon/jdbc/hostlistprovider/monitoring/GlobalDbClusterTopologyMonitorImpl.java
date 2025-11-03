@@ -58,10 +58,10 @@ public class GlobalDbClusterTopologyMonitorImpl extends ClusterTopologyMonitorIm
   }
 
   @Override
-  protected HostSpec getClusterInstanceTemplate(String nodeId, Connection connection) {
+  protected HostSpec getClusterInstanceTemplate(String instanceId, Connection connection) {
     try {
       try (final PreparedStatement stmt = connection.prepareStatement(this.regionByNodeIdQuery)) {
-        stmt.setString(1, nodeId);
+        stmt.setString(1, instanceId);
         try (final ResultSet resultSet = stmt.executeQuery()) {
           if (resultSet.next()) {
             String awsRegion = resultSet.getString(1);
@@ -80,32 +80,5 @@ public class GlobalDbClusterTopologyMonitorImpl extends ClusterTopologyMonitorIm
       throw new RuntimeException(ex);
     }
     return this.clusterInstanceTemplate;
-  }
-
-  @Override
-  protected HostSpec createHost(
-      final ResultSet resultSet,
-      final String suggestedWriterNodeId) throws SQLException {
-
-    // suggestedWriterNodeId is not used for Aurora Global Database clusters.
-    // Topology query can detect a writer for itself.
-
-    // According to the topology query the result set
-    // should contain 4 columns: node ID, 1/0 (writer/reader), node lag in time (msec), AWS region.
-    String hostName = resultSet.getString(1);
-    final boolean isWriter = resultSet.getBoolean(2);
-    final float nodeLag = resultSet.getFloat(3);
-    final String awsRegion = resultSet.getString(4);
-
-    // Calculate weight based on node lag in time and CPU utilization.
-    final long weight = Math.round(nodeLag) * 100L;
-
-    final HostSpec clusterInstanceTemplateForRegion = this.globalClusterInstanceTemplateByAwsRegion.get(awsRegion);
-    if (clusterInstanceTemplateForRegion == null) {
-      throw new SQLException("Can't find cluster template for region " + awsRegion);
-    }
-
-    return createHost(
-        hostName, hostName, isWriter, weight, Timestamp.from(Instant.now()), clusterInstanceTemplateForRegion);
   }
 }

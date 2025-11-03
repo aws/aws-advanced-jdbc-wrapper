@@ -29,72 +29,54 @@ import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 
 public class GlobalAuroraMysqlDialect extends AuroraMysqlDialect {
 
-  protected final String globalDbStatusTableExistQuery =
+  protected final String GLOBAL_STATUS_TABLE_EXISTS_QUERY =
       "SELECT 1 AS tmp FROM information_schema.tables WHERE"
           + " upper(table_schema) = 'INFORMATION_SCHEMA' AND upper(table_name) = 'AURORA_GLOBAL_DB_STATUS'";
-
-  protected final String globalDbStatusQuery =
-      "SELECT count(1) FROM information_schema.aurora_global_db_status";
-
-  protected final String globalDbInstanceStatusTableExistQuery =
+  protected final String GLOBAL_INSTANCE_STATUS_EXISTS_QUERY =
       "SELECT 1 AS tmp FROM information_schema.tables WHERE"
           + " upper(table_schema) = 'INFORMATION_SCHEMA' AND upper(table_name) = 'AURORA_GLOBAL_DB_INSTANCE_STATUS'";
 
-  protected final String globalTopologyQuery =
+  protected final String GLOBAL_TOPOLOGY_QUERY =
       "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
           + "VISIBILITY_LAG_IN_MSEC, AWS_REGION "
           + "FROM information_schema.aurora_global_db_instance_status ";
 
-  protected final String regionByNodeIdQuery =
+  protected final String REGION_COUNT_QUERY = "SELECT count(1) FROM information_schema.aurora_global_db_status";
+  protected final String REGION_BY_INSTANCE_ID_QUERY =
       "SELECT AWS_REGION FROM information_schema.aurora_global_db_instance_status WHERE SERVER_ID = ?";
+
+  public GlobalAuroraMysqlDialect() {
+    super(new GlobalAuroraDialectUtils(WRITER_ID_QUERY));
+  }
 
   @Override
   public boolean isDialect(final Connection connection) {
-    Statement stmt = null;
-    ResultSet rs = null;
     try {
-      stmt = connection.createStatement();
-      rs = stmt.executeQuery(this.globalDbStatusTableExistQuery);
+      try (Statement stmt = connection.createStatement();
+           ResultSet rs = stmt.executeQuery(this.GLOBAL_STATUS_TABLE_EXISTS_QUERY)) {
+        if (!rs.next()) {
+          return false;
+        }
+      }
 
-      if (rs.next()) {
-        rs.close();
-        stmt.close();
+      try (Statement stmt = connection.createStatement();
+           ResultSet rs = stmt.executeQuery(this.GLOBAL_INSTANCE_STATUS_EXISTS_QUERY)) {
+        if (!rs.next()) {
+          return false;
+        }
+      }
 
-        stmt = connection.createStatement();
-        rs = stmt.executeQuery(this.globalDbInstanceStatusTableExistQuery);
-
+      try (Statement stmt = connection.createStatement();
+           ResultSet rs = stmt.executeQuery(this.REGION_COUNT_QUERY)) {
         if (rs.next()) {
-          rs.close();
-          stmt.close();
-
-          stmt = connection.createStatement();
-          rs = stmt.executeQuery(this.globalDbStatusQuery);
-
-          if (rs.next()) {
-            int awsRegionCount = rs.getInt(1);
-            return awsRegionCount > 1;
-          }
+          int awsRegionCount = rs.getInt(1);
+          return awsRegionCount > 1;
         }
       }
-      return false;
     } catch (final SQLException ex) {
-      // ignore
-    } finally {
-      if (rs != null) {
-        try {
-          rs.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
-      if (stmt != null) {
-        try {
-          stmt.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
+      return false;
     }
+
     return false;
   }
 
@@ -104,27 +86,14 @@ public class GlobalAuroraMysqlDialect extends AuroraMysqlDialect {
   }
 
   @Override
-  public HostListProviderSupplier getHostListProvider() {
+  public HostListProviderSupplier getHostListProviderSupplier() {
     return (properties, initialUrl, servicesContainer) -> {
       final PluginService pluginService = servicesContainer.getPluginService();
       if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {
-        return new AuroraGlobalDbMonitoringHostListProvider(
-            properties,
-            initialUrl,
-            servicesContainer,
-            this.globalTopologyQuery,
-            this.nodeIdQuery,
-            this.isReaderQuery,
-            this.isWriterQuery,
-            this.regionByNodeIdQuery);
+        return new AuroraGlobalDbMonitoringHostListProvider(this, properties, initialUrl, servicesContainer);
       }
-      return new AuroraGlobalDbHostListProvider(
-          properties,
-          initialUrl,
-          servicesContainer,
-          this.globalTopologyQuery,
-          this.nodeIdQuery,
-          this.isReaderQuery);
+
+      return new AuroraGlobalDbHostListProvider(this, properties, initialUrl, servicesContainer);
     };
   }
 }

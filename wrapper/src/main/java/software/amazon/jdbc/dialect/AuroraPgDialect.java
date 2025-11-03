@@ -65,7 +65,17 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
 
   private static final Logger LOGGER = Logger.getLogger(AuroraPgDialect.class.getName());
 
-  protected final AuroraDialectUtils dialectUtils = new AuroraDialectUtils(WRITER_ID_QUERY);
+  protected final AuroraDialectUtils dialectUtils;
+
+  public AuroraPgDialect() {
+    super();
+    this.dialectUtils = new AuroraDialectUtils(WRITER_ID_QUERY);
+  }
+
+  public AuroraPgDialect(AuroraDialectUtils dialectUtils) {
+    super();
+    this.dialectUtils = dialectUtils;
+  }
 
   @Override
   public boolean isDialect(final Connection connection) {

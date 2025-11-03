@@ -28,6 +28,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.dialect.TopologyDialect;
 import software.amazon.jdbc.hostlistprovider.AuroraGlobalDbHostListProvider;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.FullServicesContainer;
@@ -44,21 +45,18 @@ public class AuroraGlobalDbMonitoringHostListProvider extends MonitoringRdsHostL
 
   protected final RdsUtils rdsUtils = new RdsUtils();
 
-  protected String regionByNodeIdQuery;
-
   static {
     // Register property definition in AuroraGlobalDbHostListProvider class. It's not a mistake.
     PropertyDefinition.registerPluginProperties(AuroraGlobalDbHostListProvider.class);
   }
 
-  public AuroraGlobalDbMonitoringHostListProvider(Properties properties, String originalUrl,
-      final FullServicesContainer servicesContainer, String globalTopologyQuery,
-      String nodeIdQuery, String isReaderQuery, String writerTopologyQuery,
-      String regionByNodeIdQuery) {
+  public AuroraGlobalDbMonitoringHostListProvider(
+      TopologyDialect dialect,
+      Properties properties,
+      String originalUrl,
+      FullServicesContainer servicesContainer) {
 
-    super(properties, originalUrl, servicesContainer, globalTopologyQuery, nodeIdQuery, isReaderQuery,
-        writerTopologyQuery);
-    this.regionByNodeIdQuery = regionByNodeIdQuery;
+    super(dialect, properties, originalUrl, servicesContainer);
   }
 
   @Override
@@ -101,11 +99,7 @@ public class AuroraGlobalDbMonitoringHostListProvider extends MonitoringRdsHostL
                 this.clusterInstanceTemplate,
                 this.refreshRateNano,
                 this.highRefreshRateNano,
-                this.topologyQuery,
-                this.writerTopologyQuery,
-                this.nodeIdQuery,
-                this.globalClusterInstanceTemplateByAwsRegion,
-                this.regionByNodeIdQuery));
+                this.globalClusterInstanceTemplateByAwsRegion));
   }
 
 }

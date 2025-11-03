@@ -39,7 +39,7 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect,
           + "WHERE time_to_sec(timediff(now(), LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' ";
 
   protected static final String INSTANCE_ID_QUERY = "SELECT @@aurora_server_id";
-  protected static final String IS_WRITER_QUERY =
+  protected static final String WRITER_ID_QUERY =
       "SELECT SERVER_ID FROM information_schema.replica_host_status "
           + "WHERE SESSION_ID = 'MASTER_SESSION_ID' AND SERVER_ID = @@aurora_server_id";
   protected static final String IS_READER_QUERY = "SELECT @@innodb_read_only";
@@ -49,7 +49,17 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect,
           + " table_schema = 'mysql' AND table_name = 'rds_topology'";
   protected static final String BG_STATUS_QUERY =  "SELECT * FROM mysql.rds_topology";
 
-  protected final AuroraDialectUtils dialectUtils = new AuroraDialectUtils(IS_WRITER_QUERY);
+  protected final AuroraDialectUtils dialectUtils;
+
+  public AuroraMysqlDialect() {
+    super();
+    this.dialectUtils = new AuroraDialectUtils(WRITER_ID_QUERY);
+  }
+
+  public AuroraMysqlDialect(AuroraDialectUtils dialectUtils) {
+    super();
+    this.dialectUtils = dialectUtils;
+  }
 
   @Override
   public boolean isDialect(final Connection connection) {

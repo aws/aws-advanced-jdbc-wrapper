@@ -25,6 +25,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -36,7 +37,9 @@ import software.amazon.jdbc.dialect.TopologyDialect;
 import software.amazon.jdbc.dialect.TopologyQueryHostSpec;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.SynchronousExecutor;
+import software.amazon.jdbc.util.Utils;
 
 public class TopologyUtils {
   private static final Logger LOGGER = Logger.getLogger(TopologyUtils.class.getName());
@@ -44,22 +47,77 @@ public class TopologyUtils {
 
   protected final Executor networkTimeoutExecutor = new SynchronousExecutor();
   protected final TopologyDialect dialect;
-  protected final HostSpec clusterInstanceTemplate;
   protected final HostSpec initialHostSpec;
   protected final HostSpecBuilder hostSpecBuilder;
 
   public TopologyUtils(
       TopologyDialect dialect,
-      HostSpec clusterInstanceTemplate,
       HostSpec initialHostSpec,
       HostSpecBuilder hostSpecBuilder) {
     this.dialect = dialect;
-    this.clusterInstanceTemplate = clusterInstanceTemplate;
     this.initialHostSpec = initialHostSpec;
     this.hostSpecBuilder = hostSpecBuilder;
   }
 
-  public @Nullable List<HostSpec> queryForTopology(Connection conn) throws SQLException {
+  public @Nullable List<HostSpec> queryForTopology(Connection conn, HostSpec hostTemplate) throws SQLException {
+    int networkTimeout = setNetworkTimeout(conn);
+    try (final Statement stmt = conn.createStatement();
+         final ResultSet resultSet = stmt.executeQuery(this.dialect.getTopologyQuery())) {
+      List<HostSpec> hosts = new ArrayList<>();
+      List<TopologyQueryHostSpec> queryHosts = this.dialect.processTopologyResults(conn, resultSet);
+      if (Utils.isNullOrEmpty(queryHosts)) {
+        return null;
+      }
+
+      for (TopologyQueryHostSpec queryHost : queryHosts) {
+        hosts.add(this.toHostspec(queryHost, hostTemplate));
+      }
+
+      return this.verifyWriter(hosts);
+    } catch (final SQLSyntaxErrorException e) {
+      throw new SQLException(Messages.get("TopologyUtils.invalidQuery"), e);
+    } finally {
+      if (networkTimeout == 0 && !conn.isClosed()) {
+        conn.setNetworkTimeout(networkTimeoutExecutor, networkTimeout);
+      }
+    }
+  }
+
+  public @Nullable List<HostSpec> queryForTopology(Connection conn, Map<String, HostSpec> hostTemplateByRegion) throws SQLException {
+    int networkTimeout = setNetworkTimeout(conn);
+    try (final Statement stmt = conn.createStatement();
+         final ResultSet resultSet = stmt.executeQuery(this.dialect.getTopologyQuery())) {
+      List<HostSpec> hosts = new ArrayList<>();
+      List<TopologyQueryHostSpec> queryHosts = this.dialect.processTopologyResults(conn, resultSet);
+      if (Utils.isNullOrEmpty(queryHosts)) {
+        return null;
+      }
+
+      for (TopologyQueryHostSpec queryHost : queryHosts) {
+        String region = queryHost.getRegion();
+        if (region == null) {
+          throw new SQLException("");
+        }
+
+        HostSpec template = hostTemplateByRegion.get(region);
+        if (template == null) {
+          throw new SQLException("");
+        }
+
+        hosts.add(this.toHostspec(queryHost, template));
+      }
+
+      return this.verifyWriter(hosts);
+    } catch (final SQLSyntaxErrorException e) {
+      throw new SQLException(Messages.get("TopologyUtils.invalidQuery"), e);
+    } finally {
+      if (networkTimeout == 0 && !conn.isClosed()) {
+        conn.setNetworkTimeout(networkTimeoutExecutor, networkTimeout);
+      }
+    }
+  }
+
+  private int setNetworkTimeout(Connection conn) {
     int networkTimeout = -1;
     try {
       networkTimeout = conn.getNetworkTimeout();
@@ -71,32 +129,17 @@ public class TopologyUtils {
       LOGGER.warning(() -> Messages.get("TopologyUtils.errorGettingNetworkTimeout",
           new Object[] {e.getMessage()}));
     }
-
-    try (final Statement stmt = conn.createStatement();
-         final ResultSet resultSet = stmt.executeQuery(this.dialect.getTopologyQuery())) {
-      List<TopologyQueryHostSpec> queryHosts = this.dialect.processTopologyResults(conn, resultSet);
-      return this.processTopologyResults(queryHosts);
-    } catch (final SQLSyntaxErrorException e) {
-      throw new SQLException(Messages.get("TopologyUtils.invalidQuery"), e);
-    } finally {
-      if (networkTimeout == 0 && !conn.isClosed()) {
-        conn.setNetworkTimeout(networkTimeoutExecutor, networkTimeout);
-      }
-    }
+    return networkTimeout;
   }
 
-  protected @Nullable List<HostSpec> processTopologyResults(@Nullable List<TopologyQueryHostSpec> queryHosts) {
-    if (queryHosts == null) {
-      return null;
-    }
-
+  protected @Nullable List<HostSpec> verifyWriter(List<HostSpec> allHosts) {
     List<HostSpec> hosts = new ArrayList<>();
     List<HostSpec> writers = new ArrayList<>();
-    for (TopologyQueryHostSpec queryHost : queryHosts) {
-      if (queryHost.isWriter()) {
-        writers.add(this.toHostspec(queryHost));
+    for (HostSpec host : allHosts) {
+      if (HostRole.WRITER == host.getRole()) {
+        writers.add(host);
       } else {
-        hosts.add(this.toHostspec(queryHost));
+        hosts.add(host);
       }
     }
 
@@ -117,11 +160,11 @@ public class TopologyUtils {
     return hosts;
   }
 
-  protected HostSpec toHostspec(TopologyQueryHostSpec queryHost) {
+  protected HostSpec toHostspec(TopologyQueryHostSpec queryHost, HostSpec hostTemplate) {
     final String instanceId = queryHost.getInstanceId() == null ? "?" : queryHost.getInstanceId();
-    final String endpoint = this.clusterInstanceTemplate.getHost().replace("?", instanceId);
-    final int port = this.clusterInstanceTemplate.isPortSpecified()
-        ? this.clusterInstanceTemplate.getPort()
+    final String endpoint = hostTemplate.getHost().replace("?", instanceId);
+    final int port = hostTemplate.isPortSpecified()
+        ? hostTemplate.getPort()
         : this.initialHostSpec.getPort();
 
     final HostSpec hostSpec = this.hostSpecBuilder
@@ -137,12 +180,23 @@ public class TopologyUtils {
     return hostSpec;
   }
 
-  public @Nullable String getInstanceId(final Connection connection) {
+  /**
+   * Identifies instances across different database types using instanceId and instanceName values.
+   *
+   * <p>Database types handle these identifiers differently:
+   * - Aurora: Uses the instance name as both instanceId and instanceName
+   *   Example: "test-instance-1" for both values
+   * - RDS Cluster: Uses distinct values for instanceId and instanceName
+   *   Example:
+   *      instanceId: "db-WQFQKBTL2LQUPIEFIFBGENS4ZQ"
+   *      instanceName: "test-multiaz-instance-1"
+   */
+  public @Nullable Pair<String /* instanceId */, String /* instanceName */> getInstanceId(final Connection connection) {
     try {
       try (final Statement stmt = connection.createStatement();
            final ResultSet resultSet = stmt.executeQuery(this.dialect.getInstanceIdQuery())) {
         if (resultSet.next()) {
-          return resultSet.getString(1);
+          return Pair.create(resultSet.getString(1), resultSet.getString(2));
         }
       }
     } catch (SQLException ex) {

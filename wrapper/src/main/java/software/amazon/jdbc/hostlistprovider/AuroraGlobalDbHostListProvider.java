@@ -26,16 +26,17 @@ import java.util.Properties;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import software.amazon.jdbc.AwsWrapperProperty;
-import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.dialect.TopologyDialect;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 
-public class AuroraGlobalDbHostListProvider extends AuroraHostListProvider {
+public class AuroraGlobalDbHostListProvider extends RdsHostListProvider {
 
   static final Logger LOGGER = Logger.getLogger(AuroraGlobalDbHostListProvider.class.getName());
 
@@ -57,10 +58,9 @@ public class AuroraGlobalDbHostListProvider extends AuroraHostListProvider {
     PropertyDefinition.registerPluginProperties(AuroraGlobalDbHostListProvider.class);
   }
 
-  public AuroraGlobalDbHostListProvider(Properties properties, String originalUrl,
-      final FullServicesContainer servicesContainer, String topologyQuery,
-      String nodeIdQuery, String isReaderQuery) {
-    super(properties, originalUrl, servicesContainer, topologyQuery, nodeIdQuery, isReaderQuery);
+  public AuroraGlobalDbHostListProvider(
+      TopologyDialect dialect, Properties properties, String originalUrl, FullServicesContainer servicesContainer) {
+    super(dialect, properties, originalUrl, servicesContainer);
   }
 
   @Override
@@ -76,7 +76,7 @@ public class AuroraGlobalDbHostListProvider extends AuroraHostListProvider {
     this.globalClusterInstanceTemplateByAwsRegion = Arrays.stream(templates.split(","))
         .map(x -> ConnectionUrlParser.parseHostPortPairWithRegionPrefix(x.trim(), () -> hostSpecBuilder))
         .collect(Collectors.toMap(
-            k -> k.getValue1(),
+            Pair::getValue1,
             v -> {
               this.validateHostPatternSetting(v.getValue2().getHost());
               return v.getValue2();
@@ -86,29 +86,5 @@ public class AuroraGlobalDbHostListProvider extends AuroraHostListProvider {
         .map(x -> String.format("\t[%s] -> %s", x.getKey(), x.getValue().getHostAndPort()))
         .collect(Collectors.joining("\n"))
     );
-  }
-
-  @Override
-  protected HostSpec createHost(final ResultSet resultSet) throws SQLException {
-
-    // suggestedWriterNodeId is not used for Aurora Global Database clusters.
-    // Topology query can detect a writer for itself.
-
-    // According to the topology query the result set
-    // should contain 4 columns: node ID, 1/0 (writer/reader), node lag in time (msec), AWS region.
-    String hostName = resultSet.getString(1);
-    final boolean isWriter = resultSet.getBoolean(2);
-    final float nodeLag = resultSet.getFloat(3);
-    final String awsRegion = resultSet.getString(4);
-
-    // Calculate weight based on node lag in time and CPU utilization.
-    final long weight = Math.round(nodeLag) * 100L;
-
-    final HostSpec clusterInstanceTemplateForRegion = this.globalClusterInstanceTemplateByAwsRegion.get(awsRegion);
-    if (clusterInstanceTemplateForRegion == null) {
-      throw new SQLException("Can't find cluster template for region " + awsRegion);
-    }
-
-    return createHost(hostName, isWriter, weight, Timestamp.from(Instant.now()), clusterInstanceTemplateForRegion);
   }
 }

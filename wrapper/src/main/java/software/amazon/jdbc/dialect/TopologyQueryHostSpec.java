@@ -17,18 +17,26 @@
 package software.amazon.jdbc.dialect;
 
 import java.sql.Timestamp;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class TopologyQueryHostSpec {
   private final String instanceId;
   private final boolean isWriter;
   private final long weight;
   private final Timestamp lastUpdateTime;
+  private final @Nullable String region;
 
   public TopologyQueryHostSpec(String instanceId, boolean isWriter, long weight, Timestamp lastUpdateTime) {
+    this(instanceId, isWriter, weight, lastUpdateTime, null);
+  }
+
+  public TopologyQueryHostSpec(
+      String instanceId, boolean isWriter, long weight, Timestamp lastUpdateTime, @Nullable String region) {
     this.instanceId = instanceId;
     this.isWriter = isWriter;
     this.weight = weight;
     this.lastUpdateTime = lastUpdateTime;
+    this.region = region;
   }
 
   public String getInstanceId() {
@@ -45,5 +53,9 @@ public class TopologyQueryHostSpec {
 
   public Timestamp getLastUpdateTime() {
     return lastUpdateTime;
+  }
+
+  public @Nullable String getRegion() {
+    return this.region;
   }
 }
