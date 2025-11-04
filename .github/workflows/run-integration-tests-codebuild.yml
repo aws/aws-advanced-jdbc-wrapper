@@ -44,7 +44,7 @@ jobs:
           ./gradlew --no-parallel --no-daemon test-rds-proxy-${{ matrix.environment }}-aurora
         env:
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
-          RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          RDS_DB_REGION: ${{ secrets.RDS_PROXY_REGION }}
           AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
           AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}
           AWS_SESSION_TOKEN: ${{ steps.creds.outputs.aws-session-token }}
