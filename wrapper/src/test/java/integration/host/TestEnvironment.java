@@ -448,6 +448,29 @@ public class TestEnvironment implements AutoCloseable {
       env.info.setRdsProxyReadWriteEndpoint(readWriteEndpoint);
       env.info.setRdsProxyReadOnlyEndpoint(readOnlyEndpoint);
 
+      // Debug network connectivity
+      LOGGER.info("=== PROXY DEBUG: RW=" + readWriteEndpoint + " RO=" + readOnlyEndpoint + " ===");
+      try {
+        java.net.InetAddress.getByName(readOnlyEndpoint.split(":")[0]);
+        LOGGER.info("DNS OK for read-only endpoint");
+      } catch (Exception e) {
+        LOGGER.warning("DNS FAILED for read-only endpoint: " + e.getMessage());
+      }
+
+      // Authorize CodeBuild IP for RDS Proxy security groups
+      if (env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED)) {
+        if (env.runnerIP == null) {
+          try {
+            env.runnerIP = env.auroraUtil.getPublicIPAddress();
+          } catch (UnknownHostException e) {
+            LOGGER.warning("Failed to get runner IP address: " + e.getMessage());
+          }
+        }
+        if (env.runnerIP != null) {
+          env.auroraUtil.ec2AuthorizeIPForSecurityGroups(env.runnerIP, vpcIds[0]);
+        }
+      }
+
       return;
     }
 
@@ -1568,6 +1591,13 @@ public class TestEnvironment implements AutoCloseable {
   private void deleteRdsDbProxy() {
     if (!this.reuseDb && this.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.RDS_PROXY)) {
       LOGGER.finest("Deleting RDS Proxy " + this.rdsDbProxyName);
+
+      // Clean up IP authorization from security groups
+      if (this.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED) && this.runnerIP != null) {
+        List<String>[] vpcIds = auroraUtil.getVpcIds(this.rdsDbName);
+        auroraUtil.ec2RevokeIPForSecurityGroups(this.runnerIP, vpcIds[0]);
+      }
+
       auroraUtil.deleteRdsProxy(this.rdsDbProxyName);
       auroraUtil.deleteRdsProxySecret(this.rdsDbProxySecretName);
       LOGGER.finest("Deleted RDS Proxy " + this.rdsDbProxyName);

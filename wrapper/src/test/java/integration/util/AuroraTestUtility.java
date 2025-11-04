@@ -720,6 +720,73 @@ public class AuroraTestUtility {
     }
   }
 
+  /**
+   * Adds the given IP address to specific security groups for RDS Proxy access.
+   *
+   * @param ipAddress the IP address to add to security groups
+   * @param securityGroupIds the security group IDs to authorize
+   */
+  public void ec2AuthorizeIPForSecurityGroups(String ipAddress, List<String> securityGroupIds) {
+    if (StringUtils.isNullOrEmpty(ipAddress) || securityGroupIds == null || securityGroupIds.isEmpty()) {
+      return;
+    }
+
+    IpRange ipRange = IpRange.builder()
+        .cidrIp(ipAddress + "/32")
+        .description("Test run at " + Instant.now())
+        .build();
+    IpPermission ipPermission = IpPermission.builder()
+        .ipRanges(ipRange)
+        .ipProtocol("tcp")
+        .fromPort(5432)
+        .toPort(5432)
+        .build();
+
+    for (String securityGroupId : securityGroupIds) {
+      try {
+        ec2Client.authorizeSecurityGroupIngress(
+            (builder) -> builder.groupId(securityGroupId).ipPermissions(ipPermission));
+        LOGGER.finest("Authorized IP " + ipAddress + " for security group " + securityGroupId);
+      } catch (Ec2Exception exception) {
+        if (!DUPLICATE_IP_ERROR_CODE.equalsIgnoreCase(exception.awsErrorDetails().errorCode())) {
+          LOGGER.warning("Failed to authorize IP for security group " + securityGroupId + ": " + exception.getMessage());
+        }
+      }
+    }
+  }
+
+  /**
+   * Removes the given IP address from specific security groups.
+   *
+   * @param ipAddress the IP address to remove from security groups
+   * @param securityGroupIds the security group IDs to revoke access from
+   */
+  public void ec2RevokeIPForSecurityGroups(String ipAddress, List<String> securityGroupIds) {
+    if (StringUtils.isNullOrEmpty(ipAddress) || securityGroupIds == null || securityGroupIds.isEmpty()) {
+      return;
+    }
+
+    IpRange ipRange = IpRange.builder()
+        .cidrIp(ipAddress + "/32")
+        .build();
+    IpPermission ipPermission = IpPermission.builder()
+        .ipRanges(ipRange)
+        .ipProtocol("tcp")
+        .fromPort(5432)
+        .toPort(5432)
+        .build();
+
+    for (String securityGroupId : securityGroupIds) {
+      try {
+        ec2Client.revokeSecurityGroupIngress(
+            (builder) -> builder.groupId(securityGroupId).ipPermissions(ipPermission));
+        LOGGER.finest("Revoked IP " + ipAddress + " from security group " + securityGroupId);
+      } catch (Ec2Exception exception) {
+        LOGGER.warning("Failed to revoke IP from security group " + securityGroupId + ": " + exception.getMessage());
+      }
+    }
+  }
+
   private boolean ipExists(String ipAddress) {
     final DescribeSecurityGroupsResponse response =
         ec2Client.describeSecurityGroups(
