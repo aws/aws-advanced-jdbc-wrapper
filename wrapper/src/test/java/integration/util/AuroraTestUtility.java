@@ -477,6 +477,7 @@ public class AuroraTestUtility {
             .allocatedStorage(DEFAULT_ALLOCATED_STORAGE)
             .dbClusterInstanceClass(instanceClass)
             .storageType(DEFAULT_STORAGE_TYPE)
+            .enableIAMDatabaseAuthentication(true)
             .iops(DEFAULT_IOPS);
 
     rdsClient.createDBCluster(clusterBuilder.build());
@@ -1828,6 +1829,15 @@ public class AuroraTestUtility {
           default:
             throw new UnsupportedOperationException(databaseEngine.toString());
         }
+      case RDS_MULTI_AZ_INSTANCE:
+        switch (databaseEngine) {
+          case MYSQL:
+            return "SELECT @@server_id AS id";
+          case PG:
+            return "SELECT dbi_resource_id AS id FROM rds_tools.dbi_resource_id()";
+          default:
+            throw new UnsupportedOperationException(databaseEngine.toString());
+        }
       default:
         throw new UnsupportedOperationException(deployment.toString());
     }
@@ -1901,6 +1911,7 @@ public class AuroraTestUtility {
           } else {
             stmt.execute("GRANT ALL PRIVILEGES ON `%`.* TO '" + dbUser + "'@'%';");
           }
+          stmt.execute("GRANT REPLICATION CLIENT ON *.* TO '" + dbUser + "'@'%';");
 
           // BG switchover status needs it.
           stmt.execute("GRANT SELECT ON mysql.* TO '" + dbUser + "'@'%';");
