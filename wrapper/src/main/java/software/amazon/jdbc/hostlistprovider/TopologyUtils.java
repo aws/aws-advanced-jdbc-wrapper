@@ -41,7 +41,7 @@ import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
 
-public class TopologyUtils {
+public abstract class TopologyUtils {
   private static final Logger LOGGER = Logger.getLogger(TopologyUtils.class.getName());
   protected static final int DEFAULT_QUERY_TIMEOUT_MS = 1000;
 
@@ -63,17 +63,7 @@ public class TopologyUtils {
     int networkTimeout = setNetworkTimeout(conn);
     try (final Statement stmt = conn.createStatement();
          final ResultSet resultSet = stmt.executeQuery(this.dialect.getTopologyQuery())) {
-      List<HostSpec> hosts = new ArrayList<>();
-      List<TopologyQueryHostSpec> queryHosts = this.dialect.processTopologyResults(conn, resultSet);
-      if (Utils.isNullOrEmpty(queryHosts)) {
-        return null;
-      }
-
-      for (TopologyQueryHostSpec queryHost : queryHosts) {
-        hosts.add(this.toHostspec(queryHost, hostTemplate));
-      }
-
-      return this.verifyWriter(hosts);
+      return this.verifyWriter(this.getHosts(conn, resultSet, hostTemplate));
     } catch (final SQLSyntaxErrorException e) {
       throw new SQLException(Messages.get("TopologyUtils.invalidQuery"), e);
     } finally {
@@ -83,41 +73,7 @@ public class TopologyUtils {
     }
   }
 
-  public @Nullable List<HostSpec> queryForTopology(Connection conn, Map<String, HostSpec> hostTemplateByRegion) throws SQLException {
-    int networkTimeout = setNetworkTimeout(conn);
-    try (final Statement stmt = conn.createStatement();
-         final ResultSet resultSet = stmt.executeQuery(this.dialect.getTopologyQuery())) {
-      List<HostSpec> hosts = new ArrayList<>();
-      List<TopologyQueryHostSpec> queryHosts = this.dialect.processTopologyResults(conn, resultSet);
-      if (Utils.isNullOrEmpty(queryHosts)) {
-        return null;
-      }
-
-      for (TopologyQueryHostSpec queryHost : queryHosts) {
-        String region = queryHost.getRegion();
-        if (region == null) {
-          throw new SQLException("");
-        }
-
-        HostSpec template = hostTemplateByRegion.get(region);
-        if (template == null) {
-          throw new SQLException("");
-        }
-
-        hosts.add(this.toHostspec(queryHost, template));
-      }
-
-      return this.verifyWriter(hosts);
-    } catch (final SQLSyntaxErrorException e) {
-      throw new SQLException(Messages.get("TopologyUtils.invalidQuery"), e);
-    } finally {
-      if (networkTimeout == 0 && !conn.isClosed()) {
-        conn.setNetworkTimeout(networkTimeoutExecutor, networkTimeout);
-      }
-    }
-  }
-
-  private int setNetworkTimeout(Connection conn) {
+  protected int setNetworkTimeout(Connection conn) {
     int networkTimeout = -1;
     try {
       networkTimeout = conn.getNetworkTimeout();
@@ -131,6 +87,8 @@ public class TopologyUtils {
     }
     return networkTimeout;
   }
+
+  protected abstract @Nullable List<HostSpec> getHosts(Connection conn, ResultSet rs, HostSpec hostTemplate) throws SQLException;
 
   protected @Nullable List<HostSpec> verifyWriter(List<HostSpec> allHosts) {
     List<HostSpec> hosts = new ArrayList<>();
@@ -158,26 +116,6 @@ public class TopologyUtils {
     }
 
     return hosts;
-  }
-
-  protected HostSpec toHostspec(TopologyQueryHostSpec queryHost, HostSpec hostTemplate) {
-    final String instanceId = queryHost.getInstanceId() == null ? "?" : queryHost.getInstanceId();
-    final String endpoint = hostTemplate.getHost().replace("?", instanceId);
-    final int port = hostTemplate.isPortSpecified()
-        ? hostTemplate.getPort()
-        : this.initialHostSpec.getPort();
-
-    final HostSpec hostSpec = this.hostSpecBuilder
-        .host(endpoint)
-        .port(port)
-        .role(queryHost.isWriter() ? HostRole.WRITER : HostRole.READER)
-        .availability(HostAvailability.AVAILABLE)
-        .weight(queryHost.getWeight())
-        .lastUpdateTime(queryHost.getLastUpdateTime())
-        .build();
-    hostSpec.addAlias(instanceId);
-    hostSpec.setHostId(instanceId);
-    return hostSpec;
   }
 
   /**
