@@ -36,6 +36,7 @@ import software.amazon.jdbc.dialect.TopologyDialect;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.Utils;
@@ -344,8 +345,8 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   public @Nullable HostSpec identifyConnection(Connection connection) throws SQLException {
     init();
     try {
-      String instanceId = this.topologyUtils.getInstanceId(connection);
-      if (instanceId == null) {
+      Pair<String, String> instanceIds = this.topologyUtils.getInstanceId(connection);
+      if (instanceIds == null) {
         throw new SQLException(Messages.get("RdsHostListProvider.errorIdentifyConnection"));
       }
 
@@ -361,9 +362,10 @@ public class RdsHostListProvider implements DynamicHostListProvider {
         return null;
       }
 
+      String instanceName = instanceIds.getValue2();
       HostSpec foundHost = topology
           .stream()
-          .filter(host -> Objects.equals(instanceId, host.getHostId()))
+          .filter(host -> Objects.equals(instanceName, host.getHostId()))
           .findAny()
           .orElse(null);
 
@@ -375,7 +377,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
 
         foundHost = topology
             .stream()
-            .filter(host -> Objects.equals(instanceId, host.getHostId()))
+            .filter(host -> Objects.equals(instanceName, host.getHostId()))
             .findAny()
             .orElse(null);
       }

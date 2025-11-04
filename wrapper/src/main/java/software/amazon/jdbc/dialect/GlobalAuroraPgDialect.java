@@ -28,7 +28,7 @@ import software.amazon.jdbc.hostlistprovider.AuroraGlobalDbHostListProvider;
 import software.amazon.jdbc.hostlistprovider.monitoring.AuroraGlobalDbMonitoringHostListProvider;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 
-public class GlobalAuroraPgDialect extends AuroraPgDialect {
+public class GlobalAuroraPgDialect extends AuroraPgDialect implements GlobalTopologyDialect {
 
   protected static final String GLOBAL_STATUS_FUNC_EXISTS_QUERY = "select 'aurora_global_db_status'::regproc";
   protected static final String GLOBAL_INSTANCE_STATUS_FUNC_EXISTS_QUERY =
@@ -46,7 +46,7 @@ public class GlobalAuroraPgDialect extends AuroraPgDialect {
   private static final Logger LOGGER = Logger.getLogger(GlobalAuroraPgDialect.class.getName());
 
   public GlobalAuroraPgDialect() {
-    super(new GlobalAuroraDialectUtils(WRITER_ID_QUERY));
+    super(new GlobalAuroraDialectUtils(WRITER_ID_QUERY, REGION_BY_INSTANCE_ID_QUERY));
   }
 
   @Override
@@ -111,7 +111,13 @@ public class GlobalAuroraPgDialect extends AuroraPgDialect {
   }
 
   @Override
-  public List<TopologyQueryHostSpec> processTopologyResults(Connection conn, ResultSet rs) {
+  public String getRegion(String instanceId, Connection conn)
+      throws SQLException {
+    if (!(this.dialectUtils instanceof GlobalAuroraDialectUtils)) {
+      throw new SQLException("");
+    }
 
+    GlobalAuroraDialectUtils globalUtils = (GlobalAuroraDialectUtils) this.dialectUtils;
+    return globalUtils.getRegion(instanceId, conn);
   }
 }

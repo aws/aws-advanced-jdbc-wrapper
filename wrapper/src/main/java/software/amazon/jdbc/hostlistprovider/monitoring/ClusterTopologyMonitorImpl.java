@@ -523,8 +523,11 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
             } else {
               final Pair<String, String> pair = this.topologyUtils.getInstanceId(this.monitoringConnection.get());
               if (pair != null) {
-                this.writerHostSpec.set(this.createHost(pair.getValue1(), pair.getValue2(), true, 0, null,
-                    this.getClusterInstanceTemplate(pair.getValue2(), this.monitoringConnection.get())));
+                HostSpec hostTemplate =
+                    this.getClusterInstanceTemplate(pair.getValue2(), this.monitoringConnection.get());
+                HostSpec writerHost =
+                    this.createHost(pair.getValue1(), pair.getValue2(), true, 0, null, hostTemplate);
+                this.writerHostSpec.set(writerHost);
                 LOGGER.finest(
                     Messages.get(
                         "ClusterTopologyMonitorImpl.writerMonitoringConnection",
@@ -565,7 +568,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     return hosts;
   }
 
-  protected HostSpec getClusterInstanceTemplate(String nodeId, Connection connection) {
+  protected HostSpec getClusterInstanceTemplate(String nodeId, Connection connection) throws SQLException {
     return this.clusterInstanceTemplate;
   }
 

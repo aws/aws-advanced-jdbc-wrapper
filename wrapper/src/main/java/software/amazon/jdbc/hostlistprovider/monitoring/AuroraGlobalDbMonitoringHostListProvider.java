@@ -23,19 +23,16 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
-import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.dialect.TopologyDialect;
+import software.amazon.jdbc.dialect.GlobalTopologyDialect;
 import software.amazon.jdbc.hostlistprovider.AuroraGlobalDbHostListProvider;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
-import software.amazon.jdbc.util.connection.ConnectionService;
 
 public class AuroraGlobalDbMonitoringHostListProvider extends MonitoringRdsHostListProvider {
 
@@ -44,6 +41,7 @@ public class AuroraGlobalDbMonitoringHostListProvider extends MonitoringRdsHostL
   protected Map<String, HostSpec> globalClusterInstanceTemplateByAwsRegion = new HashMap<>();
 
   protected final RdsUtils rdsUtils = new RdsUtils();
+  protected final GlobalTopologyDialect globalDialect;
 
   static {
     // Register property definition in AuroraGlobalDbHostListProvider class. It's not a mistake.
@@ -51,12 +49,12 @@ public class AuroraGlobalDbMonitoringHostListProvider extends MonitoringRdsHostL
   }
 
   public AuroraGlobalDbMonitoringHostListProvider(
-      TopologyDialect dialect,
+      GlobalTopologyDialect dialect,
       Properties properties,
       String originalUrl,
       FullServicesContainer servicesContainer) {
-
     super(dialect, properties, originalUrl, servicesContainer);
+    this.globalDialect = dialect;
   }
 
   @Override
@@ -91,8 +89,10 @@ public class AuroraGlobalDbMonitoringHostListProvider extends MonitoringRdsHostL
         this.servicesContainer,
         this.properties,
         (servicesContainer) ->
-            new GlobalDbClusterTopologyMonitorImpl(
+            new GlobalTopologyMonitor(
                 servicesContainer,
+                this.topologyUtils,
+                this.globalDialect,
                 this.clusterId,
                 this.initialHostSpec,
                 this.properties,

@@ -27,26 +27,26 @@ import software.amazon.jdbc.hostlistprovider.AuroraGlobalDbHostListProvider;
 import software.amazon.jdbc.hostlistprovider.monitoring.AuroraGlobalDbMonitoringHostListProvider;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 
-public class GlobalAuroraMysqlDialect extends AuroraMysqlDialect {
+public class GlobalAuroraMysqlDialect extends AuroraMysqlDialect implements GlobalTopologyDialect {
 
-  protected final String GLOBAL_STATUS_TABLE_EXISTS_QUERY =
+  protected static final String GLOBAL_STATUS_TABLE_EXISTS_QUERY =
       "SELECT 1 AS tmp FROM information_schema.tables WHERE"
           + " upper(table_schema) = 'INFORMATION_SCHEMA' AND upper(table_name) = 'AURORA_GLOBAL_DB_STATUS'";
-  protected final String GLOBAL_INSTANCE_STATUS_EXISTS_QUERY =
+  protected static final String GLOBAL_INSTANCE_STATUS_EXISTS_QUERY =
       "SELECT 1 AS tmp FROM information_schema.tables WHERE"
           + " upper(table_schema) = 'INFORMATION_SCHEMA' AND upper(table_name) = 'AURORA_GLOBAL_DB_INSTANCE_STATUS'";
 
-  protected final String GLOBAL_TOPOLOGY_QUERY =
+  protected static final String GLOBAL_TOPOLOGY_QUERY =
       "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
           + "VISIBILITY_LAG_IN_MSEC, AWS_REGION "
           + "FROM information_schema.aurora_global_db_instance_status ";
 
-  protected final String REGION_COUNT_QUERY = "SELECT count(1) FROM information_schema.aurora_global_db_status";
-  protected final String REGION_BY_INSTANCE_ID_QUERY =
+  protected static final String REGION_COUNT_QUERY = "SELECT count(1) FROM information_schema.aurora_global_db_status";
+  protected static final String REGION_BY_INSTANCE_ID_QUERY =
       "SELECT AWS_REGION FROM information_schema.aurora_global_db_instance_status WHERE SERVER_ID = ?";
 
   public GlobalAuroraMysqlDialect() {
-    super(new GlobalAuroraDialectUtils(WRITER_ID_QUERY));
+    super(new GlobalAuroraDialectUtils(WRITER_ID_QUERY, REGION_BY_INSTANCE_ID_QUERY));
   }
 
   @Override
@@ -95,5 +95,16 @@ public class GlobalAuroraMysqlDialect extends AuroraMysqlDialect {
 
       return new AuroraGlobalDbHostListProvider(this, properties, initialUrl, servicesContainer);
     };
+  }
+
+  @Override
+  public String getRegion(String instanceId, Connection conn)
+      throws SQLException {
+    if (!(this.dialectUtils instanceof GlobalAuroraDialectUtils)) {
+      throw new SQLException("");
+    }
+
+    GlobalAuroraDialectUtils globalUtils = (GlobalAuroraDialectUtils) this.dialectUtils;
+    return globalUtils.getRegion(instanceId, conn);
   }
 }
