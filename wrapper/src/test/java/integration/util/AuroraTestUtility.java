@@ -477,6 +477,7 @@ public class AuroraTestUtility {
             .allocatedStorage(DEFAULT_ALLOCATED_STORAGE)
             .dbClusterInstanceClass(instanceClass)
             .storageType(DEFAULT_STORAGE_TYPE)
+            .enableIAMDatabaseAuthentication(true)
             .iops(DEFAULT_IOPS);
 
     rdsClient.createDBCluster(clusterBuilder.build());
