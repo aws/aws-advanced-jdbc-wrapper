@@ -370,7 +370,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
          final ResultSet resultSet = stmt.executeQuery(this.topologyQuery)) {
       return processQueryResults(resultSet);
     } catch (final SQLSyntaxErrorException e) {
-      throw new SQLException(Messages.get("RdsHostListProvider.invalidQuery"), e);
+      throw new SQLException(Messages.get("RdsHostListProvider.invalidQuery", new Object[] { e.getMessage() }), e);
     } finally {
       if (networkTimeout == 0 && !conn.isClosed()) {
         conn.setNetworkTimeout(networkTimeoutExecutor, networkTimeout);

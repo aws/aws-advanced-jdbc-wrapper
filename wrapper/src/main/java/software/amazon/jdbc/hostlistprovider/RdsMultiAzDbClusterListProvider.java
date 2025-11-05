@@ -91,7 +91,7 @@ public class RdsMultiAzDbClusterListProvider extends RdsHostListProvider {
       final ResultSet topologyResultSet = stmt.executeQuery(this.topologyQuery);
       return processTopologyQueryResults(topologyResultSet, writerNodeId);
     } catch (final SQLSyntaxErrorException e) {
-      throw new SQLException(Messages.get("RdsHostListProvider.invalidQuery"), e);
+      throw new SQLException(Messages.get("RdsHostListProvider.invalidQueryMultiAz", new Object[] { e.getMessage() }), e);
     } finally {
       if (networkTimeout == 0 && !conn.isClosed()) {
         conn.setNetworkTimeout(networkTimeoutExecutor, networkTimeout);
