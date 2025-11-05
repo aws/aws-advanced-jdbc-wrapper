@@ -17,9 +17,6 @@
 package software.amazon.jdbc.dialect;
 
 import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Collections;
 import java.util.List;
 import software.amazon.jdbc.PluginService;
@@ -52,16 +49,7 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect,
 
   @Override
   public boolean isDialect(final Connection connection) {
-    try (Statement stmt = connection.createStatement();
-         ResultSet rs = stmt.executeQuery(AURORA_VERSION_EXISTS_QUERY)) {
-      if (rs.next()) {
-        return true;
-      }
-    } catch (final SQLException ex) {
-      return false;
-    }
-
-    return false;
+    return dialectUtils.checkExistenceQueries(connection, AURORA_VERSION_EXISTS_QUERY);
   }
 
   @Override
@@ -103,14 +91,7 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect,
 
   @Override
   public boolean isBlueGreenStatusAvailable(final Connection connection) {
-    try {
-      try (Statement statement = connection.createStatement();
-           ResultSet rs = statement.executeQuery(BG_TOPOLOGY_EXISTS_QUERY)) {
-        return rs.next();
-      }
-    } catch (SQLException ex) {
-      return false;
-    }
+    return dialectUtils.checkExistenceQueries(connection, BG_TOPOLOGY_EXISTS_QUERY);
   }
 
   @Override

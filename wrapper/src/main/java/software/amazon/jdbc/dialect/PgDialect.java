@@ -41,6 +41,8 @@ public class PgDialect implements Dialect {
   protected static final String HOST_ALIAS_QUERY =
       "SELECT pg_catalog.CONCAT(pg_catalog.inet_server_addr(), ':', pg_catalog.inet_server_port())";
 
+  protected static final DialectUtils dialectUtils = new DialectUtils();
+
   private static PgExceptionHandler pgExceptionHandler;
   private static final EnumSet<FailoverRestriction> NO_FAILOVER_RESTRICTIONS =
       EnumSet.noneOf(FailoverRestriction.class);
@@ -52,16 +54,7 @@ public class PgDialect implements Dialect {
 
   @Override
   public boolean isDialect(final Connection connection) {
-    try (Statement stmt = connection.createStatement();
-         ResultSet rs = stmt.executeQuery(PG_PROC_EXISTS_QUERY)) {
-      if (rs.next()) {
-        return true;
-      }
-    } catch (final SQLException ex) {
-      return false;
-    }
-
-    return false;
+    return dialectUtils.checkExistenceQueries(connection, PG_PROC_EXISTS_QUERY);
   }
 
   @Override

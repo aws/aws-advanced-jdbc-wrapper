@@ -80,14 +80,7 @@ public class RdsPgDialect extends PgDialect implements BlueGreenDialect {
 
   @Override
   public boolean isBlueGreenStatusAvailable(final Connection connection) {
-    try {
-      try (Statement statement = connection.createStatement();
-           ResultSet rs = statement.executeQuery(TOPOLOGY_TABLE_EXISTS_QUERY)) {
-        return rs.next();
-      }
-    } catch (SQLException ex) {
-      return false;
-    }
+    return dialectUtils.checkExistenceQueries(connection, TOPOLOGY_TABLE_EXISTS_QUERY);
   }
 
   @Override

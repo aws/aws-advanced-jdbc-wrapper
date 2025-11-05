@@ -76,12 +76,14 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
     boolean hasExtensions = false;
     try (Statement stmt = connection.createStatement();
          ResultSet rs = stmt.executeQuery(AURORA_UTILS_EXIST_QUERY)) {
-      if (rs.next()) {
-        final boolean auroraUtils = rs.getBoolean("aurora_stat_utils");
-        LOGGER.finest(Messages.get("AuroraPgDialect.auroraUtils", new Object[] {auroraUtils}));
-        if (auroraUtils) {
-          hasExtensions = true;
-        }
+      if (!rs.next()) {
+        return false;
+      }
+
+      final boolean auroraUtils = rs.getBoolean("aurora_stat_utils");
+      LOGGER.finest(Messages.get("AuroraPgDialect.auroraUtils", new Object[] {auroraUtils}));
+      if (auroraUtils) {
+        hasExtensions = true;
       }
     } catch (SQLException ex) {
       return false;
@@ -91,17 +93,7 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
       return false;
     }
 
-    try (Statement stmt = connection.createStatement();
-         ResultSet rs = stmt.executeQuery(TOPOLOGY_EXISTS_QUERY)) {
-      if (rs.next()) {
-        LOGGER.finest(() -> "hasTopology: true");
-        return true;
-      }
-    } catch (final SQLException ex) {
-      return false;
-    }
-
-    return false;
+    return dialectUtils.checkExistenceQueries(connection, TOPOLOGY_EXISTS_QUERY);
   }
 
   @Override
@@ -150,14 +142,7 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
 
   @Override
   public boolean isBlueGreenStatusAvailable(final Connection connection) {
-    try {
-      try (Statement statement = connection.createStatement();
-           ResultSet rs = statement.executeQuery(BG_TOPOLOGY_EXISTS_QUERY)) {
-        return rs.next();
-      }
-    } catch (SQLException ex) {
-      return false;
-    }
+    return dialectUtils.checkExistenceQueries(connection, BG_TOPOLOGY_EXISTS_QUERY);
   }
 
   @Override

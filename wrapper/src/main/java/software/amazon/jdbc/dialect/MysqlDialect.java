@@ -36,6 +36,8 @@ public class MysqlDialect implements Dialect {
   protected static final String VERSION_QUERY = "SHOW VARIABLES LIKE 'version_comment'";
   protected static final String HOST_ALIAS_QUERY = "SELECT CONCAT(@@hostname, ':', @@port)";
 
+  protected static final DialectUtils dialectUtils = new DialectUtils();
+
   private static MySQLExceptionHandler mySQLExceptionHandler;
   private static final EnumSet<FailoverRestriction> NO_FAILOVER_RESTRICTIONS =
       EnumSet.noneOf(FailoverRestriction.class);

@@ -31,8 +31,7 @@ public class RdsMysqlDialect extends MysqlDialect implements BlueGreenDialect {
       "SELECT 1 AS tmp FROM information_schema.tables WHERE"
           + " table_schema = 'mysql' AND table_name = 'rds_topology'";
 
-  protected static final String BG_STATUS_QUERY =
-      "SELECT * FROM mysql.rds_topology";
+  protected static final String BG_STATUS_QUERY = "SELECT * FROM mysql.rds_topology";
 
   private static final List<String> dialectUpdateCandidates = Arrays.asList(
       DialectCodes.AURORA_MYSQL,
@@ -92,14 +91,7 @@ public class RdsMysqlDialect extends MysqlDialect implements BlueGreenDialect {
 
   @Override
   public boolean isBlueGreenStatusAvailable(final Connection connection) {
-    try {
-      try (Statement statement = connection.createStatement();
-           ResultSet rs = statement.executeQuery(TOPOLOGY_TABLE_EXISTS_QUERY)) {
-        return rs.next();
-      }
-    } catch (SQLException ex) {
-      return false;
-    }
+    return dialectUtils.checkExistenceQueries(connection, TOPOLOGY_TABLE_EXISTS_QUERY);
   }
 
   @Override

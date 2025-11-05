@@ -63,32 +63,23 @@ public class GlobalAuroraPgDialect extends AuroraPgDialect implements GlobalAuro
         }
       }
 
-      try (Statement stmt = connection.createStatement();
-           ResultSet rs = stmt.executeQuery(GLOBAL_STATUS_FUNC_EXISTS_QUERY)) {
-        if (!rs.next()) {
-          return false;
-        }
-      }
-
-      try (Statement stmt = connection.createStatement();
-           ResultSet rs = stmt.executeQuery(GLOBAL_INSTANCE_STATUS_FUNC_EXISTS_QUERY)) {
-        if (!rs.next()) {
-          return false;
-        }
+      if (!dialectUtils.checkExistenceQueries(
+          connection, GLOBAL_STATUS_FUNC_EXISTS_QUERY, GLOBAL_INSTANCE_STATUS_FUNC_EXISTS_QUERY)) {
+        return false;
       }
 
       try (Statement stmt = connection.createStatement();
            ResultSet rs = stmt.executeQuery(REGION_COUNT_QUERY)) {
-        if (rs.next()) {
-          int awsRegionCount = rs.getInt(1);
-          return awsRegionCount > 1;
+        if (!rs.next()) {
+          return false;
         }
+
+        int awsRegionCount = rs.getInt(1);
+        return awsRegionCount > 1;
       }
     } catch (final SQLException ex) {
       return false;
     }
-
-    return false;
   }
 
   @Override

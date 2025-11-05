@@ -61,31 +61,18 @@ public class MultiAzClusterMysqlDialect extends MysqlDialect implements MultiAzC
 
   @Override
   public boolean isDialect(final Connection connection) {
-    try {
-      try (Statement stmt = connection.createStatement();
-          ResultSet rs = stmt.executeQuery(TOPOLOGY_TABLE_EXISTS_QUERY)) {
-        if (!rs.next()) {
-          return false;
-        }
+    if (!dialectUtils.checkExistenceQueries(connection, TOPOLOGY_TABLE_EXISTS_QUERY, TOPOLOGY_QUERY)) {
+      return false;
+    }
+
+    try (Statement stmt = connection.createStatement();
+         ResultSet rs = stmt.executeQuery(REPORT_HOST_EXISTS_QUERY)) {
+      if (!rs.next()) {
+        return false;
       }
 
-      try (Statement stmt = connection.createStatement();
-          ResultSet rs = stmt.executeQuery(TOPOLOGY_QUERY)) {
-        if (!rs.next()) {
-          return false;
-        }
-      }
-
-      try (Statement stmt = connection.createStatement();
-          ResultSet rs = stmt.executeQuery(REPORT_HOST_EXISTS_QUERY)) {
-        if (!rs.next()) {
-          return false;
-        }
-
-        final String reportHost = rs.getString(2); // Expected value is an IP address
-        return !StringUtils.isNullOrEmpty(reportHost);
-      }
-
+      final String reportHost = rs.getString(2); // Expected value is an IP address
+      return !StringUtils.isNullOrEmpty(reportHost);
     } catch (final SQLException ex) {
       return false;
     }

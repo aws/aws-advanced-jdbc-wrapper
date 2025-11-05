@@ -49,33 +49,22 @@ public class GlobalAuroraMysqlDialect extends AuroraMysqlDialect implements Glob
 
   @Override
   public boolean isDialect(final Connection connection) {
-    try {
-      try (Statement stmt = connection.createStatement();
-           ResultSet rs = stmt.executeQuery(GLOBAL_STATUS_TABLE_EXISTS_QUERY)) {
-        if (!rs.next()) {
-          return false;
-        }
-      }
-
-      try (Statement stmt = connection.createStatement();
-           ResultSet rs = stmt.executeQuery(GLOBAL_INSTANCE_STATUS_EXISTS_QUERY)) {
-        if (!rs.next()) {
-          return false;
-        }
-      }
-
-      try (Statement stmt = connection.createStatement();
-           ResultSet rs = stmt.executeQuery(REGION_COUNT_QUERY)) {
-        if (rs.next()) {
-          int awsRegionCount = rs.getInt(1);
-          return awsRegionCount > 1;
-        }
-      }
-    } catch (final SQLException ex) {
+    if (!dialectUtils.checkExistenceQueries(
+        connection, GLOBAL_STATUS_TABLE_EXISTS_QUERY, GLOBAL_INSTANCE_STATUS_EXISTS_QUERY)) {
       return false;
     }
 
-    return false;
+    try (Statement stmt = connection.createStatement();
+         ResultSet rs = stmt.executeQuery(REGION_COUNT_QUERY)) {
+      if (!rs.next()) {
+        return false;
+      }
+
+      int awsRegionCount = rs.getInt(1);
+      return awsRegionCount > 1;
+    } catch (final SQLException ex) {
+      return false;
+    }
   }
 
   @Override
