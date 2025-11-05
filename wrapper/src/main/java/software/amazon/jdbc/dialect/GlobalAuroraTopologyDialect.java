@@ -19,6 +19,6 @@ package software.amazon.jdbc.dialect;
 import java.sql.Connection;
 import java.sql.SQLException;
 
-public interface GlobalTopologyDialect extends TopologyDialect {
-  String getRegion(String instanceId, Connection conn) throws SQLException;
+public interface GlobalAuroraTopologyDialect extends TopologyDialect {
+  String getRegionByInstanceIdQuery();
 }

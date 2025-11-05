@@ -19,7 +19,6 @@ package software.amazon.jdbc.hostlistprovider.monitoring;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
-import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -39,7 +38,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.hostlistprovider.TopologyUtils;
 import software.amazon.jdbc.util.ExecutorFactory;
@@ -174,7 +172,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   @Override
   public List<HostSpec> forceRefresh(@Nullable Connection connection, final long timeoutMs)
       throws SQLException, TimeoutException {
-
     if (this.isVerifiedWriterConnection) {
       // Push monitoring thread to refresh topology with a verified connection
       return this.waitTillTopologyGetsUpdated(timeoutMs);
@@ -522,11 +519,12 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
                       new Object[]{this.writerHostSpec.get().getHost()}));
             } else {
               final Pair<String, String> pair = this.topologyUtils.getInstanceId(this.monitoringConnection.get());
+              // TODO: this code isn't quite right when compared to main-3.x
               if (pair != null) {
                 HostSpec hostTemplate =
                     this.getClusterInstanceTemplate(pair.getValue2(), this.monitoringConnection.get());
                 HostSpec writerHost =
-                    this.createHost(pair.getValue1(), pair.getValue2(), true, 0, null, hostTemplate);
+                    this.topologyUtils.createHost(pair.getValue1(), pair.getValue2(), true, 0, null, this.initialHostSpec, hostTemplate);
                 this.writerHostSpec.set(writerHost);
                 LOGGER.finest(
                     Messages.get(
@@ -623,7 +621,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   }
 
   protected List<HostSpec> queryForTopology(Connection connection) throws SQLException {
-    return this.topologyUtils.queryForTopology(connection, this.clusterInstanceTemplate);
+    return this.topologyUtils.queryForTopology(connection, this.initialHostSpec, this.clusterInstanceTemplate);
   }
 
   protected void updateTopologyCache(final @NonNull List<HostSpec> hosts) {
@@ -636,39 +634,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
         this.topologyUpdated.notifyAll();
       }
     }
-  }
-
-  protected HostSpec createHost(
-      String nodeId,
-      String nodeName,
-      final boolean isWriter,
-      final long weight,
-      final Timestamp lastUpdateTime,
-      final HostSpec clusterInstanceTemplate) {
-
-    nodeName = nodeName == null ? "?" : nodeName;
-    final String endpoint = getHostEndpoint(nodeName, clusterInstanceTemplate);
-    final int port = clusterInstanceTemplate.isPortSpecified()
-        ? clusterInstanceTemplate.getPort()
-        : this.initialHostSpec.getPort();
-
-    final HostSpec hostSpec = this.servicesContainer.getHostListProviderService().getHostSpecBuilder()
-        .hostId(nodeId)
-        .host(endpoint)
-        .port(port)
-        .role(isWriter ? HostRole.WRITER : HostRole.READER)
-        .availability(HostAvailability.AVAILABLE)
-        .weight(weight)
-        .lastUpdateTime(lastUpdateTime)
-        .build();
-    hostSpec.addAlias(nodeName);
-    hostSpec.setHostId(nodeName);
-    return hostSpec;
-  }
-
-  protected String getHostEndpoint(final String nodeName, final HostSpec clusterInstanceTemplate) {
-    final String host = clusterInstanceTemplate.getHost();
-    return host.replace("?", nodeName);
   }
 
   private static class NodeMonitoringWorker implements Runnable {
@@ -799,7 +764,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
       List<HostSpec> hosts;
       try {
-        hosts = this.monitor.topologyUtils.queryForTopology(connection, this.monitor.clusterInstanceTemplate);
+        hosts = this.monitor.topologyUtils.queryForTopology(
+            connection, this.monitor.initialHostSpec, this.monitor.clusterInstanceTemplate);
         if (hosts == null) {
           return;
         }

@@ -22,6 +22,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
 import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -47,23 +48,27 @@ public abstract class TopologyUtils {
 
   protected final Executor networkTimeoutExecutor = new SynchronousExecutor();
   protected final TopologyDialect dialect;
-  protected final HostSpec initialHostSpec;
   protected final HostSpecBuilder hostSpecBuilder;
 
   public TopologyUtils(
       TopologyDialect dialect,
-      HostSpec initialHostSpec,
       HostSpecBuilder hostSpecBuilder) {
     this.dialect = dialect;
-    this.initialHostSpec = initialHostSpec;
     this.hostSpecBuilder = hostSpecBuilder;
   }
 
-  public @Nullable List<HostSpec> queryForTopology(Connection conn, HostSpec hostTemplate) throws SQLException {
+  public @Nullable List<HostSpec> queryForTopology(Connection conn, HostSpec initialHostSpec, HostSpec hostTemplate)
+      throws SQLException {
     int networkTimeout = setNetworkTimeout(conn);
     try (final Statement stmt = conn.createStatement();
          final ResultSet resultSet = stmt.executeQuery(this.dialect.getTopologyQuery())) {
-      return this.verifyWriter(this.getHosts(conn, resultSet, hostTemplate));
+      if (resultSet.getMetaData().getColumnCount() == 0) {
+        // We expect at least 4 columns. Note that the server may return 0 columns if failover has occurred.
+        LOGGER.finest(Messages.get("AuroraDialectUtils.unexpectedTopologyQueryColumnCount"));
+        return null;
+      }
+
+      return this.verifyWriter(this.getHosts(conn, resultSet, initialHostSpec, hostTemplate));
     } catch (final SQLSyntaxErrorException e) {
       throw new SQLException(Messages.get("TopologyUtils.invalidQuery"), e);
     } finally {
@@ -88,7 +93,8 @@ public abstract class TopologyUtils {
     return networkTimeout;
   }
 
-  protected abstract @Nullable List<HostSpec> getHosts(Connection conn, ResultSet rs, HostSpec hostTemplate) throws SQLException;
+  protected abstract @Nullable List<HostSpec> getHosts(
+      Connection conn, ResultSet rs, HostSpec initialHostSpec, HostSpec hostTemplate) throws SQLException;
 
   protected @Nullable List<HostSpec> verifyWriter(List<HostSpec> allHosts) {
     List<HostSpec> hosts = new ArrayList<>();
@@ -118,6 +124,34 @@ public abstract class TopologyUtils {
     return hosts;
   }
 
+  public HostSpec createHost(
+      String instanceId,
+      String instanceName,
+      final boolean isWriter,
+      final long weight,
+      final Timestamp lastUpdateTime,
+      final HostSpec initialHostSpec,
+      final HostSpec clusterInstanceTemplate) {
+    instanceName = instanceName == null ? "?" : instanceName;
+    final String endpoint = clusterInstanceTemplate.getHost().replace("?", instanceName);
+    final int port = clusterInstanceTemplate.isPortSpecified()
+        ? clusterInstanceTemplate.getPort()
+        : initialHostSpec.getPort();
+
+    final HostSpec hostSpec = this.hostSpecBuilder
+        .hostId(instanceId)
+        .host(endpoint)
+        .port(port)
+        .role(isWriter ? HostRole.WRITER : HostRole.READER)
+        .availability(HostAvailability.AVAILABLE)
+        .weight(weight)
+        .lastUpdateTime(lastUpdateTime)
+        .build();
+    hostSpec.addAlias(instanceName);
+    hostSpec.setHostId(instanceName);
+    return hostSpec;
+  }
+
   /**
    * Identifies instances across different database types using instanceId and instanceName values.
    *
@@ -144,9 +178,7 @@ public abstract class TopologyUtils {
     return null;
   }
 
-  public boolean isWriterInstance(Connection connection) throws SQLException {
-    return this.dialect.isWriterInstance(connection);
-  }
+  public abstract boolean isWriterInstance(Connection connection) throws SQLException;
 
   public HostRole getHostRole(Connection conn) throws SQLException {
     try (final Statement stmt = conn.createStatement();

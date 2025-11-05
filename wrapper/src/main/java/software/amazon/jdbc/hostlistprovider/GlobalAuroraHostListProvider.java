@@ -16,11 +16,10 @@
 
 package software.amazon.jdbc.hostlistprovider;
 
-import java.sql.ResultSet;
+import java.sql.Connection;
 import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -29,16 +28,15 @@ import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.dialect.TopologyDialect;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 
-public class AuroraGlobalDbHostListProvider extends RdsHostListProvider {
+public class GlobalAuroraHostListProvider extends RdsHostListProvider {
 
-  static final Logger LOGGER = Logger.getLogger(AuroraGlobalDbHostListProvider.class.getName());
+  static final Logger LOGGER = Logger.getLogger(GlobalAuroraHostListProvider.class.getName());
 
   public static final AwsWrapperProperty GLOBAL_CLUSTER_INSTANCE_HOST_PATTERNS =
       new AwsWrapperProperty(
@@ -51,16 +49,18 @@ public class AuroraGlobalDbHostListProvider extends RdsHostListProvider {
               + "Each region in the Global Aurora Database should be specified in the list.");
 
   protected final RdsUtils rdsUtils = new RdsUtils();
+  protected final GlobalAuroraTopologyUtils topologyUtils;
 
-  protected Map<String, HostSpec> globalClusterInstanceTemplateByAwsRegion;
+  protected Map<String, HostSpec> instanceTemplatesByRegion;
 
   static {
-    PropertyDefinition.registerPluginProperties(AuroraGlobalDbHostListProvider.class);
+    PropertyDefinition.registerPluginProperties(GlobalAuroraHostListProvider.class);
   }
 
-  public AuroraGlobalDbHostListProvider(
-      TopologyDialect dialect, Properties properties, String originalUrl, FullServicesContainer servicesContainer) {
-    super(dialect, properties, originalUrl, servicesContainer);
+  public GlobalAuroraHostListProvider(
+      GlobalAuroraTopologyUtils topologyUtils, Properties properties, String originalUrl, FullServicesContainer servicesContainer) {
+    super(topologyUtils, properties, originalUrl, servicesContainer);
+    this.topologyUtils = topologyUtils;
   }
 
   @Override
@@ -73,7 +73,7 @@ public class AuroraGlobalDbHostListProvider extends RdsHostListProvider {
     }
 
     HostSpecBuilder hostSpecBuilder = this.hostListProviderService.getHostSpecBuilder();
-    this.globalClusterInstanceTemplateByAwsRegion = Arrays.stream(templates.split(","))
+    this.instanceTemplatesByRegion = Arrays.stream(templates.split(","))
         .map(x -> ConnectionUrlParser.parseHostPortPairWithRegionPrefix(x.trim(), () -> hostSpecBuilder))
         .collect(Collectors.toMap(
             Pair::getValue1,
@@ -82,9 +82,15 @@ public class AuroraGlobalDbHostListProvider extends RdsHostListProvider {
               return v.getValue2();
             }));
     LOGGER.finest(() -> "Recognized GDB instance template patterns:\n"
-        + this.globalClusterInstanceTemplateByAwsRegion.entrySet().stream()
+        + this.instanceTemplatesByRegion.entrySet().stream()
         .map(x -> String.format("\t[%s] -> %s", x.getKey(), x.getValue().getHostAndPort()))
         .collect(Collectors.joining("\n"))
     );
+  }
+
+  @Override
+  protected List<HostSpec> queryForTopology(final Connection conn) throws SQLException {
+    init();
+    return this.topologyUtils.queryForTopology(conn, this.initialHostSpec, this.instanceTemplatesByRegion);
   }
 }

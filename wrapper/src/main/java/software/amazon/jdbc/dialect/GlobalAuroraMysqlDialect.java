@@ -23,11 +23,12 @@ import java.sql.Statement;
 import java.util.Collections;
 import java.util.List;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.hostlistprovider.AuroraGlobalDbHostListProvider;
-import software.amazon.jdbc.hostlistprovider.monitoring.AuroraGlobalDbMonitoringHostListProvider;
+import software.amazon.jdbc.hostlistprovider.GlobalAuroraHostListProvider;
+import software.amazon.jdbc.hostlistprovider.GlobalAuroraTopologyUtils;
+import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringGlobalAuroraHostListProvider;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 
-public class GlobalAuroraMysqlDialect extends AuroraMysqlDialect implements GlobalTopologyDialect {
+public class GlobalAuroraMysqlDialect extends AuroraMysqlDialect implements GlobalAuroraTopologyDialect {
 
   protected static final String GLOBAL_STATUS_TABLE_EXISTS_QUERY =
       "SELECT 1 AS tmp FROM information_schema.tables WHERE"
@@ -45,29 +46,26 @@ public class GlobalAuroraMysqlDialect extends AuroraMysqlDialect implements Glob
   protected static final String REGION_BY_INSTANCE_ID_QUERY =
       "SELECT AWS_REGION FROM information_schema.aurora_global_db_instance_status WHERE SERVER_ID = ?";
 
-  public GlobalAuroraMysqlDialect() {
-    super(new GlobalAuroraDialectUtils(WRITER_ID_QUERY, REGION_BY_INSTANCE_ID_QUERY));
-  }
 
   @Override
   public boolean isDialect(final Connection connection) {
     try {
       try (Statement stmt = connection.createStatement();
-           ResultSet rs = stmt.executeQuery(this.GLOBAL_STATUS_TABLE_EXISTS_QUERY)) {
+           ResultSet rs = stmt.executeQuery(GLOBAL_STATUS_TABLE_EXISTS_QUERY)) {
         if (!rs.next()) {
           return false;
         }
       }
 
       try (Statement stmt = connection.createStatement();
-           ResultSet rs = stmt.executeQuery(this.GLOBAL_INSTANCE_STATUS_EXISTS_QUERY)) {
+           ResultSet rs = stmt.executeQuery(GLOBAL_INSTANCE_STATUS_EXISTS_QUERY)) {
         if (!rs.next()) {
           return false;
         }
       }
 
       try (Statement stmt = connection.createStatement();
-           ResultSet rs = stmt.executeQuery(this.REGION_COUNT_QUERY)) {
+           ResultSet rs = stmt.executeQuery(REGION_COUNT_QUERY)) {
         if (rs.next()) {
           int awsRegionCount = rs.getInt(1);
           return awsRegionCount > 1;
@@ -89,22 +87,22 @@ public class GlobalAuroraMysqlDialect extends AuroraMysqlDialect implements Glob
   public HostListProviderSupplier getHostListProviderSupplier() {
     return (properties, initialUrl, servicesContainer) -> {
       final PluginService pluginService = servicesContainer.getPluginService();
+      final GlobalAuroraTopologyUtils topologyUtils =
+          new GlobalAuroraTopologyUtils(this, pluginService.getHostSpecBuilder());
       if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {
-        return new AuroraGlobalDbMonitoringHostListProvider(this, properties, initialUrl, servicesContainer);
+        return new MonitoringGlobalAuroraHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
       }
-
-      return new AuroraGlobalDbHostListProvider(this, properties, initialUrl, servicesContainer);
+      return new GlobalAuroraHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
     };
   }
 
   @Override
-  public String getRegion(String instanceId, Connection conn)
-      throws SQLException {
-    if (!(this.dialectUtils instanceof GlobalAuroraDialectUtils)) {
-      throw new SQLException("");
-    }
+  public String getTopologyQuery() {
+    return GLOBAL_TOPOLOGY_QUERY;
+  }
 
-    GlobalAuroraDialectUtils globalUtils = (GlobalAuroraDialectUtils) this.dialectUtils;
-    return globalUtils.getRegion(instanceId, conn);
+  @Override
+  public String getRegionByInstanceIdQuery() {
+    return REGION_BY_INSTANCE_ID_QUERY;
   }
 }

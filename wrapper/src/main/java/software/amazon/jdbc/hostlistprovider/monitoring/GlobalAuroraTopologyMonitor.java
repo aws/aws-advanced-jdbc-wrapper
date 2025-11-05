@@ -18,34 +18,30 @@ package software.amazon.jdbc.hostlistprovider.monitoring;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.dialect.GlobalTopologyDialect;
-import software.amazon.jdbc.hostlistprovider.TopologyUtils;
+import software.amazon.jdbc.hostlistprovider.GlobalAuroraTopologyUtils;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.StringUtils;
 
 
-public class GlobalTopologyMonitor extends ClusterTopologyMonitorImpl {
+public class GlobalAuroraTopologyMonitor extends ClusterTopologyMonitorImpl {
+  protected final Map<String, HostSpec> instanceTemplatesByRegion;
+  protected final GlobalAuroraTopologyUtils topologyUtils;
 
-  private static final Logger LOGGER = Logger.getLogger(GlobalTopologyMonitor.class.getName());
-
-  protected final Map<String, HostSpec> hostTemplatesByRegion;
-  protected final GlobalTopologyDialect dialect;
-
-  public GlobalTopologyMonitor(
+  public GlobalAuroraTopologyMonitor(
       final FullServicesContainer servicesContainer,
-      final TopologyUtils topologyUtils,
-      final GlobalTopologyDialect dialect,
+      final GlobalAuroraTopologyUtils topologyUtils,
       final String clusterId,
       final HostSpec initialHostSpec,
       final Properties properties,
       final HostSpec clusterInstanceTemplate,
       final long refreshRateNano,
       final long highRefreshRateNano,
-      final Map<String, HostSpec> hostTemplatesByRegion) {
+      final Map<String, HostSpec> instanceTemplatesByRegion) {
     super(servicesContainer,
         topologyUtils,
         clusterId,
@@ -55,15 +51,15 @@ public class GlobalTopologyMonitor extends ClusterTopologyMonitorImpl {
         refreshRateNano,
         highRefreshRateNano);
 
-    this.hostTemplatesByRegion = hostTemplatesByRegion;
-    this.dialect = dialect;
+    this.instanceTemplatesByRegion = instanceTemplatesByRegion;
+    this.topologyUtils = topologyUtils;
   }
 
   @Override
   protected HostSpec getClusterInstanceTemplate(String instanceId, Connection connection) throws SQLException {
-    String region = dialect.getRegion(instanceId, connection);
+    String region = this.topologyUtils.getRegion(instanceId, connection);
     if (!StringUtils.isNullOrEmpty(region)) {
-      final HostSpec clusterInstanceTemplateForRegion = this.hostTemplatesByRegion.get(region);
+      final HostSpec clusterInstanceTemplateForRegion = this.instanceTemplatesByRegion.get(region);
       if (clusterInstanceTemplateForRegion == null) {
         throw new SQLException("Can't find cluster template for region " + region);
       }
@@ -72,5 +68,10 @@ public class GlobalTopologyMonitor extends ClusterTopologyMonitorImpl {
     }
 
     return this.clusterInstanceTemplate;
+  }
+
+  @Override
+  protected List<HostSpec> queryForTopology(Connection connection) throws SQLException {
+    return this.topologyUtils.queryForTopology(connection, this.initialHostSpec, this.instanceTemplatesByRegion);
   }
 }

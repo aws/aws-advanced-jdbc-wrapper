@@ -19,6 +19,7 @@ package software.amazon.jdbc.hostlistprovider;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -31,29 +32,24 @@ import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.dialect.TopologyDialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.StringUtils;
 
 public class AuroraTopologyUtils extends TopologyUtils {
   private static final Logger LOGGER = Logger.getLogger(AuroraTopologyUtils.class.getName());
 
-  public AuroraTopologyUtils(TopologyDialect dialect, HostSpec initialHostSpec,
-      HostSpecBuilder hostSpecBuilder) {
-    super(dialect, initialHostSpec, hostSpecBuilder);
+  public AuroraTopologyUtils(TopologyDialect dialect, HostSpecBuilder hostSpecBuilder) {
+    super(dialect, hostSpecBuilder);
   }
 
   @Override
-  protected @Nullable List<HostSpec> getHosts(Connection conn, ResultSet rs, HostSpec hostTemplate) throws SQLException {
-    if (rs.getMetaData().getColumnCount() == 0) {
-      // We expect at least 4 columns. Note that the server may return 0 columns if failover has occurred.
-      LOGGER.finest(Messages.get("AuroraDialectUtils.unexpectedTopologyQueryColumnCount"));
-      return null;
-    }
-
+  protected @Nullable List<HostSpec> getHosts(
+      Connection conn, ResultSet rs, HostSpec initialHostSpec, HostSpec hostTemplate) throws SQLException {
     // Data is result set is ordered by last updated time so the latest records go last.
     // When adding hosts to a map, the newer records replace the older ones.
     List<HostSpec> hosts = new ArrayList<>();
     while (rs.next()) {
       try {
-        hosts.add(createHost(rs, hostTemplate));
+        hosts.add(createHost(rs, initialHostSpec, hostTemplate));
       } catch (Exception e) {
         LOGGER.finest(
             Messages.get("AuroraDialectUtils.errorProcessingQueryResults", new Object[]{e.getMessage()}));
@@ -64,7 +60,20 @@ public class AuroraTopologyUtils extends TopologyUtils {
     return hosts;
   }
 
-  protected HostSpec createHost(ResultSet rs, HostSpec hostTemplate) throws SQLException {
+  @Override
+  public boolean isWriterInstance(final Connection connection) throws SQLException {
+    try (final Statement stmt = connection.createStatement()) {
+      try (final ResultSet resultSet = stmt.executeQuery(this.dialect.getWriterIdQuery())) {
+        if (resultSet.next()) {
+          return !StringUtils.isNullOrEmpty(resultSet.getString(1));
+        }
+      }
+    }
+
+    return false;
+  }
+
+  protected HostSpec createHost(ResultSet rs, HostSpec initialHostSpec, HostSpec hostTemplate) throws SQLException {
 
     // According to the topology query the result set
     // should contain 4 columns: node ID, 1/0 (writer/reader), CPU utilization, node lag in time.
@@ -82,32 +91,6 @@ public class AuroraTopologyUtils extends TopologyUtils {
     // Calculate weight based on node lag in time and CPU utilization.
     final long weight = Math.round(nodeLag) * 100L + Math.round(cpuUtilization);
 
-    return createHost(hostName, isWriter, weight, lastUpdateTime, hostTemplate);
-  }
-
-  protected HostSpec createHost(String host, boolean isWriter, long weight, Timestamp lastUpdateTime,
-      HostSpec clusterInstanceTemplate) {
-    host = host == null ? "?" : host;
-    final String endpoint = getHostEndpoint(host, clusterInstanceTemplate);
-    final int port = clusterInstanceTemplate.isPortSpecified()
-        ? clusterInstanceTemplate.getPort()
-        : this.initialHostSpec.getPort();
-
-    final HostSpec hostSpec = this.hostSpecBuilder
-        .host(endpoint)
-        .port(port)
-        .role(isWriter ? HostRole.WRITER : HostRole.READER)
-        .availability(HostAvailability.AVAILABLE)
-        .weight(weight)
-        .lastUpdateTime(lastUpdateTime)
-        .build();
-    hostSpec.addAlias(host);
-    hostSpec.setHostId(host);
-    return hostSpec;
-  }
-
-  protected String getHostEndpoint(final String nodeName, final HostSpec clusterInstanceTemplate) {
-    final String host = clusterInstanceTemplate.getHost();
-    return host.replace("?", nodeName);
+    return createHost(hostName, hostName, isWriter, weight, lastUpdateTime, initialHostSpec, hostTemplate);
   }
 }

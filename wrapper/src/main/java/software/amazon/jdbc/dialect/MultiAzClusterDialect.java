@@ -16,18 +16,8 @@
 
 package software.amazon.jdbc.dialect;
 
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.List;
-import org.checkerframework.checker.nullness.qual.Nullable;
-
-public interface TopologyDialect extends Dialect {
-  String getTopologyQuery();
-
-  String getInstanceIdQuery();
-
+public interface MultiAzClusterDialect extends TopologyDialect {
   String getWriterIdQuery();
 
-  String getIsReaderQuery();
+  String getWriterIdColumnName();
 }

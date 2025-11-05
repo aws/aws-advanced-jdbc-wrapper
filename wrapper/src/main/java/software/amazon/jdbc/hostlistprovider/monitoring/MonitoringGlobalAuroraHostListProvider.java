@@ -16,9 +16,11 @@
 
 package software.amazon.jdbc.hostlistprovider.monitoring;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -26,48 +28,49 @@ import java.util.stream.Collectors;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.dialect.GlobalTopologyDialect;
-import software.amazon.jdbc.hostlistprovider.AuroraGlobalDbHostListProvider;
+import software.amazon.jdbc.hostlistprovider.GlobalAuroraHostListProvider;
+import software.amazon.jdbc.hostlistprovider.GlobalAuroraTopologyUtils;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 
-public class AuroraGlobalDbMonitoringHostListProvider extends MonitoringRdsHostListProvider {
+public class MonitoringGlobalAuroraHostListProvider extends MonitoringRdsHostListProvider {
 
-  static final Logger LOGGER = Logger.getLogger(AuroraGlobalDbMonitoringHostListProvider.class.getName());
+  static final Logger LOGGER = Logger.getLogger(MonitoringGlobalAuroraHostListProvider.class.getName());
 
-  protected Map<String, HostSpec> globalClusterInstanceTemplateByAwsRegion = new HashMap<>();
+  protected Map<String, HostSpec> instanceTemplatesByRegion = new HashMap<>();
 
   protected final RdsUtils rdsUtils = new RdsUtils();
-  protected final GlobalTopologyDialect globalDialect;
+  protected final GlobalAuroraTopologyUtils topologyUtils;
 
   static {
     // Register property definition in AuroraGlobalDbHostListProvider class. It's not a mistake.
-    PropertyDefinition.registerPluginProperties(AuroraGlobalDbHostListProvider.class);
+    PropertyDefinition.registerPluginProperties(GlobalAuroraHostListProvider.class);
   }
 
-  public AuroraGlobalDbMonitoringHostListProvider(
-      GlobalTopologyDialect dialect,
+  public MonitoringGlobalAuroraHostListProvider(
+      GlobalAuroraTopologyUtils topologyUtils,
       Properties properties,
       String originalUrl,
       FullServicesContainer servicesContainer) {
-    super(dialect, properties, originalUrl, servicesContainer);
-    this.globalDialect = dialect;
+    super(topologyUtils, properties, originalUrl, servicesContainer);
+    this.topologyUtils = topologyUtils;
   }
 
   @Override
   protected void initSettings() throws SQLException {
     super.initSettings();
 
-    String templates = AuroraGlobalDbHostListProvider.GLOBAL_CLUSTER_INSTANCE_HOST_PATTERNS.getString(properties);
+    // TODO: check if we have other places that parse into string-HostSpec maps, consider refactoring
+    String templates = GlobalAuroraHostListProvider.GLOBAL_CLUSTER_INSTANCE_HOST_PATTERNS.getString(properties);
     if (StringUtils.isNullOrEmpty(templates)) {
       throw new SQLException("Parameter 'globalClusterInstanceHostPatterns' is required for Aurora Global Database.");
     }
 
     HostSpecBuilder hostSpecBuilder = this.hostListProviderService.getHostSpecBuilder();
-    this.globalClusterInstanceTemplateByAwsRegion = Arrays.stream(templates.split(","))
+    this.instanceTemplatesByRegion = Arrays.stream(templates.split(","))
         .map(x -> ConnectionUrlParser.parseHostPortPairWithRegionPrefix(x.trim(), () -> hostSpecBuilder))
         .collect(Collectors.toMap(
             Pair::getValue1,
@@ -76,7 +79,7 @@ public class AuroraGlobalDbMonitoringHostListProvider extends MonitoringRdsHostL
               return v.getValue2();
             }));
     LOGGER.finest(() -> "Recognized GDB instance template patterns:\n"
-          + this.globalClusterInstanceTemplateByAwsRegion.entrySet().stream()
+          + this.instanceTemplatesByRegion.entrySet().stream()
               .map(x -> String.format("\t[%s] -> %s", x.getKey(), x.getValue().getHostAndPort()))
               .collect(Collectors.joining("\n"))
     );
@@ -89,17 +92,20 @@ public class AuroraGlobalDbMonitoringHostListProvider extends MonitoringRdsHostL
         this.servicesContainer,
         this.properties,
         (servicesContainer) ->
-            new GlobalTopologyMonitor(
+            new GlobalAuroraTopologyMonitor(
                 servicesContainer,
                 this.topologyUtils,
-                this.globalDialect,
                 this.clusterId,
                 this.initialHostSpec,
                 this.properties,
                 this.clusterInstanceTemplate,
                 this.refreshRateNano,
                 this.highRefreshRateNano,
-                this.globalClusterInstanceTemplateByAwsRegion));
+                this.instanceTemplatesByRegion));
   }
 
+  @Override
+  protected List<HostSpec> queryForTopology(Connection connection) throws SQLException {
+    return this.topologyUtils.queryForTopology(connection, this.initialHostSpec, this.instanceTemplatesByRegion);
+  }
 }

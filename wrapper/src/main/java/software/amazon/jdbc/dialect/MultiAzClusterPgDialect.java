@@ -22,11 +22,17 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.MultiAzDbClusterPgExceptionHandler;
+import software.amazon.jdbc.hostlistprovider.MultiAzTopologyUtils;
+import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
+import software.amazon.jdbc.hostlistprovider.TopologyUtils;
+import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
+import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.DriverInfo;
 
-public class MultiAzClusterPgDialect extends PgDialect implements TopologyDialect {
+public class MultiAzClusterPgDialect extends PgDialect implements MultiAzClusterDialect {
 
   protected static final String IS_RDS_CLUSTER_QUERY =
       "SELECT multi_az_db_cluster_source_dbi_resource_id FROM rds_tools.multi_az_db_cluster_source_dbi_resource_id()";
@@ -45,13 +51,10 @@ public class MultiAzClusterPgDialect extends PgDialect implements TopologyDialec
       "SELECT multi_az_db_cluster_source_dbi_resource_id FROM rds_tools.multi_az_db_cluster_source_dbi_resource_id()"
           + " WHERE multi_az_db_cluster_source_dbi_resource_id OPERATOR(pg_catalog.!=)"
           + " (SELECT dbi_resource_id FROM rds_tools.dbi_resource_id())";
-  protected static final String WRITER_ID_QUERY_COLUMN = "multi_az_db_cluster_source_dbi_resource_id";
+  protected static final String WRITER_ID_QUERY_COLUMN_NAME = "multi_az_db_cluster_source_dbi_resource_id";
   protected static final String IS_READER_QUERY = "SELECT pg_catalog.pg_is_in_recovery()";
 
   private static MultiAzDbClusterPgExceptionHandler exceptionHandler;
-
-  protected final MultiAzDialectUtils dialectUtils = new MultiAzDialectUtils(
-      INSTANCE_ID_QUERY, WRITER_ID_QUERY, WRITER_ID_QUERY_COLUMN);
 
   @Override
   public boolean isDialect(final Connection connection) {
@@ -79,7 +82,14 @@ public class MultiAzClusterPgDialect extends PgDialect implements TopologyDialec
 
   @Override
   public HostListProviderSupplier getHostListProviderSupplier() {
-    return this.dialectUtils.getHostListProviderSupplier(this);
+    return (properties, initialUrl, servicesContainer) -> {
+      final PluginService pluginService = servicesContainer.getPluginService();
+      final TopologyUtils topologyUtils = new MultiAzTopologyUtils(this, pluginService.getHostSpecBuilder());
+      if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {
+        return new MonitoringRdsHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
+      }
+      return new RdsHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
+    };
   }
 
   @Override
@@ -88,23 +98,22 @@ public class MultiAzClusterPgDialect extends PgDialect implements TopologyDialec
   }
 
   @Override
-  public @Nullable List<TopologyQueryHostSpec> processTopologyResults(Connection conn, ResultSet rs)
-      throws SQLException {
-    return this.dialectUtils.processTopologyResults(conn, rs);
-  }
-
-  @Override
   public String getInstanceIdQuery() {
     return INSTANCE_ID_QUERY;
   }
 
   @Override
-  public boolean isWriterInstance(Connection connection) throws SQLException {
-    return dialectUtils.isWriterInstance(connection);
+  public String getIsReaderQuery() {
+    return IS_READER_QUERY;
   }
 
   @Override
-  public String getIsReaderQuery() {
-    return IS_READER_QUERY;
+  public String getWriterIdQuery() {
+    return WRITER_ID_QUERY;
+  }
+
+  @Override
+  public String getWriterIdColumnName() {
+    return WRITER_ID_QUERY_COLUMN_NAME;
   }
 }

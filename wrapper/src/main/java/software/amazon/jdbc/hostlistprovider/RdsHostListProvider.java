@@ -32,7 +32,6 @@ import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.dialect.TopologyDialect;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
@@ -73,11 +72,11 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   protected static final int defaultTopologyQueryTimeoutMs = 5000;
 
   protected final ReentrantLock lock = new ReentrantLock();
-  protected final TopologyDialect dialect;
   protected final Properties properties;
   protected final String originalUrl;
   protected final FullServicesContainer servicesContainer;
   protected final HostListProviderService hostListProviderService;
+  protected final TopologyUtils topologyUtils;
 
   protected RdsUrlType rdsUrlType;
   protected long refreshRateNano = CLUSTER_TOPOLOGY_REFRESH_RATE_MS.defaultValue != null
@@ -88,7 +87,6 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   protected HostSpec initialHostSpec;
   protected String clusterId;
   protected HostSpec clusterInstanceTemplate;
-  protected TopologyUtils topologyUtils;
 
   protected volatile boolean isInitialized = false;
 
@@ -97,26 +95,15 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   }
 
   public RdsHostListProvider(
-      final TopologyDialect dialect,
+      final TopologyUtils topologyUtils,
       final Properties properties,
       final String originalUrl,
       final FullServicesContainer servicesContainer) {
-    this.dialect = dialect;
+    this.topologyUtils = topologyUtils;
     this.properties = properties;
     this.originalUrl = originalUrl;
     this.servicesContainer = servicesContainer;
     this.hostListProviderService = servicesContainer.getHostListProviderService();
-  }
-
-  // For testing purposes only
-  public RdsHostListProvider(
-      final TopologyDialect dialect,
-      final Properties properties,
-      final String originalUrl,
-      final FullServicesContainer servicesContainer,
-      final TopologyUtils topologyUtils) {
-    this(dialect, properties, originalUrl, servicesContainer);
-    this.topologyUtils = topologyUtils;
   }
 
   protected void init() throws SQLException {
@@ -170,13 +157,6 @@ public class RdsHostListProvider implements DynamicHostListProvider {
     validateHostPatternSetting(this.clusterInstanceTemplate.getHost());
 
     this.rdsUrlType = rdsHelper.identifyRdsType(this.initialHostSpec.getHost());
-
-    if (this.topologyUtils == null) {
-      this.topologyUtils = new TopologyUtils(
-          this.dialect,
-          this.initialHostSpec,
-          this.servicesContainer.getPluginService().getHostSpecBuilder());
-    }
   }
 
   /**
@@ -232,7 +212,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
    */
   protected List<HostSpec> queryForTopology(final Connection conn) throws SQLException {
     init();
-    return this.topologyUtils.queryForTopology(conn, this.clusterInstanceTemplate);
+    return this.topologyUtils.queryForTopology(conn, this.initialHostSpec, this.clusterInstanceTemplate);
   }
 
   /**

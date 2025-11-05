@@ -24,7 +24,9 @@ import java.util.Collections;
 import java.util.List;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.hostlistprovider.AuroraTopologyUtils;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
+import software.amazon.jdbc.hostlistprovider.TopologyUtils;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 
@@ -48,18 +50,6 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect,
       "SELECT 1 AS tmp FROM information_schema.tables WHERE"
           + " table_schema = 'mysql' AND table_name = 'rds_topology'";
   protected static final String BG_STATUS_QUERY =  "SELECT * FROM mysql.rds_topology";
-
-  protected final AuroraDialectUtils dialectUtils;
-
-  public AuroraMysqlDialect() {
-    super();
-    this.dialectUtils = new AuroraDialectUtils(WRITER_ID_QUERY);
-  }
-
-  public AuroraMysqlDialect(AuroraDialectUtils dialectUtils) {
-    super();
-    this.dialectUtils = dialectUtils;
-  }
 
   @Override
   public boolean isDialect(final Connection connection) {
@@ -85,10 +75,11 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect,
   public HostListProviderSupplier getHostListProviderSupplier() {
     return (properties, initialUrl, servicesContainer) -> {
       final PluginService pluginService = servicesContainer.getPluginService();
+      final TopologyUtils topologyUtils = new AuroraTopologyUtils(this, pluginService.getHostSpecBuilder());
       if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {
-        return new MonitoringRdsHostListProvider(this, properties, initialUrl, servicesContainer);
+        return new MonitoringRdsHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
       }
-      return new RdsHostListProvider(this, properties, initialUrl, servicesContainer);
+      return new RdsHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
     };
   }
 
@@ -98,19 +89,13 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect,
   }
 
   @Override
-  public @Nullable List<TopologyQueryHostSpec> processTopologyResults(Connection conn, ResultSet rs)
-      throws SQLException {
-    return this.dialectUtils.processTopologyResults(rs);
-  }
-
-  @Override
   public String getInstanceIdQuery() {
     return INSTANCE_ID_QUERY;
   }
 
   @Override
-  public boolean isWriterInstance(Connection connection) throws SQLException {
-    return dialectUtils.isWriterInstance(connection);
+  public String getWriterIdQuery() {
+    return WRITER_ID_QUERY;
   }
 
   @Override

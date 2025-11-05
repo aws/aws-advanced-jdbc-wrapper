@@ -28,12 +28,9 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
-import software.amazon.jdbc.dialect.TopologyDialect;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
-import software.amazon.jdbc.hostlistprovider.Topology;
+import software.amazon.jdbc.hostlistprovider.TopologyUtils;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.monitoring.MonitorService;
-import software.amazon.jdbc.util.storage.StorageService;
 
 public class MonitoringRdsHostListProvider
     extends RdsHostListProvider implements BlockingHostListProvider, CanReleaseResources {
@@ -53,11 +50,11 @@ public class MonitoringRdsHostListProvider
   protected final long highRefreshRateNano;
 
   public MonitoringRdsHostListProvider(
-      final TopologyDialect dialect,
+      final TopologyUtils topologyUtils,
       final Properties properties,
       final String originalUrl,
       final FullServicesContainer servicesContainer) {
-    super(dialect, properties, originalUrl, servicesContainer);
+    super(topologyUtils, properties, originalUrl, servicesContainer);
     this.servicesContainer = servicesContainer;
     this.pluginService = servicesContainer.getPluginService();
     this.highRefreshRateNano = TimeUnit.MILLISECONDS.toNanos(

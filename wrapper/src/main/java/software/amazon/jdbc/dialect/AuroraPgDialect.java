@@ -25,7 +25,9 @@ import java.util.List;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.hostlistprovider.AuroraTopologyUtils;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
+import software.amazon.jdbc.hostlistprovider.TopologyUtils;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.DriverInfo;
@@ -64,18 +66,6 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
         + "pg_catalog.get_blue_green_fast_switchover_metadata('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
 
   private static final Logger LOGGER = Logger.getLogger(AuroraPgDialect.class.getName());
-
-  protected final AuroraDialectUtils dialectUtils;
-
-  public AuroraPgDialect() {
-    super();
-    this.dialectUtils = new AuroraDialectUtils(WRITER_ID_QUERY);
-  }
-
-  public AuroraPgDialect(AuroraDialectUtils dialectUtils) {
-    super();
-    this.dialectUtils = dialectUtils;
-  }
 
   @Override
   public boolean isDialect(final Connection connection) {
@@ -125,10 +115,11 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
   public HostListProviderSupplier getHostListProviderSupplier() {
     return (properties, initialUrl, servicesContainer) -> {
       final PluginService pluginService = servicesContainer.getPluginService();
+      final TopologyUtils topologyUtils = new AuroraTopologyUtils(this, pluginService.getHostSpecBuilder());
       if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {
-        return new MonitoringRdsHostListProvider(this, properties, initialUrl, servicesContainer);
+        return new MonitoringRdsHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
       }
-      return new RdsHostListProvider(this, properties, initialUrl, servicesContainer);
+      return new RdsHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
     };
   }
 
@@ -138,19 +129,13 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
   }
 
   @Override
-  public @Nullable List<TopologyQueryHostSpec> processTopologyResults(Connection conn, ResultSet rs)
-      throws SQLException {
-    return this.dialectUtils.processTopologyResults(rs);
-  }
-
-  @Override
   public String getInstanceIdQuery() {
     return INSTANCE_ID_QUERY;
   }
 
   @Override
-  public boolean isWriterInstance(Connection connection) throws SQLException {
-    return this.dialectUtils.isWriterInstance(connection);
+  public String getWriterIdQuery() {
+    return WRITER_ID_QUERY;
   }
 
   @Override
