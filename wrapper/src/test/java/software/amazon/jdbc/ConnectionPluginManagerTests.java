@@ -53,6 +53,7 @@ import software.amazon.jdbc.mock.TestPluginThree;
 import software.amazon.jdbc.mock.TestPluginThrowException;
 import software.amazon.jdbc.mock.TestPluginTwo;
 import software.amazon.jdbc.plugin.AuroraConnectionTrackerPlugin;
+import software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPlugin;
 import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
 import software.amazon.jdbc.plugin.LogQueryConnectionPlugin;
 import software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin;
@@ -565,12 +566,13 @@ public class ConnectionPluginManagerTests {
         testProperties, mockTelemetryFactory, mockConnectionProvider, null));
     target.initPlugins(mockServicesContainer, configurationProfile);
 
-    assertEquals(4, target.plugins.size());
-    assertEquals(AuroraConnectionTrackerPlugin.class, target.plugins.get(0).getClass());
+    assertEquals(5, target.plugins.size());
+    assertEquals(AuroraInitialConnectionStrategyPlugin.class, target.plugins.get(0).getClass());
+    assertEquals(AuroraConnectionTrackerPlugin.class, target.plugins.get(1).getClass());
     assertEquals(software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin.class,
-        target.plugins.get(1).getClass());
-    assertEquals(HostMonitoringConnectionPlugin.class, target.plugins.get(2).getClass());
-    assertEquals(DefaultConnectionPlugin.class, target.plugins.get(3).getClass());
+        target.plugins.get(2).getClass());
+    assertEquals(HostMonitoringConnectionPlugin.class, target.plugins.get(3).getClass());
+    assertEquals(DefaultConnectionPlugin.class, target.plugins.get(4).getClass());
   }
 
   @Test
