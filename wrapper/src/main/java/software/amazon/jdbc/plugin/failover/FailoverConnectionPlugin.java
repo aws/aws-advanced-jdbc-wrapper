@@ -757,7 +757,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         throwFailoverFailedException(
             Messages.get(
                 "Failover.noWriterHostAfterReconnecting",
-                new Object[]{Utils.logTopology(hosts, "")}));
+                new Object[]{LogUtils.logTopology(hosts, "")}));
         return;
       }
 
@@ -765,7 +765,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       if (!Utils.containsHostAndPort(allowedHosts, writerHostSpec.getHostAndPort())) {
         throwFailoverFailedException(
             Messages.get("Failover.newWriterNotAllowed",
-                new Object[] {writerHostSpec.getUrl(), Utils.logTopology(allowedHosts, "")}));
+                new Object[] {writerHostSpec.getUrl(), LogUtils.logTopology(allowedHosts, "")}));
         return;
       }
 

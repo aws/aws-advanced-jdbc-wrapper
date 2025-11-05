@@ -73,7 +73,7 @@ public class MonitoringRdsHostListProvider
             this.clusterId,
             this.initialHostSpec,
             this.properties,
-            this.clusterInstanceTemplate,
+            this.instanceTemplate,
             this.refreshRateNano,
             this.highRefreshRateNano));
   }
@@ -108,6 +108,6 @@ public class MonitoringRdsHostListProvider
 
   @Override
   public void releaseResources() {
-    // do nothing
+    // Do nothing.
   }
 }

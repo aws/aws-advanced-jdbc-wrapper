@@ -23,7 +23,9 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
@@ -44,75 +46,78 @@ public class MultiAzTopologyUtils extends TopologyUtils {
 
   @Override
   protected @Nullable List<HostSpec> getHosts(
-      Connection conn, ResultSet rs, HostSpec initialHostSpec, HostSpec hostTemplate)
+      Connection conn, ResultSet rs, HostSpec initialHostSpec, HostSpec instanceTemplate)
       throws SQLException {
     String writerId = this.getWriterId(conn);
 
-    // Data is result set is ordered by last updated time so the latest records go last.
-    // When adding hosts to a map, the newer records replace the older ones.
-    List<HostSpec> hosts = new ArrayList<>();
+    // Data in the result set is ordered by last update time, so the latest records are last.
+    // We add hosts to a map to ensure newer records are not overwritten by older ones.
+    Map<String, HostSpec> hostsMap = new HashMap<>();
     while (rs.next()) {
       try {
-        hosts.add(createHost(rs, initialHostSpec, hostTemplate, writerId));
+        HostSpec host = createHost(rs, initialHostSpec, instanceTemplate, writerId);
+        hostsMap.put(host.getHost(), host);
       } catch (Exception e) {
-        LOGGER.finest(
-            Messages.get("TopologyUtils.errorProcessingQueryResults", new Object[]{e.getMessage()}));
+        LOGGER.finest(Messages.get("TopologyUtils.errorProcessingQueryResults", new Object[]{e.getMessage()}));
         return null;
       }
     }
 
-    return hosts;
+    return new ArrayList<>(hostsMap.values());
   }
 
   @Override
   public boolean isWriterInstance(final Connection connection) throws SQLException {
     try (final Statement stmt = connection.createStatement()) {
-      try (final ResultSet resultSet = stmt.executeQuery(this.dialect.getWriterIdQuery())) {
-        if (resultSet.next()) {
-          String instanceId = resultSet.getString(this.dialect.getWriterIdColumnName());
+      try (final ResultSet rs = stmt.executeQuery(this.dialect.getWriterIdQuery())) {
+        if (rs.next()) {
+          String instanceId = rs.getString(this.dialect.getWriterIdColumnName());
           // The writer ID is only returned when connected to a reader, so if the query does not return a value, it
           // means we are connected to a writer.
           return StringUtils.isNullOrEmpty(instanceId);
         }
       }
     }
+
     return false;
   }
 
 
   protected @Nullable String getWriterId(Connection connection) throws SQLException {
     try (final Statement stmt = connection.createStatement()) {
-      try (final ResultSet resultSet = stmt.executeQuery(this.dialect.getWriterIdQuery())) {
-        if (resultSet.next()) {
-          String writerId = resultSet.getString(this.dialect.getWriterIdColumnName());
+      try (final ResultSet rs = stmt.executeQuery(this.dialect.getWriterIdQuery())) {
+        if (rs.next()) {
+          String writerId = rs.getString(this.dialect.getWriterIdColumnName());
           if (!StringUtils.isNullOrEmpty(writerId)) {
             return writerId;
           }
         }
       }
 
-      // Replica status doesn't exist, which means that this instance is a writer. We execute instanceIdQuery to get the
-      // ID of this writer instance.
-      try (final ResultSet resultSet = stmt.executeQuery(this.dialect.getInstanceIdQuery())) {
-        if (resultSet.next()) {
-          return resultSet.getString(1);
+      // The writer ID is only returned when connected to a reader, so if the query does not return a value, it
+      // means we are connected to a writer
+      try (final ResultSet rs = stmt.executeQuery(this.dialect.getInstanceIdQuery())) {
+        if (rs.next()) {
+          return rs.getString(1);
         }
       }
     }
+
     return null;
   }
 
   protected HostSpec createHost(
-      final ResultSet resultSet,
+      final ResultSet rs,
       final HostSpec initialHostSpec,
-      final HostSpec hostTemplate,
+      final HostSpec instanceTemplate,
       final @Nullable String writerId) throws SQLException {
 
-    String endpoint = resultSet.getString("endpoint"); // "instance-name.XYZ.us-west-2.rds.amazonaws.com"
+    String endpoint = rs.getString("endpoint"); // "instance-name.XYZ.us-west-2.rds.amazonaws.com"
     String instanceName = endpoint.substring(0, endpoint.indexOf(".")); // "instance-name"
-    String hostId = resultSet.getString("id"); // "1034958454"
+    String hostId = rs.getString("id"); // "1034958454"
     final boolean isWriter = hostId.equals(writerId);
 
-    return createHost(hostId, instanceName, isWriter, 0, Timestamp.from(Instant.now()), initialHostSpec, hostTemplate);
+    return createHost(
+        hostId, instanceName, isWriter, 0, Timestamp.from(Instant.now()), initialHostSpec, instanceTemplate);
   }
 }

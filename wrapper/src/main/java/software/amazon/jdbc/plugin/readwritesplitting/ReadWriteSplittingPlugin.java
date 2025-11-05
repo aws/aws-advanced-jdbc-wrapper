@@ -425,7 +425,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       LOGGER.finest(
           Messages.get(
               "ReadWriteSplittingPlugin.previousReaderNotAllowed",
-              new Object[] {this.readerHostSpec, Utils.logTopology(hosts, "")}));
+              new Object[] {this.readerHostSpec, LogUtils.logTopology(hosts, "")}));
       closeConnectionIfIdle(this.readerConnection);
     }
 

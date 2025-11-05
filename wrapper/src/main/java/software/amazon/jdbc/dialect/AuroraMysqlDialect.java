@@ -22,7 +22,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Collections;
 import java.util.List;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.AuroraTopologyUtils;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
@@ -37,7 +36,7 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect,
       "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
           + "CPU, REPLICA_LAG_IN_MILLISECONDS, LAST_UPDATE_TIMESTAMP "
           + "FROM information_schema.replica_host_status "
-          // filter out instances that haven't been updated in the last 5 minutes
+          // filter out instances that have not been updated in the last 5 minutes
           + "WHERE time_to_sec(timediff(now(), LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' ";
 
   protected static final String INSTANCE_ID_QUERY = "SELECT @@aurora_server_id";
@@ -56,7 +55,6 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect,
     try (Statement stmt = connection.createStatement();
          ResultSet rs = stmt.executeQuery(AURORA_VERSION_EXISTS_QUERY)) {
       if (rs.next()) {
-        // If variable with such name is presented then it means it's an Aurora cluster
         return true;
       }
     } catch (final SQLException ex) {

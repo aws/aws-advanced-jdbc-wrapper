@@ -61,8 +61,7 @@ public class RdsPgDialect extends PgDialect implements BlueGreenDialect {
       while (rs.next()) {
         final boolean rdsTools = rs.getBoolean("rds_tools");
         final boolean auroraUtils = rs.getBoolean("aurora_stat_utils");
-        LOGGER.finest(
-            Messages.get("RdsPgDialect.rdsToolsAuroraUtils", new Object[] {rdsTools, auroraUtils}));
+        LOGGER.finest(Messages.get("RdsPgDialect.rdsToolsAuroraUtils", new Object[] {rdsTools, auroraUtils}));
         if (rdsTools && !auroraUtils) {
           return true;
         }

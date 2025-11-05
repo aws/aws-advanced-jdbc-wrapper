@@ -26,7 +26,6 @@ import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.hostlistprovider.AuroraTopologyUtils;
 import software.amazon.jdbc.hostlistprovider.MultiAzTopologyUtils;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.hostlistprovider.TopologyUtils;
@@ -45,12 +44,12 @@ public class MultiAzClusterMysqlDialect extends MysqlDialect implements MultiAzC
           + " table_schema = 'mysql' AND table_name = 'rds_topology'";
   protected static final String TOPOLOGY_QUERY = "SELECT id, endpoint, port FROM mysql.rds_topology";
 
-  // The query return nodeId and nodeName.
+  // This query returns both instanceId and instanceName.
   // For example: "1845128080", "test-multiaz-instance-1"
   private static final String INSTANCE_ID_QUERY = "SELECT id, SUBSTRING_INDEX(endpoint, '.', 1)"
       + " FROM mysql.rds_topology"
       + " WHERE id = @@server_id";
-  // For reader instances, the query returns a writer instance ID. For a writer instance, the query returns no data.
+  // For reader instances, this query returns a writer instance ID. For a writer instance, this query returns no data.
   protected static final String WRITER_ID_QUERY = "SHOW REPLICA STATUS";
   protected static final String WRITER_ID_QUERY_COLUMN_NAME = "Source_Server_Id";
   protected static final String IS_READER_QUERY = "SELECT @@read_only";
@@ -82,14 +81,14 @@ public class MultiAzClusterMysqlDialect extends MysqlDialect implements MultiAzC
         if (!rs.next()) {
           return false;
         }
-        final String reportHost = rs.getString(2); // get variable value; expected value is IP address
+
+        final String reportHost = rs.getString(2); // Expected value is an IP address
         return !StringUtils.isNullOrEmpty(reportHost);
       }
 
     } catch (final SQLException ex) {
-      // ignore
+      return false;
     }
-    return false;
   }
 
   @Override

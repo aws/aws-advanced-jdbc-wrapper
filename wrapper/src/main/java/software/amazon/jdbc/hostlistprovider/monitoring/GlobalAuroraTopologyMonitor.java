@@ -21,7 +21,6 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.logging.Logger;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.hostlistprovider.GlobalAuroraTopologyUtils;
 import software.amazon.jdbc.util.FullServicesContainer;
@@ -39,7 +38,7 @@ public class GlobalAuroraTopologyMonitor extends ClusterTopologyMonitorImpl {
       final String clusterId,
       final HostSpec initialHostSpec,
       final Properties properties,
-      final HostSpec clusterInstanceTemplate,
+      final HostSpec instanceTemplate,
       final long refreshRateNano,
       final long highRefreshRateNano,
       final Map<String, HostSpec> instanceTemplatesByRegion) {
@@ -48,7 +47,7 @@ public class GlobalAuroraTopologyMonitor extends ClusterTopologyMonitorImpl {
         clusterId,
         initialHostSpec,
         properties,
-        clusterInstanceTemplate,
+        instanceTemplate,
         refreshRateNano,
         highRefreshRateNano);
 
@@ -57,19 +56,19 @@ public class GlobalAuroraTopologyMonitor extends ClusterTopologyMonitorImpl {
   }
 
   @Override
-  protected HostSpec getClusterInstanceTemplate(String instanceId, Connection connection) throws SQLException {
+  protected HostSpec getinstanceTemplate(String instanceId, Connection connection) throws SQLException {
     String region = this.topologyUtils.getRegion(instanceId, connection);
     if (!StringUtils.isNullOrEmpty(region)) {
-      final HostSpec clusterInstanceTemplateForRegion = this.instanceTemplatesByRegion.get(region);
-      if (clusterInstanceTemplateForRegion == null) {
+      final HostSpec instanceTemplate = this.instanceTemplatesByRegion.get(region);
+      if (instanceTemplate == null) {
         throw new SQLException(
             Messages.get("GlobalAuroraTopologyMonitor.cannotFindRegionTemplate", new Object[] {region}));
       }
 
-      return clusterInstanceTemplateForRegion;
+      return instanceTemplate;
     }
 
-    return this.clusterInstanceTemplate;
+    return this.instanceTemplate;
   }
 
   @Override

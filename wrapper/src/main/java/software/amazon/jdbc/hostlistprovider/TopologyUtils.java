@@ -54,18 +54,18 @@ public abstract class TopologyUtils {
     this.hostSpecBuilder = hostSpecBuilder;
   }
 
-  public @Nullable List<HostSpec> queryForTopology(Connection conn, HostSpec initialHostSpec, HostSpec hostTemplate)
+  public @Nullable List<HostSpec> queryForTopology(Connection conn, HostSpec initialHostSpec, HostSpec instanceTemplate)
       throws SQLException {
     int networkTimeout = setNetworkTimeout(conn);
     try (final Statement stmt = conn.createStatement();
-         final ResultSet resultSet = stmt.executeQuery(this.dialect.getTopologyQuery())) {
-      if (resultSet.getMetaData().getColumnCount() == 0) {
+         final ResultSet rs = stmt.executeQuery(this.dialect.getTopologyQuery())) {
+      if (rs.getMetaData().getColumnCount() == 0) {
         // We expect at least 4 columns. Note that the server may return 0 columns if failover has occurred.
         LOGGER.finest(Messages.get("TopologyUtils.unexpectedTopologyQueryColumnCount"));
         return null;
       }
 
-      return this.verifyWriter(this.getHosts(conn, resultSet, initialHostSpec, hostTemplate));
+      return this.verifyWriter(this.getHosts(conn, rs, initialHostSpec, instanceTemplate));
     } catch (final SQLSyntaxErrorException e) {
       throw new SQLException(Messages.get("TopologyUtils.invalidQuery"), e);
     } finally {
@@ -79,21 +79,24 @@ public abstract class TopologyUtils {
     int networkTimeout = -1;
     try {
       networkTimeout = conn.getNetworkTimeout();
-      // The topology query is not monitored by the EFM plugin, so it needs a socket timeout
+      // The topology query is not monitored by the EFM plugin, so it needs a socket timeout.
       if (networkTimeout == 0) {
         conn.setNetworkTimeout(this.networkTimeoutExecutor, DEFAULT_QUERY_TIMEOUT_MS);
       }
     } catch (SQLException e) {
-      LOGGER.warning(() -> Messages.get("TopologyUtils.errorGettingNetworkTimeout",
-          new Object[] {e.getMessage()}));
+      LOGGER.warning(() -> Messages.get("TopologyUtils.errorGettingNetworkTimeout", new Object[] {e.getMessage()}));
     }
     return networkTimeout;
   }
 
   protected abstract @Nullable List<HostSpec> getHosts(
-      Connection conn, ResultSet rs, HostSpec initialHostSpec, HostSpec hostTemplate) throws SQLException;
+      Connection conn, ResultSet rs, HostSpec initialHostSpec, HostSpec instanceTemplate) throws SQLException;
 
-  protected @Nullable List<HostSpec> verifyWriter(List<HostSpec> allHosts) {
+  protected @Nullable List<HostSpec> verifyWriter(@Nullable List<HostSpec> allHosts) {
+    if (allHosts == null) {
+      return null;
+    }
+
     List<HostSpec> hosts = new ArrayList<>();
     List<HostSpec> writers = new ArrayList<>();
     for (HostSpec host : allHosts) {
@@ -128,11 +131,11 @@ public abstract class TopologyUtils {
       final long weight,
       final Timestamp lastUpdateTime,
       final HostSpec initialHostSpec,
-      final HostSpec clusterInstanceTemplate) {
+      final HostSpec instanceTemplate) {
     instanceName = instanceName == null ? "?" : instanceName;
-    final String endpoint = clusterInstanceTemplate.getHost().replace("?", instanceName);
-    final int port = clusterInstanceTemplate.isPortSpecified()
-        ? clusterInstanceTemplate.getPort()
+    final String endpoint = instanceTemplate.getHost().replace("?", instanceName);
+    final int port = instanceTemplate.isPortSpecified()
+        ? instanceTemplate.getPort()
         : initialHostSpec.getPort();
 
     final HostSpec hostSpec = this.hostSpecBuilder
@@ -163,9 +166,9 @@ public abstract class TopologyUtils {
   public @Nullable Pair<String /* instanceId */, String /* instanceName */> getInstanceId(final Connection connection) {
     try {
       try (final Statement stmt = connection.createStatement();
-           final ResultSet resultSet = stmt.executeQuery(this.dialect.getInstanceIdQuery())) {
-        if (resultSet.next()) {
-          return Pair.create(resultSet.getString(1), resultSet.getString(2));
+           final ResultSet rs = stmt.executeQuery(this.dialect.getInstanceIdQuery())) {
+        if (rs.next()) {
+          return Pair.create(rs.getString(1), rs.getString(2));
         }
       }
     } catch (SQLException ex) {

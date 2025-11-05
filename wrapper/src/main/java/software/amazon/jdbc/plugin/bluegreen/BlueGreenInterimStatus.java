@@ -74,8 +74,8 @@ public class BlueGreenInterimStatus {
         .map(x -> String.format("%s -> %s", x.getKey(), x.getValue()))
         .collect(Collectors.joining("\n   "));
     String allHostNamesStr = String.join("\n   ", this.hostNames);
-    String startTopologyStr = Utils.logTopology(this.startTopology);
-    String currentTopologyStr = Utils.logTopology(this.currentTopology);
+    String startTopologyStr = LogUtils.logTopology(this.startTopology);
+    String currentTopologyStr = LogUtils.logTopology(this.currentTopology);
     return String.format("%s [\n"
             + " phase %s, \n"
             + " version '%s', \n"

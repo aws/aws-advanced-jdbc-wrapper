@@ -21,7 +21,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.MultiAzDbClusterPgExceptionHandler;
@@ -39,14 +38,14 @@ public class MultiAzClusterPgDialect extends PgDialect implements MultiAzCluster
   protected static final String TOPOLOGY_QUERY =
       "SELECT id, endpoint, port FROM rds_tools.show_topology('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
 
-  // The query return nodeId and nodeName.
+  // This query returns both instanceId and instanceName.
   // For example: "db-WQFQKBTL2LQUPIEFIFBGENS4ZQ", "test-multiaz-instance-1"
   private static final String INSTANCE_ID_QUERY = "SELECT id, SUBSTRING(endpoint FROM 0 FOR POSITION('.' IN endpoint))"
       + " FROM rds_tools.show_topology()"
       + " WHERE id OPERATOR(pg_catalog.=) rds_tools.dbi_resource_id()";
 
-  // For reader instances, the query should return a writer instance ID.
-  // For a writer instance, the query should return no data.
+  // For reader instances, this query should return a writer instance ID.
+  // For a writer instance, this query should return no data.
   protected static final String WRITER_ID_QUERY =
       "SELECT multi_az_db_cluster_source_dbi_resource_id FROM rds_tools.multi_az_db_cluster_source_dbi_resource_id()"
           + " WHERE multi_az_db_cluster_source_dbi_resource_id OPERATOR(pg_catalog.!=)"
@@ -62,9 +61,8 @@ public class MultiAzClusterPgDialect extends PgDialect implements MultiAzCluster
          ResultSet rs = stmt.executeQuery(IS_RDS_CLUSTER_QUERY)) {
       return rs.next() && rs.getString(1) != null;
     } catch (final SQLException ex) {
-      // ignore
+      return false;
     }
-    return false;
   }
 
   @Override

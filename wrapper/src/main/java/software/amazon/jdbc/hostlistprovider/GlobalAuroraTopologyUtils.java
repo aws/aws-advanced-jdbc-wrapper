@@ -25,14 +25,21 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.dialect.GlobalAuroraTopologyDialect;
+import software.amazon.jdbc.util.ConnectionUrlParser;
+import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.StringUtils;
 
 public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
@@ -50,14 +57,14 @@ public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
       throws SQLException {
     int networkTimeout = setNetworkTimeout(conn);
     try (final Statement stmt = conn.createStatement();
-         final ResultSet resultSet = stmt.executeQuery(this.dialect.getTopologyQuery())) {
-      if (resultSet.getMetaData().getColumnCount() == 0) {
+         final ResultSet rs = stmt.executeQuery(this.dialect.getTopologyQuery())) {
+      if (rs.getMetaData().getColumnCount() == 0) {
         // We expect at least 4 columns. Note that the server may return 0 columns if failover has occurred.
         LOGGER.finest(Messages.get("TopologyUtils.unexpectedTopologyQueryColumnCount"));
         return null;
       }
 
-      return this.verifyWriter(this.getHosts(conn, resultSet, initialHostSpec, instanceTemplatesByRegion));
+      return this.verifyWriter(this.getHosts(rs, initialHostSpec, instanceTemplatesByRegion));
     } catch (final SQLSyntaxErrorException e) {
       throw new SQLException(Messages.get("TopologyUtils.invalidQuery"), e);
     } finally {
@@ -68,29 +75,28 @@ public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
   }
 
   protected @Nullable List<HostSpec> getHosts(
-      Connection conn, ResultSet rs, HostSpec initialHostSpec, Map<String, HostSpec> instanceTemplatesByRegion)
-      throws SQLException {
-    // Data is result set is ordered by last updated time so the latest records go last.
-    // When adding hosts to a map, the newer records replace the older ones.
-    List<HostSpec> hosts = new ArrayList<>();
+      ResultSet rs, HostSpec initialHostSpec, Map<String, HostSpec> instanceTemplatesByRegion) throws SQLException {
+    // Data in the result set is ordered by last update time, so the latest records are last.
+    // We add hosts to a map to ensure newer records are not overwritten by older ones.
+    Map<String, HostSpec> hostsMap = new HashMap<>();
     while (rs.next()) {
       try {
-        hosts.add(createHost(rs, initialHostSpec, instanceTemplatesByRegion));
+        HostSpec host = createHost(rs, initialHostSpec, instanceTemplatesByRegion);
+        hostsMap.put(host.getHost(), host);
       } catch (Exception e) {
-        LOGGER.finest(
-            Messages.get("TopologyUtils.errorProcessingQueryResults", new Object[] {e.getMessage()}));
+        LOGGER.finest(Messages.get("TopologyUtils.errorProcessingQueryResults", new Object[] {e.getMessage()}));
         return null;
       }
     }
 
-    return hosts;
+    return new ArrayList<>(hostsMap.values());
   }
 
   protected HostSpec createHost(
       ResultSet rs, HostSpec initialHostSpec, Map<String, HostSpec> instanceTemplatesByRegion)
       throws SQLException {
-    // According to the topology query the result set
-    // should contain 4 columns: node ID, 1/0 (writer/reader), node lag in time (msec), AWS region.
+    // According to the topology query the result set should contain 4 columns:
+    // instance ID, 1/0 (writer/reader), node lag in time (msec), AWS region.
     String hostName = rs.getString(1);
     final boolean isWriter = rs.getBoolean(2);
     final float nodeLag = rs.getFloat(3);
@@ -99,27 +105,48 @@ public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
     // Calculate weight based on node lag in time and CPU utilization.
     final long weight = Math.round(nodeLag) * 100L;
 
-    final HostSpec clusterInstanceTemplateForRegion = instanceTemplatesByRegion.get(awsRegion);
-    if (clusterInstanceTemplateForRegion == null) {
-      throw new SQLException(
-          Messages.get("GlobalAuroraTopologyMonitor.cannotFindRegionTemplate", new Object[] {awsRegion}));
+    final HostSpec instanceTemplate = instanceTemplatesByRegion.get(awsRegion);
+    if (instanceTemplate == null) {
+      throw new SQLException(Messages.get(
+          "GlobalAuroraTopologyMonitor.cannotFindRegionTemplate", new Object[] {awsRegion}));
     }
 
     return createHost(hostName, hostName, isWriter, weight, Timestamp.from(Instant.now()), initialHostSpec,
-        clusterInstanceTemplateForRegion);
+        instanceTemplate);
   }
 
   public @Nullable String getRegion(String instanceId, Connection conn) throws SQLException {
     try (final PreparedStatement stmt = conn.prepareStatement(this.dialect.getRegionByInstanceIdQuery())) {
       stmt.setString(1, instanceId);
-      try (final ResultSet resultSet = stmt.executeQuery()) {
-        if (resultSet.next()) {
-          String awsRegion = resultSet.getString(1);
+      try (final ResultSet rs = stmt.executeQuery()) {
+        if (rs.next()) {
+          String awsRegion = rs.getString(1);
           return StringUtils.isNullOrEmpty(awsRegion) ? null : awsRegion;
         }
       }
     }
 
     return null;
+  }
+
+  public Map<String, HostSpec> parseInstanceTemplates(String instanceTemplatesString, Consumer<String> hostValidator)
+      throws SQLException {
+    if (StringUtils.isNullOrEmpty(instanceTemplatesString)) {
+      throw new SQLException(Messages.get("GlobalAuroraTopologyUtils.globalClusterInstanceHostPatternsRequired"));
+    }
+
+    Map<String, HostSpec> instanceTemplates = Arrays.stream(instanceTemplatesString.split(","))
+        .map(x -> ConnectionUrlParser.parseHostPortPairWithRegionPrefix(x.trim(), () -> hostSpecBuilder))
+        .collect(Collectors.toMap(
+            Pair::getValue1,
+            v -> {
+              hostValidator.accept(v.getValue2().getHost());
+              return v.getValue2();
+            }));
+    LOGGER.finest(Messages.get(
+        "GlobalAuroraTopologyUtils.detectedGdbPatterns",
+        new Object[] {LogUtils.toLogString(instanceTemplates)}));
+
+    return instanceTemplates;
   }
 }

@@ -18,22 +18,18 @@ package software.amazon.jdbc.hostlistprovider.monitoring;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.GlobalAuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.GlobalAuroraTopologyUtils;
-import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -47,7 +43,7 @@ public class MonitoringGlobalAuroraHostListProvider extends MonitoringRdsHostLis
   protected final GlobalAuroraTopologyUtils topologyUtils;
 
   static {
-    // Intentionally register property definition in GlobalAuroraHostListProvider class.
+    // Intentionally register property definition using the GlobalAuroraHostListProvider class.
     PropertyDefinition.registerPluginProperties(GlobalAuroraHostListProvider.class);
   }
 
@@ -64,28 +60,9 @@ public class MonitoringGlobalAuroraHostListProvider extends MonitoringRdsHostLis
   protected void initSettings() throws SQLException {
     super.initSettings();
 
-    // TODO: check if we have other places that parse into string-HostSpec maps, consider refactoring
-    String templates = GlobalAuroraHostListProvider.GLOBAL_CLUSTER_INSTANCE_HOST_PATTERNS.getString(properties);
-    if (StringUtils.isNullOrEmpty(templates)) {
-      throw new SQLException(Messages.get("MonitoringGlobalAuroraHostListProvider.globalHostPatternsRequired"));
-    }
-
-    HostSpecBuilder hostSpecBuilder = this.hostListProviderService.getHostSpecBuilder();
-    this.instanceTemplatesByRegion = Arrays.stream(templates.split(","))
-        .map(x -> ConnectionUrlParser.parseHostPortPairWithRegionPrefix(x.trim(), () -> hostSpecBuilder))
-        .collect(Collectors.toMap(
-            Pair::getValue1,
-            v -> {
-              this.validateHostPatternSetting(v.getValue2().getHost());
-              return v.getValue2();
-            }));
-    LOGGER.finest(Messages.get(
-        "GlobalAuroraHostListProvider.detectedGdbPatterns", new Object[] {
-            this.instanceTemplatesByRegion.entrySet().stream()
-                .map(x -> String.format("\t[%s] -> %s", x.getKey(), x.getValue().getHostAndPort()))
-                .collect(Collectors.joining("\n"))
-        })
-    );
+    String instanceTemplates = GlobalAuroraHostListProvider.GLOBAL_CLUSTER_INSTANCE_HOST_PATTERNS.getString(properties);
+    this.instanceTemplatesByRegion =
+        this.topologyUtils.parseInstanceTemplates(instanceTemplates, this::validateHostPatternSetting);
   }
 
   protected ClusterTopologyMonitor initMonitor() throws SQLException {
@@ -101,7 +78,7 @@ public class MonitoringGlobalAuroraHostListProvider extends MonitoringRdsHostLis
                 this.clusterId,
                 this.initialHostSpec,
                 this.properties,
-                this.clusterInstanceTemplate,
+                this.instanceTemplate,
                 this.refreshRateNano,
                 this.highRefreshRateNano,
                 this.instanceTemplatesByRegion));

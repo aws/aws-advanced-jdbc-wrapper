@@ -159,7 +159,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
               Messages.get("PluginServiceImpl.currentHostNotAllowed",
                   new Object[] {
                       currentHostSpec == null ? "<null>" : currentHostSpec.getHostAndPort(),
-                      Utils.logTopology(allowedHosts, "")})
+                      LogUtils.logTopology(allowedHosts, "")})
           );
         }
 

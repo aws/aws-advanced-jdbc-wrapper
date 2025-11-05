@@ -76,7 +76,7 @@ public class RdsMysqlDialect extends MysqlDialect implements BlueGreenDialect {
           return false;
         }
 
-        final String reportHost = rs.getString(2); // get variable value; expected empty value
+        final String reportHost = rs.getString(2); // An empty value is expected
         return StringUtils.isNullOrEmpty(reportHost);
       }
 

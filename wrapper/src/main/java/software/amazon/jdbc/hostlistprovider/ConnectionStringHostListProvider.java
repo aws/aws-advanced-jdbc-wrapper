@@ -35,7 +35,6 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
   private static final Logger LOGGER = Logger.getLogger(ConnectionStringHostListProvider.class.getName());
 
   final List<HostSpec> hostList = new ArrayList<>();
-  Properties properties;
   private boolean isInitialized = false;
   private final boolean isSingleWriterConnectionString;
   private final ConnectionUrlParser connectionUrlParser;
@@ -74,11 +73,12 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
     }
     this.hostList.addAll(
         this.connectionUrlParser.getHostsFromConnectionUrl(this.initialUrl, this.isSingleWriterConnectionString,
-            () -> this.hostListProviderService.getHostSpecBuilder()));
+            this.hostListProviderService::getHostSpecBuilder));
     if (this.hostList.isEmpty()) {
       throw new SQLException(Messages.get("ConnectionStringHostListProvider.parsedListEmpty",
           new Object[] {this.initialUrl}));
     }
+
     this.hostListProviderService.setInitialConnectionHostSpec(this.hostList.get(0));
     this.isInitialized = true;
   }

@@ -34,6 +34,7 @@ import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RdsUrlType;
@@ -86,7 +87,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   protected List<HostSpec> initialHostList = new ArrayList<>();
   protected HostSpec initialHostSpec;
   protected String clusterId;
-  protected HostSpec clusterInstanceTemplate;
+  protected HostSpec instanceTemplate;
 
   protected volatile boolean isInitialized = false;
 
@@ -124,14 +125,12 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   }
 
   protected void initSettings() throws SQLException {
-
-    // initial topology is based on connection string
+    // The initial topology is based on the connection string.
     this.initialHostList =
         connectionUrlParser.getHostsFromConnectionUrl(this.originalUrl, false,
             this.hostListProviderService::getHostSpecBuilder);
     if (this.initialHostList == null || this.initialHostList.isEmpty()) {
-      throw new SQLException(Messages.get("RdsHostListProvider.parsedListEmpty",
-          new Object[] {this.originalUrl}));
+      throw new SQLException(Messages.get("RdsHostListProvider.parsedListEmpty", new Object[] {this.originalUrl}));
     }
     this.initialHostSpec = this.initialHostList.get(0);
     this.hostListProviderService.setInitialConnectionHostSpec(this.initialHostSpec);
@@ -143,10 +142,10 @@ public class RdsHostListProvider implements DynamicHostListProvider {
     HostSpecBuilder hostSpecBuilder = this.hostListProviderService.getHostSpecBuilder();
     String clusterInstancePattern = CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties);
     if (clusterInstancePattern != null) {
-      this.clusterInstanceTemplate =
+      this.instanceTemplate =
           ConnectionUrlParser.parseHostPortPair(clusterInstancePattern, () -> hostSpecBuilder);
     } else {
-      this.clusterInstanceTemplate =
+      this.instanceTemplate =
           hostSpecBuilder
               .host(rdsHelper.getRdsInstanceHostPattern(this.initialHostSpec.getHost()))
               .hostId(this.initialHostSpec.getHostId())
@@ -154,8 +153,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
               .build();
     }
 
-    validateHostPatternSetting(this.clusterInstanceTemplate.getHost());
-
+    validateHostPatternSetting(this.instanceTemplate.getHost());
     this.rdsUrlType = rdsHelper.identifyRdsType(this.initialHostSpec.getHost());
   }
 
@@ -175,20 +173,15 @@ public class RdsHostListProvider implements DynamicHostListProvider {
     init();
 
     final List<HostSpec> storedHosts = this.getStoredTopology();
-
     if (storedHosts == null || forceUpdate) {
-
-      // need to re-fetch topology
-
+      // We need to re-fetch topology.
       if (conn == null) {
-        // can't fetch the latest topology since no connection
-        // return original hosts parsed from connection string
+        // We cannot fetch the latest topology since we do not have access to a connection, so we return the original
+        // hosts parsed from the connection string.
         return new FetchTopologyResult(false, this.initialHostList);
       }
 
-      // fetch topology from the DB
       final List<HostSpec> hosts = this.queryForTopology(conn);
-
       if (!Utils.isNullOrEmpty(hosts)) {
         this.servicesContainer.getStorageService().set(this.clusterId, new Topology(hosts));
         return new FetchTopologyResult(false, hosts);
@@ -198,7 +191,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
     if (storedHosts == null) {
       return new FetchTopologyResult(false, this.initialHostList);
     } else {
-      // use cached data
+      // Return the cached data.
       return new FetchTopologyResult(true, storedHosts);
     }
   }
@@ -212,7 +205,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
    */
   protected List<HostSpec> queryForTopology(final Connection conn) throws SQLException {
     init();
-    return this.topologyUtils.queryForTopology(conn, this.initialHostSpec, this.clusterInstanceTemplate);
+    return this.topologyUtils.queryForTopology(conn, this.initialHostSpec, this.instanceTemplate);
   }
 
   /**
@@ -246,7 +239,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
         : this.hostListProviderService.getCurrentConnection();
 
     final FetchTopologyResult results = getTopology(currentConnection, false);
-    LOGGER.finest(() -> Utils.logTopology(results.hosts, results.isCachedData ? "[From cache] Topology:" : null));
+    LOGGER.finest(() -> LogUtils.logTopology(results.hosts, results.isCachedData ? "[From cache] Topology:" : null));
 
     this.hostList = results.hosts;
     return Collections.unmodifiableList(hostList);
@@ -265,7 +258,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
         : this.hostListProviderService.getCurrentConnection();
 
     final FetchTopologyResult results = getTopology(currentConnection, true);
-    LOGGER.finest(() -> Utils.logTopology(results.hosts));
+    LOGGER.finest(() -> LogUtils.logTopology(results.hosts));
     this.hostList = results.hosts;
     return Collections.unmodifiableList(this.hostList);
   }
@@ -277,9 +270,6 @@ public class RdsHostListProvider implements DynamicHostListProvider {
 
   protected void validateHostPatternSetting(final String hostPattern) {
     if (!rdsHelper.isDnsPatternValid(hostPattern)) {
-      // "Invalid value for the 'clusterInstanceHostPattern' configuration setting - the host
-      // pattern must contain a '?'
-      // character as a placeholder for the DB instance identifiers of the instances in the cluster"
       final String message = Messages.get("RdsHostListProvider.invalidPattern");
       LOGGER.severe(message);
       throw new RuntimeException(message);
@@ -287,18 +277,13 @@ public class RdsHostListProvider implements DynamicHostListProvider {
 
     final RdsUrlType rdsUrlType = rdsHelper.identifyRdsType(hostPattern);
     if (rdsUrlType == RdsUrlType.RDS_PROXY || rdsUrlType == RdsUrlType.RDS_PROXY_ENDPOINT) {
-      // "An RDS Proxy url can't be used as the 'clusterInstanceHostPattern' configuration setting."
-      final String message =
-          Messages.get("RdsHostListProvider.clusterInstanceHostPatternNotSupportedForRDSProxy");
+      final String message = Messages.get("RdsHostListProvider.clusterInstanceHostPatternNotSupportedForRDSProxy");
       LOGGER.severe(message);
       throw new RuntimeException(message);
     }
 
     if (rdsUrlType == RdsUrlType.RDS_CUSTOM_CLUSTER) {
-      // "An RDS Custom Cluster endpoint can't be used as the 'clusterInstanceHostPattern'
-      // configuration setting."
-      final String message =
-          Messages.get("RdsHostListProvider.clusterInstanceHostPatternNotSupportedForRdsCustom");
+      final String message = Messages.get("RdsHostListProvider.clusterInstanceHostPatternNotSupportedForRdsCustom");
       LOGGER.severe(message);
       throw new RuntimeException(message);
     }
@@ -338,7 +323,6 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       }
 
       if (topology == null) {
-        // TODO: above, we throw an exception, but here, we return null. Should we stick with just one?
         return null;
       }
 

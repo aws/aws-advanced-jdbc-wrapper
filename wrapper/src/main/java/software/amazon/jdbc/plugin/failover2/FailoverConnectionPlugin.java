@@ -430,7 +430,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
                   this.failoverReaderHostSelectorStrategySetting);
         } catch (UnsupportedOperationException | SQLException ex) {
           LOGGER.finest(
-              Utils.logTopology(
+              LogUtils.logTopology(
                   new ArrayList<>(remainingReaders),
                   Messages.get("Failover.errorSelectingReaderHost", new Object[]{ex.getMessage()})));
           break;
@@ -438,7 +438,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
         if (readerCandidate == null) {
           LOGGER.finest(
-              Utils.logTopology(new ArrayList<>(remainingReaders), Messages.get("Failover.readerCandidateNull")));
+              LogUtils.logTopology(new ArrayList<>(remainingReaders), Messages.get("Failover.readerCandidateNull")));
           break;
         }
 
@@ -559,7 +559,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         if (this.failoverWriterFailedCounter != null) {
           this.failoverWriterFailedCounter.inc();
         }
-        String message = Utils.logTopology(updatedHosts, Messages.get("Failover.noWriterHost"));
+        String message = LogUtils.logTopology(updatedHosts, Messages.get("Failover.noWriterHost"));
         LOGGER.severe(message);
         throw new FailoverFailedSQLException(message);
       }
@@ -569,7 +569,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         if (this.failoverWriterFailedCounter != null) {
           this.failoverWriterFailedCounter.inc();
         }
-        String topologyString = Utils.logTopology(allowedHosts, "");
+        String topologyString = LogUtils.logTopology(allowedHosts, "");
         LOGGER.severe(Messages.get("Failover.newWriterNotAllowed",
             new Object[] {writerCandidate.getUrl(), topologyString}));
         throw new FailoverFailedSQLException(

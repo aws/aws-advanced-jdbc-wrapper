@@ -101,7 +101,7 @@ public class AuroraStaleDnsHelper {
       this.pluginService.refreshHostList(conn);
     }
 
-    LOGGER.finest(() -> Utils.logTopology(this.pluginService.getAllHosts()));
+    LOGGER.finest(() -> LogUtils.logTopology(this.pluginService.getAllHosts()));
 
     if (this.writerHostSpec == null) {
       final HostSpec writerCandidate = Utils.getWriter(this.pluginService.getAllHosts());
@@ -149,7 +149,7 @@ public class AuroraStaleDnsHelper {
             Messages.get("AuroraStaleDnsHelper.currentWriterNotAllowed",
                 new Object[] {
                     this.writerHostSpec == null ? "<null>" : this.writerHostSpec.getHostAndPort(),
-                    Utils.logTopology(allowedHosts, "")})
+                    LogUtils.logTopology(allowedHosts, "")})
         );
       }
 

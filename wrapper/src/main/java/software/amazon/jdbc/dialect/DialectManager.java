@@ -75,7 +75,7 @@ public class DialectManager implements DialectProvider {
    */
   protected static final long ENDPOINT_CACHE_EXPIRATION = TimeUnit.HOURS.toNanos(24);
 
-  // Map of host name, or url, by dialect code.
+  // Keys are host names or URLs, values are dialect codes.
   protected static final CacheMap<String, String> knownEndpointDialects = new CacheMap<>();
 
   private final RdsUtils rdsHelper = new RdsUtils();
@@ -129,8 +129,7 @@ public class DialectManager implements DialectProvider {
         this.logCurrentDialect();
         return userDialect;
       } else {
-        throw new SQLException(
-            Messages.get("DialectManager.unknownDialectCode", new Object[] {dialectCode}));
+        throw new SQLException(Messages.get("DialectManager.unknownDialectCode", new Object[] {dialectCode}));
       }
     }
 
@@ -238,9 +237,10 @@ public class DialectManager implements DialectProvider {
       for (String dialectCandidateCode : dialectCandidates) {
         Dialect dialectCandidate = knownDialectsByCode.get(dialectCandidateCode);
         if (dialectCandidate == null) {
-          throw new SQLException(
-              Messages.get("DialectManager.unknownDialectCode", new Object[] {dialectCandidateCode}));
+          throw new SQLException(Messages.get(
+              "DialectManager.unknownDialectCode", new Object[] {dialectCandidateCode}));
         }
+
         boolean isDialect = dialectCandidate.isDialect(connection);
         if (isDialect) {
           this.canUpdate = false;
@@ -272,10 +272,6 @@ public class DialectManager implements DialectProvider {
   private void logCurrentDialect() {
     LOGGER.finest(Messages.get(
         "DialectManager.currentDialect",
-        new Object[] {
-            this.dialectCode,
-            this.dialect == null ? "<null>" : this.dialect,
-            this.canUpdate
-        }));
+        new Object[] {this.dialectCode, this.dialect == null ? "<null>" : this.dialect, this.canUpdate}));
   }
 }
