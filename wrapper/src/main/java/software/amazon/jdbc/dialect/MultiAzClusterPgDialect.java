@@ -88,6 +88,7 @@ public class MultiAzClusterPgDialect extends PgDialect implements MultiAzCluster
       if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {
         return new MonitoringRdsHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
       }
+
       return new RdsHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
     };
   }

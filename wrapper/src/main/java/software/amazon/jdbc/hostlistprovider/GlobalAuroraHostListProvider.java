@@ -30,6 +30,7 @@ import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
@@ -58,7 +59,8 @@ public class GlobalAuroraHostListProvider extends RdsHostListProvider {
   }
 
   public GlobalAuroraHostListProvider(
-      GlobalAuroraTopologyUtils topologyUtils, Properties properties, String originalUrl, FullServicesContainer servicesContainer) {
+      GlobalAuroraTopologyUtils topologyUtils, Properties properties, String originalUrl,
+      FullServicesContainer servicesContainer) {
     super(topologyUtils, properties, originalUrl, servicesContainer);
     this.topologyUtils = topologyUtils;
   }
@@ -69,7 +71,7 @@ public class GlobalAuroraHostListProvider extends RdsHostListProvider {
 
     String templates = GLOBAL_CLUSTER_INSTANCE_HOST_PATTERNS.getString(properties);
     if (StringUtils.isNullOrEmpty(templates)) {
-      throw new SQLException("Parameter 'globalClusterInstanceHostPatterns' is required for Aurora Global Database.");
+      throw new SQLException(Messages.get("GlobalAuroraHostListProvider.globalClusterInstanceHostPatternsRequired"));
     }
 
     HostSpecBuilder hostSpecBuilder = this.hostListProviderService.getHostSpecBuilder();
@@ -81,11 +83,13 @@ public class GlobalAuroraHostListProvider extends RdsHostListProvider {
               this.validateHostPatternSetting(v.getValue2().getHost());
               return v.getValue2();
             }));
-    LOGGER.finest(() -> "Recognized GDB instance template patterns:\n"
-        + this.instanceTemplatesByRegion.entrySet().stream()
-        .map(x -> String.format("\t[%s] -> %s", x.getKey(), x.getValue().getHostAndPort()))
-        .collect(Collectors.joining("\n"))
-    );
+
+    // TODO: utility to convert Map<String, HostSpec> to log string
+    LOGGER.finest(Messages.get("GlobalAuroraHostListProvider.detectedGdbPatterns", new Object[] {
+        this.instanceTemplatesByRegion.entrySet().stream()
+            .map(x -> String.format("\t[%s] -> %s", x.getKey(), x.getValue().getHostAndPort()))
+            .collect(Collectors.joining("\n"))
+    }));
   }
 
   @Override

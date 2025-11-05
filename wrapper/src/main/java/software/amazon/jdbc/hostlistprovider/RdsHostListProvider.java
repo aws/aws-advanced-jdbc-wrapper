@@ -164,9 +164,9 @@ public class RdsHostListProvider implements DynamicHostListProvider {
    * cached copy of topology is returned if it's not yet outdated (controlled by {@link
    * #refreshRateNano}).
    *
-   * @param conn A connection to database to fetch the latest topology, if needed.
+   * @param conn        A connection to database to fetch the latest topology, if needed.
    * @param forceUpdate If true, it forces a service to ignore cached copy of topology and to fetch
-   *     a fresh one.
+   *                    a fresh one.
    * @return a list of hosts that describes cluster topology. A writer is always at position 0.
    *     Returns an empty list if isn't available or is invalid (doesn't contain a writer).
    * @throws SQLException if errors occurred while retrieving the topology.

@@ -26,7 +26,6 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -35,12 +34,10 @@ import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.dialect.TopologyDialect;
-import software.amazon.jdbc.dialect.TopologyQueryHostSpec;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.SynchronousExecutor;
-import software.amazon.jdbc.util.Utils;
 
 public abstract class TopologyUtils {
   private static final Logger LOGGER = Logger.getLogger(TopologyUtils.class.getName());
@@ -64,7 +61,7 @@ public abstract class TopologyUtils {
          final ResultSet resultSet = stmt.executeQuery(this.dialect.getTopologyQuery())) {
       if (resultSet.getMetaData().getColumnCount() == 0) {
         // We expect at least 4 columns. Note that the server may return 0 columns if failover has occurred.
-        LOGGER.finest(Messages.get("AuroraDialectUtils.unexpectedTopologyQueryColumnCount"));
+        LOGGER.finest(Messages.get("TopologyUtils.unexpectedTopologyQueryColumnCount"));
         return null;
       }
 
@@ -157,11 +154,11 @@ public abstract class TopologyUtils {
    *
    * <p>Database types handle these identifiers differently:
    * - Aurora: Uses the instance name as both instanceId and instanceName
-   *   Example: "test-instance-1" for both values
+   * Example: "test-instance-1" for both values
    * - RDS Cluster: Uses distinct values for instanceId and instanceName
-   *   Example:
-   *      instanceId: "db-WQFQKBTL2LQUPIEFIFBGENS4ZQ"
-   *      instanceName: "test-multiaz-instance-1"
+   * Example:
+   * instanceId: "db-WQFQKBTL2LQUPIEFIFBGENS4ZQ"
+   * instanceName: "test-multiaz-instance-1"
    */
   public @Nullable Pair<String /* instanceId */, String /* instanceName */> getInstanceId(final Connection connection) {
     try {

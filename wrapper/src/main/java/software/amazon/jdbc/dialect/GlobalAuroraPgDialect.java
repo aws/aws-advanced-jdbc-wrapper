@@ -28,6 +28,7 @@ import software.amazon.jdbc.hostlistprovider.GlobalAuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.GlobalAuroraTopologyUtils;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringGlobalAuroraHostListProvider;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
+import software.amazon.jdbc.util.Messages;
 
 public class GlobalAuroraPgDialect extends AuroraPgDialect implements GlobalAuroraTopologyDialect {
 
@@ -56,7 +57,7 @@ public class GlobalAuroraPgDialect extends AuroraPgDialect implements GlobalAuro
         }
 
         final boolean auroraUtils = rs.getBoolean("aurora_stat_utils");
-        LOGGER.finest(() -> String.format("auroraUtils: %b", auroraUtils));
+        LOGGER.finest(Messages.get("AuroraPgDialect.auroraUtils", new Object[] {auroraUtils}));
         if (!auroraUtils) {
           return false;
         }

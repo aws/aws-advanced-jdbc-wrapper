@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
 import software.amazon.jdbc.util.DriverInfo;
+import software.amazon.jdbc.util.Messages;
 
 /**
  * Suitable for the following AWS PG configurations.
@@ -60,7 +61,8 @@ public class RdsPgDialect extends PgDialect implements BlueGreenDialect {
       while (rs.next()) {
         final boolean rdsTools = rs.getBoolean("rds_tools");
         final boolean auroraUtils = rs.getBoolean("aurora_stat_utils");
-        LOGGER.finest(() -> String.format("rdsTools: %b, auroraUtils: %b", rdsTools, auroraUtils));
+        LOGGER.finest(
+            Messages.get("RdsPgDialect.rdsToolsAuroraUtils", new Object[] {rdsTools, auroraUtils}));
         if (rdsTools && !auroraUtils) {
           return true;
         }

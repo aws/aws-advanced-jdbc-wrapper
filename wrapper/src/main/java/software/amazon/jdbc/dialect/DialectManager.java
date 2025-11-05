@@ -140,7 +140,7 @@ public class DialectManager implements DialectProvider {
 
     String host = url;
     final List<HostSpec> hosts = this.connectionUrlParser.getHostsFromConnectionUrl(
-            url, true, pluginService::getHostSpecBuilder);
+        url, true, pluginService::getHostSpecBuilder);
     if (!Utils.isNullOrEmpty(hosts)) {
       host = hosts.get(0).getHost();
     }
@@ -270,9 +270,12 @@ public class DialectManager implements DialectProvider {
   }
 
   private void logCurrentDialect() {
-    LOGGER.finest(() -> String.format("Current dialect: %s, %s, canUpdate: %b",
-        this.dialectCode,
-        this.dialect == null ? "<null>" : this.dialect,
-        this.canUpdate));
+    LOGGER.finest(Messages.get(
+        "DialectManager.currentDialect",
+        new Object[] {
+            this.dialectCode,
+            this.dialect == null ? "<null>" : this.dialect,
+            this.canUpdate
+        }));
   }
 }

@@ -23,7 +23,6 @@ import java.sql.Statement;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.AuroraTopologyUtils;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
@@ -31,6 +30,7 @@ import software.amazon.jdbc.hostlistprovider.TopologyUtils;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.DriverInfo;
+import software.amazon.jdbc.util.Messages;
 
 public class AuroraPgDialect extends PgDialect implements TopologyDialect, AuroraLimitlessDialect, BlueGreenDialect {
 
@@ -63,7 +63,7 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
       "SELECT 'pg_catalog.get_blue_green_fast_switchover_metadata'::regproc";
   protected static final String BG_STATUS_QUERY =
       "SELECT * FROM "
-        + "pg_catalog.get_blue_green_fast_switchover_metadata('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
+          + "pg_catalog.get_blue_green_fast_switchover_metadata('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
 
   private static final Logger LOGGER = Logger.getLogger(AuroraPgDialect.class.getName());
 
@@ -78,7 +78,7 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
          ResultSet rs = stmt.executeQuery(AURORA_UTILS_EXIST_QUERY)) {
       if (rs.next()) {
         final boolean auroraUtils = rs.getBoolean("aurora_stat_utils");
-        LOGGER.finest(() -> String.format("auroraUtils: %b", auroraUtils));
+        LOGGER.finest(Messages.get("AuroraPgDialect.auroraUtils", new Object[] {auroraUtils}));
         if (auroraUtils) {
           hasExtensions = true;
         }

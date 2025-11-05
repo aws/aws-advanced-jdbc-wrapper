@@ -26,11 +26,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.dialect.TopologyDialect;
-import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -52,7 +50,7 @@ public class AuroraTopologyUtils extends TopologyUtils {
         hosts.add(createHost(rs, initialHostSpec, hostTemplate));
       } catch (Exception e) {
         LOGGER.finest(
-            Messages.get("AuroraDialectUtils.errorProcessingQueryResults", new Object[]{e.getMessage()}));
+            Messages.get("TopologyUtils.errorProcessingQueryResults", new Object[] {e.getMessage()}));
         return null;
       }
     }

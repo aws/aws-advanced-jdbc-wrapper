@@ -25,6 +25,7 @@ import java.util.logging.Logger;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.hostlistprovider.GlobalAuroraTopologyUtils;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
 
@@ -61,7 +62,8 @@ public class GlobalAuroraTopologyMonitor extends ClusterTopologyMonitorImpl {
     if (!StringUtils.isNullOrEmpty(region)) {
       final HostSpec clusterInstanceTemplateForRegion = this.instanceTemplatesByRegion.get(region);
       if (clusterInstanceTemplateForRegion == null) {
-        throw new SQLException("Can't find cluster template for region " + region);
+        throw new SQLException(
+            Messages.get("GlobalAuroraTopologyMonitor.cannotFindRegionTemplate", new Object[] {region}));
       }
 
       return clusterInstanceTemplateForRegion;

@@ -23,15 +23,12 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.dialect.MultiAzClusterDialect;
-import software.amazon.jdbc.dialect.TopologyDialect;
-import software.amazon.jdbc.dialect.TopologyQueryHostSpec;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -59,7 +56,7 @@ public class MultiAzTopologyUtils extends TopologyUtils {
         hosts.add(createHost(rs, initialHostSpec, hostTemplate, writerId));
       } catch (Exception e) {
         LOGGER.finest(
-            Messages.get("AuroraDialectUtils.errorProcessingQueryResults", new Object[]{e.getMessage()}));
+            Messages.get("TopologyUtils.errorProcessingQueryResults", new Object[]{e.getMessage()}));
         return null;
       }
     }

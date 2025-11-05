@@ -49,7 +49,7 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect,
   protected static final String BG_TOPOLOGY_EXISTS_QUERY =
       "SELECT 1 AS tmp FROM information_schema.tables WHERE"
           + " table_schema = 'mysql' AND table_name = 'rds_topology'";
-  protected static final String BG_STATUS_QUERY =  "SELECT * FROM mysql.rds_topology";
+  protected static final String BG_STATUS_QUERY = "SELECT * FROM mysql.rds_topology";
 
   @Override
   public boolean isDialect(final Connection connection) {

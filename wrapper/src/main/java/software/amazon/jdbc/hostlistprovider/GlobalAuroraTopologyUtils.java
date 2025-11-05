@@ -32,7 +32,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.dialect.GlobalAuroraTopologyDialect;
-import software.amazon.jdbc.dialect.TopologyDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -54,7 +53,7 @@ public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
          final ResultSet resultSet = stmt.executeQuery(this.dialect.getTopologyQuery())) {
       if (resultSet.getMetaData().getColumnCount() == 0) {
         // We expect at least 4 columns. Note that the server may return 0 columns if failover has occurred.
-        LOGGER.finest(Messages.get("AuroraDialectUtils.unexpectedTopologyQueryColumnCount"));
+        LOGGER.finest(Messages.get("TopologyUtils.unexpectedTopologyQueryColumnCount"));
         return null;
       }
 
@@ -79,7 +78,7 @@ public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
         hosts.add(createHost(rs, initialHostSpec, instanceTemplatesByRegion));
       } catch (Exception e) {
         LOGGER.finest(
-            Messages.get("AuroraDialectUtils.errorProcessingQueryResults", new Object[]{e.getMessage()}));
+            Messages.get("TopologyUtils.errorProcessingQueryResults", new Object[] {e.getMessage()}));
         return null;
       }
     }
@@ -102,10 +101,12 @@ public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
 
     final HostSpec clusterInstanceTemplateForRegion = instanceTemplatesByRegion.get(awsRegion);
     if (clusterInstanceTemplateForRegion == null) {
-      throw new SQLException("Can't find cluster template for region " + awsRegion);
+      throw new SQLException(
+          Messages.get("GlobalAuroraTopologyMonitor.cannotFindRegionTemplate", new Object[] {awsRegion}));
     }
 
-    return createHost(hostName, hostName, isWriter, weight, Timestamp.from(Instant.now()), initialHostSpec, clusterInstanceTemplateForRegion);
+    return createHost(hostName, hostName, isWriter, weight, Timestamp.from(Instant.now()), initialHostSpec,
+        clusterInstanceTemplateForRegion);
   }
 
   public @Nullable String getRegion(String instanceId, Connection conn) throws SQLException {
