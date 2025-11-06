@@ -16,14 +16,19 @@
 
 package software.amazon.jdbc.plugin.cache;
 
-import io.lettuce.core.RedisCommandExecutionException;
-import io.lettuce.core.RedisConnectionException;
-import io.lettuce.core.RedisException;
+import glide.api.models.exceptions.ClosingException;
+import glide.api.models.exceptions.ConfigurationError;
+import glide.api.models.exceptions.ConnectionException;
+import glide.api.models.exceptions.GlideException;
+import glide.api.models.exceptions.RequestException;
+import glide.api.models.exceptions.TimeoutException;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
@@ -337,24 +342,45 @@ public class CacheMonitor extends AbstractMonitor {
   }
 
   private static ErrorCategory classifyError(Throwable error) {
-    if (error instanceof RedisConnectionException) {
+    // 1. Unwrap Async Wrappers (Common in Glide)
+    if (error instanceof ExecutionException || error instanceof CompletionException) {
+      if (error.getCause() != null) {
+        error = error.getCause();
+      }
+    }
+    // Connection-related errors
+    if (error instanceof ClosingException
+        || error instanceof TimeoutException
+        || error instanceof ConnectionException) {
       return ErrorCategory.CONNECTION;
     }
-    if (error instanceof RedisCommandExecutionException) {
+
+    if (error instanceof ConfigurationError) {
+      return ErrorCategory.RESOURCE;
+    }
+
+    // Request/Command errors
+    if (error instanceof RequestException) {
       String msg = error.getMessage();
       if (msg == null) {
         return ErrorCategory.RESOURCE;
       }
+      msg = msg.toUpperCase();
+
+      // Command-specific errors
       if (msg.contains("READONLY") || msg.contains("WRONGTYPE") || msg.contains("MOVED") || msg.contains("ASK")) {
         return ErrorCategory.COMMAND;
       }
+      // Resource/availability errors
       if (msg.contains("OOM") || msg.contains("CLUSTERDOWN") || msg.contains("LOADING")
           || msg.contains("NOAUTH") || msg.contains("WRONGPASS")) {
         return ErrorCategory.RESOURCE;
       }
       return ErrorCategory.COMMAND;
     }
-    if (error instanceof RedisException) {
+
+    // General GLIDE errors
+    if (error instanceof GlideException) {
       return ErrorCategory.CONNECTION;
     }
     return ErrorCategory.DATA;
@@ -514,7 +540,7 @@ public class CacheMonitor extends AbstractMonitor {
 
   private boolean ping(ClusterHealthState cluster, boolean isRw) {
     CachePingConnection conn = isRw ? cluster.rwPingConnection : cluster.roPingConnection;
-    if (conn == null || !conn.isOpen()) {
+    if (conn == null || !conn.isConnected()) {
       return false;
     }
     try {

@@ -24,9 +24,12 @@ plugins {
     id("com.github.vlsi.ide")
     id("com.kncept.junit.reporter")
     id("com.gradleup.shadow") version "8.3.5" // 8.3.5 is the last version that is compatible with Java 8
+    id("com.google.osdetector") version "1.7.3" // Plugin used to detect OS and use for GLIDE
 }
 
 var useJacoco = (!project.hasProperty("jacocoEnabled") || project.property("jacocoEnabled").toString().toBoolean())
+
+val nativeClassifier: String = osdetector.classifier
 
 if (useJacoco) {
     apply(plugin = "org.gradle.jacoco")
@@ -47,10 +50,10 @@ dependencies {
     optionalImplementation("org.apache.commons:commons-pool2:2.11.1")
     optionalImplementation("org.jsoup:jsoup:1.21.1")
     optionalImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
-    optionalImplementation("io.lettuce:lettuce-core:6.6.0.RELEASE")
     optionalImplementation("io.opentelemetry:opentelemetry-api:1.60.1")
     optionalImplementation("io.opentelemetry:opentelemetry-sdk:1.60.1")
     optionalImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.60.1")
+    optionalImplementation("io.valkey:valkey-glide:2.+:$nativeClassifier")
 
     compileOnly("org.checkerframework:checker-qual:3.52.0")
     compileOnly("com.mysql:mysql-connector-j:9.6.0")
@@ -100,7 +103,6 @@ dependencies {
     testImplementation("org.slf4j:slf4j-simple:2.0.17")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
     testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
-    testImplementation("io.lettuce:lettuce-core:6.6.0.RELEASE")
     testImplementation("io.opentelemetry:opentelemetry-api:1.60.1")
     testImplementation("io.opentelemetry:opentelemetry-sdk:1.60.1")
     testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.60.1")
@@ -111,6 +113,7 @@ dependencies {
     testImplementation("org.hibernate:hibernate-core:5.6.15.Final") // the latest version compatible with Java 8
     testImplementation("jakarta.persistence:jakarta.persistence-api:2.2.3")
     testImplementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.19.2")
+    testImplementation("io.valkey:valkey-glide:2.+:$nativeClassifier")
 }
 
 repositories {
@@ -131,7 +134,7 @@ java {
     withJavadocJar()
     withSourcesJar()
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(8))
+        languageVersion.set(JavaLanguageVersion.of(11))
     }
 }
 

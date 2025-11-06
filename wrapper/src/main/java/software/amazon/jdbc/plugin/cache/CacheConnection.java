@@ -16,27 +16,22 @@
 
 package software.amazon.jdbc.plugin.cache;
 
-import io.lettuce.core.ReadFrom;
-import io.lettuce.core.RedisClient;
-import io.lettuce.core.RedisCommandExecutionException;
-import io.lettuce.core.RedisCredentials;
-import io.lettuce.core.RedisCredentialsProvider;
-import io.lettuce.core.RedisURI;
-import io.lettuce.core.SetArgs;
-import io.lettuce.core.SocketOptions;
-import io.lettuce.core.api.StatefulConnection;
-import io.lettuce.core.api.StatefulRedisConnection;
-import io.lettuce.core.api.async.RedisAsyncCommands;
-import io.lettuce.core.cluster.ClusterClientOptions;
-import io.lettuce.core.cluster.ClusterTopologyRefreshOptions;
-import io.lettuce.core.cluster.RedisClusterClient;
-import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
-import io.lettuce.core.cluster.api.async.RedisAdvancedClusterAsyncCommands;
-import io.lettuce.core.cluster.models.partitions.RedisClusterNode;
-import io.lettuce.core.codec.ByteArrayCodec;
-import io.lettuce.core.resource.ClientResources;
-import io.lettuce.core.resource.Delay;
-import io.lettuce.core.resource.DirContextDnsResolver;
+import glide.api.BaseClient;
+import glide.api.GlideClient;
+import glide.api.GlideClusterClient;
+import glide.api.models.GlideString;
+import glide.api.models.commands.InfoOptions.Section;
+import glide.api.models.commands.SetOptions;
+import glide.api.models.configuration.AdvancedGlideClientConfiguration;
+import glide.api.models.configuration.AdvancedGlideClusterClientConfiguration;
+import glide.api.models.configuration.BackoffStrategy;
+import glide.api.models.configuration.BaseClientConfiguration;
+import glide.api.models.configuration.GlideClientConfiguration;
+import glide.api.models.configuration.GlideClusterClientConfiguration;
+import glide.api.models.configuration.NodeAddress;
+import glide.api.models.configuration.ReadFrom;
+import glide.api.models.configuration.ServerCredentials;
+import glide.api.models.configuration.TlsAdvancedConfiguration;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -45,7 +40,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -54,7 +48,6 @@ import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
-import reactor.core.publisher.Mono;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.utils.cache.CachedSupplier;
@@ -76,14 +69,11 @@ public class CacheConnection {
   private static final int DEFAULT_MAX_POOL_SIZE = 200;
   private static final long DEFAULT_MAX_BORROW_WAIT_MS = 100;
   private static final long TOKEN_CACHE_DURATION = 15 * 60 - 30;
-  private static volatile ClientResources sharedClientResources;
-  private static final ResourceLock clientResourcesLock = new ResourceLock();
-
   private final FullServicesContainer servicesContainer;
 
   private static final ResourceLock connectionInitializationLock = new ResourceLock();
   // Cache endpoint registry to hold connection pools for multi end points
-  private static final ConcurrentHashMap<String, GenericObjectPool<StatefulConnection<byte[], byte[]>>>
+  private static final ConcurrentHashMap<String, GenericObjectPool<BaseClient>>
       endpointToPoolRegistry = new ConcurrentHashMap<>();
 
   public static final AwsWrapperProperty CACHE_RW_ENDPOINT_ADDR =
@@ -156,8 +146,8 @@ public class CacheConnection {
   private final String cacheRoServerAddr; // read-only cache server
   private MessageDigest msgHashDigest = null;
   // Adding support for read and write connection pools to the remote cache server
-  private volatile GenericObjectPool<StatefulConnection<byte[], byte[]>> readConnectionPool;
-  private volatile GenericObjectPool<StatefulConnection<byte[], byte[]>> writeConnectionPool;
+  private volatile GenericObjectPool<BaseClient> readConnectionPool;
+  private volatile GenericObjectPool<BaseClient> writeConnectionPool;
 
   private final boolean useSSL;
   private final boolean iamAuthEnabled;
@@ -266,14 +256,18 @@ public class CacheConnection {
     }
 
     String[] hostnameAndPort = getHostnameAndPort(this.cacheRwServerAddr);
-    RedisURI redisUri = buildRedisURI(hostnameAndPort[0], Integer.parseInt(hostnameAndPort[1]));
+    int port = Integer.parseInt(hostnameAndPort[1]);
 
-    ClientResources resources = ClientResources.builder().build();
+    BaseClientConfiguration config = buildClientConfigurationStatic(
+        hostnameAndPort[0], port, useSSL, cacheConnectionTimeout,
+        iamAuthEnabled, credentialsProvider, cacheIamRegion, cacheName, cacheUsername, cachePassword, null, false);
 
-    try (RedisClient client = RedisClient.create(resources, redisUri);
-         StatefulRedisConnection<byte[], byte[]> conn = client.connect(new ByteArrayCodec())) {
+    try (GlideClient client = GlideClient.createClient((GlideClientConfiguration) config).get()) {
 
-      String infoOutput = conn.sync().info("cluster");
+      // customCommand returns Object (usually String for INFO)
+      Section[] section = {Section.CLUSTER};
+      Object result = client.info(section).get();
+      String infoOutput = String.valueOf(result);
       boolean clusterEnabled = false;
       if (infoOutput != null) {
         // Parse the INFO output line by line
@@ -289,12 +283,6 @@ public class CacheConnection {
     } catch (Exception e) {
       LOGGER.log(Level.WARNING, Messages.get("CacheConnection.failedToDetectClusterMode"), e);
       this.isClusterMode = false;
-    } finally {
-      try {
-        resources.shutdown().get(5, TimeUnit.SECONDS);
-      } catch (Exception ignored) {
-        // Ignore shutdown errors during cluster mode detection
-      }
     }
   }
 
@@ -333,10 +321,14 @@ public class CacheConnection {
       // Register cluster with CacheMonitor on first cache operation
       // Skip only in test mode (when servicesContainer is null)
       if (servicesContainer != null && !this.cacheMonitorRegistered) {
+        // In standalone (CMD) mode, Glide cannot connect to a replica directly,
+        // so don't register the RO endpoint with CacheMonitor for health checks.
+        String roEndpointForMonitor = Boolean.TRUE.equals(this.isClusterMode)
+            ? this.cacheRoServerAddr : null;
         CacheMonitor.registerCluster(
             this.servicesContainer,
             inFlightWriteSizeLimitBytes, healthCheckInHealthyState, telemetryFactory,
-            this.cacheRwServerAddr, this.cacheRoServerAddr,
+            this.cacheRwServerAddr, roEndpointForMonitor,
             this.useSSL, this.cacheConnectionTimeout, this.iamAuthEnabled, this.credentialsProvider,
             this.cacheIamRegion, this.cacheName, this.cacheUsername, this.cachePassword
         );
@@ -353,32 +345,41 @@ public class CacheConnection {
     try {
       // cache server addr string is in the format "<server hostname>:<port>"
       String serverAddr = this.cacheRwServerAddr;
-      // If read-only server is specified, use it for the read-only connections
-      if (isRead && !StringUtils.isNullOrEmpty(this.cacheRoServerAddr)) {
+
+      // For cluster mode, use the RO endpoint directly for read connections.
+      // For standalone mode, always connect to the primary (RW) endpoint —
+      // Glide does not support connecting to a standalone replica directly.
+      // Read traffics are routed via ReadFrom.PREFER_REPLICA.
+      if (isRead && !StringUtils.isNullOrEmpty(this.cacheRoServerAddr) && Boolean.TRUE.equals(this.isClusterMode)) {
         serverAddr = this.cacheRoServerAddr;
       }
       String[] hostnameAndPort = getHostnameAndPort(serverAddr);
-      RedisURI redisUri = buildRedisURI(hostnameAndPort[0], Integer.parseInt(hostnameAndPort[1]));
+      int port = Integer.parseInt(hostnameAndPort[1]);
+      String host = hostnameAndPort[0];
 
       // Appending RW and RO tag to the server address to make it unique in case RO and RW has same endpoint
       String poolKey = (isRead ? "RO:" : "RW:") + serverAddr;
-      GenericObjectPool<StatefulConnection<byte[], byte[]>> pool = endpointToPoolRegistry.get(poolKey);
+      GenericObjectPool<BaseClient> pool = endpointToPoolRegistry.get(poolKey);
 
       if (pool == null) {
-        GenericObjectPoolConfig<StatefulConnection<byte[], byte[]>> poolConfig = createPoolConfig();
+        GenericObjectPoolConfig<BaseClient> poolConfig = createPoolConfig();
         poolConfig.setMaxTotal(this.cacheConnectionPoolSize);
         poolConfig.setMaxIdle(this.cacheConnectionPoolSize);
 
         pool = endpointToPoolRegistry.computeIfAbsent(poolKey, k ->
             new GenericObjectPool<>(
-                new BasePooledObjectFactory<StatefulConnection<byte[], byte[]>>() {
-                  public StatefulConnection<byte[], byte[]> create() {
-                    return createRedisConnection(isRead, redisUri, isClusterMode);
+                new BasePooledObjectFactory<>() {
+                  public BaseClient create() throws Exception {
+                    BaseClientConfiguration config = buildClientConfiguration(host, port, isRead);
+                    if (Boolean.TRUE.equals(isClusterMode)) {
+                      return GlideClusterClient.createClient((GlideClusterClientConfiguration) config).get();
+                    } else {
+                      return GlideClient.createClient((GlideClientConfiguration) config).get();
+                    }
                   }
 
-                  public PooledObject<StatefulConnection<byte[], byte[]>> wrap(
-                      StatefulConnection<byte[], byte[]> connection) {
-                    return new DefaultPooledObject<>(connection);
+                  public PooledObject<BaseClient> wrap(BaseClient client) {
+                    return new DefaultPooledObject<>(client);
                   }
                 }, poolConfig)
         );
@@ -397,156 +398,151 @@ public class CacheConnection {
     }
   }
 
-  private static GenericObjectPoolConfig<StatefulConnection<byte[], byte[]>> createPoolConfig() {
-    GenericObjectPoolConfig<StatefulConnection<byte[], byte[]>> poolConfig = new GenericObjectPoolConfig<>();
+  private static GenericObjectPoolConfig<BaseClient> createPoolConfig() {
+    GenericObjectPoolConfig<BaseClient> poolConfig = new GenericObjectPoolConfig<>();
     poolConfig.setMinIdle(DEFAULT_POOL_MIN_IDLE);
     poolConfig.setMaxWait(Duration.ofMillis(DEFAULT_MAX_BORROW_WAIT_MS));
     return poolConfig;
   }
 
-  private static ClientResources getSharedClientResources() {
-    if (sharedClientResources == null) {
-      try (ResourceLock ignored = clientResourcesLock.obtain()) {
-        if (sharedClientResources == null) {
-          sharedClientResources = ClientResources.builder()
-              .dnsResolver(new DirContextDnsResolver())
-              .reconnectDelay(
-                  Delay.fullJitter(
-                      Duration.ofMillis(100),
-                      Duration.ofSeconds(10),
-                      100, TimeUnit.MILLISECONDS))
-              .build();
-        }
-      }
-    }
-    return sharedClientResources;
+  /**
+   * Builds Glide client configuration using instance fields.
+   * Delegates to static method for actual configuration building.
+   */
+  protected BaseClientConfiguration buildClientConfiguration(String hostname, int port, Boolean isRead) {
+    return buildClientConfigurationStatic(hostname, port, this.useSSL, this.cacheConnectionTimeout,
+        this.iamAuthEnabled, this.credentialsProvider, this.cacheIamRegion, this.cacheName,
+        this.cacheUsername, this.cachePassword, isRead, this.isClusterMode);
   }
 
   /**
-   * Creates a Redis connection for either standalone or cluster mode.
-   * Returns StatefulConnection which works for both RedisClient and RedisClusterClient.
+   * Builds Glide client configuration for standalone or cluster mode.
+   * Returns GlideClientConfiguration for standalone or GlideClusterClientConfiguration for cluster mode.
+   *
+   * @param isRead        true for read-only replica connections, false for primary connections
+   * @param isClusterMode true for cluster mode (CME), false for standalone mode (CMD)
+   * @return BaseClientConfiguration configured for the specified mode
    */
-  private static StatefulConnection<byte[], byte[]> createRedisConnection(
-      boolean isReadOnly, RedisURI redisUri, boolean isClusterMode) {
+  protected static BaseClientConfiguration buildClientConfigurationStatic(
+      String hostname, int port, boolean useSSL, Duration connectionTimeout,
+      boolean iamAuthEnabled, AwsCredentialsProvider credentialsProvider,
+      String cacheIamRegion, String cacheName, String cacheUsername,
+      String cachePassword, Boolean isRead, Boolean isClusterMode) {
 
-    ClientResources resources = getSharedClientResources();
+    NodeAddress address = buildNodeAddress(hostname, port);
+    ServerCredentials credentials = buildServerCredentials(
+        iamAuthEnabled, credentialsProvider, cacheIamRegion, cacheName,
+        hostname, port, cacheUsername, cachePassword);
 
-    StatefulConnection<byte[], byte[]> conn;
+    // checks for cluster mode and returns appropriate client configuration
+    if (Boolean.TRUE.equals(isClusterMode)) {
+      GlideClusterClientConfiguration.GlideClusterClientConfigurationBuilder builder =
+          GlideClusterClientConfiguration.builder()
+              .address(address)
+              .useTLS(useSSL)
+              .libName("aws-sql-jdbc-glide")
+              .requestTimeout((int) connectionTimeout.toMillis())
+              .lazyConnect(true)
+              .readFrom(Boolean.TRUE.equals(isRead) ? ReadFrom.PREFER_REPLICA : ReadFrom.PRIMARY)
+              .reconnectStrategy(reconnectStrategyBuilder());
 
-    if (isClusterMode) {
-      // Multi-shard cluster mode: use RedisClusterClient
-      RedisClusterClient client = RedisClusterClient.create(resources, redisUri);
-
-      // Configure cluster topology refresh per AWS best practices
-      ClusterTopologyRefreshOptions topologyRefreshOptions =
-          ClusterTopologyRefreshOptions.builder()
-              .enableAllAdaptiveRefreshTriggers()
-              .enablePeriodicRefresh()
-              .closeStaleConnections(true)
-              .build();
-
-      // Configure cluster client options per AWS best practices
-      ClusterClientOptions clusterClientOptions = ClusterClientOptions.builder()
-          .topologyRefreshOptions(topologyRefreshOptions)
-          .nodeFilter(node ->
-              !(node.is(RedisClusterNode.NodeFlag.FAIL)
-                  || node.is(RedisClusterNode.NodeFlag.EVENTUAL_FAIL)
-                  || node.is(RedisClusterNode.NodeFlag.HANDSHAKE)
-                  || node.is(RedisClusterNode.NodeFlag.NOADDR)))
-          .validateClusterNodeMembership(false)
-          .autoReconnect(true)
-          .socketOptions(SocketOptions.builder()
-              .keepAlive(true)
-              .build())
-          .build();
-
-      client.setOptions(clusterClientOptions);
-
-      // Connect and configure ReadFrom for replica reads
-      StatefulRedisClusterConnection<byte[], byte[]> clusterConn = client.connect(new ByteArrayCodec());
-
-      // Configure read preference: replicas for RO connections, master for RW
-      if (isReadOnly) {
-        clusterConn.setReadFrom(ReadFrom.REPLICA_PREFERRED);
-      } else {
-        clusterConn.setReadFrom(ReadFrom.MASTER);
+      if (useSSL) {
+        builder.advancedConfiguration(
+            AdvancedGlideClusterClientConfiguration.builder()
+                .connectionTimeout((int) connectionTimeout.toMillis())
+                // TODO: useInsecureTLS is a bit flaky. Keeping it here for now.
+                .tlsAdvancedConfiguration(
+                    TlsAdvancedConfiguration.builder()
+                        .useInsecureTLS(true)
+                        .build())
+                .build());
       }
-
-      conn = clusterConn;
+      if (credentials != null) {
+        builder.credentials(credentials);
+      }
+      return builder.build();
     } else {
-      // Single-shard standalone mode: use RedisClient
-      RedisClient client = RedisClient.create(resources, redisUri);
-      conn = client.connect(new ByteArrayCodec());
-    }
+      GlideClientConfiguration.GlideClientConfigurationBuilder builder =
+          GlideClientConfiguration.builder()
+              .address(address)
+              .useTLS(useSSL)
+              .libName("aws-sql-jdbc-glide")
+              .requestTimeout((int) connectionTimeout.toMillis())
+              .lazyConnect(true)
+              .readFrom(Boolean.TRUE.equals(isRead) ? ReadFrom.PREFER_REPLICA : ReadFrom.PRIMARY)
+              .reconnectStrategy(reconnectStrategyBuilder());
 
-    // Set READONLY mode for RO endpoint
-    if (isReadOnly) {
-      try {
-        if (conn instanceof StatefulRedisClusterConnection) {
-          ((StatefulRedisClusterConnection<byte[], byte[]>) conn).sync().readOnly();
-        } else {
-          ((StatefulRedisConnection<byte[], byte[]>) conn).sync().readOnly();
-        }
-      } catch (RedisCommandExecutionException e) {
-        if (e.getMessage().contains("ERR This instance has cluster support disabled")) {
-          LOGGER.fine(Messages.get("CacheConnection.clusterSupportDisabled"));
-        } else {
-          LOGGER.log(Level.FINE, Messages.get("CacheConnection.readonlyCommandFailed"), e);
-        }
+      if (useSSL) {
+        builder.advancedConfiguration(
+            AdvancedGlideClientConfiguration.builder()
+                .connectionTimeout((int) connectionTimeout.toMillis())
+                .tlsAdvancedConfiguration(
+                    TlsAdvancedConfiguration.builder()
+                        .useInsecureTLS(true)
+                        .build())
+                .build());
       }
+      if (credentials != null) {
+        builder.credentials(credentials);
+      }
+      return builder.build();
     }
-
-    return conn;
   }
 
-  /**
-   * Static helper to build RedisURI with authentication configuration.
-   * Used by both createPingConnection (static) and buildRedisURI (instance).
-   */
-  private static RedisURI buildRedisURIStatic(String hostname, int port, boolean useSSL, Duration connectionTimeout,
-      boolean iamAuthEnabled, AwsCredentialsProvider credentialsProvider, String cacheIamRegion,
-      String cacheName, String cacheUsername, String cachePassword) {
+  // Builds NodeAddress for Glide clients
+  private static NodeAddress buildNodeAddress(String hostname, int port) {
+    return NodeAddress.builder()
+        .host(hostname)
+        .port(port)
+        .build();
+  }
 
-    RedisURI.Builder uriBuilder = RedisURI.Builder.redis(hostname)
-        .withPort(port)
-        .withSsl(useSSL)
-        .withVerifyPeer(false)
-        .withLibraryName("aws-sql-jdbc-lettuce")
-        .withTimeout(connectionTimeout);
+  // Builds ServerCredentials for IAM or password-based authentication.
+  private static ServerCredentials buildServerCredentials(
+      boolean iamAuthEnabled, AwsCredentialsProvider credentialsProvider,
+      String cacheIamRegion, String cacheName, String hostname, int port,
+      String cacheUsername, String cachePassword) {
 
     if (iamAuthEnabled) {
-      // Create a credentials provider that Lettuce will call whenever authentication is needed
-      RedisCredentialsProvider redisCredentialsProvider = () -> {
-        // Create a cached token supplier that automatically refreshes tokens every 14.5 minutes
-        Supplier<String> tokenSupplier =
-            CachedSupplier.builder(() -> {
-              ElastiCacheIamTokenUtility tokenUtility =
-                  new ElastiCacheIamTokenUtility(cacheName);
-              String token = tokenUtility.generateAuthenticationToken(
-                  credentialsProvider,
-                  Region.of(cacheIamRegion),
-                  hostname,
-                  port,
-                  cacheUsername
-              );
+      Supplier<String> tokenSupplier =
+          CachedSupplier.builder(() -> {
+            ElastiCacheIamTokenUtility tokenUtility =
+                new ElastiCacheIamTokenUtility(cacheName);
+            String token = tokenUtility.generateAuthenticationToken(
+                credentialsProvider,
+                Region.of(cacheIamRegion),
+                hostname,
+                port,
+                cacheUsername);
 
-              Instant now = Instant.now();
-              Instant expiresAt = now.plusSeconds(TOKEN_CACHE_DURATION);
-              return RefreshResult.builder(token)
-                  .staleTime(expiresAt)
-                  .build();
-            }).build();
+            Instant now = Instant.now();
+            Instant expiresAt = now.plusSeconds(TOKEN_CACHE_DURATION);
+            return RefreshResult.builder(token)
+                .staleTime(expiresAt)
+                .build();
+          }).build();
 
-        return Mono.just(
-            RedisCredentials.just(cacheUsername, tokenSupplier.get())
-        );
-      };
-      uriBuilder.withAuthentication(redisCredentialsProvider);
+      return ServerCredentials.builder()
+          .username(cacheUsername)
+          .password(tokenSupplier.get())
+          .build();
     } else if (!StringUtils.isNullOrEmpty(cachePassword)) {
-      uriBuilder.withAuthentication(cacheUsername, cachePassword);
+      return ServerCredentials.builder()
+          .username(cacheUsername)
+          .password(cachePassword)
+          .build();
     }
+    return null;
+  }
 
-    return uriBuilder.build();
+  // Builds exponential backoff strategy for connection retries.
+  private static BackoffStrategy reconnectStrategyBuilder() {
+    return BackoffStrategy.builder()
+        .numOfRetries(5)
+        .exponentBase(2)
+        .factor(100)
+        .jitterPercent(20)
+        .build();
   }
 
   /**
@@ -558,21 +554,18 @@ public class CacheConnection {
       Duration connectionTimeout, boolean iamAuthEnabled, AwsCredentialsProvider credentialsProvider,
       String cacheIamRegion,
       String cacheName, String cacheUsername, String cachePassword) {
-
     try {
-      // Use the static helper to build RedisURI
-      RedisURI redisUri = buildRedisURIStatic(hostname, port, useSSL, connectionTimeout, iamAuthEnabled,
-          credentialsProvider, cacheIamRegion, cacheName, cacheUsername, cachePassword
+      // Creating GlideClient (use standalone for ping - works for both)
+      BaseClientConfiguration config = buildClientConfigurationStatic(
+          hostname, port, useSSL, connectionTimeout, iamAuthEnabled,
+          credentialsProvider, cacheIamRegion, cacheName, cacheUsername, cachePassword, null, false
       );
-      // Create Lettuce connection (use standalone mode for ping - works for both)
-      StatefulConnection<byte[], byte[]> conn = createRedisConnection(isReadOnly, redisUri, false);
 
-      // Wrap in abstraction interface
-      return new PingConnection(conn);
-
+      BaseClient client = GlideClient.createClient((GlideClientConfiguration) config).get();
+      return new PingConnection(client);
     } catch (Exception e) {
-      LOGGER.log(Level.FINE, Messages.get("CacheConnection.failedToCreatePingConnection",
-          new Object[] {hostname, port}), e);
+      LOGGER.fine(String.format("Failed to create ping connection for %s:%d: %s",
+          hostname, port, e.getMessage()));
       return null;
     }
   }
@@ -608,21 +601,17 @@ public class CacheConnection {
     }
 
     boolean isBroken = false;
-    StatefulConnection<byte[], byte[]> conn = null;
+    BaseClient client = null;
     // get a connection from the read connection pool
     try {
       initializeCacheConnectionIfNeeded(true);
-      conn = this.readConnectionPool.borrowObject();
-
-      // Cast to appropriate type and execute get command
+      client = this.readConnectionPool.borrowObject();
       byte[] cacheKey = computeCacheKey(key);
-      if (conn instanceof StatefulRedisClusterConnection) {
-        return ((StatefulRedisClusterConnection<byte[], byte[]>) conn).sync().get(cacheKey);
-      } else {
-        return ((StatefulRedisConnection<byte[], byte[]>) conn).sync().get(cacheKey);
-      }
+      GlideString keyGs = GlideString.of(cacheKey);
+      GlideString gs = client.get(keyGs).get();
+      return (gs != null) ? gs.getBytes() : null;
     } catch (Exception e) {
-      if (conn != null) {
+      if (client != null) {
         isBroken = true;
       }
       // Report error to CacheMonitor for the read endpoint
@@ -630,9 +619,9 @@ public class CacheConnection {
       LOGGER.log(Level.WARNING, Messages.get("CacheConnection.failedToReadFromCache"), e);
       return null;
     } finally {
-      if (conn != null && this.readConnectionPool != null) {
+      if (client != null && this.readConnectionPool != null) {
         try {
-          this.returnConnectionBackToPool(conn, isBroken, true);
+          this.returnConnectionBackToPool(client, isBroken, true);
         } catch (Exception e) {
           LOGGER.log(Level.WARNING, Messages.get("CacheConnection.errorClosingReadConnection"), e);
         }
@@ -640,7 +629,7 @@ public class CacheConnection {
     }
   }
 
-  protected void handleCompletedCacheWrite(StatefulConnection<byte[], byte[]> conn, long writeSize, Throwable ex) {
+  protected void handleCompletedCacheWrite(BaseClient client, long writeSize, Throwable ex) {
     // Note: this callback upon completion of cache write is on a different thread
     // Always decrement in-flight size (write completed, whether success or failure)
     decrementInFlightSize(writeSize);
@@ -650,7 +639,7 @@ public class CacheConnection {
       reportErrorToCacheMonitor(true, ex, "WRITE");
       if (this.writeConnectionPool != null) {
         try {
-          returnConnectionBackToPool(conn, true, false);
+          returnConnectionBackToPool(client, true, false);
         } catch (Exception e) {
           LOGGER.log(Level.WARNING, Messages.get("CacheConnection.errorReturningBrokenWriteConnection"), e);
         }
@@ -658,7 +647,7 @@ public class CacheConnection {
     } else {
       if (this.writeConnectionPool != null) {
         try {
-          returnConnectionBackToPool(conn, false, false);
+          returnConnectionBackToPool(client, false, false);
         } catch (Exception e) {
           LOGGER.log(Level.WARNING, Messages.get("CacheConnection.errorReturningWriteConnection"), e);
         }
@@ -674,7 +663,7 @@ public class CacheConnection {
       return; // Exit without writing
     }
 
-    StatefulConnection<byte[], byte[]> conn = null;
+    BaseClient client = null;
     try {
       initializeCacheConnectionIfNeeded(false);
 
@@ -684,7 +673,7 @@ public class CacheConnection {
       incrementInFlightSize(writeSize);
 
       try {
-        conn = this.writeConnectionPool.borrowObject();
+        client = this.writeConnectionPool.borrowObject();
       } catch (Exception borrowException) {
         // Connection borrow failed (timeout/pool exhaustion) - decrement immediately
         decrementInFlightSize(writeSize);
@@ -693,27 +682,21 @@ public class CacheConnection {
       }
 
       // Get async commands and execute set operation based on connection type
-      StatefulConnection<byte[], byte[]> finalConn = conn;
+      BaseClient finalClient = client;
 
-      if (conn instanceof StatefulRedisClusterConnection) {
-        RedisAdvancedClusterAsyncCommands<byte[], byte[]> clusterAsyncCommands =
-            ((StatefulRedisClusterConnection<byte[], byte[]>) conn).async();
-        clusterAsyncCommands.set(cacheKey, value, SetArgs.Builder.ex(expiry))
-            .whenComplete((result, exception) -> handleCompletedCacheWrite(finalConn, writeSize, exception));
-      } else {
-        RedisAsyncCommands<byte[], byte[]> asyncCommands =
-            ((StatefulRedisConnection<byte[], byte[]>) conn).async();
-        asyncCommands.set(cacheKey, value, SetArgs.Builder.ex(expiry))
-            .whenComplete((result, exception) -> handleCompletedCacheWrite(finalConn, writeSize, exception));
-      }
+      GlideString keyGs = GlideString.of(cacheKey);
+      GlideString valueGs = GlideString.of(value);
+      SetOptions options = SetOptions.builder().expiry(SetOptions.Expiry.Seconds((long) expiry)).build();
 
+      client.set(keyGs, valueGs, options)
+          .whenComplete((result, exception) -> handleCompletedCacheWrite(finalClient, writeSize, exception));
     } catch (Exception e) {
       // Connection failed, but we already incremented and will be able to detect shard level failures
       reportErrorToCacheMonitor(true, e, "WRITE");
 
-      if (conn != null && this.writeConnectionPool != null) {
+      if (client != null && this.writeConnectionPool != null) {
         try {
-          returnConnectionBackToPool(conn, true, false);
+          returnConnectionBackToPool(client, true, false);
         } catch (Exception ex) {
           LOGGER.log(Level.WARNING, Messages.get("CacheConnection.errorClosingWriteConnection"), ex);
         }
@@ -721,12 +704,12 @@ public class CacheConnection {
     }
   }
 
-  private void returnConnectionBackToPool(StatefulConnection<byte[], byte[]> connection, boolean isConnectionBroken,
+  private void returnConnectionBackToPool(BaseClient connection, boolean isConnectionBroken,
       boolean isRead) {
-    GenericObjectPool<StatefulConnection<byte[], byte[]>> pool = isRead ? this.readConnectionPool :
+    GenericObjectPool<BaseClient> pool = isRead ? this.readConnectionPool :
         this.writeConnectionPool;
     if (isConnectionBroken) {
-      if (!connection.isOpen()) {
+      if (!connection.isConnected()) {
         try {
           pool.invalidateObject(connection);
           return;
@@ -738,13 +721,6 @@ public class CacheConnection {
       }
     }
     pool.returnObject(connection);
-  }
-
-  protected RedisURI buildRedisURI(String hostname, int port) {
-    // Delegate to the static helper
-    return buildRedisURIStatic(hostname, port, this.useSSL, this.cacheConnectionTimeout, this.iamAuthEnabled,
-        this.credentialsProvider, this.cacheIamRegion, this.cacheName, this.cacheUsername, this.cachePassword
-    );
   }
 
   private String[] getHostnameAndPort(String serverAddr) {
@@ -783,29 +759,28 @@ public class CacheConnection {
   }
 
   /**
-   * Wraps a StatefulConnection (either StatefulRedisConnection or StatefulRedisClusterConnection)
+   * Wraps a BaseClient (either GlideClient or GlideClusterClient)
    * and exposes only ping functionality.
    */
   private static class PingConnection implements CachePingConnection {
-    private final StatefulConnection<byte[], byte[]> connection;
+    private final BaseClient connection;
 
-    PingConnection(StatefulConnection<byte[], byte[]> connection) {
+    PingConnection(BaseClient connection) {
       this.connection = connection;
     }
 
     @Override
     public boolean ping() {
       try {
-        if (!connection.isOpen()) {
+        // Cast to appropriate type to access sync() method
+        if (!connection.isConnected()) {
           return false;
         }
-
-        // Cast to appropriate type to access sync() method
         String result;
-        if (connection instanceof StatefulRedisClusterConnection) {
-          result = ((StatefulRedisClusterConnection<byte[], byte[]>) connection).sync().ping();
+        if (connection instanceof GlideClusterClient) {
+          result = ((GlideClusterClient) connection).ping().get();
         } else {
-          result = ((StatefulRedisConnection<byte[], byte[]>) connection).sync().ping();
+          result = ((GlideClient) connection).ping().get();
         }
         return "PONG".equalsIgnoreCase(result);
       } catch (Exception e) {
@@ -814,8 +789,8 @@ public class CacheConnection {
     }
 
     @Override
-    public boolean isOpen() {
-      return connection.isOpen();
+    public boolean isConnected() {
+      return connection.isConnected();
     }
 
     @Override
@@ -829,8 +804,8 @@ public class CacheConnection {
   }
 
   /* ========== Below methods are used for internal testing purposes only ============ */
-  protected void setConnectionPools(GenericObjectPool<StatefulConnection<byte[], byte[]>> readPool,
-      GenericObjectPool<StatefulConnection<byte[], byte[]>> writePool) {
+  protected void setConnectionPools(GenericObjectPool<BaseClient> readPool,
+      GenericObjectPool<BaseClient> writePool) {
     this.readConnectionPool = readPool;
     this.writeConnectionPool = writePool;
   }
@@ -846,10 +821,6 @@ public class CacheConnection {
 
   // Used for integration testing only to avoid cross tests pollution
   public static void clearEndpointPoolRegistry() {
-    CacheMonitor.resetInstance();
-    for (GenericObjectPool<StatefulConnection<byte[], byte[]>> pool : endpointToPoolRegistry.values()) {
-      pool.close();
-    }
     endpointToPoolRegistry.clear();
   }
 }

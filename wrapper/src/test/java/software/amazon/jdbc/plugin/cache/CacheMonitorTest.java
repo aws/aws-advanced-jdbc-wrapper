@@ -32,8 +32,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.lettuce.core.RedisCommandExecutionException;
-import io.lettuce.core.RedisConnectionException;
+import glide.api.models.exceptions.ConnectionException;
+import glide.api.models.exceptions.GlideException;
+import glide.api.models.exceptions.RequestException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.time.Duration;
@@ -237,7 +238,7 @@ public class CacheMonitorTest {
 
     // Test 1: Recoverable error transitions to SUSPECT
     CacheMonitor.reportError("localhost:6379", "localhost:6380", true,
-        new RedisConnectionException("Connection refused"), "SET");
+        new ConnectionException("Connection refused"), "SET");
     assertEquals(CacheMonitor.HealthState.SUSPECT, cluster.rwHealthState);
     assertEquals(CacheMonitor.HealthState.HEALTHY, cluster.roHealthState);
     verify(mockErrorCounter, times(1)).inc();
@@ -252,7 +253,7 @@ public class CacheMonitorTest {
 
     // Test 3: RO endpoint error transitions independently
     CacheMonitor.reportError("localhost:6379", "localhost:6380", false,
-        new RedisCommandExecutionException("READONLY"), "SET");
+        new RequestException("READONLY"), "SET");
     assertEquals(CacheMonitor.HealthState.SUSPECT, cluster.rwHealthState);
     assertEquals(CacheMonitor.HealthState.SUSPECT, cluster.roHealthState);
     verify(mockErrorCounter, times(3)).inc();
@@ -260,7 +261,7 @@ public class CacheMonitorTest {
 
     // Test 4: Unregistered cluster logs warning without metrics
     CacheMonitor.reportError("localhost:9999", null, true,
-        new RedisConnectionException("Connection refused"), "SET");
+        new ConnectionException("Connection refused"), "SET");
     verify(mockErrorCounter, times(3)).inc();
     verify(mockStateTransitionCounter, times(2)).inc();
   }
@@ -339,7 +340,7 @@ public class CacheMonitorTest {
     CacheMonitor instance = (CacheMonitor) getStaticField("instance");
 
     // Success: maintains healthy state
-    when(mockRwPingConnection.isOpen()).thenReturn(true);
+    when(mockRwPingConnection.isConnected()).thenReturn(true);
     when(mockRwPingConnection.ping()).thenReturn(true);
     invokeExecutePing(instance, cluster, true);
     assertEquals(CacheMonitor.HealthState.HEALTHY, cluster.rwHealthState);
@@ -377,9 +378,9 @@ public class CacheMonitorTest {
     final CacheMonitor.ClusterHealthState cluster = getCluster("localhost:6379", "localhost:6380");
     final CacheMonitor instance = (CacheMonitor) getStaticField("instance");
 
-    when(mockRwPingConnection.isOpen()).thenReturn(true);
+    when(mockRwPingConnection.isConnected()).thenReturn(true);
     when(mockRwPingConnection.ping()).thenReturn(false);
-    when(mockRoPingConnection.isOpen()).thenReturn(true);
+    when(mockRoPingConnection.isConnected()).thenReturn(true);
     when(mockRoPingConnection.ping()).thenReturn(true);
 
     invokeExecutePing(instance, cluster, true);
@@ -389,12 +390,14 @@ public class CacheMonitorTest {
 
     // Connection closed = failure (no ping call)
     reset(mockRwPingConnection);
-    when(mockRwPingConnection.isOpen()).thenReturn(false);
+    when(mockRwPingConnection.isConnected()).thenReturn(false);
+    cluster.rwPingConnection = null;
     invokeExecutePing(instance, cluster, true);
     verify(mockRwPingConnection, never()).ping();
 
     // Exception during ping = failure
-    when(mockRwPingConnection.isOpen()).thenReturn(true);
+    when(mockRwPingConnection.isConnected()).thenReturn(true);
+    cluster.rwPingConnection = mockRwPingConnection;
     when(mockRwPingConnection.ping()).thenThrow(new RuntimeException("timeout"));
     invokeExecutePing(instance, cluster, true);
     assertEquals(CacheMonitor.HealthState.SUSPECT, cluster.rwHealthState);
@@ -409,7 +412,7 @@ public class CacheMonitorTest {
     singleCluster.inFlightWriteSizeBytes.set(500);
 
     reset(mockRwPingConnection);
-    when(mockRwPingConnection.isOpen()).thenReturn(true);
+    when(mockRwPingConnection.isConnected()).thenReturn(true);
     when(mockRwPingConnection.ping()).thenReturn(true);
     invokeExecutePing(singleInstance, singleCluster, true);
     invokeExecutePing(singleInstance, singleCluster, true);
@@ -429,8 +432,8 @@ public class CacheMonitorTest {
   }
 
   @Test
-  void testMonitor_MonitoringBehavior() throws Exception {
-    when(mockRwPingConnection.isOpen()).thenReturn(true);
+  void testRun_MonitoringBehavior() throws Exception {
+    when(mockRwPingConnection.isConnected()).thenReturn(true);
     when(mockRwPingConnection.ping()).thenReturn(true);
 
     // HEALTHY: skips ping by default
@@ -509,9 +512,9 @@ public class CacheMonitorTest {
     cluster.transitionToState(CacheMonitor.HealthState.SUSPECT, true, "test_setup", null);
     instance = (CacheMonitor) getStaticField("instance");
     reset(mockRwPingConnection, mockRoPingConnection);
-    when(mockRwPingConnection.isOpen()).thenReturn(true);
+    when(mockRwPingConnection.isConnected()).thenReturn(true);
     when(mockRwPingConnection.ping()).thenReturn(true);
-    when(mockRoPingConnection.isOpen()).thenReturn(true);
+    when(mockRoPingConnection.isConnected()).thenReturn(true);
     when(mockRoPingConnection.ping()).thenReturn(true);
     spy = spy(instance);
     sleepCount.set(0);
@@ -539,7 +542,7 @@ public class CacheMonitorTest {
     cluster.transitionToState(CacheMonitor.HealthState.SUSPECT, true, "test_setup", null);
     instance = (CacheMonitor) getStaticField("instance");
     reset(mockRwPingConnection);
-    when(mockRwPingConnection.isOpen()).thenReturn(true);
+    when(mockRwPingConnection.isConnected()).thenReturn(true);
     when(mockRwPingConnection.ping())
         .thenThrow(new RuntimeException("Test exception"))
         .thenReturn(true);
@@ -569,19 +572,19 @@ public class CacheMonitorTest {
     classifyMethod.setAccessible(true);
 
     assertEquals(CacheMonitor.ErrorCategory.CONNECTION,
-        classifyMethod.invoke(null, new RedisConnectionException("Connection refused")));
+        classifyMethod.invoke(null, new ConnectionException("Connection refused")));
     assertEquals(CacheMonitor.ErrorCategory.COMMAND,
-        classifyMethod.invoke(null, new RedisCommandExecutionException("READONLY")));
+        classifyMethod.invoke(null, new RequestException("READONLY")));
     assertEquals(CacheMonitor.ErrorCategory.COMMAND,
-        classifyMethod.invoke(null, new RedisCommandExecutionException("WRONGTYPE")));
+        classifyMethod.invoke(null, new RequestException("WRONGTYPE")));
     assertEquals(CacheMonitor.ErrorCategory.RESOURCE,
-        classifyMethod.invoke(null, new RedisCommandExecutionException("OOM")));
+        classifyMethod.invoke(null, new RequestException("OOM")));
     assertEquals(CacheMonitor.ErrorCategory.RESOURCE,
-        classifyMethod.invoke(null, new RedisCommandExecutionException("CLUSTERDOWN")));
+        classifyMethod.invoke(null, new RequestException("CLUSTERDOWN")));
     assertEquals(CacheMonitor.ErrorCategory.RESOURCE,
-        classifyMethod.invoke(null, new RedisCommandExecutionException((String) null)));
+        classifyMethod.invoke(null, new RequestException((String) null)));
     assertEquals(CacheMonitor.ErrorCategory.CONNECTION,
-        classifyMethod.invoke(null, new io.lettuce.core.RedisException("Generic error")));
+        classifyMethod.invoke(null, new GlideException("Generic error")));
     assertEquals(CacheMonitor.ErrorCategory.DATA,
         classifyMethod.invoke(null, new RuntimeException("Serialization failed")));
 
@@ -608,10 +611,10 @@ public class CacheMonitorTest {
     assertFalse((Boolean) pingMethod.invoke(instance, cluster, true));
 
     cluster.rwPingConnection = mockRwPingConnection;
-    when(mockRwPingConnection.isOpen()).thenReturn(false);
+    when(mockRwPingConnection.isConnected()).thenReturn(false);
     assertFalse((Boolean) pingMethod.invoke(instance, cluster, true));
 
-    when(mockRwPingConnection.isOpen()).thenReturn(true);
+    when(mockRwPingConnection.isConnected()).thenReturn(true);
     when(mockRwPingConnection.ping()).thenReturn(true);
     assertTrue((Boolean) pingMethod.invoke(instance, cluster, true));
 

@@ -29,11 +29,11 @@ public interface CachePingConnection {
   boolean ping();
 
   /**
-   * Checks if the connection is open.
+   * Checks if the client is connected.
    *
-   * @return true if connection is open, false otherwise
+   * @return true if client is connected, false otherwise
    */
-  boolean isOpen();
+  boolean isConnected();
 
   /**
    * Closes the ping connection and releases resources.

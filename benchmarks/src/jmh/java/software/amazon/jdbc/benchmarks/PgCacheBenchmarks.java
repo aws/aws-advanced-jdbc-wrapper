@@ -150,7 +150,7 @@ public class PgCacheBenchmarks {
   public void runBenchmarkPrimaryKeyLookupWithCaching(Blackhole b) throws SQLException {
     try (Statement stmt = connection.createStatement();
          ResultSet rs = stmt.executeQuery("/*+ CACHE_PARAM(ttl=172800s) */ SELECT * FROM test where id = " + counter)) {
-         validateResultSet(rs, b);
+      validateResultSet(rs, b);
     }
     counter++;
   }
