@@ -40,7 +40,8 @@ public class MultiAzClusterPgDialect extends PgDialect implements MultiAzCluster
 
   // This query returns both instanceId and instanceName.
   // For example: "db-WQFQKBTL2LQUPIEFIFBGENS4ZQ", "test-multiaz-instance-1"
-  protected static final String INSTANCE_ID_QUERY = "SELECT id, SUBSTRING(endpoint FROM 0 FOR POSITION('.' IN endpoint))"
+  protected static final String INSTANCE_ID_QUERY =
+      "SELECT id, SUBSTRING(endpoint FROM 0 FOR POSITION('.' IN endpoint))"
       + " FROM rds_tools.show_topology()"
       + " WHERE id OPERATOR(pg_catalog.=) rds_tools.dbi_resource_id()";
   // For reader instances, this query should return a writer instance ID.

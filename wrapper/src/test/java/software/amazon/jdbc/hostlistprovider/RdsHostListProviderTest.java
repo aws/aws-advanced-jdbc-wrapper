@@ -252,7 +252,7 @@ class RdsHostListProviderTest {
     final List<HostSpec> cachedTopology = Collections.singletonList(expectedHost);
 
     rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
-    when(mockTopologyUtils.getInstanceId(mockConnection)).thenReturn(Pair.create("instance-1", "instance-1"));
+    when(mockTopologyUtils.getInstanceId(mockConnection)).thenReturn(Pair.create("instance-a-1", "instance-a-1"));
     doReturn(cachedTopology).when(rdsHostListProvider).refresh(mockConnection);
     doReturn(cachedTopology).when(rdsHostListProvider).forceRefresh(mockConnection);
 
