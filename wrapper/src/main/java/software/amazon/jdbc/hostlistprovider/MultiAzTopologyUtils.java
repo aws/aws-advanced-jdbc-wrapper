@@ -82,7 +82,6 @@ public class MultiAzTopologyUtils extends TopologyUtils {
     return false;
   }
 
-
   protected @Nullable String getWriterId(Connection connection) throws SQLException {
     try (final Statement stmt = connection.createStatement()) {
       try (final ResultSet rs = stmt.executeQuery(this.dialect.getWriterIdQuery())) {

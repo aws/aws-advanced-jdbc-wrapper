@@ -671,7 +671,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
           }
 
           if (connection != null) {
-
             boolean isWriter = false;
             try {
               isWriter = this.monitor.topologyUtils.isWriterInstance(connection);
@@ -680,7 +679,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
                   "NodeMonitoringThread.invalidWriterQuery",
                   new Object[] {ex.getMessage()}));
               throw new RuntimeException(ex);
-
             } catch (SQLException ex) {
               this.monitor.closeConnection(connection);
               connection = null;

@@ -46,7 +46,7 @@ public class MultiAzClusterMysqlDialect extends MysqlDialect implements MultiAzC
 
   // This query returns both instanceId and instanceName.
   // For example: "1845128080", "test-multiaz-instance-1"
-  private static final String INSTANCE_ID_QUERY = "SELECT id, SUBSTRING_INDEX(endpoint, '.', 1)"
+  protected static final String INSTANCE_ID_QUERY = "SELECT id, SUBSTRING_INDEX(endpoint, '.', 1)"
       + " FROM mysql.rds_topology"
       + " WHERE id = @@server_id";
   // For reader instances, this query returns a writer instance ID. For a writer instance, this query returns no data.
