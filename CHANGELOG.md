@@ -3,6 +3,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [2.6.6] - 2025-11-05
+
+### :magic_wand: Added
+- Added support for `eu`, `au`, and `uk` domains and `rds-fips` subdomains ([PR #1585](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1587))
+
+### :crab: Changed
+- Scoped down GitHub Token permissions ([PR #1571](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1571))
+- Improved integration testing by cleaning up the test environment before each run([PR #1562](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1562))
+- Documentation:
+  - Added [compatibility guide](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/Compatibility.md) documentation which covers [database type compatibility](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/CompatibilityDatabaseTypes.md), [database URL type compatibility](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/CompatibilityEndpoints.md), and [cross plugins compatibility](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/54aa6324a2373e745e1a41823b20ad2109fdcb4e/docs/using-the-jdbc-driver/CompatibilityCrossPlugins.md) ([PR #1567](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1567))
+  - Removed IAM Multi-AZ DB Cluster limitation from documentation ([PR #1569](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1569))
+  - Update integration testing guide with clean-up step ([PR #1584](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1584))
+
 ## [2.6.5] - 2025-10-16
 
 ### :magic_wand: Added
