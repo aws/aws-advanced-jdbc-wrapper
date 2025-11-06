@@ -39,6 +39,11 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.SynchronousExecutor;
 
+/**
+ * An abstract class defining utility methods that can be used to retrieve and process a variety of database topology
+ * information. This class can be overridden to define logic specific to various database engine deployments
+ * (e.g. Aurora, Multi-AZ, Global Aurora etc.).
+ */
 public abstract class TopologyUtils {
   private static final Logger LOGGER = Logger.getLogger(TopologyUtils.class.getName());
   protected static final int DEFAULT_QUERY_TIMEOUT_MS = 1000;
@@ -54,9 +59,19 @@ public abstract class TopologyUtils {
     this.hostSpecBuilder = hostSpecBuilder;
   }
 
+  /**
+   * Query the database for information for each instance in the database topology.
+   *
+   * @param conn             the connection to use to query the database.
+   * @param initialHostSpec  the {@link HostSpec} that was used to initially connect.
+   * @param instanceTemplate the template {@link HostSpec} to use when constructing new {@link HostSpec} objects from
+   *                         the data returned by the topology query.
+   * @return a list of {@link HostSpec} objects representing the results of the topology query.
+   * @throws SQLException if an error occurs when executing the topology or processing the results.
+   */
   public @Nullable List<HostSpec> queryForTopology(Connection conn, HostSpec initialHostSpec, HostSpec instanceTemplate)
       throws SQLException {
-    int networkTimeout = setNetworkTimeout(conn);
+    int originalNetworkTimeout = setNetworkTimeout(conn);
     try (final Statement stmt = conn.createStatement();
          final ResultSet rs = stmt.executeQuery(this.dialect.getTopologyQuery())) {
       if (rs.getMetaData().getColumnCount() == 0) {
@@ -69,8 +84,8 @@ public abstract class TopologyUtils {
     } catch (final SQLSyntaxErrorException e) {
       throw new SQLException(Messages.get("TopologyUtils.invalidQuery"), e);
     } finally {
-      if (networkTimeout == 0 && !conn.isClosed()) {
-        conn.setNetworkTimeout(networkTimeoutExecutor, networkTimeout);
+      if (originalNetworkTimeout == 0 && !conn.isClosed()) {
+        conn.setNetworkTimeout(networkTimeoutExecutor, originalNetworkTimeout);
       }
     }
   }
@@ -124,6 +139,17 @@ public abstract class TopologyUtils {
     return hosts;
   }
 
+  /**
+   * Creates a {@link HostSpec} from the given topology information.
+   *
+   * @param instanceId       the database instance identifier, e.g. "mydb-instance-1".
+   * @param isWriter         true if this is a writer instance, false for reader.
+   * @param weight           the instance weight for load balancing.
+   * @param lastUpdateTime   the timestamp of the last update to this instance's information.
+   * @param initialHostSpec  the original host specification used for connecting.
+   * @param instanceTemplate the template used to construct the new {@link HostSpec}.
+   * @return a {@link HostSpec} representing the given information.
+   */
   public HostSpec createHost(
       String instanceId,
       final boolean isWriter,
@@ -151,6 +177,12 @@ public abstract class TopologyUtils {
     return hostSpec;
   }
 
+  /**
+   * Get the instance ID of the current connection.
+   *
+   * @param connection the connection to use to query the database.
+   * @return the instance ID of the current connection.
+   */
   public @Nullable String getInstanceId(final Connection connection) {
     try {
       try (final Statement stmt = connection.createStatement();
@@ -166,8 +198,22 @@ public abstract class TopologyUtils {
     return null;
   }
 
+  /**
+   * Evaluate whether the given connection is to a writer instance.
+   *
+   * @param connection the connection to evaluate.
+   * @return true if the connection is to a writer instance, false otherwise.
+   * @throws SQLException if an exception occurs when querying the database or processing the database response.
+   */
   public abstract boolean isWriterInstance(Connection connection) throws SQLException;
 
+  /**
+   * Evaluate the database role of the given connection, either {@link HostRole#WRITER} or {@link HostRole#READER}.
+   *
+   * @param conn the connection to evaluate.
+   * @return the database role of the given connection.
+   * @throws SQLException if an exception occurs when querying the database or processing the database response.
+   */
   public HostRole getHostRole(Connection conn) throws SQLException {
     try (final Statement stmt = conn.createStatement();
          final ResultSet rs = stmt.executeQuery(this.dialect.getIsReaderQuery())) {
