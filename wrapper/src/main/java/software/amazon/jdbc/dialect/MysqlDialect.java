@@ -33,18 +33,47 @@ import software.amazon.jdbc.plugin.failover.FailoverRestriction;
 
 public class MysqlDialect implements Dialect {
 
+  protected static final String VERSION_QUERY = "SHOW VARIABLES LIKE 'version_comment'";
+  protected static final String HOST_ALIAS_QUERY = "SELECT CONCAT(@@hostname, ':', @@port)";
+
+  protected static final DialectUtils dialectUtils = new DialectUtils();
+
+  private static MySQLExceptionHandler mySQLExceptionHandler;
+  private static final EnumSet<FailoverRestriction> NO_FAILOVER_RESTRICTIONS =
+      EnumSet.noneOf(FailoverRestriction.class);
   private static final List<String> dialectUpdateCandidates = Arrays.asList(
-      DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER,
+      DialectCodes.GLOBAL_AURORA_MYSQL,
       DialectCodes.AURORA_MYSQL,
+      DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER,
       DialectCodes.RDS_MYSQL
   );
-  private static MySQLExceptionHandler mySQLExceptionHandler;
 
-  private static final EnumSet<FailoverRestriction> NO_RESTRICTIONS = EnumSet.noneOf(FailoverRestriction.class);
+
+  @Override
+  public boolean isDialect(final Connection connection) {
+    try (Statement stmt = connection.createStatement();
+         ResultSet rs = stmt.executeQuery(VERSION_QUERY)) {
+      while (rs.next()) {
+        final String columnValue = rs.getString(2);
+        if (columnValue != null && columnValue.toLowerCase().contains("mysql")) {
+          return true;
+        }
+      }
+    } catch (final SQLException ex) {
+      return false;
+    }
+
+    return false;
+  }
 
   @Override
   public int getDefaultPort() {
     return 3306;
+  }
+
+  @Override
+  public List<String> getDialectUpdateCandidates() {
+    return dialectUpdateCandidates;
   }
 
   @Override
@@ -55,56 +84,7 @@ public class MysqlDialect implements Dialect {
     return mySQLExceptionHandler;
   }
 
-  @Override
-  public String getHostAliasQuery() {
-    return "SELECT CONCAT(@@hostname, ':', @@port)";
-  }
-
-  @Override
-  public String getServerVersionQuery() {
-    return "SHOW VARIABLES LIKE 'version_comment'";
-  }
-
-  @Override
-  public boolean isDialect(final Connection connection) {
-    Statement stmt = null;
-    ResultSet rs = null;
-    try {
-      stmt = connection.createStatement();
-      rs = stmt.executeQuery(this.getServerVersionQuery());
-      while (rs.next()) {
-        final String columnValue = rs.getString(2);
-        if (columnValue != null && columnValue.toLowerCase().contains("mysql")) {
-          return true;
-        }
-      }
-    } catch (final SQLException ex) {
-      // ignore
-    } finally {
-      if (stmt != null) {
-        try {
-          stmt.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
-      if (rs != null) {
-        try {
-          rs.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
-    }
-    return false;
-  }
-
-  @Override
-  public List<String> getDialectUpdateCandidates() {
-    return dialectUpdateCandidates;
-  }
-
-  public HostListProviderSupplier getHostListProvider() {
+  public HostListProviderSupplier getHostListProviderSupplier() {
     return (properties, initialUrl, servicesContainer) ->
         new ConnectionStringHostListProvider(properties, initialUrl, servicesContainer.getHostListProviderService());
   }
@@ -117,6 +97,16 @@ public class MysqlDialect implements Dialect {
 
   @Override
   public EnumSet<FailoverRestriction> getFailoverRestrictions() {
-    return NO_RESTRICTIONS;
+    return NO_FAILOVER_RESTRICTIONS;
+  }
+
+  @Override
+  public String getServerVersionQuery() {
+    return VERSION_QUERY;
+  }
+
+  @Override
+  public String getHostAliasQuery() {
+    return HOST_ALIAS_QUERY;
   }
 }

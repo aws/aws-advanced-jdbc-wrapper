@@ -31,10 +31,10 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.ConnectionInfo;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.ConnectionProviderManager;
-import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
@@ -43,6 +43,7 @@ import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -190,9 +191,9 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
         connProvider.getTargetName(), TelemetryTraceLevel.NESTED);
 
-    Connection conn;
+    ConnectionInfo connectionInfo;
     try {
-      conn = connProvider.connect(
+      connectionInfo = connProvider.connect(
           driverProtocol,
           this.pluginService.getDialect(),
           this.pluginService.getTargetDriverDialect(),
@@ -204,14 +205,17 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       }
     }
 
-    this.connProviderManager.initConnection(conn, driverProtocol, hostSpec, props);
+    this.pluginManagerService.setIsPooledConnection(connectionInfo.isPooled());
+    this.connProviderManager.initConnection(connectionInfo.getConnection(), driverProtocol, hostSpec, props);
 
-    this.pluginService.setAvailability(hostSpec.asAliases(), HostAvailability.AVAILABLE);
+    if (connectionInfo.getConnection() != null) {
+      this.pluginService.setAvailability(hostSpec.asAliases(), HostAvailability.AVAILABLE);
+    }
     if (isInitialConnection) {
-      this.pluginService.updateDialect(conn);
+      this.pluginService.updateDialect(connectionInfo.getConnection());
     }
 
-    return conn;
+    return connectionInfo.getConnection();
   }
 
   @Override

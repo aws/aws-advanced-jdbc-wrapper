@@ -61,9 +61,7 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.provider.Arguments;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
-import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 import software.amazon.jdbc.plugin.OpenedConnectionTracker;
 import software.amazon.jdbc.plugin.efm.HostMonitorThreadContainer;
 import software.amazon.jdbc.plugin.efm2.HostMonitorServiceImpl;
@@ -149,8 +147,6 @@ public class PerformanceTest {
     OpenedConnectionTracker.clearCache();
     HostMonitorThreadContainer.releaseInstance();
     HostMonitorServiceImpl.closeAllMonitors();
-    AuroraHostListProvider.clearAll();
-    MonitoringRdsHostListProvider.clearCache();
 
     enhancedFailureMonitoringPerfDataList.clear();
 
@@ -231,8 +227,6 @@ public class PerformanceTest {
     OpenedConnectionTracker.clearCache();
     HostMonitorThreadContainer.releaseInstance();
     HostMonitorServiceImpl.closeAllMonitors();
-    AuroraHostListProvider.clearAll();
-    MonitoringRdsHostListProvider.clearCache();
 
     failoverWithEfmPerfDataList.clear();
 
@@ -319,8 +313,6 @@ public class PerformanceTest {
     OpenedConnectionTracker.clearCache();
     HostMonitorThreadContainer.releaseInstance();
     HostMonitorServiceImpl.closeAllMonitors();
-    AuroraHostListProvider.clearAll();
-    MonitoringRdsHostListProvider.clearCache();
 
     failoverWithSocketTimeoutPerfDataList.clear();
 

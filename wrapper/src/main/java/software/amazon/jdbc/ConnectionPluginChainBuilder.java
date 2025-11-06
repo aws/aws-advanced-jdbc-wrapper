@@ -126,7 +126,7 @@ public class ConnectionPluginChainBuilder {
   protected static final ConcurrentMap<Class<? extends ConnectionPluginFactory>, ConnectionPluginFactory>
       pluginFactoriesByClass = new ConcurrentHashMap<>();
 
-  protected static final String DEFAULT_PLUGINS = "auroraConnectionTracker,failover2,efm2";
+  protected static final String DEFAULT_PLUGINS = "initialConnection,auroraConnectionTracker,failover2,efm2";
 
   /*
    Internal class used for plugin factory sorting. It holds a reference to a plugin

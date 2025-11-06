@@ -26,6 +26,7 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.Utils;
@@ -116,7 +117,7 @@ public class LimitlessRouterMonitor extends AbstractMonitor {
           List<HostSpec> newLimitlessRouters =
               queryHelper.queryForLimitlessRouters(this.monitoringConn, this.hostSpec.getPort());
           this.storageService.set(this.limitlessRouterCacheKey, new LimitlessRouters(newLimitlessRouters));
-          LOGGER.finest(Utils.logTopology(newLimitlessRouters, "[limitlessRouterMonitor] Topology:"));
+          LOGGER.finest(LogUtils.logTopology(newLimitlessRouters, "[limitlessRouterMonitor] Topology:"));
           TimeUnit.MILLISECONDS.sleep(this.intervalMs); // do not include this in the telemetry
         } catch (final Exception ex) {
           if (telemetryContext != null) {

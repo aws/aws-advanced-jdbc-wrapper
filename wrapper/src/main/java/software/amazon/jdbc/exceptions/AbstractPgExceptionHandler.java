@@ -28,12 +28,6 @@ public abstract class AbstractPgExceptionHandler implements ExceptionHandler {
   public abstract List<String> getAccessErrors();
 
   @Override
-  @Deprecated
-  public boolean isNetworkException(Throwable throwable) {
-    return this.isNetworkException(throwable, null);
-  }
-
-  @Override
   public boolean isNetworkException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     Throwable exception = throwable;
 
@@ -66,12 +60,6 @@ public abstract class AbstractPgExceptionHandler implements ExceptionHandler {
     }
 
     return false;
-  }
-
-  @Override
-  @Deprecated
-  public boolean isLoginException(final Throwable throwable) {
-    return this.isLoginException(throwable, null);
   }
 
   @Override

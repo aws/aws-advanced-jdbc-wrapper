@@ -27,12 +27,7 @@ import java.util.Properties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import software.amazon.jdbc.HostRole;
-import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.HostSpecBuilder;
-import software.amazon.jdbc.RoundRobinHostSelector;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
-import software.amazon.jdbc.util.HostSelectorUtils;
 
 public class RoundRobinHostSelectorTest {
   private static final int TEST_PORT = 5432;

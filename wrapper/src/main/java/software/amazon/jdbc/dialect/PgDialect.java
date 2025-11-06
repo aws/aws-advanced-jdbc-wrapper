@@ -36,18 +36,35 @@ import software.amazon.jdbc.plugin.failover.FailoverRestriction;
  */
 public class PgDialect implements Dialect {
 
+  protected static final String PG_PROC_EXISTS_QUERY = "SELECT 1 FROM pg_catalog.pg_proc LIMIT 1";
+  protected static final String VERSION_QUERY = "SELECT 'version', pg_catalog.VERSION()";
+  protected static final String HOST_ALIAS_QUERY =
+      "SELECT pg_catalog.CONCAT(pg_catalog.inet_server_addr(), ':', pg_catalog.inet_server_port())";
+
+  protected static final DialectUtils dialectUtils = new DialectUtils();
+
+  private static PgExceptionHandler pgExceptionHandler;
+  private static final EnumSet<FailoverRestriction> NO_FAILOVER_RESTRICTIONS =
+      EnumSet.noneOf(FailoverRestriction.class);
   private static final List<String> dialectUpdateCandidates = Arrays.asList(
+      DialectCodes.GLOBAL_AURORA_PG,
       DialectCodes.AURORA_PG,
       DialectCodes.RDS_MULTI_AZ_PG_CLUSTER,
       DialectCodes.RDS_PG);
 
-  private static PgExceptionHandler pgExceptionHandler;
-
-  private static final EnumSet<FailoverRestriction> NO_RESTRICTIONS = EnumSet.noneOf(FailoverRestriction.class);
+  @Override
+  public boolean isDialect(final Connection connection) {
+    return dialectUtils.checkExistenceQueries(connection, PG_PROC_EXISTS_QUERY);
+  }
 
   @Override
   public int getDefaultPort() {
     return 5432;
+  }
+
+  @Override
+  public List<String> getDialectUpdateCandidates() {
+    return dialectUpdateCandidates;
   }
 
   @Override
@@ -59,53 +76,7 @@ public class PgDialect implements Dialect {
   }
 
   @Override
-  public String getHostAliasQuery() {
-    return "SELECT pg_catalog.CONCAT(pg_catalog.inet_server_addr(), ':', pg_catalog.inet_server_port())";
-  }
-
-  @Override
-  public String getServerVersionQuery() {
-    return "SELECT 'version', pg_catalog.VERSION()";
-  }
-
-  @Override
-  public boolean isDialect(final Connection connection) {
-    Statement stmt = null;
-    ResultSet rs = null;
-    try {
-      stmt = connection.createStatement();
-      rs = stmt.executeQuery("SELECT 1 FROM pg_catalog.pg_proc LIMIT 1");
-      if (rs.next()) {
-        return true;
-      }
-    } catch (final SQLException ex) {
-      // ignore
-    } finally {
-      if (stmt != null) {
-        try {
-          stmt.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
-      if (rs != null) {
-        try {
-          rs.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
-    }
-    return false;
-  }
-
-  @Override
-  public List<String> getDialectUpdateCandidates() {
-    return dialectUpdateCandidates;
-  }
-
-  @Override
-  public HostListProviderSupplier getHostListProvider() {
+  public HostListProviderSupplier getHostListProviderSupplier() {
     return (properties, initialUrl, servicesContainer) ->
         new ConnectionStringHostListProvider(properties, initialUrl, servicesContainer.getHostListProviderService());
   }
@@ -118,6 +89,16 @@ public class PgDialect implements Dialect {
 
   @Override
   public EnumSet<FailoverRestriction> getFailoverRestrictions() {
-    return NO_RESTRICTIONS;
+    return NO_FAILOVER_RESTRICTIONS;
+  }
+
+  @Override
+  public String getServerVersionQuery() {
+    return VERSION_QUERY;
+  }
+
+  @Override
+  public String getHostAliasQuery() {
+    return HOST_ALIAS_QUERY;
   }
 }

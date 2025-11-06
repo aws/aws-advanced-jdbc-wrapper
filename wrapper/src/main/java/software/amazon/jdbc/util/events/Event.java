@@ -18,6 +18,10 @@ package software.amazon.jdbc.util.events;
 
 /**
  * A marker interface for events that need to be communicated between different components.
+ *
+ * <p>All implementations of this interface MUST be immutable or use both the default {@link Object#equals} and
+ * {@link Object#hashCode} implementations, as instances will be used as keys in hash-based collections. Mutable
+ * implementations may cause undefined behavior when used as Map keys or Set elements.
  */
 public interface Event {
 }

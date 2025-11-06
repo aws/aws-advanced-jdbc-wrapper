@@ -45,7 +45,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
@@ -56,6 +55,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.SqlState;
 
@@ -567,7 +567,7 @@ public class ReadWriteSplittingPluginTest {
         .when(this.mockPluginService).getCurrentHostSpec();
     doReturn(mockReaderConn1).when(mockPluginService).connect(readerHostSpec1, null);
     when(mockPluginService.getDriverProtocol()).thenReturn("jdbc:postgresql://");
-    when(mockPluginService.isPooledConnectionProvider(any(), any())).thenReturn(true);
+    when(mockPluginService.isPooledConnection()).thenReturn(true);
 
     final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
@@ -593,7 +593,7 @@ public class ReadWriteSplittingPluginTest {
         .when(this.mockPluginService).getCurrentHostSpec();
     doReturn(mockWriterConn).when(mockPluginService).connect(writerHostSpec, null);
     when(mockPluginService.getDriverProtocol()).thenReturn("jdbc:postgresql://");
-    when(mockPluginService.isPooledConnectionProvider(any(), any())).thenReturn(true);
+    when(mockPluginService.isPooledConnection()).thenReturn(true);
 
     final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,

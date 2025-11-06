@@ -53,6 +53,7 @@ import software.amazon.jdbc.mock.TestPluginThree;
 import software.amazon.jdbc.mock.TestPluginThrowException;
 import software.amazon.jdbc.mock.TestPluginTwo;
 import software.amazon.jdbc.plugin.AuroraConnectionTrackerPlugin;
+import software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPlugin;
 import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
 import software.amazon.jdbc.plugin.LogQueryConnectionPlugin;
 import software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin;
@@ -565,12 +566,13 @@ public class ConnectionPluginManagerTests {
         testProperties, mockTelemetryFactory, mockConnectionProvider, null));
     target.initPlugins(mockServicesContainer, configurationProfile);
 
-    assertEquals(4, target.plugins.size());
-    assertEquals(AuroraConnectionTrackerPlugin.class, target.plugins.get(0).getClass());
+    assertEquals(5, target.plugins.size());
+    assertEquals(AuroraInitialConnectionStrategyPlugin.class, target.plugins.get(0).getClass());
+    assertEquals(AuroraConnectionTrackerPlugin.class, target.plugins.get(1).getClass());
     assertEquals(software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin.class,
-        target.plugins.get(1).getClass());
-    assertEquals(HostMonitoringConnectionPlugin.class, target.plugins.get(2).getClass());
-    assertEquals(DefaultConnectionPlugin.class, target.plugins.get(3).getClass());
+        target.plugins.get(2).getClass());
+    assertEquals(HostMonitoringConnectionPlugin.class, target.plugins.get(3).getClass());
+    assertEquals(DefaultConnectionPlugin.class, target.plugins.get(4).getClass());
   }
 
   @Test
@@ -609,6 +611,11 @@ public class ConnectionPluginManagerTests {
     final ConnectionProvider mockConnectionProvider1 = Mockito.mock(ConnectionProvider.class);
     final ConnectionWrapper mockConnectionWrapper1 = Mockito.mock(ConnectionWrapper.class);
     final PluginService mockPluginService1 = Mockito.mock(PluginService.class);
+    final PluginManagerService mockPluginManagerService1 = Mockito.mock(PluginManagerService.class);
+    final FullServicesContainer mockServicesContainer1 = Mockito.mock(FullServicesContainer.class);
+    when(mockConnectionWrapper1.getServicesContainer()).thenReturn(mockServicesContainer1);
+    when(mockServicesContainer1.getPluginService()).thenReturn(mockPluginService1);
+    when(mockServicesContainer1.getPluginManagerService()).thenReturn(mockPluginManagerService1);
     final TelemetryFactory mockTelemetryFactory1 = Mockito.mock(TelemetryFactory.class);
     final Object object1 = new Object();
     when(mockPluginService1.getTelemetryFactory()).thenReturn(mockTelemetryFactory1);
@@ -617,10 +624,14 @@ public class ConnectionPluginManagerTests {
 
     final ConnectionPluginManager pluginManager1 = new ConnectionPluginManager(
         mockConnectionProvider1, null, testProperties, testPlugins, mockTelemetryFactory1);
-
     final ConnectionProvider mockConnectionProvider2 = Mockito.mock(ConnectionProvider.class);
     final ConnectionWrapper mockConnectionWrapper2 = Mockito.mock(ConnectionWrapper.class);
     final PluginService mockPluginService2 = Mockito.mock(PluginService.class);
+    final PluginManagerService mockPluginManagerService2 = Mockito.mock(PluginManagerService.class);
+    final FullServicesContainer mockServicesContainer2 = Mockito.mock(FullServicesContainer.class);
+    when(mockConnectionWrapper2.getServicesContainer()).thenReturn(mockServicesContainer2);
+    when(mockServicesContainer2.getPluginService()).thenReturn(mockPluginService2);
+    when(mockServicesContainer2.getPluginManagerService()).thenReturn(mockPluginManagerService2);
     final TelemetryFactory mockTelemetryFactory2 = Mockito.mock(TelemetryFactory.class);
     final Object object2 = new Object();
     when(mockPluginService2.getTelemetryFactory()).thenReturn(mockTelemetryFactory2);

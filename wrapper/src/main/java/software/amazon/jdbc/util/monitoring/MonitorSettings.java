@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.util.monitoring;
 
+import java.util.EnumSet;
 import java.util.Set;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -26,7 +27,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class MonitorSettings {
   private final long expirationTimeoutNanos;
   private final long inactiveTimeoutNanos;
-  private @Nullable final Set<MonitorErrorResponse> errorResponses;
+  private @Nullable final EnumSet<MonitorErrorResponse> errorResponses;
 
   /**
    * Constructs a MonitorSettings instance.
@@ -40,7 +41,7 @@ public class MonitorSettings {
    *                               no action will be performed.
    */
   public MonitorSettings(
-      long expirationTimeoutNanos, long inactiveTimeoutNanos, @NonNull Set<MonitorErrorResponse> errorResponses) {
+      long expirationTimeoutNanos, long inactiveTimeoutNanos, @NonNull EnumSet<MonitorErrorResponse> errorResponses) {
     this.expirationTimeoutNanos = expirationTimeoutNanos;
     this.inactiveTimeoutNanos = inactiveTimeoutNanos;
     this.errorResponses = errorResponses;
@@ -54,7 +55,7 @@ public class MonitorSettings {
     return inactiveTimeoutNanos;
   }
 
-  public @Nullable Set<MonitorErrorResponse> getErrorResponses() {
+  public @Nullable EnumSet<MonitorErrorResponse> getErrorResponses() {
     return errorResponses;
   }
 }

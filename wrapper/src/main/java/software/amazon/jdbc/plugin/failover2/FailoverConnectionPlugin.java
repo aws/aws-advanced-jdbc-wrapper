@@ -31,7 +31,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import software.amazon.jdbc.AwsWrapperProperty;
-import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
@@ -40,6 +39,7 @@ import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverMode;
@@ -47,6 +47,7 @@ import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.plugin.failover.TransactionStateUnknownSQLException;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
@@ -257,6 +258,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   protected boolean isFailoverEnabled() {
     return !RdsUrlType.RDS_PROXY.equals(this.rdsUrlType)
+        && !RdsUrlType.RDS_PROXY_ENDPOINT.equals(this.rdsUrlType)
         && !Utils.isNullOrEmpty(this.pluginService.getAllHosts());
   }
 
@@ -429,7 +431,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
                   this.failoverReaderHostSelectorStrategySetting);
         } catch (UnsupportedOperationException | SQLException ex) {
           LOGGER.finest(
-              Utils.logTopology(
+              LogUtils.logTopology(
                   new ArrayList<>(remainingReaders),
                   Messages.get("Failover.errorSelectingReaderHost", new Object[]{ex.getMessage()})));
           break;
@@ -437,7 +439,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
         if (readerCandidate == null) {
           LOGGER.finest(
-              Utils.logTopology(new ArrayList<>(remainingReaders), Messages.get("Failover.readerCandidateNull")));
+              LogUtils.logTopology(new ArrayList<>(remainingReaders), Messages.get("Failover.readerCandidateNull")));
           break;
         }
 
@@ -558,7 +560,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         if (this.failoverWriterFailedCounter != null) {
           this.failoverWriterFailedCounter.inc();
         }
-        String message = Utils.logTopology(updatedHosts, Messages.get("Failover.noWriterHost"));
+        String message = LogUtils.logTopology(updatedHosts, Messages.get("Failover.noWriterHost"));
         LOGGER.severe(message);
         throw new FailoverFailedSQLException(message);
       }
@@ -568,7 +570,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         if (this.failoverWriterFailedCounter != null) {
           this.failoverWriterFailedCounter.inc();
         }
-        String topologyString = Utils.logTopology(allowedHosts, "");
+        String topologyString = LogUtils.logTopology(allowedHosts, "");
         LOGGER.severe(Messages.get("Failover.newWriterNotAllowed",
             new Object[] {writerCandidate.getUrl(), topologyString}));
         throw new FailoverFailedSQLException(

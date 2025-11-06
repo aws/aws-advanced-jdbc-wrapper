@@ -4,6 +4,14 @@
  */
 package org.hibernate.orm.test.mapping.embeddable;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.ParameterMode;
+import jakarta.persistence.Tuple;
 import java.net.URL;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -18,7 +26,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-
 import org.hibernate.annotations.Struct;
 import org.hibernate.boot.ResourceStreamLocator;
 import org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl;
@@ -35,7 +42,6 @@ import org.hibernate.dialect.PostgreSQLDialect;
 import org.hibernate.dialect.PostgresPlusDialect;
 import org.hibernate.procedure.ProcedureCall;
 import org.hibernate.procedure.ProcedureParameter;
-
 import org.hibernate.testing.jdbc.SharedDriverManagerTypeCacheClearingIntegrator;
 import org.hibernate.testing.orm.domain.gambit.EntityOfBasics;
 import org.hibernate.testing.orm.domain.gambit.MutableValue;
@@ -53,16 +59,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.ParameterMode;
-import jakarta.persistence.Tuple;
-
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
 @BootstrapServiceRegistry(
     javaServices = @BootstrapServiceRegistry.JavaService(

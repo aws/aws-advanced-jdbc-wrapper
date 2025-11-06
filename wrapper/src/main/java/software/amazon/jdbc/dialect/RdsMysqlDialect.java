@@ -26,15 +26,16 @@ import software.amazon.jdbc.util.StringUtils;
 
 public class RdsMysqlDialect extends MysqlDialect implements BlueGreenDialect {
 
-  private static final String BG_STATUS_QUERY =
-      "SELECT * FROM mysql.rds_topology";
-
-  private static final String TOPOLOGY_TABLE_EXIST_QUERY =
+  protected static final String REPORT_HOST_EXISTS_QUERY = "SHOW VARIABLES LIKE 'report_host'";
+  protected static final String TOPOLOGY_TABLE_EXISTS_QUERY =
       "SELECT 1 AS tmp FROM information_schema.tables WHERE"
           + " table_schema = 'mysql' AND table_name = 'rds_topology'";
 
+  protected static final String BG_STATUS_QUERY = "SELECT * FROM mysql.rds_topology";
+
   private static final List<String> dialectUpdateCandidates = Arrays.asList(
       DialectCodes.AURORA_MYSQL,
+      DialectCodes.GLOBAL_AURORA_MYSQL,
       DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER);
 
   @Override
@@ -53,50 +54,34 @@ public class RdsMysqlDialect extends MysqlDialect implements BlueGreenDialect {
       // | Variable_name   | value               |
       // |-----------------|---------------------|
       // | version_comment | Source distribution |
-      // If super.idDialect returns true there is no need to check for RdsMysqlDialect.
+      // If super.isDialect returns true there is no need to check for RdsMysqlDialect.
       return false;
     }
-    Statement stmt = null;
-    ResultSet rs = null;
 
-    try {
-      stmt = connection.createStatement();
-      rs = stmt.executeQuery(this.getServerVersionQuery());
-      if (!rs.next()) {
-        return false;
-      }
-      final String columnValue = rs.getString(2);
-      if (!"Source distribution".equalsIgnoreCase(columnValue)) {
-        return false;
+    try (Statement stmt = connection.createStatement()) {
+      try (ResultSet rs = stmt.executeQuery(VERSION_QUERY)) {
+        if (!rs.next()) {
+          return false;
+        }
+
+        final String columnValue = rs.getString(2);
+        if (!"Source distribution".equalsIgnoreCase(columnValue)) {
+          return false;
+        }
       }
 
-      rs.close();
-      rs = stmt.executeQuery("SHOW VARIABLES LIKE 'report_host'");
-      if (!rs.next()) {
-        return false;
+      try (ResultSet rs = stmt.executeQuery(REPORT_HOST_EXISTS_QUERY)) {
+        if (!rs.next()) {
+          return false;
+        }
+
+        final String reportHost = rs.getString(2); // An empty value is expected
+        return StringUtils.isNullOrEmpty(reportHost);
       }
-      final String reportHost = rs.getString(2); // get variable value; expected empty value
-      return StringUtils.isNullOrEmpty(reportHost);
 
     } catch (final SQLException ex) {
-      // ignore
-    } finally {
-      if (stmt != null) {
-        try {
-          stmt.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
-      if (rs != null) {
-        try {
-          rs.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
+      return false;
     }
-    return false;
   }
 
   @Override
@@ -105,19 +90,12 @@ public class RdsMysqlDialect extends MysqlDialect implements BlueGreenDialect {
   }
 
   @Override
-  public String getBlueGreenStatusQuery() {
-    return BG_STATUS_QUERY;
+  public boolean isBlueGreenStatusAvailable(final Connection connection) {
+    return dialectUtils.checkExistenceQueries(connection, TOPOLOGY_TABLE_EXISTS_QUERY);
   }
 
   @Override
-  public boolean isBlueGreenStatusAvailable(final Connection connection) {
-    try {
-      try (Statement statement = connection.createStatement();
-          ResultSet rs = statement.executeQuery(TOPOLOGY_TABLE_EXIST_QUERY)) {
-        return rs.next();
-      }
-    } catch (SQLException ex) {
-      return false;
-    }
+  public String getBlueGreenStatusQuery() {
+    return BG_STATUS_QUERY;
   }
 }
