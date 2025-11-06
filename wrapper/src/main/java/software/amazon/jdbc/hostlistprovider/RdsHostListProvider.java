@@ -310,8 +310,8 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   public @Nullable HostSpec identifyConnection(Connection connection) throws SQLException {
     init();
     try {
-      Pair<String, String> instanceIds = this.topologyUtils.getInstanceId(connection);
-      if (instanceIds == null) {
+      String instanceId = this.topologyUtils.getInstanceId(connection);
+      if (instanceId == null) {
         throw new SQLException(Messages.get("RdsHostListProvider.errorIdentifyConnection"));
       }
 
@@ -326,10 +326,9 @@ public class RdsHostListProvider implements DynamicHostListProvider {
         return null;
       }
 
-      String instanceName = instanceIds.getValue2();
       HostSpec foundHost = topology
           .stream()
-          .filter(host -> Objects.equals(instanceName, host.getHostId()))
+          .filter(host -> Objects.equals(instanceId, host.getHostId()))
           .findAny()
           .orElse(null);
 
@@ -341,7 +340,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
 
         foundHost = topology
             .stream()
-            .filter(host -> Objects.equals(instanceName, host.getHostId()))
+            .filter(host -> Objects.equals(instanceId, host.getHostId()))
             .findAny()
             .orElse(null);
       }

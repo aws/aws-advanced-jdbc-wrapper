@@ -90,6 +90,6 @@ public class AuroraTopologyUtils extends TopologyUtils {
     // Calculate weight based on instance lag in time and CPU utilization.
     final long weight = Math.round(instanceLag) * 100L + Math.round(cpuUtilization);
 
-    return createHost(hostName, hostName, isWriter, weight, lastUpdateTime, initialHostSpec, instanceTemplate);
+    return createHost(hostName, isWriter, weight, lastUpdateTime, initialHostSpec, instanceTemplate);
   }
 }

@@ -44,11 +44,8 @@ public class MultiAzClusterMysqlDialect extends MysqlDialect implements MultiAzC
           + " table_schema = 'mysql' AND table_name = 'rds_topology'";
   protected static final String TOPOLOGY_QUERY = "SELECT id, endpoint, port FROM mysql.rds_topology";
 
-  // This query returns both instanceId and instanceName.
-  // For example: "1845128080", "test-multiaz-instance-1"
-  private static final String INSTANCE_ID_QUERY = "SELECT id, SUBSTRING_INDEX(endpoint, '.', 1)"
-      + " FROM mysql.rds_topology"
-      + " WHERE id = @@server_id";
+  protected static final String INSTANCE_ID_QUERY =
+      "SELECT SUBSTRING_INDEX(endpoint, '.', 1) FROM mysql.rds_topology WHERE id = @@server_id";
   // For reader instances, this query returns a writer instance ID. For a writer instance, this query returns no data.
   protected static final String WRITER_ID_QUERY = "SHOW REPLICA STATUS";
   protected static final String WRITER_ID_QUERY_COLUMN_NAME = "Source_Server_Id";
