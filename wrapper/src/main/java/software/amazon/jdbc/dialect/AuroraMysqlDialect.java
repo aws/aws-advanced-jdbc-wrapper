@@ -36,7 +36,7 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect,
           // filter out instances that have not been updated in the last 5 minutes
           + "WHERE time_to_sec(timediff(now(), LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' ";
 
-  protected static final String INSTANCE_ID_QUERY = "SELECT @@aurora_server_id";
+  protected static final String INSTANCE_ID_QUERY = "SELECT @@aurora_server_id, @@aurora_server_id";
   protected static final String WRITER_ID_QUERY =
       "SELECT SERVER_ID FROM information_schema.replica_host_status "
           + "WHERE SESSION_ID = 'MASTER_SESSION_ID' AND SERVER_ID = @@aurora_server_id";

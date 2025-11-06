@@ -49,7 +49,8 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
           + "OR SESSION_ID OPERATOR(pg_catalog.=) 'MASTER_SESSION_ID' "
           + "OR LAST_UPDATE_TIMESTAMP IS NULL";
 
-  protected static final String INSTANCE_ID_QUERY = "SELECT pg_catalog.aurora_db_instance_identifier()";
+  protected static final String INSTANCE_ID_QUERY =
+      "SELECT pg_catalog.aurora_db_instance_identifier(), pg_catalog.aurora_db_instance_identifier()";
   protected static final String WRITER_ID_QUERY =
       "SELECT SERVER_ID FROM pg_catalog.aurora_replica_status() "
           + "WHERE SESSION_ID OPERATOR(pg_catalog.=) 'MASTER_SESSION_ID' "
