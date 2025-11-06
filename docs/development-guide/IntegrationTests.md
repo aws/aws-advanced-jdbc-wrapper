@@ -69,15 +69,3 @@ cmd /c ./gradlew --no-parallel --no-daemon test-all-environments
 ```
 
 Test results can be found at `wrapper/build/report/index.html`.
-
-If you encounter unexplained build issues/errors, or after major project structure changes, try running the following to perform a clean build:
-
-macOS:
-```bash
-./gradlew clean
-```
-
-Windows:
-```bash
-cmd /c ./gradlew clean
-```
