@@ -352,30 +352,34 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return;
     }
 
-    if (LOGGER.isLoggable(Level.FINEST)) {
-      final StringBuilder sb = new StringBuilder("Changes:");
-      for (final Map.Entry<String, EnumSet<NodeChangeOptions>> change : changes.entrySet()) {
-        if (sb.length() > 0) {
-          sb.append("\n");
+    try {
+      if (LOGGER.isLoggable(Level.FINEST)) {
+        final StringBuilder sb = new StringBuilder("Changes:");
+        for (final Map.Entry<String, EnumSet<NodeChangeOptions>> change : changes.entrySet()) {
+          if (sb.length() > 0) {
+            sb.append("\n");
+          }
+          sb.append(String.format("\tHost '%s': %s", change.getKey(), change.getValue()));
         }
-        sb.append(String.format("\tHost '%s': %s", change.getKey(), change.getValue()));
+        LOGGER.finest(sb.toString());
       }
-      LOGGER.finest(sb.toString());
-    }
 
-    final HostSpec currentHost = this.pluginService.getCurrentHostSpec();
-    final String url = currentHost.getUrl();
-    if (isNodeStillValid(url, changes)) {
-      return;
-    }
-
-    for (final String alias : currentHost.getAliases()) {
-      if (isNodeStillValid(alias + "/", changes)) {
+      final HostSpec currentHost = this.pluginService.getCurrentHostSpec();
+      final String url = currentHost.getUrl();
+      if (isNodeStillValid(url, changes)) {
         return;
       }
-    }
 
-    LOGGER.fine(() -> Messages.get("Failover.invalidNode", new Object[]{currentHost}));
+      for (final String alias : currentHost.getAliases()) {
+        if (isNodeStillValid(alias + "/", changes)) {
+          return;
+        }
+      }
+
+      LOGGER.fine(() -> Messages.get("Failover.invalidNode", new Object[]{currentHost}));
+    } finally {
+      this.staleDnsHelper.notifyNodeListChanged(changes);
+    }
   }
 
   private boolean isNodeStillValid(final String node, final Map<String, EnumSet<NodeChangeOptions>> changes) {
