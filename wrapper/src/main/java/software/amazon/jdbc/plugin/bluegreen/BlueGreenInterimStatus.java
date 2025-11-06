@@ -25,7 +25,6 @@ import java.util.stream.Collectors;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.StringUtils;
-import software.amazon.jdbc.util.Utils;
 
 public class BlueGreenInterimStatus {
   public BlueGreenPhase blueGreenPhase;

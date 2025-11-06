@@ -50,6 +50,7 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider.FetchTopologyResult;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.TestStorageServiceImpl;
@@ -216,7 +217,7 @@ class RdsHostListProviderTest {
     rdsHostListProvider.instanceTemplate =
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("?.pattern").build();
 
-    when(mockTopologyUtils.getInstanceId(mockConnection)).thenReturn("instance-1");
+    when(mockTopologyUtils.getInstanceId(mockConnection)).thenReturn(Pair.create("instance-1", "instance-1"));
     doReturn(null).when(rdsHostListProvider).refresh(mockConnection);
     doReturn(null).when(rdsHostListProvider).forceRefresh(mockConnection);
 
@@ -233,7 +234,7 @@ class RdsHostListProviderTest {
             .build());
 
     rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
-    when(mockTopologyUtils.getInstanceId(mockConnection)).thenReturn("instance-1");
+    when(mockTopologyUtils.getInstanceId(mockConnection)).thenReturn(Pair.create("instance-1", "instance-1"));
     doReturn(cachedTopology).when(rdsHostListProvider).refresh(mockConnection);
     doReturn(cachedTopology).when(rdsHostListProvider).forceRefresh(mockConnection);
 
@@ -251,7 +252,7 @@ class RdsHostListProviderTest {
     final List<HostSpec> cachedTopology = Collections.singletonList(expectedHost);
 
     rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
-    when(mockTopologyUtils.getInstanceId(mockConnection)).thenReturn("instance-a-1");
+    when(mockTopologyUtils.getInstanceId(mockConnection)).thenReturn(Pair.create("instance-a-1", "instance-a-1"));
     doReturn(cachedTopology).when(rdsHostListProvider).refresh(mockConnection);
     doReturn(cachedTopology).when(rdsHostListProvider).forceRefresh(mockConnection);
 

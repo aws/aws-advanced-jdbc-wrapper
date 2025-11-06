@@ -113,8 +113,10 @@ public class MultiAzTopologyUtils extends TopologyUtils {
 
     String endpoint = rs.getString("endpoint"); // "instance-name.XYZ.us-west-2.rds.amazonaws.com"
     String instanceName = endpoint.substring(0, endpoint.indexOf(".")); // "instance-name"
-    final boolean isWriter = instanceName.equals(writerId);
+    String hostId = rs.getString("id"); // "1034958454"
+    final boolean isWriter = hostId.equals(writerId);
 
-    return createHost(instanceName, isWriter, 0, Timestamp.from(Instant.now()), initialHostSpec, instanceTemplate);
+    return createHost(
+        hostId, instanceName, isWriter, 0, Timestamp.from(Instant.now()), initialHostSpec, instanceTemplate);
   }
 }

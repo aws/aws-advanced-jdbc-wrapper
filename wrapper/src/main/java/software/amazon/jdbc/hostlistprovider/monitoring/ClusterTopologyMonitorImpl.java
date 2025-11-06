@@ -44,6 +44,7 @@ import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.ServiceUtility;
@@ -511,11 +512,11 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
                   "ClusterTopologyMonitorImpl.writerMonitoringConnection",
                   new Object[] {this.writerHostSpec.get().getHost()}));
             } else {
-              final String instanceId = this.topologyUtils.getInstanceId(this.monitoringConnection.get());
-              if (instanceId != null) {
-                HostSpec instanceTemplate = this.getinstanceTemplate(instanceId, this.monitoringConnection.get());
-                HostSpec writerHost =
-                    this.topologyUtils.createHost(instanceId, true, 0, null, this.initialHostSpec, instanceTemplate);
+              final Pair<String, String> pair = this.topologyUtils.getInstanceId(this.monitoringConnection.get());
+              if (pair != null) {
+                HostSpec instanceTemplate = this.getinstanceTemplate(pair.getValue2(), this.monitoringConnection.get());
+                HostSpec writerHost = this.topologyUtils.createHost(
+                    pair.getValue1(), pair.getValue2(), true, 0, null, this.initialHostSpec, instanceTemplate);
                 this.writerHostSpec.set(writerHost);
                 LOGGER.finest(Messages.get(
                     "ClusterTopologyMonitorImpl.writerMonitoringConnection",
