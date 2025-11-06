@@ -1251,7 +1251,7 @@ public class TestEnvironment implements AutoCloseable {
   private static String getContainerBaseImageName(TestEnvironmentRequest request) {
     switch (request.getTargetJvm()) {
       case OPENJDK8:
-        return "amazoncorretto:8-alpine";
+        return "openjdk:8-jdk-alpine";
       case OPENJDK11:
         return "amazoncorretto:11.0.19-alpine3.17";
       case OPENJDK17:
