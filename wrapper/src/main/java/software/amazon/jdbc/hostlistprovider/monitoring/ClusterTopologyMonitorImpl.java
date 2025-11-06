@@ -180,6 +180,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     }
 
     // Otherwise, use the provided unverified connection to update the topology.
+    // TODO: might need to get rid of this since we don't want to use unverified connections. Could wait for a verified
+    //  connection if it isn't verified yet.
     return this.fetchTopologyAndUpdateCache(connection);
   }
 
@@ -598,6 +600,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     if (connection == null) {
       return null;
     }
+
     try {
       final List<HostSpec> hosts = this.queryForTopology(connection);
       if (!Utils.isNullOrEmpty(hosts)) {

@@ -380,7 +380,8 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
 
   @Override
   public void refreshHostList(final Connection connection) throws SQLException {
-    final List<HostSpec> updatedHostList = this.getHostListProvider().refresh(connection);
+    // TODO: refresh
+    final List<HostSpec> updatedHostList = this.getHostListProvider().refresh();
     if (!Objects.equals(updatedHostList, this.allHosts)) {
       updateHostAvailability(updatedHostList);
       setNodeList(this.allHosts, updatedHostList);
@@ -398,7 +399,8 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
 
   @Override
   public void forceRefreshHostList(final Connection connection) throws SQLException {
-    final List<HostSpec> updatedHostList = this.getHostListProvider().forceRefresh(connection);
+    // TODO: forceRefresh
+    final List<HostSpec> updatedHostList = this.getHostListProvider().forceRefresh();
     if (updatedHostList != null) {
       updateHostAvailability(updatedHostList);
       setNodeList(this.allHosts, updatedHostList);

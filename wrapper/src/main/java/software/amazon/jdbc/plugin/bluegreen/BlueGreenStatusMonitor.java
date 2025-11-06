@@ -332,7 +332,8 @@ public class BlueGreenStatusMonitor {
     if (conn == null || conn.isClosed()) {
       return;
     }
-    this.currentTopology.set(this.hostListProvider.forceRefresh(conn));
+    // TODO: forceRefresh
+    this.currentTopology.set(this.hostListProvider.forceRefresh());
 
     if (this.collectTopology.get()) {
       this.startTopology = this.currentTopology.get();
