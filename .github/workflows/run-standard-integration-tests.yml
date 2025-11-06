@@ -12,9 +12,6 @@ on:
       - '**/release_draft.yml'
       - '**/maven*.yml'
 
-permissions:
-  contents: read
-
 jobs:
   standard-integration-tests:
     name: 'Run standard container integration tests'
