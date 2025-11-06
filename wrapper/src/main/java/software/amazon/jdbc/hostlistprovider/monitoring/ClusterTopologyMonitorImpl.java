@@ -171,20 +171,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     return this.waitTillTopologyGetsUpdated(timeoutMs);
   }
 
-  @Override
-  public List<HostSpec> forceRefresh(@Nullable Connection connection, final long timeoutMs)
-      throws SQLException, TimeoutException {
-    if (this.isVerifiedWriterConnection) {
-      // Get the monitoring thread to refresh the topology using a verified connection.
-      return this.waitTillTopologyGetsUpdated(timeoutMs);
-    }
-
-    // Otherwise, use the provided unverified connection to update the topology.
-    // TODO: might need to get rid of this since we don't want to use unverified connections. Could wait for a verified
-    //  connection if it isn't verified yet.
-    return this.fetchTopologyAndUpdateCache(connection);
-  }
-
   protected List<HostSpec> waitTillTopologyGetsUpdated(final long timeoutMs) throws TimeoutException {
     List<HostSpec> currentHosts = getStoredHosts();
     List<HostSpec> latestHosts;

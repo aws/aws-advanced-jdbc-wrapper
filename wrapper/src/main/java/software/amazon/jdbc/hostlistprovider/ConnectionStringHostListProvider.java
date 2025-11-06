@@ -90,12 +90,6 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
   }
 
   @Override
-  public List<HostSpec> refresh(final Connection connection) throws SQLException {
-    init();
-    return this.refresh();
-  }
-
-  @Override
   public List<HostSpec> forceRefresh() throws SQLException {
     init();
     return Collections.unmodifiableList(hostList);

@@ -162,26 +162,19 @@ public class RdsHostListProvider implements DynamicHostListProvider {
    * cached copy of topology is returned if it's not yet outdated (controlled by {@link
    * #refreshRateNano}).
    *
-   * @param conn        A connection to database to fetch the latest topology, if needed.
    * @param forceUpdate If true, it forces a service to ignore cached copy of topology and to fetch
    *                    a fresh one.
    * @return a list of hosts that describes cluster topology. A writer is always at position 0.
    *     Returns an empty list if isn't available or is invalid (doesn't contain a writer).
    * @throws SQLException if errors occurred while retrieving the topology.
    */
-  protected FetchTopologyResult getTopology(final Connection conn, final boolean forceUpdate) throws SQLException {
+  protected FetchTopologyResult getTopology(final boolean forceUpdate) throws SQLException {
     init();
 
     final List<HostSpec> storedHosts = this.getStoredTopology();
     if (storedHosts == null || forceUpdate) {
       // We need to re-fetch topology.
-      if (conn == null) {
-        // We cannot fetch the latest topology since we do not have access to a connection, so we return the original
-        // hosts parsed from the connection string.
-        return new FetchTopologyResult(false, this.initialHostList);
-      }
-
-      final List<HostSpec> hosts = this.queryForTopology(conn);
+      final List<HostSpec> hosts = this.queryForTopology();
       if (!Utils.isNullOrEmpty(hosts)) {
         this.servicesContainer.getStorageService().set(this.clusterId, new Topology(hosts));
         return new FetchTopologyResult(false, hosts);
@@ -228,22 +221,28 @@ public class RdsHostListProvider implements DynamicHostListProvider {
 
   @Override
   public List<HostSpec> refresh() throws SQLException {
-    return this.refresh(null);
-  }
-
-  @Override
-  public List<HostSpec> refresh(final Connection connection) throws SQLException {
     init();
-    final Connection currentConnection = connection != null
-        ? connection
-        : this.hostListProviderService.getCurrentConnection();
 
-    final FetchTopologyResult results = getTopology(currentConnection, false);
+    final FetchTopologyResult results = getTopology(false);
     LOGGER.finest(() -> LogUtils.logTopology(results.hosts, results.isCachedData ? "[From cache] Topology:" : null));
 
     this.hostList = results.hosts;
     return Collections.unmodifiableList(hostList);
   }
+
+  // @Override
+  // public List<HostSpec> refresh(final Connection connection) throws SQLException {
+  //   init();
+  //   final Connection currentConnection = connection != null
+  //       ? connection
+  //       : this.hostListProviderService.getCurrentConnection();
+  //
+  //   final FetchTopologyResult results = getTopology(currentConnection, false);
+  //   LOGGER.finest(() -> LogUtils.logTopology(results.hosts, results.isCachedData ? "[From cache] Topology:" : null));
+  //
+  //   this.hostList = results.hosts;
+  //   return Collections.unmodifiableList(hostList);
+  // }
 
   @Override
   public List<HostSpec> forceRefresh() throws SQLException {
