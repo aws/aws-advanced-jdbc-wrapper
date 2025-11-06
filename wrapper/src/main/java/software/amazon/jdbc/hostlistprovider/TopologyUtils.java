@@ -152,13 +152,14 @@ public abstract class TopologyUtils {
    */
   public HostSpec createHost(
       String instanceId,
+      String instanceName,
       final boolean isWriter,
       final long weight,
       final Timestamp lastUpdateTime,
       final HostSpec initialHostSpec,
       final HostSpec instanceTemplate) {
-    instanceId = instanceId == null ? "?" : instanceId;
-    final String endpoint = instanceTemplate.getHost().replace("?", instanceId);
+    instanceName = instanceName == null ? "?" : instanceName;
+    final String endpoint = instanceTemplate.getHost().replace("?", instanceName);
     final int port = instanceTemplate.isPortSpecified()
         ? instanceTemplate.getPort()
         : initialHostSpec.getPort();
@@ -172,23 +173,28 @@ public abstract class TopologyUtils {
         .weight(weight)
         .lastUpdateTime(lastUpdateTime)
         .build();
-    hostSpec.addAlias(instanceId);
-    hostSpec.setHostId(instanceId);
+    hostSpec.addAlias(instanceName);
+    hostSpec.setHostId(instanceName);
     return hostSpec;
   }
 
   /**
-   * Get the instance ID of the current connection.
+   * Identifies instances across different database types using instanceId and instanceName values.
    *
-   * @param connection the connection to use to query the database.
-   * @return the instance ID of the current connection.
+   * <p>Database types handle these identifiers differently:
+   * - Aurora: Uses the instance name as both instanceId and instanceName
+   * Example: "test-instance-1" for both values
+   * - RDS Cluster: Uses distinct values for instanceId and instanceName
+   * Example:
+   * instanceId: "db-WQFQKBTL2LQUPIEFIFBGENS4ZQ"
+   * instanceName: "test-multiaz-instance-1"
    */
-  public @Nullable String getInstanceId(final Connection connection) {
+  public @Nullable Pair<String /* instanceId */, String /* instanceName */> getInstanceId(final Connection connection) {
     try {
       try (final Statement stmt = connection.createStatement();
            final ResultSet rs = stmt.executeQuery(this.dialect.getInstanceIdQuery())) {
         if (rs.next()) {
-          return rs.getString(1);
+          return Pair.create(rs.getString(1), rs.getString(2));
         }
       }
     } catch (SQLException ex) {

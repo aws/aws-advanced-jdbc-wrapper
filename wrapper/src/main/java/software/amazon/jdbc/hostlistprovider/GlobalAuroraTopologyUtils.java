@@ -111,8 +111,8 @@ public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
           "GlobalAuroraTopologyMonitor.cannotFindRegionTemplate", new Object[] {awsRegion}));
     }
 
-    return createHost(
-        hostName, isWriter, weight, Timestamp.from(Instant.now()), initialHostSpec, instanceTemplate);
+    return createHost(hostName, hostName, isWriter, weight, Timestamp.from(Instant.now()), initialHostSpec,
+        instanceTemplate);
   }
 
   public @Nullable String getRegion(String instanceId, Connection conn) throws SQLException {
