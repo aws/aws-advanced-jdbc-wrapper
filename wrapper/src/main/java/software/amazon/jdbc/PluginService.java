@@ -164,8 +164,6 @@ public interface PluginService extends ExceptionHandler, Wrapper {
 
   void forceRefreshHostList() throws SQLException;
 
-  void forceRefreshHostList(Connection connection) throws SQLException;
-
   /**
    * Initiates a topology update.
    *

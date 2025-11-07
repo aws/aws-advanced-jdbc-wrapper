@@ -36,6 +36,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
@@ -332,8 +333,13 @@ public class BlueGreenStatusMonitor {
     if (conn == null || conn.isClosed()) {
       return;
     }
-    // TODO: forceRefresh
-    this.currentTopology.set(this.hostListProvider.forceRefresh());
+
+    try {
+      this.currentTopology.set(this.hostListProvider.forceRefresh());
+    } catch (TimeoutException e) {
+      LOGGER.finest("bgd.forceRefreshTimeout");
+      return;
+    }
 
     if (this.collectTopology.get()) {
       this.startTopology = this.currentTopology.get();

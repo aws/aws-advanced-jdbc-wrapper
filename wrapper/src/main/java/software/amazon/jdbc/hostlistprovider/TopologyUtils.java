@@ -62,7 +62,6 @@ public abstract class TopologyUtils {
   /**
    * Query the database for information for each instance in the database topology.
    *
-   * @param conn             the connection to use to query the database.
    * @param initialHostSpec  the {@link HostSpec} that was used to initially connect.
    * @param instanceTemplate the template {@link HostSpec} to use when constructing new {@link HostSpec} objects from
    *                         the data returned by the topology query.

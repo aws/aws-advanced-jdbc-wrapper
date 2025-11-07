@@ -19,6 +19,7 @@ package software.amazon.jdbc.hostlistprovider;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
@@ -27,9 +28,34 @@ public interface HostListProvider {
 
   List<HostSpec> refresh() throws SQLException;
 
-  List<HostSpec> forceRefresh() throws SQLException;
+  /**
+   * Force a host list provider to update its topology information. Results will be returned when the topology is
+   * updated or the writer is verified, unless the default timeout is hit. It the caller needs topology from a verified
+   * writer or with a different timeout value, they should call {@link #forceRefresh(boolean, long)} instead.
+   *
+   * @return a list of host details representing a cluster topology
+   * @throws SQLException if there's errors updating topology
+   * @throws TimeoutException if topology update takes longer time than expected
+   */
+  List<HostSpec> forceRefresh() throws SQLException, TimeoutException;
 
-  List<HostSpec> forceRefresh(Connection connection) throws SQLException;
+  /**
+   * Force a host list provider to update its topology information. Results will be returned when the topology is
+   * updated or the writer is verified, unless the timeout is hit.
+   *
+   * @param shouldVerifyWriter a flag indicating that the provider should verify the writer before
+   *                           returning the updated topology.
+   * @param timeoutMs timeout in msec to wait until topology is updated or the writer is verified.
+   *                  If a timeout of 0 is provided, a topology update will be initiated but cached topology
+   *                  will be returned. If a non-zero timeout is provided and the timeout is hit,
+   *                  a TimeoutException will be thrown.
+   * @return a list of host details representing a cluster topology
+   * @throws SQLException if there's errors updating topology
+   * @throws TimeoutException if topology update takes longer time than expected
+   */
+  List<HostSpec> forceRefresh(final boolean shouldVerifyWriter, final long timeoutMs)
+      throws SQLException, TimeoutException;
+
 
   /**
    * Evaluates the host role of the given connection - either a writer or a reader.

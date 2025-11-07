@@ -65,6 +65,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
 
   private static final Logger LOGGER = Logger.getLogger(PluginServiceImpl.class.getName());
   protected static final long DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(5);
+  protected static final int DEFAULT_TOPOLOGY_QUERY_TIMEOUT_MS = 5000;
 
   protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache = new CacheMap<>();
   protected final FullServicesContainer servicesContainer;
@@ -390,21 +391,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
 
   @Override
   public void forceRefreshHostList() throws SQLException {
-    final List<HostSpec> updatedHostList = this.getHostListProvider().forceRefresh();
-    if (updatedHostList != null) {
-      updateHostAvailability(updatedHostList);
-      setNodeList(this.allHosts, updatedHostList);
-    }
-  }
-
-  @Override
-  public void forceRefreshHostList(final Connection connection) throws SQLException {
-    // TODO: forceRefresh
-    final List<HostSpec> updatedHostList = this.getHostListProvider().forceRefresh();
-    if (updatedHostList != null) {
-      updateHostAvailability(updatedHostList);
-      setNodeList(this.allHosts, updatedHostList);
-    }
+    this.forceRefreshHostList(false, DEFAULT_TOPOLOGY_QUERY_TIMEOUT_MS);
   }
 
   @Override
@@ -412,15 +399,8 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
       throws SQLException {
 
     final HostListProvider hostListProvider = this.getHostListProvider();
-    if (!(hostListProvider instanceof BlockingHostListProvider)) {
-      throw new UnsupportedOperationException(
-          Messages.get("PluginServiceImpl.requiredBlockingHostListProvider",
-              new Object[] {hostListProvider.getClass().getName()}));
-    }
-
     try {
-      final List<HostSpec> updatedHostList =
-          ((BlockingHostListProvider) hostListProvider).forceRefresh(shouldVerifyWriter, timeoutMs);
+      final List<HostSpec> updatedHostList = hostListProvider.forceRefresh(shouldVerifyWriter, timeoutMs);
       if (updatedHostList != null) {
         updateHostAvailability(updatedHostList);
         setNodeList(this.allHosts, updatedHostList);

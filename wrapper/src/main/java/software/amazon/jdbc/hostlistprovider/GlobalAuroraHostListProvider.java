@@ -16,15 +16,15 @@
 
 package software.amazon.jdbc.hostlistprovider;
 
-import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.logging.Logger;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.hostlistprovider.monitoring.ClusterTopologyMonitor;
+import software.amazon.jdbc.hostlistprovider.monitoring.ClusterTopologyMonitorImpl;
+import software.amazon.jdbc.hostlistprovider.monitoring.GlobalAuroraTopologyMonitor;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.RdsUtils;
 
@@ -60,14 +60,27 @@ public class GlobalAuroraHostListProvider extends RdsHostListProvider {
   protected void initSettings() throws SQLException {
     super.initSettings();
 
-    String instanceTemplates = GLOBAL_CLUSTER_INSTANCE_HOST_PATTERNS.getString(properties);
+    String instanceTemplates = GlobalAuroraHostListProvider.GLOBAL_CLUSTER_INSTANCE_HOST_PATTERNS.getString(properties);
     this.instanceTemplatesByRegion =
         this.topologyUtils.parseInstanceTemplates(instanceTemplates, this::validateHostPatternSetting);
   }
 
-  @Override
-  protected List<HostSpec> queryForTopology(final Connection conn) throws SQLException {
-    init();
-    return this.topologyUtils.queryForTopology(conn, this.initialHostSpec, this.instanceTemplatesByRegion);
+  protected ClusterTopologyMonitor initMonitor() throws SQLException {
+    return this.servicesContainer.getMonitorService().runIfAbsent(
+        ClusterTopologyMonitorImpl.class,
+        this.clusterId,
+        this.servicesContainer,
+        this.properties,
+        (servicesContainer) ->
+            new GlobalAuroraTopologyMonitor(
+                servicesContainer,
+                this.topologyUtils,
+                this.clusterId,
+                this.initialHostSpec,
+                this.properties,
+                this.instanceTemplate,
+                this.refreshRateNano,
+                this.highRefreshRateNano,
+                this.instanceTemplatesByRegion));
   }
 }

@@ -285,7 +285,7 @@ class ClusterAwareWriterFailoverHandlerTest {
     assertEquals(4, result.getTopology().size());
     assertEquals("new-writer-host", result.getTopology().get(0).getHost());
 
-    verify(mockPluginService, atLeastOnce()).forceRefreshHostList(any(Connection.class));
+    verify(mockPluginService, atLeastOnce()).forceRefreshHostList();
     assertEquals(HostAvailability.AVAILABLE, target.getHostAvailabilityMap().get(newWriterHost.getHost()));
   }
 
@@ -332,7 +332,7 @@ class ClusterAwareWriterFailoverHandlerTest {
     assertFalse(result.isConnected());
     assertFalse(result.isNewHost());
 
-    verify(mockPluginService, atLeastOnce()).forceRefreshHostList(any(Connection.class));
+    verify(mockPluginService, atLeastOnce()).forceRefreshHostList();
 
     // 5s is a max allowed failover timeout; add 1s for inaccurate measurements
     assertTrue(TimeUnit.NANOSECONDS.toMillis(durationNano) < 6000);

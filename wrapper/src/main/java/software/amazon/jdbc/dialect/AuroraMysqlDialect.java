@@ -20,8 +20,8 @@ import java.sql.Connection;
 import java.util.Collections;
 import java.util.List;
 import software.amazon.jdbc.hostlistprovider.AuroraTopologyUtils;
+import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.hostlistprovider.TopologyUtils;
-import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 
 public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect, BlueGreenDialect {
 
@@ -59,7 +59,7 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect,
     return (properties, initialUrl, servicesContainer) -> {
       final TopologyUtils topologyUtils =
           new AuroraTopologyUtils(this, servicesContainer.getPluginService().getHostSpecBuilder());
-      return new MonitoringRdsHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
+      return new RdsHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
     };
   }
 

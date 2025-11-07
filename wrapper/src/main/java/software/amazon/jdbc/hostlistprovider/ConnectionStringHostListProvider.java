@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
@@ -96,8 +97,8 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
   }
 
   @Override
-  public List<HostSpec> forceRefresh(final Connection connection) throws SQLException {
-    init();
+  public List<HostSpec> forceRefresh(boolean shouldVerifyWriter, long timeoutMs)
+      throws SQLException, TimeoutException {
     return this.forceRefresh();
   }
 
