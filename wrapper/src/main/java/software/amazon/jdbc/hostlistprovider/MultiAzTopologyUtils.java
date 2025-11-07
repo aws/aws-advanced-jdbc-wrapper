@@ -69,17 +69,12 @@ public class MultiAzTopologyUtils extends TopologyUtils {
   @Override
   public boolean isWriterInstance(final Connection connection) throws SQLException {
     try (final Statement stmt = connection.createStatement()) {
+
       try (final ResultSet rs = stmt.executeQuery(this.dialect.getWriterIdQuery())) {
-        if (rs.next()) {
-          String instanceId = rs.getString(this.dialect.getWriterIdColumnName());
-          // The writer ID is only returned when connected to a reader, so if the query does not return a value, it
-          // means we are connected to a writer.
-          return StringUtils.isNullOrEmpty(instanceId);
-        }
+        // When connected to a writer, the result is empty, otherwise it contains a single row.
+        return !rs.next();
       }
     }
-
-    return false;
   }
 
   protected @Nullable String getWriterId(Connection connection) throws SQLException {
