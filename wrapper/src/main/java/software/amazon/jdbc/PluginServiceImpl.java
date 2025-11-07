@@ -494,16 +494,6 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public void refreshHostList(final Connection connection) throws SQLException {
-    // TODO: refresh
-    final List<HostSpec> updatedHostList = this.getHostListProvider().refresh();
-    if (!Objects.equals(updatedHostList, this.allHosts)) {
-      updateHostAvailability(updatedHostList);
-      setNodeList(this.allHosts, updatedHostList);
-    }
-  }
-
-  @Override
   public void forceRefreshHostList() throws SQLException {
     this.forceRefreshHostList(false, DEFAULT_TOPOLOGY_QUERY_TIMEOUT_MS);
   }

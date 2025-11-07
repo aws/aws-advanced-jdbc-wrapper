@@ -160,8 +160,6 @@ public interface PluginService extends ExceptionHandler, Wrapper {
 
   void refreshHostList() throws SQLException;
 
-  void refreshHostList(Connection connection) throws SQLException;
-
   void forceRefreshHostList() throws SQLException;
 
   /**
