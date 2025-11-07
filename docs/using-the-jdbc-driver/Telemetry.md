@@ -2,27 +2,27 @@
 
 Monitoring is the ability to gather data and insights on the execution of an application. Users will also be able to inspect the gathered data and determine potential actions to take depending on the data collected.
 
-Version 2.3.0 of the AWS JDBC Driver introduced the Telemetry feature. This feature allows you to collect and visualize data of the AWS JDBC Driver execution at a global level and at plugin level. You can now monitor the performance of the driver as a whole or within specific plugins with your configurations, and determine whether the driver's performance meets your expectations.
+Version 2.3.0 of the AWS Advanced JDBC Wrapper introduced the Telemetry feature. This feature allows you to collect and visualize data of the AWS Advanced JDBC Wrapper execution at a global level and at plugin level. You can now monitor the performance of the driver as a whole or within specific plugins with your configurations, and determine whether the driver's performance meets your expectations.
 
 ## Terminology
 
-The AWS JDBC Driver provides telemetry data through two different forms: **Traces** and **Metrics**.
+The AWS Advanced JDBC Wrapper provides telemetry data through two different forms: **Traces** and **Metrics**.
 
 ### Traces
 
 Traces give an overview of what is happening in a specific section of the execution of an application. A trace is composed by a hierarchical sequence of segments, each of which contain basic information about the execution (e.g., duration), and whether that section was executed successfully or not.
 
-In the AWS JDBC Driver, initially a trace will be generated for every JDBC call made to the wrapper. Depending on whether the user application has already a trace open, it might be either nested into the opened trace or dropped. And then, for each enabled plugin, another segment will be created only for the plugin execution, linked to the JDBC call segment.
+In the AWS Advanced JDBC Wrapper, initially a trace will be generated for every JDBC call made to the wrapper. Depending on whether the user application has already a trace open, it might be either nested into the opened trace or dropped. And then, for each enabled plugin, another segment will be created only for the plugin execution, linked to the JDBC call segment.
 
-Traces from the AWS JDBC Driver are submitted to [**AWS X-Ray**](https://aws.amazon.com/xray/).
+Traces from the AWS Advanced JDBC Wrapper are submitted to [**AWS X-Ray**](https://aws.amazon.com/xray/).
 
 ### Metrics
 
 Metrics are numeric data that were measured and collected through the execution of an application. Those metrics can give an insight on how many times some action (e.g., failover) has happened, and for actions that may happen multiple times, their success or failure rate (failover, cache hits, etc.), amongst other related information.
 
-The AWS JDBC Driver will submit metrics data to [**Amazon Cloudwatch**](https://aws.amazon.com/cloudwatch/).
+The AWS Advanced JDBC Wrapper will submit metrics data to [**Amazon Cloudwatch**](https://aws.amazon.com/cloudwatch/).
 
-The list of available metrics for the AWS JDBC Driver and its plugins is available in the [List of Metrics](#List-Of-Metrics) section of this page.
+The list of available metrics for the AWS Advanced JDBC Wrapper and its plugins is available in the [List of Metrics](#List-Of-Metrics) section of this page.
 
 ## Setting up the AWS Distro for OpenTelemetry Collector (ADOT Collector)
 
@@ -32,7 +32,7 @@ Before enabling the Telemetry feature, a few setup steps are required to ensure 
 
 1. In order to visualize the telemetry data in the AWS Console, make sure you have an IAM user or role with permissions to [AWS X-Ray](https://docs.aws.amazon.com/xray/latest/devguide/security-iam.html) and [Amazon CloudWatch](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/auth-and-access-control-cw.html).
 
-2. Download the [AWS Distro for OpenTelemetry Collector](https://aws-otel.github.io/docs/getting-started/collector) and set it up. The AWS Distro for OpenTelemetry Collector is responsible from receiving telemetry data from the application using the AWS JDBC Driver and forward it to AWS. Both of those connections happen via HTTP, therefore URLs and ports need to be correctly configured for the collector.
+2. Download the [AWS Distro for OpenTelemetry Collector](https://aws-otel.github.io/docs/getting-started/collector) and set it up. The AWS Distro for OpenTelemetry Collector is responsible from receiving telemetry data from the application using the AWS Advanced JDBC Wrapper and forward it to AWS. Both of those connections happen via HTTP, therefore URLs and ports need to be correctly configured for the collector.
 
 > [!WARNING]
 > The AWS Distro for OpenTelemetry Collector can be set up either locally or remotely. It is up to the user to decide where is best to set it up. If you decide to host it remotely, ensure that the application has the necessary permissions or allowlists to connect to the Collector.
@@ -42,9 +42,9 @@ Before enabling the Telemetry feature, a few setup steps are required to ensure 
 
 ## Using Telemetry
 
-Telemetry for the AWS JDBC Driver is a monitoring strategy that overlooks all plugins enabled in [`wrapperPlugins`](./UsingTheJdbcDriver.md#connection-plugin-manager-parameters) and is not a plugin in itself. Therefore no changes are required in the `wrapperPlugins` parameter to enable Telemetry.
+Telemetry for the AWS Advanced JDBC Wrapper is a monitoring strategy that overlooks all plugins enabled in [`wrapperPlugins`](./UsingTheJdbcDriver.md#connection-plugin-manager-parameters) and is not a plugin in itself. Therefore no changes are required in the `wrapperPlugins` parameter to enable Telemetry.
 
-In order to enable Telemetry in the AWS JDBC Driver, you need to:
+In order to enable Telemetry in the AWS Advanced JDBC Wrapper, you need to:
 
 1. Set the `enableTelemetry` property to `true`. You can either set it through Properties or directly in the connection string.
 
@@ -76,7 +76,7 @@ OpenTelemetrySdk.builder()
 We also provide a [complete sample application](../../examples/AWSDriverExample/src/main/java/software/amazon/TelemetryMetricsOTLPExample.java) using telemetry in the examples folder of this repository.
 
 ### Telemetry Parameters
-In addition to the parameter that enables Telemetry, you can pass following parameters to the AWS JDBC Driver through the connection URL to configure how telemetry data will be forwarded.
+In addition to the parameter that enables Telemetry, you can pass following parameters to the AWS Advanced JDBC Wrapper through the connection URL to configure how telemetry data will be forwarded.
 
 | Parameter                 |  Value  | Required | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Default Value |
 |---------------------------|:-------:|:--------:|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
@@ -87,9 +87,9 @@ In addition to the parameter that enables Telemetry, you can pass following para
 
 ## Nested tracing strategies using Amazon XRay
 
-As you could see in the [Telemetry Parameters](#Telemetry-Parameters) section, the AWS JDBC Driver allows an user to determine which strategy for nested traces to use when using Telemetry.
+As you could see in the [Telemetry Parameters](#Telemetry-Parameters) section, the AWS Advanced JDBC Wrapper allows an user to determine which strategy for nested traces to use when using Telemetry.
 
-Traces are hierarchical entities and it might be that the user application already has an open trace in a given sequence of code that connects to the AWS JDBC Driver. In this case, the Telemetry feature allows users to determine which strategy to use for the Telemetry traces generated when using the driver.
+Traces are hierarchical entities and it might be that the user application already has an open trace in a given sequence of code that connects to the AWS Advanced JDBC Wrapper. In this case, the Telemetry feature allows users to determine which strategy to use for the Telemetry traces generated when using the driver.
 
 A top level trace is a trace that has no link to any other parent trace, and is directly accessible from the list of submitted traces within XRay. In the following pictures, the top level traces of an application are displayed in AWS X-Ray.
 
@@ -101,14 +101,14 @@ When a trace is hierarchically linked to a parent trace, we say that this trace 
 
 <div style="text-align:center"><img src="../images/telemetry_nested.png" /></div>
 
-Applications that interact with the AWS JDBC Driver may or may not have already opened telemetry traces on their own. In this case, it is up to the user to determine how they want to mix both application and driver traces.
+Applications that interact with the AWS Advanced JDBC Wrapper may or may not have already opened telemetry traces on their own. In this case, it is up to the user to determine how they want to mix both application and driver traces.
 
-This can be done using the AWS JDBC Driver's `telemetrySubmitTopLevel` property. This property allows users to choose to submit the driver traces always as top level traces or to submit them nested to the application traces.
+This can be done using the AWS Advanced JDBC Wrapper's `telemetrySubmitTopLevel` property. This property allows users to choose to submit the driver traces always as top level traces or to submit them nested to the application traces.
 The default value is set to `false`, which means the driver traces to always be nested into their application traces. That will happen unless there are no open application traces when the driver is running. In that case no driver traces will be collected or submitted. When the property is set to `true`, all the driver traces would be submitted top level traces. If the application has already open traces, it will not be possible for the driver traces to be top level and the driver traces therefore will not be submitted.
 
 ## List of Metrics
 
-The AWS JDBC Driver also submits a set of metrics to Amazon Cloudwatch when the driver is used. These metrics are predefined and they help give insight on what is happening inside the plugins when the plugins are used.
+The AWS Advanced JDBC Wrapper also submits a set of metrics to Amazon Cloudwatch when the driver is used. These metrics are predefined and they help give insight on what is happening inside the plugins when the plugins are used.
 
 Metrics can be one of 3 types: counters, gauges or histograms.
 

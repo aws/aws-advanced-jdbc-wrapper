@@ -1,6 +1,6 @@
 # Database URL types compatibility
 
-There are many different URL types (endpoints) that can be used with The AWS JDBC Driver, but certain URL types are not compatible with certain plugins. This page outlines the various URL types and which plugins are compatible with each type.
+There are many different URL types (endpoints) that can be used with The AWS Advanced JDBC Wrapper, but certain URL types are not compatible with certain plugins. This page outlines the various URL types and which plugins are compatible with each type.
 
 - [Aurora Global Database Endpoint](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-global-database-connecting.html) - `<global-db-name>.global-<XYZ>.global.rds.amazonaws.com`
 - [Aurora Cluster Writer Endpoint](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Endpoints.Cluster.html) - `<cluster-name>.cluster-<XYZ>.<region>.rds.amazonaws.com`

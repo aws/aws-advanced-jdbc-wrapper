@@ -40,7 +40,7 @@ public class DatasourceExample {
     ds.setDatabase("employees");
     ds.setServerPort("5432");
 
-    // Configure the driver-specific and AWS JDBC Driver properties (optional):
+    // Configure the driver-specific and AWS Advanced JDBC Wrapper properties (optional):
     Properties targetDataSourceProps = new Properties();
 
     // Alternatively, instead of using the methods above to configure the basic data source information,
@@ -52,7 +52,7 @@ public class DatasourceExample {
     // Configure any driver-specific properties:
     targetDataSourceProps.setProperty("ssl", "true");
 
-    // Configure any AWS JDBC Driver properties:
+    // Configure any AWS Advanced JDBC Wrapper properties:
     targetDataSourceProps.setProperty("wrapperLoggerLevel", "ALL");
 
     ds.setTargetDataSourceProperties(targetDataSourceProps);

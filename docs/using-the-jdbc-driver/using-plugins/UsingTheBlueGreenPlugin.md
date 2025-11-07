@@ -4,7 +4,7 @@
 
 The [Blue/Green Deployment](https://docs.aws.amazon.com/whitepapers/latest/blue-green-deployments/introduction.html) technique enables organizations to release applications by seamlessly shifting traffic between two identical environments running different versions of the application. This strategy effectively mitigates common risks associated with software deployment, such as downtime and limited rollback capability.
 
-The AWS JDBC Driver leverages the Blue/Green Deployment approach by intelligently managing traffic distribution between blue and green nodes, minimizing the impact of stale DNS data and connectivity disruptions on user applications.
+The AWS Advanced JDBC Wrapper leverages the Blue/Green Deployment approach by intelligently managing traffic distribution between blue and green nodes, minimizing the impact of stale DNS data and connectivity disruptions on user applications.
 
 ## Prerequisites
 > [!WARNING]\
@@ -61,7 +61,7 @@ All factors mentioned above may cause application disruption. The AWS Advanced J
 
 Verify plugin compatibility within your driver configuration using the [compatibility guide](../Compatibility.md).
 
-## How do I use Blue/Green Deployment Plugin with the AWS JDBC Driver?
+## How do I use Blue/Green Deployment Plugin with the AWS Advanced JDBC Wrapper?
 
 To enable the Blue/Green Deployment functionality, add the plugin code `bg` to the [`wrapperPlugins`](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters) parameter value.
 The Blue/Green Deployment Plugin supports the following configuration parameters:
@@ -105,7 +105,7 @@ properties.setProperty("blue-green-monitoring-socketTimeout", "10000");
 
 ## Plan your Blue/Green switchover in advance
 
-To optimize Blue/Green switchover support with the AWS JDBC Driver, advance planning is essential. Please follow these recommended steps:
+To optimize Blue/Green switchover support with the AWS Advanced JDBC Wrapper, advance planning is essential. Please follow these recommended steps:
 
 1. Create a Blue/Green Deployment for your database.
 2. Configure your application by incorporating the `bg` plugin along with any additional parameters of your choice, then deploy your application to the corresponding environment.

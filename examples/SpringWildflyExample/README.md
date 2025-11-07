@@ -1,11 +1,11 @@
-# Tutorial: Getting Started with the AWS JDBC Driver, Spring Boot and Wildfly
+# Tutorial: Getting Started with the AWS Advanced JDBC Wrapper, Spring Boot and Wildfly
 
 In this tutorial, you will set up a Wildfly and Spring Boot application with the AWS Advanced JDBC Driver, and use the wrapper to execute some simple database operations.
 
 > Note: this tutorial was written using the following technologies:
 >    - Spring Boot 2.7.1
 >    - Wildfly 26.1.1 Final
->    - AWS JDBC Driver 2.6.6
+>    - AWS Advanced JDBC Wrapper 2.6.6
 >    - Postgresql 42.5.4
 >    - Gradle 7
 >    - Java 11
@@ -99,7 +99,7 @@ dependencies {
 }
 ```
 
-Please note that the sample code inside the AWS JDBC Driver project will use the dependency `implementation(project(":aws-advanced-jdbc-wrapper"))` instead of `implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:latest")` as seen above.
+Please note that the sample code inside the AWS Advanced JDBC Wrapper project will use the dependency `implementation(project(":aws-advanced-jdbc-wrapper"))` instead of `implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:latest")` as seen above.
 
 ## Step 3: Configure Wildfly
 > Note: for simplicity, this repository does not contain the entire wildfly application, and instead only contains the modified files.

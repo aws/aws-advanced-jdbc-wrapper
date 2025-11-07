@@ -1,10 +1,10 @@
 # Enhanced Support for Amazon RDS Multi-AZ DB Cluster
 
-As of [v2.3.0](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/2.3.0), the AWS JDBC Driver has expanded its support for Amazon RDS Multi-AZ DB Cluster Deployment. By leveraging the topology information within the RDS Multi-AZ DB Cluster, the driver is capable of switching over the connection to a new writer node in approximately 1 second or less, given there is no replica lag during minor version upgrades or OS maintenance upgrades.
+As of [v2.3.0](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/2.3.0), the AWS Advanced JDBC Wrapper has expanded its support for Amazon RDS Multi-AZ DB Cluster Deployment. By leveraging the topology information within the RDS Multi-AZ DB Cluster, the driver is capable of switching over the connection to a new writer node in approximately 1 second or less, given there is no replica lag during minor version upgrades or OS maintenance upgrades.
 
 ## General Usage
 
-The process of using the AWS JDBC Driver with RDS Multi-AZ DB Cluster is the same as using it with an RDS Aurora cluster. All properties, configurations, functions, etc., remain consistent. Instead of connecting to a generic database endpoint, simply replace the endpoint with the Cluster Writer Endpoint provided by the RDS Multi-AZ DB Cluster.
+The process of using the AWS Advanced JDBC Wrapper with RDS Multi-AZ DB Cluster is the same as using it with an RDS Aurora cluster. All properties, configurations, functions, etc., remain consistent. Instead of connecting to a generic database endpoint, simply replace the endpoint with the Cluster Writer Endpoint provided by the RDS Multi-AZ DB Cluster.
 
 ### MySQL
 

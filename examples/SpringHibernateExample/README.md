@@ -5,7 +5,7 @@ In this tutorial, you will set up a Spring Boot and Hibernate application with t
 > Note: this tutorial was written using the following technologies:
 >    - Spring Boot 2.7.1
 >    - Hibernate
->    - AWS JDBC Driver 2.6.6
+>    - AWS Advanced JDBC Wrapper 2.6.6
 >    - Postgresql 42.5.4
 >    - Gradle 7
 >    - Java 11
@@ -136,7 +136,7 @@ dependencies {
 }
 ```
 
-Please note that the sample code inside the AWS JDBC Driver project will use the dependency `implementation(project(":aws-advanced-jdbc-wrapper"))` instead of `implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:latest")` as seen above.
+Please note that the sample code inside the AWS Advanced JDBC Wrapper project will use the dependency `implementation(project(":aws-advanced-jdbc-wrapper"))` instead of `implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:latest")` as seen above.
 
 ## Step 3: Configure Spring and Hibernate
 Configure Spring to use the AWS Advanced JDBC Driver as the default datasource.
