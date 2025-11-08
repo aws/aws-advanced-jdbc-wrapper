@@ -1,7 +1,7 @@
 # Target Driver Dialects
 
 ## What are target driver dialects?
-The AWS Advanced JDBC Driver is a wrapper that requires an underlying driver, and it is meant to be compatible with any JDBC driver. Target driver dialects help the AWS Advanced JDBC Wrapper to properly pass JDBC call to a target driver. To function correctly, the AWS Advanced JDBC Wrapper requires details unique to specific target driver such as DataSource method to set the current host or connection url, whether to include some specific configuration parameter to a list of properties or to include it in connection url, etc. These details can be defined and provided to the AWS Advanced JDBC Wrapper by using target driver dialects.
+The AWS Advanced JDBC Wrapper is a wrapper that requires an underlying driver, and it is meant to be compatible with any JDBC driver. Target driver dialects help the AWS Advanced JDBC Wrapper to properly pass JDBC call to a target driver. To function correctly, the AWS Advanced JDBC Wrapper requires details unique to specific target driver such as DataSource method to set the current host or connection url, whether to include some specific configuration parameter to a list of properties or to include it in connection url, etc. These details can be defined and provided to the AWS Advanced JDBC Wrapper by using target driver dialects.
 
 By default, target driver dialect is determined based on used target driver class name or a DataSource class name. 
 

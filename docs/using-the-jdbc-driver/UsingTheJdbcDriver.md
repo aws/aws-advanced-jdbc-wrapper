@@ -1,5 +1,5 @@
-# Using the AWS Advanced JDBC Driver
-The AWS Advanced JDBC Driver leverages community JDBC drivers and enables support of AWS and Aurora functionalities. Currently, the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc), [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j), and [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j) are supported.
+# Using the AWS Advanced JDBC Wrapper
+The AWS Advanced JDBC Wrapper leverages community JDBC drivers and enables support of AWS and Aurora functionalities. Currently, the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc), [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j), and [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j) are supported.
 The JDBC Wrapper also supports [connection pooling](./DataSource.md#Using-the-AwsWrapperDataSource-with-Connection-Pooling-Frameworks).
 
 ## Using the AWS Advanced JDBC Wrapper with plain RDS databases
@@ -7,7 +7,7 @@ It is possible to use the AWS Advanced JDBC Wrapper with plain RDS databases, bu
 
 ## Using the AWS Advanced JDBC Wrapper with custom endpoints and other non-standard URLs
 > [!WARNING]\
-> If connecting using a non-standard RDS URL (e.g. a custom endpoint, ip address, rds proxy, or custom domain URL), the clusterId property must be set. If the `clusterId` is omitted when using a non-standard RDS URL, you may experience various issues. For more information, please see the [AWS Advanced JDBC Driver Parameters](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#aws-advanced-jdbc-driver-parameters) section. 
+> If connecting using a non-standard RDS URL (e.g. a custom endpoint, ip address, rds proxy, or custom domain URL), the clusterId property must be set. If the `clusterId` is omitted when using a non-standard RDS URL, you may experience various issues. For more information, please see the [AWS Advanced JDBC Wrapper Parameters](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#aws-advanced-jdbc-wrapper-parameters) section. 
 
 ## Wrapper Protocol
 The AWS Advanced JDBC Wrapper uses the protocol prefix `jdbc:aws-wrapper:`. Internally, the JDBC Wrapper will replace this protocol prefix with `jdbc:`, making the final protocol `jdbc:aws-wrapper:{suffix}` where `suffix` is specific to the desired underlying protocol. For example, to connect to a PostgreSQL database, you would use the protocol `jdbc:aws-wrapper:postgresql:`, and inside the AWS Advanced JDBC Wrapper, the final protocol that will be used to connect to a database will be `jdbc:postgresql:`.
@@ -52,7 +52,7 @@ software.amazon.jdbc.Driver.level=FINER
 software.amazon.jdbc.plugin.level=FINER
 ```
 #### Connection Parameter
-The AWS Advanced JDBC Wrapper also has a parameter, [`wrapperLoggerLevel`](#aws-advanced-jdbc-driver-parameters), to configure the logging level.
+The AWS Advanced JDBC Wrapper also has a parameter, [`wrapperLoggerLevel`](#aws-advanced-jdbc-wrapper-parameters), to configure the logging level.
 ```java
  final Properties properties = new Properties();
  properties.setProperty("wrapperLoggerLevel", "finest");
@@ -73,7 +73,7 @@ For `application.properties`:
 logging.level.software.amazon.jdbc=trace
 ```
 
-## AWS Advanced JDBC Driver Parameters
+## AWS Advanced JDBC Wrapper Parameters
 These parameters are applicable to any instance of the AWS Advanced JDBC Wrapper.
 
 | Parameter                                         | Value     | Required                                                                                                                                                                                                                                                    | Description                                                                                                                                                                                                                                                                                                                                          | Default Value  |
@@ -352,7 +352,7 @@ public static void main(String[] args) throws SQLException {
 
 The IAM Authentication Plugin in the AWS Advanced JDBC Wrapper has extra parameters to support custom endpoints. For more
 information,
-see [How do I use IAM with the AWS Advanced JDBC Driver?](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md#how-do-i-use-iam-with-the-aws-jdbc-driver)
+see [How do I use IAM with the AWS Advanced JDBC Wrapper?](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md#how-do-i-use-iam-with-the-aws-advanced-jdbc-wrapper)
 
 ### Secrets Manager Plugin
 
@@ -401,7 +401,7 @@ public static void main(String[] args) throws SQLException {
 To enable logging in the AWS Advanced JDBC Wrapper, change the `logger=StandardLogger` parameter to `wrapperLoggerLevel=FINEST`
 
 ## Enable Third Party Classes and Packages
-Depending on the requirements of a user's application, the AWS Advanced JDBC Driver performs special handling before and after operating on a database connection. This is achievable by wrapping over relevant data objects.
+Depending on the requirements of a user's application, the AWS Advanced JDBC Wrapper performs special handling before and after operating on a database connection. This is achievable by wrapping over relevant data objects.
 
 Not all data objects require special handling and thus can be left unwrapped. One example being classes from the PGVector package. The driver allows you to specify such classes and packages that should be left intact with no wrapping. If needed, use the following code snippet as an example to register data objects that should be left unwrapped.
 
@@ -412,6 +412,6 @@ Driver.skipWrappingForType(com.pgvector.PGbit.class);
     
 Driver.skipWrappingForPackage("com.pgvector");
 ```
-This feature can be used to allow the AWS Advanced JDBC Driver to properly handle popular database extensions like [PGvector](https://github.com/pgvector/pgvector-java) and [PostGIS](https://github.com/postgis/postgis-java).
+This feature can be used to allow the AWS Advanced JDBC Wrapper to properly handle popular database extensions like [PGvector](https://github.com/pgvector/pgvector-java) and [PostGIS](https://github.com/postgis/postgis-java).
 
 Using `Driver.skipWrappingForPackage()` method and using driver configuration parameter `skipWrappingForPackages` are functionally similar. The configuration parameter receives a comma separated list of package names while `Driver.skipWrappingForPackage()` accepts just one package at at time.

@@ -1,6 +1,6 @@
-# Tutorial: Getting Started with the AWS Advanced JDBC Driver, Spring Boot and Hibernate for load-balanced write and read-only connections (Two Datasources)
+# Tutorial: Getting Started with the AWS Advanced JDBC Wrapper, Spring Boot and Hibernate for load-balanced write and read-only connections (Two Datasources)
 
-In this tutorial, you will set up a Spring Boot and Hibernate application with the AWS Advanced JDBC Driver, and use two datasources to fetch and update data from an Aurora PostgreSQL database. One datasource is configured to provide a writer connection. The other datasource is configured to provide a reader connection to off load a writer node from read-only queries. Both datasources provide pooled connections through AWS Advanced JDBC Driver internal connection pool configuration.
+In this tutorial, you will set up a Spring Boot and Hibernate application with the AWS Advanced JDBC Wrapper, and use two datasources to fetch and update data from an Aurora PostgreSQL database. One datasource is configured to provide a writer connection. The other datasource is configured to provide a reader connection to off load a writer node from read-only queries. Both datasources provide pooled connections through AWS Advanced JDBC Wrapper internal connection pool configuration.
 
 > Note: this tutorial was written using the following technologies:
 >    - Spring Boot 2.7.1
@@ -13,7 +13,7 @@ In this tutorial, you will set up a Spring Boot and Hibernate application with t
 You will progress through the following sections:
 1. Create a Gradle Spring Boot project
 2. Add the required Gradle dependencies
-3. Configure the AWS Advanced JDBC Driver
+3. Configure the AWS Advanced JDBC Wrapper
 
 ## Pre-requisites
 - This tutorial uses the Aurora PostgreSQL database. 

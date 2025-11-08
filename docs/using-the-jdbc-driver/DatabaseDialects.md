@@ -1,7 +1,7 @@
 # Database Dialects
 
 ## What are database dialects?
-The AWS Advanced JDBC Driver is a wrapper that requires an underlying driver, and it is meant to be compatible with any JDBC driver. Database dialects help the AWS Advanced JDBC Wrapper determine what kind of underlying database is being used. To function correctly, the AWS Advanced JDBC Wrapper requires details unique to specific databases such as the default port number or the method to get the current host from the database. These details can be defined and provided to the AWS Advanced JDBC Wrapper by using database dialects. 
+The AWS Advanced JDBC Wrapper is a wrapper that requires an underlying driver, and it is meant to be compatible with any JDBC driver. Database dialects help the AWS Advanced JDBC Wrapper determine what kind of underlying database is being used. To function correctly, the AWS Advanced JDBC Wrapper requires details unique to specific databases such as the default port number or the method to get the current host from the database. These details can be defined and provided to the AWS Advanced JDBC Wrapper by using database dialects. 
 
 ## Configuration Parameters
 | Name             | Required             | Description                                                                        | Example                                       |

@@ -293,7 +293,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### :magic_wand: Added
 - Documentation:
   - [Read Write Splitting Plugin Limitations with Spring Boot/Framework](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md#limitations-when-using-spring-bootframework).
-  - AWS Profile configuration parameter. See [README](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/README.md#properties), [UsingTheJDBCDriver](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#aws-advanced-jdbc-driver-parameters), and [AwsCredentialsConfiguration](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/custom-configuration/AwsCredentialsConfiguration.md).
+  - AWS Profile configuration parameter. See [README](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/README.md#properties), [UsingTheJDBCDriver](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#aws-advanced-jdbc-wrapper-parameters), and [AwsCredentialsConfiguration](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/custom-configuration/AwsCredentialsConfiguration.md).
 - Example code for ReadWriteSplitting Plugin ([PR #765](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/765)).
 - Enabling AWS Profile for IAM and AWS Secrets Manager authentication plugins ([PR #786](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/786)).
 
@@ -426,7 +426,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - [Target driver dialects](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/TargetDriverDialects.md) ([PR #452](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/452)).
 - Elastic Load Balancer URL support ([PR #476](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/476)).
 - Documentation:
-  - Using the Driver with plain RDS Databases. See [Using the Driver](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#using-the-aws-jdbc-driver-with-plain-rds-databases).
+  - Using the Driver with plain RDS Databases. See [Using the Driver](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#using-the-aws-advanced-jdbc-wrapper-with-plain-rds-databases).
   - Internal connection pool behaviour only verifying password on initial connection. See [Using the Read Write Splitting Plugin Internal Connection Pooling document](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md#internal-connection-pooling) and [code example](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/examples/AWSDriverExample/src/main/java/software/amazon/InternalConnectionPoolPasswordWarning.java).
   - Link performance test in table of contents. See [Documentation Table of Contents](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/Documentation.md).
   - Cluster URLs are not internally pooled. See [Using Read Write Splitting Plugin Internal Connection Pooling](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md#internal-connection-pooling).

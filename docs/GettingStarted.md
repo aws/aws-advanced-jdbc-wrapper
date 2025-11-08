@@ -2,10 +2,10 @@
 
 ## Minimum Requirements
 
-Before using the AWS Advanced JDBC Driver, you must install:
+Before using the AWS Advanced JDBC Wrapper, you must install:
 
 - Amazon Corretto 8+ or Java 8+.
-- The AWS Advanced JDBC Driver.
+- The AWS Advanced JDBC Wrapper.
 - Your choice of underlying JDBC driver. 
   - To use the wrapper with Aurora with PostgreSQL compatibility, install the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc).
   - To use the wrapper with Aurora with MySQL compatibility, install the [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j) or [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j).

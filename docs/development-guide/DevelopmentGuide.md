@@ -11,12 +11,12 @@ git clone https://github.com/aws/aws-advanced-jdbc-wrapper.git
 
 You can now make changes in the repository.
 
-### Building the AWS Advanced JDBC Driver
+### Building the AWS Advanced JDBC Wrapper
 Navigate to project root:
 ```bash
 cd aws-advanced-jdbc-wrapper
 ```
-To build the AWS Advanced JDBC Driver without running the tests:
+To build the AWS Advanced JDBC Wrapper without running the tests:
 Mac:
 
 ```bash
@@ -158,4 +158,4 @@ For more information on how to run the integration tests, please visit [Integrat
 [Connection Test Sample Code](./../../examples/AWSDriverExample/src/main/java/software/amazon/PgConnectionSample.java)
 
 ## Architecture
-For more information on how the AWS Advanced JDBC Driver functions and how it is structured, please visit [Architecture](./Architecture.md).
+For more information on how the AWS Advanced JDBC Wrapper functions and how it is structured, please visit [Architecture](./Architecture.md).

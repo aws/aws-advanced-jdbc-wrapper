@@ -50,7 +50,7 @@ During a [Blue/Green switchover](https://docs.aws.amazon.com/AmazonRDS/latest/Us
 - Internal security certificates are regenerated to accommodate the new node names
 
 
-All factors mentioned above may cause application disruption. The AWS Advanced JDBC Driver aims to minimize the application disruption during Blue/Green switchover by performing the following actions:
+All factors mentioned above may cause application disruption. The AWS Advanced JDBC Wrapper aims to minimize the application disruption during Blue/Green switchover by performing the following actions:
 - Actively monitors Blue/Green switchover status and implements appropriate measures to suspend, pass-through, or re-route database traffic
 - Prior to Blue/Green switchover initiation, compiles a comprehensive inventory of cluster and instance endpoints for both blue and green nodes along with their corresponding IP addresses
 - During the active switchover phase, temporarily suspends execution of JDBC calls to blue nodes, which helps unload database nodes and reduces transaction lag for green nodes, thereby enhancing overall switchover performance

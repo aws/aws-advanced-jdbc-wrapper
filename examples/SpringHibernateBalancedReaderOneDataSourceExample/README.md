@@ -1,6 +1,6 @@
 # Tutorial: Getting Started with the AWS Advanced JDBC Wrapper, Spring Boot and Hibernate for load-balanced read-write and read-only connections (Single Datasource)
 
-In this tutorial, you will set up a Spring Boot and Hibernate application with the AWS Advanced JDBC Driver, and use a single datasource to fetch and update data from an Aurora PostgreSQL database. The datasource is configured to provide a writer connection or a reader connection to off-load a writer node from read-only queries. It provides pooled connections through the AWS Advanced JDBC Driver internal connection pool configuration.
+In this tutorial, you will set up a Spring Boot and Hibernate application with the AWS Advanced JDBC Wrapper, and use a single datasource to fetch and update data from an Aurora PostgreSQL database. The datasource is configured to provide a writer connection or a reader connection to off-load a writer node from read-only queries. It provides pooled connections through the AWS Advanced JDBC Wrapper internal connection pool configuration.
 
 > Note: this tutorial was written using the following technologies:
 >    - Spring Boot 2.7.1
@@ -13,7 +13,7 @@ In this tutorial, you will set up a Spring Boot and Hibernate application with t
 You will progress through the following sections:
 1. Create a Gradle Spring Boot project
 2. Add the required Gradle dependencies
-3. Configure the AWS Advanced JDBC Driver
+3. Configure the AWS Advanced JDBC Wrapper
 
 ## Pre-requisites
 - This tutorial uses the Amazon Aurora PostgreSQL database.
@@ -97,4 +97,4 @@ For detailed logs use `TRACE` for `software.amazon.jdbc` package.
 Start the application by running `./gradlew :springhibernateonedatasource:bootRun` in the terminal. You should see the application making a connection to the database and fetching data from the Example table.
 
 # Summary
-This tutorial walks through the steps required to add and configure the AWS Advanced JDBC Driver to a simple Spring Boot and Hibernate application.
+This tutorial walks through the steps required to add and configure the AWS Advanced JDBC Wrapper to a simple Spring Boot and Hibernate application.
