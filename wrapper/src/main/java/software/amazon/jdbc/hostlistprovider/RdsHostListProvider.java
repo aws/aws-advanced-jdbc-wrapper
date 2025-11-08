@@ -121,6 +121,8 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
     this.pluginService = servicesContainer.getPluginService();
     this.highRefreshRateNano = TimeUnit.MILLISECONDS.toNanos(
         CLUSTER_TOPOLOGY_HIGH_REFRESH_RATE_MS.getLong(this.properties));
+
+    this.clusterId = CLUSTER_ID.getString(this.properties);
   }
 
   protected ClusterTopologyMonitor initMonitor() throws SQLException {
@@ -182,8 +184,6 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
     }
     this.initialHostSpec = this.initialHostList.get(0);
     this.hostListProviderService.setInitialConnectionHostSpec(this.initialHostSpec);
-
-    this.clusterId = CLUSTER_ID.getString(this.properties);
     this.refreshRateNano =
         TimeUnit.MILLISECONDS.toNanos(CLUSTER_TOPOLOGY_REFRESH_RATE_MS.getInteger(properties));
 
@@ -311,7 +311,7 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
   @Override
   public List<HostSpec> forceRefresh(final boolean shouldVerifyWriter, final long timeoutMs)
       throws SQLException, TimeoutException {
-
+    init();
     ClusterTopologyMonitor monitor =
         this.servicesContainer.getMonitorService().get(ClusterTopologyMonitorImpl.class, this.clusterId);
     if (monitor == null) {

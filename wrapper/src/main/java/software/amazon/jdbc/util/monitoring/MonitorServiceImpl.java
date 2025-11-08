@@ -32,6 +32,7 @@ import java.util.function.Supplier;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jetbrains.annotations.NotNull;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostlistprovider.Topology;
@@ -278,7 +279,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   }
 
   @Override
-  public @Nullable <T extends Monitor> T get(Class<T> monitorClass, Object key) {
+  public @Nullable <T extends Monitor> T get(Class<T> monitorClass, @NotNull Object key) {
     CacheContainer cacheContainer = monitorCaches.get(monitorClass);
     if (cacheContainer == null) {
       return null;
