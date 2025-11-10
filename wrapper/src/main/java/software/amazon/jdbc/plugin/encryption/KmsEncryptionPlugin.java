@@ -177,6 +177,9 @@ public class KmsEncryptionPlugin {
                 // Initialize SQL analysis service
                 this.sqlAnalysisService = new SqlAnalysisService(pluginService, metadataManager);
 
+                // Register custom PostgreSQL types
+                registerPostgresTypes();
+
                 LOGGER.info("Plugin initialized with PluginService connection parameters");
 
             } else {
@@ -193,6 +196,27 @@ public class KmsEncryptionPlugin {
         } catch (Exception e) {
             LOGGER.severe(()->String.format("Failed to initialize plugin with PluginService %s", e.getMessage()));
             throw new SQLException("Failed to initialize plugin: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Registers custom PostgreSQL types with the JDBC driver.
+     */
+    private void registerPostgresTypes() {
+        try {
+            if (independentDataSource != null) {
+                java.sql.Connection conn = independentDataSource.getConnection();
+                try {
+                    // Register encrypted_data type
+                    org.postgresql.PGConnection pgConn = conn.unwrap(org.postgresql.PGConnection.class);
+                    pgConn.addDataType("encrypted_data", "bytea");
+                    LOGGER.info("Registered encrypted_data type with PostgreSQL driver");
+                } finally {
+                    conn.close();
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.warning(() -> "Failed to register PostgreSQL custom types: " + e.getMessage());
         }
     }
 

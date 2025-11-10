@@ -66,7 +66,7 @@ public class MetadataManager {
         String schema = config.getEncryptionMetadataSchema();
         return "SELECT em.table_name, em.column_name, em.encryption_algorithm, em.key_id, " +
                "       em.created_at, em.updated_at, " +
-               "       ks.name, ks.master_key_arn, ks.encrypted_data_key, ks.key_spec, " +
+               "       ks.name, ks.master_key_arn, ks.encrypted_data_key, ks.hmac_key, ks.key_spec, " +
                "       ks.created_at as key_created_at, ks.last_used_at " +
                "FROM " + schema + ".encryption_metadata em " +
                "JOIN " + schema + ".key_storage ks ON em.key_id = ks.id " +
@@ -82,7 +82,7 @@ public class MetadataManager {
         String schema = config.getEncryptionMetadataSchema();
         return "SELECT em.table_name, em.column_name, em.encryption_algorithm, em.key_id, " +
                "       em.created_at, em.updated_at, " +
-               "       ks.master_key_arn, ks.encrypted_data_key, ks.key_spec, " +
+               "       ks.master_key_arn, ks.encrypted_data_key, ks.hmac_key, ks.key_spec, " +
                "       ks.created_at as key_created_at, ks.last_used_at " +
                "FROM " + schema + ".encryption_metadata em " +
                "JOIN " + schema + ".key_storage ks ON em.key_id = ks.id " +
@@ -377,6 +377,7 @@ public class MetadataManager {
                 .keyName(rs.getString("name"))
                 .masterKeyArn(rs.getString("master_key_arn"))
                 .encryptedDataKey(rs.getString("encrypted_data_key"))
+                .hmacKey(rs.getBytes("hmac_key"))
                 .keySpec(rs.getString("key_spec"))
                 .createdAt(convertTimestampToInstant(rs.getTimestamp("key_created_at")))
                 .lastUsedAt(convertTimestampToInstant(rs.getTimestamp("last_used_at")))

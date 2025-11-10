@@ -30,6 +30,7 @@ public class KeyMetadata {
     private final String keyName;
     private final String masterKeyArn;
     private final String encryptedDataKey;
+    private final byte[] hmacKey;
     private final String keySpec;
     private final Instant createdAt;
     private final Instant lastUsedAt;
@@ -39,6 +40,7 @@ public class KeyMetadata {
         this.keyName = Objects.requireNonNull(builder.keyName, "keyName cannot be null");
         this.masterKeyArn = Objects.requireNonNull(builder.masterKeyArn, "masterKeyArn cannot be null");
         this.encryptedDataKey = Objects.requireNonNull(builder.encryptedDataKey, "encryptedDataKey cannot be null");
+        this.hmacKey = builder.hmacKey;
         this.keySpec = Objects.requireNonNull(builder.keySpec, "keySpec cannot be null");
         this.createdAt = builder.createdAt != null ? builder.createdAt : Instant.now();
         this.lastUsedAt = builder.lastUsedAt != null ? builder.lastUsedAt : Instant.now();
@@ -58,6 +60,10 @@ public class KeyMetadata {
 
     public String getEncryptedDataKey() {
         return encryptedDataKey;
+    }
+
+    public byte[] getHmacKey() {
+        return hmacKey;
     }
 
     public String getKeySpec() {
@@ -137,6 +143,7 @@ public class KeyMetadata {
         private String keyName;
         private String masterKeyArn;
         private String encryptedDataKey;
+        private byte[] hmacKey;
         private String keySpec = "AES_256"; // Default key spec
         private Instant createdAt;
         private Instant lastUsedAt;
@@ -158,6 +165,11 @@ public class KeyMetadata {
 
         public Builder encryptedDataKey(String encryptedDataKey) {
             this.encryptedDataKey = encryptedDataKey;
+            return this;
+        }
+
+        public Builder hmacKey(byte[] hmacKey) {
+            this.hmacKey = hmacKey;
             return this;
         }
 

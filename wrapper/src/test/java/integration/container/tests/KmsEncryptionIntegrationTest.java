@@ -19,6 +19,7 @@ import software.amazon.awssdk.services.kms.model.GenerateDataKeyRequest;
 import software.amazon.awssdk.services.kms.model.GenerateDataKeyResponse;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
+import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
 
 /**
  * Integration test for KMS encryption functionality with JSqlParser.
@@ -70,12 +71,19 @@ public class KmsEncryptionIntegrationTest {
         stmt.execute("CREATE SCHEMA " + metadataSchema);
         stmt.execute("DROP TABLE IF EXISTS users CASCADE");
 
+
+        // Install encrypted_data custom type
+        logger.trace("Installing encrypted_data custom type");
+        stmt.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto");
+        EncryptedDataTypeInstaller.installEncryptedDataType(directConnection);
+
         // Create key_storage table first (referenced by encryption_metadata)
         stmt.execute("CREATE TABLE if not exists " + metadataSchema + ".key_storage ("
             + "id SERIAL PRIMARY KEY, "
             + "name VARCHAR(255) NOT NULL, "
             + "master_key_arn VARCHAR(512) NOT NULL, "
             + "encrypted_data_key TEXT NOT NULL, "
+            + "hmac_key BYTEA NOT NULL, "
             + "key_spec VARCHAR(50) DEFAULT 'AES_256', "
             + "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
             + "last_used_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP)");
@@ -91,7 +99,7 @@ public class KmsEncryptionIntegrationTest {
             + "PRIMARY KEY (table_name, column_name), "
             + "FOREIGN KEY (key_id) REFERENCES " + metadataSchema + ".key_storage(id))");
 
-        // Insert a key into key_storage with real KMS data key
+        // Insert a key into key_storage with real KMS data key and separate HMAC key
         KmsClient kmsClient = KmsClient.builder().region(software.amazon.awssdk.regions.Region.US_EAST_1).build();
         GenerateDataKeyRequest dataKeyRequest = GenerateDataKeyRequest.builder()
             .keyId(kmsKeyArn)
@@ -100,12 +108,17 @@ public class KmsEncryptionIntegrationTest {
         GenerateDataKeyResponse dataKeyResponse = kmsClient.generateDataKey(dataKeyRequest);
         String encryptedDataKeyBase64 = Base64.getEncoder().encodeToString(dataKeyResponse.ciphertextBlob().asByteArray());
 
+        // Generate separate HMAC key (32 bytes for HMAC-SHA256)
+        byte[] hmacKey = new byte[32];
+        new java.security.SecureRandom().nextBytes(hmacKey);
+
         PreparedStatement keyStmt = directConnection.prepareStatement(
-            "INSERT INTO " + metadataSchema + ".key_storage (name, master_key_arn, encrypted_data_key, key_spec) VALUES (?, ?, ?, ?) RETURNING id");
+            "INSERT INTO " + metadataSchema + ".key_storage (name, master_key_arn, encrypted_data_key, hmac_key, key_spec) VALUES (?, ?, ?, ?, ?) RETURNING id");
         keyStmt.setString(1, "test-key-users-ssn");
         keyStmt.setString(2, kmsKeyArn);
         keyStmt.setString(3, encryptedDataKeyBase64);
-        keyStmt.setString(4, "AES_256");
+        keyStmt.setBytes(4, hmacKey);
+        keyStmt.setString(5, "AES_256");
         ResultSet keyRs = keyStmt.executeQuery();
         keyRs.next();
         int generatedKeyId = keyRs.getInt(1);
@@ -137,11 +150,11 @@ public class KmsEncryptionIntegrationTest {
           }
         }
 
-        // Create users table with bytea for encrypted data
+        // Create users table with encrypted_data type for SSN
         stmt.execute("CREATE TABLE if not exists users ("
             + "id SERIAL PRIMARY KEY, "
             + "name VARCHAR(100), "
-            + "ssn bytea, "
+            + "ssn encrypted_data, "
             + "email VARCHAR(100))");
 
         logger.trace("Test setup completed");
@@ -290,5 +303,39 @@ public class KmsEncryptionIntegrationTest {
     // Verify KMS master key ARN is configured
     assertEquals(kmsKeyArn, System.getenv(KMS_KEY_ARN_ENV));
     assertTrue(kmsKeyArn.startsWith("arn:aws:kms:"));
+  }
+
+  @Test
+  void testEncryptedDataTypeHmacVerification() throws Exception {
+    // Insert test data
+    String insertSql = "INSERT INTO users (name, ssn, email) VALUES (?, ?, ?)";
+    try (PreparedStatement pstmt = connection.prepareStatement(insertSql)) {
+      pstmt.setString(1, "HMAC Test User");
+      pstmt.setString(2, "999-99-9999");
+      pstmt.setString(3, "hmac@test.com");
+      assertEquals(1, pstmt.executeUpdate());
+    }
+
+    // Verify HMAC structure at database level (doesn't require key)
+    String structureCheckSql = "SELECT name, has_valid_hmac_structure(ssn) as valid_structure FROM users WHERE name = ?";
+    try (PreparedStatement pstmt = connection.prepareStatement(structureCheckSql)) {
+      pstmt.setString(1, "HMAC Test User");
+      try (ResultSet rs = pstmt.executeQuery()) {
+        assertTrue(rs.next());
+        assertTrue(rs.getBoolean("valid_structure"), "Encrypted data should have valid HMAC structure");
+        logger.info("HMAC structure validation passed for encrypted SSN");
+      }
+    }
+
+    // Verify we can still decrypt the data
+    String selectSql = "SELECT ssn FROM users WHERE name = ?";
+    try (PreparedStatement pstmt = connection.prepareStatement(selectSql)) {
+      pstmt.setString(1, "HMAC Test User");
+      try (ResultSet rs = pstmt.executeQuery()) {
+        assertTrue(rs.next());
+        assertEquals("999-99-9999", rs.getString("ssn"));
+        logger.info("Successfully decrypted SSN with HMAC verification");
+      }
+    }
   }
 }

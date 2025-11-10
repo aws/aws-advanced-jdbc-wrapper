@@ -169,10 +169,14 @@ public class DecryptingResultSet implements ResultSet {
                 throw new SQLException("Data key decryption failed");
             }
 
+            // Get HMAC key
+            byte[] hmacKey = config.getKeyMetadata().getHmacKey();
+
             // Decrypt the value
             Object decryptedValue = encryptionService.decrypt(
                     encryptedBytes,
                     dataKey,
+                    hmacKey,
                     config.getAlgorithm(),
                     targetType);
 
@@ -205,7 +209,28 @@ public class DecryptingResultSet implements ResultSet {
 
     @Override
     public String getString(int columnIndex) throws SQLException {
-        Object value = delegate.getObject(columnIndex);
+        String columnName = getColumnName(columnIndex);
+        ColumnEncryptionConfig config = getColumnConfig(columnName);
+        
+        // If column is encrypted, get as bytes
+        Object value;
+        if (config != null) {
+            Object obj = delegate.getObject(columnIndex);
+            if (obj instanceof org.postgresql.util.PGobject) {
+                org.postgresql.util.PGobject pgObj = (org.postgresql.util.PGobject) obj;
+                String hexValue = pgObj.getValue();
+                if (hexValue != null && hexValue.startsWith("\\x")) {
+                    value = hexToBytes(hexValue.substring(2));
+                } else {
+                    value = delegate.getBytes(columnIndex);
+                }
+            } else {
+                value = delegate.getBytes(columnIndex);
+            }
+        } else {
+            value = delegate.getObject(columnIndex);
+        }
+        
         Object decryptedValue = decryptValueIfNeeded(columnIndex, value, String.class);
 
         if (decryptedValue == null) {
@@ -219,7 +244,27 @@ public class DecryptingResultSet implements ResultSet {
 
     @Override
     public String getString(String columnLabel) throws SQLException {
-        Object value = delegate.getObject(columnLabel);
+        ColumnEncryptionConfig config = getColumnConfig(columnLabel);
+        
+        // If column is encrypted, get as bytes
+        Object value;
+        if (config != null) {
+            Object obj = delegate.getObject(columnLabel);
+            if (obj instanceof org.postgresql.util.PGobject) {
+                org.postgresql.util.PGobject pgObj = (org.postgresql.util.PGobject) obj;
+                String hexValue = pgObj.getValue();
+                if (hexValue != null && hexValue.startsWith("\\x")) {
+                    value = hexToBytes(hexValue.substring(2));
+                } else {
+                    value = delegate.getBytes(columnLabel);
+                }
+            } else {
+                value = delegate.getBytes(columnLabel);
+            }
+        } else {
+            value = delegate.getObject(columnLabel);
+        }
+        
         Object decryptedValue = decryptValueIfNeeded(columnLabel, value, String.class);
 
         if (decryptedValue == null) {
@@ -229,6 +274,16 @@ public class DecryptingResultSet implements ResultSet {
         } else {
             return decryptedValue.toString();
         }
+    }
+
+    private static byte[] hexToBytes(String hex) {
+        int len = hex.length();
+        byte[] data = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            data[i / 2] = (byte) ((Character.digit(hex.charAt(i), 16) << 4)
+                                 + Character.digit(hex.charAt(i+1), 16));
+        }
+        return data;
     }
 
     @Override
