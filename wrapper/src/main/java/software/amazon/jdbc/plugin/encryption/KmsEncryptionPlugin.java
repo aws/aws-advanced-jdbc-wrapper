@@ -72,6 +72,10 @@ public class KmsEncryptionPlugin {
     private final AtomicBoolean initialized = new AtomicBoolean(false);
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
+    // Track connections where custom types have been registered
+    private final java.util.Map<java.sql.Connection, Boolean> registeredConnections = 
+        new java.util.WeakHashMap<>();
+
     // Plugin properties
     private Properties pluginProperties;
 
@@ -177,9 +181,6 @@ public class KmsEncryptionPlugin {
                 // Initialize SQL analysis service
                 this.sqlAnalysisService = new SqlAnalysisService(pluginService, metadataManager);
 
-                // Register custom PostgreSQL types
-                registerPostgresTypes();
-
                 LOGGER.info("Plugin initialized with PluginService connection parameters");
 
             } else {
@@ -200,23 +201,27 @@ public class KmsEncryptionPlugin {
     }
 
     /**
-     * Registers custom PostgreSQL types with the JDBC driver.
+     * Registers custom PostgreSQL types with the JDBC driver for a specific connection.
+     * Only registers once per connection.
      */
-    private void registerPostgresTypes() {
-        try {
-            if (independentDataSource != null) {
-                java.sql.Connection conn = independentDataSource.getConnection();
-                try {
-                    // Register encrypted_data type
-                    org.postgresql.PGConnection pgConn = conn.unwrap(org.postgresql.PGConnection.class);
-                    pgConn.addDataType("encrypted_data", "bytea");
-                    LOGGER.info("Registered encrypted_data type with PostgreSQL driver");
-                } finally {
-                    conn.close();
-                }
+    private void registerPostgresTypesForConnection(java.sql.Connection conn) {
+        if (conn == null) {
+            return;
+        }
+        
+        synchronized (registeredConnections) {
+            if (registeredConnections.containsKey(conn)) {
+                return; // Already registered for this connection
             }
-        } catch (Exception e) {
-            LOGGER.warning(() -> "Failed to register PostgreSQL custom types: " + e.getMessage());
+            
+            try {
+                org.postgresql.PGConnection pgConn = conn.unwrap(org.postgresql.PGConnection.class);
+                pgConn.addDataType("encrypted_data", software.amazon.jdbc.plugin.encryption.wrapper.EncryptedData.class);
+                registeredConnections.put(conn, Boolean.TRUE);
+                LOGGER.fine("Registered encrypted_data type for connection");
+            } catch (Exception e) {
+                LOGGER.fine(() -> "Failed to register PostgreSQL custom types: " + e.getMessage());
+            }
         }
     }
 
@@ -243,6 +248,9 @@ public class KmsEncryptionPlugin {
                 throw new SQLException("Failed to initialize plugin: " + e.getMessage(), e);
             }
         }
+
+        // Register custom types for this connection
+        registerPostgresTypesForConnection(statement.getConnection());
 
         LOGGER.fine(()->String.format("Wrapping PreparedStatement for SQL: %s", sql));
 
@@ -285,6 +293,13 @@ public class KmsEncryptionPlugin {
                 LOGGER.severe(()->String.format("Failed to initialize plugin with connection %s", e.getMessage()));
                 throw new SQLException("Failed to initialize plugin: " + e.getMessage(), e);
             }
+        }
+
+        // Register custom types for this connection
+        try {
+            registerPostgresTypesForConnection(resultSet.getStatement().getConnection());
+        } catch (Exception e) {
+            LOGGER.fine(() -> "Could not register types for ResultSet connection: " + e.getMessage());
         }
 
         LOGGER.finest(()->"Wrapping ResultSet");

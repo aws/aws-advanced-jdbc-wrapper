@@ -258,10 +258,7 @@ public class EncryptingPreparedStatement implements PreparedStatement {
     public void setString(int parameterIndex, String x) throws SQLException {
         Object encryptedValue = encryptParameterIfNeeded(parameterIndex, x);
         if (encryptedValue instanceof byte[]) {
-            org.postgresql.util.PGobject pgObj = new org.postgresql.util.PGobject();
-            pgObj.setType("encrypted_data");
-            pgObj.setValue("\\\\x" + bytesToHex((byte[]) encryptedValue));
-            delegate.setObject(parameterIndex, pgObj);
+            delegate.setObject(parameterIndex, new EncryptedData((byte[]) encryptedValue));
         } else {
             delegate.setString(parameterIndex, (String) encryptedValue);
         }

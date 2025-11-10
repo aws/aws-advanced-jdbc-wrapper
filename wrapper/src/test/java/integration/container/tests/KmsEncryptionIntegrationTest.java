@@ -255,7 +255,7 @@ public class KmsEncryptionIntegrationTest {
         assertEquals(TEST_NAME_2, rs.getString("name"));
         assertEquals(TEST_SSN_1, rs.getString("ssn"));
         assertEquals("character varying", rs.getString("name_type"));
-        assertEquals("bytea", rs.getString("ssn_type"));
+        assertEquals("encrypted_data", rs.getString("ssn_type"));
       }
     }
 

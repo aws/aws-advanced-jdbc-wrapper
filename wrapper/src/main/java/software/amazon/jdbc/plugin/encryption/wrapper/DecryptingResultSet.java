@@ -212,18 +212,12 @@ public class DecryptingResultSet implements ResultSet {
         String columnName = getColumnName(columnIndex);
         ColumnEncryptionConfig config = getColumnConfig(columnName);
         
-        // If column is encrypted, get as bytes
+        // If column is encrypted, get as EncryptedData
         Object value;
         if (config != null) {
             Object obj = delegate.getObject(columnIndex);
-            if (obj instanceof org.postgresql.util.PGobject) {
-                org.postgresql.util.PGobject pgObj = (org.postgresql.util.PGobject) obj;
-                String hexValue = pgObj.getValue();
-                if (hexValue != null && hexValue.startsWith("\\x")) {
-                    value = hexToBytes(hexValue.substring(2));
-                } else {
-                    value = delegate.getBytes(columnIndex);
-                }
+            if (obj instanceof EncryptedData) {
+                value = ((EncryptedData) obj).getBytes();
             } else {
                 value = delegate.getBytes(columnIndex);
             }
@@ -246,18 +240,12 @@ public class DecryptingResultSet implements ResultSet {
     public String getString(String columnLabel) throws SQLException {
         ColumnEncryptionConfig config = getColumnConfig(columnLabel);
         
-        // If column is encrypted, get as bytes
+        // If column is encrypted, get as EncryptedData
         Object value;
         if (config != null) {
             Object obj = delegate.getObject(columnLabel);
-            if (obj instanceof org.postgresql.util.PGobject) {
-                org.postgresql.util.PGobject pgObj = (org.postgresql.util.PGobject) obj;
-                String hexValue = pgObj.getValue();
-                if (hexValue != null && hexValue.startsWith("\\x")) {
-                    value = hexToBytes(hexValue.substring(2));
-                } else {
-                    value = delegate.getBytes(columnLabel);
-                }
+            if (obj instanceof EncryptedData) {
+                value = ((EncryptedData) obj).getBytes();
             } else {
                 value = delegate.getBytes(columnLabel);
             }
