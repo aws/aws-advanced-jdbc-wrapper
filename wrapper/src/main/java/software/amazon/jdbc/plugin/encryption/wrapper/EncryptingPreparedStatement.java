@@ -231,8 +231,11 @@ public class EncryptingPreparedStatement implements PreparedStatement {
                 config.getKeyMetadata().getMasterKeyArn()
             );
 
+            // Get HMAC key
+            byte[] hmacKey = config.getKeyMetadata().getHmacKey();
+
             // Encrypt the value
-            byte[] encryptedValue = encryptionService.encrypt(value, dataKey, config.getAlgorithm());
+            byte[] encryptedValue = encryptionService.encrypt(value, dataKey, hmacKey, config.getAlgorithm());
 
             // Clear the data key from memory
             java.util.Arrays.fill(dataKey, (byte) 0);
@@ -255,10 +258,18 @@ public class EncryptingPreparedStatement implements PreparedStatement {
     public void setString(int parameterIndex, String x) throws SQLException {
         Object encryptedValue = encryptParameterIfNeeded(parameterIndex, x);
         if (encryptedValue instanceof byte[]) {
-            delegate.setBytes(parameterIndex, (byte[]) encryptedValue);
+            delegate.setObject(parameterIndex, new EncryptedData((byte[]) encryptedValue));
         } else {
             delegate.setString(parameterIndex, (String) encryptedValue);
         }
+    }
+
+    private static String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
     }
 
     @Override

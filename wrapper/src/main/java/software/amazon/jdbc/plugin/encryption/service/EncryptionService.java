@@ -56,7 +56,6 @@ public class EncryptionService {
     private static final int GCM_TAG_LENGTH = 16; // 128 bits
     private static final String HMAC_ALGORITHM = "HmacSHA256";
     private static final int HMAC_TAG_LENGTH = 32; // 256 bits
-    private static final int HMAC_SALT_LENGTH = 16; // 128 bits - stored in encrypted data
 
     // Supported algorithms
     private static final String[] SUPPORTED_ALGORITHMS = {
@@ -78,11 +77,12 @@ public class EncryptionService {
      *
      * @param value the value to encrypt
      * @param dataKey the encryption key
+     * @param hmacKey the HMAC verification key
      * @param algorithm the encryption algorithm to use
      * @return the encrypted data as byte array with HMAC prepended
      * @throws EncryptionException if encryption fails
      */
-    public byte[] encrypt(Object value, byte[] dataKey, String algorithm) throws EncryptionException {
+    public byte[] encrypt(Object value, byte[] dataKey, byte[] hmacKey, String algorithm) throws EncryptionException {
         if (value == null) {
             return null;
         }
@@ -114,27 +114,19 @@ public class EncryptionService {
             buffer.put(ciphertext);
             byte[] encryptedData = buffer.array();
 
-            // Generate random salt for HMAC
-            byte[] hmacSalt = new byte[HMAC_SALT_LENGTH];
-            secureRandom.nextBytes(hmacSalt);
-
-            // Generate verification key using the random salt
-            byte[] verificationKey = deriveVerificationKey(dataKey, hmacSalt);
+            // Generate HMAC using the separate HMAC key
             Mac hmac = Mac.getInstance(HMAC_ALGORITHM);
-            hmac.init(new SecretKeySpec(verificationKey, HMAC_ALGORITHM));
+            hmac.init(new SecretKeySpec(hmacKey, HMAC_ALGORITHM));
             byte[] hmacTag = hmac.doFinal(encryptedData);
 
-            // Prepend salt + HMAC tag to encrypted data: [salt:16bytes][HMAC:32bytes][type:1byte][IV:12bytes][ciphertext]
-            ByteBuffer finalBuffer = ByteBuffer.allocate(HMAC_SALT_LENGTH + HMAC_TAG_LENGTH + encryptedData.length);
-            finalBuffer.put(hmacSalt);
+            // Prepend HMAC tag to encrypted data: [HMAC:32bytes][type:1byte][IV:12bytes][ciphertext]
+            ByteBuffer finalBuffer = ByteBuffer.allocate(HMAC_TAG_LENGTH + encryptedData.length);
             finalBuffer.put(hmacTag);
             finalBuffer.put(encryptedData);
 
             // Clear sensitive data
             Arrays.fill(plaintext, (byte) 0);
             Arrays.fill(iv, (byte) 0);
-            Arrays.fill(verificationKey, (byte) 0);
-            Arrays.fill(hmacSalt, (byte) 0);
 
             return finalBuffer.array();
 
@@ -148,16 +140,31 @@ public class EncryptionService {
     }
 
     /**
+     * Encrypts a value using the same key for both encryption and HMAC.
+     * This is a convenience method for backward compatibility.
+     *
+     * @param value the value to encrypt
+     * @param dataKey the encryption key (also used for HMAC)
+     * @param algorithm the encryption algorithm to use
+     * @return the encrypted data as byte array with HMAC prepended
+     * @throws EncryptionException if encryption fails
+     */
+    public byte[] encrypt(Object value, byte[] dataKey, String algorithm) throws EncryptionException {
+        return encrypt(value, dataKey, dataKey, algorithm);
+    }
+
+    /**
      * Decrypts encrypted data using the specified data key and algorithm.
      *
      * @param encryptedValue the encrypted data with HMAC prepended
      * @param dataKey the decryption key
+     * @param hmacKey the HMAC verification key
      * @param algorithm the encryption algorithm used
      * @param targetType the expected type of the decrypted value
      * @return the decrypted value
      * @throws EncryptionException if decryption fails or HMAC verification fails
      */
-    public Object decrypt(byte[] encryptedValue, byte[] dataKey, String algorithm, Class<?> targetType)
+    public Object decrypt(byte[] encryptedValue, byte[] dataKey, byte[] hmacKey, String algorithm, Class<?> targetType)
             throws EncryptionException {
         if (encryptedValue == null) {
             return null;
@@ -166,46 +173,59 @@ public class EncryptionService {
         validateAlgorithm(algorithm);
         validateDataKey(dataKey, algorithm);
 
-        if (encryptedValue.length < HMAC_SALT_LENGTH + HMAC_TAG_LENGTH + 1 + GCM_IV_LENGTH + GCM_TAG_LENGTH) {
+        // Check if this is old format (with salt) or new format (without salt)
+        // Old format: [salt:16][HMAC:32][type:1][IV:12][ciphertext] = min 61 bytes
+        // New format: [HMAC:32][type:1][IV:12][ciphertext] = min 45 bytes
+        boolean isOldFormat = encryptedValue.length >= 61 && encryptedValue.length >= 16 + 32 + 1 + 12 + 16;
+        
+        if (isOldFormat) {
+            // Try old format first (with salt-based HMAC derivation)
+            try {
+                return decryptOldFormat(encryptedValue, dataKey, algorithm, targetType);
+            } catch (Exception e) {
+                // If old format fails, try new format
+                LOGGER.fine(() -> "Old format decryption failed, trying new format: " + e.getMessage());
+            }
+        }
+        
+        // New format (two-key system)
+        if (encryptedValue.length < 32 + 1 + 12 + 16) {
             throw EncryptionException.decryptionFailed("Invalid encrypted data length", null)
                 .withAlgorithm(algorithm)
                 .withDataType(targetType.getSimpleName())
                 .withContext("dataLength", encryptedValue.length)
-                .withContext("minimumLength", HMAC_SALT_LENGTH + HMAC_TAG_LENGTH + 1 + GCM_IV_LENGTH + GCM_TAG_LENGTH);
+                .withContext("minimumLength", 32 + 1 + 12 + 16);
         }
 
         try {
             ByteBuffer buffer = ByteBuffer.wrap(encryptedValue);
 
-            // Extract salt (first 16 bytes)
-            byte[] hmacSalt = new byte[HMAC_SALT_LENGTH];
-            buffer.get(hmacSalt);
-
-            // Extract HMAC tag (next 32 bytes)
-            byte[] storedHmacTag = new byte[HMAC_TAG_LENGTH];
+            // Extract HMAC tag (first 32 bytes)
+            byte[] storedHmacTag = new byte[32];
             buffer.get(storedHmacTag);
 
-            // Extract encrypted data (everything after salt + HMAC)
+            // Extract encrypted data (everything after HMAC)
             byte[] encryptedData = new byte[buffer.remaining()];
             buffer.get(encryptedData);
 
-            // Verify HMAC using the stored salt
-            byte[] verificationKey = deriveVerificationKey(dataKey, hmacSalt);
+            // Verify HMAC using the separate HMAC key
+            LOGGER.info(() -> String.format("Decrypting: hmacKey length=%d, encryptedData length=%d", 
+                hmacKey != null ? hmacKey.length : 0, encryptedData.length));
+            
             Mac hmac = Mac.getInstance(HMAC_ALGORITHM);
-            hmac.init(new SecretKeySpec(verificationKey, HMAC_ALGORITHM));
+            hmac.init(new SecretKeySpec(hmacKey, HMAC_ALGORITHM));
             byte[] calculatedHmacTag = hmac.doFinal(encryptedData);
 
+            LOGGER.info(() -> String.format("HMAC comparison: stored=%s, calculated=%s",
+                bytesToHex(storedHmacTag).substring(0, 16),
+                bytesToHex(calculatedHmacTag).substring(0, 16)));
+
             if (!MessageDigest.isEqual(storedHmacTag, calculatedHmacTag)) {
-                Arrays.fill(verificationKey, (byte) 0);
-                Arrays.fill(hmacSalt, (byte) 0);
                 throw EncryptionException.decryptionFailed("HMAC verification failed - data may be tampered", null)
                     .withAlgorithm(algorithm)
                     .withDataType(targetType.getSimpleName())
                     .withOperation("VERIFY_HMAC");
             }
-
-            Arrays.fill(verificationKey, (byte) 0);
-            Arrays.fill(hmacSalt, (byte) 0);
 
             // Now decrypt the verified data
             ByteBuffer dataBuffer = ByteBuffer.wrap(encryptedData);
@@ -246,6 +266,80 @@ public class EncryptionService {
                 .withAlgorithm(algorithm)
                 .withOperation("DECRYPT");
         }
+    }
+
+    /**
+     * Decrypts data encrypted with old salt-based format.
+     */
+    private Object decryptOldFormat(byte[] encryptedValue, byte[] dataKey, String algorithm, Class<?> targetType)
+            throws Exception {
+        ByteBuffer buffer = ByteBuffer.wrap(encryptedValue);
+
+        // Extract salt (first 16 bytes)
+        byte[] hmacSalt = new byte[16];
+        buffer.get(hmacSalt);
+
+        // Extract HMAC tag (next 32 bytes)
+        byte[] storedHmacTag = new byte[32];
+        buffer.get(storedHmacTag);
+
+        // Extract encrypted data (everything after salt + HMAC)
+        byte[] encryptedData = new byte[buffer.remaining()];
+        buffer.get(encryptedData);
+
+        // Derive verification key from data key and salt
+        Mac hmacDerive = Mac.getInstance(HMAC_ALGORITHM);
+        hmacDerive.init(new SecretKeySpec(dataKey, HMAC_ALGORITHM));
+        byte[] verificationKey = hmacDerive.doFinal(hmacSalt);
+
+        // Verify HMAC
+        Mac hmac = Mac.getInstance(HMAC_ALGORITHM);
+        hmac.init(new SecretKeySpec(verificationKey, HMAC_ALGORITHM));
+        byte[] calculatedHmacTag = hmac.doFinal(encryptedData);
+
+        if (!MessageDigest.isEqual(storedHmacTag, calculatedHmacTag)) {
+            throw EncryptionException.decryptionFailed("HMAC verification failed (old format)", null);
+        }
+
+        Arrays.fill(verificationKey, (byte) 0);
+        Arrays.fill(hmacSalt, (byte) 0);
+
+        // Decrypt the verified data
+        ByteBuffer dataBuffer = ByteBuffer.wrap(encryptedData);
+        byte typeMarker = dataBuffer.get();
+        byte[] iv = new byte[GCM_IV_LENGTH];
+        dataBuffer.get(iv);
+        byte[] ciphertext = new byte[dataBuffer.remaining()];
+        dataBuffer.get(ciphertext);
+
+        Cipher cipher = Cipher.getInstance(AES_GCM_TRANSFORMATION);
+        SecretKeySpec keySpec = new SecretKeySpec(dataKey, "AES");
+        GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH * 8, iv);
+        cipher.init(Cipher.DECRYPT_MODE, keySpec, gcmSpec);
+
+        byte[] plaintext = cipher.doFinal(ciphertext);
+        Object result = deserializeValue(plaintext, typeMarker, targetType);
+
+        Arrays.fill(plaintext, (byte) 0);
+        Arrays.fill(iv, (byte) 0);
+
+        return result;
+    }
+
+    /**
+     * Decrypts encrypted data using the same key for both decryption and HMAC verification.
+     * This is a convenience method for backward compatibility.
+     *
+     * @param encryptedValue the encrypted data with HMAC prepended
+     * @param dataKey the decryption key (also used for HMAC verification)
+     * @param algorithm the encryption algorithm used
+     * @param targetType the expected type of the decrypted value
+     * @return the decrypted value
+     * @throws EncryptionException if decryption fails or HMAC verification fails
+     */
+    public Object decrypt(byte[] encryptedValue, byte[] dataKey, String algorithm, Class<?> targetType)
+            throws EncryptionException {
+        return decrypt(encryptedValue, dataKey, dataKey, algorithm, targetType);
     }
 
     /**
@@ -558,46 +652,24 @@ public class EncryptionService {
     }
 
     /**
-     * Derives a verification key from the encryption key using HMAC-based key derivation.
-     *
-     * @param encryptionKey the encryption key
-     * @param salt the salt for key derivation
-     * @return the derived verification key
-     * @throws EncryptionException if key derivation fails
-     */
-    private byte[] deriveVerificationKey(byte[] encryptionKey, byte[] salt) throws EncryptionException {
-        try {
-            Mac hmac = Mac.getInstance(HMAC_ALGORITHM);
-            hmac.init(new SecretKeySpec(encryptionKey, HMAC_ALGORITHM));
-            return hmac.doFinal(salt);
-        } catch (Exception e) {
-            throw EncryptionException.encryptionFailed("Failed to derive verification key", e);
-        }
-    }
-
-    /**
      * Verifies that encrypted data has not been tampered with, without decrypting it.
-     * This method only requires the encryption key, not the decryption permission.
+     * This method only requires the HMAC key, not the encryption key or decryption permission.
      *
-     * @param encryptedValue the encrypted data with salt and HMAC prepended
-     * @param dataKey the encryption key used
+     * @param encryptedValue the encrypted data with HMAC prepended
+     * @param hmacKey the HMAC verification key
      * @return true if HMAC verification passes, false otherwise
      */
-    public boolean verifyEncryptedData(byte[] encryptedValue, byte[] dataKey) {
-        if (encryptedValue == null || dataKey == null) {
+    public boolean verifyEncryptedData(byte[] encryptedValue, byte[] hmacKey) {
+        if (encryptedValue == null || hmacKey == null) {
             return false;
         }
 
-        if (encryptedValue.length < HMAC_SALT_LENGTH + HMAC_TAG_LENGTH + 1 + GCM_IV_LENGTH + GCM_TAG_LENGTH) {
+        if (encryptedValue.length < HMAC_TAG_LENGTH + 1 + GCM_IV_LENGTH + GCM_TAG_LENGTH) {
             return false;
         }
 
         try {
             ByteBuffer buffer = ByteBuffer.wrap(encryptedValue);
-
-            // Extract salt
-            byte[] hmacSalt = new byte[HMAC_SALT_LENGTH];
-            buffer.get(hmacSalt);
 
             // Extract stored HMAC tag
             byte[] storedHmacTag = new byte[HMAC_TAG_LENGTH];
@@ -607,15 +679,10 @@ public class EncryptionService {
             byte[] encryptedData = new byte[buffer.remaining()];
             buffer.get(encryptedData);
 
-            // Calculate HMAC using stored salt
-            byte[] verificationKey = deriveVerificationKey(dataKey, hmacSalt);
+            // Calculate HMAC using the HMAC key
             Mac hmac = Mac.getInstance(HMAC_ALGORITHM);
-            hmac.init(new SecretKeySpec(verificationKey, HMAC_ALGORITHM));
+            hmac.init(new SecretKeySpec(hmacKey, HMAC_ALGORITHM));
             byte[] calculatedHmacTag = hmac.doFinal(encryptedData);
-
-            // Clear sensitive data
-            Arrays.fill(verificationKey, (byte) 0);
-            Arrays.fill(hmacSalt, (byte) 0);
 
             // Verify
             return MessageDigest.isEqual(storedHmacTag, calculatedHmacTag);
@@ -624,5 +691,13 @@ public class EncryptionService {
             LOGGER.warning(()->"HMAC verification failed: " + e.getMessage());
             return false;
         }
+    }
+
+    private static String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
     }
 }
