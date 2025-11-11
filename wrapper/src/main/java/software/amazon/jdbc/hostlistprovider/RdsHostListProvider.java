@@ -182,6 +182,7 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
     if (this.initialHostList == null || this.initialHostList.isEmpty()) {
       throw new SQLException(Messages.get("RdsHostListProvider.parsedListEmpty", new Object[] {this.originalUrl}));
     }
+
     this.initialHostSpec = this.initialHostList.get(0);
     this.hostListProviderService.setInitialConnectionHostSpec(this.initialHostSpec);
     this.refreshRateNano =
@@ -221,6 +222,10 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
 
     final List<HostSpec> storedHosts = this.getStoredTopology();
     if (storedHosts == null || forceUpdate) {
+      if (this.pluginService.getCurrentConnection() == null) {
+        return new FetchTopologyResult(false, this.initialHostList);
+      }
+
       // We need to re-fetch topology.
       final List<HostSpec> hosts = this.queryForTopology();
       if (!Utils.isNullOrEmpty(hosts)) {
