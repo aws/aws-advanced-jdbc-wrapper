@@ -24,7 +24,6 @@ import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.PartialPluginService;
 import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.dialect.Dialect;
-import software.amazon.jdbc.dialect.HostListProviderSupplier;
 import software.amazon.jdbc.hostlistprovider.HostListProvider;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
@@ -52,15 +51,15 @@ public class ServiceUtility {
       TargetDriverDialect driverDialect,
       Properties props,
       @Nullable ConfigurationProfile configurationProfile) throws SQLException {
-    FullServicesContainer servicesContainer =
+    FullServicesContainer serviceContainer =
         new FullServicesContainerImpl(storageService, monitorService, defaultConnectionProvider, telemetryFactory);
 
     ConnectionPluginManager pluginManager =
         new ConnectionPluginManager(props, telemetryFactory, defaultConnectionProvider, effectiveConnectionProvider);
-    servicesContainer.setConnectionPluginManager(pluginManager);
+    serviceContainer.setConnectionPluginManager(pluginManager);
 
     PluginServiceImpl pluginService = new PluginServiceImpl(
-        servicesContainer,
+        serviceContainer,
         props,
         originalUrl,
         targetDriverProtocol,
@@ -68,19 +67,17 @@ public class ServiceUtility {
         configurationProfile
     );
 
-    servicesContainer.setHostListProviderService(pluginService);
-    servicesContainer.setPluginService(pluginService);
-    servicesContainer.setPluginManagerService(pluginService);
+    serviceContainer.setHostListProviderService(pluginService);
+    serviceContainer.setPluginService(pluginService);
+    serviceContainer.setPluginManagerService(pluginService);
 
-    pluginManager.initPlugins(servicesContainer, configurationProfile);
-    final HostListProviderSupplier supplier = pluginService.getDialect().getHostListProviderSupplier();
-    if (supplier != null) {
-      final HostListProvider provider = supplier.getProvider(props, originalUrl, servicesContainer);
-      pluginService.setHostListProvider(provider);
-    }
+    pluginManager.initPlugins(serviceContainer, configurationProfile);
+    final HostListProvider provider =
+        pluginService.getDialect().createHostListProvider(serviceContainer, props, originalUrl);
+    pluginService.setHostListProvider(provider);
 
     pluginManager.initHostProvider(targetDriverProtocol, originalUrl, props, pluginService);
-    return servicesContainer;
+    return serviceContainer;
   }
 
   public FullServicesContainer createMinimalServiceContainer(
@@ -113,6 +110,11 @@ public class ServiceUtility {
     serviceContainer.setPluginManagerService(pluginService);
 
     pluginManager.initPlugins(serviceContainer, null);
+    final HostListProvider provider =
+        pluginService.getDialect().createHostListProvider(serviceContainer, props, originalUrl);
+    pluginService.setHostListProvider(provider);
+
+    pluginManager.initHostProvider(targetDriverProtocol, originalUrl, props, pluginService);
     return serviceContainer;
   }
 

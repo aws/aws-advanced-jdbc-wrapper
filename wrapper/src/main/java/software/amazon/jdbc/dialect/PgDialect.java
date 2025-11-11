@@ -29,7 +29,9 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.PgExceptionHandler;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
+import software.amazon.jdbc.hostlistprovider.HostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverRestriction;
+import software.amazon.jdbc.util.FullServicesContainer;
 
 /**
  * Generic dialect for any Postgresql database.
@@ -76,9 +78,9 @@ public class PgDialect implements Dialect {
   }
 
   @Override
-  public HostListProviderSupplier getHostListProviderSupplier() {
-    return (properties, initialUrl, servicesContainer) ->
-        new ConnectionStringHostListProvider(properties, initialUrl, servicesContainer.getHostListProviderService());
+  public HostListProvider createHostListProvider(
+      FullServicesContainer servicesContainer, Properties props, String initialUrl) throws SQLException {
+    return new ConnectionStringHostListProvider(props, initialUrl, servicesContainer.getHostListProviderService());
   }
 
   @Override

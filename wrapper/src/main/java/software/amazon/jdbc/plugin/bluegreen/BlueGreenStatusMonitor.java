@@ -632,12 +632,8 @@ public class BlueGreenStatusMonitor {
     final HostSpec connectionHostSpecCopy = this.connectionHostSpec.get();
     if (connectionHostSpecCopy != null) {
       String hostListProviderUrl = String.format("%s%s/", protocol, connectionHostSpecCopy.getHostAndPort());
-      this.hostListProvider = this.pluginService.getDialect()
-          .getHostListProviderSupplier()
-          .getProvider(
-              hostListProperties,
-              hostListProviderUrl,
-              this.servicesContainer);
+      this.hostListProvider = this.pluginService.getDialect().createHostListProvider(
+          this.servicesContainer, hostListProperties, hostListProviderUrl);
     } else {
       LOGGER.warning(() -> Messages.get("bgd.hostSpecNull"));
     }
