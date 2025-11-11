@@ -51,15 +51,9 @@ public class GlobalAuroraHostListProvider extends RdsHostListProvider {
 
   public GlobalAuroraHostListProvider(
       GlobalAuroraTopologyUtils topologyUtils, Properties properties, String originalUrl,
-      FullServicesContainer servicesContainer) {
+      FullServicesContainer servicesContainer) throws SQLException {
     super(topologyUtils, properties, originalUrl, servicesContainer);
     this.topologyUtils = topologyUtils;
-  }
-
-  @Override
-  protected void initSettings() throws SQLException {
-    super.initSettings();
-
     String instanceTemplates = GlobalAuroraHostListProvider.GLOBAL_CLUSTER_INSTANCE_HOST_PATTERNS.getString(properties);
     this.instanceTemplatesByRegion =
         this.topologyUtils.parseInstanceTemplates(instanceTemplates, this::validateHostPatternSetting);

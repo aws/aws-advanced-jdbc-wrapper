@@ -80,8 +80,6 @@ public class ServiceUtility {
     }
 
     pluginManager.initHostProvider(targetDriverProtocol, originalUrl, props, pluginService);
-    pluginService.refreshHostList();
-
     return servicesContainer;
   }
 

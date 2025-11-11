@@ -917,9 +917,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
     Connection conn = null;
     try {
-      conn =
-          this.staleDnsHelper.getVerifiedConnection(isInitialConnection, this.hostListProviderService,
-              driverProtocol, hostSpec, props, connectFunc);
+      conn = this.staleDnsHelper.getVerifiedConnection(
+          isInitialConnection, this.hostListProviderService, hostSpec, props, connectFunc);
     } catch (final SQLException e) {
       if (!this.enableConnectFailover || !shouldExceptionTriggerConnectionSwitch(e)) {
         throw e;

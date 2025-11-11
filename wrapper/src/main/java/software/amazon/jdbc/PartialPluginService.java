@@ -91,7 +91,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
       @NonNull final String originalUrl,
       @NonNull final String targetDriverProtocol,
       @NonNull final TargetDriverDialect targetDriverDialect,
-      @NonNull final Dialect dbDialect) {
+      @NonNull final Dialect dbDialect) throws SQLException {
     this(
         servicesContainer,
         new ExceptionManager(),
@@ -111,7 +111,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
       @NonNull final String targetDriverProtocol,
       @NonNull final TargetDriverDialect targetDriverDialect,
       @NonNull final Dialect dbDialect,
-      @Nullable final ConfigurationProfile configurationProfile) {
+      @Nullable final ConfigurationProfile configurationProfile) throws SQLException {
     this.servicesContainer = servicesContainer;
     this.servicesContainer.setHostListProviderService(this);
     this.servicesContainer.setPluginService(this);

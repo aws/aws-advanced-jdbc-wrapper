@@ -611,7 +611,7 @@ public class BlueGreenStatusMonitor {
     }
   }
 
-  protected void initHostListProvider() {
+  protected void initHostListProvider() throws SQLException {
     if (this.hostListProvider != null || !this.connectionHostSpecCorrect.get()) {
       return;
     }

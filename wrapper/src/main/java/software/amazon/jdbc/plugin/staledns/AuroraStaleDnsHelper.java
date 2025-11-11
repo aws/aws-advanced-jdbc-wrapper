@@ -63,7 +63,6 @@ public class AuroraStaleDnsHelper {
   public Connection getVerifiedConnection(
       final boolean isInitialConnection,
       final HostListProviderService hostListProviderService,
-      final String driverProtocol,
       final HostSpec hostSpec,
       final Properties props,
       final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
