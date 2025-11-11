@@ -1829,6 +1829,15 @@ public class AuroraTestUtility {
           default:
             throw new UnsupportedOperationException(databaseEngine.toString());
         }
+      case RDS_MULTI_AZ_INSTANCE:
+        switch (databaseEngine) {
+          case MYSQL:
+            return "SELECT @@server_id AS id";
+          case PG:
+            return "SELECT dbi_resource_id AS id FROM rds_tools.dbi_resource_id()";
+          default:
+            throw new UnsupportedOperationException(databaseEngine.toString());
+        }
       default:
         throw new UnsupportedOperationException(deployment.toString());
     }

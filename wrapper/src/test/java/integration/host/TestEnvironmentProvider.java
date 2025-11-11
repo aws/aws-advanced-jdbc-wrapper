@@ -112,8 +112,8 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
               // Multi-AZ clusters supports only 3 instances
               continue;
             }
-            if (deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE && numOfInstances != 1) {
-              // Multi-AZ Instances supports only 1 instance
+            if (deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE && numOfInstances > 2) {
+              // Multi-AZ Instances supports a maximum of 2 instances
               continue;
             }
 
