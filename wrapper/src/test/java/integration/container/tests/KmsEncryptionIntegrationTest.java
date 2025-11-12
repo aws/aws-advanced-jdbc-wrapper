@@ -157,6 +157,11 @@ public class KmsEncryptionIntegrationTest {
             + "ssn encrypted_data, "
             + "email VARCHAR(100))");
 
+        // Add trigger to validate HMAC on ssn column
+        stmt.execute("CREATE TRIGGER validate_ssn_hmac "
+            + "BEFORE INSERT OR UPDATE ON users "
+            + "FOR EACH ROW EXECUTE FUNCTION validate_encrypted_data_hmac('ssn')");
+
         logger.trace("Test setup completed");
 
         // Final verification that metadata exists

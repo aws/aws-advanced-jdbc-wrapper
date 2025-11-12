@@ -39,16 +39,7 @@ public class EncryptedDataTypeInstaller {
             stmt.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto");
             LOGGER.fine("pgcrypto extension enabled");
 
-            // Try to install as C extension
-            try {
-                stmt.execute("CREATE EXTENSION IF NOT EXISTS encrypted_data");
-                LOGGER.info("encrypted_data C extension installed successfully");
-                return;
-            } catch (SQLException e) {
-                LOGGER.warning("C extension not available, falling back to DOMAIN approach: " + e.getMessage());
-            }
-
-            // Fallback to DOMAIN-based implementation
+            // Use DOMAIN-based implementation
             String sql = loadSqlScript();
             stmt.execute(sql);
 

@@ -1,6 +1,0 @@
-# encrypted_data extension
-comment = 'Custom type for HMAC-verified encrypted data'
-default_version = '1.0'
-module_pathname = '$libdir/encrypted_data'
-relocatable = true
-requires = 'pgcrypto'

@@ -115,14 +115,9 @@ public class EncryptionService {
             byte[] encryptedData = buffer.array();
 
             // Generate HMAC using the separate HMAC key
-            LOGGER.info(() -> String.format("Encrypting: hmacKey length=%d, encryptedData length=%d", 
-                hmacKey != null ? hmacKey.length : 0, encryptedData.length));
-            
             Mac hmac = Mac.getInstance(HMAC_ALGORITHM);
             hmac.init(new SecretKeySpec(hmacKey, HMAC_ALGORITHM));
             byte[] hmacTag = hmac.doFinal(encryptedData);
-
-            LOGGER.info(() -> String.format("Generated HMAC: %s", bytesToHex(hmacTag).substring(0, 16)));
 
             // Prepend HMAC tag to encrypted data: [HMAC:32bytes][type:1byte][IV:12bytes][ciphertext]
             ByteBuffer finalBuffer = ByteBuffer.allocate(HMAC_TAG_LENGTH + encryptedData.length);
