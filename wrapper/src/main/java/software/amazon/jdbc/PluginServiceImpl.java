@@ -678,10 +678,13 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       return;
     }
 
+    updateHostListProvider();
+  }
+
+  protected void updateHostListProvider() throws SQLException {
     final HostListProvider provider =
         this.dialect.createHostListProvider(this.servicesContainer, this.props, this.originalUrl);
     this.setHostListProvider(provider);
-    // TODO: refreshHostList
     this.refreshHostList();
   }
 

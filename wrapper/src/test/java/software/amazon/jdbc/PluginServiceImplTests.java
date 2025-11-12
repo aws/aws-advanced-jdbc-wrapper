@@ -23,6 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.never;
@@ -758,7 +760,6 @@ public class PluginServiceImplTests {
     PluginServiceImpl.hostAvailabilityExpiringCache.put("hostB/", HostAvailability.NOT_AVAILABLE,
         PluginServiceImpl.DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO);
     when(hostListProvider.refresh()).thenReturn(newHostSpecs);
-    // when(hostListProvider.refresh(newConnection)).thenReturn(newHostSpecs2);
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
@@ -814,7 +815,7 @@ public class PluginServiceImplTests {
         PluginServiceImpl.DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO);
     PluginServiceImpl.hostAvailabilityExpiringCache.put("hostB/", HostAvailability.NOT_AVAILABLE,
         PluginServiceImpl.DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO);
-    when(hostListProvider.forceRefresh(eq(false), eq(0))).thenReturn(newHostSpecs);
+    when(hostListProvider.forceRefresh(anyBoolean(), anyLong())).thenReturn(newHostSpecs);
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
@@ -836,7 +837,6 @@ public class PluginServiceImplTests {
     PluginServiceImpl.hostAvailabilityExpiringCache.put("hostB/", HostAvailability.AVAILABLE,
         PluginServiceImpl.DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO);
     target.forceRefreshHostList();
-    // target.forceRefreshHostList(newConnection);
     assertEquals(expectedHostSpecs2, newHostSpecs);
   }
 
