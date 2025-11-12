@@ -57,7 +57,6 @@ public class HostMonitorServiceImpl implements HostMonitorService {
 
   public HostMonitorServiceImpl(final @NonNull FullServicesContainer serviceContainer, Properties props) {
     this.serviceContainer = serviceContainer;
-    // TODO: Can we get rid of the core monitor service class?
     this.coreMonitorService = serviceContainer.getMonitorService();
     this.pluginService = serviceContainer.getPluginService();
     this.telemetryFactory = serviceContainer.getTelemetryFactory();

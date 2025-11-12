@@ -284,7 +284,6 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
             }
 
             conn = this.pluginService.forceConnect(this.originalWriterHost, this.props);
-            // TODO: forceRefreshHostList
             this.pluginService.forceRefreshHostList();
             latestTopology = this.pluginService.getAllHosts();
           } catch (final SQLException exception) {
@@ -446,7 +445,6 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
 
       while (true) {
         try {
-          // TODO: forceRefreshHostList
           this.pluginService.forceRefreshHostList();
           final List<HostSpec> topology = this.pluginService.getAllHosts();
 

@@ -302,11 +302,9 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
         throw new SQLException(Messages.get("RdsHostListProvider.errorIdentifyConnection"));
       }
 
-      // TODO: refresh
       List<HostSpec> topology = this.refresh();
       boolean isForcedRefresh = false;
       if (topology == null) {
-        // TODO: forceRefresh
         topology = this.forceRefresh();
         isForcedRefresh = true;
       }
@@ -323,7 +321,6 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
           .orElse(null);
 
       if (foundHost == null && !isForcedRefresh) {
-        // TODO: forceRefresh
         topology = this.forceRefresh();
         if (topology == null) {
           return null;
