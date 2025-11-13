@@ -16,7 +16,6 @@
 
 package software.amazon.jdbc.util.storage;
 
-import java.util.Map;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public interface StorageService {
