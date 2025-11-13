@@ -77,6 +77,9 @@ public class ServiceUtility {
     pluginService.setHostListProvider(provider);
 
     pluginManager.initHostProvider(targetDriverProtocol, originalUrl, props, pluginService);
+    // This call initializes pluginService.allHosts with the stored topology if it exists or with the initial host spec
+    // if it doesn't exist. Plugins may require this information even before connecting.
+    pluginService.refreshHostList();
     return serviceContainer;
   }
 
