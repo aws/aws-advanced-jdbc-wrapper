@@ -91,9 +91,5 @@ public interface StorageService {
    */
   void clearAll();
 
-  // TODO: this is only called by the suggestedClusterId logic in RdsHostListProvider, which will be removed. This
-  //  method should potentially be removed at that point as well.
-  <K, V> @Nullable Map<K, V> getEntries(Class<V> itemClass);
-
   int size(Class<?> itemClass);
 }
