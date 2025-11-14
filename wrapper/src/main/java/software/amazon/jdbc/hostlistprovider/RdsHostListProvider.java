@@ -191,6 +191,12 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
     final List<HostSpec> storedHosts = this.getStoredTopology();
     if (storedHosts == null || forceUpdate) {
       // We need to re-fetch topology.
+      if (!this.pluginService.isDialectConfirmed()) {
+        // We need to confirm the dialect before creating a topology monitor so that it uses the correct SQL queries.
+        // We will return the original hosts parsed from the connections string until the dialect has been confirmed.
+        return new FetchTopologyResult(false, this.initialHostList);
+      }
+
       final List<HostSpec> hosts = this.queryForTopology();
       if (!Utils.isNullOrEmpty(hosts)) {
         this.servicesContainer.getStorageService().set(this.clusterId, new Topology(hosts));

@@ -156,6 +156,8 @@ public interface PluginService extends ExceptionHandler, Wrapper {
 
   boolean isInTransaction();
 
+  boolean isDialectConfirmed();
+
   HostListProvider getHostListProvider();
 
   void refreshHostList() throws SQLException;

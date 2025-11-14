@@ -79,6 +79,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected HostSpec currentHostSpec;
   protected HostSpec initialConnectionHostSpec;
   private boolean isInTransaction;
+  private boolean isDialectConfirmed;
   private final ExceptionManager exceptionManager;
   protected final @Nullable ExceptionHandler exceptionHandler;
   protected final DialectProvider dialectProvider;
@@ -479,6 +480,11 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
+  public boolean isDialectConfirmed() {
+    return this.isDialectConfirmed;
+  }
+
+  @Override
   public HostListProvider getHostListProvider() {
     return this.hostListProvider;
   }
@@ -674,6 +680,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
         this.originalUrl,
         this.initialConnectionHostSpec,
         connection);
+    this.isDialectConfirmed = true;
     if (originalDialect == this.dialect) {
       return;
     }

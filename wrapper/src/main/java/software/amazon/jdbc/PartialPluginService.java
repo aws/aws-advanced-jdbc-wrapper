@@ -357,6 +357,12 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
+  public boolean isDialectConfirmed() {
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"isDialectConfirmed"}));
+  }
+
+  @Override
   public void setInTransaction(final boolean inTransaction) {
     this.isInTransaction = inTransaction;
   }
