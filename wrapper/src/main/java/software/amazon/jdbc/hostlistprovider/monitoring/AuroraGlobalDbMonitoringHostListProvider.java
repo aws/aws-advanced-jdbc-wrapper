@@ -23,10 +23,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
-import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.AuroraGlobalDbHostListProvider;
 import software.amazon.jdbc.util.ConnectionUrlParser;
@@ -34,7 +32,6 @@ import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
-import software.amazon.jdbc.util.connection.ConnectionService;
 
 public class AuroraGlobalDbMonitoringHostListProvider extends MonitoringRdsHostListProvider {
 
