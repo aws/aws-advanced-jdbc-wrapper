@@ -26,6 +26,10 @@ public class DatabaseConnectionWithCacheExample {
   private static final long TEST_DURATION_MS = 16000; //Test duration for 16 seconds
   private static final String CACHE_CONNECTION_TIMEOUT = env.get("CACHE_CONNECTION_TIMEOUT"); //Set connection timeout in milliseconds
   private static final String CACHE_CONNECTION_POOL_SIZE = env.get("CACHE_CONNECTION_POOL_SIZE"); //Set connection pool size
+  // Failure handling configurations
+  private static final String FAIL_WHEN_CACHE_DOWN = env.get("FAIL_WHEN_CACHE_DOWN");
+  private static final String CACHE_IN_FLIGHT_WRITE_SIZE_LIMIT = env.get("CACHE_IN_FLIGHT_WRITE_SIZE_LIMIT");
+  private static final String CACHE_HEALTH_CHECK_IN_HEALTHY_STATE = env.get("CACHE_HEALTH_CHECK_IN_HEALTHY_STATE");
 
   public static void main(String[] args) throws SQLException {
     final Properties properties = new Properties();
@@ -44,11 +48,15 @@ public class DatabaseConnectionWithCacheExample {
     properties.setProperty("cacheUsername", CACHE_USERNAME);
     properties.setProperty("cacheIamRegion", CACHE_IAM_REGION);
     // If the cache server is authenticated with traditional username password
-    // properties.setProperty("cachePassword", PASSWORD);
+    // properties.setProperty("cachePassword", CACHE_PASSWORD);
     properties.setProperty("cacheUseSSL", CACHE_USE_SSL); // "true" or "false"
     properties.setProperty("wrapperLogUnclosedConnections", "true");
     properties.setProperty("cacheConnectionTimeout", CACHE_CONNECTION_TIMEOUT);
     properties.setProperty("cacheConnectionPoolSize", CACHE_CONNECTION_POOL_SIZE);
+    properties.setProperty("failWhenCacheDown", FAIL_WHEN_CACHE_DOWN);
+    properties.setProperty("cacheInFlightWriteSizeLimitBytes", CACHE_IN_FLIGHT_WRITE_SIZE_LIMIT);
+    properties.setProperty("cacheHealthCheckInHealthyState", CACHE_HEALTH_CHECK_IN_HEALTHY_STATE);
+
     String queryStr = "/*+ CACHE_PARAM(ttl=300s) */ select * from cinemas";
 
     // Create threads for concurrent connection testing
