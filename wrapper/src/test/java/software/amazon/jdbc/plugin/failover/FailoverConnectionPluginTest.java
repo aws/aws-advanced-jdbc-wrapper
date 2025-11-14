@@ -63,7 +63,6 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.SqlState;
-import software.amazon.jdbc.util.connection.ConnectionService;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -82,7 +81,6 @@ class FailoverConnectionPluginTest {
           .host("reader1").port(1234).role(HostRole.READER).build());
 
   @Mock FullServicesContainer mockContainer;
-  @Mock ConnectionService mockConnectionService;
   @Mock PluginService mockPluginService;
   @Mock Connection mockConnection;
   @Mock HostSpec mockHostSpec;
