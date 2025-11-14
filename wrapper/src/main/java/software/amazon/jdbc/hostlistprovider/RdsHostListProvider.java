@@ -152,7 +152,7 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
         this.servicesContainer,
         this.properties,
         (servicesContainer) -> new ClusterTopologyMonitorImpl(
-            this.servicesContainer,
+            servicesContainer,
             this.topologyUtils,
             this.clusterId,
             this.initialHostSpec,
