@@ -18,13 +18,13 @@ package software.amazon.jdbc.plugin;
 
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.ConnectionPluginFactory;
-import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.PluginFactory;
+import software.amazon.jdbc.util.FullServicesContainer;
 
-public class ExecutionTimeConnectionPluginFactory implements ConnectionPluginFactory {
+public class DriverMetaDataPluginFactory implements PluginFactory {
 
   @Override
-  public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
-    return new ExecutionTimeConnectionPlugin();
+  public ConnectionPlugin getInstance(FullServicesContainer servicesContainer, Properties props) {
+    return new DriverMetaDataConnectionPlugin(props);
   }
 }

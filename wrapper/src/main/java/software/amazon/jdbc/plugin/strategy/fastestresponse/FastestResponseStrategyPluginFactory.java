@@ -18,19 +18,10 @@ package software.amazon.jdbc.plugin.strategy.fastestresponse;
 
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.ServicesContainerPluginFactory;
+import software.amazon.jdbc.PluginFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.Messages;
 
-public class FastestResponseStrategyPluginFactory implements ServicesContainerPluginFactory {
-  @Override
-  public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
-    throw new UnsupportedOperationException(
-        Messages.get(
-            "ServicesContainerPluginFactory.servicesContainerRequired",
-            new Object[] {"FastestResponseStrategyPlugin"}));
-  }
+public class FastestResponseStrategyPluginFactory implements PluginFactory {
 
   @Override
   public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {

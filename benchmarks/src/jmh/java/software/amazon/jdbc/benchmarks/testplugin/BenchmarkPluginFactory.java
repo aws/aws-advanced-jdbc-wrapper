@@ -18,13 +18,13 @@ package software.amazon.jdbc.benchmarks.testplugin;
 
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.ConnectionPluginFactory;
-import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.PluginFactory;
+import software.amazon.jdbc.util.FullServicesContainer;
 
-public class BenchmarkPluginFactory implements ConnectionPluginFactory {
+public class BenchmarkPluginFactory implements PluginFactory {
 
   @Override
-  public ConnectionPlugin getInstance(PluginService pluginService, Properties props) {
+  public ConnectionPlugin getInstance(FullServicesContainer servicesContainer, Properties props) {
     return new BenchmarkPlugin();
   }
 }

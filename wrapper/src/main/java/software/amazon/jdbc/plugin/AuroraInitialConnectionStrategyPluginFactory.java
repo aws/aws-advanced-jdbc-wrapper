@@ -18,12 +18,13 @@ package software.amazon.jdbc.plugin;
 
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.ConnectionPluginFactory;
-import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.PluginFactory;
+import software.amazon.jdbc.util.FullServicesContainer;
 
-public class AuroraInitialConnectionStrategyPluginFactory implements ConnectionPluginFactory {
+public class AuroraInitialConnectionStrategyPluginFactory implements PluginFactory {
+
   @Override
-  public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
-    return new AuroraInitialConnectionStrategyPlugin(pluginService, props);
+  public ConnectionPlugin getInstance(FullServicesContainer servicesContainer, Properties props) {
+    return new AuroraInitialConnectionStrategyPlugin(servicesContainer.getPluginService(), props);
   }
 }

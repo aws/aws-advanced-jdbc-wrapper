@@ -19,15 +19,17 @@ package software.amazon.jdbc.plugin.federatedauth;
 import java.security.GeneralSecurityException;
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.ConnectionPluginFactory;
+import software.amazon.jdbc.PluginFactory;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
-public class FederatedAuthPluginFactory implements ConnectionPluginFactory {
+public class FederatedAuthPluginFactory implements PluginFactory {
 
   @Override
-  public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
+  public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
+    PluginService pluginService = servicesContainer.getPluginService();
     return new FederatedAuthPlugin(pluginService, getCredentialsProviderFactory(pluginService, props));
   }
 

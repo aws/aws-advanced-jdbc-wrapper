@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin;
+package software.amazon.jdbc.plugin.failover2;
 
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.ConnectionPluginFactory;
-import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.PluginFactory;
+import software.amazon.jdbc.util.FullServicesContainer;
 
-public class DriverMetaDataConnectionPluginFactory implements ConnectionPluginFactory {
+public class FailoverPluginFactory implements PluginFactory {
 
   @Override
-  public ConnectionPlugin getInstance(PluginService pluginService, Properties props) {
-    return new DriverMetaDataConnectionPlugin(props);
+  public ConnectionPlugin getInstance(FullServicesContainer servicesContainer, Properties props) {
+    return new FailoverConnectionPlugin(servicesContainer.getPluginService(), props);
   }
 }

@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.dev;
+package software.amazon.jdbc.plugin.limitless;
 
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.ConnectionPluginFactory;
-import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.PluginFactory;
+import software.amazon.jdbc.util.FullServicesContainer;
 
-public class DeveloperConnectionPluginFactory implements ConnectionPluginFactory {
+public class LimitlessPluginFactory implements PluginFactory {
 
   @Override
-  public ConnectionPlugin getInstance(PluginService pluginService, Properties props) {
-    return new DeveloperConnectionPlugin();
+  public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
+    return new LimitlessConnectionPlugin(servicesContainer, props);
   }
 }

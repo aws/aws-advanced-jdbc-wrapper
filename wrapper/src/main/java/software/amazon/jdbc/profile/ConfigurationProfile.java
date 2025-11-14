@@ -22,7 +22,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.jdbc.ConnectionPluginFactory;
+import software.amazon.jdbc.PluginFactory;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.authentication.AwsCredentialsProviderHandler;
 import software.amazon.jdbc.dialect.Dialect;
@@ -32,7 +32,7 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 public class ConfigurationProfile {
 
   private final @NonNull String name;
-  private final @Nullable List<Class<? extends ConnectionPluginFactory>> pluginFactories;
+  private final @Nullable List<Class<? extends PluginFactory>> pluginFactories;
   private final @Nullable Properties properties;
   private @Nullable Supplier<Dialect> dialectSupplier;
   private @Nullable Supplier<TargetDriverDialect> targetDriverDialectSupplier;
@@ -49,7 +49,7 @@ public class ConfigurationProfile {
   private final ReentrantLock lock = new ReentrantLock();
 
   ConfigurationProfile(final @NonNull String name,
-      @Nullable List<Class<? extends ConnectionPluginFactory>> pluginFactories,
+      @Nullable List<Class<? extends PluginFactory>> pluginFactories,
       @Nullable Properties properties,
       @Nullable Supplier<Dialect> dialectSupplier,
       @Nullable Supplier<TargetDriverDialect> targetDriverDialectSupplier,
@@ -68,7 +68,7 @@ public class ConfigurationProfile {
   }
 
   ConfigurationProfile(final @NonNull String name,
-      @Nullable List<Class<? extends ConnectionPluginFactory>> pluginFactories,
+      @Nullable List<Class<? extends PluginFactory>> pluginFactories,
       @Nullable Properties properties,
       @Nullable Dialect dialect,
       @Nullable TargetDriverDialect targetDriverDialect,
@@ -94,7 +94,7 @@ public class ConfigurationProfile {
     return this.properties;
   }
 
-  public @Nullable List<Class<? extends ConnectionPluginFactory>> getPluginFactories() {
+  public @Nullable List<Class<? extends PluginFactory>> getPluginFactories() {
     return this.pluginFactories;
   }
 

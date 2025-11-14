@@ -20,14 +20,10 @@ import java.util.Properties;
 import software.amazon.jdbc.util.FullServicesContainer;
 
 /**
- * A factory for plugins that utilizes a {@link FullServicesContainer}. This interface extends
- * {@link ConnectionPluginFactory} to provide additional flexibility in plugin instantiation while maintaining backward
- * compatibility.
- *
- * <p>Implementations of this interface can access all services in the {@link FullServicesContainer} when creating
- * connection plugins, rather than being limited to just the {@link PluginService}</p>
+ * Interface for plugin factories. This class implements ways to initialize a plugin.
  */
-public interface ServicesContainerPluginFactory extends ConnectionPluginFactory {
+public interface PluginFactory {
+
   /**
    * Get an instance of a {@link ConnectionPlugin}.
    *
