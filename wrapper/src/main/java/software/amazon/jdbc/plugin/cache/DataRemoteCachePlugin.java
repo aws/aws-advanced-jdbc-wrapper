@@ -93,7 +93,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     this.malformedHintCounter = telemetryFactory.createCounter("JdbcCacheMalformedQueryHint");
     this.cacheBypassCounter = telemetryFactory.createCounter("JdbcCacheBypassCount");
     this.maxCacheableQuerySize = CACHE_MAX_QUERY_SIZE.getInteger(properties);
-    this.cacheConnection = new CacheConnection(properties);
+    this.cacheConnection = new CacheConnection(properties, this.telemetryFactory);
     this.dbUserName = PropertyDefinition.USER.getString(properties);
   }
 
@@ -146,7 +146,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     }
   }
 
-  private ResultSet fetchResultSetFromCache(String queryStr) {
+  private ResultSet fetchResultSetFromCache(String queryStr) throws SQLException {
     if (cacheConnection == null) return null;
 
     String cacheQueryKey = getCacheQueryKey(queryStr);
@@ -253,6 +253,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
       final JdbcCallable<T, E> jdbcMethodFunc,
       final Object[] jdbcMethodArgs)
       throws E {
+
     if (resultClass != ResultSet.class) {
       return jdbcMethodFunc.call();
     }
@@ -286,7 +287,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
       cacheContext = telemetryFactory.openTelemetryContext(
           TELEMETRY_CACHE_LOOKUP, TelemetryTraceLevel.TOP_LEVEL);
       Exception cacheException = null;
-      try{
+      try {
         result = fetchResultSetFromCache(mainQuery);
         if (result == null) {
           // Cache miss. Need to fetch result from the database
@@ -297,14 +298,13 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
           LOGGER.finest("Got a cache hit for SQL: " + sql);
           // Cache hit. Return the cached result
           incrCounter(cacheHitCounter);
-          try {
-            result.beforeFirst();
-          } catch (final SQLException ex) {
-            cacheException = ex;
-            throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, ex);
-          }
+          result.beforeFirst();
           return resultClass.cast(result);
         }
+      } catch (final SQLException ex) {
+        // SQLException from readFromCache (failWhenCacheDown=true) or result.beforeFirst()
+        cacheException = ex;
+        throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, ex);
       } finally {
         if (cacheContext != null) {
           if (cacheException != null) {
