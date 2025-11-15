@@ -22,5 +22,6 @@ import software.amazon.jdbc.util.FullServicesContainer;
 @FunctionalInterface
 public interface BlueGreenProviderSupplier {
 
-  BlueGreenStatusProvider create(FullServicesContainer servicesContainer, Properties props, String bgdId);
+  BlueGreenStatusProvider create(
+      FullServicesContainer servicesContainer, Properties props, String bgdId, String clusterId);
 }

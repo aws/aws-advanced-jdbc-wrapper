@@ -24,6 +24,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -52,6 +53,7 @@ import software.amazon.jdbc.plugin.bluegreen.routing.SubstituteConnectRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.SuspendConnectRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.SuspendExecuteRouting;
 import software.amazon.jdbc.plugin.bluegreen.routing.SuspendUntilCorrespondingNodeFoundConnectRouting;
+import software.amazon.jdbc.plugin.efm.HostMonitorThreadContainer;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
@@ -59,6 +61,7 @@ import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.events.MonitorResetEvent;
 import software.amazon.jdbc.util.storage.StorageService;
 
 public class BlueGreenStatusProvider {
@@ -85,6 +88,7 @@ public class BlueGreenStatusProvider {
       "bgSwitchoverTimeoutMs", "180000", // 3min
       "Blue/Green Deployment switchover timeout (in msec).");
 
+  // TODO: deprecate it
   public static final AwsWrapperProperty BG_SUSPEND_NEW_BLUE_CONNECTIONS = new AwsWrapperProperty(
       "bgSuspendNewBlueConnections", "false",
       "Enables Blue/Green Deployment switchover to suspend new blue connection requests"
@@ -112,6 +116,8 @@ public class BlueGreenStatusProvider {
   protected boolean blueDnsUpdateCompleted = false;
   protected boolean greenDnsRemoved = false;
   protected boolean greenTopologyChanged = false;
+  protected AtomicBoolean monitorResetOnInProgressCompleted = new AtomicBoolean(false);
+  protected AtomicBoolean monitorResetOnTopologyCompleted = new AtomicBoolean(false);
   protected final AtomicBoolean allGreenNodesChangedName = new AtomicBoolean(false);
   protected long postStatusEndTimeNano = 0;
   protected final ReentrantLock processStatusLock = new ReentrantLock();
@@ -126,19 +132,22 @@ public class BlueGreenStatusProvider {
   protected final PluginService pluginService;
   protected final Properties props;
   protected final String bgdId;
+  protected final String clusterId;
   protected Map<String, PhaseTimeInfo> phaseTimeNano = new ConcurrentHashMap<>();
   protected final RdsUtils rdsUtils = new RdsUtils();
 
   public BlueGreenStatusProvider(
       final @NonNull FullServicesContainer servicesContainer,
       final @NonNull Properties props,
-      final @NonNull String bgdId) {
+      final @NonNull String bgdId,
+      final @NonNull String clusterId) {
 
     this.servicesContainer = servicesContainer;
     this.storageService = servicesContainer.getStorageService();
     this.pluginService = servicesContainer.getPluginService();
     this.props = props;
     this.bgdId = bgdId;
+    this.clusterId = clusterId;
 
     this.statusCheckIntervalMap.put(BlueGreenIntervalRate.BASELINE, BG_INTERVAL_BASELINE_MS.getLong(props));
     this.statusCheckIntervalMap.put(BlueGreenIntervalRate.INCREASED, BG_INTERVAL_INCREASED_MS.getLong(props));
@@ -191,6 +200,8 @@ public class BlueGreenStatusProvider {
 
     monitoringConnProperties.putIfAbsent(PropertyDefinition.CONNECT_TIMEOUT.name, DEFAULT_CONNECT_TIMEOUT_MS);
     monitoringConnProperties.putIfAbsent(PropertyDefinition.SOCKET_TIMEOUT.name, DEFAULT_SOCKET_TIMEOUT_MS);
+
+    monitoringConnProperties.put(BlueGreenConnectionPlugin.BG_SKIP_ROUTING_IN_FORCE_CONNECT, "true");
 
     return monitoringConnProperties;
   }
@@ -426,6 +437,7 @@ public class BlueGreenStatusProvider {
       case IN_PROGRESS:
         this.updateDnsFlags(role, interimStatus);
         this.summaryStatus = this.getStatusOfInProgress();
+        this.resetMonitors(this.monitorResetOnInProgressCompleted, "- start");
         break;
       case POST:
         this.updateDnsFlags(role, interimStatus);
@@ -509,6 +521,25 @@ public class BlueGreenStatusProvider {
       LOGGER.finest(() -> Messages.get("bgd.greenTopologyChanged", new Object[] {this.bgdId}));
       this.greenTopologyChanged = true;
       this.storeGreenTopologyChangeTime();
+      this.resetMonitors(this.monitorResetOnTopologyCompleted, "- green topology");
+    }
+  }
+
+  protected void resetMonitors(final AtomicBoolean monitorResetCompleted, final String eventName) {
+    if (monitorResetCompleted.compareAndSet(false, true)) {
+
+      final Set<String> blueEndpoints = this.summaryStatus.getRoleByHost().entrySet().stream()
+          .filter(x -> x.getValue() == BlueGreenRole.SOURCE)
+          .map(Entry::getKey)
+          .collect(Collectors.toSet());
+
+      // A special case for efm related monitors.
+      // TODO: remove this code as soon as efm1 monitors are migrated to MonitorService
+      HostMonitorThreadContainer.resetMonitors(blueEndpoints);
+
+      // Notify all monitors to reset if needed.
+      this.servicesContainer.getEventPublisher().publish(new MonitorResetEvent(this.clusterId, blueEndpoints));
+      this.storeMonitorResetTime(eventName);
     }
   }
 
@@ -683,17 +714,8 @@ public class BlueGreenStatusProvider {
       return this.getStatusOfCompleted();
     }
 
-    List<ConnectRouting> connectRouting;
-
-    if (this.suspendNewBlueConnectionsWhenInProgress) {
-      // All blue and green connect calls should be suspended.
-      connectRouting = new ArrayList<>();
-      connectRouting.add(new SuspendConnectRouting(null, BlueGreenRole.SOURCE, this.bgdId));
-    } else {
-      // If we're not suspending new connections then, at least, we need to use IP addresses.
-      connectRouting = this.addSubstituteBlueWithIpAddressConnectRouting();
-    }
-
+    List<ConnectRouting> connectRouting = new ArrayList<>();
+    connectRouting.add(new SuspendConnectRouting(null, BlueGreenRole.SOURCE, this.bgdId));
     connectRouting.add(new SuspendConnectRouting(null, BlueGreenRole.TARGET, this.bgdId));
 
     // All connect calls with IP address that belongs to blue or green node should be suspended.
@@ -901,7 +923,60 @@ public class BlueGreenStatusProvider {
           });
     }
 
-    if (!this.greenDnsRemoved) {
+    if (!this.greenTopologyChanged) {
+      // Green topology is not yet updated so different plugins may be misled and try to connect to green endpoint.
+      // Reroute green endpoints to IP addresses
+      this.roleByHost.entrySet().stream()
+          .filter(x -> x.getValue() == BlueGreenRole.TARGET)
+          .forEach(x -> {
+            final String greenHost = x.getKey();
+            final boolean isGreenHostInstance = rdsUtils.isRdsInstance(greenHost);
+            final String blueHost = rdsUtils.removeGreenInstancePrefix(greenHost);
+            BlueGreenInterimStatus interimStatus = this.interimStatuses[x.getValue().getValue()];
+
+            HostSpec blueHostSpec = interimStatus == null
+                ? this.hostSpecBuilder.host(blueHost).build()
+                : this.hostSpecBuilder.host(blueHost).port(interimStatus.port).build();
+            HostSpec greenHostSpec = interimStatus == null
+                ? this.hostSpecBuilder.host(greenHost).build()
+                : this.hostSpecBuilder.host(greenHost).port(interimStatus.port).build();
+
+            Optional<String> greenIp = this.hostIpAddresses.get(greenHost);
+            HostSpec greenHostSpecWithIp = greenIp == null || !greenIp.isPresent()
+                ? this.hostSpecBuilder.host(greenHost).build()
+                : (interimStatus == null
+                    ? this.hostSpecBuilder.host(greenIp.get()).build()
+                    : this.hostSpecBuilder.host(greenIp.get()).port(interimStatus.port).build());
+
+            // Check whether green host is already been connected with blue (no-prefixes) IAM host name.
+            List<HostSpec> iamHosts;
+            if (this.isAlreadySuccessfullyConnected(greenHost, greenHost)) {
+              // Green node has already changed its name, and it's not a new blue node (no prefixes).
+              iamHosts = Collections.singletonList(blueHostSpec);
+            } else {
+              // Green node isn't yet changed its name, so we need to try both possible IAM host options.
+              iamHosts = Arrays.asList(greenHostSpec, blueHostSpec);
+            }
+
+            connectRouting.add(new SubstituteConnectRouting(
+                greenHost,
+                x.getValue(),
+                greenHostSpecWithIp,
+                iamHosts,
+                isGreenHostInstance ? (iamHost) -> this.registerIamHost(greenHost, iamHost) : null));
+
+            if (interimStatus != null) {
+              connectRouting.add(new SubstituteConnectRouting(
+                  this.getHostAndPort(greenHost, interimStatus.port),
+                  x.getValue(),
+                  greenHostSpecWithIp,
+                  iamHosts,
+                  isGreenHostInstance ? (iamHost) -> this.registerIamHost(greenHost, iamHost) : null));
+            }
+          });
+
+    } else if (!this.greenDnsRemoved) {
+      // Green topology is already changed.
       // New connect calls to green endpoints should be rejected.
       connectRouting.add(new RejectConnectRouting(null, BlueGreenRole.TARGET));
     }
@@ -1019,6 +1094,12 @@ public class BlueGreenStatusProvider {
         new PhaseTimeInfo(Instant.now(), this.getNanoTime(), null));
   }
 
+  protected void storeMonitorResetTime(final String eventName) {
+    this.phaseTimeNano.putIfAbsent(
+        "Monitors reset " + eventName + (this.rollback ? " (rollback)" : ""),
+        new PhaseTimeInfo(Instant.now(), this.getNanoTime(), null));
+  }
+
   protected void logSwitchoverFinalSummary() {
     final boolean switchoverCompleted =
         (!this.rollback && this.summaryStatus.getCurrentPhase() == BlueGreenPhase.COMPLETED)
@@ -1031,28 +1112,35 @@ public class BlueGreenStatusProvider {
       return;
     }
 
+    final int maxEventNameLength = this.phaseTimeNano.keySet().stream()
+        .map(x -> x.length() + 5)
+        .max(Comparator.comparingInt(x -> x))
+        .orElse(31);
+
     BlueGreenPhase timeZeroPhase = this.rollback ? BlueGreenPhase.PREPARATION : BlueGreenPhase.IN_PROGRESS;
     String timeZeroKey = this.rollback ? timeZeroPhase.name() + " (rollback)" : timeZeroPhase.name();
     PhaseTimeInfo timeZero = this.phaseTimeNano.get(timeZeroKey);
-    String divider = "----------------------------------------------------------------------------------\n";
+    String divider = "---------------------------------------------------"
+        + new String(new char[maxEventNameLength]).replace('\0', '-')
+        + "\n";
 
     String logMessage =
         String.format("[bgdId: '%s']", this.bgdId)
         + "\n" + divider
-        + String.format("%-28s %21s %31s\n",
+        + String.format("%-28s %21s %" + maxEventNameLength + "s\n",
         "timestamp",
         "time offset (ms)",
         "event")
         + divider
         + this.phaseTimeNano.entrySet().stream()
         .sorted(Comparator.comparing(y -> y.getValue().timestampNano))
-        .map(x -> String.format("%28s %18s ms %31s",
+        .map(x -> String.format("%28s %18s ms %" + maxEventNameLength + "s",
             x.getValue().timestamp,
             timeZero == null ? "" : TimeUnit.NANOSECONDS.toMillis(x.getValue().timestampNano - timeZero.timestampNano),
             x.getKey()))
         .collect(Collectors.joining("\n"))
         + "\n" + divider;
-    LOGGER.fine(logMessage);
+    LOGGER.info(logMessage);
   }
 
   protected void resetContextWhenCompleted() {
@@ -1082,6 +1170,8 @@ public class BlueGreenStatusProvider {
       this.roleByHost.clear();
       this.iamHostSuccessfulConnects.clear();
       this.greenNodeChangeNameTimes.clear();
+      this.monitorResetOnInProgressCompleted.set(false);
+      this.monitorResetOnTopologyCompleted.set(false);
     }
   }
 

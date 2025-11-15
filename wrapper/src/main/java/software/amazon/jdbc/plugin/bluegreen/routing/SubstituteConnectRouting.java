@@ -61,17 +61,26 @@ public class SubstituteConnectRouting extends BaseConnectRouting {
 
   @Override
   public Connection apply(ConnectionPlugin plugin, HostSpec hostSpec, Properties props, boolean isInitialConnection,
-      JdbcCallable<Connection, SQLException> connectFunc, StorageService storageService, PluginService pluginService)
+      boolean useForceConnect, JdbcCallable<Connection, SQLException> connectFunc,
+      StorageService storageService, PluginService pluginService)
       throws SQLException {
 
     if (!RDS_UTILS.isIP(this.substituteHostSpec.getHost())) {
-      return pluginService.connect(this.substituteHostSpec, props, plugin);
+      if (useForceConnect) {
+        return pluginService.forceConnect(this.substituteHostSpec, props, plugin);
+      } else {
+        return pluginService.connect(this.substituteHostSpec, props, plugin);
+      }
     }
 
     boolean iamInUse = pluginService.isPluginInUse(IamAuthConnectionPlugin.class);
 
     if (!iamInUse) {
-      return pluginService.connect(this.substituteHostSpec, props, plugin);
+      if (useForceConnect) {
+        return pluginService.forceConnect(this.substituteHostSpec, props, plugin);
+      } else {
+        return pluginService.connect(this.substituteHostSpec, props, plugin);
+      }
     }
 
     if (Utils.isNullOrEmpty(this.iamHosts)) {
@@ -79,7 +88,8 @@ public class SubstituteConnectRouting extends BaseConnectRouting {
     }
 
     for (HostSpec iamHost : this.iamHosts) {
-      HostSpec reroutedHostSpec = pluginService.getHostSpecBuilder().copyFrom(this.substituteHostSpec)
+      HostSpec reroutedHostSpec = pluginService.getHostSpecBuilder()
+          .copyFrom(this.substituteHostSpec)
           .hostId(iamHost.getHostId())
           .availability(HostAvailability.AVAILABLE)
           .build();
@@ -92,7 +102,12 @@ public class SubstituteConnectRouting extends BaseConnectRouting {
       }
 
       try {
-        Connection conn = pluginService.connect(reroutedHostSpec, rerouteProperties);
+        Connection conn;
+        if (useForceConnect) {
+          conn = pluginService.forceConnect(reroutedHostSpec, rerouteProperties);
+        } else {
+          conn = pluginService.connect(reroutedHostSpec, rerouteProperties);
+        }
 
         if (this.iamSuccessfulConnectNotify != null) {
           try {
