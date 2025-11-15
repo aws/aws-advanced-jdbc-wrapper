@@ -22,6 +22,7 @@ import java.util.Properties;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -68,7 +69,7 @@ public class HostMonitorImpl implements HostMonitor {
   private final long monitorDisposalTimeMillis;
   private volatile long contextLastUsedTimestampNano;
   private volatile boolean stopped = false;
-  private Connection monitoringConn = null;
+  private final AtomicReference<Connection> monitoringConn = new AtomicReference<>(null);
   private long nodeCheckTimeoutMillis = MIN_CONNECTION_CHECK_TIMEOUT_MILLIS;
 
   private final TelemetryGauge contextsSizeGauge;
@@ -178,8 +179,8 @@ public class HostMonitorImpl implements HostMonitor {
           }
 
           if (!this.activeContexts.isEmpty()
-              || this.monitoringConn == null
-              || this.monitoringConn.isClosed()) {
+              || this.monitoringConn.get() == null
+              || this.monitoringConn.get().isClosed()) {
 
             final long statusCheckStartTimeNano = this.getCurrentTimeNano();
             this.contextLastUsedTimestampNano = statusCheckStartTimeNano;
@@ -286,13 +287,7 @@ public class HostMonitorImpl implements HostMonitor {
     } finally {
       threadContainer.releaseResource(this);
       this.stopped = true;
-      if (this.monitoringConn != null) {
-        try {
-          this.monitoringConn.close();
-        } catch (final SQLException ex) {
-          // ignore
-        }
-      }
+      this.closeConnection();
     }
 
     LOGGER.finest(() -> Messages.get(
@@ -319,7 +314,7 @@ public class HostMonitorImpl implements HostMonitor {
 
     long startNano = this.getCurrentTimeNano();
     try {
-      if (this.monitoringConn == null || this.monitoringConn.isClosed()) {
+      if (this.monitoringConn.get() == null || this.monitoringConn.get().isClosed()) {
         // open a new connection
         final Properties monitoringConnProperties = PropertyUtils.copyProperties(this.properties);
 
@@ -336,15 +331,15 @@ public class HostMonitorImpl implements HostMonitor {
         LOGGER.finest(() -> "Opening a monitoring connection to " + this.hostSpec.getUrl());
         startNano = this.getCurrentTimeNano();
         // TODO: replace with ConnectionService#open
-        this.monitoringConn = this.pluginService.forceConnect(this.hostSpec, monitoringConnProperties);
-        LOGGER.finest(() -> "Opened monitoring connection: " + this.monitoringConn);
+        this.monitoringConn.set(this.pluginService.forceConnect(this.hostSpec, monitoringConnProperties));
+        LOGGER.finest(() -> "Opened monitoring connection: " + this.monitoringConn.get());
         return new ConnectionStatus(true, this.getCurrentTimeNano() - startNano);
       }
 
       startNano = this.getCurrentTimeNano();
       // Some drivers, like MySQL Connector/J, execute isValid() in a double of specified timeout time.
       // TODO: fix me. Need to find a better solution to double timeout issue.
-      final boolean isValid = this.monitoringConn.isValid(
+      final boolean isValid = this.monitoringConn.get().isValid(
           (int) TimeUnit.MILLISECONDS.toSeconds(shortestFailureDetectionIntervalMillis) / 2);
       if (!isValid) {
         if (this.nodeInvalidCounter != null) {
@@ -384,5 +379,22 @@ public class HostMonitorImpl implements HostMonitor {
    */
   protected void sleep(long duration) throws InterruptedException {
     TimeUnit.MILLISECONDS.sleep(duration);
+  }
+
+  protected void closeConnection() {
+    final Connection conn = this.monitoringConn.getAndSet(null);
+    if (conn != null) {
+      try {
+        conn.close();
+      } catch (final SQLException ex) {
+        // ignore
+      }
+    }
+  }
+
+  @Override
+  public void reset() {
+    LOGGER.finest("Reset: " + this.hostSpec.getHost());
+    this.closeConnection();
   }
 }

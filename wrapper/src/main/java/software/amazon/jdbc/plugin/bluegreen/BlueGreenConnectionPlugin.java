@@ -73,6 +73,8 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
     PropertyDefinition.registerPluginProperties(BlueGreenConnectionPlugin.class);
   }
 
+  protected static final String BG_SKIP_ROUTING_IN_FORCE_CONNECT = "3a864d24-568f-4b55-a227-6f649ae3021a";
+
   protected final FullServicesContainer servicesContainer;
   protected final StorageService storageService;
   protected final PluginService pluginService;
@@ -84,6 +86,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
   protected BlueGreenStatus bgStatus = null;
   protected String bgdId;
+  protected String clusterId;
 
   protected boolean isIamInUse = false;
 
@@ -115,6 +118,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
     // We should NOT subscribe to "forceConnect" pipeline since it's used by
     // BG monitoring, and we don't want to intercept/block those monitoring connections.
     methods.add(JdbcMethod.CONNECT.methodName);
+    methods.add(JdbcMethod.FORCECONNECT.methodName);
     methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.props));
     this.subscribedMethods = Collections.unmodifiableSet(methods);
   }
@@ -125,11 +129,40 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   @Override
+  public Connection forceConnect(
+      final String driverProtocol,
+      final HostSpec hostSpec,
+      final Properties props,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> connectFunc)
+      throws SQLException {
+
+    if (props.containsKey(BG_SKIP_ROUTING_IN_FORCE_CONNECT)) {
+      return connectFunc.call();
+    }
+
+    return this.connectInternal(
+        driverProtocol, hostSpec, props, isInitialConnection, true, connectFunc);
+  }
+
+  @Override
   public Connection connect(
       final String driverProtocol,
       final HostSpec hostSpec,
       final Properties props,
       final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> connectFunc)
+      throws SQLException {
+    return this.connectInternal(
+        driverProtocol, hostSpec, props, isInitialConnection, false, connectFunc);
+  }
+
+  protected Connection connectInternal(
+      final String driverProtocol,
+      final HostSpec hostSpec,
+      final Properties props,
+      final boolean isInitialConnection,
+      final boolean useForceConnect,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
@@ -140,7 +173,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
       this.bgStatus = this.storageService.get(BlueGreenStatus.class, this.bgdId);
 
       if (this.bgStatus == null) {
-        return regularOpenConnection(connectFunc, isInitialConnection);
+        return regularOpenConnection(connectFunc, isInitialConnection, useForceConnect);
       }
 
       if (isInitialConnection) {
@@ -151,7 +184,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
       if (hostRole == null) {
         // Connection to a host that isn't participating in BG switchover.
-        return regularOpenConnection(connectFunc, isInitialConnection);
+        return regularOpenConnection(connectFunc, isInitialConnection, useForceConnect);
       }
 
       Connection conn = null;
@@ -161,7 +194,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
           .orElse(null);
 
       if (routing == null) {
-        return regularOpenConnection(connectFunc, isInitialConnection);
+        return regularOpenConnection(connectFunc, isInitialConnection, useForceConnect);
       }
 
       this.startTimeNano.set(this.getNanoTime());
@@ -172,6 +205,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
             hostSpec,
             props,
             isInitialConnection,
+            useForceConnect,
             connectFunc,
             this.storageService,
             this.pluginService);
@@ -180,7 +214,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
           this.bgStatus = this.storageService.get(BlueGreenStatus.class, this.bgdId);
           if (this.bgStatus == null) {
             this.endTimeNano.set(this.getNanoTime());
-            return regularOpenConnection(connectFunc, isInitialConnection);
+            return regularOpenConnection(connectFunc, isInitialConnection, useForceConnect);
           }
 
           routing = this.bgStatus.getConnectRouting().stream()
@@ -196,7 +230,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
         conn = connectFunc.call();
       }
 
-      if (isInitialConnection) {
+      if (isInitialConnection && !useForceConnect) {
         // Provider should be initialized after connection is open and a dialect is properly identified.
         this.initProvider();
       }
@@ -212,11 +246,11 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
   protected Connection regularOpenConnection(
       final JdbcCallable<Connection, SQLException> connectFunc,
-      final boolean isInitialConnection) throws SQLException {
+      final boolean isInitialConnection, final boolean useForceConnect) throws SQLException {
 
     Connection conn = connectFunc.call();
 
-    if (isInitialConnection) {
+    if (isInitialConnection && !useForceConnect) {
       // Provider should be initialized after connection is open and a dialect is properly identified.
       this.initProvider();
     }
@@ -313,8 +347,14 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   protected void initProvider() {
+    try {
+      this.clusterId = this.pluginService.getHostListProvider().getClusterId();
+    } catch (SQLException ex) {
+      throw new RuntimeException(ex);
+    }
+
     provider.computeIfAbsent(this.bgdId,
-        (key) -> this.providerSupplier.create(this.servicesContainer, this.props, this.bgdId));
+        (key) -> this.providerSupplier.create(this.servicesContainer, this.props, this.bgdId, this.clusterId));
   }
 
   // For testing purposes

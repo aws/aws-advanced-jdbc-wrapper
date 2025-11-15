@@ -55,6 +55,7 @@ import software.amazon.jdbc.util.ServiceUtility;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
@@ -75,6 +76,7 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
   private final ConnectionUrlParser urlParser = new ConnectionUrlParser();
   private final StorageService storageService;
   private final MonitorService monitorService;
+  private final EventPublisher eventPublisher;
 
   static {
     try {
@@ -105,6 +107,7 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
   public AwsWrapperDataSource(CoreServicesContainer coreServicesContainer) {
     this.storageService = coreServicesContainer.getStorageService();
     this.monitorService = coreServicesContainer.getMonitorService();
+    this.eventPublisher = coreServicesContainer.getEventPublisher();
   }
 
   @Override
@@ -284,8 +287,9 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
       final TelemetryFactory telemetryFactory) throws SQLException {
     String targetProtocol = this.urlParser.getProtocol(url);
     FullServicesContainer servicesContainer = ServiceUtility.getInstance().createStandardServiceContainer(
-        storageService,
-        monitorService,
+        this.storageService,
+        this.monitorService,
+        this.eventPublisher,
         defaultProvider,
         effectiveProvider,
         telemetryFactory,

@@ -87,7 +87,7 @@ class LimitlessRouterServiceImplTest {
 
     this.storageService = new StorageServiceImpl(mockEventPublisher);
     servicesContainer = new FullServicesContainerImpl(
-        this.storageService, mockMonitorService, mockConnectionProvider, mockTelemetryFactory);
+        this.storageService, mockMonitorService, mockEventPublisher, mockConnectionProvider, mockTelemetryFactory);
     servicesContainer.setPluginService(mockPluginService);
   }
 

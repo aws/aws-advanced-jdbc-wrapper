@@ -35,4 +35,6 @@ public interface HostMonitor extends Runnable {
    * @return true if the monitoring has stopped; false otherwise.
    */
   boolean isStopped();
+
+  void reset();
 }

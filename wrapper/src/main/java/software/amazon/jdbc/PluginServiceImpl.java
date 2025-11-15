@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -759,7 +760,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       }
     } catch (final SQLException sqlException) {
       // log and ignore
-      LOGGER.finest(() -> Messages.get("PluginServiceImpl.failedToRetrieveHostPort"));
+      LOGGER.log(Level.FINEST, sqlException, () -> Messages.get("PluginServiceImpl.failedToRetrieveHostPort"));
     }
 
     // Add the instance endpoint if the current connection is associated with a topology aware database cluster.

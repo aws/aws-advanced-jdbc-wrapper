@@ -37,7 +37,6 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
   protected final AtomicLong lastActivityTimestampNanos = new AtomicLong();
   protected final AtomicReference<MonitorState> state = new AtomicReference<>();
 
-
   protected AbstractMonitor(long terminationTimeoutSec) {
     this.terminationTimeoutSec.set(terminationTimeoutSec);
     this.monitorExecutor = ExecutorFactory.newSingleThreadExecutor(getMonitorNameSuffix());

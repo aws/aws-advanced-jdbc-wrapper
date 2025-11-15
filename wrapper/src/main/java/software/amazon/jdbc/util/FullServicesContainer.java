@@ -21,6 +21,7 @@ import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -37,6 +38,8 @@ public interface FullServicesContainer {
 
   MonitorService getMonitorService();
 
+  EventPublisher getEventPublisher();
+
   ConnectionProvider getDefaultConnectionProvider();
 
   TelemetryFactory getTelemetryFactory();
@@ -52,6 +55,8 @@ public interface FullServicesContainer {
   void setMonitorService(MonitorService monitorService);
 
   void setStorageService(StorageService storageService);
+
+  void setEventPublisher(EventPublisher eventPublisher);
 
   void setTelemetryFactory(TelemetryFactory telemetryFactory);
 

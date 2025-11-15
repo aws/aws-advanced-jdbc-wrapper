@@ -29,6 +29,7 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.FullServicesContainerImpl;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -55,6 +56,7 @@ public class ConnectionServiceImpl implements ConnectionService {
   public ConnectionServiceImpl(
       StorageService storageService,
       MonitorService monitorService,
+      EventPublisher eventPublisher,
       TelemetryFactory telemetryFactory,
       ConnectionProvider connectionProvider,
       String originalUrl,
@@ -65,8 +67,10 @@ public class ConnectionServiceImpl implements ConnectionService {
     this.targetDriverProtocol = targetDriverProtocol;
 
     FullServicesContainer servicesContainer =
-        new FullServicesContainerImpl(storageService, monitorService, connectionProvider, telemetryFactory);
-    this.pluginManager = new ConnectionPluginManager(props, telemetryFactory, connectionProvider, null);
+        new FullServicesContainerImpl(
+            storageService, monitorService, eventPublisher, connectionProvider, telemetryFactory);
+    this.pluginManager = new ConnectionPluginManager(
+        props, telemetryFactory, connectionProvider, null);
     servicesContainer.setConnectionPluginManager(this.pluginManager);
 
     Properties propsCopy = PropertyUtils.copyProperties(props);

@@ -63,14 +63,18 @@ public class BatchingEventPublisher implements EventPublisher {
     while (iterator.hasNext()) {
       Event event = iterator.next();
       iterator.remove();
-      Set<EventSubscriber> subscribers = subscribersMap.get(event.getClass());
-      if (subscribers == null) {
-        continue;
-      }
+      this.deliverEvent(event);
+    }
+  }
 
-      for (EventSubscriber subscriber : subscribers) {
-        subscriber.processEvent(event);
-      }
+  protected void deliverEvent(Event event) {
+    Set<EventSubscriber> subscribers = subscribersMap.get(event.getClass());
+    if (subscribers == null) {
+      return;
+    }
+
+    for (EventSubscriber subscriber : subscribers) {
+      subscriber.processEvent(event);
     }
   }
 
@@ -95,6 +99,10 @@ public class BatchingEventPublisher implements EventPublisher {
 
   @Override
   public void publish(Event event) {
-    eventMessages.add(event);
+    if (event.isImmediateDelivery()) {
+      this.deliverEvent(event);
+    } else {
+      eventMessages.add(event);
+    }
   }
 }

@@ -101,11 +101,7 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
 
   @Override
   protected List<HostSpec> queryForTopology(final Connection conn) throws SQLException {
-    ClusterTopologyMonitor monitor = this.servicesContainer.getMonitorService()
-        .get(ClusterTopologyMonitorImpl.class, this.clusterId);
-    if (monitor == null) {
-      monitor = this.initMonitor();
-    }
+    ClusterTopologyMonitor monitor = this.initMonitor();
 
     try {
       return monitor.forceRefresh(conn, defaultTopologyQueryTimeoutMs);

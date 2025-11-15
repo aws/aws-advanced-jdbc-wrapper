@@ -186,6 +186,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
         monitorClass,
         key,
         servicesContainer.getStorageService(),
+        servicesContainer.getEventPublisher(),
         servicesContainer.getTelemetryFactory(),
         servicesContainer.getDefaultConnectionProvider(),
         servicesContainer.getPluginService().getOriginalUrl(),
@@ -202,6 +203,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       Class<T> monitorClass,
       Object key,
       StorageService storageService,
+      EventPublisher eventPublisher,
       TelemetryFactory telemetryFactory,
       ConnectionProvider defaultConnectionProvider,
       String originalUrl,
@@ -228,6 +230,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       try {
         final FullServicesContainer servicesContainer = newServicesContainer(
             storageService,
+            eventPublisher,
             defaultConnectionProvider,
             telemetryFactory,
             originalUrl,
@@ -259,6 +262,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
 
   protected FullServicesContainer newServicesContainer(
       StorageService storageService,
+      EventPublisher eventPublisher,
       ConnectionProvider connectionProvider,
       TelemetryFactory telemetryFactory,
       String originalUrl,
@@ -270,6 +274,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
     return ServiceUtility.getInstance().createMinimalServiceContainer(
         storageService,
         this,
+        eventPublisher,
         connectionProvider,
         telemetryFactory,
         originalUrl,
@@ -366,20 +371,29 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
 
   @Override
   public void processEvent(Event event) {
-    if (!(event instanceof DataAccessEvent)) {
+    if (event instanceof DataAccessEvent) {
+      DataAccessEvent accessEvent = (DataAccessEvent) event;
+      for (CacheContainer container : this.monitorCaches.values()) {
+        if (container.getProducedDataClass() == null
+            || !accessEvent.getDataClass().equals(container.getProducedDataClass())) {
+          continue;
+        }
+
+        // The data produced by the monitor in this cache with this key has been accessed recently, so we extend the
+        // monitor's expiration.
+        container.getCache().extendExpiration(accessEvent.getKey());
+      }
       return;
     }
 
-    DataAccessEvent accessEvent = (DataAccessEvent) event;
-    for (CacheContainer container : monitorCaches.values()) {
-      if (container.getProducedDataClass() == null
-          || !accessEvent.getDataClass().equals(container.getProducedDataClass())) {
-        continue;
+    // Other event types should be propagated to monitors
+    for (CacheContainer container : this.monitorCaches.values()) {
+      for (MonitorItem item : container.getCache().getEntries().values()) {
+        final Monitor monitor = item.getMonitor();
+        if (monitor instanceof EventSubscriber) {
+          ((EventSubscriber) monitor).processEvent(event);
+        }
       }
-
-      // The data produced by the monitor in this cache with this key has been accessed recently, so we extend the
-      // monitor's expiration.
-      container.getCache().extendExpiration(accessEvent.getKey());
     }
   }
 

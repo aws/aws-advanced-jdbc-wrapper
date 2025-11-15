@@ -24,6 +24,7 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -56,6 +57,8 @@ import software.amazon.jdbc.util.ServiceUtility;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.events.Event;
+import software.amazon.jdbc.util.events.MonitorResetEvent;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
 
 public class ClusterTopologyMonitorImpl extends AbstractMonitor implements ClusterTopologyMonitor {
@@ -267,6 +270,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     this.closeConnection(this.monitoringConnection.get());
     this.closeConnection(this.nodeThreadsWriterConnection.get());
     this.closeConnection(this.nodeThreadsReaderConnection.get());
+    this.servicesContainer.getEventPublisher().unsubscribe(
+        this, Collections.singleton(MonitorResetEvent.class));
   }
 
   @Override
@@ -275,6 +280,9 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       LOGGER.finest(() -> Messages.get(
           "ClusterTopologyMonitorImpl.startMonitoringThread",
           new Object[]{this.clusterId, this.initialHostSpec.getHost()}));
+
+      this.servicesContainer.getEventPublisher().subscribe(
+          this, Collections.singleton(MonitorResetEvent.class));
 
       while (!this.stop.get() && !Thread.currentThread().isInterrupted()) {
         this.lastActivityTimestampNanos.set(System.nanoTime());
@@ -450,9 +458,61 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       this.monitoringConnection.set(null);
       this.closeConnection(conn);
 
+      this.servicesContainer.getEventPublisher().unsubscribe(
+          this, Collections.singleton(MonitorResetEvent.class));
+
+
       LOGGER.finest(() -> Messages.get(
           "ClusterTopologyMonitorImpl.stopMonitoringThread",
           new Object[]{this.initialHostSpec.getHost()}));
+    }
+  }
+
+  protected void reset() {
+    LOGGER.finest(
+        String.format("Reset: clusterId=%s, host=%s", this.clusterId, this.initialHostSpec.getHost()));
+
+    this.nodeThreadsStop.set(true);
+    this.shutdownNodeExecutorService();
+    this.nodeThreadsStop.set(false);
+    this.submittedNodes.clear();
+    this.createNodeExecutorService();
+
+    this.nodeThreadsWriterConnection.set(null);
+    this.nodeThreadsWriterHostSpec.set(null);
+    this.nodeThreadsReaderConnection.set(null);
+    this.nodeThreadsLatestTopology.set(null);
+
+    Connection monitoringConnection = null;
+    try {
+      monitoringConnection = this.monitoringConnection.get();
+      this.monitoringConnection.set(null);
+      this.isVerifiedWriterConnection = false;
+      this.writerHostSpec.set(null);
+      this.highRefreshRateEndTimeNano = 0;
+      this.requestToUpdateTopology.set(false);
+      this.ignoreNewTopologyRequestsEndTimeNano.set(-1);
+    } finally {
+      this.closeConnection(monitoringConnection);
+    }
+
+    this.clearTopologyCache();
+
+    // It breaks a waiting/sleeping cycles in monitoring thread
+    synchronized (this.requestToUpdateTopology) {
+      this.requestToUpdateTopology.set(true);
+      this.requestToUpdateTopology.notifyAll();
+    }
+  }
+
+  @Override
+  public void processEvent(Event event) {
+    if (event instanceof MonitorResetEvent) {
+      LOGGER.finest("MonitorResetEvent received");
+      final MonitorResetEvent resetEvent = (MonitorResetEvent) event;
+      if (resetEvent.getClusterId().equals(this.clusterId)) {
+        this.reset();
+      }
     }
   }
 
@@ -648,6 +708,18 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected void updateTopologyCache(final @NonNull List<HostSpec> hosts) {
     synchronized (this.requestToUpdateTopology) {
       this.servicesContainer.getStorageService().set(this.clusterId, new Topology(hosts));
+      synchronized (this.topologyUpdated) {
+        this.requestToUpdateTopology.set(false);
+
+        // Notify all threads that are waiting for a topology update.
+        this.topologyUpdated.notifyAll();
+      }
+    }
+  }
+
+  protected void clearTopologyCache() {
+    synchronized (this.requestToUpdateTopology) {
+      this.servicesContainer.getStorageService().remove(Topology.class, this.clusterId);
       synchronized (this.topologyUpdated) {
         this.requestToUpdateTopology.set(false);
 
@@ -923,6 +995,9 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
         }
       } catch (InterruptedException ex) {
         Thread.currentThread().interrupt();
+      } catch (Exception ex) {
+        LOGGER.log(Level.SEVERE, ex, () -> Messages.get("NodeMonitoringThread.unhandledException"));
+        throw ex;
       } finally {
         this.monitor.closeConnection(connection);
         final long end = System.nanoTime();
