@@ -41,8 +41,6 @@ public class PgDialect implements Dialect {
   protected static final String HOST_ALIAS_QUERY =
       "SELECT pg_catalog.CONCAT(pg_catalog.inet_server_addr(), ':', pg_catalog.inet_server_port())";
 
-  protected static final DialectUtils dialectUtils = new DialectUtils();
-
   private static PgExceptionHandler pgExceptionHandler;
   private static final EnumSet<FailoverRestriction> NO_FAILOVER_RESTRICTIONS =
       EnumSet.noneOf(FailoverRestriction.class);
@@ -51,6 +49,8 @@ public class PgDialect implements Dialect {
       DialectCodes.AURORA_PG,
       DialectCodes.RDS_MULTI_AZ_PG_CLUSTER,
       DialectCodes.RDS_PG);
+
+  protected final DialectUtils dialectUtils = new DialectUtils();
 
   @Override
   public boolean isDialect(final Connection connection) {
