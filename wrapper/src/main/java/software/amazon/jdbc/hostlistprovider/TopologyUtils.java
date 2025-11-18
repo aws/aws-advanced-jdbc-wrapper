@@ -124,7 +124,6 @@ public abstract class TopologyUtils {
 
     int writerCount = writers.size();
     if (writerCount == 0) {
-      LOGGER.warning(() -> Messages.get("TopologyUtils.invalidTopology"));
       return null;
     } else if (writerCount == 1) {
       hosts.add(writers.get(0));
