@@ -43,6 +43,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jetbrains.annotations.NotNull;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
@@ -181,10 +182,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     }
 
     if (shouldVerifyWriter) {
-      final Connection monitoringConnection = this.monitoringConnection.get();
-      this.monitoringConnection.set(null);
+      this.closeConnection(this.monitoringConnection);
       this.isVerifiedWriterConnection = false;
-      this.closeConnection(monitoringConnection);
     }
 
     return this.waitTillTopologyGetsUpdated(timeoutMs);
@@ -267,9 +266,9 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
   @Override
   public void close() {
-    this.closeConnection(this.monitoringConnection.get());
-    this.closeConnection(this.nodeThreadsWriterConnection.get());
-    this.closeConnection(this.nodeThreadsReaderConnection.get());
+    this.closeConnection(this.monitoringConnection);
+    this.closeConnection(this.nodeThreadsWriterConnection);
+    this.closeConnection(this.nodeThreadsReaderConnection);
     this.servicesContainer.getEventPublisher().unsubscribe(
         this, Collections.singleton(MonitorResetEvent.class));
   }
@@ -347,7 +346,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
                       "ClusterTopologyMonitorImpl.writerPickedUpFromNodeMonitors",
                       new Object[]{writerConnectionHostSpec}));
 
-              this.closeConnection(this.monitoringConnection.get());
+              this.closeConnection(this.monitoringConnection);
               this.monitoringConnection.set(writerConnection);
               this.writerHostSpec.set(writerConnectionHostSpec);
               this.isVerifiedWriterConnection = true;
@@ -410,10 +409,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
           if (hosts == null) {
             // can't get topology
             // let's switch to panic mode
-            Connection conn = this.monitoringConnection.get();
-            this.monitoringConnection.set(null);
+            this.closeConnection(this.monitoringConnection);
             this.isVerifiedWriterConnection = false;
-            this.closeConnection(conn);
             continue;
           }
 
@@ -461,7 +458,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       this.servicesContainer.getEventPublisher().unsubscribe(
           this, Collections.singleton(MonitorResetEvent.class));
 
-
       LOGGER.finest(() -> Messages.get(
           "ClusterTopologyMonitorImpl.stopMonitoringThread",
           new Object[]{this.initialHostSpec.getHost()}));
@@ -483,9 +479,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     this.nodeThreadsReaderConnection.set(null);
     this.nodeThreadsLatestTopology.set(null);
 
-    Connection monitoringConnection = null;
     try {
-      monitoringConnection = this.monitoringConnection.get();
       this.monitoringConnection.set(null);
       this.isVerifiedWriterConnection = false;
       this.writerHostSpec.set(null);
@@ -493,7 +487,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       this.requestToUpdateTopology.set(false);
       this.ignoreNewTopologyRequestsEndTimeNano.set(-1);
     } finally {
-      this.closeConnection(monitoringConnection);
+      this.closeConnection(this.monitoringConnection);
     }
 
     this.clearTopologyCache();
@@ -631,9 +625,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     if (hosts == null) {
       // can't get topology; it might be something's wrong with a connection
       // close connection
-      Connection connToClose = this.monitoringConnection.get();
-      this.monitoringConnection.set(null);
-      this.closeConnection(connToClose);
+      this.closeConnection(this.monitoringConnection);
       this.isVerifiedWriterConnection = false;
     }
 
@@ -667,6 +659,11 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     } catch (final SQLException ex) {
       // ignore
     }
+  }
+
+  protected void closeConnection(final @NonNull AtomicReference<Connection> connectionAtomic) {
+    final Connection connection = connectionAtomic.getAndSet(null);
+    this.closeConnection(connection);
   }
 
   // Sleep that can be easily interrupted

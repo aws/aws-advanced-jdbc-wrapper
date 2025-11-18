@@ -543,54 +543,6 @@ public class BlueGreenStatusProvider {
     }
   }
 
-  protected int getInterimStatusHash(BlueGreenInterimStatus interimStatus) {
-
-    int result = this.getValueHash(1,
-        interimStatus.blueGreenPhase == null ? "" : interimStatus.blueGreenPhase.toString());
-    result = this.getValueHash(result,
-        interimStatus.version == null ? "" : interimStatus.version);
-    result = this.getValueHash(result, String.valueOf(interimStatus.port));
-    result = this.getValueHash(result, String.valueOf(interimStatus.allStartTopologyIpChanged));
-    result = this.getValueHash(result, String.valueOf(interimStatus.allStartTopologyEndpointsRemoved));
-    result = this.getValueHash(result, String.valueOf(interimStatus.allTopologyChanged));
-
-    result = this.getValueHash(result,
-        interimStatus.hostNames == null
-            ? ""
-            : interimStatus.hostNames.stream()
-                .sorted(Comparator.comparing(x -> x))
-                .collect(Collectors.joining(",")));
-    result = this.getValueHash(result,
-        interimStatus.startTopology == null
-            ? ""
-            : interimStatus.startTopology.stream()
-                .map(x -> x.getHostAndPort() + x.getRole())
-                .sorted(Comparator.comparing(x -> x))
-                .collect(Collectors.joining(",")));
-    result = this.getValueHash(result,
-        interimStatus.currentTopology == null
-            ? ""
-            : interimStatus.currentTopology.stream()
-                .map(x -> x.getHostAndPort() + x.getRole())
-                .sorted(Comparator.comparing(x -> x))
-                .collect(Collectors.joining(",")));
-    result = this.getValueHash(result,
-        interimStatus.startIpAddressesByHostMap == null
-            ? ""
-            : interimStatus.startIpAddressesByHostMap.entrySet().stream()
-                .map(x -> x.getKey() + x.getValue())
-                .sorted(Comparator.comparing(x -> x))
-                .collect(Collectors.joining(",")));
-    result = this.getValueHash(result,
-        interimStatus.currentIpAddressesByHostMap == null
-            ? ""
-            : interimStatus.currentIpAddressesByHostMap.entrySet().stream()
-                .map(x -> x.getKey() + x.getValue())
-                .sorted(Comparator.comparing(x -> x))
-                .collect(Collectors.joining(",")));
-    return result;
-  }
-
   protected int getContextHash() {
     int result = this.getValueHash(1, String.valueOf(this.allGreenNodesChangedName.get()));
     result = this.getValueHash(result, String.valueOf(this.iamHostSuccessfulConnects.size()));
@@ -1112,10 +1064,12 @@ public class BlueGreenStatusProvider {
       return;
     }
 
+    final int eventNameLeftPadChars = 5;
+    final int eventNameDefaultFieldSize = 31;
     final int maxEventNameLength = this.phaseTimeNano.keySet().stream()
-        .map(x -> x.length() + 5)
+        .map(x -> x.length() + eventNameLeftPadChars)
         .max(Comparator.comparingInt(x -> x))
-        .orElse(31);
+        .orElse(eventNameDefaultFieldSize);
 
     BlueGreenPhase timeZeroPhase = this.rollback ? BlueGreenPhase.PREPARATION : BlueGreenPhase.IN_PROGRESS;
     String timeZeroKey = this.rollback ? timeZeroPhase.name() + " (rollback)" : timeZeroPhase.name();
