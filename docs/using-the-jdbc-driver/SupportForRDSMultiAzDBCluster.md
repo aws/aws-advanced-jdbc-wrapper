@@ -8,6 +8,12 @@ The process of using the AWS JDBC Driver with RDS Multi-AZ DB Cluster is the sam
 
 ### MySQL
 
+There are permissions that must be granted to all non-administrative users who need database access. Without proper access, these users cannot utilize many of the driver's advanced features, including failover support. To grant the necessary permissions to non-administrative users, execute the following statement:
+
+```sql
+GRANT SELECT ON mysql.rds_topology TO 'non-admin-username'@'%'
+```
+
 Preparing a connection with MySQL in a Multi-AZ Cluster remains the same as before:
 
 ```java
@@ -22,6 +28,12 @@ Per AWS documentation and [this blog post](https://aws.amazon.com/blogs/database
 
 ```sql
 CREATE EXTENSION rds_tools;
+```
+
+The extension must be granted to all non-administrative users who need database access. Without access to `rds_tools`, non-admin users cannot utilize many of the driver's advanced features, including failover support. To grant the necessary permissions to non-administrative users, execute the following statement:
+
+```sql
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA rds_tools TO <non-admin-username>;
 ```
 
 Then, prepare the connection with:
