@@ -262,6 +262,16 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
     }
   }
 
+  @Override
+  public TopologyUtils getTopologyUtils() {
+    return this.topologyUtils;
+  }
+
+  @Override
+  public HostSpec getInstanceTemplate() {
+    return this.instanceTemplate;
+  }
+
   protected static class FetchTopologyResult {
 
     public List<HostSpec> hosts;
@@ -346,7 +356,7 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
   }
 
   @Override
-  public String getClusterId() throws UnsupportedOperationException, SQLException {
+  public String getClusterId() {
     return this.clusterId;
   }
 }

@@ -70,5 +70,5 @@ public interface HostListProvider {
   @Nullable
   HostSpec identifyConnection(Connection connection) throws SQLException;
 
-  String getClusterId() throws UnsupportedOperationException, SQLException;
+  String getClusterId();
 }

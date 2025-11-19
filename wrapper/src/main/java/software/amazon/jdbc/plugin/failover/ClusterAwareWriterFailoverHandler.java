@@ -30,11 +30,17 @@ import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.hostlistprovider.DynamicHostListProvider;
+import software.amazon.jdbc.hostlistprovider.HostListProvider;
+import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.LogUtils;
@@ -52,13 +58,14 @@ import software.amazon.jdbc.util.Utils;
  * same writer host, 2) try to update cluster topology and connect to a newly elected writer.
  */
 public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler {
-  private static final Logger LOGGER = Logger.getLogger(ClusterAwareReaderFailoverHandler.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(ClusterAwareWriterFailoverHandler.class.getName());
   protected static final WriterFailoverResult DEFAULT_RESULT =
       new WriterFailoverResult(false, false, null, null, "None");
 
   protected final Properties initialConnectionProps;
   protected final FullServicesContainer servicesContainer;
   protected final PluginService pluginService;
+  protected final HostListProvider hostListProvider;
   protected final ReaderFailoverHandler readerFailoverHandler;
   protected final Map<String, HostAvailability> hostAvailabilityMap = new ConcurrentHashMap<>();
   protected int maxFailoverTimeoutMs = 60000; // 60 sec
@@ -71,6 +78,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
       final Properties initialConnectionProps) {
     this.servicesContainer = servicesContainer;
     this.pluginService = servicesContainer.getPluginService();
+    this.hostListProvider = this.pluginService.getHostListProvider();
     this.readerFailoverHandler = readerFailoverHandler;
     this.initialConnectionProps = initialConnectionProps;
   }
@@ -243,10 +251,25 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
         e);
   }
 
+  private @Nullable List<HostSpec> getTopology(@NonNull Connection conn) throws SQLException {
+    if (this.hostListProvider instanceof StaticHostListProvider) {
+      try {
+        return this.hostListProvider.forceRefresh();
+      } catch (TimeoutException e) {
+        return null;
+      }
+    }
+
+    DynamicHostListProvider dynamicProvider = (DynamicHostListProvider) this.hostListProvider;
+    HostSpec initialHostSpec = this.pluginService.getInitialConnectionHostSpec();
+    HostSpec instanceTemplate = dynamicProvider.getInstanceTemplate();
+    return dynamicProvider.getTopologyUtils().queryForTopology(conn, initialHostSpec, instanceTemplate);
+  }
+
   /**
    * Internal class responsible for re-connecting to the current writer (aka TaskA).
    */
-  private static class ReconnectToWriterHandler implements Callable<WriterFailoverResult> {
+  private class ReconnectToWriterHandler implements Callable<WriterFailoverResult> {
     private final PluginService pluginService;
     private final Map<String, HostAvailability> availabilityMap;
     private final HostSpec originalWriterHost;
@@ -284,8 +307,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
             }
 
             conn = this.pluginService.forceConnect(this.originalWriterHost, this.props);
-            this.pluginService.forceRefreshHostList();
-            latestTopology = this.pluginService.getAllHosts();
+            latestTopology = getTopology(conn);
           } catch (final SQLException exception) {
             // Propagate exceptions that are not caused by network errors.
             if (!pluginService.isNetworkException(exception, pluginService.getTargetDriverDialect())) {
@@ -298,16 +320,18 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
           }
 
           if (Utils.isNullOrEmpty(latestTopology)) {
-            TimeUnit.MILLISECONDS.sleep(reconnectWriterIntervalMs);
+            try {
+              TimeUnit.MILLISECONDS.sleep(reconnectWriterIntervalMs);
+            } catch (final InterruptedException exception) {
+              Thread.currentThread().interrupt();
+              return new WriterFailoverResult(false, false, latestTopology, null, "TaskA");
+            }
           }
         }
 
         success = isCurrentHostWriter(latestTopology);
         LOGGER.finest("[TaskA] success: " + success);
         this.availabilityMap.put(this.originalWriterHost.getHost(), HostAvailability.AVAILABLE);
-        return new WriterFailoverResult(success, false, latestTopology, success ? conn : null, "TaskA");
-      } catch (final InterruptedException exception) {
-        Thread.currentThread().interrupt();
         return new WriterFailoverResult(success, false, latestTopology, success ? conn : null, "TaskA");
       } catch (final Exception ex) {
         LOGGER.severe(ex::getMessage);
@@ -342,7 +366,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
    * Internal class responsible for getting the latest cluster topology and connecting to a newly
    * elected writer (aka TaskB).
    */
-  private static class WaitForNewWriterHandler implements Callable<WriterFailoverResult> {
+  private class WaitForNewWriterHandler implements Callable<WriterFailoverResult> {
     private final PluginService pluginService;
     private final Map<String, HostAvailability> availabilityMap;
     private final ReaderFailoverHandler readerFailoverHandler;
@@ -445,11 +469,8 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
 
       while (true) {
         try {
-          this.pluginService.forceRefreshHostList();
-          final List<HostSpec> topology = this.pluginService.getAllHosts();
-
-          if (!topology.isEmpty()) {
-
+          final List<HostSpec> topology = getTopology(this.currentReaderConnection);
+          if (!Utils.isNullOrEmpty(topology)) {
             if (topology.size() == 1) {
               // The currently connected reader is in a middle of failover. It's not yet connected
               // to a new writer adn works in as "standalone" node. The handler needs to
