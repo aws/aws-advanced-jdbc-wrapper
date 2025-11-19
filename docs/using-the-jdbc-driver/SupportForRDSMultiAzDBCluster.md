@@ -33,7 +33,7 @@ CREATE EXTENSION rds_tools;
 The extension must be granted to all non-administrative users who need database access. Without access to `rds_tools`, non-admin users cannot utilize many of the driver's advanced features, including failover support. To grant the necessary permissions to non-administrative users, execute the following statement:
 
 ```sql
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA rds_tools TO <non-admin-username>;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA rds_tools TO non-admin-username;
 ```
 
 Then, prepare the connection with:
