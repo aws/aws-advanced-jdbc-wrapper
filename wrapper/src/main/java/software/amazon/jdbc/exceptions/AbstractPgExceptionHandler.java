@@ -87,7 +87,7 @@ public abstract class AbstractPgExceptionHandler implements ExceptionHandler {
       if (exception instanceof SQLException) {
         sqlState = ((SQLException) exception).getSQLState();
       } else if (targetDriverDialect != null) {
-        sqlState = targetDriverDialect.getSQLState(throwable);
+        sqlState = targetDriverDialect.getSQLState(exception);
       }
 
       if (isLoginException(sqlState)) {
