@@ -4,6 +4,9 @@
  */
 package org.hibernate.orm.test.datasource;
 
+import static org.hibernate.internal.util.StringHelper.split;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import org.hibernate.cfg.Environment;
@@ -20,10 +23,6 @@ import org.hibernate.testing.orm.junit.SkipForDialect;
 import org.jboss.logging.Logger;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-
-
-import static org.hibernate.internal.util.StringHelper.split;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Jpa(annotatedClasses = DataSourceTest.TestEntity.class,
     integrationSettings = @Setting(name = JdbcSettings.CONNECTION_PROVIDER,

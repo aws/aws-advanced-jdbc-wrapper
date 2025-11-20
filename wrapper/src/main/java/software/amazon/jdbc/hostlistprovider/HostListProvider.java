@@ -14,11 +14,14 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc;
+package software.amazon.jdbc.hostlistprovider;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.HostRole;
+import software.amazon.jdbc.HostSpec;
 
 public interface HostListProvider {
 
@@ -40,6 +43,7 @@ public interface HostListProvider {
    */
   HostRole getHostRole(Connection connection) throws SQLException;
 
+  @Nullable
   HostSpec identifyConnection(Connection connection) throws SQLException;
 
   String getClusterId() throws UnsupportedOperationException, SQLException;

@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
 import software.amazon.jdbc.util.DriverInfo;
+import software.amazon.jdbc.util.Messages;
 
 /**
  * Suitable for the following AWS PG configurations.
@@ -33,61 +34,42 @@ import software.amazon.jdbc.util.DriverInfo;
  */
 public class RdsPgDialect extends PgDialect implements BlueGreenDialect {
 
-  private static final Logger LOGGER = Logger.getLogger(RdsPgDialect.class.getName());
+  protected static final String EXTENSIONS_EXIST_SQL = "SELECT (setting LIKE '%rds_tools%') AS rds_tools, "
+      + "(setting LIKE '%aurora_stat_utils%') AS aurora_stat_utils "
+      + "FROM pg_catalog.pg_settings "
+      + "WHERE name OPERATOR(pg_catalog.=) 'rds.extensions'";
+  protected static final String TOPOLOGY_TABLE_EXISTS_QUERY =
+      "SELECT 'rds_tools.show_topology'::regproc";
 
+  protected static final String BG_STATUS_QUERY =
+      "SELECT * FROM rds_tools.show_topology('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
+
+  private static final Logger LOGGER = Logger.getLogger(RdsPgDialect.class.getName());
   private static final List<String> dialectUpdateCandidates = Arrays.asList(
       DialectCodes.RDS_MULTI_AZ_PG_CLUSTER,
       DialectCodes.GLOBAL_AURORA_PG,
       DialectCodes.AURORA_PG);
-
-  private static final String extensionsSql = "SELECT (setting LIKE '%rds_tools%') AS rds_tools, "
-      + "(setting LIKE '%aurora_stat_utils%') AS aurora_stat_utils "
-      + "FROM pg_catalog.pg_settings "
-      + "WHERE name OPERATOR(pg_catalog.=) 'rds.extensions'";
-
-  private static final String BG_STATUS_QUERY =
-      "SELECT * FROM rds_tools.show_topology('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
-
-  private static final String TOPOLOGY_TABLE_EXIST_QUERY =
-      "SELECT 'rds_tools.show_topology'::regproc";
 
   @Override
   public boolean isDialect(final Connection connection) {
     if (!super.isDialect(connection)) {
       return false;
     }
-    Statement stmt = null;
-    ResultSet rs = null;
 
-    try {
-      stmt = connection.createStatement();
-      rs = stmt.executeQuery(extensionsSql);
+    try (Statement stmt = connection.createStatement();
+         ResultSet rs = stmt.executeQuery(EXTENSIONS_EXIST_SQL)) {
       while (rs.next()) {
         final boolean rdsTools = rs.getBoolean("rds_tools");
         final boolean auroraUtils = rs.getBoolean("aurora_stat_utils");
-        LOGGER.finest(() -> String.format("rdsTools: %b, auroraUtils: %b", rdsTools, auroraUtils));
+        LOGGER.finest(Messages.get("RdsPgDialect.rdsToolsAuroraUtils", new Object[] {rdsTools, auroraUtils}));
         if (rdsTools && !auroraUtils) {
           return true;
         }
       }
     } catch (final SQLException ex) {
-      // ignore
-    } finally {
-      if (stmt != null) {
-        try {
-          stmt.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
-      if (rs != null) {
-        try {
-          rs.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
+      return false;
     }
+
     return false;
   }
 
@@ -97,19 +79,12 @@ public class RdsPgDialect extends PgDialect implements BlueGreenDialect {
   }
 
   @Override
-  public String getBlueGreenStatusQuery() {
-    return BG_STATUS_QUERY;
+  public boolean isBlueGreenStatusAvailable(final Connection connection) {
+    return dialectUtils.checkExistenceQueries(connection, TOPOLOGY_TABLE_EXISTS_QUERY);
   }
 
   @Override
-  public boolean isBlueGreenStatusAvailable(final Connection connection) {
-    try {
-      try (Statement statement = connection.createStatement();
-          ResultSet rs = statement.executeQuery(TOPOLOGY_TABLE_EXIST_QUERY)) {
-        return rs.next();
-      }
-    } catch (SQLException ex) {
-      return false;
-    }
+  public String getBlueGreenStatusQuery() {
+    return BG_STATUS_QUERY;
   }
 }

@@ -41,11 +41,14 @@ import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategyFactory;
+import software.amazon.jdbc.hostlistprovider.HostListProvider;
+import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.storage.CacheMap;
@@ -130,7 +133,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
         ? this.configurationProfile.getExceptionHandler()
         : null;
 
-    HostListProviderSupplier supplier = this.dbDialect.getHostListProvider();
+    HostListProviderSupplier supplier = this.dbDialect.getHostListProviderSupplier();
     this.hostListProvider = supplier.getProvider(this.props, this.originalUrl, this.servicesContainer);
   }
 
@@ -157,7 +160,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
               Messages.get("PluginServiceImpl.currentHostNotAllowed",
                   new Object[] {
                       currentHostSpec == null ? "<null>" : currentHostSpec.getHostAndPort(),
-                      Utils.logTopology(allowedHosts, "")})
+                      LogUtils.logTopology(allowedHosts, "")})
           );
         }
 

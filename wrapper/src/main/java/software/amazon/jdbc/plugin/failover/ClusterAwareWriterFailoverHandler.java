@@ -37,6 +37,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.ServiceUtility;
@@ -465,7 +466,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
 
               if (allowOldWriter || !isSame(writerCandidate, this.originalWriterHost)) {
                 // new writer is available, and it's different from the previous writer
-                LOGGER.finest(() -> Utils.logTopology(this.currentTopology, "[TaskB] Topology:"));
+                LOGGER.finest(() -> LogUtils.logTopology(this.currentTopology, "[TaskB] Topology:"));
                 if (connectToWriter(writerCandidate)) {
                   return true;
                 }

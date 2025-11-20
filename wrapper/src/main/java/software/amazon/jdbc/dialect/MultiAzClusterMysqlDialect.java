@@ -26,69 +26,56 @@ import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.hostlistprovider.RdsMultiAzDbClusterListProvider;
-import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsMultiAzHostListProvider;
+import software.amazon.jdbc.hostlistprovider.MultiAzTopologyUtils;
+import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
+import software.amazon.jdbc.hostlistprovider.TopologyUtils;
+import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverRestriction;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 
-public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
+public class MultiAzClusterMysqlDialect extends MysqlDialect implements MultiAzClusterDialect {
 
-  private static final String TOPOLOGY_QUERY = "SELECT id, endpoint, port FROM mysql.rds_topology";
-
-  private static final String TOPOLOGY_TABLE_EXIST_QUERY =
+  protected static final String REPORT_HOST_EXISTS_QUERY = "SHOW VARIABLES LIKE 'report_host'";
+  protected static final String TOPOLOGY_TABLE_EXISTS_QUERY =
       "SELECT 1 AS tmp FROM information_schema.tables WHERE"
-      + " table_schema = 'mysql' AND table_name = 'rds_topology'";
+          + " table_schema = 'mysql' AND table_name = 'rds_topology'";
+  protected static final String TOPOLOGY_QUERY = "SELECT id, endpoint, port FROM mysql.rds_topology";
 
-  // For reader nodes, the query returns a writer node ID. For a writer node, the query returns no data.
-  private static final String FETCH_WRITER_NODE_QUERY = "SHOW REPLICA STATUS";
-
-  private static final String FETCH_WRITER_NODE_QUERY_COLUMN_NAME = "Source_Server_Id";
-
-  // The query return nodeId and nodeName.
+  // This query returns both instanceId and instanceName.
   // For example: "1845128080", "test-multiaz-instance-1"
-  private static final String NODE_ID_QUERY = "SELECT id, SUBSTRING_INDEX(endpoint, '.', 1)"
+  protected static final String INSTANCE_ID_QUERY = "SELECT id, SUBSTRING_INDEX(endpoint, '.', 1)"
       + " FROM mysql.rds_topology"
       + " WHERE id = @@server_id";
-  private static final String IS_READER_QUERY = "SELECT @@read_only";
+  // For reader instances, this query returns a writer instance ID. For a writer instance, this query returns no data.
+  protected static final String WRITER_ID_QUERY = "SHOW REPLICA STATUS";
+  protected static final String WRITER_ID_QUERY_COLUMN_NAME = "Source_Server_Id";
+  protected static final String IS_READER_QUERY = "SELECT @@read_only";
 
-  private static final EnumSet<FailoverRestriction> RDS_MULTI_AZ_RESTRICTIONS =
+  private static final EnumSet<FailoverRestriction> FAILOVER_RESTRICTIONS =
       EnumSet.of(FailoverRestriction.DISABLE_TASK_A, FailoverRestriction.ENABLE_WRITER_IN_TASK_B);
 
   protected final RdsUtils rdsUtils = new RdsUtils();
 
   @Override
   public boolean isDialect(final Connection connection) {
-    try {
-      try (Statement stmt = connection.createStatement();
-          ResultSet rs = stmt.executeQuery(TOPOLOGY_TABLE_EXIST_QUERY)) {
-        if (!rs.next()) {
-          return false;
-        }
-      }
-
-      try (Statement stmt = connection.createStatement();
-          ResultSet rs = stmt.executeQuery(TOPOLOGY_QUERY)) {
-        if (!rs.next()) {
-          return false;
-        }
-      }
-
-      try (Statement stmt = connection.createStatement();
-          ResultSet rs = stmt.executeQuery("SHOW VARIABLES LIKE 'report_host'")) {
-        if (!rs.next()) {
-          return false;
-        }
-        final String reportHost = rs.getString(2); // get variable value; expected value is IP address
-        return !StringUtils.isNullOrEmpty(reportHost);
-      }
-
-    } catch (final SQLException ex) {
-      // ignore
+    if (!dialectUtils.checkExistenceQueries(connection, TOPOLOGY_TABLE_EXISTS_QUERY, TOPOLOGY_QUERY)) {
+      return false;
     }
-    return false;
+
+    try (Statement stmt = connection.createStatement();
+         ResultSet rs = stmt.executeQuery(REPORT_HOST_EXISTS_QUERY)) {
+      if (!rs.next()) {
+        return false;
+      }
+
+      final String reportHost = rs.getString(2); // Expected value is an IP address
+      return !StringUtils.isNullOrEmpty(reportHost);
+    } catch (final SQLException ex) {
+      return false;
+    }
   }
 
   @Override
@@ -97,31 +84,14 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
   }
 
   @Override
-  public HostListProviderSupplier getHostListProvider() {
+  public HostListProviderSupplier getHostListProviderSupplier() {
     return (properties, initialUrl, servicesContainer) -> {
       final PluginService pluginService = servicesContainer.getPluginService();
+      final TopologyUtils topologyUtils = new MultiAzTopologyUtils(this, pluginService.getHostSpecBuilder());
       if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {
-        return new MonitoringRdsMultiAzHostListProvider(
-            properties,
-            initialUrl,
-            servicesContainer,
-            TOPOLOGY_QUERY,
-            NODE_ID_QUERY,
-            IS_READER_QUERY,
-            FETCH_WRITER_NODE_QUERY,
-            FETCH_WRITER_NODE_QUERY_COLUMN_NAME);
-
-      } else {
-        return new RdsMultiAzDbClusterListProvider(
-            properties,
-            initialUrl,
-            servicesContainer,
-            TOPOLOGY_QUERY,
-            NODE_ID_QUERY,
-            IS_READER_QUERY,
-            FETCH_WRITER_NODE_QUERY,
-            FETCH_WRITER_NODE_QUERY_COLUMN_NAME);
+        return new MonitoringRdsHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
       }
+      return new RdsHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
     };
   }
 
@@ -138,6 +108,31 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
 
   @Override
   public EnumSet<FailoverRestriction> getFailoverRestrictions() {
-    return RDS_MULTI_AZ_RESTRICTIONS;
+    return FAILOVER_RESTRICTIONS;
+  }
+
+  @Override
+  public String getTopologyQuery() {
+    return TOPOLOGY_QUERY;
+  }
+
+  @Override
+  public String getInstanceIdQuery() {
+    return INSTANCE_ID_QUERY;
+  }
+
+  @Override
+  public String getIsReaderQuery() {
+    return IS_READER_QUERY;
+  }
+
+  @Override
+  public String getWriterIdQuery() {
+    return WRITER_ID_QUERY;
+  }
+
+  @Override
+  public String getWriterIdColumnName() {
+    return WRITER_ID_QUERY_COLUMN_NAME;
   }
 }
