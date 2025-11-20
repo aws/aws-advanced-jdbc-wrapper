@@ -53,7 +53,7 @@ public class MySQLExceptionHandler implements ExceptionHandler {
           return true;
         }
       } else if (targetDriverDialect != null) {
-        String sqlState = targetDriverDialect.getSQLState(throwable);
+        String sqlState = targetDriverDialect.getSQLState(exception);
         if (!StringUtils.isNullOrEmpty(sqlState)) {
           return isNetworkException(sqlState);
         }
