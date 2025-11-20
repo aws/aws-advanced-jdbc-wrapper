@@ -28,7 +28,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
-import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
@@ -38,8 +37,10 @@ import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
+import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
+import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.Utils;
@@ -425,7 +426,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       LOGGER.finest(
           Messages.get(
               "ReadWriteSplittingPlugin.previousReaderNotAllowed",
-              new Object[] {this.readerHostSpec, Utils.logTopology(hosts, "")}));
+              new Object[] {this.readerHostSpec, LogUtils.logTopology(hosts, "")}));
       closeConnectionIfIdle(this.readerConnection);
     }
 

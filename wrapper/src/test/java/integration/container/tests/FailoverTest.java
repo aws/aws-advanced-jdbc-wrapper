@@ -62,7 +62,7 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
-import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
+import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.plugin.failover.TransactionStateUnknownSQLException;
 import software.amazon.jdbc.util.SqlState;
@@ -688,7 +688,7 @@ public class FailoverTest {
     // Some tests temporarily disable connectivity for 5 seconds. The socket timeout needs to be less than this to
     // trigger driver failover.
     PropertyDefinition.SOCKET_TIMEOUT.set(props, "2000");
-    AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(
+    RdsHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(
         props,
         "?." + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointSuffix()
           + ":" + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointPort());

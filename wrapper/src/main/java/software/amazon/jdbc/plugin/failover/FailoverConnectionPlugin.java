@@ -33,7 +33,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
-import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
@@ -43,10 +42,12 @@ import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
@@ -757,7 +758,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         throwFailoverFailedException(
             Messages.get(
                 "Failover.noWriterHostAfterReconnecting",
-                new Object[]{Utils.logTopology(hosts, "")}));
+                new Object[]{LogUtils.logTopology(hosts, "")}));
         return;
       }
 
@@ -765,7 +766,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       if (!Utils.containsHostAndPort(allowedHosts, writerHostSpec.getHostAndPort())) {
         throwFailoverFailedException(
             Messages.get("Failover.newWriterNotAllowed",
-                new Object[] {writerHostSpec.getUrl(), Utils.logTopology(allowedHosts, "")}));
+                new Object[] {writerHostSpec.getUrl(), LogUtils.logTopology(allowedHosts, "")}));
         return;
       }
 

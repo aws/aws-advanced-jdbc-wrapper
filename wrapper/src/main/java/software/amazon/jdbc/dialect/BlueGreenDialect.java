@@ -19,7 +19,7 @@ package software.amazon.jdbc.dialect;
 import java.sql.Connection;
 
 public interface BlueGreenDialect {
-  String getBlueGreenStatusQuery();
-
   boolean isBlueGreenStatusAvailable(final Connection connection);
+
+  String getBlueGreenStatusQuery();
 }

@@ -57,9 +57,9 @@ public class DialectManager implements DialectProvider {
           put(DialectCodes.PG, new PgDialect());
           put(DialectCodes.MARIADB, new MariaDbDialect());
           put(DialectCodes.RDS_MYSQL, new RdsMysqlDialect());
-          put(DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER, new RdsMultiAzDbClusterMysqlDialect());
+          put(DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER, new MultiAzClusterMysqlDialect());
           put(DialectCodes.RDS_PG, new RdsPgDialect());
-          put(DialectCodes.RDS_MULTI_AZ_PG_CLUSTER, new RdsMultiAzDbClusterPgDialect());
+          put(DialectCodes.RDS_MULTI_AZ_PG_CLUSTER, new MultiAzClusterPgDialect());
           put(DialectCodes.GLOBAL_AURORA_MYSQL, new GlobalAuroraMysqlDialect());
           put(DialectCodes.AURORA_MYSQL, new AuroraMysqlDialect());
           put(DialectCodes.GLOBAL_AURORA_PG, new GlobalAuroraPgDialect());
@@ -75,7 +75,7 @@ public class DialectManager implements DialectProvider {
    */
   protected static final long ENDPOINT_CACHE_EXPIRATION = TimeUnit.HOURS.toNanos(24);
 
-  // Map of host name, or url, by dialect code.
+  // Keys are host names or URLs, values are dialect codes.
   protected static final CacheMap<String, String> knownEndpointDialects = new CacheMap<>();
 
   private final RdsUtils rdsHelper = new RdsUtils();
@@ -129,8 +129,7 @@ public class DialectManager implements DialectProvider {
         this.logCurrentDialect();
         return userDialect;
       } else {
-        throw new SQLException(
-            Messages.get("DialectManager.unknownDialectCode", new Object[] {dialectCode}));
+        throw new SQLException(Messages.get("DialectManager.unknownDialectCode", new Object[] {dialectCode}));
       }
     }
 
@@ -140,7 +139,7 @@ public class DialectManager implements DialectProvider {
 
     String host = url;
     final List<HostSpec> hosts = this.connectionUrlParser.getHostsFromConnectionUrl(
-            url, true, pluginService::getHostSpecBuilder);
+        url, true, pluginService::getHostSpecBuilder);
     if (!Utils.isNullOrEmpty(hosts)) {
       host = hosts.get(0).getHost();
     }
@@ -238,9 +237,10 @@ public class DialectManager implements DialectProvider {
       for (String dialectCandidateCode : dialectCandidates) {
         Dialect dialectCandidate = knownDialectsByCode.get(dialectCandidateCode);
         if (dialectCandidate == null) {
-          throw new SQLException(
-              Messages.get("DialectManager.unknownDialectCode", new Object[] {dialectCandidateCode}));
+          throw new SQLException(Messages.get(
+              "DialectManager.unknownDialectCode", new Object[] {dialectCandidateCode}));
         }
+
         boolean isDialect = dialectCandidate.isDialect(connection);
         if (isDialect) {
           this.canUpdate = false;
@@ -270,9 +270,8 @@ public class DialectManager implements DialectProvider {
   }
 
   private void logCurrentDialect() {
-    LOGGER.finest(() -> String.format("Current dialect: %s, %s, canUpdate: %b",
-        this.dialectCode,
-        this.dialect == null ? "<null>" : this.dialect,
-        this.canUpdate));
+    LOGGER.finest(Messages.get(
+        "DialectManager.currentDialect",
+        new Object[] {this.dialectCode, this.dialect == null ? "<null>" : this.dialect, this.canUpdate}));
   }
 }

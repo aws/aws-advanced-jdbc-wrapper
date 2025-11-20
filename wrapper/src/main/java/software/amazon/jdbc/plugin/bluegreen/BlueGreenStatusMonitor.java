@@ -43,12 +43,12 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.jdbc.HostListProvider;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.BlueGreenDialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.hostlistprovider.HostListProvider;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.util.ConnectionUrlParser;
@@ -628,7 +628,7 @@ public class BlueGreenStatusMonitor {
     if (connectionHostSpecCopy != null) {
       String hostListProviderUrl = String.format("%s%s/", protocol, connectionHostSpecCopy.getHostAndPort());
       this.hostListProvider = this.pluginService.getDialect()
-          .getHostListProvider()
+          .getHostListProviderSupplier()
           .getProvider(
               hostListProperties,
               hostListProviderUrl,

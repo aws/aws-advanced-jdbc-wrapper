@@ -26,22 +26,23 @@ import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.plugin.failover.FailoverRestriction;
 
 public interface Dialect {
-  int getDefaultPort();
-
-  ExceptionHandler getExceptionHandler();
-
-  String getHostAliasQuery();
-
-  String getServerVersionQuery();
 
   boolean isDialect(Connection connection);
 
+  int getDefaultPort();
+
   List</* dialect code */ String> getDialectUpdateCandidates();
 
-  HostListProviderSupplier getHostListProvider();
+  ExceptionHandler getExceptionHandler();
+
+  HostListProviderSupplier getHostListProviderSupplier();
+
+  String getHostAliasQuery();
 
   void prepareConnectProperties(
       final @NonNull Properties connectProperties, final @NonNull String protocol, final @NonNull HostSpec hostSpec);
 
   EnumSet<FailoverRestriction> getFailoverRestrictions();
+
+  String getServerVersionQuery();
 }
