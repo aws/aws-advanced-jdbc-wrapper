@@ -41,6 +41,7 @@ import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.dialect.DialectProvider;
+import software.amazon.jdbc.dialect.HostListProviderSupplier;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.hostavailability.HostAvailability;
@@ -685,13 +686,9 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       return;
     }
 
-    updateHostListProvider();
-  }
-
-  protected void updateHostListProvider() throws SQLException {
-    final HostListProvider provider =
-        this.dialect.createHostListProvider(this.servicesContainer, this.props, this.originalUrl);
-    this.setHostListProvider(provider);
+    final HostListProviderSupplier supplier = this.dialect.getHostListProviderSupplier();
+    this.setHostListProvider(supplier.getProvider(this.props, this.originalUrl, this.servicesContainer));
+    // TODO: refreshHostList
     this.refreshHostList();
   }
 

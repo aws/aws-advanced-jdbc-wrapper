@@ -22,14 +22,11 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Properties;
 import java.util.logging.Logger;
 import software.amazon.jdbc.hostlistprovider.AuroraTopologyUtils;
-import software.amazon.jdbc.hostlistprovider.HostListProvider;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.hostlistprovider.TopologyUtils;
 import software.amazon.jdbc.util.DriverInfo;
-import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 
 public class AuroraPgDialect extends PgDialect implements TopologyDialect, AuroraLimitlessDialect, BlueGreenDialect {
@@ -105,11 +102,12 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
   }
 
   @Override
-  public HostListProvider createHostListProvider(
-      FullServicesContainer servicesContainer, Properties props, String initialUrl) throws SQLException {
-    final TopologyUtils topologyUtils =
+  public HostListProviderSupplier getHostListProviderSupplier() {
+    return (properties, initialUrl, servicesContainer) -> {
+      final TopologyUtils topologyUtils =
           new AuroraTopologyUtils(this, servicesContainer.getPluginService().getHostSpecBuilder());
-    return new RdsHostListProvider(topologyUtils, props, initialUrl, servicesContainer);
+      return new RdsHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
+    };
   }
 
   @Override

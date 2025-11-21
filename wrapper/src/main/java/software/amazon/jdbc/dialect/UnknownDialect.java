@@ -17,7 +17,6 @@
 package software.amazon.jdbc.dialect;
 
 import java.sql.Connection;
-import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
@@ -27,9 +26,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.GenericExceptionHandler;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
-import software.amazon.jdbc.hostlistprovider.HostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverRestriction;
-import software.amazon.jdbc.util.FullServicesContainer;
 
 public class UnknownDialect implements Dialect {
 
@@ -85,9 +82,9 @@ public class UnknownDialect implements Dialect {
   }
 
   @Override
-  public HostListProvider createHostListProvider(
-      FullServicesContainer servicesContainer, Properties props, String initialUrl) throws SQLException {
-    return new ConnectionStringHostListProvider(props, initialUrl, servicesContainer.getHostListProviderService());
+  public HostListProviderSupplier getHostListProviderSupplier() {
+    return (properties, initialUrl, servicesContainer) ->
+        new ConnectionStringHostListProvider(properties, initialUrl, servicesContainer.getHostListProviderService());
   }
 
   @Override

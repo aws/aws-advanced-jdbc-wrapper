@@ -26,14 +26,12 @@ import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.hostlistprovider.HostListProvider;
 import software.amazon.jdbc.hostlistprovider.MultiAzTopologyUtils;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.hostlistprovider.TopologyUtils;
 import software.amazon.jdbc.plugin.failover.FailoverRestriction;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.DriverInfo;
-import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -85,11 +83,15 @@ public class MultiAzClusterMysqlDialect extends MysqlDialect implements MultiAzC
   }
 
   @Override
-  public HostListProvider createHostListProvider(
-      FullServicesContainer servicesContainer, Properties props, String initialUrl) throws SQLException {
-    final PluginService pluginService = servicesContainer.getPluginService();
-    final TopologyUtils topologyUtils = new MultiAzTopologyUtils(this, pluginService.getHostSpecBuilder());
-    return new RdsHostListProvider(topologyUtils, props, initialUrl, servicesContainer);
+  public HostListProviderSupplier getHostListProviderSupplier() {
+    return (properties, initialUrl, servicesContainer) -> {
+      final PluginService pluginService = servicesContainer.getPluginService();
+      final TopologyUtils topologyUtils = new MultiAzTopologyUtils(this, pluginService.getHostSpecBuilder());
+      if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {
+        return new RdsHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
+      }
+      return new RdsHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
+    };
   }
 
   @Override

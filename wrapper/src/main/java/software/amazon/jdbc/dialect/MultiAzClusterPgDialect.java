@@ -21,17 +21,14 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
-import java.util.Properties;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.MultiAzDbClusterPgExceptionHandler;
-import software.amazon.jdbc.hostlistprovider.HostListProvider;
 import software.amazon.jdbc.hostlistprovider.MultiAzTopologyUtils;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.hostlistprovider.TopologyUtils;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.DriverInfo;
-import software.amazon.jdbc.util.FullServicesContainer;
 
 public class MultiAzClusterPgDialect extends PgDialect implements MultiAzClusterDialect {
 
@@ -81,11 +78,16 @@ public class MultiAzClusterPgDialect extends PgDialect implements MultiAzCluster
   }
 
   @Override
-  public HostListProvider createHostListProvider(
-      FullServicesContainer servicesContainer, Properties props, String initialUrl) throws SQLException {
-    final PluginService pluginService = servicesContainer.getPluginService();
-    final TopologyUtils topologyUtils = new MultiAzTopologyUtils(this, pluginService.getHostSpecBuilder());
-    return new RdsHostListProvider(topologyUtils, props, initialUrl, servicesContainer);
+  public HostListProviderSupplier getHostListProviderSupplier() {
+    return (properties, initialUrl, servicesContainer) -> {
+      final PluginService pluginService = servicesContainer.getPluginService();
+      final TopologyUtils topologyUtils = new MultiAzTopologyUtils(this, pluginService.getHostSpecBuilder());
+      if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {
+        return new RdsHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
+      }
+
+      return new RdsHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
+    };
   }
 
   @Override

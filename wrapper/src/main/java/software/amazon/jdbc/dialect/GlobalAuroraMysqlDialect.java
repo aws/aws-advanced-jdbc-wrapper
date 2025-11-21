@@ -22,11 +22,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Collections;
 import java.util.List;
-import java.util.Properties;
 import software.amazon.jdbc.hostlistprovider.GlobalAuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.GlobalAuroraTopologyUtils;
-import software.amazon.jdbc.hostlistprovider.HostListProvider;
-import software.amazon.jdbc.util.FullServicesContainer;
 
 public class GlobalAuroraMysqlDialect extends AuroraMysqlDialect implements GlobalAuroraTopologyDialect {
 
@@ -73,11 +70,12 @@ public class GlobalAuroraMysqlDialect extends AuroraMysqlDialect implements Glob
   }
 
   @Override
-  public HostListProvider createHostListProvider(
-      FullServicesContainer servicesContainer, Properties props, String initialUrl) throws SQLException {
-    final GlobalAuroraTopologyUtils topologyUtils =
+  public HostListProviderSupplier getHostListProviderSupplier() {
+    return (properties, initialUrl, servicesContainer) -> {
+      final GlobalAuroraTopologyUtils topologyUtils =
           new GlobalAuroraTopologyUtils(this, servicesContainer.getPluginService().getHostSpecBuilder());
-    return new GlobalAuroraHostListProvider(topologyUtils, props, initialUrl, servicesContainer);
+      return new GlobalAuroraHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
+    };
   }
 
   @Override
