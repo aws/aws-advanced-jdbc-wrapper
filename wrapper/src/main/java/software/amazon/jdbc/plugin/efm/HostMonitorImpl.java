@@ -178,9 +178,10 @@ public class HostMonitorImpl implements HostMonitor {
             }
           }
 
+          final Connection copyConnection = this.monitoringConn.get();
           if (!this.activeContexts.isEmpty()
-              || this.monitoringConn.get() == null
-              || this.monitoringConn.get().isClosed()) {
+              || copyConnection == null
+              || copyConnection.isClosed()) {
 
             final long statusCheckStartTimeNano = this.getCurrentTimeNano();
             this.contextLastUsedTimestampNano = statusCheckStartTimeNano;
@@ -314,7 +315,8 @@ public class HostMonitorImpl implements HostMonitor {
 
     long startNano = this.getCurrentTimeNano();
     try {
-      if (this.monitoringConn.get() == null || this.monitoringConn.get().isClosed()) {
+      final Connection copyConnection = this.monitoringConn.get();
+      if (copyConnection == null || copyConnection.isClosed()) {
         // open a new connection
         final Properties monitoringConnProperties = PropertyUtils.copyProperties(this.properties);
 
@@ -337,9 +339,10 @@ public class HostMonitorImpl implements HostMonitor {
       }
 
       startNano = this.getCurrentTimeNano();
+      final Connection copyConnection2 = this.monitoringConn.get();
       // Some drivers, like MySQL Connector/J, execute isValid() in a double of specified timeout time.
       // TODO: fix me. Need to find a better solution to double timeout issue.
-      final boolean isValid = this.monitoringConn.get().isValid(
+      final boolean isValid = copyConnection2 != null && copyConnection2.isValid(
           (int) TimeUnit.MILLISECONDS.toSeconds(shortestFailureDetectionIntervalMillis) / 2);
       if (!isValid) {
         if (this.nodeInvalidCounter != null) {

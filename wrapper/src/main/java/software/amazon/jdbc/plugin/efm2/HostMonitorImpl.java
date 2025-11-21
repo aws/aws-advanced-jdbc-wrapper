@@ -317,7 +317,8 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
     }
 
     try {
-      if (this.monitoringConn.get() == null || this.monitoringConn.get().isClosed()) {
+      final Connection copyConnection = this.monitoringConn.get();
+      if (copyConnection == null || copyConnection.isClosed()) {
         // open a new connection
         final Properties monitoringConnProperties = PropertyUtils.copyProperties(this.properties);
 
@@ -339,10 +340,11 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
       }
 
       // Some drivers, like MySQL Connector/J, execute isValid() in a double of specified timeout time.
+      // validTimeout could get rounded down to 0.
       final int validTimeout = (int) TimeUnit.NANOSECONDS.toSeconds(
           this.failureDetectionIntervalNano - THREAD_SLEEP_NANO) / 2;
-      // validTimeout could get rounded down to 0.
-      return this.monitoringConn.get().isValid(Math.max(MIN_VALIDITY_CHECK_TIMEOUT_SEC, validTimeout));
+      final Connection copyConnection2 = this.monitoringConn.get();
+      return copyConnection2 != null && copyConnection2.isValid(Math.max(MIN_VALIDITY_CHECK_TIMEOUT_SEC, validTimeout));
     } catch (final SQLException sqlEx) {
       return false;
     } finally {

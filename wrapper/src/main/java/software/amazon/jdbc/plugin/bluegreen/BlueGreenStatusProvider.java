@@ -88,12 +88,6 @@ public class BlueGreenStatusProvider {
       "bgSwitchoverTimeoutMs", "180000", // 3min
       "Blue/Green Deployment switchover timeout (in msec).");
 
-  // TODO: deprecate it
-  public static final AwsWrapperProperty BG_SUSPEND_NEW_BLUE_CONNECTIONS = new AwsWrapperProperty(
-      "bgSuspendNewBlueConnections", "false",
-      "Enables Blue/Green Deployment switchover to suspend new blue connection requests"
-          + " while the switchover process is in progress.");
-
   protected final HostSpecBuilder hostSpecBuilder = new HostSpecBuilder(new SimpleHostAvailabilityStrategy());
 
   protected final BlueGreenStatusMonitor[] monitors = { null, null };
@@ -125,7 +119,6 @@ public class BlueGreenStatusProvider {
   // Status check interval time in millis for each BlueGreenIntervalRate.
   protected final Map<BlueGreenIntervalRate, Long> statusCheckIntervalMap = new HashMap<>();
   protected final long switchoverTimeoutNano;
-  protected final boolean suspendNewBlueConnectionsWhenInProgress;
 
   protected final FullServicesContainer servicesContainer;
   protected final StorageService storageService;
@@ -154,7 +147,6 @@ public class BlueGreenStatusProvider {
     this.statusCheckIntervalMap.put(BlueGreenIntervalRate.HIGH, BG_INTERVAL_HIGH_MS.getLong(props));
 
     this.switchoverTimeoutNano = TimeUnit.MILLISECONDS.toNanos(BG_SWITCHOVER_TIMEOUT_MS.getLong(props));
-    this.suspendNewBlueConnectionsWhenInProgress = BG_SUSPEND_NEW_BLUE_CONNECTIONS.getBoolean(props);
 
     final Dialect dialect = this.pluginService.getDialect();
     if (dialect instanceof BlueGreenDialect) {
@@ -679,24 +671,22 @@ public class BlueGreenStatusProvider {
 
           BlueGreenInterimStatus interimStatus;
 
-          if (this.suspendNewBlueConnectionsWhenInProgress) {
-            // Try to confirm that the ipAddress belongs to one of the blue nodes
-            interimStatus = this.interimStatuses[BlueGreenRole.SOURCE.getValue()];
-            if (interimStatus != null) {
-              if (interimStatus.startIpAddressesByHostMap.values().stream()
-                  .filter(x -> x.isPresent() && x.get().equals(ipAddress))
-                  .map(x -> true)
-                  .findFirst()
-                  .orElse(false)) {
+          // Try to confirm that the ipAddress belongs to one of the blue nodes
+          interimStatus = this.interimStatuses[BlueGreenRole.SOURCE.getValue()];
+          if (interimStatus != null) {
+            if (interimStatus.startIpAddressesByHostMap.values().stream()
+                .filter(x -> x.isPresent() && x.get().equals(ipAddress))
+                .map(x -> true)
+                .findFirst()
+                .orElse(false)) {
 
-                connectRouting.add(new SuspendConnectRouting(ipAddress, null, this.bgdId));
-                connectRouting.add(new SuspendConnectRouting(
-                    this.getHostAndPort(ipAddress, interimStatus.port),
-                    null,
-                    this.bgdId));
+              connectRouting.add(new SuspendConnectRouting(ipAddress, null, this.bgdId));
+              connectRouting.add(new SuspendConnectRouting(
+                  this.getHostAndPort(ipAddress, interimStatus.port),
+                  null,
+                  this.bgdId));
 
-                return;
-              }
+              return;
             }
           }
 
@@ -900,13 +890,13 @@ public class BlueGreenStatusProvider {
                     ? this.hostSpecBuilder.host(greenIp.get()).build()
                     : this.hostSpecBuilder.host(greenIp.get()).port(interimStatus.port).build());
 
-            // Check whether green host is already been connected with blue (no-prefixes) IAM host name.
+            // Check if the green host has connected to the blue (no-prefixes) IAM host name.
             List<HostSpec> iamHosts;
-            if (this.isAlreadySuccessfullyConnected(greenHost, greenHost)) {
-              // Green node has already changed its name, and it's not a new blue node (no prefixes).
+            if (this.isAlreadySuccessfullyConnected(greenHost, blueHost)) {
+              // Green node has already changed its name, and it's a new blue node (no prefixes).
               iamHosts = Collections.singletonList(blueHostSpec);
             } else {
-              // Green node isn't yet changed its name, so we need to try both possible IAM host options.
+              // Green node has not changed its name, so we need to try both possible IAM host options.
               iamHosts = Arrays.asList(greenHostSpec, blueHostSpec);
             }
 
@@ -928,7 +918,7 @@ public class BlueGreenStatusProvider {
           });
 
     } else if (!this.greenDnsRemoved) {
-      // Green topology is already changed.
+      // Green topology has already changed.
       // New connect calls to green endpoints should be rejected.
       connectRouting.add(new RejectConnectRouting(null, BlueGreenRole.TARGET));
     }

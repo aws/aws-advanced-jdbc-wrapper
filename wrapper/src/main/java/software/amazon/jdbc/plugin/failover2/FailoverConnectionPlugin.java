@@ -19,9 +19,7 @@ package software.amazon.jdbc.plugin.failover2;
 import static software.amazon.jdbc.plugin.failover.FailoverMode.STRICT_READER;
 
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -30,7 +28,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import software.amazon.jdbc.AwsWrapperProperty;

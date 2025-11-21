@@ -17,9 +17,7 @@
 package software.amazon.jdbc.plugin.strategy.fastestresponse;
 
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -119,7 +117,8 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
         this.lastActivityTimestampNanos.set(System.nanoTime());
         this.openConnection();
 
-        if (this.monitoringConn.get() != null) {
+        final Connection copyConnection = this.monitoringConn.get();
+        if (copyConnection != null) {
 
           long responseTimeSum = 0;
           int count = 0;
@@ -128,7 +127,7 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
               break;
             }
             long startTime = this.getCurrentTime();
-            if (this.pluginService.getTargetDriverDialect().ping(this.monitoringConn.get())) {
+            if (this.pluginService.getTargetDriverDialect().ping(copyConnection)) {
               long responseTime = this.getCurrentTime() - startTime;
               responseTimeSum += responseTime;
               count++;
@@ -176,7 +175,8 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
 
   private void openConnection() {
     try {
-      if (this.monitoringConn.get() == null || this.monitoringConn.get().isClosed()) {
+      final Connection copyConnection = this.monitoringConn.get();
+      if (copyConnection == null || copyConnection.isClosed()) {
         // open a new connection
         final Properties monitoringConnProperties = PropertyUtils.copyProperties(this.props);
 
