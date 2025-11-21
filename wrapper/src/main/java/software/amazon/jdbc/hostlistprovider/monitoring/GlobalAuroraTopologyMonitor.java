@@ -56,7 +56,7 @@ public class GlobalAuroraTopologyMonitor extends ClusterTopologyMonitorImpl {
   }
 
   @Override
-  protected HostSpec getinstanceTemplate(String instanceId, Connection connection) throws SQLException {
+  protected HostSpec getInstanceTemplate(String instanceId, Connection connection) throws SQLException {
     String region = this.topologyUtils.getRegion(instanceId, connection);
     if (!StringUtils.isNullOrEmpty(region)) {
       final HostSpec instanceTemplate = this.instanceTemplatesByRegion.get(region);

@@ -502,7 +502,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
             } else {
               final Pair<String, String> pair = this.topologyUtils.getInstanceId(this.monitoringConnection.get());
               if (pair != null) {
-                HostSpec instanceTemplate = this.getinstanceTemplate(pair.getValue2(), this.monitoringConnection.get());
+                HostSpec instanceTemplate = this.getInstanceTemplate(pair.getValue2(), this.monitoringConnection.get());
                 HostSpec writerHost = this.topologyUtils.createHost(
                     pair.getValue1(), pair.getValue2(), true, 0, null, this.initialHostSpec, instanceTemplate);
                 this.writerHostSpec.set(writerHost);
@@ -544,7 +544,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     return hosts;
   }
 
-  protected HostSpec getinstanceTemplate(String nodeId, Connection connection) throws SQLException {
+  // Note: even though the parameters are not used here, they may be used in subclasses overriding this method.
+  protected HostSpec getInstanceTemplate(String nodeId, Connection connection) throws SQLException {
     return this.instanceTemplate;
   }
 
