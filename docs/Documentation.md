@@ -13,6 +13,7 @@
     - [Aurora Initial Connection Strategy Plugin](./using-the-jdbc-driver/using-plugins/UsingTheAuroraInitialConnectionStrategyPlugin.md)
     - [AWS Secrets Manager Plugin](./using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
     - [Blue/Green Deployment Plugin](./using-the-jdbc-driver/using-plugins/UsingTheBlueGreenPlugin.md)
+      - [Using Roles in MySQL 8.0 to Grant Privileges to mysql.rds_topology](./using-the-jdbc-driver/using-plugins/GrantingPermissionsToNonAdminUserInMySQL.md)
     - [Driver Metadata Connection Plugin](./using-the-jdbc-driver/using-plugins/UsingTheDriverMetadataConnectionPlugin.md)
     - [Failover Plugin](./using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md)
       - [Failover Configuration Guide](./using-the-jdbc-driver/FailoverConfigurationGuide.md)
