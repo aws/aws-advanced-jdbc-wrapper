@@ -235,6 +235,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
           if (writerCandidate != null) {
             this.pluginService.setAvailability(writerCandidate.asAliases(), HostAvailability.NOT_AVAILABLE);
           }
+          this.delay(retryDelayMs);
         }
       } catch (Throwable ex) {
         this.closeConnection(writerCandidateConn);
@@ -335,6 +336,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
           if (readerCandidate != null) {
             this.pluginService.setAvailability(readerCandidate.asAliases(), HostAvailability.NOT_AVAILABLE);
           }
+          this.delay(retryDelayMs);
         }
       } catch (Throwable ex) {
         this.closeConnection(readerCandidateConn);
