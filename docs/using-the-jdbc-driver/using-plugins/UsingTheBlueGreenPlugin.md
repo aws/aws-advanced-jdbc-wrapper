@@ -7,6 +7,9 @@ The [Blue/Green Deployment](https://docs.aws.amazon.com/whitepapers/latest/blue-
 The AWS Advanced JDBC Wrapper leverages the Blue/Green Deployment approach by intelligently managing traffic distribution between blue and green nodes, minimizing the impact of stale DNS data and connectivity disruptions on user applications.
 
 ## Prerequisites
+- AWS cluster and instance endpoints must be directly accessible from the client side
+- :warning: Extra permissions are required for non-admin users so that the blue/green metadata table/function can be properly queried. If the permissions are not granted, the metadata table/function will not be visible and blue/green plugin functionality will not work properly. Please see the [Connecting with non-admin users](#connecting-with-non-admin-users) section below.
+
 > [!WARNING]\
 > Currently Supported Database Deployments:
 > - Aurora MySQL and PostgreSQL clusters
@@ -17,8 +20,6 @@ The AWS Advanced JDBC Wrapper leverages the Blue/Green Deployment approach by in
 > - Aurora Global Database for MySQL and PostgreSQL
 >
 > Additional Requirements:
-> - AWS cluster and instance endpoints must be directly accessible from the client side
-> - :warning: If connecting with non-admin users, permissions must be granted to the users so that the blue/green metadata table/function can be properly queried. If the permissions are not granted, the metadata table/function will not be visible and blue/green plugin functionality will not work properly. Please see the [Connecting with non-admin users](#connecting-with-non-admin-users) section below.
 > - Connecting to database nodes using CNAME aliases is not supported
 >
 > **Blue/Green Support Behaviour and Version Compatibility:**
@@ -90,11 +91,12 @@ properties.setProperty("blue-green-monitoring-socketTimeout", "10000");
 
 > [!WARNING]\
 > **Always ensure you provide a non-zero socket timeout value or a connect timeout value to the Blue/Green Deployment Plugin**
->
 
 ## Connecting with non-admin users
+
 > [!WARNING]\
-> If connecting with non-admin users, permissions must be granted to the users so that the blue/green metadata table/function can be properly queried. If the permissions are not granted, the metadata table/function will not be visible and blue/green plugin functionality will not work properly.
+> The following permissions are **required** for every non-admin user accounts connecting to the DB instance/cluster.
+> If the permissions are not granted, the metadata table/function will not be visible and blue/green plugin functionality will not work properly.
 
 | Environment       | Required permission statements                                                                                        |
 |-------------------|-----------------------------------------------------------------------------------------------------------------------|
@@ -102,6 +104,9 @@ properties.setProperty("blue-green-monitoring-socketTimeout", "10000");
 | RDS Postgresql    | `GRANT USAGE ON SCHEMA rds_tools TO your_user;`<br>`GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA rds_tools TO your_user;` |
 | Aurora MySQL      | `GRANT SELECT ON mysql.rds_topology TO 'your_user'@'%';`<br>`FLUSH PRIVILEGES;`                                       |
 | RDS MySQL         | `GRANT SELECT ON mysql.rds_topology TO 'your_user'@'%';`<br>`FLUSH PRIVILEGES;`                                       |
+
+In MySQL, you can leverage MySQL Role to grant the required permissions to multiple users at once to reduce operational overhead before switchover.
+See instructions in [Using Roles in MySQL 8.0 to Grant Privileges to mysql.rds_topology].
 
 ## Plan your Blue/Green switchover in advance
 
