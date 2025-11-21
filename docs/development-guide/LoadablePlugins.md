@@ -84,7 +84,7 @@ When creating custom plugins, it is important to **avoid** the following bad pra
    - information like current connection, or the host list provider are shared across all plugins
    - shared information may be updated by any plugin at any time and should be retrieved via the plugin service when required
 2. Using driver-specific properties or objects:
-   - the AWS JDBC Driver may be used with multiple drivers, therefore plugins must ensure implementation is not restricted to a specific driver
+   - the AWS Advanced JDBC Wrapper may be used with multiple drivers, therefore plugins must ensure implementation is not restricted to a specific driver
 3. Making direct connections:
    - the plugin should always call the pipeline lambdas (i.e. `JdbcCallable<Connection, SQLException> connectFunc`, `JdbcCallable<T, E> jdbcMethodFunc`)
 4. Running long tasks synchronously:

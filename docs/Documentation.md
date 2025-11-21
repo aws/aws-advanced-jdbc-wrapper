@@ -1,11 +1,11 @@
 # Documentation
 
 - [Getting Started](./GettingStarted.md)
-- [Using the AWS JDBC Driver](./using-the-jdbc-driver/UsingTheJdbcDriver.md)
+- [Using the AWS Advanced JDBC Wrapper](./using-the-jdbc-driver/UsingTheJdbcDriver.md)
   - [Data Sources](./using-the-jdbc-driver/DataSource.md)
   - [Logging](./using-the-jdbc-driver/UsingTheJdbcDriver.md#logging)
   - [Telemetry](./using-the-jdbc-driver/Telemetry.md)
-  - [JDBC Wrapper Parameters](./using-the-jdbc-driver/UsingTheJdbcDriver.md#aws-advanced-jdbc-driver-parameters)
+  - [JDBC Wrapper Parameters](./using-the-jdbc-driver/UsingTheJdbcDriver.md#aws-advanced-jdbc-wrapper-parameters)
   - [Database Dialects](./using-the-jdbc-driver/DatabaseDialects.md)
   - [Target Driver Dialects](./using-the-jdbc-driver/TargetDriverDialects.md)
   - [Plugins](./using-the-jdbc-driver/UsingTheJdbcDriver.md#plugins)
@@ -24,7 +24,7 @@
   - [Host Availability Strategy](./using-the-jdbc-driver/HostAvailabilityStrategy.md)
 - [Development Guide](./development-guide/DevelopmentGuide.md)
   - [Setup](./development-guide/DevelopmentGuide.md#setup)
-  - [Building the AWS JDBC Driver](./development-guide/DevelopmentGuide.md#building-the-aws-advanced-jdbc-driver)
+  - [Building the AWS Advanced JDBC Wrapper](./development-guide/DevelopmentGuide.md#building-the-aws-advanced-jdbc-wrapper)
   - [Testing Overview](./development-guide/DevelopmentGuide.md#testing-overview)
     - [Performance Tests](./development-guide/DevelopmentGuide.md#performance-tests)
   - [Running the Tests](./development-guide/DevelopmentGuide.md#running-the-tests)
