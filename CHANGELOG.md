@@ -404,7 +404,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [2.2.2] - 2023-07-05
 ### :magic_wand: Added
-- Official support for Amazon Aurora with MySQL compatibility. The AWS JDBC Driver has been validated to support [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j) and [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j).
+- Official support for Amazon Aurora with MySQL compatibility. The AWS JDBC Driver has been validated to support [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j) and version 2.x of the [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j).
 - Documentation:
   - Maintenance and release policy ([PR #442](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/442) and [PR #507](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/507)).
   - Migration guide for moving from the AWS JDBC Driver for MySQL to the AWS JDBC Driver ([PR #510](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/510)).

@@ -37,7 +37,7 @@ dependencies {
     testImplementation("org.apache.commons:commons-dbcp2:2.12.0")
     testImplementation("org.postgresql:postgresql:42.7.4")
     testImplementation("com.mysql:mysql-connector-j:9.1.0")
-    testImplementation("org.mariadb.jdbc:mariadb-java-client:3.5.6")
+    testImplementation("org.mariadb.jdbc:mariadb-java-client:2.7.12")
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8

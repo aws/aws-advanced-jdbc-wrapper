@@ -181,7 +181,7 @@ public class DriverHelper {
   public static String getDriverRequiredParameters(
       DatabaseEngine databaseEngine, TestDriver testDriver) {
     if (testDriver == TestDriver.MARIADB && databaseEngine == DatabaseEngine.MYSQL) {
-      return "?permitMysqlScheme";
+      return "?usePipelineAuth=false&useBatchMultiSend=false&permitMysqlScheme";
     }
     return "";
   }

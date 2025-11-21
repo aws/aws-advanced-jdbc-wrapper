@@ -109,9 +109,10 @@ public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
   }
 
   @Override
-  public ConnectInfo prepareConnectInfo(final @NonNull String protocol,
+  public ConnectInfo prepareConnectInfo(
+      final @NonNull String protocol,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props) throws SQLException {
+      final @NonNull Properties props) {
 
     final String databaseName =
         PropertyDefinition.DATABASE.getString(props) != null
@@ -132,6 +133,8 @@ public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
     // "permitMysqlScheme" should be in Url rather than in properties.
     String urlBuilder = protocol + hostSpec.getUrl() + databaseName
         + (permitMysqlSchemeFlag ? "?" + PERMIT_MYSQL_SCHEME : "");
+
+    // Aurora
 
     return new ConnectInfo(urlBuilder, props);
   }
