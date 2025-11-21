@@ -44,8 +44,10 @@ dependencies {
     optionalImplementation("com.mchange:c3p0:0.11.0")
     optionalImplementation("org.apache.httpcomponents:httpclient:4.5.14")
     optionalImplementation("com.fasterxml.jackson.core:jackson-databind:2.19.0")
+    optionalImplementation("org.apache.commons:commons-pool2:2.11.1")
     optionalImplementation("org.jsoup:jsoup:1.21.1")
     optionalImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
+    optionalImplementation("io.lettuce:lettuce-core:6.6.0.RELEASE")
     optionalImplementation("io.opentelemetry:opentelemetry-api:1.52.0")
     optionalImplementation("io.opentelemetry:opentelemetry-sdk:1.52.0")
     optionalImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.52.0")
@@ -98,10 +100,12 @@ dependencies {
     testImplementation("org.slf4j:slf4j-simple:2.0.17")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.19.0")
     testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
+    testImplementation("io.lettuce:lettuce-core:6.6.0.RELEASE")
     testImplementation("io.opentelemetry:opentelemetry-api:1.52.0")
     testImplementation("io.opentelemetry:opentelemetry-sdk:1.52.0")
     testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.52.0")
     testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.52.0")
+    testImplementation("org.apache.commons:commons-pool2:2.11.1")
     testImplementation("org.jsoup:jsoup:1.21.1")
     testImplementation("de.vandermeer:asciitable:0.3.2")
     testImplementation("org.hibernate:hibernate-core:5.6.15.Final") // the latest version compatible with Java 8
@@ -208,7 +212,7 @@ if (useJacoco) {
                         "software/amazon/jdbc/wrapper/*",
                         "software/amazon/jdbc/util/*",
                         "software/amazon/jdbc/profile/*",
-                        "software/amazon/jdbc/plugin/DataCacheConnectionPlugin*"
+                        "software/amazon/jdbc/plugin/cache/DataLocalCacheConnectionPlugin*"
                     )
                 }
             }))
@@ -223,7 +227,7 @@ if (useJacoco) {
                         "software/amazon/jdbc/wrapper/*",
                         "software/amazon/jdbc/util/*",
                         "software/amazon/jdbc/profile/*",
-                        "software/amazon/jdbc/plugin/DataCacheConnectionPlugin*"
+                        "software/amazon/jdbc/plugin/cache/DataLocalCacheConnectionPlugin*"
                     )
                 }
             }))

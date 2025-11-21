@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Root logger defines the default logging level and appenders -->
+    <root level="info">
+    </root>
+</configuration>
