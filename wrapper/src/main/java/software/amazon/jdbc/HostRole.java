@@ -16,8 +16,27 @@
 
 package software.amazon.jdbc;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public enum HostRole {
   UNKNOWN,
   WRITER,
-  READER
+  READER;
+
+  private static final Map<String, HostRole> nameToVerifyConnectionTypeValue =
+      // Does not map to UNKNOWN, as is not a valid verification type option.
+      new HashMap<String, HostRole>() {
+        {
+          put("writer", WRITER);
+          put("reader", READER);
+        }
+      };
+
+  public static HostRole verifyConnectionTypeFromValue(String value) {
+    if (value == null) {
+      return null;
+    }
+    return nameToVerifyConnectionTypeValue.get(value.toLowerCase());
+  }
 }

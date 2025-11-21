@@ -39,6 +39,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.testcontainers.shaded.org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.awssdk.services.rds.model.DBClusterEndpoint;
@@ -54,7 +55,6 @@ import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class CustomEndpointMonitorImplTest {
-  @Mock private MonitorService mockMonitorService;
   @Mock private StorageService mockStorageService;
   @Mock private BiFunction<HostSpec, Region, RdsClient> mockRdsClientFunc;
   @Mock private RdsClient mockRdsClient;
@@ -113,20 +113,29 @@ public class CustomEndpointMonitorImplTest {
 
   @Test
   public void testRun() throws InterruptedException {
+    int refreshRateMs = 50;
     CustomEndpointMonitorImpl monitor = new CustomEndpointMonitorImpl(
         mockStorageService,
         mockTelemetryFactory,
         host,
         endpointId,
         Region.US_EAST_1,
-        TimeUnit.MILLISECONDS.toNanos(50),
+        TimeUnit.MILLISECONDS.toNanos(refreshRateMs),
         mockRdsClientFunc);
     monitor.start();
 
-    // Wait for 2 run cycles. The first will return an unexpected number of endpoints in the API response, the second
-    // will return the expected number of endpoints (one).
-    TimeUnit.MILLISECONDS.sleep(100);
-    assertEquals(expectedInfo, CustomEndpointMonitorImpl.customEndpointInfoCache.get(host.getUrl()));
+    // Wait for after 2 run cycles. The first will return an unexpected number of endpoints in the API response, the
+    // second will return the expected number of endpoints (one).
+    TimeUnit.MILLISECONDS.sleep(2 * refreshRateMs);
+    int runCycles = 2;
+    @Nullable CustomEndpointInfo customEndpointInfo = CustomEndpointMonitorImpl.customEndpointInfoCache
+        .get(host.getUrl());
+    while (customEndpointInfo == null && runCycles < 5) {
+      TimeUnit.MILLISECONDS.sleep(refreshRateMs);
+      runCycles++;
+      customEndpointInfo = CustomEndpointMonitorImpl.customEndpointInfoCache.get(host.getUrl());
+    }
+    assertEquals(expectedInfo, customEndpointInfo);
     monitor.stop();
 
     ArgumentCaptor<AllowedAndBlockedHosts> captor = ArgumentCaptor.forClass(AllowedAndBlockedHosts.class);
@@ -135,7 +144,7 @@ public class CustomEndpointMonitorImplTest {
     assertNull(captor.getValue().getBlockedHostIds());
 
     // Wait for monitor to close
-    TimeUnit.MILLISECONDS.sleep(50);
+    TimeUnit.MILLISECONDS.sleep(refreshRateMs);
     verify(mockRdsClient, atLeastOnce()).close();
   }
 }
