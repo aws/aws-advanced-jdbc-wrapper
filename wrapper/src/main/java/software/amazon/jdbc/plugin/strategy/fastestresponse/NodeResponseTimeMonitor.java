@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -31,13 +32,16 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.events.Event;
+import software.amazon.jdbc.util.events.EventSubscriber;
+import software.amazon.jdbc.util.events.MonitorResetEvent;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
-public class NodeResponseTimeMonitor extends AbstractMonitor {
+public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSubscriber {
 
   private static final Logger LOGGER =
       Logger.getLogger(NodeResponseTimeMonitor.class.getName());
@@ -59,7 +63,7 @@ public class NodeResponseTimeMonitor extends AbstractMonitor {
   private final TelemetryFactory telemetryFactory;
   private final TelemetryGauge responseTimeMsGauge;
 
-  private Connection monitoringConn = null;
+  private final AtomicReference<Connection> monitoringConn = new AtomicReference<>(null);
 
   public NodeResponseTimeMonitor(
       final @NonNull PluginService pluginService,
@@ -113,7 +117,8 @@ public class NodeResponseTimeMonitor extends AbstractMonitor {
         this.lastActivityTimestampNanos.set(System.nanoTime());
         this.openConnection();
 
-        if (this.monitoringConn != null) {
+        final Connection copyConnection = this.monitoringConn.get();
+        if (copyConnection != null) {
 
           long responseTimeSum = 0;
           int count = 0;
@@ -122,7 +127,7 @@ public class NodeResponseTimeMonitor extends AbstractMonitor {
               break;
             }
             long startTime = this.getCurrentTime();
-            if (this.pluginService.getTargetDriverDialect().ping(this.monitoringConn)) {
+            if (this.pluginService.getTargetDriverDialect().ping(copyConnection)) {
               long responseTime = this.getCurrentTime() - startTime;
               responseTimeSum += responseTime;
               count++;
@@ -161,13 +166,7 @@ public class NodeResponseTimeMonitor extends AbstractMonitor {
       }
     } finally {
       this.stopped.set(true);
-      if (this.monitoringConn != null) {
-        try {
-          this.monitoringConn.close();
-        } catch (final SQLException ex) {
-          // ignore
-        }
-      }
+      this.closeConnection();
       if (telemetryContext != null) {
         telemetryContext.closeContext();
       }
@@ -176,7 +175,8 @@ public class NodeResponseTimeMonitor extends AbstractMonitor {
 
   private void openConnection() {
     try {
-      if (this.monitoringConn == null || this.monitoringConn.isClosed()) {
+      final Connection copyConnection = this.monitoringConn.get();
+      if (copyConnection == null || copyConnection.isClosed()) {
         // open a new connection
         final Properties monitoringConnProperties = PropertyUtils.copyProperties(this.props);
 
@@ -193,30 +193,46 @@ public class NodeResponseTimeMonitor extends AbstractMonitor {
         LOGGER.finest(() -> Messages.get(
                 "NodeResponseTimeMonitor.openingConnection",
                 new Object[] {this.hostSpec.getUrl()}));
-        this.monitoringConn = this.pluginService.forceConnect(this.hostSpec, monitoringConnProperties);
+        this.monitoringConn.set(this.pluginService.forceConnect(this.hostSpec, monitoringConnProperties));
         LOGGER.finest(() -> Messages.get(
             "NodeResponseTimeMonitor.openedConnection",
-            new Object[] {this.monitoringConn}));
+            new Object[] {this.monitoringConn.get()}));
       }
     } catch (SQLException ex) {
-      if (this.monitoringConn != null) {
-        try {
-          this.monitoringConn.close();
-        } catch (Exception e) {
-          // ignore
-        }
-        this.monitoringConn = null;
-      }
+      this.closeConnection();
     }
   }
 
   @Override
   public void close() {
-    if (this.monitoringConn != null) {
+    this.closeConnection();
+  }
+
+  protected void closeConnection() {
+    final Connection conn = this.monitoringConn.getAndSet(null);
+    if (conn != null) {
       try {
-        this.monitoringConn.close();
+        conn.close();
       } catch (SQLException e) {
         // ignore
+      }
+    }
+  }
+
+  protected void reset() {
+    LOGGER.finest("Reset: " + this.hostSpec.getHost());
+    this.closeConnection();
+    this.responseTime.set(Integer.MAX_VALUE);
+    this.checkTimestamp.set(this.getCurrentTime());
+  }
+
+  @Override
+  public void processEvent(Event event) {
+    if (event instanceof MonitorResetEvent) {
+      LOGGER.finest("MonitorResetEvent received");
+      final MonitorResetEvent resetEvent = (MonitorResetEvent) event;
+      if (resetEvent.getEndpoints().contains(this.hostSpec.getHost())) {
+        this.reset();
       }
     }
   }

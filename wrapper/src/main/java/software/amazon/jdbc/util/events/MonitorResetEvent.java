@@ -17,33 +17,17 @@
 package software.amazon.jdbc.util.events;
 
 import java.util.Objects;
+import java.util.Set;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
-/**
- * A class defining a data access event. The class specifies the class of the data that was accessed and the key for the
- * data.
- */
-public class DataAccessEvent implements Event {
-  protected @NonNull Class<?> dataClass;
-  protected @NonNull Object key;
+public class MonitorResetEvent implements Event {
 
-  /**
-   * Constructor for a DataAccessEvent.
-   *
-   * @param dataClass the class of the data that was accessed.
-   * @param key       the key for the data that was accessed.
-   */
-  public DataAccessEvent(@NonNull Class<?> dataClass, @NonNull Object key) {
-    this.dataClass = dataClass;
-    this.key = key;
-  }
+  private final @NonNull String clusterId;
+  private final @NonNull Set<String> endpoints;
 
-  public @NonNull Class<?> getDataClass() {
-    return dataClass;
-  }
-
-  public @NonNull Object getKey() {
-    return key;
+  public MonitorResetEvent(final @NonNull String clusterId, final @NonNull Set<String> endpoints) {
+    this.clusterId = clusterId;
+    this.endpoints = endpoints;
   }
 
   @Override
@@ -60,22 +44,30 @@ public class DataAccessEvent implements Event {
       return false;
     }
 
-    DataAccessEvent event = (DataAccessEvent) obj;
-    return Objects.equals(this.dataClass, event.dataClass)
-        && Objects.equals(this.key, event.key);
+    MonitorResetEvent event = (MonitorResetEvent) obj;
+    return Objects.equals(this.clusterId, event.clusterId)
+        && Objects.equals(this.endpoints, event.endpoints);
+  }
+
+  public @NonNull String getClusterId() {
+    return clusterId;
+  }
+
+  public @NonNull Set<String> getEndpoints() {
+    return endpoints;
   }
 
   @Override
   public int hashCode() {
     final int prime = 31;
     int result = 1;
-    result = prime * result + this.dataClass.hashCode();
-    result = prime * result + this.key.hashCode();
+    result = prime * result + this.clusterId.hashCode();
+    result = prime * result + this.endpoints.hashCode();
     return result;
   }
 
   @Override
   public boolean isImmediateDelivery() {
-    return false;
+    return true;
   }
 }

@@ -44,6 +44,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.FullServicesContainerImpl;
+import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -53,6 +54,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 public class DeveloperConnectionPluginTest {
   @Mock StorageService mockStorageService;
   @Mock MonitorService mockMonitorService;
+  @Mock EventPublisher mockEventPublisher;
   @Mock PluginServiceImpl mockPluginService;
   @Mock Connection mockConnection;
   @Mock ConnectionPluginManager mockConnectionPluginManager;
@@ -81,6 +83,7 @@ public class DeveloperConnectionPluginTest {
     servicesContainer = new FullServicesContainerImpl(
         mockStorageService,
         mockMonitorService,
+        mockEventPublisher,
         mockConnectionProvider,
         mockTelemetryFactory,
         mockConnectionPluginManager,

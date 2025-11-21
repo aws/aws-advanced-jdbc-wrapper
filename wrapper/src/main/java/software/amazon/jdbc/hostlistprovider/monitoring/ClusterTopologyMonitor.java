@@ -22,9 +22,10 @@ import java.util.List;
 import java.util.concurrent.TimeoutException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.util.events.EventSubscriber;
 import software.amazon.jdbc.util.monitoring.Monitor;
 
-public interface ClusterTopologyMonitor extends Monitor {
+public interface ClusterTopologyMonitor extends Monitor, EventSubscriber {
 
   boolean canDispose();
 

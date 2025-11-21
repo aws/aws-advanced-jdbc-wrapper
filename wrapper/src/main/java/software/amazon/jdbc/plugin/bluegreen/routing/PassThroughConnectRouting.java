@@ -38,7 +38,7 @@ public class PassThroughConnectRouting extends BaseConnectRouting {
 
   @Override
   public Connection apply(ConnectionPlugin plugin, HostSpec hostSpec, Properties props, boolean isInitialConnection,
-      JdbcCallable<Connection, SQLException> connectFunc, StorageService storageService,
+      boolean useForceConnect, JdbcCallable<Connection, SQLException> connectFunc, StorageService storageService,
       PluginService pluginService) throws SQLException {
     return connectFunc.call();
   }
