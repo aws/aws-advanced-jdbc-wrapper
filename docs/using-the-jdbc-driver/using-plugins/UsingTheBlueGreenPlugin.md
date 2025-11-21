@@ -106,7 +106,7 @@ properties.setProperty("blue-green-monitoring-socketTimeout", "10000");
 | RDS MySQL         | `GRANT SELECT ON mysql.rds_topology TO 'your_user'@'%';`<br>`FLUSH PRIVILEGES;`                                       |
 
 In MySQL, you can leverage MySQL Role to grant the required permissions to multiple users at once to reduce operational overhead before switchover.
-See instructions in [Using Roles in MySQL 8.0 to Grant Privileges to mysql.rds_topology].
+See instructions in [Using Roles in MySQL 8.0 to Grant Privileges to mysql.rds_topology](./GrantingPermissionsToNonAdminUserInMySQL.md).
 
 ## Plan your Blue/Green switchover in advance
 
