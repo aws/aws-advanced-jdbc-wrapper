@@ -142,7 +142,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     return this.connectInternal(
-        driverProtocol, hostSpec, props, isInitialConnection, true, connectFunc);
+        hostSpec, props, isInitialConnection, true, connectFunc);
   }
 
   @Override
@@ -154,11 +154,10 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
     return this.connectInternal(
-        driverProtocol, hostSpec, props, isInitialConnection, false, connectFunc);
+        hostSpec, props, isInitialConnection, false, connectFunc);
   }
 
   protected Connection connectInternal(
-      final String driverProtocol,
       final HostSpec hostSpec,
       final Properties props,
       final boolean isInitialConnection,
