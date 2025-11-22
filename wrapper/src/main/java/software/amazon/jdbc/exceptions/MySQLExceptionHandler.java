@@ -81,7 +81,7 @@ public class MySQLExceptionHandler implements ExceptionHandler {
       if (exception instanceof SQLException) {
         sqlState = ((SQLException) exception).getSQLState();
       } else if (targetDriverDialect != null) {
-        sqlState = targetDriverDialect.getSQLState(throwable);
+        sqlState = targetDriverDialect.getSQLState(exception);
       }
 
       if (isLoginException(sqlState)) {
@@ -101,6 +101,38 @@ public class MySQLExceptionHandler implements ExceptionHandler {
     }
 
     return SQLSTATE_ACCESS_ERROR.equals(sqlState);
+  }
+
+  @Override
+  public boolean isReadOnlyConnectionException(
+      final @Nullable String sqlState, final @Nullable Integer errorCode) {
+    return "HY000".equals(sqlState) && errorCode != null && (errorCode == 1290 || errorCode == 1836);
+  }
+
+  @Override
+  public boolean isReadOnlyConnectionException(
+      final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
+
+    Throwable exception = throwable;
+
+    while (exception != null) {
+      String sqlState = null;
+      Integer errorCode = null;
+      if (exception instanceof SQLException) {
+        sqlState = ((SQLException) exception).getSQLState();
+        errorCode = ((SQLException) exception).getErrorCode();
+      } else if (targetDriverDialect != null) {
+        sqlState = targetDriverDialect.getSQLState(exception);
+      }
+
+      if (isReadOnlyConnectionException(sqlState, errorCode)) {
+        return true;
+      }
+
+      exception = exception.getCause();
+    }
+
+    return false;
   }
 
   private boolean isHikariMariaDbNetworkException(final SQLException sqlException) {
