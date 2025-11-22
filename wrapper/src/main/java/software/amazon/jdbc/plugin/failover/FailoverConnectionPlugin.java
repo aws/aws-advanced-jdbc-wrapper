@@ -890,7 +890,12 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return false;
     }
 
-    return this.pluginService.isNetworkException(t, this.pluginService.getTargetDriverDialect());
+    if (this.pluginService.isNetworkException(t, this.pluginService.getTargetDriverDialect())) {
+      return true;
+    }
+
+    return this.failoverMode == FailoverMode.STRICT_WRITER
+      && this.pluginService.isReadOnlyConnectionException(t, this.pluginService.getTargetDriverDialect());
   }
 
   /**

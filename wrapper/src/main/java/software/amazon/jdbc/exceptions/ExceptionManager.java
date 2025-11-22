@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.exceptions;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
@@ -42,6 +43,18 @@ public class ExceptionManager {
   public boolean isNetworkException(final Dialect dialect, final String sqlState) {
     final ExceptionHandler handler = getHandler(dialect);
     return handler.isNetworkException(sqlState);
+  }
+
+  public boolean isReadOnlyConnectionException(
+      final Dialect dialect, final Throwable throwable, final TargetDriverDialect targetDriverDialect) {
+    final ExceptionHandler handler = getHandler(dialect);
+    return handler.isReadOnlyConnectionException(throwable, targetDriverDialect);
+  }
+
+  public boolean isReadOnlyConnectionException(
+      final Dialect dialect, final @Nullable String sqlState, final @Nullable Integer errorCode) {
+    final ExceptionHandler handler = getHandler(dialect);
+    return handler.isReadOnlyConnectionException(sqlState, errorCode);
   }
 
   private ExceptionHandler getHandler(final Dialect dialect) {
