@@ -235,6 +235,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
           if (writerCandidate != null) {
             this.pluginService.setAvailability(writerCandidate.asAliases(), HostAvailability.NOT_AVAILABLE);
           }
+          throw ex;
         }
       } catch (Throwable ex) {
         this.closeConnection(writerCandidateConn);
