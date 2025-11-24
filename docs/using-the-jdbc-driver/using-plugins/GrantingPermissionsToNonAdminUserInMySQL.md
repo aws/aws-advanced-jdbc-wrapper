@@ -43,7 +43,7 @@ This document uses [MySQL roles](https://dev.mysql.com/doc/refman/8.0/en/roles.h
 
 ### Option 1: [mandatory_roles](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_mandatory_roles) with [SET DEFAULT ROLE](https://dev.mysql.com/doc/refman/8.0/en/set-default-role.html)
 
-This is recommended it there is only a handful and static set of user accounts that requires the privileges.
+This is recommended if there is only a small and static set of user accounts that require the privileges.
 
 | Pros                                                                          | Cons                                                                                  |
 |-------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|
