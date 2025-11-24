@@ -139,7 +139,7 @@ mysql> SELECT @@global.activate_all_roles_on_login, @@global.mandatory_roles;
 1 row in set (0.06 sec)
 ```
 
-After these change, ALL users will be assigned the new role and it will also be active.
+After these changes, ALL users will be assigned the new role and it will also be active.
 
 ```bash
 mysql> SHOW GRANTS \G  
