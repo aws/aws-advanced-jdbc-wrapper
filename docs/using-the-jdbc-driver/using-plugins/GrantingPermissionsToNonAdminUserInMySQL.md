@@ -120,7 +120,7 @@ AVAILABLE | 1.0 |
 
 ### Option 2: [mandatory_roles](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_mandatory_roles) with [activate_all_roles_on_login](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_activate_all_roles_on_login)
 
-This is recommended if the list of user accounts that requires access to the topology metadata table is dynamic.
+This is recommended if the list of user accounts that require access to the topology metadata table is dynamic.
 
 | Pros                                                        | Cons                                                                                                                                                                                                     |
 |-------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
