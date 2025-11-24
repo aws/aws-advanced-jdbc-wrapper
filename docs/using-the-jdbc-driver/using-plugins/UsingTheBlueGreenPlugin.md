@@ -95,7 +95,7 @@ properties.setProperty("blue-green-monitoring-socketTimeout", "10000");
 ## Connecting with non-admin users
 
 > [!WARNING]\
-> The following permissions are **required** for every non-admin user accounts connecting to the DB instance/cluster.
+> The following permissions are **required** for every non-admin user account connecting to the DB instance/cluster.
 > If the permissions are not granted, the metadata table/function will not be visible and blue/green plugin functionality will not work properly.
 
 | Environment       | Required permission statements                                                                                        |
