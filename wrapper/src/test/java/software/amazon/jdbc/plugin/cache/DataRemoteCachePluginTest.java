@@ -43,6 +43,7 @@ public class DataRemoteCachePluginTest {
   @Mock TelemetryContext mockTelemetryContext;
   @Mock ResultSet mockResult1;
   @Mock Statement mockStatement;
+  @Mock PreparedStatement mockPreparedStatement;
   @Mock ResultSetMetaData mockMetaData;
   @Mock Connection mockConnection;
   @Mock SessionStateService mockSessionStateService;
@@ -171,6 +172,67 @@ public class DataRemoteCachePluginTest {
   }
 
   @Test
+  void test_execute_emptyQuery_noCaching() throws Exception {
+    plugin = new DataRemoteCachePlugin(mockPluginService, props);
+    plugin.setCacheConnection(mockCacheConn);
+    // Query is not cacheable
+    when(mockPluginService.isInTransaction()).thenReturn(false);
+    when(mockCallable.call()).thenReturn(mockResult1);
+
+    ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
+        methodName, mockCallable, new String[]{});
+
+    // Mock result set containing 1 row
+    when(mockResult1.next()).thenReturn(true, true, false);
+    when(mockResult1.getObject(1)).thenReturn("bar1", "bar1");
+    compareResults(mockResult1, rs);
+    verify(mockPluginService).isInTransaction();
+    verify(mockCallable).call();
+    verify(mockTotalQueryCounter, times(1)).inc();
+    verify(mockCacheHitCounter, never()).inc();
+    verify(mockCacheBypassCounter, times(1)).inc();
+    verify(mockCacheMissCounter, never()).inc();
+    // Verify TelemetryContext behavior for no-caching scenario
+    verify(mockTelemetryFactory).openTelemetryContext("jdbc-database-query", TelemetryTraceLevel.TOP_LEVEL);
+    verify(mockTelemetryFactory, never()).openTelemetryContext(eq("jdbc-cache-lookup"), any());
+    verify(mockTelemetryContext).closeContext();
+  }
+
+  @Test
+  void test_execute_emptyPreparedStatement_noCaching() throws Exception {
+    plugin = new DataRemoteCachePlugin(mockPluginService, props);
+    plugin.setCacheConnection(mockCacheConn);
+    // Query is not cacheable
+    when(mockPluginService.isInTransaction()).thenReturn(false);
+    when(mockPreparedStatement.toString()).thenReturn("", null);
+    when(mockCallable.call()).thenReturn(mockResult1);
+
+    ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockPreparedStatement,
+        methodName, mockCallable, new String[]{});
+    // Mock result set containing 1 row
+    when(mockResult1.next()).thenReturn(true, true, false, true, true, false);
+    when(mockResult1.getObject(1)).thenReturn("bar1", "bar1", "bar1", "bar1");
+    compareResults(mockResult1, rs);
+
+    rs = plugin.execute(ResultSet.class, SQLException.class, mockPreparedStatement,
+        methodName, mockCallable, new String[]{});
+    // Mock result set containing 1 row
+    compareResults(mockResult1, rs);
+
+    verify(mockPluginService, times(2)).isInTransaction();
+    verify(mockCallable, times(2)).call();
+    verify(mockTotalQueryCounter, times(2)).inc();
+    verify(mockCacheHitCounter, never()).inc();
+    verify(mockCacheBypassCounter, times(2)).inc();
+    verify(mockCacheMissCounter, never()).inc();
+    // Verify TelemetryContext behavior for no-caching scenario
+    verify(mockTelemetryFactory, times(2)).openTelemetryContext("jdbc-database-query", TelemetryTraceLevel.TOP_LEVEL);
+    verify(mockTelemetryFactory, never()).openTelemetryContext(eq("jdbc-cache-lookup"), any());
+    //verify(mockPreparedStatement, times(2)).toString();
+    verify(mockTelemetryContext, times(2)).closeContext();
+  }
+
+  @Test
   void test_execute_noCachingLongQuery() throws Exception {
     plugin = new DataRemoteCachePlugin(mockPluginService, props);
     plugin.setCacheConnection(mockCacheConn);
@@ -179,7 +241,7 @@ public class DataRemoteCachePluginTest {
     when(mockCallable.call()).thenReturn(mockResult1);
 
     ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
-        methodName, mockCallable, new String[]{"/* CACHE_PARAM(ttl=20s) */ select * from T" + RandomStringUtils.randomAlphanumeric(15990)});
+        methodName, mockCallable, new String[]{"/* CACHE_PARAM(ttl=20s) */ select * from T " + RandomStringUtils.randomAlphanumeric(16350)});
 
     // Mock result set containing 1 row
     when(mockResult1.next()).thenReturn(true, true, false);
@@ -231,6 +293,74 @@ public class DataRemoteCachePluginTest {
 
     ResultSet rs2 = plugin.execute(ResultSet.class, SQLException.class, mockStatement,
         methodName, mockCallable, new String[]{" /*+CACHE_PARAM(ttl=50s)*/select * from A"});
+
+    assertTrue(rs2.next());
+    assertEquals("bar1", rs2.getString("fooName"));
+    assertFalse(rs2.next());
+    verify(mockPluginService, times(3)).getCurrentConnection();
+    verify(mockPluginService, times(2)).isInTransaction();
+    verify(mockCacheConn, times(2)).readFromCache("mysql_null_user1_select * from A");
+    verify(mockPluginService, times(3)).getSessionStateService();
+    verify(mockSessionStateService, times(3)).getCatalog();
+    verify(mockSessionStateService, times(3)).getSchema();
+    verify(mockConnection).getCatalog();
+    verify(mockConnection).getSchema();
+    verify(mockSessionStateService).setCatalog("mysql");
+    verify(mockDbMetadata).getUserName();
+    verify(mockCallable).call();
+    verify(mockCacheConn).writeToCache(eq("mysql_null_user1_select * from A"), any(), eq(50));
+    verify(mockTotalQueryCounter, times(2)).inc();
+    verify(mockCacheMissCounter, times(1)).inc();
+    verify(mockCacheHitCounter, times(1)).inc();
+    verify(mockCacheBypassCounter, never()).inc();
+    // Verify TelemetryContext behavior for cache miss and hit scenario
+    // First call: Cache miss + Database call
+    verify(mockTelemetryFactory, times(2)).openTelemetryContext(eq("jdbc-cache-lookup"), eq(TelemetryTraceLevel.TOP_LEVEL));
+    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.TOP_LEVEL));
+    // Cache context calls: 1 miss (setSuccess(false)) + 1 hit (setSuccess(true))
+    verify(mockTelemetryContext, times(1)).setSuccess(false); // Cache miss
+    verify(mockTelemetryContext, times(1)).setSuccess(true);  // Cache hit
+    // Context closure: 2 cache contexts + 1 database context = 3 total
+    verify(mockTelemetryContext, times(3)).closeContext();
+  }
+
+  @Test
+  void test_cachingMissAndHit_preparedStatement() throws Exception {
+    plugin = new DataRemoteCachePlugin(mockPluginService, props);
+    plugin.setCacheConnection(mockCacheConn);
+    // Query is a cache miss
+    when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
+    when(mockPluginService.isInTransaction()).thenReturn(false);
+    when(mockConnection.getMetaData()).thenReturn(mockDbMetadata);
+    when(mockPluginService.getSessionStateService()).thenReturn(mockSessionStateService);
+    when(mockSessionStateService.getCatalog()).thenReturn(Optional.empty()).thenReturn(Optional.of("mysql"));
+    when(mockSessionStateService.getSchema()).thenReturn(Optional.empty());
+    when(mockConnection.getCatalog()).thenReturn("mysql");
+    when(mockConnection.getSchema()).thenReturn(null);
+    when(mockDbMetadata.getUserName()).thenReturn("user1@1.1.1.1");
+    when(mockCacheConn.readFromCache("mysql_null_user1_select * from A")).thenReturn(null);
+    when(mockCallable.call()).thenReturn(mockResult1);
+
+    // Result set contains 1 row
+    when(mockResult1.next()).thenReturn(true, false);
+    when(mockResult1.getObject(1)).thenReturn("bar1");
+    when(mockPreparedStatement.toString()).thenReturn("/* CACHE_PARAM(ttl=50s) */ select * from A");
+
+    // Now query is a cache hit
+    ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockPreparedStatement,
+        methodName, mockCallable, new String[]{});
+
+    // Cached result set contains 1 row
+    assertTrue(rs.next());
+    assertEquals("bar1", rs.getString("fooName"));
+    assertFalse(rs.next());
+
+    rs.beforeFirst();
+    byte[] serializedTestResultSet = ((CachedResultSet)rs).serializeIntoByteArray();
+    when(mockCacheConn.readFromCache("mysql_null_user1_select * from A")).thenReturn(serializedTestResultSet);
+
+    ResultSet rs2 = plugin.execute(ResultSet.class, SQLException.class, mockPreparedStatement,
+        methodName, mockCallable, new String[]{});
 
     assertTrue(rs2.next());
     assertEquals("bar1", rs2.getString("fooName"));

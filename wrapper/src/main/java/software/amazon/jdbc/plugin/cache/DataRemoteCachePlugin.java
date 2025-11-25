@@ -18,6 +18,7 @@ package software.amazon.jdbc.plugin.cache;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Arrays;
@@ -43,7 +44,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
 public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(DataRemoteCachePlugin.class.getName());
-  private static final String QUERY_HINT_START_PATTERN = "/*+";
+  private static final String QUERY_HINT_START_PATTERN = "/*";
   private static final String QUERY_HINT_END_PATTERN = "*/";
   private static final String CACHE_PARAM_PATTERN = "CACHE_PARAM(";
   private static final String TELEMETRY_CACHE_LOOKUP = "jdbc-cache-lookup";
@@ -260,7 +261,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
 
     ResultSet result;
     boolean needToCache = false;
-    final String sql = getQuery(jdbcMethodArgs);
+    final String sql = getQuery(methodInvokeOn, jdbcMethodArgs);
 
     TelemetryContext cacheContext = null;
     TelemetryContext dbContext = null;
@@ -271,7 +272,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     int endOfQueryHint = 0;
     Integer configuredQueryTtl = null;
     // Queries longer than 16KB is not cacheable
-    if ((sql.length() < maxCacheableQuerySize) && sql.startsWith(QUERY_HINT_START_PATTERN)) {
+    if (!StringUtils.isNullOrEmpty(sql) && (sql.length() < maxCacheableQuerySize) && sql.contains(QUERY_HINT_START_PATTERN)) {
       endOfQueryHint = sql.indexOf(QUERY_HINT_END_PATTERN);
       if (endOfQueryHint > 0) {
         configuredQueryTtl = getTtlForQuery(sql.substring(QUERY_HINT_START_PATTERN.length(), endOfQueryHint).trim());
@@ -355,10 +356,19 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     counter.inc();
   }
 
-  protected String getQuery(final Object[] jdbcMethodArgs) {
+  protected String getQuery(final Object methodInvokeOn, final Object[] jdbcMethodArgs) {
     // Get query from method argument
     if (jdbcMethodArgs != null && jdbcMethodArgs.length > 0 && jdbcMethodArgs[0] != null) {
       return jdbcMethodArgs[0].toString().trim();
+    }
+
+    // If the query is not in the method arguments, check for prepared statement query. Get the query
+    // string from the prepared statement. The exact query string is dependent on the underlying driver.
+    if (methodInvokeOn instanceof PreparedStatement) {
+      // For postgres, this gives the raw query itself. i.e. "select * from T where A = 1".
+      // For MySQL, this gives "com.mysql.cj.jdbc.ClientPreparedStatement: select * from T where A = 1"
+      // For MariaDB, this gives "ClientPreparedStatement{sql:'select * from T where A=1', parameters:[]}"
+      return methodInvokeOn.toString();
     }
     return null;
   }
