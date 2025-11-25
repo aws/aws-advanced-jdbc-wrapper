@@ -25,7 +25,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
@@ -39,6 +38,7 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.HostSelectorUtils;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.monitoring.MonitorErrorResponse;
 
@@ -50,7 +50,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
           "limitlessTransactionRouterMonitorDisposalTimeMs",
           "600000", // 10min
           "Interval in milliseconds for an Limitless router monitor to be considered inactive and to be disposed.");
-  protected static final Map<String, ReentrantLock> forceGetLimitlessRoutersLockMap = new ConcurrentHashMap<>();
+  protected static final Map<String, ResourceLock> forceGetLimitlessRoutersLockMap = new ConcurrentHashMap<>();
   protected static final Set<MonitorErrorResponse> monitorErrorResponses =
       new HashSet<>(Collections.singletonList(MonitorErrorResponse.RECREATE));
   protected final FullServicesContainer servicesContainer;
@@ -278,12 +278,11 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
 
   protected void synchronouslyGetLimitlessRouters(final LimitlessConnectionContext context)
       throws SQLException {
-    final ReentrantLock lock = forceGetLimitlessRoutersLockMap.computeIfAbsent(
+    final ResourceLock lock = forceGetLimitlessRoutersLockMap.computeIfAbsent(
         this.pluginService.getHostListProvider().getClusterId(),
-        key -> new ReentrantLock()
+        key -> new ResourceLock()
     );
-    lock.lock();
-    try {
+    try (ResourceLock ignored = lock.obtain()) {
       final List<HostSpec> limitlessRouters =
           getLimitlessRouters(this.pluginService.getHostListProvider().getClusterId());
       if (!Utils.isNullOrEmpty(limitlessRouters)) {
@@ -306,8 +305,6 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       } else {
         throw new SQLException(Messages.get("LimitlessRouterServiceImpl.fetchedEmptyRouterList"));
       }
-    } finally {
-      lock.unlock();
     }
   }
 

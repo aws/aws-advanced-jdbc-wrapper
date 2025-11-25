@@ -20,7 +20,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
+import software.amazon.jdbc.util.ResourceLock;
 import java.util.logging.Logger;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
@@ -51,7 +51,7 @@ public class HostMonitorConnectionContext {
   private long invalidNodeStartTimeNano; // Only accessed by monitor thread
   private long failureCount; // Only accessed by monitor thread
 
-  private final ReentrantLock lock = new ReentrantLock();
+  private final ResourceLock lock = new ResourceLock();
 
   /**
    * Constructor.
@@ -246,7 +246,7 @@ public class HostMonitorConnectionContext {
             new Object[] {hostName}));
   }
 
-  public ReentrantLock getLock() {
+  public ResourceLock getLock() {
     return this.lock;
   }
 }

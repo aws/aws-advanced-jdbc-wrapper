@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.locks.ReentrantLock;
+import software.amazon.jdbc.util.ResourceLock;
 import java.util.function.Supplier;
 import software.amazon.jdbc.util.Messages;
 
@@ -38,8 +38,8 @@ public class HostMonitorThreadContainer {
   private final Map<HostMonitor, Future<?>> tasksMap = new ConcurrentHashMap<>();
   private final Map<String, HostMonitor> monitorMap = new ConcurrentHashMap<>();
   private final ExecutorService threadPool;
-  private static final ReentrantLock LOCK_OBJECT = new ReentrantLock();
-  private static final ReentrantLock MONITOR_LOCK_OBJECT = new ReentrantLock();
+  private static final ResourceLock LOCK_OBJECT = new ResourceLock();
+  private static final ResourceLock MONITOR_LOCK_OBJECT = new ResourceLock();
 
   /**
    * Create an instance of the {@link HostMonitorThreadContainer}.
@@ -57,14 +57,11 @@ public class HostMonitorThreadContainer {
       return singletonToReturn;
     }
 
-    LOCK_OBJECT.lock();
-    try {
+    try (ResourceLock ignored = LOCK_OBJECT.obtain()) {
       if (singleton == null) {
         singleton = new HostMonitorThreadContainer(executorServiceInitializer);
       }
       singletonToReturn = singleton;
-    } finally {
-      LOCK_OBJECT.unlock();
     }
     return singletonToReturn;
   }
@@ -77,14 +74,11 @@ public class HostMonitorThreadContainer {
     if (singleton == null) {
       return;
     }
-    LOCK_OBJECT.lock();
-    try {
+    try (ResourceLock ignored = LOCK_OBJECT.obtain()) {
       if (singleton != null) {
         singleton.releaseResources();
         singleton = null;
       }
-    } finally {
-      LOCK_OBJECT.unlock();
     }
   }
 
@@ -118,8 +112,7 @@ public class HostMonitorThreadContainer {
       throw new IllegalArgumentException(Messages.get("HostMonitorThreadContainer.emptyNodeKeys"));
     }
 
-    MONITOR_LOCK_OBJECT.lock();
-    try {
+    try (ResourceLock ignored = MONITOR_LOCK_OBJECT.obtain()) {
 
       HostMonitor monitor = null;
       String anyNodeKey = null;
@@ -143,8 +136,6 @@ public class HostMonitorThreadContainer {
       populateMonitorMap(nodeKeys, monitor);
       return monitor;
 
-    } finally {
-      MONITOR_LOCK_OBJECT.unlock();
     }
   }
 
@@ -171,8 +162,7 @@ public class HostMonitorThreadContainer {
 
     final List<HostMonitor> monitorList = Collections.singletonList(monitor);
 
-    MONITOR_LOCK_OBJECT.lock();
-    try {
+    try (ResourceLock ignored = MONITOR_LOCK_OBJECT.obtain()) {
       monitorMap.values().removeAll(monitorList);
       tasksMap.computeIfPresent(
           monitor,
@@ -180,14 +170,11 @@ public class HostMonitorThreadContainer {
             v.cancel(true);
             return null;
           });
-    } finally {
-      MONITOR_LOCK_OBJECT.unlock();
     }
   }
 
   public void releaseResources() {
-    MONITOR_LOCK_OBJECT.lock();
-    try {
+    try (ResourceLock ignored = MONITOR_LOCK_OBJECT.obtain()) {
       monitorMap.clear();
       tasksMap.values().stream()
           .filter(val -> !val.isDone() && !val.isCancelled())
@@ -196,8 +183,6 @@ public class HostMonitorThreadContainer {
       if (threadPool != null) {
         threadPool.shutdownNow();
       }
-    } finally {
-      MONITOR_LOCK_OBJECT.unlock();
     }
   }
 }

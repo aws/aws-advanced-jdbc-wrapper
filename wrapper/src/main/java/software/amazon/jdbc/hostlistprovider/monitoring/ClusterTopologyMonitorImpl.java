@@ -37,7 +37,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.ReentrantLock;
+import software.amazon.jdbc.util.ResourceLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -101,7 +101,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected final AtomicLong ignoreNewTopologyRequestsEndTimeNano = new AtomicLong(-1);
   protected final ConcurrentHashMap<String, Boolean> submittedNodes = new ConcurrentHashMap<>();
   protected ExecutorService nodeExecutorService = null;
-  protected final ReentrantLock nodeExecutorLock = new ReentrantLock();
+  protected final ResourceLock nodeExecutorLock = new ResourceLock();
   protected final AtomicBoolean nodeThreadsStop = new AtomicBoolean(false);
   protected final AtomicReference<Connection> nodeThreadsWriterConnection = new AtomicReference<>(null);
   protected final AtomicReference<HostSpec> nodeThreadsWriterHostSpec = new AtomicReference<>(null);
@@ -506,8 +506,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected void shutdownNodeExecutorService() {
     if (this.nodeExecutorService != null) {
 
-      this.nodeExecutorLock.lock();
-      try {
+      try (ResourceLock ignored = this.nodeExecutorLock.obtain()) {
 
         if (this.nodeExecutorService == null) {
           return;
@@ -526,18 +525,13 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
         }
 
         this.nodeExecutorService = null;
-      } finally {
-        this.nodeExecutorLock.unlock();
       }
     }
   }
 
   protected void createNodeExecutorService() {
-    this.nodeExecutorLock.lock();
-    try {
+    try (ResourceLock ignored = this.nodeExecutorLock.obtain()) {
       this.nodeExecutorService = ExecutorFactory.newCachedThreadPool("node");
-    } finally {
-      this.nodeExecutorLock.unlock();
     }
   }
 

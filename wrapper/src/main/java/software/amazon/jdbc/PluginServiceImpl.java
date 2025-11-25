@@ -32,7 +32,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -54,6 +53,7 @@ import software.amazon.jdbc.states.SessionStateServiceImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.storage.CacheMap;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -90,7 +90,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   protected final SessionStateService sessionStateService;
 
-  protected final ReentrantLock connectionSwitchLock = new ReentrantLock();
+  protected final ResourceLock connectionSwitchLock = new ResourceLock();
 
   public PluginServiceImpl(
       @NonNull final FullServicesContainer servicesContainer,
@@ -281,8 +281,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       @Nullable final ConnectionPlugin skipNotificationForThisPlugin)
       throws SQLException {
 
-    connectionSwitchLock.lock();
-    try {
+    try (ResourceLock ignored = connectionSwitchLock.obtain()) {
 
       if (this.currentConnection == null) {
         // setting up an initial connection
@@ -350,8 +349,6 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
         }
         return changes;
       }
-    } finally {
-      connectionSwitchLock.unlock();
     }
   }
 
