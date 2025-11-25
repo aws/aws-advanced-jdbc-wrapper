@@ -398,8 +398,15 @@ public class CachedResultSetTest {
     assertEquals(Time.valueOf("07:20:30"), cachedRs.getTime(1, estCal));
     // Time from OffsetTime
     assertTrue(cachedRs.next());
-    assertEquals(Time.valueOf("05:15:30"), cachedRs.getTime(1));
-    assertEquals(Time.valueOf("05:15:30"), cachedRs.getTime(1, estCal));
+    // OffsetTime.of(12, 15, 30, 0, ZoneOffset.UTC) converted to default timezone
+    OffsetTime offsetTimeUtc = OffsetTime.of(12, 15, 30, 0, ZoneOffset.UTC);
+    ZonedDateTime expectedDefaultTz = offsetTimeUtc.atDate(LocalDate.now())
+        .atZoneSameInstant(defaultTimeZone.toZoneId());
+    assertEquals(Time.valueOf(expectedDefaultTz.toLocalTime()), cachedRs.getTime(1));
+    // OffsetTime converted to EST timezone
+    ZonedDateTime expectedEstTz = offsetTimeUtc.atDate(LocalDate.now())
+        .atZoneSameInstant(estCal.getTimeZone().toZoneId());
+    assertEquals(Time.valueOf(expectedEstTz.toLocalTime()), cachedRs.getTime(1, estCal));
     // Time from Timestamp
     assertTrue(cachedRs.next());
     Timestamp timestampOne = new Timestamp(1755621000000L);

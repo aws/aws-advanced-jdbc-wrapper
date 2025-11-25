@@ -377,8 +377,18 @@ public class CachedResultSet implements ResultSet {
       return Time.valueOf(targetZonedDateTime.toLocalTime());
     }
     if (timeObj instanceof OffsetTime) {
-      OffsetTime localTime = ((OffsetTime)timeObj).withOffsetSameInstant(OffsetDateTime.now().getOffset());
-      return Time.valueOf(localTime.toLocalTime());
+      OffsetTime offsetTime = (OffsetTime) timeObj;
+      if (cal == null) {
+        // Convert to default timezone using ZonedDateTime conversion
+        ZonedDateTime zonedDateTime = offsetTime.atDate(LocalDate.now())
+            .atZoneSameInstant(defaultTimeZoneId);
+        return Time.valueOf(zonedDateTime.toLocalTime());
+      } else {
+        // Convert to specified calendar timezone
+        ZonedDateTime zonedDateTime = offsetTime.atDate(LocalDate.now())
+            .atZoneSameInstant(cal.getTimeZone().toZoneId());
+        return Time.valueOf(zonedDateTime.toLocalTime());
+      }
     }
     if (timeObj instanceof Timestamp) {
       Timestamp timestamp = (Timestamp) timeObj;
