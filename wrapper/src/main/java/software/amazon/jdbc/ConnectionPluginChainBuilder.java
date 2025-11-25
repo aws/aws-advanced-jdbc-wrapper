@@ -48,6 +48,7 @@ import software.amazon.jdbc.plugin.federatedauth.OktaAuthPluginFactory;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPluginFactory;
 import software.amazon.jdbc.plugin.limitless.LimitlessConnectionPluginFactory;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPluginFactory;
+import software.amazon.jdbc.plugin.srw.SimpleReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPluginFactory;
 import software.amazon.jdbc.profile.ConfigurationProfile;
@@ -80,6 +81,7 @@ public class ConnectionPluginChainBuilder {
           put("okta", new OktaAuthPluginFactory());
           put("auroraStaleDns", new AuroraStaleDnsPluginFactory());
           put("readWriteSplitting", new ReadWriteSplittingPluginFactory());
+          put("srw", new SimpleReadWriteSplittingPluginFactory());
           put("auroraConnectionTracker", new AuroraConnectionTrackerPluginFactory());
           put("driverMetaData", new DriverMetaDataConnectionPluginFactory());
           put("connectTime", new ConnectTimeConnectionPluginFactory());
@@ -107,6 +109,7 @@ public class ConnectionPluginChainBuilder {
           put(AuroraStaleDnsPluginFactory.class, 500);
           put(BlueGreenConnectionPluginFactory.class, 550);
           put(ReadWriteSplittingPluginFactory.class, 600);
+          put(SimpleReadWriteSplittingPluginFactory.class, 610);
           put(FailoverConnectionPluginFactory.class, 700);
           put(software.amazon.jdbc.plugin.failover2.FailoverConnectionPluginFactory.class, 710);
           put(HostMonitoringConnectionPluginFactory.class, 800);
