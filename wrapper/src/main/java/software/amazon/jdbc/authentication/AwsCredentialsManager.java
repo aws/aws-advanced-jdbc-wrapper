@@ -51,15 +51,9 @@ public class AwsCredentialsManager {
   public static AwsCredentialsProvider getProvider(final HostSpec hostSpec, final Properties props) {
     lock.lock();
     try {
-      AwsCredentialsProvider provider = handler == null
-          ? null
+      return handler == null
+          ? getDefaultProvider(PropertyDefinition.AWS_PROFILE.getString(props))
           : handler.getAwsCredentialsProvider(hostSpec, props);
-
-      if (provider == null) {
-        provider = getDefaultProvider(PropertyDefinition.AWS_PROFILE.getString(props));
-      }
-
-      return provider;
     } finally {
       lock.unlock();
     }
