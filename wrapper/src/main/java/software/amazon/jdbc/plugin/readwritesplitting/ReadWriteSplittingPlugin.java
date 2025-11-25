@@ -267,7 +267,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     return HostRole.READER.equals(hostSpec.getRole());
   }
 
-  private void getNewWriterConnection(final HostSpec writerHostSpec) throws SQLException {
+  private void initializeWriterConnection(final HostSpec writerHostSpec) throws SQLException {
     final Connection conn = this.pluginService.connect(writerHostSpec, this.properties, this);
     this.isWriterConnFromInternalPool = Boolean.TRUE.equals(this.pluginService.isPooledConnection());
     setWriterConnection(conn, writerHostSpec);
@@ -384,7 +384,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     final HostSpec writerHost = getWriter(hosts);
     this.inReadWriteSplit = true;
     if (!isConnectionUsable(this.writerConnection)) {
-      getNewWriterConnection(writerHost);
+      initializeWriterConnection(writerHost);
     } else {
       switchCurrentConnectionTo(this.writerConnection, writerHost);
     }
@@ -464,12 +464,12 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     if (hosts.size() == 1) {
       final HostSpec writerHost = getWriter(hosts);
       if (!isConnectionUsable(this.writerConnection)) {
-        getNewWriterConnection(writerHost);
+        initializeWriterConnection(writerHost);
       }
       LOGGER.warning(() -> Messages.get("ReadWriteSplittingPlugin.noReadersFound",
           new Object[] {writerHost.getHostAndPort()}));
     } else {
-      getNewReaderConnection();
+      openNewReaderConnection();
       LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.switchedFromWriterToReader",
           new Object[] {this.readerHostSpec.getHostAndPort()}));
     }
@@ -484,7 +484,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     return writerHost;
   }
 
-  private void getNewReaderConnection() throws SQLException {
+  private void openNewReaderConnection() throws SQLException {
     Connection conn = null;
     HostSpec readerHost = null;
 
