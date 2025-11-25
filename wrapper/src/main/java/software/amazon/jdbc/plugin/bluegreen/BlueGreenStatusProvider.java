@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -158,7 +159,7 @@ public class BlueGreenStatusProvider {
   }
 
   protected void initMonitoring() {
-    monitors[BlueGreenRole.SOURCE.getValue()] =
+    final BlueGreenStatusMonitor sourceMonitor =
         new BlueGreenStatusMonitor(
             BlueGreenRole.SOURCE,
             this.bgdId,
@@ -167,7 +168,10 @@ public class BlueGreenStatusProvider {
             this.getMonitoringProperties(),
             statusCheckIntervalMap,
             this::prepareStatus);
-    monitors[BlueGreenRole.TARGET.getValue()] =
+    monitors[BlueGreenRole.SOURCE.getValue()] = sourceMonitor;
+    sourceMonitor.start();
+
+    final BlueGreenStatusMonitor targetMonitor =
         new BlueGreenStatusMonitor(
             BlueGreenRole.TARGET,
             this.bgdId,
@@ -176,6 +180,8 @@ public class BlueGreenStatusProvider {
             this.getMonitoringProperties(),
             statusCheckIntervalMap,
             this::prepareStatus);
+    monitors[BlueGreenRole.TARGET.getValue()] = targetMonitor;
+    targetMonitor.start();
   }
 
   protected Properties getMonitoringProperties() {
@@ -448,7 +454,7 @@ public class BlueGreenStatusProvider {
   protected void updateMonitors() {
     switch (this.summaryStatus.getCurrentPhase()) {
       case NOT_CREATED:
-        Arrays.stream(this.monitors).forEach(x -> {
+        Arrays.stream(this.monitors).filter(Objects::nonNull).forEach(x -> {
           x.setIntervalRate(BlueGreenIntervalRate.BASELINE);
           x.setCollectIpAddresses(false);
           x.setCollectTopology(false);
@@ -456,7 +462,7 @@ public class BlueGreenStatusProvider {
         });
         break;
       case CREATED:
-        Arrays.stream(this.monitors).forEach(x -> {
+        Arrays.stream(this.monitors).filter(Objects::nonNull).forEach(x -> {
           x.setIntervalRate(BlueGreenIntervalRate.INCREASED);
           x.setCollectIpAddresses(true);
           x.setCollectTopology(true);
@@ -469,7 +475,7 @@ public class BlueGreenStatusProvider {
       case PREPARATION:
       case IN_PROGRESS:
       case POST:
-        Arrays.stream(this.monitors).forEach(x -> {
+        Arrays.stream(this.monitors).filter(Objects::nonNull).forEach(x -> {
           x.setIntervalRate(BlueGreenIntervalRate.HIGH);
           x.setCollectIpAddresses(false);
           x.setCollectTopology(false);
@@ -477,7 +483,7 @@ public class BlueGreenStatusProvider {
         });
         break;
       case COMPLETED:
-        Arrays.stream(this.monitors).forEach(x -> {
+        Arrays.stream(this.monitors).filter(Objects::nonNull).forEach(x -> {
           x.setIntervalRate(BlueGreenIntervalRate.BASELINE);
           x.setCollectIpAddresses(false);
           x.setCollectTopology(false);
