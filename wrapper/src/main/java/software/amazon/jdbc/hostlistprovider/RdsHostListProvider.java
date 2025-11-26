@@ -366,12 +366,17 @@ public class RdsHostListProvider implements DynamicHostListProvider {
           new Object[] {e.getMessage()}));
     }
 
+    boolean shouldCommit = !conn.getAutoCommit() && !this.hostListProviderService.isInTransaction();
+
     try (final Statement stmt = conn.createStatement();
          final ResultSet resultSet = stmt.executeQuery(this.topologyQuery)) {
       return processQueryResults(resultSet);
     } catch (final SQLSyntaxErrorException e) {
       throw new SQLException(Messages.get("RdsHostListProvider.invalidQuery"), e);
     } finally {
+      if (shouldCommit) {
+        conn.commit();
+      }
       if (networkTimeout == 0 && !conn.isClosed()) {
         conn.setNetworkTimeout(networkTimeoutExecutor, networkTimeout);
       }
