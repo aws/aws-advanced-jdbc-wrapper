@@ -35,7 +35,6 @@ import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -52,6 +51,7 @@ import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
@@ -106,7 +106,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   protected List<HostSpec> initialHostList = new ArrayList<>();
   protected HostSpec initialHostSpec;
 
-  protected final ReentrantLock lock = new ReentrantLock();
+  protected final ResourceLock lock = new ResourceLock();
   protected String clusterId;
   protected HostSpec clusterInstanceTemplate;
 
@@ -143,8 +143,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       return;
     }
 
-    lock.lock();
-    try {
+    try (ResourceLock ignored = lock.obtain()) {
       if (this.isInitialized) {
         return;
       }
@@ -210,8 +209,6 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       }
 
       this.isInitialized = true;
-    } finally {
-      lock.unlock();
     }
   }
 
