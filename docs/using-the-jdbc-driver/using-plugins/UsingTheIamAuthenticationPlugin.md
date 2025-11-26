@@ -36,7 +36,9 @@ IAM database authentication use is limited to certain database engines. For more
 3. [Create a database account](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.DBAccounts.html) using AWS IAM database authentication. This will be the user specified in the connection string or connection properties.
     1. Connect to your database of choice using primary logins.
         1. For a MySQL database, use the following command to create a new user:<br>
-           `CREATE USER example_user_name IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS';`
+           `CREATE USER example_user_name IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS';`<br>
+           You might also need to grant extra permissions to the IAM user when connecting to RDS Multi-AZ deployments:<br>
+           ```GRANT REPLICATION CLIENT ON *.* TO example_user_name@`%`;```
         2. For a PostgreSQL database, use the following command to create a new user:<br>
            `CREATE USER db_userx;
            GRANT rds_iam TO db_userx;`
