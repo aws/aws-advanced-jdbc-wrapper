@@ -78,7 +78,7 @@ public class WrapperUtilsTest {
   private void mockExecuteReturnValue(Object returnValue) {
     doAnswer(invocation -> {
       try (ResourceLock  lockIsFree = testLock.obtain()) {
-        if (lockIsFree == null ) {
+        if (lockIsFree == null) {
           fail("Lock is in use, should not be attempting to fetch it right now");
         }
         Thread.sleep(3000);
