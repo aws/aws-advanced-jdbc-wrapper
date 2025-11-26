@@ -18,7 +18,6 @@ package software.amazon.jdbc.profile;
 
 import java.util.List;
 import java.util.Properties;
-import software.amazon.jdbc.util.ResourceLock;
 import java.util.function.Supplier;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -28,6 +27,7 @@ import software.amazon.jdbc.authentication.AwsCredentialsProviderHandler;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.ResourceLock;
 
 public class ConfigurationProfile {
 

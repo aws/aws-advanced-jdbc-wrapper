@@ -35,7 +35,6 @@ import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
-import software.amazon.jdbc.util.ResourceLock;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -55,6 +54,7 @@ import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.storage.CacheMap;
 
 public class RdsHostListProvider implements DynamicHostListProvider {

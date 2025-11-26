@@ -20,19 +20,19 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class ResourceLock extends ReentrantLock implements AutoCloseable {
 
-    /**
-     * Obtain a lock and return the ResourceLock for use in try-with-resources block.
-     */
-    public software.amazon.jdbc.util.ResourceLock obtain() {
-      lock();
-      return this;
-    }
+  /**
+   * Obtain a lock and return the ResourceLock for use in try-with-resources block.
+   */
+  public software.amazon.jdbc.util.ResourceLock obtain() {
+    lock();
+    return this;
+  }
 
-    /**
-     * Unlock on exit of try-with-resources block.
-     */
-    @Override
-    public void close() {
-      this.unlock();
-    }
+  /**
+   * Unlock on exit of try-with-resources block.
+   */
+  @Override
+  public void close() {
+    this.unlock();
+  }
 }

@@ -24,9 +24,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import software.amazon.jdbc.util.ResourceLock;
 import java.util.function.Supplier;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.ResourceLock;
 
 /**
  * This singleton class keeps track of all the monitoring threads and handles the creation and clean

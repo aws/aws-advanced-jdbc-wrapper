@@ -20,10 +20,10 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
-import software.amazon.jdbc.util.ResourceLock;
 import java.util.logging.Logger;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 
 /**
