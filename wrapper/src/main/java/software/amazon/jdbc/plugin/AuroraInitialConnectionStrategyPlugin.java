@@ -125,8 +125,10 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
       final HostListProviderService hostListProviderService,
       final JdbcCallable<Void, SQLException> initHostProviderFunc) throws SQLException {
 
+    final RdsUrlType type = this.rdsUtils.identifyRdsType(initialUrl);
     this.hostListProviderService = hostListProviderService;
-    if (hostListProviderService.isStaticHostListProvider()) {
+    if ((type.isRdsCluster() || this.verifyOpenedConnectionType != null)
+        && hostListProviderService.isStaticHostListProvider()) {
       throw new SQLException(Messages.get("AuroraInitialConnectionStrategyPlugin.requireDynamicProvider"));
     }
     initHostProviderFunc.call();
