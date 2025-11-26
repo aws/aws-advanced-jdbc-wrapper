@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -49,7 +50,6 @@ import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrat
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -93,7 +93,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
   @SuppressWarnings("rawtypes")
   protected final PluginChainJdbcCallableInfo[] pluginChainFuncMap =
       new PluginChainJdbcCallableInfo[JdbcMethod.ALL.id + 1]; // it should be the last element in JdbcMethod enum
-  protected final ResourceLock lock = new ResourceLock();
+  protected final ReentrantLock lock = new ReentrantLock();
   protected final Properties props;
   protected final TelemetryFactory telemetryFactory;
   protected final boolean isTelemetryInUse;
@@ -130,8 +130,12 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
     this.isTelemetryInUse = telemetryFactory.inUse();
   }
 
-  public ResourceLock obtain() {
-    return lock.obtain();
+  public void lock() {
+    lock.lock();
+  }
+
+  public void unlock() {
+    lock.unlock();
   }
 
   /**
