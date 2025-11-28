@@ -20,6 +20,7 @@ import static software.amazon.jdbc.plugin.customendpoint.MemberListType.STATIC_L
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -51,9 +52,10 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
   // Keys are custom endpoint URLs, values are information objects for the associated custom endpoint.
   protected static final CacheMap<String, CustomEndpointInfo> customEndpointInfoCache = new CacheMap<>();
   protected static final long CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(5);
-  protected static final long UNAUTHORIZED_SLEEP_SEC = TimeUnit.MINUTES.toSeconds(5);
+  protected static final long UNAUTHORIZED_SLEEP_NANO = TimeUnit.MINUTES.toNanos(5);
   protected static final long MONITOR_TERMINATION_TIMEOUT_SEC = 30;
 
+  protected final AtomicBoolean refreshRequired = new AtomicBoolean(false);
   protected final RdsClient rdsClient;
   protected final HostSpec customEndpointHostSpec;
   protected final String endpointIdentifier;
@@ -133,7 +135,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
                     }
                 ));
 
-            TimeUnit.NANOSECONDS.sleep(this.refreshRateNano);
+            this.sleep(this.refreshRateNano);
             continue;
           }
 
@@ -142,7 +144,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
           if (cachedEndpointInfo != null && cachedEndpointInfo.equals(endpointInfo)) {
             long elapsedTime = System.nanoTime() - start;
             long sleepDuration = Math.max(0, this.refreshRateNano - elapsedTime);
-            TimeUnit.NANOSECONDS.sleep(sleepDuration);
+            this.sleep(sleepDuration);
             continue;
           }
 
@@ -162,13 +164,14 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
           this.storageService.set(this.customEndpointHostSpec.getUrl(), allowedAndBlockedHosts);
           customEndpointInfoCache.put(
               this.customEndpointHostSpec.getUrl(), endpointInfo, CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO);
+          this.refreshRequired.set(false);
           if (this.infoChangedCounter != null) {
             this.infoChangedCounter.inc();
           }
 
           long elapsedTime = System.nanoTime() - start;
           long sleepDuration = Math.max(0, this.refreshRateNano - elapsedTime);
-          TimeUnit.NANOSECONDS.sleep(sleepDuration);
+          this.sleep(sleepDuration);
         } catch (InterruptedException e) {
           throw e;
         } catch (RdsException ex) {
@@ -179,13 +182,13 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
 
           if (ex.isThrottlingException()) {
             this.refreshRateNano *= 2; // Reduce the refresh rate.
-            TimeUnit.NANOSECONDS.sleep(this.refreshRateNano);
+            this.sleep(this.refreshRateNano);
           } else if (ex.statusCode() == HttpStatusCode.UNAUTHORIZED || ex.statusCode() == HttpStatusCode.FORBIDDEN) {
             // User has no permissions to get custom endpoint details.
             // Reduce the refresh rate.
-            TimeUnit.SECONDS.sleep(UNAUTHORIZED_SLEEP_SEC);
+            this.sleep(UNAUTHORIZED_SLEEP_NANO);
           } else {
-            TimeUnit.NANOSECONDS.sleep(this.refreshRateNano);
+            this.sleep(this.refreshRateNano);
           }
         } catch (Exception e) {
           // If the exception is not an InterruptedException, log it and continue monitoring.
@@ -194,7 +197,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
                   "CustomEndpointMonitorImpl.exception",
                   new Object[] {this.customEndpointHostSpec.getUrl()}), e);
 
-          TimeUnit.NANOSECONDS.sleep(this.refreshRateNano);
+          this.sleep(this.refreshRateNano);
         }
       }
     } catch (InterruptedException e) {
@@ -213,8 +216,24 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
     }
   }
 
+  protected void sleep(long durationNs) throws InterruptedException {
+    synchronized (this.refreshRequired) {
+      this.refreshRequired.wait(TimeUnit.NANOSECONDS.toMillis(durationNs));
+    }
+  }
+
   public boolean hasCustomEndpointInfo() {
-    return customEndpointInfoCache.get(this.customEndpointHostSpec.getUrl()) != null;
+    CustomEndpointInfo customEndpointInfo = customEndpointInfoCache.get(this.customEndpointHostSpec.getUrl());
+    if (customEndpointInfo == null && !this.refreshRequired.get()) {
+      // There is no custom endpoint info, probably because the cache entry has expired. We use notifyAll below to
+      // wake up the custom endpoint monitor if it is sleeping.
+      synchronized (this.refreshRequired) {
+        this.refreshRequired.set(true);
+        this.refreshRequired.notifyAll();
+      }
+    }
+
+    return customEndpointInfo != null;
   }
 
   @Override
