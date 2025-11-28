@@ -29,6 +29,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -872,12 +873,16 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   private static class NodeMonitoringWorker implements Runnable {
 
     private static final Logger LOGGER = Logger.getLogger(NodeMonitoringWorker.class.getName());
+    private static final long INITIAL_BACKOFF_MS = 100;
+    private static final long MAX_BACKOFF_MS = 5000;
+    private static final Random random = new Random();
 
     protected final FullServicesContainer servicesContainer;
     protected final ClusterTopologyMonitorImpl monitor;
     protected final HostSpec hostSpec;
     protected final @Nullable HostSpec writerHostSpec;
     protected boolean writerChanged = false;
+    protected int connectionAttempts = 0;
 
     public NodeMonitoringWorker(
         final FullServicesContainer servicesContainer,
@@ -905,9 +910,10 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
             try {
               connection = this.servicesContainer.getPluginService().forceConnect(
                   hostSpec, this.monitor.monitoringProperties);
+              this.connectionAttempts = 0;
             } catch (SQLException ex) {
               // A problem occurred while connecting. We will try again on the next iteration.
-              TimeUnit.MILLISECONDS.sleep(100);
+              TimeUnit.MILLISECONDS.sleep(calculateBackoffWithJitter(this.connectionAttempts++));
               continue;
             }
           }
@@ -1036,6 +1042,12 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
         this.monitor.updateTopologyCache(hosts);
         LOGGER.fine(Utils.logTopology(hosts));
       }
+    }
+
+    private static long calculateBackoffWithJitter(int attempt) {
+      long backoff = INITIAL_BACKOFF_MS * Math.round(Math.pow(2, Math.min(attempt, 6)));
+      backoff = Math.min(backoff, MAX_BACKOFF_MS);
+      return Math.round(backoff * (0.5 + random.nextDouble() * 0.5));
     }
   }
 }
