@@ -563,6 +563,22 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
+  public boolean isReadOnlyConnectionException(@Nullable String sqlState, @Nullable Integer errorCode) {
+    if (this.exceptionHandler != null) {
+      return this.exceptionHandler.isReadOnlyConnectionException(sqlState, errorCode);
+    }
+    return this.exceptionManager.isReadOnlyConnectionException(this.dbDialect, sqlState, errorCode);
+  }
+
+  @Override
+  public boolean isReadOnlyConnectionException(Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
+    if (this.exceptionHandler != null) {
+      return this.exceptionHandler.isReadOnlyConnectionException(throwable, targetDriverDialect);
+    }
+    return this.exceptionManager.isReadOnlyConnectionException(this.dbDialect, throwable, targetDriverDialect);
+  }
+
+  @Override
   public Dialect getDialect() {
     return this.dbDialect;
   }
