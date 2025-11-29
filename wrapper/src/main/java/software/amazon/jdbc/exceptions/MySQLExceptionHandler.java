@@ -71,7 +71,8 @@ public class MySQLExceptionHandler implements ExceptionHandler {
       return false;
     }
 
-    return sqlState.startsWith("08");
+    // 08004 -  "Server rejected the connection" or "Connection refused by server"
+    return sqlState.startsWith("08") && !"08004".equals(sqlState);
   }
 
   @Override
