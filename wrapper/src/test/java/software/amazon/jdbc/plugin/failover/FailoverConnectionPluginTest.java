@@ -18,12 +18,15 @@ package software.amazon.jdbc.plugin.failover;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -441,4 +444,17 @@ class FailoverConnectionPluginTest {
     spyPlugin.setReaderFailoverHandler(mockReaderFailoverHandler);
     // doReturn(mockConnectionService).when(spyPlugin).getConnectionService();
   }
+
+  @Test
+  void test_failover_when_read_only_connection() throws SQLException {
+    initializePlugin();
+    spyPlugin.failoverMode = FailoverMode.STRICT_WRITER;
+
+    when(mockPluginService.isReadOnlyConnectionException(any(), any(TargetDriverDialect.class))).thenReturn(true);
+    assertTrue(spyPlugin.shouldExceptionTriggerConnectionSwitch(new SQLException("test", "any")));
+
+    when(mockPluginService.isReadOnlyConnectionException(any(), any(TargetDriverDialect.class))).thenReturn(false);
+    assertFalse(spyPlugin.shouldExceptionTriggerConnectionSwitch(new SQLException("test", "any")));
+  }
+
 }

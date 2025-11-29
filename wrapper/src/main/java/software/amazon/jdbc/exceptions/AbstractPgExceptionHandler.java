@@ -23,6 +23,9 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.StringUtils;
 
 public abstract class AbstractPgExceptionHandler implements ExceptionHandler {
+
+  protected static final String READ_ONLY_CONNECTION_SQLSTATE = "25006";
+
   public abstract List<String> getNetworkErrors();
 
   public abstract List<String> getAccessErrors();
@@ -99,7 +102,7 @@ public abstract class AbstractPgExceptionHandler implements ExceptionHandler {
   @Override
   public boolean isReadOnlyConnectionException(
       final @Nullable String sqlState, final @Nullable Integer errorCode) {
-    return "25006".equals(sqlState);
+    return READ_ONLY_CONNECTION_SQLSTATE.equals(sqlState);
   }
 
   @Override
