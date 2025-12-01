@@ -103,4 +103,15 @@ public class GenericExceptionHandler implements ExceptionHandler {
   public boolean isLoginException(final String sqlState) {
     return ACCESS_ERRORS.contains(sqlState);
   }
+
+  @Override
+  public boolean isReadOnlyConnectionException(@Nullable String sqlState, @Nullable Integer errorCode) {
+    return false;
+  }
+
+  @Override
+  public boolean isReadOnlyConnectionException(
+      Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
+    return false;
+  }
 }

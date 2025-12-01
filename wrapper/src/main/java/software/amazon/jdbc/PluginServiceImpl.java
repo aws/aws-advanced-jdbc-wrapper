@@ -692,6 +692,22 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
+  public boolean isReadOnlyConnectionException(@Nullable String sqlState, @Nullable Integer errorCode) {
+    if (this.exceptionHandler != null) {
+      return this.exceptionHandler.isReadOnlyConnectionException(sqlState, errorCode);
+    }
+    return this.exceptionManager.isReadOnlyConnectionException(this.dialect, sqlState, errorCode);
+  }
+
+  @Override
+  public boolean isReadOnlyConnectionException(Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
+    if (this.exceptionHandler != null) {
+      return this.exceptionHandler.isReadOnlyConnectionException(throwable, targetDriverDialect);
+    }
+    return this.exceptionManager.isReadOnlyConnectionException(this.dialect, throwable, targetDriverDialect);
+  }
+
+  @Override
   public Dialect getDialect() {
     return this.dialect;
   }
