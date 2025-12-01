@@ -29,10 +29,10 @@ import software.amazon.jdbc.ds.AwsWrapperDataSource;
  */
 public class HikariFailoverExample {
 
-  private static final String USER = "postgres";
+  private static final String USER = "username";
   private static final String PASSWORD = "password";
   private static final String DATABASE_NAME = "postgres";
-  private static final String ENDPOINT = "database-4.cluster-cgnh50a2ovor.us-east-1.rds.amazonaws.com";
+  private static final String ENDPOINT = "db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com";
 
   public static void main(String[] args) throws SQLException {
     try (HikariDataSource ds = new HikariDataSource()) {
@@ -54,7 +54,7 @@ public class HikariFailoverExample {
       // seen above.
       ds.addDataSourceProperty(
           "jdbcUrl",
-          "jdbc:aws-wrapper:postgresql://database-4.cluster-cgnh50a2ovor.us-east-1.rds.amazonaws.com:5432/postgres");
+          "jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/postgres");
 
       // The failover plugin throws failover-related exceptions that need to be handled explicitly by HikariCP,
       // otherwise connections will be closed immediately after failover. Set `ExceptionOverrideClassName` to provide
@@ -75,18 +75,11 @@ public class HikariFailoverExample {
       ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 
       // Attempt a connection:
-      while(true) {
-        try (final Connection conn = ds.getConnection();
-            final Statement statement = conn.createStatement();
-            final ResultSet rs = statement.executeQuery("SELECT * from pg_catalog.aurora_db_instance_identifier()")) {
-          while (rs.next()) {
-            System.out.println(rs.getString(1));
-          }
-        }
-        try {
-          Thread.sleep(1000);
-        } catch (InterruptedException e) {
-          e.printStackTrace();
+      try (final Connection conn = ds.getConnection();
+          final Statement statement = conn.createStatement();
+          final ResultSet rs = statement.executeQuery("SELECT * from pg_catalog.aurora_db_instance_identifier()")) {
+        while (rs.next()) {
+          System.out.println(rs.getString(1));
         }
       }
     }
