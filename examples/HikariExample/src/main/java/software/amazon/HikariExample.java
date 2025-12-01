@@ -25,10 +25,10 @@ import java.sql.Statement;
 
 public class HikariExample {
 
-  private static final String USER = "postgres";
+  private static final String USER = "username";
   private static final String PASSWORD = "password";
   private static final String DATABASE_NAME = "postgres";
-  private static final String ENDPOINT = "database-4.cluster-cgnh50a2ovor.us-east-1.rds.amazonaws.com";
+  private static final String ENDPOINT = "db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com";
 
   public static void main(String[] args) throws SQLException {
     try (HikariDataSource ds = new HikariDataSource()) {
