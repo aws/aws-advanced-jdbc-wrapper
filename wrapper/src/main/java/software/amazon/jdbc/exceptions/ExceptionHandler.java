@@ -28,4 +28,8 @@ public interface ExceptionHandler {
   boolean isLoginException(String sqlState);
 
   boolean isLoginException(Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect);
+
+  boolean isReadOnlyConnectionException(final @Nullable String sqlState, final @Nullable Integer errorCode);
+
+  boolean isReadOnlyConnectionException(Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect);
 }

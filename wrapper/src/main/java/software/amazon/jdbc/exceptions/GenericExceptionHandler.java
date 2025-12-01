@@ -86,7 +86,7 @@ public class GenericExceptionHandler implements ExceptionHandler {
       if (exception instanceof SQLException) {
         sqlState = ((SQLException) exception).getSQLState();
       } else if (targetDriverDialect != null) {
-        sqlState = targetDriverDialect.getSQLState(throwable);
+        sqlState = targetDriverDialect.getSQLState(exception);
       }
 
       if (isLoginException(sqlState)) {
@@ -102,5 +102,16 @@ public class GenericExceptionHandler implements ExceptionHandler {
   @Override
   public boolean isLoginException(final String sqlState) {
     return ACCESS_ERRORS.contains(sqlState);
+  }
+
+  @Override
+  public boolean isReadOnlyConnectionException(@Nullable String sqlState, @Nullable Integer errorCode) {
+    return false;
+  }
+
+  @Override
+  public boolean isReadOnlyConnectionException(
+      Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
+    return false;
   }
 }
