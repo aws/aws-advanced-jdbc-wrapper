@@ -47,6 +47,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.LazyCleaner;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -63,6 +64,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   protected final String originalUrl;
   protected @Nullable ConfigurationProfile configurationProfile;
   protected @Nullable Throwable openConnectionStacktrace;
+  private LazyCleaner.@NonNull Cleanable<?> cleanable;
 
   public ConnectionWrapper(
       @NonNull final FullServicesContainer servicesContainer,
@@ -71,8 +73,10 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       @NonNull final String targetDriverProtocol,
       @Nullable final ConfigurationProfile configurationProfile)
       throws SQLException {
+
     this.pluginManager = servicesContainer.getConnectionPluginManager();
     this.pluginService = servicesContainer.getPluginService();
+    this.cleanable = LazyCleaner.getInstance().register(this, new CleanupAction(openConnectionStacktrace, pluginService));
     this.hostListProviderService = servicesContainer.getHostListProviderService();
     this.pluginManagerService = servicesContainer.getPluginManagerService();
     this.originalUrl = url;
@@ -126,9 +130,6 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
   public void releaseResources() {
     this.pluginManager.releaseResources();
-    if (this.pluginService instanceof CanReleaseResources) {
-      ((CanReleaseResources) this.pluginService).releaseResources();
-    }
   }
 
   @Override
@@ -187,6 +188,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
               this.pluginService.getSessionStateService().complete();
               this.pluginService.getSessionStateService().reset();
             }
+            try {
+              this.cleanable.clean();
+            } catch (Throwable e) {
+              // Ignore cleanup exceptions
+            }
             this.openConnectionStacktrace = null;
             this.pluginManagerService.setInTransaction(false);
           });
@@ -199,6 +205,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       } finally {
         this.pluginService.getSessionStateService().complete();
         this.pluginService.getSessionStateService().reset();
+      }
+      try {
+        this.cleanable.clean();
+      } catch (Throwable e) {
+        // Ignore cleanup exceptions
       }
       this.openConnectionStacktrace = null;
       this.pluginManagerService.setInTransaction(false);
@@ -1138,27 +1149,35 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     return super.toString() + " - " + this.pluginService.getCurrentConnection();
   }
 
-  @SuppressWarnings("checkstyle:NoFinalizer")
-  protected void finalize() throws Throwable {
-
-    try {
-      if (this.openConnectionStacktrace != null) {
-        LOGGER.log(
-            Level.WARNING,
-            this.openConnectionStacktrace,
-            () -> Messages.get(
-                "ConnectionWrapper.finalizingUnclosedConnection"));
-        this.openConnectionStacktrace = null;
-      }
-
-      this.releaseResources();
-
-    } finally {
-      super.finalize();
-    }
-  }
-
   public Connection getCurrentConnection() {
     return this.pluginService.getCurrentConnection();
+  }
+
+  private static class CleanupAction implements LazyCleaner.CleaningAction<RuntimeException> {
+    private final Throwable openConnectionStacktrace;
+    private final PluginService pluginService;
+
+    CleanupAction(Throwable openConnectionStacktrace, PluginService pluginService) {
+      this.openConnectionStacktrace = openConnectionStacktrace;
+      this.pluginService = pluginService;
+    }
+
+    @Override
+    public void onClean(boolean leak) {
+      if (leak) {
+        LOGGER.log(
+            Level.WARNING,
+            openConnectionStacktrace,
+            () -> Messages.get("ConnectionWrapper.finalizingUnclosedConnection"));
+      }
+
+      try {
+        if (pluginService instanceof CanReleaseResources) {
+          ((CanReleaseResources) pluginService).releaseResources();
+        }
+      } catch (Exception e) {
+        // Ignore exceptions during cleanup
+      }
+    }
   }
 }
