@@ -76,7 +76,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
     this.pluginManager = servicesContainer.getConnectionPluginManager();
     this.pluginService = servicesContainer.getPluginService();
-    this.cleanable = LazyCleaner.getInstance().register(this, new CleanupAction(openConnectionStacktrace, pluginService));
+    this.cleanable = LazyCleaner.getInstance().register(this, new CleanupAction(openConnectionStacktrace, pluginManager, pluginService));
     this.hostListProviderService = servicesContainer.getHostListProviderService();
     this.pluginManagerService = servicesContainer.getPluginManagerService();
     this.originalUrl = url;
@@ -129,7 +129,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   public void releaseResources() {
-    this.pluginManager.releaseResources();
+    try {
+      this.cleanable.clean();
+    } catch (Throwable e) {
+      // ignore
+    }
   }
 
   @Override
@@ -214,7 +218,6 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       this.openConnectionStacktrace = null;
       this.pluginManagerService.setInTransaction(false);
     }
-    this.releaseResources();
   }
 
   @Override
@@ -1156,10 +1159,12 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   private static class CleanupAction implements LazyCleaner.CleaningAction<RuntimeException> {
     private final Throwable openConnectionStacktrace;
     private final PluginService pluginService;
+    private final ConnectionPluginManager pluginManager;
 
-    CleanupAction(Throwable openConnectionStacktrace, PluginService pluginService) {
+    CleanupAction(Throwable openConnectionStacktrace, ConnectionPluginManager pluginManager,  PluginService pluginService) {
       this.openConnectionStacktrace = openConnectionStacktrace;
       this.pluginService = pluginService;
+      this.pluginManager = pluginManager;
     }
 
     @Override
@@ -1175,6 +1180,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         if (pluginService instanceof CanReleaseResources) {
           ((CanReleaseResources) pluginService).releaseResources();
         }
+        pluginManager.releaseResources();
       } catch (Exception e) {
         // Ignore exceptions during cleanup
       }
