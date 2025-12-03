@@ -186,7 +186,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       final String clusterIdSetting = CLUSTER_ID.getString(this.properties);
       if (!StringUtils.isNullOrEmpty(clusterIdSetting)) {
         this.clusterId = clusterIdSetting;
-      } else if (rdsUrlType == RdsUrlType.RDS_PROXY) {
+      } else if (rdsUrlType == RdsUrlType.RDS_PROXY || rdsUrlType == RdsUrlType.RDS_CUSTOM_CLUSTER) {
         // Each proxy is associated with a single cluster, so it's safe to use RDS Proxy Url as cluster
         // identification
         this.clusterId = this.initialHostSpec.getUrl();

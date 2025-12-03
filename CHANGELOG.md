@@ -3,6 +3,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [2.6.7] - 2025-11-25
+
+### :bug: Fixed
+- Handle nested auth exceptions in MySQLExceptionHandler ([PR #1601](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1601)) and in other handlers ([PR #1605](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1605)).
+- Outdated topology during Blue/Green switchover leads to wrong connection failover ([PR #1599](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1599)).
+- Ensure Blue/Green monitor instances are set up properly ([PR #1612](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1612)).
+
+### :crab: Changed
+- Documentation:
+    - Replace references to AWS JDBC Driver to AWS Advanced JDBC Wrapper for consistency ([PR #1595](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1595))
+    - Update instructions regarding MySQL permissions ([PR #1608](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1608))
+
 ## [2.6.6] - 2025-11-05
 
 ### :magic_wand: Added

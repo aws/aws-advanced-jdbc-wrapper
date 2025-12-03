@@ -34,7 +34,7 @@ This JAR is a drop-in ready solution and is **recommended for customers who do n
 As this plugin has a number of transitive dependencies, the goal of this JAR is to eliminate the need to manually source all the dependencies and avoid potential issues with managing them. 
 In that spirit, the dependencies in this JAR are shaded with the prefix `shaded` to avoid potential package conflicts with pre-existing packages in your environment.
 
-It is important to note that the Uber JAR is bundled with the AWS Java RDS SDK and is larger (**15 MB**) than our `aws-advanced-jdbc-wrapper-2.6.6.jar`. So please take that into account when deciding if this solution is for you.
+It is important to note that the Uber JAR is bundled with the AWS Java RDS SDK and is larger (**15 MB**) than our `aws-advanced-jdbc-wrapper-2.6.7.jar`. So please take that into account when deciding if this solution is for you.
 
 If you would like to download and install the bundled Uber JAR, follow these [instructions](../../GettingStarted.md#direct-download-and-installation).
 
