@@ -253,11 +253,10 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   public void stop() {
     this.nodeThreadsStop.set(true);
 
+    this.closeNodeMonitors();
     this.closeConnection(this.nodeThreadsWriterConnection);
     this.closeConnection(this.nodeThreadsReaderConnection);
     this.closeConnection(this.monitoringConnection);
-
-    this.closeNodeMonitors();
 
     // It breaks a waiting/sleeping cycles in monitoring thread
     synchronized (this.requestToUpdateTopology) {
