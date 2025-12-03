@@ -216,9 +216,12 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
     }
   }
 
-  protected void sleep(long durationNs) throws InterruptedException {
-    synchronized (this.refreshRequired) {
-      this.refreshRequired.wait(TimeUnit.NANOSECONDS.toMillis(durationNs));
+  protected void sleep(long durationNano) throws InterruptedException {
+    long endNano = System.nanoTime() + durationNano;
+    while (!this.refreshRequired.get() && System.nanoTime() < endNano && !this.stop.get()) {
+      synchronized (this.refreshRequired) {
+        this.refreshRequired.wait(500);
+      }
     }
   }
 
