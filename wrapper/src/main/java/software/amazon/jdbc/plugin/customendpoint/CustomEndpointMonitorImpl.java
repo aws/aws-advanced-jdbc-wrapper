@@ -218,9 +218,11 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
 
   protected void sleep(long durationNano) throws InterruptedException {
     long endNano = System.nanoTime() + durationNano;
+    // Choose the minimum between 500ms and the durationNano passed in, in case durationNano is less than 500ms.
+    long waitDurationMs = Math.min(500, TimeUnit.NANOSECONDS.toMillis(durationNano));
     while (!this.refreshRequired.get() && System.nanoTime() < endNano && !this.stop.get()) {
       synchronized (this.refreshRequired) {
-        this.refreshRequired.wait(500);
+        this.refreshRequired.wait(waitDurationMs);
       }
     }
   }
