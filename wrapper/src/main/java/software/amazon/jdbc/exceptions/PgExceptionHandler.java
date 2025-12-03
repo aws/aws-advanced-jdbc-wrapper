@@ -23,7 +23,6 @@ public class PgExceptionHandler extends AbstractPgExceptionHandler {
 
   // The following SQL States for Postgresql are considered as "communication" errors
   private static final List<String> NETWORK_ERRORS = Arrays.asList(
-      "53", // insufficient resources
       "57P01", // admin shutdown
       "57P02", // crash shutdown
       "57P03", // cannot connect now
