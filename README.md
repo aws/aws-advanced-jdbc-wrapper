@@ -8,7 +8,7 @@ The **Amazon Web Services (AWS) JDBC Driver** has been redesigned as an advanced
 
 The wrapper is complementary to an existing JDBC driver and aims to extend the functionality of the driver to enable applications to take full advantage of the features of clustered databases such as Amazon Aurora. In other words, the AWS JDBC Driver does not connect directly to any database, but enables support of AWS and Aurora functionalities on top of an underlying JDBC driver of the user's choice. This approach enables service-specific enhancements, without requiring users to change their workflow and existing JDBC driver tooling.
 
-The AWS JDBC Driver is targeted to work with **any** existing JDBC driver. Currently, the AWS JDBC Driver has been validated to support the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc), [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j), and version 2.x of the [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j).
+The AWS JDBC Driver is targeted to work with **any** existing JDBC driver. Currently, the AWS JDBC Driver has been validated to support the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc), [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j), and version 2.x of the [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j) (with some caveats, see [below](#mariadb)).
 
 The AWS JDBC Driver provides modular functionality through feature plugins, with each plugin being relevant to specific database services based on their architecture and capabilities. For example, [AWS Identity and Access Management (IAM)](https://aws.amazon.com/iam/) authentication is supported across multiple services, while [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/) applies to services that support password-based authentication. The fast failover plugin provides reduced recovery time during failover for Aurora PostgreSQL and Aurora MySQL clusters.
 
@@ -138,6 +138,16 @@ Technical documentation regarding the functionality of the AWS JDBC Driver will 
 To find all the documentation and concrete examples on how to use the AWS JDBC Driver, please refer to the [AWS JDBC Driver Documentation](./docs/Documentation.md) page.
 
 ### Known Limitations
+
+#### MariaDB
+
+If you would like to use the MariaDB driver, you should use version 2.x. Version 3.x uses pipelining, which is not compatible with Aurora. Additionally, you should set the following properties, because they also use pipelining.
+
+```java
+Properties props = new Properties();
+props.setProperty("usePipelineAuth", "false");
+props.setProperty("useBatchMultiSend", "false");
+```
 
 #### Amazon RDS Blue/Green Deployments
 

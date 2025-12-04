@@ -134,8 +134,6 @@ public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
     String urlBuilder = protocol + hostSpec.getUrl() + databaseName
         + (permitMysqlSchemeFlag ? "?" + PERMIT_MYSQL_SCHEME : "");
 
-    // Aurora
-
     return new ConnectInfo(urlBuilder, props);
   }
 
