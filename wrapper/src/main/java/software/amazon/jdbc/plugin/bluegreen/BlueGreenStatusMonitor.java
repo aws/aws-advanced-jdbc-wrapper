@@ -546,7 +546,7 @@ public class BlueGreenStatusMonitor {
 
     this.openConnectionFuture = openConnectionExecutorService.submit(() -> {
 
-      if (this.connectionHostSpec == null) {
+      if (this.connectionHostSpec.get() == null) {
         this.connectionHostSpec.set(this.initialHostSpec);
         this.connectedIpAddress.set(null);
         this.connectionHostSpecCorrect.set(false);
