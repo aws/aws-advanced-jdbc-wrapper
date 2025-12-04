@@ -1,19 +1,19 @@
-# Using the AWS Advanced JDBC Driver
-The AWS Advanced JDBC Driver leverages community JDBC drivers and enables support of AWS and Aurora functionalities. Currently, the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc), [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j), and version 2.x of the [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j) are supported. See [here](../../README.md#mariadb) for some limitations and caveats with the MariaDB driver.
+# Using the AWS Advanced JDBC Wrapper
+The AWS Advanced JDBC Wrapper leverages community JDBC drivers and enables support of AWS and Aurora functionalities. Currently, the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc), [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j), and version 2.x of the [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j) are supported. See [here](../../README.md#mariadb) for some limitations and caveats with the MariaDB driver.
 The JDBC Wrapper also supports [connection pooling](./DataSource.md#Using-the-AwsWrapperDataSource-with-Connection-Pooling-Frameworks).
 
-## Using the AWS JDBC Driver with plain RDS databases
-It is possible to use the AWS JDBC Driver with plain RDS databases, but individual features may or may not be compatible. For example, failover handling and enhanced failure monitoring are not compatible with plain RDS databases and the relevant plugins must be disabled. Plugins can be enabled or disabled as seen in the [Connection Plugin Manager Parameters](#connection-plugin-manager-parameters) section. Please note that some plugins have been enabled by default. Plugin compatibility can be verified in the [plugins table](#list-of-available-plugins).
+## Using the AWS Advanced JDBC Wrapper with plain RDS databases
+It is possible to use the AWS Advanced JDBC Wrapper with plain RDS databases, but individual features may or may not be compatible. For example, failover handling and enhanced failure monitoring are not compatible with plain RDS databases and the relevant plugins must be disabled. Plugins can be enabled or disabled as seen in the [Connection Plugin Manager Parameters](#connection-plugin-manager-parameters) section. Please note that some plugins have been enabled by default. Plugin compatibility can be verified in the [plugins table](#list-of-available-plugins).
 
-## Using the AWS JDBC Driver with custom endpoints and other non-standard URLs
+## Using the AWS Advanced JDBC Wrapper with custom endpoints and other non-standard URLs
 > [!WARNING]\
-> If connecting using a non-standard RDS URL (e.g. a custom endpoint, ip address, rds proxy, or custom domain URL), the clusterId property must be set. If the `clusterId` is omitted when using a non-standard RDS URL, you may experience various issues. For more information, please see the [AWS Advanced JDBC Driver Parameters](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#aws-advanced-jdbc-driver-parameters) section. 
+> If connecting using a non-standard RDS URL (e.g. a custom endpoint, ip address, rds proxy, or custom domain URL), the clusterId property must be set. If the `clusterId` is omitted when using a non-standard RDS URL, you may experience various issues. For more information, please see the [AWS Advanced JDBC Wrapper Parameters](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#aws-advanced-jdbc-wrapper-parameters) section. 
 
 ## Wrapper Protocol
-The AWS JDBC Driver uses the protocol prefix `jdbc:aws-wrapper:`. Internally, the JDBC Wrapper will replace this protocol prefix with `jdbc:`, making the final protocol `jdbc:aws-wrapper:{suffix}` where `suffix` is specific to the desired underlying protocol. For example, to connect to a PostgreSQL database, you would use the protocol `jdbc:aws-wrapper:postgresql:`, and inside the AWS JDBC Driver, the final protocol that will be used to connect to a database will be `jdbc:postgresql:`.
+The AWS Advanced JDBC Wrapper uses the protocol prefix `jdbc:aws-wrapper:`. Internally, the JDBC Wrapper will replace this protocol prefix with `jdbc:`, making the final protocol `jdbc:aws-wrapper:{suffix}` where `suffix` is specific to the desired underlying protocol. For example, to connect to a PostgreSQL database, you would use the protocol `jdbc:aws-wrapper:postgresql:`, and inside the AWS Advanced JDBC Wrapper, the final protocol that will be used to connect to a database will be `jdbc:postgresql:`.
 
 ## Getting a Connection
-To get a connection from the AWS JDBC Driver, the user application can either connect with a DriverManager or with a DataSource.
+To get a connection from the AWS Advanced JDBC Wrapper, the user application can either connect with a DriverManager or with a DataSource.
 
 The process of getting a connection with a DriverManager will remain the same as with other JDBC Drivers; [this example](./../../examples/AWSDriverExample/src/main/java/software/amazon/PgConnectionSample.java) demonstrates establishing a connection with the PostgreSQL JDBC driver. Note that when connection properties are configured in both the connection string and with a Properties object, the connection string values will take precedence.
 
@@ -30,7 +30,7 @@ The JDBC Wrapper can be used with different frameworks and tools. More details f
 
 ## Logging
 
-There are multiple ways to enable logging when using the AWS JDBC Driver, some ways include:
+There are multiple ways to enable logging when using the AWS Advanced JDBC Wrapper, some ways include:
 - using the built-in Java Util Logger library
 - using an external logger
 
@@ -52,7 +52,7 @@ software.amazon.jdbc.Driver.level=FINER
 software.amazon.jdbc.plugin.level=FINER
 ```
 #### Connection Parameter
-The AWS JDBC Driver also has a parameter, [`wrapperLoggerLevel`](#aws-advanced-jdbc-driver-parameters), to configure the logging level.
+The AWS Advanced JDBC Wrapper also has a parameter, [`wrapperLoggerLevel`](#aws-advanced-jdbc-wrapper-parameters), to configure the logging level.
 ```java
  final Properties properties = new Properties();
  properties.setProperty("wrapperLoggerLevel", "finest");
@@ -60,7 +60,7 @@ The AWS JDBC Driver also has a parameter, [`wrapperLoggerLevel`](#aws-advanced-j
 ```
 
 ### Using an External Logger
-The two methods above are more suitable for simple Java applications that do not have a 3rd party logging library configured. If you are using the AWS JDBC Driver with Spring or Spring Boot, you can enable logging by adding the following to your configuration file.
+The two methods above are more suitable for simple Java applications that do not have a 3rd party logging library configured. If you are using the AWS Advanced JDBC Wrapper with Spring or Spring Boot, you can enable logging by adding the following to your configuration file.
 For `application.yml`:
 ```yaml
 logging:  
@@ -73,23 +73,23 @@ For `application.properties`:
 logging.level.software.amazon.jdbc=trace
 ```
 
-## AWS Advanced JDBC Driver Parameters
-These parameters are applicable to any instance of the AWS JDBC Driver.
+## AWS Advanced JDBC Wrapper Parameters
+These parameters are applicable to any instance of the AWS Advanced JDBC Wrapper.
 
 | Parameter                                         | Value     | Required                                                                                                                                                                                                                                                    | Description                                                                                                                                                                                                                                                                                                                                          | Default Value  |
 |---------------------------------------------------|-----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|
 | `clusterId`                                       | `String`  | If connecting using a non-standard RDS URL (e.g. an IP address, custom endpoint, rds proxy, or custom domain URL): Yes<br><br>Otherwise: No<br><br>:warning:If `clusterId` is omitted when using a non-standard RDS URL, you may experience various issues. | A unique identifier for the cluster. Connections with the same cluster id share a cluster topology cache.                                                                                                                                                                                                                                            | None           |
-| `wrapperLoggerLevel`                              | `String`  | No                                                                                                                                                                                                                                                          | Logger level of the AWS JDBC Driver. <br><br/>If it is used, it must be one of the following values: `OFF`, `SEVERE`, `WARNING`, `INFO`, `CONFIG`, `FINE`, `FINER`, `FINEST`, `ALL`.                                                                                                                                                                 | `null`         |
+| `wrapperLoggerLevel`                              | `String`  | No                                                                                                                                                                                                                                                          | Logger level of the AWS Advanced JDBC Wrapper. <br><br/>If it is used, it must be one of the following values: `OFF`, `SEVERE`, `WARNING`, `INFO`, `CONFIG`, `FINE`, `FINER`, `FINEST`, `ALL`.                                                                                                                                                                 | `null`         |
 | `database`                                        | `String`  | No                                                                                                                                                                                                                                                          | Database name.                                                                                                                                                                                                                                                                                                                                       | `null`         |
 | `user`                                            | `String`  | No                                                                                                                                                                                                                                                          | Database username.                                                                                                                                                                                                                                                                                                                                   | `null`         |
 | `password`                                        | `String`  | No                                                                                                                                                                                                                                                          | Database password.                                                                                                                                                                                                                                                                                                                                   | `null`         |
 | `wrapperDialect`                                  | `String`  | No                                                                                                                                                                                                                                                          | Please see [this page on database dialects](./DatabaseDialects.md), and whether you should include it.                                                                                                                                                                                                                                               | `null`         |
-| `wrapperLogUnclosedConnections`                   | `Boolean` | No                                                                                                                                                                                                                                                          | Allows the AWS JDBC Driver to capture a stacktrace for each connection that is opened. If the `finalize()` method is reached without the connection being closed, the stacktrace is printed to the log. This helps developers to detect and correct the source of potential connection leaks.                                                        | `false`        |
+| `wrapperLogUnclosedConnections`                   | `Boolean` | No                                                                                                                                                                                                                                                          | Allows the AWS Advanced JDBC Wrapper to capture a stacktrace for each connection that is opened. If the `finalize()` method is reached without the connection being closed, the stacktrace is printed to the log. This helps developers to detect and correct the source of potential connection leaks.                                                        | `false`        |
 | `loginTimeout`                                    | `Integer` | No                                                                                                                                                                                                                                                          | Login timeout in milliseconds.                                                                                                                                                                                                                                                                                                                       | `null`         |
 | `connectTimeout`                                  | `Integer` | No                                                                                                                                                                                                                                                          | Socket connect timeout in milliseconds.                                                                                                                                                                                                                                                                                                              | `null`         |
 | `socketTimeout`                                   | `Integer` | No                                                                                                                                                                                                                                                          | Socket timeout in milliseconds.                                                                                                                                                                                                                                                                                                                      | `null`         |
 | `tcpKeepAlive`                                    | `Boolean` | No                                                                                                                                                                                                                                                          | Enable or disable TCP keep-alive probe.                                                                                                                                                                                                                                                                                                              | `false`        |
-| `targetDriverAutoRegister`                        | `Boolean` | No                                                                                                                                                                                                                                                          | Allows the AWS JDBC Driver to register a target driver based on `wrapperTargetDriverDialect` configuration parameter or, if it's missed, on a connection url protocol.                                                                                                                                                                               | `true`         |
+| `targetDriverAutoRegister`                        | `Boolean` | No                                                                                                                                                                                                                                                          | Allows the AWS Advanced JDBC Wrapper to register a target driver based on `wrapperTargetDriverDialect` configuration parameter or, if it's missed, on a connection url protocol.                                                                                                                                                                               | `true`         |
 | `transferSessionStateOnSwitch`                    | `Boolean` | No                                                                                                                                                                                                                                                          | Enables transferring the session state to a new connection.                                                                                                                                                                                                                                                                                          | `true`         |
 | `resetSessionStateOnClose`                        | `Boolean` | No                                                                                                                                                                                                                                                          | Enables resetting the session state before closing connection.                                                                                                                                                                                                                                                                                       | `true`         |
 | `rollbackOnSwitch`                                | `Boolean` | No                                                                                                                                                                                                                                                          | Enables rolling back a current transaction, if any in effect, before switching to a new connection.                                                                                                                                                                                                                                                  | `true`         |
@@ -99,7 +99,7 @@ These parameters are applicable to any instance of the AWS JDBC Driver.
 | `skipWrappingForPackages`                         | `String`  | No                                                                                                                                                                                                                                                          | Register Java package names (separated by comma) which will be left unwrapped. This setting modifies all future connections established by the driver, not just a particular connection.                                                                                                                                                             | `com.pgvector` |
 
 ## Plugins
-The AWS JDBC Driver uses plugins to execute JDBC methods. You can think of a plugin as an extensible code module that adds extra logic around any JDBC method calls. The AWS JDBC Driver has a number of [built-in plugins](#list-of-available-plugins) available for use. 
+The AWS Advanced JDBC Wrapper uses plugins to execute JDBC methods. You can think of a plugin as an extensible code module that adds extra logic around any JDBC method calls. The AWS Advanced JDBC Wrapper has a number of [built-in plugins](#list-of-available-plugins) available for use. 
 
 Plugins are loaded and managed through the Connection Plugin Manager and may be identified by a `String` name in the form of plugin code.
 
@@ -108,7 +108,7 @@ Plugins are loaded and managed through the Connection Plugin Manager and may be 
 | Parameter                         | Value     | Required | Description                                                                                                                                                                                          | Default Value                            |
 |-----------------------------------|-----------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------|
 | `wrapperPlugins`                  | `String`  | No       | Comma separated list of connection plugin codes. <br><br>Example: `failover,efm2`                                                                                                                    | `auroraConnectionTracker,failover2,efm2` | 
-| `autoSortWrapperPluginOrder`      | `Boolean` | No       | Allows the AWS JDBC Driver to sort connection plugins to prevent plugin misconfiguration. Allows a user to provide a custom plugin order if needed.                                                  | `true`                                   | 
+| `autoSortWrapperPluginOrder`      | `Boolean` | No       | Allows the AWS Advanced JDBC Wrapper to sort connection plugins to prevent plugin misconfiguration. Allows a user to provide a custom plugin order if needed.                                                  | `true`                                   | 
 | `wrapperProfileName`              | `String`  | No       | Driver configuration profile name. Instead of listing plugin codes with `wrapperPlugins`, the driver profile can be set with this parameter. <br><br> Example: See [below](#configuration-profiles). | `null`                                   |
 
 To use a built-in plugin, specify its relevant plugin code for the `wrapperPlugins`.
@@ -129,7 +129,7 @@ properties.setProperty("wrapperPlugins", "");
 The Wrapper behaves like the target driver when no plugins are used.
 
 ### Configuration Profiles
-An alternative way of loading plugins and providing configuration parameters is to use a configuration profile. You can create custom configuration profiles that specify which plugins the AWS JDBC Driver should load. After creating the profile, set the [`wrapperProfileName`](#connection-plugin-manager-parameters) parameter to the name of the created profile.
+An alternative way of loading plugins and providing configuration parameters is to use a configuration profile. You can create custom configuration profiles that specify which plugins the AWS Advanced JDBC Wrapper should load. After creating the profile, set the [`wrapperProfileName`](#connection-plugin-manager-parameters) parameter to the name of the created profile.
 This method of loading plugins will most often be used by those who require custom plugins that cannot be loaded with the [`wrapperPlugins`](#connection-plugin-manager-parameters) parameter, or by those who are using preset configurations.
 
 Besides a list of plugins to load and configuration properties, configuration profiles may also include the following items:
@@ -167,19 +167,19 @@ ConfigurationProfileBuilder.from("existingProfileName")
 DriverConfigurationProfiles.remove("testProfile");
 ```
 
-The AWS JDBC Driver team has gathered and analyzed various user scenarios to create commonly used configuration profiles, or presets, for users. These preset configuration profiles are optimized, profiled, verified and can be used right away. Users can create their own configuration profiles based on the built-in presets as shown above. More details could be found at the [Configuration Presets](./ConfigurationPresets.md) page. 
+The AWS Advanced JDBC Wrapper team has gathered and analyzed various user scenarios to create commonly used configuration profiles, or presets, for users. These preset configuration profiles are optimized, profiled, verified and can be used right away. Users can create their own configuration profiles based on the built-in presets as shown above. More details could be found at the [Configuration Presets](./ConfigurationPresets.md) page. 
 
 ### Executing Custom Code When Initializing a Connection
 In some use cases you may need to define a specific configuration for a new driver connection before your application can use it. For instance:
 - you might need to run some initial SQL queries when a connection is established, or;
 - you might need to check for some additional conditions to determine the initialization configuration required for a particular connection.
 
-The AWS JDBC Driver allows specifying a special function that can initialize a connection. It can be done with `Driver.setConnectionInitFunc` method. The `resetConnectionInitFunc` method is also available to remove the function.
+The AWS Advanced JDBC Wrapper allows specifying a special function that can initialize a connection. It can be done with `Driver.setConnectionInitFunc` method. The `resetConnectionInitFunc` method is also available to remove the function.
 
 The initialization function is called for all connections, including connections opened by the internal connection pools (see [Using Read Write Splitting Plugin and Internal Connection Pooling](./using-plugins/UsingTheReadWriteSplittingPlugin.md#internal-connection-pooling)). This helps user applications clean up connection sessions that have been altered by previous operations, as returning a connection to a pool will reset the state and retrieving it will call the initialization function again.
 
 > [!WARNING]\
-> Executing CPU and network intensive code in the initialization function may significantly impact the AWS JDBC Driver's overall performance.
+> Executing CPU and network intensive code in the initialization function may significantly impact the AWS Advanced JDBC Wrapper's overall performance.
 
 ```java
 Driver.setConnectionInitFunc((connection, protocol, hostSpec, props) -> {
@@ -192,7 +192,7 @@ Driver.setConnectionInitFunc((connection, protocol, hostSpec, props) -> {
 
 
 ### List of Available Plugins
-The AWS JDBC Driver has several built-in plugins that are available to use. Please visit the individual plugin page for more details.
+The AWS Advanced JDBC Wrapper has several built-in plugins that are available to use. Please visit the individual plugin page for more details.
 
 | Plugin name                                                                                                       | Plugin Code               | Database Compatibility          | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Additional Required Dependencies                                                                                                                                                                                                                                                                      |
 |-------------------------------------------------------------------------------------------------------------------|---------------------------|---------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -236,7 +236,7 @@ To use a snapshot build in your project, check the following examples. More info
   <dependency>
     <groupId>software.amazon.jdbc</groupId>
     <artifactId>aws-advanced-jdbc-wrapper</artifactId>
-    <version>2.6.6-SNAPSHOT</version>
+    <version>2.6.8-SNAPSHOT</version>
   </dependency>
 </dependencies>
 
@@ -273,15 +273,15 @@ repositories {
 }
 ```
 
-## AWS JDBC Driver for MySQL Migration Guide
+## AWS Advanced JDBC Wrapper for MySQL Migration Guide
 
 **[The Amazon Web Services (AWS) JDBC Driver for MySQL](https://github.com/awslabs/aws-mysql-jdbc)** allows an
 application to take advantage of the features of clustered MySQL databases. It is based on and can be used as a drop-in
 compatible for the [MySQL Connector/J driver](https://github.com/mysql/mysql-connector-j), and is compatible with all
 MySQL deployments.
 
-The AWS JDBC Driver has the same functionalities as the AWS JDBC Driver for MySQL, as well as additional features such as support for Read/Write Splitting. This
-section highlights the steps required to migrate from the AWS JDBC Driver for MySQL to the AWS JDBC Driver.
+The AWS Advanced JDBC Wrapper has the same functionalities as the AWS Advanced JDBC Wrapper for MySQL, as well as additional features such as support for Read/Write Splitting. This
+section highlights the steps required to migrate from the AWS Advanced JDBC Wrapper for MySQL to the AWS Advanced JDBC Wrapper.
 
 ### Replacement Steps
 
@@ -293,13 +293,13 @@ section highlights the steps required to migrate from the AWS JDBC Driver for My
 
 ### Plugins Configuration
 
-In the AWS JDBC Driver for MySQL, plugins are set by providing a list of connection plugin factories:
+In the AWS Advanced JDBC Wrapper for MySQL, plugins are set by providing a list of connection plugin factories:
 
 ```java
 "jdbc:mysql:aws://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:3306/db?connectionPluginFactories=com.mysql.cj.jdbc.ha.plugins.AWSSecretsManagerPluginFactory,com.mysql.cj.jdbc.ha.plugins.failover.FailoverConnectionPluginFactory,com.mysql.cj.jdbc.ha.plugins.NodeMonitoringConnectionPluginFactory"
 ```
 
-In the AWS JDBC Driver, plugins are set by specifying the plugin codes:
+In the AWS Advanced JDBC Wrapper, plugins are set by specifying the plugin codes:
 
 ```java
 "jdbc:aws-wrapper:mysql://db-identifier.XYZ.us-east-2.rds.amazonaws.com:3306/db?wrapperPlugins=iam,failover"
@@ -308,14 +308,14 @@ In the AWS JDBC Driver, plugins are set by specifying the plugin codes:
 To see the list of available plugins and their associated plugin code, see
 the [documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#list-of-available-plugins).
 
-The AWS JDBC Driver also provides
+The AWS Advanced JDBC Wrapper also provides
 the [Read-Write Splitting plugin](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md#read-write-splitting-plugin),
 this plugin allows the application to switch the connections between writer and reader instances by calling
 the `Connection#setReadOnly` method.
 
 ### Example Configurations
 
-#### Using the IAM Authentication Plugin with AWS JDBC Driver for MySQL
+#### Using the IAM Authentication Plugin with AWS Advanced JDBC Wrapper for MySQL
 
 ```java
 public static void main(String[] args) throws SQLException {
@@ -332,7 +332,7 @@ public static void main(String[] args) throws SQLException {
   }
 ```
 
-#### Using the IAM Authentication Plugin with AWS JDBC Driver
+#### Using the IAM Authentication Plugin with AWS Advanced JDBC Wrapper
 
 ```java
 public static void main(String[] args) throws SQLException {
@@ -350,18 +350,18 @@ public static void main(String[] args) throws SQLException {
   }
 ```
 
-The IAM Authentication Plugin in the AWS JDBC Driver has extra parameters to support custom endpoints. For more
+The IAM Authentication Plugin in the AWS Advanced JDBC Wrapper has extra parameters to support custom endpoints. For more
 information,
-see [How do I use IAM with the AWS Advanced JDBC Driver?](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md#how-do-i-use-iam-with-the-aws-jdbc-driver)
+see [How do I use IAM with the AWS Advanced JDBC Wrapper?](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md#how-do-i-use-iam-with-the-aws-advanced-jdbc-wrapper)
 
 ### Secrets Manager Plugin
 
-The Secrets Manager Plugin in both the AWS JDBC Driver for MySQL and the AWS JDBC Driver uses the same configuration
-parameters. To migrate to the AWS JDBC Driver, simply change
+The Secrets Manager Plugin in both the AWS Advanced JDBC Wrapper for MySQL and the AWS Advanced JDBC Wrapper uses the same configuration
+parameters. To migrate to the AWS Advanced JDBC Wrapper, simply change
 the `connectionPluginFactories=com.mysql.cj.jdbc.ha.plugins.AWSSecretsManagerPluginFactory` parameter
 to `wrapperPlugins=awsSecretsManager`
 
-#### Using the AWS Secrets Manager Plugin with AWS JDBC Driver for MySQL
+#### Using the AWS Secrets Manager Plugin with AWS Advanced JDBC Wrapper for MySQL
 
 ```java
 public static void main(String[] args) throws SQLException {
@@ -378,7 +378,7 @@ public static void main(String[] args) throws SQLException {
     }
   }
 ```
-#### Using the AWS Secrets Manager Plugin with AWS JDBC Driver
+#### Using the AWS Secrets Manager Plugin with AWS Advanced JDBC Wrapper
 
 ```java
 public static void main(String[] args) throws SQLException {
@@ -398,10 +398,10 @@ public static void main(String[] args) throws SQLException {
 ```
 
 ## Enable Logging
-To enable logging in the AWS JDBC Driver, change the `logger=StandardLogger` parameter to `wrapperLoggerLevel=FINEST`
+To enable logging in the AWS Advanced JDBC Wrapper, change the `logger=StandardLogger` parameter to `wrapperLoggerLevel=FINEST`
 
 ## Enable Third Party Classes and Packages
-Depending on the requirements of a user's application, the AWS Advanced JDBC Driver performs special handling before and after operating on a database connection. This is achievable by wrapping over relevant data objects.
+Depending on the requirements of a user's application, the AWS Advanced JDBC Wrapper performs special handling before and after operating on a database connection. This is achievable by wrapping over relevant data objects.
 
 Not all data objects require special handling and thus can be left unwrapped. One example being classes from the PGVector package. The driver allows you to specify such classes and packages that should be left intact with no wrapping. If needed, use the following code snippet as an example to register data objects that should be left unwrapped.
 
@@ -412,6 +412,6 @@ Driver.skipWrappingForType(com.pgvector.PGbit.class);
     
 Driver.skipWrappingForPackage("com.pgvector");
 ```
-This feature can be used to allow the AWS Advanced JDBC Driver to properly handle popular database extensions like [PGvector](https://github.com/pgvector/pgvector-java) and [PostGIS](https://github.com/postgis/postgis-java).
+This feature can be used to allow the AWS Advanced JDBC Wrapper to properly handle popular database extensions like [PGvector](https://github.com/pgvector/pgvector-java) and [PostGIS](https://github.com/postgis/postgis-java).
 
 Using `Driver.skipWrappingForPackage()` method and using driver configuration parameter `skipWrappingForPackages` are functionally similar. The configuration parameter receives a comma separated list of package names while `Driver.skipWrappingForPackage()` accepts just one package at at time.

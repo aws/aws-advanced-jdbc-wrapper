@@ -19,7 +19,7 @@
 <module xmlns="urn:jboss:module:1.1" name="software.amazon.jdbc">
 
   <resources>
-    <resource-root path="aws-advanced-jdbc-wrapper-2.6.6.jar"/>
+    <resource-root path="aws-advanced-jdbc-wrapper-2.6.7.jar"/>
     <resource-root path="postgresql-42.5.4.jar"/>
   </resources>
 </module>

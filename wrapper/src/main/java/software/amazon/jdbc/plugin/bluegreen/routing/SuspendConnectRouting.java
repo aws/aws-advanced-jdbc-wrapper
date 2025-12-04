@@ -59,6 +59,7 @@ public class SuspendConnectRouting extends BaseConnectRouting {
       HostSpec hostSpec,
       Properties props,
       boolean isInitialConnection,
+      boolean useForceConnect,
       JdbcCallable<Connection, SQLException> connectFunc,
       StorageService storageService,
       PluginService pluginService)

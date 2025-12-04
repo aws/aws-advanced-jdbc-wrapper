@@ -141,7 +141,9 @@ public class BlueGreenStatusMonitor {
     this.onBlueGreenStatusChangeFunc = onBlueGreenStatusChangeFunc;
 
     this.blueGreenDialect = (BlueGreenDialect) this.pluginService.getDialect();
+  }
 
+  public void start() {
     executorService.submit(this::runMonitoringLoop);
     executorService.shutdown(); // executor accepts no more tasks
   }

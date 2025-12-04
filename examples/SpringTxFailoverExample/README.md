@@ -1,10 +1,10 @@
 # Tutorial: Getting started with Spring Boot and Failover
 
-In this tutorial, you will set up a Spring Boot application using the AWS JDBC Driver. This sample application will contain an example of how to retry transactions interrupted by failover. This tutorial is an extension of the [Spring Boot HikariCP example](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/examples/SpringBootHikariExample/README.md) and will contain similar elements.
+In this tutorial, you will set up a Spring Boot application using the AWS Advanced JDBC Wrapper. This sample application will contain an example of how to retry transactions interrupted by failover. This tutorial is an extension of the [Spring Boot HikariCP example](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/examples/SpringBootHikariExample/README.md) and will contain similar elements.
 
 > Note: this tutorial was written using the following technologies:
 >    - Spring Boot 2.7.0
->    - AWS JDBC Driver 2.6.6
+>    - AWS Advanced JDBC Wrapper 2.6.7
 >    - Postgresql 42.5.4
 >    - Java 8
 
@@ -107,11 +107,11 @@ dependencies {
 }
 ```
 
-Please note that the sample code inside the AWS JDBC Driver project will use the dependency `implementation(project(":aws-advanced-jdbc-wrapper"))` instead of `implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:latest")` as seen above.
+Please note that the sample code inside the AWS Advanced JDBC Wrapper project will use the dependency `implementation(project(":aws-advanced-jdbc-wrapper"))` instead of `implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:latest")` as seen above.
 
 ## Step 3: Configure the Datasource
 
-In the `application.yml` file, configure Hikari and AWS JDBC Driver as its driver.
+In the `application.yml` file, configure Hikari and AWS Advanced JDBC Wrapper as its driver.
 
 Note that in Spring Boot 2 and 3, Hikari is the default DataSource implementation. So, a bean explicitly specifying Hikari as a Datasource is not needed.
 

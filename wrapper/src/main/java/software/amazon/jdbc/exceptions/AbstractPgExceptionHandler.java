@@ -41,7 +41,7 @@ public abstract class AbstractPgExceptionHandler implements ExceptionHandler {
       if (exception instanceof SQLException) {
         return isNetworkException(((SQLException) exception).getSQLState());
       } else if (targetDriverDialect != null) {
-        String sqlState = targetDriverDialect.getSQLState(throwable);
+        String sqlState = targetDriverDialect.getSQLState(exception);
         if (!StringUtils.isNullOrEmpty(sqlState)) {
           return isNetworkException(sqlState);
         }
@@ -87,7 +87,7 @@ public abstract class AbstractPgExceptionHandler implements ExceptionHandler {
       if (exception instanceof SQLException) {
         sqlState = ((SQLException) exception).getSQLState();
       } else if (targetDriverDialect != null) {
-        sqlState = targetDriverDialect.getSQLState(throwable);
+        sqlState = targetDriverDialect.getSQLState(exception);
       }
 
       if (isLoginException(sqlState)) {
