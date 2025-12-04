@@ -29,6 +29,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -79,6 +80,10 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   // Keep monitoring topology with a high rate for 30s after failover.
   protected static final long highRefreshPeriodAfterPanicNano = TimeUnit.SECONDS.toNanos(30);
   protected static final long ignoreTopologyRequestNano = TimeUnit.SECONDS.toNanos(10);
+
+  private static final long INITIAL_BACKOFF_MS = 100;
+  private static final long MAX_BACKOFF_MS = 10000;
+  private static final Random random = new Random();
 
   protected final long refreshRateNano;
   protected final long highRefreshRateNano;
@@ -902,6 +907,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     protected final HostSpec hostSpec;
     protected final @Nullable HostSpec writerHostSpec;
     protected boolean writerChanged = false;
+    protected int connectionAttempts = 0;
 
     public NodeMonitoringWorker(
         final FullServicesContainer servicesContainer,
@@ -929,10 +935,25 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
             try {
               connection = this.servicesContainer.getPluginService().forceConnect(
                   hostSpec, this.monitor.monitoringProperties);
+              this.connectionAttempts = 0;
             } catch (SQLException ex) {
-              // A problem occurred while connecting. We will try again on the next iteration.
-              TimeUnit.MILLISECONDS.sleep(100);
-              continue;
+              // A problem occurred while connecting.
+              if (this.servicesContainer.getPluginService().isNetworkException(
+                  ex, this.servicesContainer.getPluginService().getTargetDriverDialect())) {
+                // It's a network issue that's expected during a cluster failover.
+                // We will try again on the next iteration.
+                TimeUnit.MILLISECONDS.sleep(100);
+                continue;
+              } else if (this.servicesContainer.getPluginService().isLoginException(
+                    ex, this.servicesContainer.getPluginService().getTargetDriverDialect())) {
+                // Something wrong with login credentials. We can't continue.
+                throw new RuntimeException(ex);
+              } else {
+                // It might be some transient error. Let's try again.
+                //  If the error repeats, we will try again after a longer delay.
+                TimeUnit.MILLISECONDS.sleep(this.calculateBackoffWithJitter(this.connectionAttempts++));
+                continue;
+              }
             }
           }
 
@@ -1058,6 +1079,12 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
         this.monitor.updateTopologyCache(hosts);
         LOGGER.fine(Utils.logTopology(hosts));
       }
+    }
+
+    private long calculateBackoffWithJitter(int attempt) {
+      long backoff = INITIAL_BACKOFF_MS * Math.round(Math.pow(2, Math.min(attempt, 6)));
+      backoff = Math.min(backoff, MAX_BACKOFF_MS);
+      return Math.round(backoff * (0.5 + random.nextDouble() * 0.5));
     }
   }
 }
