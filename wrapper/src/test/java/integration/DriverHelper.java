@@ -161,7 +161,7 @@ public class DriverHelper {
       case PG:
         return org.postgresql.PGConnection.class;
       case MARIADB:
-        return org.mariadb.jdbc.Connection.class;
+        return org.mariadb.jdbc.MariaDbConnection.class;
       default:
         throw new NotImplementedException(testDriver.toString());
     }
