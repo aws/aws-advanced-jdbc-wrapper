@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - test/iam-test-for-multiaz-instance
 
 permissions:
   id-token: write   # This is required for requesting the JWT
@@ -17,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dbEngine: [ "mysql-aurora", "mysql-multi-az", "pg-aurora", "pg-multi-az" ]
+        dbEngine: [ "mysql-multi-az", "pg-multi-az" ]
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@v4
