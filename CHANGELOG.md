@@ -3,6 +3,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [2.6.8] - 2025-12-04
+
+### :bug: Fixed
+- Wait timeout for custom endpoint info ([PR #1616](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1616)) 
+- Use custom endpoint as cluster ID to prevent accumulating of connections if using a custom endpoint in a connection string ([PR #1619](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1619))
+
+### :crab: Changed
+- Improve exception handling when DB server reaches maximum available connections ([PR #1621](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1621))
+- Improve connection management to prevent connection leaking in topology monitor ([PR #1624](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1624))
+
 ## [2.6.7] - 2025-11-25
 
 ### :bug: Fixed
