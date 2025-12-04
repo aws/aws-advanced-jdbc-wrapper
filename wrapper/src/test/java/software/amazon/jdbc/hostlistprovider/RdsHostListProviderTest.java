@@ -131,6 +131,7 @@ class RdsHostListProviderTest {
   void testGetTopology_withForceUpdate_returnsUpdatedTopology() throws SQLException, TimeoutException {
     rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
     storageService.set(rdsHostListProvider.clusterId, new Topology(hosts));
+    when(mockPluginService.isDialectConfirmed()).thenReturn(true);
 
     final List<HostSpec> newHosts = Collections.singletonList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("newHost").build());
