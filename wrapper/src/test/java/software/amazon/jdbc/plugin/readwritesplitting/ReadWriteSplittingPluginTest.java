@@ -607,7 +607,7 @@ public class ReadWriteSplittingPluginTest {
     spyPlugin.switchConnectionIfRequired(true);
     spyPlugin.switchConnectionIfRequired(false);
 
-    verify(spyPlugin, times(1)).closeReaderConnectionIfIdle(any());
+    verify(spyPlugin, times(2)).closeReaderConnectionIfIdle(any());
   }
 
   @Test
