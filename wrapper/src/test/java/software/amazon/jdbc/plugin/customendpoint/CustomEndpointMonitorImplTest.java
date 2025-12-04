@@ -48,13 +48,11 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
-import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class CustomEndpointMonitorImplTest {
-  @Mock private MonitorService mockMonitorService;
   @Mock private StorageService mockStorageService;
   @Mock private BiFunction<HostSpec, Region, RdsClient> mockRdsClientFunc;
   @Mock private RdsClient mockRdsClient;
