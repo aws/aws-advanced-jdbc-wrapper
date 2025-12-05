@@ -19,6 +19,6 @@ package software.amazon.jdbc.targetdriverdialect;
 public class TargetDriverDialectCodes {
   public static final String PG_JDBC = "pgjdbc";
   public static final String MYSQL_CONNECTOR_J = "mysql-connector-j";
-  public static final String MARIADB_CONNECTOR_J_VER_3 = "mariadb-connector-j-3"; // ver 3.0.3+
+  public static final String MARIADB_CONNECTOR_J_VER_2 = "mariadb-connector-j-2"; // ver 2.x
   public static final String GENERIC = "generic";
 }

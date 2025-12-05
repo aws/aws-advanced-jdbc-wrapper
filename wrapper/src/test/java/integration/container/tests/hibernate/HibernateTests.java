@@ -253,6 +253,11 @@ public class HibernateTests {
       // will get the error "RSA public key is not available client side" when connecting. The mariadb driver may not
       // fully support mysql 8.4's SSL mechanisms, which is why this property is only required for newer mysql versions.
       configuration.setProperty("hibernate.connection.allowPublicKeyRetrieval", "true");
+      if (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() != DatabaseEngine.MARIADB) {
+        // These options may cause issues on non-MariaDB databases.
+        configuration.setProperty("hibernate.connection.usePipelineAuth", "false");
+        configuration.setProperty("hibernate.connection.useBatchMultiSend", "false");
+      }
     }
 
     return configuration;

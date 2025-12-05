@@ -1,5 +1,5 @@
 # Using the AWS Advanced JDBC Wrapper
-The AWS Advanced JDBC Wrapper leverages community JDBC drivers and enables support of AWS and Aurora functionalities. Currently, the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc), [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j), and [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j) are supported.
+The AWS Advanced JDBC Wrapper leverages community JDBC drivers and enables support of AWS and Aurora functionalities. Currently, the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc), [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j), and version 2.x of the [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j) are supported. See [here](../../README.md#mariadb) for some limitations and caveats with the MariaDB driver.
 The JDBC Wrapper also supports [connection pooling](./DataSource.md#Using-the-AwsWrapperDataSource-with-Connection-Pooling-Frameworks).
 
 ## Using the AWS Advanced JDBC Wrapper with plain RDS databases

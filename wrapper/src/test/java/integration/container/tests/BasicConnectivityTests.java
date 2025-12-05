@@ -293,6 +293,11 @@ public class BasicConnectivityTests {
     if (testDriver == TestDriver.MARIADB) {
       // If this property is true the driver will still be able to connect, causing the test to fail.
       props.setProperty("allowPublicKeyRetrieval", "false");
+      if (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() != DatabaseEngine.MARIADB) {
+        // These options may cause issues on non-MariaDB databases.
+        props.setProperty("usePipelineAuth", "false");
+        props.setProperty("useBatchMultiSend", "false");
+      }
     }
 
     LOGGER.finest("Connecting to " + url);
