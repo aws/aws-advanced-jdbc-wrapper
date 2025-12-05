@@ -198,7 +198,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     }
 
     if (timeoutMs == 0) {
-      LOGGER.finest(() -> LogUtils.logTopology(currentHosts, Messages.get("ClusterTopologyMonitorImpl.timeoutSetToZero")));
+      LOGGER.finest(() ->
+          LogUtils.logTopology(currentHosts, Messages.get("ClusterTopologyMonitorImpl.timeoutSetToZero")));
       return currentHosts;
     }
 
@@ -768,7 +769,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
                 this.monitor.closeConnection(connection);
               } else {
                 // Successfully updated the node monitor writer connection.
-                LOGGER.fine(() -> Messages.get("NodeMonitoringThread.detectedWriter", new Object[] {hostSpec.getUrl()}));
+                LOGGER.fine(() ->
+                    Messages.get("NodeMonitoringThread.detectedWriter", new Object[] {hostSpec.getUrl()}));
                 // When nodeThreadsWriterConnection and nodeThreadsWriterHostSpec are both set, the topology monitor may
                 // set ignoreNewTopologyRequestsEndTimeNano, in which case other threads will use the cached topology
                 // for the ignore duration, so we need to update the topology before setting nodeThreadsWriterHostSpec.
