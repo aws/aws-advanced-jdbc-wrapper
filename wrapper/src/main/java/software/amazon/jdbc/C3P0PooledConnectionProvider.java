@@ -79,7 +79,7 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
   }
 
   @Override
-  public Connection connect(@NonNull String protocol, @NonNull Dialect dialect,
+  public @NonNull ConnectionInfo connect(@NonNull String protocol, @NonNull Dialect dialect,
       @NonNull TargetDriverDialect targetDriverDialect, @NonNull HostSpec hostSpec,
       @NonNull Properties props) throws SQLException {
     final Properties copy = PropertyUtils.copyProperties(props);
@@ -93,7 +93,7 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
 
     ds.setPassword(copy.getProperty(PropertyDefinition.PASSWORD.name));
 
-    return ds.getConnection();
+    return new ConnectionInfo(ds.getConnection(), true);
   }
 
   protected ComboPooledDataSource createDataSource(

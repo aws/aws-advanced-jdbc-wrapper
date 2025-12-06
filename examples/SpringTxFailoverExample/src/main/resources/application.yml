@@ -9,5 +9,4 @@ spring:
       max-lifetime: 1260000
       auto-commit: false
       maximum-pool-size: 3
-      data-source-properties:
-        keepSessionStateOnFailover: true
+

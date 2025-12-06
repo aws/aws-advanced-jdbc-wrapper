@@ -22,8 +22,10 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -31,15 +33,16 @@ import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import software.amazon.jdbc.AwsWrapperProperty;
-import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
+import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverMode;
@@ -47,6 +50,7 @@ import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.plugin.failover.TransactionStateUnknownSQLException;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
@@ -174,6 +178,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
     methods.add(JdbcMethod.INITHOSTPROVIDER.methodName);
     methods.add(JdbcMethod.CONNECT.methodName);
+    methods.add(JdbcMethod.NOTIFYNODELISTCHANGED.methodName);
     methods.add(JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName);
     methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.properties));
     this.subscribedMethods = Collections.unmodifiableSet(methods);
@@ -257,6 +262,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   protected boolean isFailoverEnabled() {
     return !RdsUrlType.RDS_PROXY.equals(this.rdsUrlType)
+        && !RdsUrlType.RDS_PROXY_ENDPOINT.equals(this.rdsUrlType)
         && !Utils.isNullOrEmpty(this.pluginService.getAllHosts());
   }
 
@@ -429,7 +435,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
                   this.failoverReaderHostSelectorStrategySetting);
         } catch (UnsupportedOperationException | SQLException ex) {
           LOGGER.finest(
-              Utils.logTopology(
+              LogUtils.logTopology(
                   new ArrayList<>(remainingReaders),
                   Messages.get("Failover.errorSelectingReaderHost", new Object[]{ex.getMessage()})));
           break;
@@ -437,7 +443,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
         if (readerCandidate == null) {
           LOGGER.finest(
-              Utils.logTopology(new ArrayList<>(remainingReaders), Messages.get("Failover.readerCandidateNull")));
+              LogUtils.logTopology(new ArrayList<>(remainingReaders), Messages.get("Failover.readerCandidateNull")));
           break;
         }
 
@@ -558,7 +564,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         if (this.failoverWriterFailedCounter != null) {
           this.failoverWriterFailedCounter.inc();
         }
-        String message = Utils.logTopology(updatedHosts, Messages.get("Failover.noWriterHost"));
+        String message = LogUtils.logTopology(updatedHosts, Messages.get("Failover.noWriterHost"));
         LOGGER.severe(message);
         throw new FailoverFailedSQLException(message);
       }
@@ -568,7 +574,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         if (this.failoverWriterFailedCounter != null) {
           this.failoverWriterFailedCounter.inc();
         }
-        String topologyString = Utils.logTopology(allowedHosts, "");
+        String topologyString = LogUtils.logTopology(allowedHosts, "");
         LOGGER.severe(Messages.get("Failover.newWriterNotAllowed",
             new Object[] {writerCandidate.getUrl(), topologyString}));
         throw new FailoverFailedSQLException(
@@ -696,7 +702,14 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return false;
     }
 
-    return this.pluginService.isNetworkException(t, this.pluginService.getTargetDriverDialect());
+    if (this.pluginService.isNetworkException(t, this.pluginService.getTargetDriverDialect())) {
+      return true;
+    }
+
+    // For STRICT_WRITER failover mode when connection exception indicate that the connection's in read-only mode,
+    // initiate a failover by returning true.
+    return this.failoverMode == FailoverMode.STRICT_WRITER
+      && this.pluginService.isReadOnlyConnectionException(t, this.pluginService.getTargetDriverDialect());
   }
 
   /**
@@ -791,5 +804,10 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     return conn;
+  }
+
+  @Override
+  public void notifyNodeListChanged(final Map<String, EnumSet<NodeChangeOptions>> changes) {
+    this.staleDnsHelper.notifyNodeListChanged(changes);
   }
 }

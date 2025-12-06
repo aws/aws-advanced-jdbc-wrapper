@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc;
+package software.amazon.jdbc.hostlistprovider;
 
 import java.sql.Connection;
+import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.dialect.Dialect;
 
 public interface HostListProviderService {

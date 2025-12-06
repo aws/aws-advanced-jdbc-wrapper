@@ -43,6 +43,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.amazon.jdbc.ConnectionInfo;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.HostSpec;
@@ -77,7 +78,7 @@ class DefaultConnectionPluginTest {
   private AutoCloseable closeable;
 
   @BeforeEach
-  void setUp() {
+  void setUp() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
 
     when(pluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
@@ -88,6 +89,8 @@ class DefaultConnectionPluginTest {
     when(mockTelemetryFactory.createGauge(anyString(), any(GaugeCallable.class))).thenReturn(mockTelemetryGauge);
     when(mockConnectionProviderManager.getConnectionProvider(anyString(), any(), any()))
         .thenReturn(connectionProvider);
+    when(connectionProvider.connect(anyString(), any(), any(), any(), any()))
+        .thenReturn(new ConnectionInfo(conn, false));
 
     plugin = new DefaultConnectionPlugin(
         pluginService, connectionProvider, pluginManagerService, mockConnectionProviderManager);

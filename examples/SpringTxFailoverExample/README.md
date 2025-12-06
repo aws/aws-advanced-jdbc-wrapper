@@ -4,7 +4,7 @@ In this tutorial, you will set up a Spring Boot application using the AWS Advanc
 
 > Note: this tutorial was written using the following technologies:
 >    - Spring Boot 2.7.0
->    - AWS Advanced JDBC Wrapper 2.6.7
+>    - AWS Advanced JDBC Wrapper 3.0.0
 >    - Postgresql 42.5.4
 >    - Java 8
 
@@ -127,11 +127,7 @@ spring:
       max-lifetime: 1260000
       auto-commit: false
       maximum-pool-size: 3
-      data-source-properties:
-        keepSessionStateOnFailover: true
 ```
-
-Please also note the use of the [`keepSessionStateOnFailover`](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md#failover-parameters) property. When failover occurs, the connection's auto commit value is reset to true. When the auto commit value is set to false or transactions are used, further operations such as a rollback or commit on the same connection will cause errors. This parameter is used when connections cannot be reconfigured manually as seen in this [example](https://github.com/aws/aws-advanced-jdbc-wrapper/tree/main/examples/AWSDriverExample/src/main/java/software/amazon/PgFailoverSample.java).
 
 ## Step 4: Set up a data access object
 

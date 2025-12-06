@@ -72,6 +72,10 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       "iamExpiration", String.valueOf(DEFAULT_TOKEN_EXPIRATION_SEC),
       "IAM token cache expiration in seconds");
 
+  public static final AwsWrapperProperty IAM_TOKEN_PROPERTY_NAME = new AwsWrapperProperty(
+      "iamAccessTokenPropertyName", PropertyDefinition.PASSWORD.name,
+      "Overrides default IAM access token property name");
+
   protected static final RegionUtils regionUtils = new RegionUtils();
   protected final PluginService pluginService;
   protected final RdsUtils rdsUtils = new RdsUtils();
@@ -121,6 +125,10 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       throw new SQLException(PropertyDefinition.USER.name + " is null or empty.");
     }
 
+    if (StringUtils.isNullOrEmpty(IAM_TOKEN_PROPERTY_NAME.getString(props))) {
+      throw new SQLException(IAM_TOKEN_PROPERTY_NAME.name + " is null or empty.");
+    }
+
     String host = IamAuthUtils.getIamHost(IAM_HOST.getString(props), hostSpec);
 
     int port = IamAuthUtils.getIamPort(
@@ -149,7 +157,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
           () -> Messages.get(
               "AuthenticationToken.useCachedToken",
               new Object[] {tokenInfo.getToken()}));
-      PropertyDefinition.PASSWORD.set(props, tokenInfo.getToken());
+      props.setProperty(IAM_TOKEN_PROPERTY_NAME.getString(props), tokenInfo.getToken());
     } else {
       final Instant tokenExpiry = Instant.now().plus(tokenExpirationSec, ChronoUnit.SECONDS);
       if (this.fetchTokenCounter != null) {
@@ -167,7 +175,8 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
           () -> Messages.get(
               "AuthenticationToken.generatedNewToken",
               new Object[] {token}));
-      PropertyDefinition.PASSWORD.set(props, token);
+
+      props.setProperty(IAM_TOKEN_PROPERTY_NAME.getString(props), token);
       IamAuthCacheHolder.tokenCache.put(
           cacheKey,
           new TokenInfo(token, tokenExpiry));
@@ -206,7 +215,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
           () -> Messages.get(
               "AuthenticationToken.generatedNewToken",
               new Object[] {token}));
-      PropertyDefinition.PASSWORD.set(props, token);
+      props.setProperty(IAM_TOKEN_PROPERTY_NAME.getString(props), token);
       IamAuthCacheHolder.tokenCache.put(
           cacheKey,
           new TokenInfo(token, tokenExpiry));

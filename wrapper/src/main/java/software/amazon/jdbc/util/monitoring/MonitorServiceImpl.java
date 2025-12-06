@@ -19,12 +19,12 @@ package software.amazon.jdbc.util.monitoring;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -36,7 +36,6 @@ import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.hostlistprovider.monitoring.ClusterTopologyMonitorImpl;
-import software.amazon.jdbc.hostlistprovider.monitoring.MultiAzClusterTopologyMonitorImpl;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.NodeResponseTimeMonitor;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ExecutorFactory;
@@ -59,13 +58,11 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
 
   static {
     Map<Class<? extends Monitor>, Supplier<CacheContainer>> suppliers = new HashMap<>();
-    Set<MonitorErrorResponse> recreateOnError =
-        new HashSet<>(Collections.singletonList(MonitorErrorResponse.RECREATE));
+    EnumSet<MonitorErrorResponse> recreateOnError = EnumSet.of(MonitorErrorResponse.RECREATE);
     MonitorSettings defaultSettings = new MonitorSettings(
         TimeUnit.MINUTES.toNanos(15), TimeUnit.MINUTES.toNanos(3), recreateOnError);
 
     suppliers.put(ClusterTopologyMonitorImpl.class, () -> new CacheContainer(defaultSettings, Topology.class));
-    suppliers.put(MultiAzClusterTopologyMonitorImpl.class, () -> new CacheContainer(defaultSettings, Topology.class));
     suppliers.put(NodeResponseTimeMonitor.class, () -> new CacheContainer(defaultSettings, null));
     defaultSuppliers = Collections.unmodifiableMap(suppliers);
   }
@@ -150,7 +147,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
     Monitor monitor = errorMonitorItem.getMonitor();
     monitor.stop();
 
-    Set<MonitorErrorResponse> errorResponses = cacheContainer.getSettings().getErrorResponses();
+    EnumSet<MonitorErrorResponse> errorResponses = cacheContainer.getSettings().getErrorResponses();
     if (errorResponses != null && errorResponses.contains(MonitorErrorResponse.RECREATE)) {
       cacheContainer.getCache().computeIfAbsent(key, k -> {
         LOGGER.fine(Messages.get("MonitorServiceImpl.recreatingMonitor", new Object[] {monitor}));
@@ -166,7 +163,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
       Class<T> monitorClass,
       long expirationTimeoutNanos,
       long heartbeatTimeoutNanos,
-      Set<MonitorErrorResponse> errorResponses,
+      EnumSet<MonitorErrorResponse> errorResponses,
       @Nullable Class<?> producedDataClass) {
     monitorCaches.computeIfAbsent(
         monitorClass,

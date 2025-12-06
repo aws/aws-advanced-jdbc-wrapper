@@ -17,45 +17,29 @@
 package software.amazon.jdbc.hostlistprovider;
 
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.SQLSyntaxErrorException;
-import java.sql.Statement;
-import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Properties;
-import java.util.UUID;
-import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
-import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.StringUtils;
-import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
-import software.amazon.jdbc.util.storage.CacheMap;
 
 public class RdsHostListProvider implements DynamicHostListProvider {
 
@@ -70,10 +54,10 @@ public class RdsHostListProvider implements DynamicHostListProvider {
               + "after which it will be updated during the next interaction with the connection.");
 
   public static final AwsWrapperProperty CLUSTER_ID = new AwsWrapperProperty(
-      "clusterId", "",
+      "clusterId", "1",
       "A unique identifier for the cluster. "
           + "Connections with the same cluster id share a cluster topology cache. "
-          + "If unspecified, a cluster id is automatically created for AWS RDS clusters.");
+          + "If unspecified, a cluster id is '1'.");
 
   public static final AwsWrapperProperty CLUSTER_INSTANCE_HOST_PATTERN =
       new AwsWrapperProperty(
@@ -84,20 +68,17 @@ public class RdsHostListProvider implements DynamicHostListProvider {
               + "This pattern is required to be specified for IP address or custom domain connections to AWS RDS "
               + "clusters. Otherwise, if unspecified, the pattern will be automatically created for AWS RDS clusters.");
 
-  protected static final Executor networkTimeoutExecutor = new SynchronousExecutor();
   protected static final RdsUtils rdsHelper = new RdsUtils();
   protected static final ConnectionUrlParser connectionUrlParser = new ConnectionUrlParser();
   protected static final int defaultTopologyQueryTimeoutMs = 5000;
-  protected static final long suggestedClusterIdRefreshRateNano = TimeUnit.MINUTES.toNanos(10);
-  protected static final CacheMap<String, String> suggestedPrimaryClusterIdCache = new CacheMap<>();
-  protected static final CacheMap<String, Boolean> primaryClusterIdCache = new CacheMap<>();
 
+  protected final ReentrantLock lock = new ReentrantLock();
+  protected final Properties properties;
+  protected final String originalUrl;
   protected final FullServicesContainer servicesContainer;
   protected final HostListProviderService hostListProviderService;
-  protected final String originalUrl;
-  protected final String topologyQuery;
-  protected final String nodeIdQuery;
-  protected final String isReaderQuery;
+  protected final TopologyUtils topologyUtils;
+
   protected RdsUrlType rdsUrlType;
   protected long refreshRateNano = CLUSTER_TOPOLOGY_REFRESH_RATE_MS.defaultValue != null
       ? TimeUnit.MILLISECONDS.toNanos(Long.parseLong(CLUSTER_TOPOLOGY_REFRESH_RATE_MS.defaultValue))
@@ -105,37 +86,25 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   protected List<HostSpec> hostList = new ArrayList<>();
   protected List<HostSpec> initialHostList = new ArrayList<>();
   protected HostSpec initialHostSpec;
-
-  protected final ReentrantLock lock = new ReentrantLock();
   protected String clusterId;
-  protected HostSpec clusterInstanceTemplate;
-
-  // A primary clusterId is a clusterId that is based off of a cluster endpoint URL
-  // (rather than a GUID or a value provided by the user).
-  protected boolean isPrimaryClusterId;
+  protected HostSpec instanceTemplate;
 
   protected volatile boolean isInitialized = false;
-
-  protected Properties properties;
 
   static {
     PropertyDefinition.registerPluginProperties(RdsHostListProvider.class);
   }
 
   public RdsHostListProvider(
+      final TopologyUtils topologyUtils,
       final Properties properties,
       final String originalUrl,
-      final FullServicesContainer servicesContainer,
-      final String topologyQuery,
-      final String nodeIdQuery,
-      final String isReaderQuery) {
+      final FullServicesContainer servicesContainer) {
+    this.topologyUtils = topologyUtils;
     this.properties = properties;
     this.originalUrl = originalUrl;
     this.servicesContainer = servicesContainer;
     this.hostListProviderService = servicesContainer.getHostListProviderService();
-    this.topologyQuery = topologyQuery;
-    this.nodeIdQuery = nodeIdQuery;
-    this.isReaderQuery = isReaderQuery;
   }
 
   protected void init() throws SQLException {
@@ -148,71 +117,44 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       if (this.isInitialized) {
         return;
       }
-
-      // initial topology is based on connection string
-      this.initialHostList =
-          connectionUrlParser.getHostsFromConnectionUrl(this.originalUrl, false,
-              this.hostListProviderService::getHostSpecBuilder);
-      if (this.initialHostList == null || this.initialHostList.isEmpty()) {
-        throw new SQLException(Messages.get("RdsHostListProvider.parsedListEmpty",
-            new Object[] {this.originalUrl}));
-      }
-      this.initialHostSpec = this.initialHostList.get(0);
-      this.hostListProviderService.setInitialConnectionHostSpec(this.initialHostSpec);
-
-      this.clusterId = UUID.randomUUID().toString();
-      this.isPrimaryClusterId = false;
-      this.refreshRateNano =
-          TimeUnit.MILLISECONDS.toNanos(CLUSTER_TOPOLOGY_REFRESH_RATE_MS.getInteger(properties));
-
-      HostSpecBuilder hostSpecBuilder = this.hostListProviderService.getHostSpecBuilder();
-      String clusterInstancePattern = CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties);
-      if (clusterInstancePattern != null) {
-        this.clusterInstanceTemplate =
-            ConnectionUrlParser.parseHostPortPair(clusterInstancePattern, () -> hostSpecBuilder);
-      } else {
-        this.clusterInstanceTemplate =
-            hostSpecBuilder
-                .host(rdsHelper.getRdsInstanceHostPattern(this.initialHostSpec.getHost()))
-                .hostId(this.initialHostSpec.getHostId())
-                .port(this.initialHostSpec.getPort())
-                .build();
-      }
-
-      validateHostPatternSetting(this.clusterInstanceTemplate.getHost());
-
-      this.rdsUrlType = rdsHelper.identifyRdsType(this.initialHostSpec.getHost());
-
-      final String clusterIdSetting = CLUSTER_ID.getString(this.properties);
-      if (!StringUtils.isNullOrEmpty(clusterIdSetting)) {
-        this.clusterId = clusterIdSetting;
-      } else if (rdsUrlType == RdsUrlType.RDS_PROXY) {
-        // Each proxy is associated with a single cluster, so it's safe to use RDS Proxy Url as cluster
-        // identification
-        this.clusterId = this.initialHostSpec.getUrl();
-      } else if (rdsUrlType.isRds()) {
-        final ClusterSuggestedResult clusterSuggestedResult =
-            getSuggestedClusterId(this.initialHostSpec.getHostAndPort());
-        if (clusterSuggestedResult != null && !StringUtils.isNullOrEmpty(clusterSuggestedResult.clusterId)) {
-          this.clusterId = clusterSuggestedResult.clusterId;
-          this.isPrimaryClusterId = clusterSuggestedResult.isPrimaryClusterId;
-        } else {
-          final String clusterRdsHostUrl =
-              rdsHelper.getRdsClusterHostUrl(this.initialHostSpec.getHost());
-          if (!StringUtils.isNullOrEmpty(clusterRdsHostUrl)) {
-            this.clusterId = this.clusterInstanceTemplate.isPortSpecified()
-                ? String.format("%s:%s", clusterRdsHostUrl, this.clusterInstanceTemplate.getPort())
-                : clusterRdsHostUrl;
-            this.isPrimaryClusterId = true;
-            primaryClusterIdCache.put(this.clusterId, true, suggestedClusterIdRefreshRateNano);
-          }
-        }
-      }
-
+      this.initSettings();
       this.isInitialized = true;
     } finally {
       lock.unlock();
     }
+  }
+
+  protected void initSettings() throws SQLException {
+    // The initial topology is based on the connection string.
+    this.initialHostList =
+        connectionUrlParser.getHostsFromConnectionUrl(this.originalUrl, false,
+            this.hostListProviderService::getHostSpecBuilder);
+    if (this.initialHostList == null || this.initialHostList.isEmpty()) {
+      throw new SQLException(Messages.get("RdsHostListProvider.parsedListEmpty", new Object[] {this.originalUrl}));
+    }
+    this.initialHostSpec = this.initialHostList.get(0);
+    this.hostListProviderService.setInitialConnectionHostSpec(this.initialHostSpec);
+
+    this.clusterId = CLUSTER_ID.getString(this.properties);
+    this.refreshRateNano =
+        TimeUnit.MILLISECONDS.toNanos(CLUSTER_TOPOLOGY_REFRESH_RATE_MS.getInteger(properties));
+
+    HostSpecBuilder hostSpecBuilder = this.hostListProviderService.getHostSpecBuilder();
+    String clusterInstancePattern = CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties);
+    if (clusterInstancePattern != null) {
+      this.instanceTemplate =
+          ConnectionUrlParser.parseHostPortPair(clusterInstancePattern, () -> hostSpecBuilder);
+    } else {
+      this.instanceTemplate =
+          hostSpecBuilder
+              .host(rdsHelper.getRdsInstanceHostPattern(this.initialHostSpec.getHost()))
+              .hostId(this.initialHostSpec.getHostId())
+              .port(this.initialHostSpec.getPort())
+              .build();
+    }
+
+    validateHostPatternSetting(this.instanceTemplate.getHost());
+    this.rdsUrlType = rdsHelper.identifyRdsType(this.initialHostSpec.getHost());
   }
 
   /**
@@ -220,9 +162,9 @@ public class RdsHostListProvider implements DynamicHostListProvider {
    * cached copy of topology is returned if it's not yet outdated (controlled by {@link
    * #refreshRateNano}).
    *
-   * @param conn A connection to database to fetch the latest topology, if needed.
+   * @param conn        A connection to database to fetch the latest topology, if needed.
    * @param forceUpdate If true, it forces a service to ignore cached copy of topology and to fetch
-   *     a fresh one.
+   *                    a fresh one.
    * @return a list of hosts that describes cluster topology. A writer is always at position 0.
    *     Returns an empty list if isn't available or is invalid (doesn't contain a writer).
    * @throws SQLException if errors occurred while retrieving the topology.
@@ -230,43 +172,18 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   protected FetchTopologyResult getTopology(final Connection conn, final boolean forceUpdate) throws SQLException {
     init();
 
-    final String suggestedPrimaryClusterId = suggestedPrimaryClusterIdCache.get(this.clusterId);
-
-    // Change clusterId by accepting a suggested one
-    if (!StringUtils.isNullOrEmpty(suggestedPrimaryClusterId)
-        && !this.clusterId.equals(suggestedPrimaryClusterId)) {
-
-      final String oldClusterId = this.clusterId;
-      this.clusterId = suggestedPrimaryClusterId;
-      this.isPrimaryClusterId = true;
-      this.clusterIdChanged(oldClusterId);
-    }
-
     final List<HostSpec> storedHosts = this.getStoredTopology();
-
-    // This clusterId is a primary one and is about to create a new entry in the cache.
-    // When a primary entry is created it needs to be suggested for other (non-primary) entries.
-    // Remember a flag to do suggestion after cache is updated.
-    final boolean needToSuggest = storedHosts == null && this.isPrimaryClusterId;
-
     if (storedHosts == null || forceUpdate) {
-
-      // need to re-fetch topology
-
+      // We need to re-fetch topology.
       if (conn == null) {
-        // can't fetch the latest topology since no connection
-        // return original hosts parsed from connection string
+        // We cannot fetch the latest topology since we do not have access to a connection, so we return the original
+        // hosts parsed from the connection string.
         return new FetchTopologyResult(false, this.initialHostList);
       }
 
-      // fetch topology from the DB
-      final List<HostSpec> hosts = queryForTopology(conn);
-
+      final List<HostSpec> hosts = this.queryForTopology(conn);
       if (!Utils.isNullOrEmpty(hosts)) {
         this.servicesContainer.getStorageService().set(this.clusterId, new Topology(hosts));
-        if (needToSuggest) {
-          this.suggestPrimaryCluster(hosts);
-        }
         return new FetchTopologyResult(false, hosts);
       }
     }
@@ -274,75 +191,8 @@ public class RdsHostListProvider implements DynamicHostListProvider {
     if (storedHosts == null) {
       return new FetchTopologyResult(false, this.initialHostList);
     } else {
-      // use cached data
+      // Return the cached data.
       return new FetchTopologyResult(true, storedHosts);
-    }
-  }
-
-  protected void clusterIdChanged(final String oldClusterId) throws SQLException {
-    // do nothing
-  }
-
-  protected ClusterSuggestedResult getSuggestedClusterId(final String url) {
-    Map<String, Topology> entries = this.servicesContainer.getStorageService().getEntries(Topology.class);
-    if (entries == null) {
-      return null;
-    }
-
-    for (final Entry<String, Topology> entry : entries.entrySet()) {
-      final String key = entry.getKey(); // clusterId
-      final List<HostSpec> hosts = entry.getValue().getHosts();
-      final boolean isPrimaryCluster = primaryClusterIdCache.get(key, false,
-          suggestedClusterIdRefreshRateNano);
-      if (key.equals(url)) {
-        return new ClusterSuggestedResult(url, isPrimaryCluster);
-      }
-      if (hosts == null) {
-        continue;
-      }
-      for (final HostSpec host : hosts) {
-        if (host.getHostAndPort().equals(url)) {
-          LOGGER.finest(() -> Messages.get("RdsHostListProvider.suggestedClusterId",
-              new Object[] {key, url}));
-          return new ClusterSuggestedResult(key, isPrimaryCluster);
-        }
-      }
-    }
-    return null;
-  }
-
-  protected void suggestPrimaryCluster(final @NonNull List<HostSpec> primaryClusterHosts) {
-    if (Utils.isNullOrEmpty(primaryClusterHosts)) {
-      return;
-    }
-
-    Map<String, Topology> entries = this.servicesContainer.getStorageService().getEntries(Topology.class);
-    if (entries == null) {
-      return;
-    }
-
-    for (final Entry<String, Topology> entry : entries.entrySet()) {
-      final String clusterId = entry.getKey();
-      final List<HostSpec> clusterHosts = entry.getValue().getHosts();
-      final boolean isPrimaryCluster = primaryClusterIdCache.get(clusterId, false,
-          suggestedClusterIdRefreshRateNano);
-      final String suggestedPrimaryClusterId = suggestedPrimaryClusterIdCache.get(clusterId);
-      if (isPrimaryCluster
-          || !StringUtils.isNullOrEmpty(suggestedPrimaryClusterId)
-          || Utils.isNullOrEmpty(clusterHosts)) {
-        continue;
-      }
-
-      // The entry is non-primary
-      for (final HostSpec host : clusterHosts) {
-        if (Utils.containsHostAndPort(primaryClusterHosts, host.getHostAndPort())) {
-          // Instance on this cluster matches with one of the instance on primary cluster
-          // Suggest the primary clusterId to this entry
-          suggestedPrimaryClusterIdCache.put(clusterId, this.clusterId,
-              suggestedClusterIdRefreshRateNano);
-          break;
-        }
-      }
     }
   }
 
@@ -354,142 +204,8 @@ public class RdsHostListProvider implements DynamicHostListProvider {
    * @throws SQLException if errors occurred while retrieving the topology.
    */
   protected List<HostSpec> queryForTopology(final Connection conn) throws SQLException {
-    int networkTimeout = -1;
-    try {
-      networkTimeout = conn.getNetworkTimeout();
-      // The topology query is not monitored by the EFM plugin, so it needs a socket timeout
-      if (networkTimeout == 0) {
-        conn.setNetworkTimeout(networkTimeoutExecutor, defaultTopologyQueryTimeoutMs);
-      }
-    } catch (SQLException e) {
-      LOGGER.warning(() -> Messages.get("RdsHostListProvider.errorGettingNetworkTimeout",
-          new Object[] {e.getMessage()}));
-    }
-
-    try (final Statement stmt = conn.createStatement();
-         final ResultSet resultSet = stmt.executeQuery(this.topologyQuery)) {
-      return processQueryResults(resultSet);
-    } catch (final SQLSyntaxErrorException e) {
-      throw new SQLException(Messages.get("RdsHostListProvider.invalidQuery"), e);
-    } finally {
-      if (networkTimeout == 0 && !conn.isClosed()) {
-        conn.setNetworkTimeout(networkTimeoutExecutor, networkTimeout);
-      }
-    }
-  }
-
-  /**
-   * Form a list of hosts from the results of the topology query.
-   *
-   * @param resultSet The results of the topology query
-   * @return a list of {@link HostSpec} objects representing
-   *     the topology that was returned by the
-   *     topology query. The list will be empty if the topology query returned an invalid topology
-   *     (no writer instance).
-   */
-  private List<HostSpec> processQueryResults(final ResultSet resultSet) throws SQLException {
-
-    final HashMap<String, HostSpec> hostMap = new HashMap<>();
-
-    // Data is result set is ordered by last updated time so the latest records go last.
-    // When adding hosts to a map, the newer records replace the older ones.
-    while (resultSet.next()) {
-      final HostSpec host = createHost(resultSet);
-      hostMap.put(host.getHost(), host);
-    }
-
-    final List<HostSpec> hosts = new ArrayList<>();
-    final List<HostSpec> writers = new ArrayList<>();
-
-    for (final HostSpec host : hostMap.values()) {
-      if (host.getRole() != HostRole.WRITER) {
-        hosts.add(host);
-      } else {
-        writers.add(host);
-      }
-    }
-
-    int writerCount = writers.size();
-
-    if (writerCount == 0) {
-      LOGGER.severe(
-          () -> Messages.get(
-              "RdsHostListProvider.invalidTopology"));
-      hosts.clear();
-    } else if (writerCount == 1) {
-      hosts.add(writers.get(0));
-    } else {
-      // Take the latest updated writer node as the current writer. All others will be ignored.
-      List<HostSpec> sortedWriters = writers.stream()
-          .sorted(Comparator.comparing(HostSpec::getLastUpdateTime, Comparator.nullsLast(Comparator.reverseOrder())))
-          .collect(Collectors.toList());
-      hosts.add(sortedWriters.get(0));
-    }
-
-    return hosts;
-  }
-
-  /**
-   * Creates an instance of HostSpec which captures details about a connectable host.
-   *
-   * @param resultSet the result set from querying the topology
-   * @return a {@link HostSpec} instance for a specific instance from the cluster
-   * @throws SQLException If unable to retrieve the hostName from the result set
-   */
-  protected HostSpec createHost(final ResultSet resultSet) throws SQLException {
-    // According to the topology query the result set
-    // should contain 4 columns: node ID, 1/0 (writer/reader), CPU utilization, node lag in time.
-    String hostName = resultSet.getString(1);
-    final boolean isWriter = resultSet.getBoolean(2);
-    final double cpuUtilization = resultSet.getDouble(3);
-    final double nodeLag = resultSet.getDouble(4);
-    Timestamp lastUpdateTime;
-    try {
-      lastUpdateTime = resultSet.getTimestamp(5);
-    } catch (Exception e) {
-      lastUpdateTime = Timestamp.from(Instant.now());
-    }
-
-    // Calculate weight based on node lag in time and CPU utilization.
-    final long weight = Math.round(nodeLag) * 100L + Math.round(cpuUtilization);
-
-    return createHost(hostName, isWriter, weight, lastUpdateTime);
-  }
-
-  protected HostSpec createHost(
-      String host,
-      final boolean isWriter,
-      final long weight,
-      final Timestamp lastUpdateTime) {
-
-    host = host == null ? "?" : host;
-    final String endpoint = getHostEndpoint(host);
-    final int port = this.clusterInstanceTemplate.isPortSpecified()
-        ? this.clusterInstanceTemplate.getPort()
-        : this.initialHostSpec.getPort();
-
-    final HostSpec hostSpec = this.hostListProviderService.getHostSpecBuilder()
-        .host(endpoint)
-        .port(port)
-        .role(isWriter ? HostRole.WRITER : HostRole.READER)
-        .availability(HostAvailability.AVAILABLE)
-        .weight(weight)
-        .lastUpdateTime(lastUpdateTime)
-        .build();
-    hostSpec.addAlias(host);
-    hostSpec.setHostId(host);
-    return hostSpec;
-  }
-
-  /**
-   * Build a host dns endpoint based on host/node name.
-   *
-   * @param nodeName A host name.
-   * @return Host dns endpoint
-   */
-  protected String getHostEndpoint(final String nodeName) {
-    final String host = this.clusterInstanceTemplate.getHost();
-    return host.replace("?", nodeName);
+    init();
+    return this.topologyUtils.queryForTopology(conn, this.initialHostSpec, this.instanceTemplate);
   }
 
   /**
@@ -501,14 +217,6 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   public @Nullable List<HostSpec> getStoredTopology() {
     Topology topology = this.servicesContainer.getStorageService().get(Topology.class, this.clusterId);
     return topology == null ? null : topology.getHosts();
-  }
-
-  /**
-   * Clear topology cache for all clusters.
-   */
-  public static void clearAll() {
-    primaryClusterIdCache.clear();
-    suggestedPrimaryClusterIdCache.clear();
   }
 
   /**
@@ -531,7 +239,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
         : this.hostListProviderService.getCurrentConnection();
 
     final FetchTopologyResult results = getTopology(currentConnection, false);
-    LOGGER.finest(() -> Utils.logTopology(results.hosts, results.isCachedData ? "[From cache] Topology:" : null));
+    LOGGER.finest(() -> LogUtils.logTopology(results.hosts, results.isCachedData ? "[From cache] Topology:" : null));
 
     this.hostList = results.hosts;
     return Collections.unmodifiableList(hostList);
@@ -550,7 +258,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
         : this.hostListProviderService.getCurrentConnection();
 
     final FetchTopologyResult results = getTopology(currentConnection, true);
-    LOGGER.finest(() -> Utils.logTopology(results.hosts));
+    LOGGER.finest(() -> LogUtils.logTopology(results.hosts));
     this.hostList = results.hosts;
     return Collections.unmodifiableList(this.hostList);
   }
@@ -560,30 +268,22 @@ public class RdsHostListProvider implements DynamicHostListProvider {
     return this.rdsUrlType;
   }
 
-  private void validateHostPatternSetting(final String hostPattern) {
+  protected void validateHostPatternSetting(final String hostPattern) {
     if (!rdsHelper.isDnsPatternValid(hostPattern)) {
-      // "Invalid value for the 'clusterInstanceHostPattern' configuration setting - the host
-      // pattern must contain a '?'
-      // character as a placeholder for the DB instance identifiers of the instances in the cluster"
       final String message = Messages.get("RdsHostListProvider.invalidPattern");
       LOGGER.severe(message);
       throw new RuntimeException(message);
     }
 
     final RdsUrlType rdsUrlType = rdsHelper.identifyRdsType(hostPattern);
-    if (rdsUrlType == RdsUrlType.RDS_PROXY) {
-      // "An RDS Proxy url can't be used as the 'clusterInstanceHostPattern' configuration setting."
-      final String message =
-          Messages.get("RdsHostListProvider.clusterInstanceHostPatternNotSupportedForRDSProxy");
+    if (rdsUrlType == RdsUrlType.RDS_PROXY || rdsUrlType == RdsUrlType.RDS_PROXY_ENDPOINT) {
+      final String message = Messages.get("RdsHostListProvider.clusterInstanceHostPatternNotSupportedForRDSProxy");
       LOGGER.severe(message);
       throw new RuntimeException(message);
     }
 
     if (rdsUrlType == RdsUrlType.RDS_CUSTOM_CLUSTER) {
-      // "An RDS Custom Cluster endpoint can't be used as the 'clusterInstanceHostPattern'
-      // configuration setting."
-      final String message =
-          Messages.get("RdsHostListProvider.clusterInstanceHostPatternNotSupportedForRdsCustom");
+      final String message = Messages.get("RdsHostListProvider.clusterInstanceHostPatternNotSupportedForRdsCustom");
       LOGGER.severe(message);
       throw new RuntimeException(message);
     }
@@ -602,80 +302,59 @@ public class RdsHostListProvider implements DynamicHostListProvider {
 
   @Override
   public HostRole getHostRole(Connection conn) throws SQLException {
-    try (final Statement stmt = conn.createStatement();
-         final ResultSet rs = stmt.executeQuery(this.isReaderQuery)) {
-      if (rs.next()) {
-        boolean isReader = rs.getBoolean(1);
-        return isReader ? HostRole.READER : HostRole.WRITER;
-      }
-    } catch (SQLException e) {
-      throw new SQLException(Messages.get("RdsHostListProvider.errorGettingHostRole"), e);
-    }
-
-    throw new SQLException(Messages.get("RdsHostListProvider.errorGettingHostRole"));
+    init();
+    return this.topologyUtils.getHostRole(conn);
   }
 
   @Override
-  public HostSpec identifyConnection(Connection connection) throws SQLException {
-    try (final Statement stmt = connection.createStatement();
-         final ResultSet resultSet = stmt.executeQuery(this.nodeIdQuery)) {
-      if (resultSet.next()) {
-        final String instanceName = resultSet.getString(1);
+  public @Nullable HostSpec identifyConnection(Connection connection) throws SQLException {
+    init();
+    try {
+      Pair<String, String> instanceIds = this.topologyUtils.getInstanceId(connection);
+      if (instanceIds == null) {
+        throw new SQLException(Messages.get("RdsHostListProvider.errorIdentifyConnection"));
+      }
 
-        List<HostSpec> topology = this.refresh(connection);
+      List<HostSpec> topology = this.refresh(connection);
+      boolean isForcedRefresh = false;
+      if (topology == null) {
+        topology = this.forceRefresh(connection);
+        isForcedRefresh = true;
+      }
 
-        boolean isForcedRefresh = false;
-        if (topology == null) {
-          topology = this.forceRefresh(connection);
-          isForcedRefresh = true;
-        }
+      if (topology == null) {
+        return null;
+      }
 
+      String instanceName = instanceIds.getValue2();
+      HostSpec foundHost = topology
+          .stream()
+          .filter(host -> Objects.equals(instanceName, host.getHostId()))
+          .findAny()
+          .orElse(null);
+
+      if (foundHost == null && !isForcedRefresh) {
+        topology = this.forceRefresh(connection);
         if (topology == null) {
           return null;
         }
 
-        HostSpec foundHost = topology
+        foundHost = topology
             .stream()
             .filter(host -> Objects.equals(instanceName, host.getHostId()))
             .findAny()
             .orElse(null);
-
-        if (foundHost == null && !isForcedRefresh) {
-          topology = this.forceRefresh(connection);
-          if (topology == null) {
-            return null;
-          }
-
-          foundHost = topology
-              .stream()
-              .filter(host -> Objects.equals(instanceName, host.getHostId()))
-              .findAny()
-              .orElse(null);
-        }
-
-        return foundHost;
       }
+
+      return foundHost;
     } catch (final SQLException e) {
       throw new SQLException(Messages.get("RdsHostListProvider.errorIdentifyConnection"), e);
     }
-
-    throw new SQLException(Messages.get("RdsHostListProvider.errorIdentifyConnection"));
   }
 
   @Override
   public String getClusterId() throws UnsupportedOperationException, SQLException {
     init();
     return this.clusterId;
-  }
-
-  public static class ClusterSuggestedResult {
-
-    public String clusterId;
-    public boolean isPrimaryClusterId;
-
-    public ClusterSuggestedResult(final String clusterId, final boolean isPrimaryClusterId) {
-      this.clusterId = clusterId;
-      this.isPrimaryClusterId = isPrimaryClusterId;
-    }
   }
 }

@@ -25,16 +25,18 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
-import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 
 /**
- * After Aurora DB cluster fail over is completed and a cluster has elected a new writer node, the corresponding
+ * Deprecated. Use 'initialConnection' plugin instead.
+ *
+ * <p>After Aurora DB cluster fail over is completed and a cluster has elected a new writer node, the corresponding
  * cluster (writer) endpoint contains stale data and points to an old writer node. That old writer node plays
  * a reader role after fail over and connecting with the cluster endpoint connects to it. In such case a user
  * application expects a writer connection but practically gets connected to a reader. Any DML statements fail

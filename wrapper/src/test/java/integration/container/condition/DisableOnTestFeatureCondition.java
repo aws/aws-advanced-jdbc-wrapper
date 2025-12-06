@@ -21,7 +21,7 @@ import static org.junit.platform.commons.util.AnnotationUtils.findAnnotation;
 import integration.TestEnvironmentFeatures;
 import integration.container.TestEnvironment;
 import java.util.Arrays;
-import java.util.Set;
+import java.util.EnumSet;
 import org.junit.jupiter.api.extension.ConditionEvaluationResult;
 import org.junit.jupiter.api.extension.ExecutionCondition;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -33,7 +33,7 @@ class DisableOnTestFeatureCondition implements ExecutionCondition {
   @Override
   public ConditionEvaluationResult evaluateExecutionCondition(ExtensionContext context) {
 
-    Set<TestEnvironmentFeatures> features =
+    EnumSet<TestEnvironmentFeatures> features =
         TestEnvironment.getCurrent().getInfo().getRequest().getFeatures();
 
     boolean disabled =

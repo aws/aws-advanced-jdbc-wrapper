@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.logging.Logger;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.BlockingHostListProvider;
 import software.amazon.jdbc.HostSpec;
@@ -30,15 +29,11 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
-import software.amazon.jdbc.hostlistprovider.Topology;
+import software.amazon.jdbc.hostlistprovider.TopologyUtils;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.monitoring.MonitorService;
-import software.amazon.jdbc.util.storage.StorageService;
 
-public class MonitoringRdsHostListProvider extends RdsHostListProvider
-    implements BlockingHostListProvider, CanReleaseResources {
-
-  private static final Logger LOGGER = Logger.getLogger(MonitoringRdsHostListProvider.class.getName());
+public class MonitoringRdsHostListProvider
+    extends RdsHostListProvider implements BlockingHostListProvider, CanReleaseResources {
 
   public static final AwsWrapperProperty CLUSTER_TOPOLOGY_HIGH_REFRESH_RATE_MS =
       new AwsWrapperProperty(
@@ -53,31 +48,17 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
   protected final FullServicesContainer servicesContainer;
   protected final PluginService pluginService;
   protected final long highRefreshRateNano;
-  protected final String writerTopologyQuery;
 
   public MonitoringRdsHostListProvider(
+      final TopologyUtils topologyUtils,
       final Properties properties,
       final String originalUrl,
-      final FullServicesContainer servicesContainer,
-      final String topologyQuery,
-      final String nodeIdQuery,
-      final String isReaderQuery,
-      final String writerTopologyQuery) {
-    super(properties, originalUrl, servicesContainer, topologyQuery, nodeIdQuery, isReaderQuery);
+      final FullServicesContainer servicesContainer) {
+    super(topologyUtils, properties, originalUrl, servicesContainer);
     this.servicesContainer = servicesContainer;
     this.pluginService = servicesContainer.getPluginService();
-    this.writerTopologyQuery = writerTopologyQuery;
     this.highRefreshRateNano = TimeUnit.MILLISECONDS.toNanos(
         CLUSTER_TOPOLOGY_HIGH_REFRESH_RATE_MS.getLong(this.properties));
-  }
-
-  public static void clearCache() {
-    clearAll();
-  }
-
-  @Override
-  protected void init() throws SQLException {
-    super.init();
   }
 
   protected ClusterTopologyMonitor initMonitor() throws SQLException {
@@ -88,15 +69,13 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
         this.properties,
         (servicesContainer) -> new ClusterTopologyMonitorImpl(
             this.servicesContainer,
+            this.topologyUtils,
             this.clusterId,
             this.initialHostSpec,
             this.properties,
-            this.clusterInstanceTemplate,
+            this.instanceTemplate,
             this.refreshRateNano,
-            this.highRefreshRateNano,
-            this.topologyQuery,
-            this.writerTopologyQuery,
-            this.nodeIdQuery));
+            this.highRefreshRateNano));
   }
 
   @Override
@@ -107,31 +86,6 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
       return monitor.forceRefresh(conn, defaultTopologyQueryTimeoutMs);
     } catch (TimeoutException ex) {
       return null;
-    }
-  }
-
-  @Override
-  protected void clusterIdChanged(final String oldClusterId) throws SQLException {
-    MonitorService monitorService = this.servicesContainer.getMonitorService();
-    final ClusterTopologyMonitorImpl existingMonitor =
-        monitorService.get(ClusterTopologyMonitorImpl.class, oldClusterId);
-    if (existingMonitor != null) {
-      this.servicesContainer.getMonitorService().runIfAbsent(
-          ClusterTopologyMonitorImpl.class,
-          this.clusterId,
-          this.servicesContainer,
-          this.properties,
-          (servicesContainer) -> existingMonitor);
-      assert monitorService.get(ClusterTopologyMonitorImpl.class, this.clusterId) == existingMonitor;
-      existingMonitor.setClusterId(this.clusterId);
-      monitorService.remove(ClusterTopologyMonitorImpl.class, oldClusterId);
-    }
-
-    final StorageService storageService = this.servicesContainer.getStorageService();
-    final Topology existingTopology = storageService.get(Topology.class, oldClusterId);
-    final List<HostSpec> existingHosts = existingTopology == null ? null : existingTopology.getHosts();
-    if (existingHosts != null) {
-      storageService.set(this.clusterId, new Topology(existingHosts));
     }
   }
 
@@ -150,6 +104,6 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
 
   @Override
   public void releaseResources() {
-    // do nothing
+    // Do nothing.
   }
 }

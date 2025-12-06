@@ -28,7 +28,6 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.storage.SlidingExpirationCacheWithCleanupThread;
 
 public class HostResponseTimeServiceImpl implements HostResponseTimeService {
 

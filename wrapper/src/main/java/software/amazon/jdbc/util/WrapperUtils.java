@@ -217,6 +217,8 @@ public class WrapperUtils {
         context.setAttribute("jdbcCall", jdbcMethod.methodName);
       }
 
+      connectionWrapper.getServicesContainer().getPluginManagerService().resetCallContext();
+
       // The target driver may block on Statement.getConnection().
       if (jdbcMethod.shouldLockConnection && jdbcMethod.checkBoundedConnection) {
         final Connection conn = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
@@ -285,6 +287,8 @@ public class WrapperUtils {
       if (context != null) {
         context.setAttribute("jdbcCall", jdbcMethod.methodName);
       }
+
+      connectionWrapper.getServicesContainer().getPluginManagerService().resetCallContext();
 
       // The target driver may block on Statement.getConnection().
       if (jdbcMethod.shouldLockConnection && jdbcMethod.checkBoundedConnection) {

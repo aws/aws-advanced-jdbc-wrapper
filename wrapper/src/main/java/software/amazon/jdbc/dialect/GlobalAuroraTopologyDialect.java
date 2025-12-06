@@ -14,20 +14,8 @@
  * limitations under the License.
  */
 
-package integration.container.aurora;
+package software.amazon.jdbc.dialect;
 
-import java.util.Properties;
-import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
-import software.amazon.jdbc.util.FullServicesContainer;
-
-public class TestAuroraHostListProvider extends AuroraHostListProvider {
-
-  public TestAuroraHostListProvider(
-      FullServicesContainer servicesContainer, Properties properties, String originalUrl) {
-    super(properties, originalUrl, servicesContainer, "", "", "");
-  }
-
-  public static void clearCache() {
-    AuroraHostListProvider.clearAll();
-  }
+public interface GlobalAuroraTopologyDialect extends TopologyDialect {
+  String getRegionByInstanceIdQuery();
 }

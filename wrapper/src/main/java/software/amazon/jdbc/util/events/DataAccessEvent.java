@@ -24,8 +24,8 @@ import org.checkerframework.checker.nullness.qual.NonNull;
  * data.
  */
 public class DataAccessEvent implements Event {
-  protected @NonNull Class<?> dataClass;
-  protected @NonNull Object key;
+  protected final @NonNull Class<?> dataClass;
+  protected final @NonNull Object key;
 
   /**
    * Constructor for a DataAccessEvent.

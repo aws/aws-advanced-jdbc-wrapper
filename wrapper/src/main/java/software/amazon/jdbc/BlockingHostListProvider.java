@@ -19,6 +19,7 @@ package software.amazon.jdbc;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
+import software.amazon.jdbc.hostlistprovider.HostListProvider;
 
 public interface BlockingHostListProvider extends HostListProvider {
 

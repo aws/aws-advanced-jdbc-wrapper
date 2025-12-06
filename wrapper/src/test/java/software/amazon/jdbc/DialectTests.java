@@ -36,10 +36,10 @@ import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.dialect.AuroraMysqlDialect;
 import software.amazon.jdbc.dialect.AuroraPgDialect;
 import software.amazon.jdbc.dialect.MariaDbDialect;
+import software.amazon.jdbc.dialect.MultiAzClusterMysqlDialect;
+import software.amazon.jdbc.dialect.MultiAzClusterPgDialect;
 import software.amazon.jdbc.dialect.MysqlDialect;
 import software.amazon.jdbc.dialect.PgDialect;
-import software.amazon.jdbc.dialect.RdsMultiAzDbClusterMysqlDialect;
-import software.amazon.jdbc.dialect.RdsMultiAzDbClusterPgDialect;
 import software.amazon.jdbc.dialect.RdsMysqlDialect;
 import software.amazon.jdbc.dialect.RdsPgDialect;
 
@@ -51,11 +51,11 @@ public class DialectTests {
   @Mock private ResultSetMetaData mockResultSetMetaData;
   private final MysqlDialect mysqlDialect = new MysqlDialect();
   private final RdsMysqlDialect rdsMysqlDialect = new RdsMysqlDialect();
-  private final RdsMultiAzDbClusterMysqlDialect rdsTazMysqlDialect = new RdsMultiAzDbClusterMysqlDialect();
+  private final MultiAzClusterMysqlDialect rdsTazMysqlDialect = new MultiAzClusterMysqlDialect();
   private final AuroraMysqlDialect auroraMysqlDialect = new AuroraMysqlDialect();
   private final PgDialect pgDialect = new PgDialect();
   private final RdsPgDialect rdsPgDialect = new RdsPgDialect();
-  private final RdsMultiAzDbClusterPgDialect rdsTazPgDialect = new RdsMultiAzDbClusterPgDialect();
+  private final MultiAzClusterPgDialect rdsTazPgDialect = new MultiAzClusterPgDialect();
   private final AuroraPgDialect auroraPgDialect = new AuroraPgDialect();
   private final MariaDbDialect mariaDbDialect = new MariaDbDialect();
   private AutoCloseable closeable;

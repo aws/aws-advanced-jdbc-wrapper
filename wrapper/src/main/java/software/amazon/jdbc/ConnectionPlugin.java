@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 
 /**
  * Interface for connection plugins. This class implements ways to execute a JDBC method and to clean up resources used

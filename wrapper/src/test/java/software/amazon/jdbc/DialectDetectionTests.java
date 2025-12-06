@@ -43,13 +43,14 @@ import software.amazon.jdbc.dialect.AuroraPgDialect;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.dialect.MariaDbDialect;
+import software.amazon.jdbc.dialect.MultiAzClusterMysqlDialect;
+import software.amazon.jdbc.dialect.MultiAzClusterPgDialect;
 import software.amazon.jdbc.dialect.MysqlDialect;
 import software.amazon.jdbc.dialect.PgDialect;
-import software.amazon.jdbc.dialect.RdsMultiAzDbClusterMysqlDialect;
-import software.amazon.jdbc.dialect.RdsMultiAzDbClusterPgDialect;
 import software.amazon.jdbc.dialect.RdsMysqlDialect;
 import software.amazon.jdbc.dialect.RdsPgDialect;
 import software.amazon.jdbc.exceptions.ExceptionManager;
+import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.storage.StorageService;
@@ -70,10 +71,10 @@ public class DialectDetectionTests {
   @Mock private Statement mockStatement;
   @Mock private ResultSet mockSuccessResultSet;
   @Mock private ResultSet mockFailResultSet;
+  @Mock private ResultSetMetaData mockResultSetMetaData;
   @Mock private HostSpec mockHost;
   @Mock private ConnectionPluginManager mockPluginManager;
   @Mock private TargetDriverDialect mockTargetDriverDialect;
-  @Mock private ResultSetMetaData mockResultSetMetaData;
 
   @BeforeEach
   void setUp() throws SQLException {
@@ -83,6 +84,8 @@ public class DialectDetectionTests {
     when(this.mockServicesContainer.getStorageService()).thenReturn(mockStorageService);
     when(this.mockConnection.createStatement()).thenReturn(this.mockStatement);
     when(this.mockHost.getUrl()).thenReturn("url");
+    when(this.mockFailResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
+    when(this.mockResultSetMetaData.getColumnCount()).thenReturn(4);
     when(this.mockFailResultSet.next()).thenReturn(false);
     mockPluginManager.plugins = new ArrayList<>();
   }
@@ -219,7 +222,7 @@ public class DialectDetectionTests {
     final PluginServiceImpl target = getPluginService(LOCALHOST, PG_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
-    assertEquals(RdsMultiAzDbClusterPgDialect.class, target.dialect.getClass());
+    assertEquals(MultiAzClusterPgDialect.class, target.dialect.getClass());
   }
 
   @Test
@@ -272,7 +275,7 @@ public class DialectDetectionTests {
     final PluginServiceImpl target = getPluginService(LOCALHOST, MARIA_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
-    assertEquals(RdsMultiAzDbClusterMysqlDialect.class, target.dialect.getClass());
+    assertEquals(MultiAzClusterMysqlDialect.class, target.dialect.getClass());
   }
 
   @Test

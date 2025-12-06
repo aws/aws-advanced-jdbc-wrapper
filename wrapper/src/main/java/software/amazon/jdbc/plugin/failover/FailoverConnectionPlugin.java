@@ -33,7 +33,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
-import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
@@ -43,10 +42,12 @@ import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
@@ -351,30 +352,34 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return;
     }
 
-    if (LOGGER.isLoggable(Level.FINEST)) {
-      final StringBuilder sb = new StringBuilder("Changes:");
-      for (final Map.Entry<String, EnumSet<NodeChangeOptions>> change : changes.entrySet()) {
-        if (sb.length() > 0) {
-          sb.append("\n");
+    try {
+      if (LOGGER.isLoggable(Level.FINEST)) {
+        final StringBuilder sb = new StringBuilder("Changes:");
+        for (final Map.Entry<String, EnumSet<NodeChangeOptions>> change : changes.entrySet()) {
+          if (sb.length() > 0) {
+            sb.append("\n");
+          }
+          sb.append(String.format("\tHost '%s': %s", change.getKey(), change.getValue()));
         }
-        sb.append(String.format("\tHost '%s': %s", change.getKey(), change.getValue()));
+        LOGGER.finest(sb.toString());
       }
-      LOGGER.finest(sb.toString());
-    }
 
-    final HostSpec currentHost = this.pluginService.getCurrentHostSpec();
-    final String url = currentHost.getUrl();
-    if (isNodeStillValid(url, changes)) {
-      return;
-    }
-
-    for (final String alias : currentHost.getAliases()) {
-      if (isNodeStillValid(alias + "/", changes)) {
+      final HostSpec currentHost = this.pluginService.getCurrentHostSpec();
+      final String url = currentHost.getUrl();
+      if (isNodeStillValid(url, changes)) {
         return;
       }
-    }
 
-    LOGGER.fine(() -> Messages.get("Failover.invalidNode", new Object[]{currentHost}));
+      for (final String alias : currentHost.getAliases()) {
+        if (isNodeStillValid(alias + "/", changes)) {
+          return;
+        }
+      }
+
+      LOGGER.fine(() -> Messages.get("Failover.invalidNode", new Object[]{currentHost}));
+    } finally {
+      this.staleDnsHelper.notifyNodeListChanged(changes);
+    }
   }
 
   private boolean isNodeStillValid(final String node, final Map<String, EnumSet<NodeChangeOptions>> changes) {
@@ -388,6 +393,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   public boolean isFailoverEnabled() {
     return this.enableFailoverSetting
         && !RdsUrlType.RDS_PROXY.equals(this.rdsUrlType)
+        && !RdsUrlType.RDS_PROXY_ENDPOINT.equals(this.rdsUrlType)
         && !Utils.isNullOrEmpty(this.pluginService.getAllHosts());
   }
 
@@ -756,7 +762,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         throwFailoverFailedException(
             Messages.get(
                 "Failover.noWriterHostAfterReconnecting",
-                new Object[]{Utils.logTopology(hosts, "")}));
+                new Object[]{LogUtils.logTopology(hosts, "")}));
         return;
       }
 
@@ -764,7 +770,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       if (!Utils.containsHostAndPort(allowedHosts, writerHostSpec.getHostAndPort())) {
         throwFailoverFailedException(
             Messages.get("Failover.newWriterNotAllowed",
-                new Object[] {writerHostSpec.getUrl(), Utils.logTopology(allowedHosts, "")}));
+                new Object[] {writerHostSpec.getUrl(), LogUtils.logTopology(allowedHosts, "")}));
         return;
       }
 
@@ -888,7 +894,14 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return false;
     }
 
-    return this.pluginService.isNetworkException(t, this.pluginService.getTargetDriverDialect());
+    if (this.pluginService.isNetworkException(t, this.pluginService.getTargetDriverDialect())) {
+      return true;
+    }
+
+    // For STRICT_WRITER failover mode when connection exception indicate that the connection's in read-only mode,
+    // initiate a failover by returning true.
+    return this.failoverMode == FailoverMode.STRICT_WRITER
+      && this.pluginService.isReadOnlyConnectionException(t, this.pluginService.getTargetDriverDialect());
   }
 
   /**

@@ -241,7 +241,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   }
 
   @Override
-  public Connection connect(
+  public @NonNull ConnectionInfo connect(
       @NonNull String protocol,
       @NonNull Dialect dialect,
       @NonNull TargetDriverDialect targetDriverDialect,
@@ -286,7 +286,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
 
     ds.setPassword(copy.getProperty(PropertyDefinition.PASSWORD.name));
 
-    return ds.getConnection();
+    return new ConnectionInfo(ds.getConnection(), true);
   }
 
   // The pool key should always be retrieved using this method, because the username

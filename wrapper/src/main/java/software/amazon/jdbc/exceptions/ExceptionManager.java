@@ -16,33 +16,12 @@
 
 package software.amazon.jdbc.exceptions;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 
 public class ExceptionManager {
-
-  /**
-   * Sets a custom exception handler.
-   *
-   * @param exceptionHandler A custom exception handler to use.
-   *
-   * @deprecated Use software.amazon.jdbc.Driver instead
-   */
-  @Deprecated
-  public static void setCustomHandler(final ExceptionHandler exceptionHandler) {
-    Driver.setCustomExceptionHandler(exceptionHandler);
-  }
-
-  /**
-   * Resets a custom exception handler.
-   *
-   * @deprecated Use software.amazon.jdbc.Driver instead
-   */
-  @Deprecated
-  public static void resetCustomHandler() {
-    Driver.resetCustomExceptionHandler();
-  }
 
   public boolean isLoginException(
       final Dialect dialect, final Throwable throwable, final TargetDriverDialect targetDriverDialect) {
@@ -64,6 +43,18 @@ public class ExceptionManager {
   public boolean isNetworkException(final Dialect dialect, final String sqlState) {
     final ExceptionHandler handler = getHandler(dialect);
     return handler.isNetworkException(sqlState);
+  }
+
+  public boolean isReadOnlyConnectionException(
+      final Dialect dialect, final Throwable throwable, final TargetDriverDialect targetDriverDialect) {
+    final ExceptionHandler handler = getHandler(dialect);
+    return handler.isReadOnlyConnectionException(throwable, targetDriverDialect);
+  }
+
+  public boolean isReadOnlyConnectionException(
+      final Dialect dialect, final @Nullable String sqlState, final @Nullable Integer errorCode) {
+    final ExceptionHandler handler = getHandler(dialect);
+    return handler.isReadOnlyConnectionException(sqlState, errorCode);
   }
 
   private ExceptionHandler getHandler(final Dialect dialect) {

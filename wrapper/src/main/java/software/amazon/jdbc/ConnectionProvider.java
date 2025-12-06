@@ -78,10 +78,10 @@ public interface ConnectionProvider {
    * @param targetDriverDialect the target driver dialect
    * @param hostSpec the HostSpec containing the host-port information for the host to connect to
    * @param props    the Properties to use for the connection
-   * @return {@link Connection} resulting from the given connection information
+   * @return {@link ConnectionInfo} resulting from the given connection information
    * @throws SQLException if an error occurs
    */
-  Connection connect(
+  @NonNull ConnectionInfo connect(
       @NonNull String protocol,
       @NonNull Dialect dialect,
       @NonNull TargetDriverDialect targetDriverDialect,

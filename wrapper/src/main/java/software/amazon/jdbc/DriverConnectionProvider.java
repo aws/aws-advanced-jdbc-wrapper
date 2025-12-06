@@ -108,11 +108,11 @@ public class DriverConnectionProvider implements ConnectionProvider {
    * @param targetDriverDialect The target driver dialect
    * @param hostSpec The HostSpec containing the host-port information for the host to connect to
    * @param props The Properties to use for the connection
-   * @return {@link Connection} resulting from the given connection information
+   * @return {@link ConnectionInfo} resulting from the given connection information
    * @throws SQLException if an error occurs
    */
   @Override
-  public Connection connect(
+  public @NonNull ConnectionInfo connect(
       final @NonNull String protocol,
       final @NonNull Dialect dialect,
       final @NonNull TargetDriverDialect targetDriverDialect,
@@ -197,7 +197,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
     if (conn == null) {
       throw new SQLLoginException(Messages.get("ConnectionProvider.noConnection"));
     }
-    return conn;
+    return new ConnectionInfo(conn, false);
   }
 
   @Override

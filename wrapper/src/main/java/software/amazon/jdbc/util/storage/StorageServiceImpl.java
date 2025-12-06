@@ -171,17 +171,6 @@ public class StorageServiceImpl implements StorageService {
   }
 
   @Override
-  public <K, V> @Nullable Map<K, V> getEntries(Class<V> itemClass) {
-    final ExpirationCache<?, ?> cache = caches.get(itemClass);
-    if (cache == null) {
-      return null;
-    }
-
-    // TODO: remove this method after removing the suggestedClusterId logic
-    return (Map<K, V>) cache.getEntries();
-  }
-
-  @Override
   public int size(Class<?> itemClass) {
     final ExpirationCache<?, ?> cache = caches.get(itemClass);
     if (cache == null) {

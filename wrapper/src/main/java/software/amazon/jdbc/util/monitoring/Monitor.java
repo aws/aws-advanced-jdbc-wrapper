@@ -26,6 +26,8 @@ public interface Monitor {
    * Executes the monitoring loop for this monitor. This method should be called in the run() method of the thread
    * submitted during the call to {@link #start()}. Additionally, the monitoring loop should regularly update the last
    * activity timestamp so that the {@link MonitorService} can detect whether the monitor is stuck or not.
+   *
+   * @throws Exception if there's an error executing the monitoring logic.
    */
   void monitor() throws Exception;
 

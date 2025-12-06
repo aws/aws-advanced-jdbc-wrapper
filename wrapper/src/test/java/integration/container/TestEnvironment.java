@@ -37,9 +37,9 @@ import io.opentelemetry.sdk.resources.Resource;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import software.amazon.jdbc.Driver;
@@ -249,7 +249,7 @@ public class TestEnvironment {
     boolean disabledByFeature;
     boolean driverCompatibleToDatabaseEngine;
 
-    final Set<TestEnvironmentFeatures> features = this.info.getRequest().getFeatures();
+    final EnumSet<TestEnvironmentFeatures> features = this.info.getRequest().getFeatures();
     final DatabaseEngine databaseEngine = this.info.getRequest().getDatabaseEngine();
 
     switch (testDriver) {

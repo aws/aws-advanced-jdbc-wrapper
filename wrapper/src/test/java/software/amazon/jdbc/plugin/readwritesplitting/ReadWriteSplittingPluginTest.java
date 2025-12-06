@@ -45,7 +45,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
@@ -54,8 +53,8 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.SqlState;
 
@@ -95,7 +94,6 @@ public class ReadWriteSplittingPluginTest {
   @Mock private JdbcCallable<Connection, SQLException> mockConnectFunc;
   @Mock private JdbcCallable<ResultSet, SQLException> mockSqlFunction;
   @Mock private PluginService mockPluginService;
-  @Mock private Dialect mockDialect;
   @Mock private HostListProviderService mockHostListProviderService;
   @Mock private Connection mockWriterConn;
   @Mock private Connection mockNewWriterConn;
@@ -356,6 +354,35 @@ public class ReadWriteSplittingPluginTest {
   }
 
   @Test
+  public void testSetReadOnly_readerExpires() throws SQLException, InterruptedException {
+    when(this.mockPluginService.connect(eq(readerHostSpec1), any(Properties.class), any()))
+        .thenReturn(mockReaderConn1)
+        .thenReturn(mockReaderConn2);
+
+    final Properties propsWithExpirationTime = new Properties();
+    propsWithExpirationTime.put("cachedReaderKeepAliveTimeoutMs", "5000");
+
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+        mockPluginService,
+        propsWithExpirationTime);
+
+    plugin.switchConnectionIfRequired(true);
+    assertEquals(mockReaderConn1, plugin.getReaderConnection());
+
+    Thread.sleep(1000);
+
+    plugin.switchConnectionIfRequired(true);
+    // Ensure the cached reader connection hasn't changed yet since it hasn't expired.
+    assertEquals(mockReaderConn1, plugin.getReaderConnection());
+
+    Thread.sleep(6000);
+    plugin.switchConnectionIfRequired(true);
+
+    // Ensure the cached reader connection has expired and updated.
+    assertEquals(mockReaderConn2, plugin.getReaderConnection());
+  }
+
+  @Test
   public void testExecute_failoverToNewWriter() throws SQLException {
     when(mockSqlFunction.call()).thenThrow(FailoverSuccessSQLException.class);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockNewWriterConn);
@@ -567,7 +594,7 @@ public class ReadWriteSplittingPluginTest {
         .when(this.mockPluginService).getCurrentHostSpec();
     doReturn(mockReaderConn1).when(mockPluginService).connect(readerHostSpec1, null);
     when(mockPluginService.getDriverProtocol()).thenReturn("jdbc:postgresql://");
-    when(mockPluginService.isPooledConnectionProvider(any(), any())).thenReturn(true);
+    when(mockPluginService.isPooledConnection()).thenReturn(true);
 
     final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
@@ -580,7 +607,7 @@ public class ReadWriteSplittingPluginTest {
     spyPlugin.switchConnectionIfRequired(true);
     spyPlugin.switchConnectionIfRequired(false);
 
-    verify(spyPlugin, times(1)).closeConnectionIfIdle(eq(mockReaderConn1));
+    verify(spyPlugin, times(2)).closeReaderConnectionIfIdle(any());
   }
 
   @Test
@@ -593,7 +620,7 @@ public class ReadWriteSplittingPluginTest {
         .when(this.mockPluginService).getCurrentHostSpec();
     doReturn(mockWriterConn).when(mockPluginService).connect(writerHostSpec, null);
     when(mockPluginService.getDriverProtocol()).thenReturn("jdbc:postgresql://");
-    when(mockPluginService.isPooledConnectionProvider(any(), any())).thenReturn(true);
+    when(mockPluginService.isPooledConnection()).thenReturn(true);
 
     final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
@@ -607,7 +634,7 @@ public class ReadWriteSplittingPluginTest {
     spyPlugin.switchConnectionIfRequired(false);
     spyPlugin.switchConnectionIfRequired(true);
 
-    verify(spyPlugin, times(1)).closeConnectionIfIdle(eq(mockWriterConn));
+    verify(spyPlugin, times(1)).closeWriterConnectionIfIdle(eq(mockWriterConn));
   }
 
   private static HikariConfig getHikariConfig(HostSpec hostSpec, Properties props) {

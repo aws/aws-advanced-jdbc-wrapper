@@ -23,15 +23,12 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.StringUtils;
 
 public abstract class AbstractPgExceptionHandler implements ExceptionHandler {
+
+  protected static final String READ_ONLY_CONNECTION_SQLSTATE = "25006";
+
   public abstract List<String> getNetworkErrors();
 
   public abstract List<String> getAccessErrors();
-
-  @Override
-  @Deprecated
-  public boolean isNetworkException(Throwable throwable) {
-    return this.isNetworkException(throwable, null);
-  }
 
   @Override
   public boolean isNetworkException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
@@ -69,12 +66,6 @@ public abstract class AbstractPgExceptionHandler implements ExceptionHandler {
   }
 
   @Override
-  @Deprecated
-  public boolean isLoginException(final Throwable throwable) {
-    return this.isLoginException(throwable, null);
-  }
-
-  @Override
   public boolean isLoginException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     Throwable exception = throwable;
 
@@ -106,5 +97,37 @@ public abstract class AbstractPgExceptionHandler implements ExceptionHandler {
       return false;
     }
     return getAccessErrors().contains(sqlState);
+  }
+
+  @Override
+  public boolean isReadOnlyConnectionException(
+      final @Nullable String sqlState, final @Nullable Integer errorCode) {
+    return READ_ONLY_CONNECTION_SQLSTATE.equals(sqlState);
+  }
+
+  @Override
+  public boolean isReadOnlyConnectionException(
+      final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
+
+    Throwable exception = throwable;
+
+    while (exception != null) {
+      String sqlState = null;
+      Integer errorCode = null;
+      if (exception instanceof SQLException) {
+        sqlState = ((SQLException) exception).getSQLState();
+        errorCode = ((SQLException) exception).getErrorCode();
+      } else if (targetDriverDialect != null) {
+        sqlState = targetDriverDialect.getSQLState(exception);
+      }
+
+      if (isReadOnlyConnectionException(sqlState, errorCode)) {
+        return true;
+      }
+
+      exception = exception.getCause();
+    }
+
+    return false;
   }
 }

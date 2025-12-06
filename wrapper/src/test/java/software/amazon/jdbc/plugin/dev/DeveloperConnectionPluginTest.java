@@ -37,6 +37,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.amazon.jdbc.ConnectionInfo;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostSpec;
@@ -91,7 +92,8 @@ public class DeveloperConnectionPluginTest {
         mockPluginService,
         mockPluginService);
 
-    when(mockConnectionProvider.connect(any(), any(), any(), any(), any())).thenReturn(mockConnection);
+    when(mockConnectionProvider.connect(any(), any(), any(), any(), any()))
+        .thenReturn(new ConnectionInfo(mockConnection, false));
     when(mockConnectCallback.getExceptionToRaise(any(), any(), any(), anyBoolean())).thenReturn(null);
 
     when(mockConnectionPluginManager.getTelemetryFactory()).thenReturn(mockTelemetryFactory);

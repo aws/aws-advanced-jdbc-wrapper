@@ -21,8 +21,8 @@ import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
 import integration.TestEnvironmentInfo;
 import integration.TestInstanceInfo;
+import java.util.EnumSet;
 import java.util.Properties;
-import java.util.Set;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -103,6 +103,19 @@ public class ConnectionStringHelper {
         TestEnvironment.getCurrent().getCurrentDriver(),
         instance.getHost(),
         instance.getPort(),
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+  }
+
+  public static String getWrapperUrl(String host) {
+    return getWrapperUrl(
+        TestEnvironment.getCurrent().getCurrentDriver(),
+        host,
+        TestEnvironment.getCurrent()
+            .getInfo()
+            .getDatabaseInfo()
+            .getInstances()
+            .get(0)
+            .getPort(),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
   }
 
@@ -196,7 +209,7 @@ public class ConnectionStringHelper {
     props.setProperty(PropertyDefinition.USER.name, envInfo.getDatabaseInfo().getUsername());
     props.setProperty(PropertyDefinition.PASSWORD.name, envInfo.getDatabaseInfo().getPassword());
 
-    final Set<TestEnvironmentFeatures> features = envInfo.getRequest().getFeatures();
+    final EnumSet<TestEnvironmentFeatures> features = envInfo.getRequest().getFeatures();
     props.setProperty(PropertyDefinition.ENABLE_TELEMETRY.name, "true");
     props.setProperty(PropertyDefinition.TELEMETRY_SUBMIT_TOPLEVEL.name, "true");
     props.setProperty(

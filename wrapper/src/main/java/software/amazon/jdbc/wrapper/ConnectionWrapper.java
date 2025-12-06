@@ -39,12 +39,12 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
-import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
+import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
@@ -63,6 +63,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   protected final String originalUrl;
   protected @Nullable ConfigurationProfile configurationProfile;
   protected @Nullable Throwable openConnectionStacktrace;
+  protected FullServicesContainer servicesContainer;
 
   public ConnectionWrapper(
       @NonNull final FullServicesContainer servicesContainer,
@@ -71,6 +72,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       @NonNull final String targetDriverProtocol,
       @Nullable final ConfigurationProfile configurationProfile)
       throws SQLException {
+    this.servicesContainer = servicesContainer;
     this.pluginManager = servicesContainer.getConnectionPluginManager();
     this.pluginService = servicesContainer.getPluginService();
     this.hostListProviderService = servicesContainer.getHostListProviderService();
@@ -103,6 +105,10 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     this.pluginManagerService = pluginManagerService;
 
     init(props);
+  }
+
+  public FullServicesContainer getServicesContainer() {
+    return this.servicesContainer;
   }
 
   protected void init(final Properties props) throws SQLException {

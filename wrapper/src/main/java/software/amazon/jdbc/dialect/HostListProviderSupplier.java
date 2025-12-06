@@ -18,7 +18,7 @@ package software.amazon.jdbc.dialect;
 
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import software.amazon.jdbc.HostListProvider;
+import software.amazon.jdbc.hostlistprovider.HostListProvider;
 import software.amazon.jdbc.util.FullServicesContainer;
 
 @FunctionalInterface

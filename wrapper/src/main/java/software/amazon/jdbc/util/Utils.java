@@ -53,28 +53,4 @@ public class Utils {
     }
     return null;
   }
-
-  public static String logTopology(final @Nullable List<HostSpec> hosts) {
-    return logTopology(hosts, null);
-  }
-
-  public static String logTopology(
-      final @Nullable List<HostSpec> hosts,
-      final @Nullable String messagePrefix) {
-
-    final StringBuilder msg = new StringBuilder();
-    if (hosts == null) {
-      msg.append("<null>");
-    } else {
-      for (final HostSpec host : hosts) {
-        if (msg.length() > 0) {
-          msg.append("\n");
-        }
-        msg.append("   ").append(host == null ? "<null>" : host);
-      }
-    }
-
-    return Messages.get("Utils.topology",
-        new Object[] {messagePrefix == null ? "Topology:" : messagePrefix, msg.toString()});
-  }
 }

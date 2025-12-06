@@ -5,6 +5,8 @@ When this plugin is enabled, if the initial connection is to a reader cluster en
 
 This plugin also helps retrieve connections more reliably. When a user connects to a cluster endpoint, the actual instance for a new connection is resolved by DNS. During failover, the cluster elects another instance to be the writer. While DNS is updating, which can take up to 40-60 seconds, if a user tries to connect to the cluster endpoint, they may be connecting to an old node. This plugin helps by replacing the out of date endpoint if DNS is updating.
 
+When using Aurora Global Database, the user has an option to use an [Aurora Global Writer Endpoint](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-global-database-connecting.html). The Global Writer Endpoint makes a user application configuration easier. However, similar to the cluster writer endpoint mentioned above, it can also be affected by DNS updates. The Aurora Initial Connection Strategy Plugin recognizes an Aurora Global Writer Endpoint and substitutes it with the current writer endpoint.
+
 Verify plugin compatibility within your driver configuration using the [compatibility guide](../Compatibility.md).
 
 ## Enabling the Aurora Initial Connection Strategy Plugin

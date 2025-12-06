@@ -29,8 +29,6 @@ public interface ClusterTopologyMonitor extends Monitor, EventSubscriber {
 
   boolean canDispose();
 
-  void setClusterId(final String clusterId);
-
   List<HostSpec> forceRefresh(final boolean writerImportant, final long timeoutMs)
       throws SQLException, TimeoutException;
 

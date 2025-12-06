@@ -317,7 +317,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
         }
       }
 
-      return new ReaderFailoverResult(null, null, false);
+      return FAILED_READER_FAILOVER_RESULT;
     } finally {
       executor.shutdownNow();
     }
@@ -364,7 +364,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
         return result;
       }
     }
-    return new ReaderFailoverResult(null, null, false);
+    return FAILED_READER_FAILOVER_RESULT;
   }
 
   private ReaderFailoverResult getNextResult(final CompletionService<ReaderFailoverResult> service)

@@ -19,8 +19,7 @@ package integration;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.EnumSet;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class TestEnvironmentRequest {
@@ -41,7 +40,7 @@ public class TestEnvironmentRequest {
   private TargetJvm targetJvm;
 
   @JsonProperty("features")
-  private final Set<TestEnvironmentFeatures> features = new HashSet<>();
+  private final EnumSet<TestEnvironmentFeatures> features = EnumSet.noneOf(TestEnvironmentFeatures.class);
 
   @JsonProperty("numOfInstances")
   private int numOfInstances = 1;
@@ -93,7 +92,7 @@ public class TestEnvironmentRequest {
   }
 
   @JsonIgnore
-  public Set<TestEnvironmentFeatures> getFeatures() {
+  public EnumSet<TestEnvironmentFeatures> getFeatures() {
     return this.features;
   }
 
