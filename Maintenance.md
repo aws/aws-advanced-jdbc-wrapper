@@ -93,5 +93,5 @@ from the updated source after the PRs are merged.
 | Major Version | Latest Minor Version | Status      | Initial Release | Maintenance Window Start | Maintenance Window End |
 |---------------|----------------------|-------------|-----------------|--------------------------|------------------------|
 | 1             | 1.0.2                | Maintenance | Oct 5, 2022     | Apr 28, 2023             | Apr 28, 2024           | 
-| 2             | 2.6.7                | Maintenance | Apr 28, 2023    | N/A                      | N/A                    | 
-| 3             | 3.0.0                | Current     | <TBD>           | N/A                      | N/A                    | 
+| 2             | 2.6.7                | Maintenance | Jan 1, 2026     | Dec 31, 2026             | N/A                    | 
+| 3             | 3.0.0                | Current     | Dec 12, 2025    | N/A                      | N/A                    | 
