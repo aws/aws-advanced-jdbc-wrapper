@@ -7,7 +7,7 @@ It is possible to use the AWS Advanced JDBC Wrapper with plain RDS databases, bu
 
 ## Using the AWS JDBC Driver to access multiple database clusters
 > [!WARNING]\
-> If connecting to multiple database clusters within a single application, each connection string must set `clusterId` property. If the `clusterId` is omitted, you may experience various issues. For more information, please see the [AWS Advanced JDBC Driver Parameters](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#aws-advanced-jdbc-driver-parameters) section.
+> If connecting to multiple database clusters within a single application, each connection string must set the `clusterId` property. The property value should be the same for all connections to the same cluster. Connections to different clusters should have difference `clusterId` values. If the `clusterId` is omitted, you may experience various issues. For more information, please see the [AWS Advanced JDBC Driver Parameters](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#aws-advanced-jdbc-driver-parameters) section.
 
 ## Using the AWS Advanced JDBC Wrapper with custom endpoints and other non-standard URLs
 > [!WARNING]\
