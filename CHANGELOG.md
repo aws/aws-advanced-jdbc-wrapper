@@ -22,7 +22,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 > #### Deprecated Code Removal
 > Some methods marked as deprecated in version 2.x.x are now removed in 3.0.
 
-### :bug: Fixed
 
 ### :magic_wand: Added
 - Added support of Global Databases including and Global Database endpoint. ([PR #1573](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1573)).
