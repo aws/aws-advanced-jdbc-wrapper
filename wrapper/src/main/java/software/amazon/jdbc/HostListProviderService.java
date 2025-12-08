@@ -38,4 +38,6 @@ public interface HostListProviderService {
   Dialect getDialect();
 
   HostSpecBuilder getHostSpecBuilder();
+
+  boolean isInTransaction();
 }
