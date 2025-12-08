@@ -820,7 +820,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   @Override
   public void setIsPooledConnection(Boolean isPooledConnection) {
-    this.isPooledConnection = isPooledConnection;
+    this.pooledConnection = isPooledConnection;
   }
 
   @Override
