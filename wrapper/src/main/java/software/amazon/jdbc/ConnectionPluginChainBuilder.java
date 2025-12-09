@@ -72,9 +72,9 @@ public class ConnectionPluginChainBuilder {
           put("dataCache", new DataCachePluginFactory());
           put("customEndpoint", new CustomEndpointPluginFactory());
           put("efm", new HostMonitoringPluginFactory());
-          put("efm2", new HostMonitoringPluginFactory());
+          put("efm2", new software.amazon.jdbc.plugin.efm2.HostMonitoringPluginFactory());
           put("failover", new FailoverPluginFactory());
-          put("failover2", new FailoverPluginFactory());
+          put("failover2", new software.amazon.jdbc.plugin.failover2.FailoverPluginFactory());
           put("iam", new IamAuthPluginFactory());
           put("awsSecretsManager", new AwsSecretsManagerPluginFactory());
           put("federatedAuth", new FederatedAuthPluginFactory());
@@ -110,10 +110,10 @@ public class ConnectionPluginChainBuilder {
           put(BlueGreenPluginFactory.class, 550);
           put(ReadWriteSplittingPluginFactory.class, 600);
           put(SimpleReadWriteSplittingPluginFactory.class, 610);
-          put(FailoverConnectionPluginFactory.class, 700);
-          put(software.amazon.jdbc.plugin.failover2.FailoverConnectionPluginFactory.class, 710);
-          put(HostMonitoringConnectionPluginFactory.class, 800);
-          put(software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPluginFactory.class, 810);
+          put(FailoverPluginFactory.class, 700);
+          put(software.amazon.jdbc.plugin.failover2.FailoverPluginFactory.class, 710);
+          put(HostMonitoringPluginFactory.class, 800);
+          put(software.amazon.jdbc.plugin.efm2.HostMonitoringPluginFactory.class, 810);
           put(FastestResponseStrategyPluginFactory.class, 900);
           put(LimitlessPluginFactory.class, 950);
           put(IamAuthPluginFactory.class, 1000);
