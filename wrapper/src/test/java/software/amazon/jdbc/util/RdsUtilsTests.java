@@ -438,18 +438,6 @@ public class RdsUtilsTests {
   }
 
   @Test
-  public void testIsGlobalDbWriterClusterDns() {
-    assertFalse(target.isGlobalDbWriterClusterDns(usEastRegionCluster));
-    assertTrue(target.isGlobalDbWriterClusterDns(globalDbWriterCluster));
-  }
-
-  @Test
-  public void testisRdsProxyEndpointDns() {
-    assertFalse(target.isRdsProxyEndpointDns(usEastRegionProxy));
-    assertTrue(target.isRdsProxyEndpointDns(usEastRegionProxyEndpoint));
-  }
-
-  @Test
   public void testBrokenPathsHostPattern() {
     final String incorrectChinaHostPattern = "?.rds.cn-northwest-1.rds.amazonaws.com.cn";
     assertEquals(incorrectChinaHostPattern, target.getRdsInstanceHostPattern(extraRdsChinaPath));

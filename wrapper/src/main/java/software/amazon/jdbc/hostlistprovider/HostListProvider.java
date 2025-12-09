@@ -56,8 +56,6 @@ public interface HostListProvider {
   List<HostSpec> forceRefresh(final boolean shouldVerifyWriter, final long timeoutMs)
       throws SQLException, TimeoutException;
 
-  List<HostSpec> forceRefresh(Connection connection) throws SQLException;
-
   /**
    * Evaluates the host role of the given connection - either a writer or a reader.
    *
