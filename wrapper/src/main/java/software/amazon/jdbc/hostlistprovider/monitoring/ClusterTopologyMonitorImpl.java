@@ -237,7 +237,11 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   @Override
   public void stop() {
     this.nodeThreadsStop.set(true);
-    this.shutdownNodeExecutorService();
+
+    this.closeNodeMonitors();
+    this.closeConnection(this.nodeThreadsWriterConnection);
+    this.closeConnection(this.nodeThreadsReaderConnection);
+    this.closeConnection(this.monitoringConnection);
 
     // This code interrupts the waiting/sleeping cycle in the monitoring thread.
     synchronized (this.requestToUpdateTopology) {
@@ -250,6 +254,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
   @Override
   public void close() {
+    this.closeNodeMonitors();
     this.closeConnection(this.monitoringConnection);
     this.closeConnection(this.nodeThreadsWriterConnection);
     this.closeConnection(this.nodeThreadsReaderConnection);
@@ -277,8 +282,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
             // Start node monitors.
             this.nodeThreadsStop.set(false);
-            this.nodeThreadsWriterConnection.set(null);
-            this.nodeThreadsReaderConnection.set(null);
+            this.nodeThreadConnectionCleanUp();
             this.nodeThreadsWriterHostSpec.set(null);
             this.nodeThreadsLatestTopology.set(null);
 
@@ -288,7 +292,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
               hosts = this.openAnyConnectionAndUpdateTopology();
             }
 
-            this.shutdownNodeExecutorService();
+            this.closeNodeMonitors();
             this.createNodeExecutorService();
 
             if (hosts != null && !this.isVerifiedWriterConnection) {
@@ -341,7 +345,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
               }
 
               this.nodeThreadsStop.set(true);
-              this.shutdownNodeExecutorService();
+              this.closeNodeMonitors();
               this.submittedNodes.clear();
 
               continue;
@@ -381,7 +385,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
         } else {
           // We are in regular mode (not panic mode).
           if (!this.submittedNodes.isEmpty()) {
-            this.shutdownNodeExecutorService();
+            this.closeNodeMonitors();
             this.submittedNodes.clear();
           }
 
@@ -390,6 +394,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
             // Attempt to fetch topology failed, so we switch to panic mode.
             this.closeConnection(this.monitoringConnection);
             this.isVerifiedWriterConnection = false;
+            this.writerHostSpec.set(null);
             continue;
           }
 
@@ -428,11 +433,9 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       throw ex;
     } finally {
       this.stop.set(true);
-      this.shutdownNodeExecutorService();
-
-      final Connection conn = this.monitoringConnection.get();
-      this.monitoringConnection.set(null);
-      this.closeConnection(conn);
+      this.closeNodeMonitors();
+      this.closeConnection(this.monitoringConnection);
+      this.nodeThreadConnectionCleanUp();
 
       this.servicesContainer.getEventPublisher().unsubscribe(
           this, Collections.singleton(MonitorResetEvent.class));
@@ -448,14 +451,13 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
             new Object[]{this.clusterId, this.initialHostSpec.getHost()}));
 
     this.nodeThreadsStop.set(true);
-    this.shutdownNodeExecutorService();
+    this.closeNodeMonitors();
+    this.nodeThreadConnectionCleanUp();
     this.nodeThreadsStop.set(false);
     this.submittedNodes.clear();
     this.createNodeExecutorService();
 
-    this.nodeThreadsWriterConnection.set(null);
     this.nodeThreadsWriterHostSpec.set(null);
-    this.nodeThreadsReaderConnection.set(null);
     this.nodeThreadsLatestTopology.set(null);
 
     this.closeConnection(this.monitoringConnection);
@@ -484,7 +486,20 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     }
   }
 
-  protected void shutdownNodeExecutorService() {
+  protected void nodeThreadConnectionCleanUp() {
+    if (this.monitoringConnection.get() != this.nodeThreadsWriterConnection.get()) {
+      this.closeConnection(this.nodeThreadsWriterConnection);
+    } else {
+      this.nodeThreadsWriterConnection.set(null);
+    }
+    if (this.monitoringConnection.get() != this.nodeThreadsReaderConnection.get()) {
+      this.closeConnection(this.nodeThreadsReaderConnection);
+    } else {
+      this.nodeThreadsReaderConnection.set(null);
+    }
+  }
+
+  protected void closeNodeMonitors() {
     if (this.nodeExecutorService != null) {
 
       this.nodeExecutorLock.lock();
@@ -507,6 +522,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
         }
 
         this.nodeExecutorService = null;
+        this.nodeThreadConnectionCleanUp();
+
       } finally {
         this.nodeExecutorLock.unlock();
       }
@@ -600,6 +617,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       // Attempt to fetch topology failed. There might be something wrong with the connection, so we close it here.
       this.closeConnection(this.monitoringConnection);
       this.isVerifiedWriterConnection = false;
+      this.writerHostSpec.set(null);
     }
 
     return hosts;
@@ -790,12 +808,10 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
                 // be established.
                 if (updateTopology) {
                   this.readerThreadFetchTopology(connection, this.writerHostSpec);
-                } else if (this.monitor.nodeThreadsReaderConnection.get() == null) {
-                  if (this.monitor.nodeThreadsReaderConnection.compareAndSet(null, connection)) {
-                    // Use this connection to update the topology.
-                    updateTopology = true;
-                    this.readerThreadFetchTopology(connection, this.writerHostSpec);
-                  }
+                } else if (this.monitor.nodeThreadsReaderConnection.compareAndSet(null, connection)) {
+                  // Use this connection to update the topology.
+                  updateTopology = true;
+                  this.readerThreadFetchTopology(connection, this.writerHostSpec);
                 }
               }
             }
