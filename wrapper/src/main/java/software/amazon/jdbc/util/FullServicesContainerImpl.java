@@ -21,6 +21,7 @@ import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -28,6 +29,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 public class FullServicesContainerImpl implements FullServicesContainer {
   private StorageService storageService;
   private MonitorService monitorService;
+  private EventPublisher eventPublisher;
   private ConnectionProvider defaultConnProvider;
   private TelemetryFactory telemetryFactory;
   private ConnectionPluginManager connectionPluginManager;
@@ -38,13 +40,14 @@ public class FullServicesContainerImpl implements FullServicesContainer {
   public FullServicesContainerImpl(
       StorageService storageService,
       MonitorService monitorService,
+      EventPublisher eventPublisher,
       ConnectionProvider defaultConnProvider,
       TelemetryFactory telemetryFactory,
       ConnectionPluginManager connectionPluginManager,
       HostListProviderService hostListProviderService,
       PluginService pluginService,
       PluginManagerService pluginManagerService) {
-    this(storageService, monitorService, defaultConnProvider, telemetryFactory);
+    this(storageService, monitorService, eventPublisher, defaultConnProvider, telemetryFactory);
     this.connectionPluginManager = connectionPluginManager;
     this.hostListProviderService = hostListProviderService;
     this.pluginService = pluginService;
@@ -54,10 +57,12 @@ public class FullServicesContainerImpl implements FullServicesContainer {
   public FullServicesContainerImpl(
       StorageService storageService,
       MonitorService monitorService,
+      EventPublisher eventPublisher,
       ConnectionProvider defaultConnProvider,
       TelemetryFactory telemetryFactory) {
     this.storageService = storageService;
     this.monitorService = monitorService;
+    this.eventPublisher = eventPublisher;
     this.defaultConnProvider = defaultConnProvider;
     this.telemetryFactory = telemetryFactory;
   }
@@ -70,6 +75,11 @@ public class FullServicesContainerImpl implements FullServicesContainer {
   @Override
   public MonitorService getMonitorService() {
     return this.monitorService;
+  }
+
+  @Override
+  public EventPublisher getEventPublisher() {
+    return this.eventPublisher;
   }
 
   @Override
@@ -110,6 +120,11 @@ public class FullServicesContainerImpl implements FullServicesContainer {
   @Override
   public void setStorageService(StorageService storageService) {
     this.storageService = storageService;
+  }
+
+  @Override
+  public void setEventPublisher(EventPublisher eventPublisher) {
+    this.eventPublisher = eventPublisher;
   }
 
   @Override

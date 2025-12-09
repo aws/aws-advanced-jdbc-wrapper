@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - 'main'
+      - 'main-2.x'
 
 permissions:
   contents: write

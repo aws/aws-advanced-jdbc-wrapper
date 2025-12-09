@@ -32,7 +32,6 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostlistprovider.monitoring.ClusterTopologyMonitor;
 import software.amazon.jdbc.hostlistprovider.monitoring.ClusterTopologyMonitorImpl;
 import software.amazon.jdbc.util.ConnectionUrlParser;
@@ -85,6 +84,9 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
     PropertyDefinition.registerPluginProperties(RdsHostListProvider.class);
   }
 
+  protected final ReentrantLock lock = new ReentrantLock();
+  protected final Properties properties;
+  protected final String originalUrl;
   protected final FullServicesContainer servicesContainer;
   protected final PluginService pluginService;
   protected final HostListProviderService hostListProviderService;
@@ -160,6 +162,10 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
             this.instanceTemplate,
             this.refreshRateNano,
             this.highRefreshRateNano));
+  }
+
+  protected List<HostSpec> queryForTopology(final Connection conn) throws SQLException {
+    return this.topologyUtils.queryForTopology(conn, this.initialHostSpec, this.instanceTemplate);
   }
 
   protected List<HostSpec> queryForTopology() throws SQLException {

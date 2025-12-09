@@ -35,11 +35,12 @@ public class CoreServicesContainer {
 
   private final MonitorService monitorService;
   private final StorageService storageService;
+  private final EventPublisher eventPublisher;
 
   private CoreServicesContainer() {
-    EventPublisher eventPublisher = new BatchingEventPublisher();
-    this.storageService = new StorageServiceImpl(eventPublisher);
-    this.monitorService = new MonitorServiceImpl(eventPublisher);
+    this.eventPublisher = new BatchingEventPublisher();
+    this.storageService = new StorageServiceImpl(this.eventPublisher);
+    this.monitorService = new MonitorServiceImpl(this.eventPublisher);
   }
 
   public static CoreServicesContainer getInstance() {
@@ -52,5 +53,9 @@ public class CoreServicesContainer {
 
   public MonitorService getMonitorService() {
     return monitorService;
+  }
+
+  public EventPublisher getEventPublisher() {
+    return eventPublisher;
   }
 }

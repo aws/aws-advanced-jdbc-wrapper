@@ -22,8 +22,10 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -35,6 +37,7 @@ import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
+import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
@@ -175,6 +178,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
     methods.add(JdbcMethod.INITHOSTPROVIDER.methodName);
     methods.add(JdbcMethod.CONNECT.methodName);
+    methods.add(JdbcMethod.NOTIFYNODELISTCHANGED.methodName);
     methods.add(JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName);
     methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.properties));
     this.subscribedMethods = Collections.unmodifiableSet(methods);
@@ -698,7 +702,14 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return false;
     }
 
-    return this.pluginService.isNetworkException(t, this.pluginService.getTargetDriverDialect());
+    if (this.pluginService.isNetworkException(t, this.pluginService.getTargetDriverDialect())) {
+      return true;
+    }
+
+    // For STRICT_WRITER failover mode when connection exception indicate that the connection's in read-only mode,
+    // initiate a failover by returning true.
+    return this.failoverMode == FailoverMode.STRICT_WRITER
+      && this.pluginService.isReadOnlyConnectionException(t, this.pluginService.getTargetDriverDialect());
   }
 
   /**
@@ -793,5 +804,10 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     return conn;
+  }
+
+  @Override
+  public void notifyNodeListChanged(final Map<String, EnumSet<NodeChangeOptions>> changes) {
+    this.staleDnsHelper.notifyNodeListChanged(changes);
   }
 }

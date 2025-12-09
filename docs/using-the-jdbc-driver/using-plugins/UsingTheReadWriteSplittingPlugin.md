@@ -8,7 +8,7 @@ The read/write splitting plugin is not loaded by default. To load the plugin, in
 
 ```
 final Properties properties = new Properties();
-properties.setProperty(PropertyDefinition.PLUGINS.name, "readWriteSplitting,failover,efm");
+properties.setProperty(PropertyDefinition.PLUGINS.name, "readWriteSplitting,failover2,efm2");
 ```
 
 If you would like to use the read/write splitting plugin without the failover plugin, make sure you have the `readWriteSplitting` plugin in the `wrapperPlugins` property, and that the failover plugin is not part of it.
@@ -30,7 +30,10 @@ The read/write splitting plugin is not currently supported for non-Aurora cluste
 > [!WARNING]\
 > If internal connection pools are enabled, database passwords may not be verified with every connection request. The initial connection request for each database instance in the cluster will verify the password, but subsequent requests may return a cached pool connection without re-verifying the password. This behavior is inherent to the nature of connection pools in general and not a bug with the driver. `ConnectionProviderManager.releaseResources` can be called to close all pools and remove all cached pool connections. See [InternalConnectionPoolPasswordWarning.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/InternalConnectionPoolPasswordWarning.java) for more details.
 
-Whenever `setReadOnly(true)` is first called on a `Connection` object, the read/write plugin will internally open a new physical connection to a reader. After this first call, the physical reader connection will be cached for the given `Connection`. Future calls to `setReadOnly `on the same `Connection` object will not require opening a new physical connection. However, calling `setReadOnly(true)` for the first time on a new `Connection` object will require the plugin to establish another new physical connection to a reader. If your application frequently calls `setReadOnly`, you can enable internal connection pooling to improve performance. When enabled, the wrapper driver will maintain an internal connection pool for each instance in the cluster. This allows the read/write plugin to reuse connections that were established by `setReadOnly` calls on previous `Connection` objects.
+Whenever `setReadOnly(true)` is first called on a `Connection` object, the read/write plugin will internally open a new physical connection to a reader. After this first call, the physical reader connection will be cached for the given `Connection`. By default, this cached connection will never expire, meaning all subsequent `setReadOnly(true)` calls on the same `Connection` object will keep reusing the same reader connection.
+If your application frequently calls `setReadOnly`, this may have a performance impact. There are two ways to improve performance:
+1. You can enable internal connection pooling to improve performance. When enabled, the wrapper driver will maintain an internal connection pool for each instance in the cluster. This allows the Read/Write Splitting plugin to reuse connections that were established by `setReadOnly` calls on previous `Connection` objects.
+2. You can also use the [`cachedReaderKeepAliveTimeoutMs` connection parameter](#reader-keep-alive-timeout). This sets an expiration time on the reader connection. When `setReadOnly(true)` is called and the reader connection has expired, the plugin will create a new reader connection using the specified [reader selection strategy](#reader-selection).
 
 > [!NOTE]\
 > Initial connections to a cluster URL will not be pooled. The driver does not pool cluster URLs because it can be problematic to pool a URL that resolves to different instances over time. The main benefit of internal connection pools is when setReadOnly is called. When setReadOnly is called (regardless of the initial connection URL), an internal pool will be created for the writer/reader that the plugin switches to and connections for that instance can be reused in the future.
@@ -87,6 +90,16 @@ To indicate which selection strategy to use, the `readerHostSelectorStrategy` co
 props.setProperty(ReadWriteSplittingPlugin.READER_HOST_SELECTOR_STRATEGY.name, "leastConnections");
 ```
 
+## Reader keep-alive timeout
+If no connection pool is used, reader connections created by calls to `setReadOnly(true)` will be cached for the entire lifetime of the `Connection` object. This may have a negative performance impact if your application makes frequent calls to `setReadOnly(true)` on the same `Connection` object, as all read traffic for that `Connection` will be directed to a single reader instance.
+To improve performance, you can specify a timeout for the cached reader connection using `cachedReaderKeepAliveTimeoutMs`. Once the reader has expired, the next call to `setReadOnly(true)` will create a new reader connection determined by the reader host selection strategy.
+
+```java
+final Properties properties = new Properties();
+properties.setProperty("cachedReaderKeepAliveTimeoutMs", "600000");
+```
+> [!NOTE]\
+> If a connection pool is used, this setting is ignored and the lifespan of this cached connection object will be handled by the connection pool instead.
 
 ## Limitations
 
@@ -118,9 +131,9 @@ Spring applications are encouraged to use configuration profiles and presets opt
 
 
 ## Example
-[ReadWriteSplittingPostgresExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/ReadWriteSplittingPostgresExample.java) demonstrates how to enable and configure Read/Write Splitting with the AWS JDBC Driver.
+[ReadWriteSplittingPostgresExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/ReadWriteSplittingPostgresExample.java) demonstrates how to enable and configure Read/Write Splitting with the AWS Advanced JDBC Wrapper.
 
-[SpringHibernateBalancedReaderOneDataSourceExample](../../../examples/SpringHibernateBalancedReaderOneDataSourceExample/README.md) demonstrates how to enable and configure Read/Write Splitting plugin with the AWS JDBC Driver. This example application uses a configuration with internal connection pooling and provides a load-balanced reader connection according to a specified reader selection strategy. `@Transactional(readOnly = True)` annotations in the code help the `Read/Write Splitting Plugin` switch between datasources.
+[SpringHibernateBalancedReaderOneDataSourceExample](../../../examples/SpringHibernateBalancedReaderOneDataSourceExample/README.md) demonstrates how to enable and configure Read/Write Splitting plugin with the AWS Advanced JDBC Wrapper. This example application uses a configuration with internal connection pooling and provides a load-balanced reader connection according to a specified reader selection strategy. `@Transactional(readOnly = True)` annotations in the code help the `Read/Write Splitting Plugin` switch between datasources.
 
-[SpringHibernateBalancedReaderTwoDataSourceExample](../../../examples/SpringHibernateBalancedReaderTwoDataSourceExample/README.md) demonstrates how to enable and configure Read/Write Splitting plugin with the AWS JDBC Driver. This example application uses a configuration with two Spring datasources, where each datasource uses internal connection pooling. The example application provides a load-balanced reader connection according to a specified reader selection strategy. The example application does not use the `Read/Write Splitting Plugin`. Switching between the writer datasource and reader datasource occurs with the help of the `@WithLoadBalancedReaderDataSource` annotation.
+[SpringHibernateBalancedReaderTwoDataSourceExample](../../../examples/SpringHibernateBalancedReaderTwoDataSourceExample/README.md) demonstrates how to enable and configure Read/Write Splitting plugin with the AWS Advanced JDBC Wrapper. This example application uses a configuration with two Spring datasources, where each datasource uses internal connection pooling. The example application provides a load-balanced reader connection according to a specified reader selection strategy. The example application does not use the `Read/Write Splitting Plugin`. Switching between the writer datasource and reader datasource occurs with the help of the `@WithLoadBalancedReaderDataSource` annotation.
 

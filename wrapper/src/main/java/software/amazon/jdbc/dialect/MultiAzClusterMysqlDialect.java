@@ -87,9 +87,6 @@ public class MultiAzClusterMysqlDialect extends MysqlDialect implements MultiAzC
     return (properties, initialUrl, servicesContainer) -> {
       final PluginService pluginService = servicesContainer.getPluginService();
       final TopologyUtils topologyUtils = new MultiAzTopologyUtils(this, pluginService.getHostSpecBuilder());
-      if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {
-        return new RdsHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
-      }
       return new RdsHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
     };
   }

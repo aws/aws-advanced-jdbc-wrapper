@@ -30,6 +30,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -60,10 +61,11 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
  * by the {@link PluginService} interface. The methods that are not expected to be called will log a warning or throw an
  * {@link UnsupportedOperationException} when called.
  */
+@SuppressWarnings("deprecation")
 public class PartialPluginService implements PluginService, CanReleaseResources, HostListProviderService,
     PluginManagerService {
 
-  private static final Logger LOGGER = Logger.getLogger(PluginServiceImpl.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(PartialPluginService.class.getName());
   protected static final long DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(5);
   protected static final int DEFAULT_TOPOLOGY_QUERY_TIMEOUT_MS = 5000;
 
@@ -541,6 +543,22 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
+  public boolean isReadOnlyConnectionException(@Nullable String sqlState, @Nullable Integer errorCode) {
+    if (this.exceptionHandler != null) {
+      return this.exceptionHandler.isReadOnlyConnectionException(sqlState, errorCode);
+    }
+    return this.exceptionManager.isReadOnlyConnectionException(this.dbDialect, sqlState, errorCode);
+  }
+
+  @Override
+  public boolean isReadOnlyConnectionException(Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
+    if (this.exceptionHandler != null) {
+      return this.exceptionHandler.isReadOnlyConnectionException(throwable, targetDriverDialect);
+    }
+    return this.exceptionManager.isReadOnlyConnectionException(this.dbDialect, throwable, targetDriverDialect);
+  }
+
+  @Override
   public Dialect getDialect() {
     return this.dbDialect;
   }
@@ -583,7 +601,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
       }
     } catch (final SQLException sqlException) {
       // log and ignore
-      LOGGER.finest(() -> Messages.get("PluginServiceImpl.failedToRetrieveHostPort"));
+      LOGGER.log(Level.FINEST, sqlException, () -> Messages.get("PluginServiceImpl.failedToRetrieveHostPort"));
     }
 
     // Add the instance endpoint if the current connection is associated with a topology aware database cluster.

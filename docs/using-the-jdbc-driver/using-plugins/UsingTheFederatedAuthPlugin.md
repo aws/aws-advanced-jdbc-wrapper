@@ -27,21 +27,21 @@ In the case of AD FS, the user signs into the AD FS sign in page. This generates
 Verify plugin compatibility within your driver configuration using the [compatibility guide](../Compatibility.md).
 
 ### Bundled Uber JAR
-Included in AWS JDBC Driver release, is an Uber JAR that bundles the AWS JDBC Driver and all the package dependencies needed to use the Federated Authentication Plugin. 
+Included in AWS Advanced JDBC Wrapper release, is an Uber JAR that bundles the AWS Advanced JDBC Wrapper and all the package dependencies needed to use the Federated Authentication Plugin. 
 It is suffixed with `-bundle-federated-auth`.
 
 This JAR is a drop-in ready solution and is **recommended for customers who do not have an automated package manager like Maven or Gradle**. 
 As this plugin has a number of transitive dependencies, the goal of this JAR is to eliminate the need to manually source all the dependencies and avoid potential issues with managing them. 
 In that spirit, the dependencies in this JAR are shaded with the prefix `shaded` to avoid potential package conflicts with pre-existing packages in your environment.
 
-It is important to note that the Uber JAR is bundled with the AWS Java RDS SDK and is larger (**15 MB**) than our `aws-advanced-jdbc-wrapper-2.6.5.jar`. So please take that into account when deciding if this solution is for you.
+It is important to note that the Uber JAR is bundled with the AWS Java RDS SDK and is larger (**15 MB**) than our `aws-advanced-jdbc-wrapper-3.0.0.jar`. So please take that into account when deciding if this solution is for you.
 
 If you would like to download and install the bundled Uber JAR, follow these [instructions](../../GettingStarted.md#direct-download-and-installation).
 
 > [!NOTE]\
 > The bundled Uber JAR may trigger warnings of duplicate entries in the JAR Manifest File. This is because the bundle Uber JAR Manifest file also includes the JAR Manifest file of its dependencies, and as a result will trigger warnings.  
 
-## How to use the Federated Authentication Plugin with the AWS JDBC Driver 
+## How to use the Federated Authentication Plugin with the AWS Advanced JDBC Wrapper 
 
 ### Enabling the Federated Authentication Plugin
 Note: AWS IAM database authentication is needed to use the Federated Authentication Plugin. This is because after the plugin acquires the authentication token (ex. SAML Assertion in the case of AD FS), the authentication token is then used to acquire an AWS IAM token. The AWS IAM token is then subsequently used to access the database.  

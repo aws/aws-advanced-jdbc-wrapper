@@ -1,7 +1,7 @@
 # Database Dialects
 
 ## What are database dialects?
-The AWS Advanced JDBC Driver is a wrapper that requires an underlying driver, and it is meant to be compatible with any JDBC driver. Database dialects help the AWS JDBC Driver determine what kind of underlying database is being used. To function correctly, the AWS JDBC Driver requires details unique to specific databases such as the default port number or the method to get the current host from the database. These details can be defined and provided to the AWS JDBC Driver by using database dialects. 
+The AWS Advanced JDBC Wrapper is a wrapper that requires an underlying driver, and it is meant to be compatible with any JDBC driver. Database dialects help the AWS Advanced JDBC Wrapper determine what kind of underlying database is being used. To function correctly, the AWS Advanced JDBC Wrapper requires details unique to specific databases such as the default port number or the method to get the current host from the database. These details can be defined and provided to the AWS Advanced JDBC Wrapper by using database dialects. 
 
 ## Configuration Parameters
 | Name             | Required             | Description                                                                        | Example                                       |
@@ -10,7 +10,7 @@ The AWS Advanced JDBC Driver is a wrapper that requires an underlying driver, an
 
 > **NOTES:** 
 > 
-> The `wrapperDialect` parameter is not required. When it is not provided by the user, the AWS JDBC Driver will attempt to determine which of the existing dialects to use based on other connection details. However, if the dialect is known by the user, it is preferable to set the `wrapperDialect` parameter because it will take time to resolve the dialect.
+> The `wrapperDialect` parameter is not required. When it is not provided by the user, the AWS Advanced JDBC Wrapper will attempt to determine which of the existing dialects to use based on other connection details. However, if the dialect is known by the user, it is preferable to set the `wrapperDialect` parameter because it will take time to resolve the dialect.
 
 ### List of Available Dialect Codes
 Dialect codes specify what kind of database any connections will be made to.
@@ -32,7 +32,7 @@ Dialect codes specify what kind of database any connections will be made to.
 | `UNKNOWN`                    | `unknown`                    | Unknown. Although this code is available, do not use it as it will result in errors.                                                               |
 
 ## Custom Dialects
-If you are interested in using the AWS JDBC Driver but your desired database type is not currently supported, it is possible to create a custom dialect.
+If you are interested in using the AWS Advanced JDBC Wrapper but your desired database type is not currently supported, it is possible to create a custom dialect.
 
 To create a custom dialect, implement the [`Dialect`](../../wrapper/src/main/java/software/amazon/jdbc/dialect/Dialect.java) interface. For Aurora Limitless database engines, the [`AuroraLimitlessDialect`](../../wrapper/src/main/java/software/amazon/jdbc/dialect/AuroraLimitlessDialect.java) interface should also be implemented. See the following classes for examples:
 
@@ -41,7 +41,7 @@ To create a custom dialect, implement the [`Dialect`](../../wrapper/src/main/jav
 - [AuroraPgDialect](../../wrapper/src/main/java/software/amazon/jdbc/dialect/AuroraPgDialect.java)
   - This dialect is an extension of PgDialect, but also implements the `AuroraLimitlessDialect` interface.
 
-Once the custom dialect class has been created, tell the AWS JDBC Driver to use it with the `setCustomDialect` method in the `DialectManager` class. It is not necessary to set the `wrawpperDialect` parameter. See below for an example:
+Once the custom dialect class has been created, tell the AWS Advanced JDBC Wrapper to use it with the `setCustomDialect` method in the `DialectManager` class. It is not necessary to set the `wrawpperDialect` parameter. See below for an example:
 
 ```java
 Dialect myDialect = new CustomDialect();

@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -666,6 +667,22 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
+  public boolean isReadOnlyConnectionException(@Nullable String sqlState, @Nullable Integer errorCode) {
+    if (this.exceptionHandler != null) {
+      return this.exceptionHandler.isReadOnlyConnectionException(sqlState, errorCode);
+    }
+    return this.exceptionManager.isReadOnlyConnectionException(this.dialect, sqlState, errorCode);
+  }
+
+  @Override
+  public boolean isReadOnlyConnectionException(Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
+    if (this.exceptionHandler != null) {
+      return this.exceptionHandler.isReadOnlyConnectionException(throwable, targetDriverDialect);
+    }
+    return this.exceptionManager.isReadOnlyConnectionException(this.dialect, throwable, targetDriverDialect);
+  }
+
+  @Override
   public Dialect getDialect() {
     return this.dialect;
   }
@@ -722,7 +739,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       }
     } catch (final SQLException sqlException) {
       // log and ignore
-      LOGGER.finest(() -> Messages.get("PluginServiceImpl.failedToRetrieveHostPort"));
+      LOGGER.log(Level.FINEST, sqlException, () -> Messages.get("PluginServiceImpl.failedToRetrieveHostPort"));
     }
 
     // Add the instance endpoint if the current connection is associated with a topology aware database cluster.
@@ -782,8 +799,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public void setIsPooledConnection(Boolean pooledConnection) {
-    this.pooledConnection = pooledConnection;
+  public void setIsPooledConnection(Boolean isPooledConnection) {
+    this.pooledConnection = isPooledConnection;
   }
 
   @Override

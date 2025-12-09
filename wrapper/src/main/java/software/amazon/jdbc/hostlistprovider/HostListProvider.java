@@ -56,6 +56,7 @@ public interface HostListProvider {
   List<HostSpec> forceRefresh(final boolean shouldVerifyWriter, final long timeoutMs)
       throws SQLException, TimeoutException;
 
+  List<HostSpec> forceRefresh(Connection connection) throws SQLException;
 
   /**
    * Evaluates the host role of the given connection - either a writer or a reader.
@@ -70,5 +71,5 @@ public interface HostListProvider {
   @Nullable
   HostSpec identifyConnection(Connection connection) throws SQLException;
 
-  String getClusterId();
+  String getClusterId() throws UnsupportedOperationException, SQLException;
 }

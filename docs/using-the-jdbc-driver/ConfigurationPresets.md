@@ -2,7 +2,7 @@
 
 ## What is a Configuration Preset?
 
-A Configuration Preset is a [configuration profile](./UsingTheJdbcDriver.md#configuration-profiles) that has already been set up by the AWS JDBC Driver team. Preset configuration profiles are optimized, profiled, verified and can be used right away. If the existing presets do not cover an exact use case, users can also create their own configuration profiles based on the built-in presets.
+A Configuration Preset is a [configuration profile](./UsingTheJdbcDriver.md#configuration-profiles) that has already been set up by the AWS Advanced JDBC Wrapper team. Preset configuration profiles are optimized, profiled, verified and can be used right away. If the existing presets do not cover an exact use case, users can also create their own configuration profiles based on the built-in presets.
 
 ## Using Configuration Presets
 
@@ -30,7 +30,7 @@ properties.setProperty("wrapperProfileName", "myNewProfile");
 
 Configuration Presets are optimized for 3 main user scenarios. They are:
 - **No connection pool** preset family: `A`, `B`, `C`
-- AWS JDBC Driver **Internal connection pool** preset family: `D`, `E`, `F`
+- AWS Advanced JDBC Wrapper **Internal connection pool** preset family: `D`, `E`, `F`
 - **External connection pool** preset family: `G`, `H`, `I`
 
 Some preset names may include a number, like `A0`, `A1`, `A2`, `D0`, `D1`, etc. Usually, the number represent sensitivity or timing variations for the same preset. For example, `A0` is optimized for normal network outage sensitivity and normal response time, while `A1` is less sensitive. Please take into account that more aggressive presets tend to cause more false positive failure detections. More details can be found in this file: [ConfigurationProfilePresetCodes.java](./../../wrapper/src/main/java/software/amazon/jdbc/profile/ConfigurationProfilePresetCodes.java) 

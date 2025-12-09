@@ -23,12 +23,12 @@ This plugin requires valid AWS credentials. See more details at [AWS Credentials
 Verify plugin compatibility within your driver configuration using the [compatibility guide](../Compatibility.md).
 
 ## AWS IAM Database Authentication
-The AWS JDBC Driver supports Amazon AWS Identity and Access Management (IAM) authentication. When using AWS IAM database authentication, the host URL must be a valid Amazon endpoint, and not a custom domain or an IP address.
+The AWS Advanced JDBC Wrapper supports Amazon AWS Identity and Access Management (IAM) authentication. When using AWS IAM database authentication, the host URL must be a valid Amazon endpoint, and not a custom domain or an IP address.
 <br>ie. `db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com`
 
 IAM database authentication use is limited to certain database engines. For more information on limitations and recommendations, please [review the IAM documentation](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.html).
 
-## How do I use IAM with the AWS JDBC Driver?
+## How do I use IAM with the AWS Advanced JDBC Wrapper?
 1. Enable AWS IAM database authentication on an existing database or create a new database with AWS IAM database authentication on the AWS RDS Console:
     1. If needed, review the documentation about [creating a new database](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_CreateDBInstance.html).
     2. If needed, review the documentation about [modifying an existing database](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.DBInstance.Modifying.html).

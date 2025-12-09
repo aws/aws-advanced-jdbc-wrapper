@@ -20,6 +20,7 @@ import java.lang.ref.WeakReference;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -28,6 +29,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -36,6 +40,8 @@ import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.events.Event;
+import software.amazon.jdbc.util.events.MonitorResetEvent;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -64,15 +70,15 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
   private final TelemetryFactory telemetryFactory;
   private final Properties properties;
   private final HostSpec hostSpec;
-  private Connection monitoringConn = null;
+  private final AtomicReference<Connection> monitoringConn = new AtomicReference<>(null);
 
   private final long failureDetectionTimeNano;
   private final long failureDetectionIntervalNano;
   private final int failureDetectionCount;
 
-  private long invalidNodeStartTimeNano;
-  private long failureCount;
-  private boolean nodeUnhealthy = false;
+  private final AtomicLong invalidNodeStartTimeNano = new AtomicLong(0);
+  private final AtomicLong failureCount = new AtomicLong(0);
+  private final AtomicBoolean nodeUnhealthy = new AtomicBoolean(false);
 
   private final TelemetryCounter abortedConnectionsCounter;
 
@@ -206,9 +212,13 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
         new Object[] {this.hostSpec.getHost()}));
 
     try {
+
+      this.servicesContainer.getEventPublisher().subscribe(
+          this, Collections.singleton(MonitorResetEvent.class));
+
       while (!this.stop.get()) {
 
-        if (this.activeContexts.isEmpty() && !this.nodeUnhealthy) {
+        if (this.activeContexts.isEmpty() && !this.nodeUnhealthy.get()) {
           TimeUnit.NANOSECONDS.sleep(THREAD_SLEEP_NANO);
           continue;
         }
@@ -232,7 +242,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
             continue;
           }
 
-          if (this.nodeUnhealthy) {
+          if (this.nodeUnhealthy.get()) {
             // Kill connection.
             monitorContext.setNodeUnhealthy(true);
             final Connection connectionToAbort = monitorContext.getConnection();
@@ -272,18 +282,25 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
       }
     } finally {
       this.stop.set(true);
-      if (this.monitoringConn != null) {
-        try {
-          this.monitoringConn.close();
-        } catch (final SQLException ex) {
-          // ignore
-        }
-      }
+      this.closeConnection();
+      this.servicesContainer.getEventPublisher().unsubscribe(
+          this, Collections.singleton(MonitorResetEvent.class));
     }
 
     LOGGER.finest(() -> Messages.get(
         "HostMonitorImpl.stopMonitoringThread",
         new Object[] {this.hostSpec.getHost()}));
+  }
+
+  protected void closeConnection() {
+    final Connection conn = this.monitoringConn.getAndSet(null);
+    if (conn != null) {
+      try {
+        conn.close();
+      } catch (final SQLException ex) {
+        // ignore
+      }
+    }
   }
 
   /**
@@ -300,7 +317,8 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
     }
 
     try {
-      if (this.monitoringConn == null || this.monitoringConn.isClosed()) {
+      final Connection copyConnection = this.monitoringConn.get();
+      if (copyConnection == null || copyConnection.isClosed()) {
         // open a new connection
         final Properties monitoringConnProperties = PropertyUtils.copyProperties(this.properties);
 
@@ -315,17 +333,18 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
                 });
 
         LOGGER.finest(() -> "Opening a monitoring connection to " + this.hostSpec.getUrl());
-        this.monitoringConn =
-            this.servicesContainer.getPluginService().forceConnect(this.hostSpec, monitoringConnProperties);
-        LOGGER.finest(() -> "Opened monitoring connection: " + this.monitoringConn);
+        this.monitoringConn.set(
+            this.servicesContainer.getPluginService().forceConnect(this.hostSpec, monitoringConnProperties));
+        LOGGER.finest(() -> "Opened monitoring connection: " + this.monitoringConn.get());
         return true;
       }
 
       // Some drivers, like MySQL Connector/J, execute isValid() in a double of specified timeout time.
+      // validTimeout could get rounded down to 0.
       final int validTimeout = (int) TimeUnit.NANOSECONDS.toSeconds(
           this.failureDetectionIntervalNano - THREAD_SLEEP_NANO) / 2;
-      // validTimeout could get rounded down to 0.
-      return this.monitoringConn.isValid(Math.max(MIN_VALIDITY_CHECK_TIMEOUT_SEC, validTimeout));
+      final Connection copyConnection2 = this.monitoringConn.get();
+      return copyConnection2 != null && copyConnection2.isValid(Math.max(MIN_VALIDITY_CHECK_TIMEOUT_SEC, validTimeout));
     } catch (final SQLException sqlEx) {
       return false;
     } finally {
@@ -341,40 +360,40 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
       final long statusCheckEndNano) {
 
     if (!connectionValid) {
-      this.failureCount++;
+      this.failureCount.incrementAndGet();
 
-      if (this.invalidNodeStartTimeNano == 0) {
-        this.invalidNodeStartTimeNano = statusCheckStartNano;
+      if (this.invalidNodeStartTimeNano.get() == 0) {
+        this.invalidNodeStartTimeNano.set(statusCheckStartNano);
       }
 
-      final long invalidNodeDurationNano = statusCheckEndNano - this.invalidNodeStartTimeNano;
+      final long invalidNodeDurationNano = statusCheckEndNano - this.invalidNodeStartTimeNano.get();
       final long maxInvalidNodeDurationNano =
           this.failureDetectionIntervalNano * Math.max(0, this.failureDetectionCount - 1);
 
       if (invalidNodeDurationNano >= maxInvalidNodeDurationNano) {
         LOGGER.fine(() ->
             Messages.get("HostMonitorConnectionContext.hostDead", new Object[] {this.hostSpec.getHost()}));
-        this.nodeUnhealthy = true;
+        this.nodeUnhealthy.set(true);
         return;
       }
 
       LOGGER.finest(
           () -> Messages.get(
               "HostMonitorConnectionContext.hostNotResponding",
-              new Object[] {this.hostSpec.getHost(), this.failureCount}));
+              new Object[] {this.hostSpec.getHost(), this.failureCount.get()}));
       return;
     }
 
-    if (this.failureCount > 0) {
+    if (this.failureCount.get() > 0) {
       // Node is back alive
       LOGGER.finest(
           () -> Messages.get("HostMonitorConnectionContext.hostAlive",
               new Object[] {this.hostSpec.getHost()}));
     }
 
-    this.failureCount = 0;
-    this.invalidNodeStartTimeNano = 0;
-    this.nodeUnhealthy = false;
+    this.failureCount.set(0);
+    this.invalidNodeStartTimeNano.set(0);
+    this.nodeUnhealthy.set(false);
   }
 
   private void abortConnection(final @NonNull Connection connectionToAbort) {
@@ -392,11 +411,24 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
 
   @Override
   public void close() {
-    if (this.monitoringConn != null) {
-      try {
-        this.monitoringConn.close();
-      } catch (SQLException e) {
-        // ignore
+    this.closeConnection();
+  }
+
+  protected void reset() {
+    LOGGER.finest("Reset: " + this.hostSpec.getHost());
+    this.closeConnection();
+    this.invalidNodeStartTimeNano.set(0);
+    this.failureCount.set(0);
+    this.nodeUnhealthy.set(false);
+  }
+
+  @Override
+  public void processEvent(Event event) {
+    if (event instanceof MonitorResetEvent) {
+      LOGGER.finest("MonitorResetEvent received");
+      final MonitorResetEvent resetEvent = (MonitorResetEvent) event;
+      if (resetEvent.getEndpoints().contains(this.hostSpec.getHost())) {
+        this.reset();
       }
     }
   }

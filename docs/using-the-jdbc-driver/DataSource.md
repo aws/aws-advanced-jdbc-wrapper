@@ -1,5 +1,5 @@
 # Connecting with a DataSource
-You can use the `DriverManager` class or a datasource to establish a new connection when using the AWS JDBC Driver. The AWS JDBC Driver has a built-in datasource class named [AwsWrapperDataSource](../../wrapper/src/main/java/software/amazon/jdbc/ds/AwsWrapperDataSource.java) that allows the AWS JDBC Driver to work with various driver-specific datasources.
+You can use the `DriverManager` class or a datasource to establish a new connection when using the AWS Advanced JDBC Wrapper. The AWS Advanced JDBC Wrapper has a built-in datasource class named [AwsWrapperDataSource](../../wrapper/src/main/java/software/amazon/jdbc/ds/AwsWrapperDataSource.java) that allows the AWS Advanced JDBC Wrapper to work with various driver-specific datasources.
 
 ## Using the AwsWrapperDataSource
 
@@ -8,7 +8,7 @@ To establish a connection with the AwsWrapperDataSource, you must:
 1. Select a driver-specific datasource depending on what underlying driver is being used (for example: `org.postgresql.ds.PGSimpleDataSource` or `com.mysql.cj.jdbc.MysqlDataSource`).
 2. Set up basic connection information in the AwsWrapperDataSource. See [this table](#configurable-datasource-properties) for the available options.
 3. Configure any needed driver-specific datasource in the AwsWrapperDataSource using the [target dataSource properties](#configurable-datasource-properties).
-4. Configure any needed AWS JDBC Driver properties in the AwsWrapperDataSource using the [target dataSource properties](#configurable-datasource-properties).
+4. Configure any needed AWS Advanced JDBC Wrapper properties in the AwsWrapperDataSource using the [target dataSource properties](#configurable-datasource-properties).
 
 ### Configurable DataSource Properties
 
@@ -23,14 +23,14 @@ See the table below for a list of configurable properties.
 | Database name                | `setDatabase`                   | The name of the database.                                                                                                                                  | `String`     | No                                                                                                                                                                                                                                | `testDatabase`                                                                                            |
 | JDBC URL                     | `setJdbcUrl`                    | The URL to connect with.                                                                                                                                   | `String`     | No. Either URL or server name should be set. If both URL and server name have been set, URL will take precedence. Please note that some drivers, such as MariaDb, require some parameters to be included particularly in the URL. | `jdbc:postgresql://localhost/postgres`                                                                    |
 | JDBC protocol                | `setJdbcProtocol`               | The JDBC protocol that will be used.                                                                                                                       | `String`     | Yes, if the JDBC URL has not been set.                                                                                                                                                                                            | `jdbc:postgresql:`                                                                                        |
-| Underlying DataSource class  | `setTargetDataSourceClassName`  | The fully qualified class name of the underlying DataSource class the AWS JDBC Driver should use.                                                          | `String`     | Yes, if the JDBC URL has not been set.                                                                                                                                                                                            | `org.postgresql.ds.PGSimpleDataSource`                                                                    |
-| Target DataSource Properties | `setTargetDataSourceProperties` | Any additional properties that are required. This includes properties specific to the current underlying driver as well as any AWS JDBC Driver properties. | `Properties` | No                                                                                                                                                                                                                                | See this [example](../../examples/AWSDriverExample/src/main/java/software/amazon/DatasourceExample.java). | 
+| Underlying DataSource class  | `setTargetDataSourceClassName`  | The fully qualified class name of the underlying DataSource class the AWS Advanced JDBC Wrapper should use.                                                          | `String`     | Yes, if the JDBC URL has not been set.                                                                                                                                                                                            | `org.postgresql.ds.PGSimpleDataSource`                                                                    |
+| Target DataSource Properties | `setTargetDataSourceProperties` | Any additional properties that are required. This includes properties specific to the current underlying driver as well as any AWS Advanced JDBC Wrapper properties. | `Properties` | No                                                                                                                                                                                                                                | See this [example](../../examples/AWSDriverExample/src/main/java/software/amazon/DatasourceExample.java). | 
 
 ## Using the AwsWrapperDataSource with Connection Pooling Frameworks
 
 The JDBC Wrapper also supports establishing a connection with a connection pooling framework.
 
-To use the AWS JDBC Driver with a connection pool, you must:
+To use the AWS Advanced JDBC Wrapper with a connection pool, you must:
 
 1. Configure the connection pool.
 2. Set the datasource class name to `software.amazon.jdbc.ds.AwsWrapperDataSource` for the connection pool.
@@ -74,7 +74,7 @@ To use the AWS JDBC Driver with a connection pool, you must:
    ds.addDataSourceProperty("targetDataSourceClassName", "org.postgresql.ds.PGSimpleDataSource");
     ```
 
-5. Configure the driver-specific datasource and any AWS JDBC Driver properties, if needed. This step is optional:
+5. Configure the driver-specific datasource and any AWS Advanced JDBC Wrapper properties, if needed. This step is optional:
    ```java
    Properties targetDataSourceProps = new Properties();
    targetDataSourceProps.setProperty("socketTimeout", "10");

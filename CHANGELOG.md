@@ -5,14 +5,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [3.0.0] - TBD
 
-### :bug: Fixed
+### :crab: Breaking Changes
 
-### :crab: Changed
-- Breaking Change: Remove suggested ClusterId functionality. For applications that use a single cluster database **no changes are required**. For application that access multiple database clusters, all connection string **should be** reviewed and a mandatory `clusterId` parameter **should be added**. ([PR #1570](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1570)).
-- Breaking Change: Remove deprecated code. ([PR #1572](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1572)).
+> [!WARNING]\
+> 3.0 removes the suggested ClusterId functionality ([PR #1570](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1570)).
+> #### Suggested ClusterId Functionality
+> Prior to this change, the wrapper would generate a unique cluster ID based on the connection string and the cluster topology; however, in some cases (such as custom endpoints, IP addresses, and CNAME aliases, etc), the wrapper would generate an incorrect identifier. This change was needed to prevent applications with several clusters from accidentally relying on incorrect topology during failover which could result in the wrapper failing to complete failover successfully.
+> #### Migration
+> | Number of Database Clusters in Use | Requires Changes | Action Items |
+> |-----------------------------------|------------------|--------------|
+> | Single database cluster | No | No changes required |
+> | Multiple database clusters | Yes | Review all connection strings and add mandatory `clusterId` parameter ([PR #1476](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1476)). See [documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheFailover2Plugin.md#failover-plugin-v2-configuration-parameters) for `clusterId` parameter configuration |
+
+> [!WARNING]\
+> 3.0 removes deprecated coded ([PR #1572](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1572)).
+> #### Deprecated Code Removal
+> Some methods marked as deprecated in version 2.x.x are now removed in 3.0.
+
 
 ### :magic_wand: Added
 - Added support of Global Databases including and Global Database endpoint. ([PR #1573](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1573)).
+## [2.6.7] - 2025-11-25
+
+### :bug: Fixed
+- Handle nested auth exceptions in MySQLExceptionHandler ([PR #1601](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1601)) and in other handlers ([PR #1605](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1605)).
+- Outdated topology during Blue/Green switchover leads to wrong connection failover ([PR #1599](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1599)).
+- Ensure Blue/Green monitor instances are set up properly ([PR #1612](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1612)).
+
+### :crab: Changed
+- Documentation:
+    - Replace references to AWS JDBC Driver to AWS Advanced JDBC Wrapper for consistency ([PR #1595](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1595))
+    - Update instructions regarding MySQL permissions ([PR #1608](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1608))
+
+## [2.6.6] - 2025-11-05
+
+### :magic_wand: Added
+- Added support for `eu`, `au`, and `uk` domains and `rds-fips` subdomains ([PR #1585](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1587))
+
+### :crab: Changed
+- Scoped down GitHub Token permissions ([PR #1571](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1571))
+- Improved integration testing by cleaning up the test environment before each run([PR #1562](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1562))
+- Documentation:
+  - Added [compatibility guide](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/Compatibility.md) documentation which covers [database type compatibility](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/CompatibilityDatabaseTypes.md), [database URL type compatibility](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/CompatibilityEndpoints.md), and [cross plugins compatibility](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/54aa6324a2373e745e1a41823b20ad2109fdcb4e/docs/using-the-jdbc-driver/CompatibilityCrossPlugins.md) ([PR #1567](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1567))
+  - Removed IAM Multi-AZ DB Cluster limitation from documentation ([PR #1569](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1569))
+  - Update integration testing guide with clean-up step ([PR #1584](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1584))
 
 ## [2.6.5] - 2025-10-16
 
@@ -250,7 +286,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### :bug: Fixed
 - Connection identification and tracking in the host list provider (PR #943)[https://github.com/aws/aws-advanced-jdbc-wrapper/pull/943].
-- Green node endpoint replacement, allowing the AWS JDBC Driver to detect and connect to green nodes after Blue/Green switchover (PR# 948)(https://github.com/aws/aws-advanced-jdbc-wrapper/pull/948). Addresses [issue #678](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/678).
+- Green node endpoint replacement, allowing the AWS Advanced JDBC Wrapper to detect and connect to green nodes after Blue/Green switchover (PR# 948)(https://github.com/aws/aws-advanced-jdbc-wrapper/pull/948). Addresses [issue #678](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/678).
 - MariaDB Pool Datasource support. Addresses [issue #957](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/957).
 
 ### :crab: Changed
@@ -260,7 +296,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [2.3.5] - 2024-03-14
 
 ### :magic_wand: Added
-- Sample code configuring the AWS JDBC Driver with DBCP ([PR #930](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/930)).
+- Sample code configuring the AWS Advanced JDBC Wrapper with DBCP ([PR #930](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/930)).
 
 ### :crab: Changed
 - Fix issue with deadlock while using prepared transactions and PostgreSQL Explicit Locking ([PR #918](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/918)).
@@ -291,7 +327,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### :magic_wand: Added
 - Documentation:
   - [Read Write Splitting Plugin Limitations with Spring Boot/Framework](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md#limitations-when-using-spring-bootframework).
-  - AWS Profile configuration parameter. See [README](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/README.md#properties), [UsingTheJDBCDriver](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#aws-advanced-jdbc-driver-parameters), and [AwsCredentialsConfiguration](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/custom-configuration/AwsCredentialsConfiguration.md).
+  - AWS Profile configuration parameter. See [README](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/README.md#properties), [UsingTheJDBCDriver](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#aws-advanced-jdbc-wrapper-parameters), and [AwsCredentialsConfiguration](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/custom-configuration/AwsCredentialsConfiguration.md).
 - Example code for ReadWriteSplitting Plugin ([PR #765](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/765)).
 - Enabling AWS Profile for IAM and AWS Secrets Manager authentication plugins ([PR #786](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/786)).
 
@@ -387,7 +423,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Close underlying connections in the Read Write Splitting Plugin after switching to read-write or read-only depending on whether internal connection pooling is used ([PR #583](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/583)).
 - Sort plugins by default to prevent plugin misconfiguration. This can be disabled by setting the property `autoSortWrapperPluginOrder` to false ([PR #542](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/542)).
 - Documentation:
-  - Clarified AWS JDBC Driver limitations with Blue/Green deployments. See [Known Limitations](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/KnownLimitations.md#amazon-rds-bluegreen-deployments).
+  - Clarified AWS Advanced JDBC Wrapper limitations with Blue/Green deployments. See [Known Limitations](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/KnownLimitations.md#amazon-rds-bluegreen-deployments).
   - Updated and reworded main [README.md](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/README.md) page.
 
 ## [2.2.3] - 2023-07-28
@@ -402,10 +438,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [2.2.2] - 2023-07-05
 ### :magic_wand: Added
-- Official support for Amazon Aurora with MySQL compatibility. The AWS JDBC Driver has been validated to support [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j) and [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j).
+- Official support for Amazon Aurora with MySQL compatibility. The AWS Advanced JDBC Wrapper has been validated to support [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j) and [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j).
 - Documentation:
   - Maintenance and release policy ([PR #442](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/442) and [PR #507](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/507)).
-  - Migration guide for moving from the AWS JDBC Driver for MySQL to the AWS JDBC Driver ([PR #510](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/510)).
+  - Migration guide for moving from the AWS Advanced JDBC Wrapper for MySQL to the AWS Advanced JDBC Wrapper ([PR #510](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/510)).
 
 ### :crab: Changed
 - Improved integration test suite performance by creating required test database clusters in advance ([PR #411](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/411)).
@@ -424,7 +460,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - [Target driver dialects](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/TargetDriverDialects.md) ([PR #452](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/452)).
 - Elastic Load Balancer URL support ([PR #476](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/476)).
 - Documentation:
-  - Using the Driver with plain RDS Databases. See [Using the Driver](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#using-the-aws-jdbc-driver-with-plain-rds-databases).
+  - Using the Driver with plain RDS Databases. See [Using the Driver](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#using-the-aws-advanced-jdbc-wrapper-with-plain-rds-databases).
   - Internal connection pool behaviour only verifying password on initial connection. See [Using the Read Write Splitting Plugin Internal Connection Pooling document](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md#internal-connection-pooling) and [code example](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/examples/AWSDriverExample/src/main/java/software/amazon/InternalConnectionPoolPasswordWarning.java).
   - Link performance test in table of contents. See [Documentation Table of Contents](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/Documentation.md).
   - Cluster URLs are not internally pooled. See [Using Read Write Splitting Plugin Internal Connection Pooling](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md#internal-connection-pooling).

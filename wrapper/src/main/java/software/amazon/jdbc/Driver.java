@@ -63,6 +63,7 @@ import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.ServiceUtility;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
@@ -108,6 +109,7 @@ public class Driver implements java.sql.Driver {
 
   private final StorageService storageService;
   private final MonitorService monitorService;
+  private final EventPublisher eventPublisher;
   private final ConnectionUrlParser urlParser = new ConnectionUrlParser();
 
   public Driver() {
@@ -117,6 +119,7 @@ public class Driver implements java.sql.Driver {
   public Driver(CoreServicesContainer coreServicesContainer) {
     this.storageService = coreServicesContainer.getStorageService();
     this.monitorService = coreServicesContainer.getMonitorService();
+    this.eventPublisher = coreServicesContainer.getEventPublisher();
   }
 
   public static void register() throws SQLException {
@@ -240,8 +243,9 @@ public class Driver implements java.sql.Driver {
 
       String targetDriverProtocol = urlParser.getProtocol(driverUrl);
       FullServicesContainer servicesContainer = ServiceUtility.getInstance().createStandardServiceContainer(
-          storageService,
-          monitorService,
+          this.storageService,
+          this.monitorService,
+          this.eventPublisher,
           defaultConnectionProvider,
           effectiveConnectionProvider,
           telemetryFactory,
