@@ -39,12 +39,6 @@ public class GenericExceptionHandler implements ExceptionHandler {
   );
 
   @Override
-  @Deprecated
-  public boolean isNetworkException(Throwable throwable) {
-    return this.isNetworkException(throwable, null);
-  }
-
-  @Override
   public boolean isNetworkException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     Throwable exception = throwable;
 
@@ -80,12 +74,6 @@ public class GenericExceptionHandler implements ExceptionHandler {
   }
 
   @Override
-  @Deprecated
-  public boolean isLoginException(Throwable throwable) {
-    return this.isLoginException(throwable, null);
-  }
-
-  @Override
   public boolean isLoginException(final Throwable throwable, TargetDriverDialect targetDriverDialect) {
     Throwable exception = throwable;
 
@@ -114,5 +102,16 @@ public class GenericExceptionHandler implements ExceptionHandler {
   @Override
   public boolean isLoginException(final String sqlState) {
     return ACCESS_ERRORS.contains(sqlState);
+  }
+
+  @Override
+  public boolean isReadOnlyConnectionException(@Nullable String sqlState, @Nullable Integer errorCode) {
+    return false;
+  }
+
+  @Override
+  public boolean isReadOnlyConnectionException(
+      Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
+    return false;
   }
 }

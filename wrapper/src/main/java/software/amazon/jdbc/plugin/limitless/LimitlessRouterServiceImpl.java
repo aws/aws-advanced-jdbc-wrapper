@@ -17,12 +17,10 @@
 package software.amazon.jdbc.plugin.limitless;
 
 import java.sql.SQLException;
-import java.util.Collections;
-import java.util.HashSet;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
@@ -51,8 +49,8 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
           "600000", // 10min
           "Interval in milliseconds for an Limitless router monitor to be considered inactive and to be disposed.");
   protected static final Map<String, ReentrantLock> forceGetLimitlessRoutersLockMap = new ConcurrentHashMap<>();
-  protected static final Set<MonitorErrorResponse> monitorErrorResponses =
-      new HashSet<>(Collections.singletonList(MonitorErrorResponse.RECREATE));
+  protected static final EnumSet<MonitorErrorResponse> monitorErrorResponses =
+      EnumSet.of(MonitorErrorResponse.RECREATE);
   protected final FullServicesContainer servicesContainer;
   protected final PluginService pluginService;
   protected final LimitlessQueryHelper queryHelper;

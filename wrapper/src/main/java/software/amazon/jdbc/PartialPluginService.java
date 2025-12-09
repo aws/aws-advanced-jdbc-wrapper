@@ -42,11 +42,14 @@ import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategyFactory;
+import software.amazon.jdbc.hostlistprovider.HostListProvider;
+import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.storage.CacheMap;
@@ -132,7 +135,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
         ? this.configurationProfile.getExceptionHandler()
         : null;
 
-    HostListProviderSupplier supplier = this.dbDialect.getHostListProvider();
+    HostListProviderSupplier supplier = this.dbDialect.getHostListProviderSupplier();
     this.hostListProvider = supplier.getProvider(this.props, this.originalUrl, this.servicesContainer);
   }
 
@@ -159,7 +162,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
               Messages.get("PluginServiceImpl.currentHostNotAllowed",
                   new Object[] {
                       currentHostSpec == null ? "<null>" : currentHostSpec.getHostAndPort(),
-                      Utils.logTopology(allowedHosts, "")})
+                      LogUtils.logTopology(allowedHosts, "")})
           );
         }
 
@@ -190,12 +193,6 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public void setAllowedAndBlockedHosts(AllowedAndBlockedHosts allowedAndBlockedHosts) {
-    throw new UnsupportedOperationException(
-        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"setAllowedAndBlockedHosts"}));
-  }
-
-  @Override
   public boolean acceptsStrategy(HostRole role, String strategy) throws SQLException {
     throw new UnsupportedOperationException(
         Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"acceptsStrategy"}));
@@ -219,16 +216,11 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
-  @Deprecated
-  public ConnectionProvider getConnectionProvider() {
-    return this.pluginManager.defaultConnProvider;
-  }
-
-  @Override
   public ConnectionProvider getDefaultConnectionProvider() {
     return this.connectionProviderManager.getDefaultProvider();
   }
 
+  @Deprecated
   public boolean isPooledConnectionProvider(HostSpec host, Properties props) {
     final ConnectionProvider connectionProvider =
         this.connectionProviderManager.getConnectionProvider(this.driverProtocol, host, props);
@@ -541,11 +533,6 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public boolean isNetworkException(Throwable throwable) {
-    return this.isNetworkException(throwable, this.targetDriverDialect);
-  }
-
-  @Override
   public boolean isNetworkException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     if (this.exceptionHandler != null) {
       return this.exceptionHandler.isNetworkException(throwable, targetDriverDialect);
@@ -562,11 +549,6 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public boolean isLoginException(Throwable throwable) {
-    return this.isLoginException(throwable, this.targetDriverDialect);
-  }
-
-  @Override
   public boolean isLoginException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     if (this.exceptionHandler != null) {
       return this.exceptionHandler.isLoginException(throwable, targetDriverDialect);
@@ -580,6 +562,22 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
       return this.exceptionHandler.isLoginException(sqlState);
     }
     return this.exceptionManager.isLoginException(this.dbDialect, sqlState);
+  }
+
+  @Override
+  public boolean isReadOnlyConnectionException(@Nullable String sqlState, @Nullable Integer errorCode) {
+    if (this.exceptionHandler != null) {
+      return this.exceptionHandler.isReadOnlyConnectionException(sqlState, errorCode);
+    }
+    return this.exceptionManager.isReadOnlyConnectionException(this.dbDialect, sqlState, errorCode);
+  }
+
+  @Override
+  public boolean isReadOnlyConnectionException(Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
+    if (this.exceptionHandler != null) {
+      return this.exceptionHandler.isReadOnlyConnectionException(throwable, targetDriverDialect);
+    }
+    return this.exceptionManager.isReadOnlyConnectionException(this.dbDialect, throwable, targetDriverDialect);
   }
 
   @Override
@@ -668,37 +666,32 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
     return null;
   }
 
-  @Override
-  public <T> void setStatus(Class<T> clazz, @Nullable T status, boolean clusterBound) {
-    throw new UnsupportedOperationException(
-        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"setStatus"}));
-  }
-
-  @Override
-  public <T> void setStatus(Class<T> clazz, @Nullable T status, String key) {
-    throw new UnsupportedOperationException(
-        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"setStatus"}));
-  }
-
-  @Override
-  public <T> T getStatus(@NonNull Class<T> clazz, boolean clusterBound) {
-    throw new UnsupportedOperationException(
-        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getStatus"}));
-  }
-
-  @Override
-  public <T> T getStatus(@NonNull Class<T> clazz, String key) {
-    throw new UnsupportedOperationException(
-        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getStatus"}));
-  }
-
-  @Override
   public boolean isPluginInUse(final Class<? extends ConnectionPlugin> pluginClazz) {
     try {
       return this.pluginManager.isWrapperFor(pluginClazz);
     } catch (SQLException e) {
       return false;
     }
+  }
+
+  @Override
+  public Boolean isPooledConnection() {
+    // This service implementation doesn't support call context.
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getSessionStateService"}));
+  }
+
+  @Override
+  public void setIsPooledConnection(Boolean pooledConnection) {
+    // This service implementation doesn't support call context.
+    // Do nothing.
+  }
+
+  @Override
+  public void resetCallContext() {
+    // This service implementation doesn't support call context.
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getSessionStateService"}));
   }
 
   @Override

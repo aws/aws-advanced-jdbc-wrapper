@@ -3,6 +3,28 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [3.0.0] - TBD
+
+### :crab: Breaking Changes
+
+> [!WARNING]\
+> 3.0 removes the suggested ClusterId functionality ([PR #1570](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1570)).
+> #### Suggested ClusterId Functionality
+> Prior to this change, the wrapper would generate a unique cluster ID based on the connection string and the cluster topology; however, in some cases (such as custom endpoints, IP addresses, and CNAME aliases, etc), the wrapper would generate an incorrect identifier. This change was needed to prevent applications with several clusters from accidentally relying on incorrect topology during failover which could result in the wrapper failing to complete failover successfully.
+> #### Migration
+> | Number of Database Clusters in Use | Requires Changes | Action Items |
+> |-----------------------------------|------------------|--------------|
+> | Single database cluster | No | No changes required |
+> | Multiple database clusters | Yes | Review all connection strings and add mandatory `clusterId` parameter ([PR #1476](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1476)). See [documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheFailover2Plugin.md#failover-plugin-v2-configuration-parameters) for `clusterId` parameter configuration |
+
+> [!WARNING]\
+> 3.0 removes deprecated coded ([PR #1572](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1572)).
+> #### Deprecated Code Removal
+> Some methods marked as deprecated in version 2.x.x are now removed in 3.0.
+
+
+### :magic_wand: Added
+- Added support of Global Databases including and Global Database endpoint. ([PR #1573](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1573)).
 ## [2.6.7] - 2025-11-25
 
 ### :bug: Fixed

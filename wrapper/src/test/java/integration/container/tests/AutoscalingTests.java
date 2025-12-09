@@ -52,7 +52,7 @@ import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.HikariPoolConfigurator;
 import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
+import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 
@@ -104,7 +104,7 @@ public class AutoscalingTests {
     final Properties props = getProps();
     final long topologyRefreshRateMs = 5000;
     ReadWriteSplittingPlugin.READER_HOST_SELECTOR_STRATEGY.set(props, "leastConnections");
-    AuroraHostListProvider.CLUSTER_TOPOLOGY_REFRESH_RATE_MS.set(props,
+    RdsHostListProvider.CLUSTER_TOPOLOGY_REFRESH_RATE_MS.set(props,
         Long.toString(topologyRefreshRateMs));
 
     final TestEnvironmentInfo testInfo = TestEnvironment.getCurrent().getInfo();
@@ -186,7 +186,7 @@ public class AutoscalingTests {
     final Properties props = getPropsWithFailover();
     final long topologyRefreshRateMs = 5000;
     ReadWriteSplittingPlugin.READER_HOST_SELECTOR_STRATEGY.set(props, "leastConnections");
-    AuroraHostListProvider.CLUSTER_TOPOLOGY_REFRESH_RATE_MS.set(props,
+    RdsHostListProvider.CLUSTER_TOPOLOGY_REFRESH_RATE_MS.set(props,
         Long.toString(topologyRefreshRateMs));
 
     final TestEnvironmentInfo testInfo = TestEnvironment.getCurrent().getInfo();

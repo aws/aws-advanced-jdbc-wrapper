@@ -17,6 +17,9 @@
 package software.amazon.jdbc.exceptions;
 
 import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.StringUtils;
@@ -27,11 +30,10 @@ public class MySQLExceptionHandler implements ExceptionHandler {
   public static final String SET_NETWORK_TIMEOUT_ON_CLOSED_CONNECTION =
       "setNetworkTimeout cannot be called on a closed connection";
 
-  @Override
-  @Deprecated
-  public boolean isNetworkException(Throwable throwable) {
-    return this.isNetworkException(throwable, null);
-  }
+  private static final Set<Integer> SQLSTATE_READ_ONLY_CONNECTION = new HashSet<>(Arrays.asList(
+      1290, // The MySQL server is running with the --read-only option, so it cannot execute this statement
+      1836 // Running in read-only mode
+  ));
 
   @Override
   public boolean isNetworkException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
@@ -75,12 +77,6 @@ public class MySQLExceptionHandler implements ExceptionHandler {
   }
 
   @Override
-  @Deprecated
-  public boolean isLoginException(Throwable throwable) {
-    return this.isLoginException(throwable, null);
-  }
-
-  @Override
   public boolean isLoginException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     Throwable exception = throwable;
 
@@ -113,6 +109,39 @@ public class MySQLExceptionHandler implements ExceptionHandler {
     }
 
     return SQLSTATE_ACCESS_ERROR.equals(sqlState);
+  }
+
+  @Override
+  public boolean isReadOnlyConnectionException(
+      final @Nullable String sqlState, final @Nullable Integer errorCode) {
+    // HY000 - generic SQL state; use error code for more specific information
+    return "HY000".equals(sqlState) && errorCode != null && (SQLSTATE_READ_ONLY_CONNECTION.contains(errorCode));
+  }
+
+  @Override
+  public boolean isReadOnlyConnectionException(
+      final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
+
+    Throwable exception = throwable;
+
+    while (exception != null) {
+      String sqlState = null;
+      Integer errorCode = null;
+      if (exception instanceof SQLException) {
+        sqlState = ((SQLException) exception).getSQLState();
+        errorCode = ((SQLException) exception).getErrorCode();
+      } else if (targetDriverDialect != null) {
+        sqlState = targetDriverDialect.getSQLState(exception);
+      }
+
+      if (isReadOnlyConnectionException(sqlState, errorCode)) {
+        return true;
+      }
+
+      exception = exception.getCause();
+    }
+
+    return false;
   }
 
   private boolean isHikariMariaDbNetworkException(final SQLException sqlException) {

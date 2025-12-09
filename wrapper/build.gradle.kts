@@ -283,8 +283,21 @@ tasks.shadowJar {
 
     archiveBaseName.set("aws-advanced-jdbc-wrapper")
     archiveClassifier.set("bundle-federated-auth")
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
-    mergeServiceFiles("META-INF")
+    from("${layout.buildDirectory.get()}/META-INF/services/") {
+        into("META-INF/services/")
+    }
+
+    mergeServiceFiles()
+
+    manifest {
+        attributes("Implementation-Title" to "AWS Advanced JDBC Wrapper")
+        attributes("Implementation-Version" to project.version)
+        attributes("Implementation-Vendor" to "Amazon Web Services")
+        attributes("Export-Package" to
+                "software.amazon.jdbc.*,shaded.software.amazon.awssdk.*,shaded.org.apache.http.*,shaded.org.jsoup.*")
+    }
 
     relocate("au", "shaded.au")
     relocate("com", "shaded.com")
