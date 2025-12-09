@@ -223,6 +223,13 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
           if (writerCandidate != null) {
             this.pluginService.setAvailability(writerCandidate.asAliases(), HostAvailability.NOT_AVAILABLE);
           }
+
+          if (this.pluginService.isNetworkException(ex, this.pluginService.getTargetDriverDialect())
+              || this.pluginService.isReadOnlyConnectionException(ex, this.pluginService.getTargetDriverDialect())) {
+            // Retry connection.
+            continue;
+          }
+
           throw ex;
         }
       } catch (Throwable ex) {
