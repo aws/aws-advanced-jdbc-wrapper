@@ -25,17 +25,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### :magic_wand: Added
 - Added support of Global Databases including and Global Database endpoint. ([PR #1573](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1573)).
-## [2.6.7] - 2025-11-25
+
+## [2.6.8] - 2025-12-04
 
 ### :bug: Fixed
-- Handle nested auth exceptions in MySQLExceptionHandler ([PR #1601](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1601)) and in other handlers ([PR #1605](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1605)).
-- Outdated topology during Blue/Green switchover leads to wrong connection failover ([PR #1599](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1599)).
-- Ensure Blue/Green monitor instances are set up properly ([PR #1612](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1612)).
+- Wait timeout for custom endpoint info ([PR #1616](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1616)) 
+- Use custom endpoint as cluster ID to prevent accumulating of connections if using a custom endpoint in a connection string ([PR #1619](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1619))
 
 ### :crab: Changed
-- Documentation:
-    - Replace references to AWS JDBC Driver to AWS Advanced JDBC Wrapper for consistency ([PR #1595](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1595))
-    - Update instructions regarding MySQL permissions ([PR #1608](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1608))
+- Improve exception handling when DB server reaches maximum available connections ([PR #1621](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1621))
+- Improve connection management to prevent connection leaking in topology monitor ([PR #1624](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1624))
 
 ## [2.6.7] - 2025-11-25
 
@@ -594,6 +593,9 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[2.6.8]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.7...2.6.8
+[2.6.7]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.6...2.6.7
+[2.6.6]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.5...2.6.6
 [2.6.5]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.4...2.6.5
 [2.6.4]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.3...2.6.4
 [2.6.3]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.2...2.6.3
