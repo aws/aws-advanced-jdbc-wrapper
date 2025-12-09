@@ -24,6 +24,7 @@ import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -82,6 +83,7 @@ public interface MonitorService {
    * @param key                       the key for the monitor, eg
    *                                  "custom-endpoint.cluster-custom-XYZ.us-east-2.rds.amazonaws.com:5432".
    * @param storageService            the storage service for the monitor to use.
+   * @param eventPublisher            the event publisher for the monitor to use.
    * @param telemetryFactory          the telemetry factory for creating telemetry data.
    * @param defaultConnectionProvider the connection provider to use to create new connections if the monitor
    *                                  requires it.
@@ -99,6 +101,7 @@ public interface MonitorService {
       Class<T> monitorClass,
       Object key,
       StorageService storageService,
+      EventPublisher eventPublisher,
       TelemetryFactory telemetryFactory,
       ConnectionProvider defaultConnectionProvider,
       String originalUrl,

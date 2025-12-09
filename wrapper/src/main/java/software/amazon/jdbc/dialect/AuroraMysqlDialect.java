@@ -17,119 +17,85 @@
 package software.amazon.jdbc.dialect;
 
 import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
+import software.amazon.jdbc.hostlistprovider.AuroraTopologyUtils;
+import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
+import software.amazon.jdbc.hostlistprovider.TopologyUtils;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 
-public class AuroraMysqlDialect extends MysqlDialect implements BlueGreenDialect {
+public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect, BlueGreenDialect {
 
-  protected final String topologyQuery =
+  protected static final String AURORA_VERSION_EXISTS_QUERY = "SHOW VARIABLES LIKE 'aurora_version'";
+  protected static final String TOPOLOGY_QUERY =
       "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
           + "CPU, REPLICA_LAG_IN_MILLISECONDS, LAST_UPDATE_TIMESTAMP "
           + "FROM information_schema.replica_host_status "
-          // filter out nodes that haven't been updated in the last 5 minutes
+          // filter out instances that have not been updated in the last 5 minutes
           + "WHERE time_to_sec(timediff(now(), LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' ";
 
-  protected final String isWriterQuery =
+  protected static final String INSTANCE_ID_QUERY = "SELECT @@aurora_server_id, @@aurora_server_id";
+  protected static final String WRITER_ID_QUERY =
       "SELECT SERVER_ID FROM information_schema.replica_host_status "
-      + "WHERE SESSION_ID = 'MASTER_SESSION_ID' AND SERVER_ID = @@aurora_server_id";
+          + "WHERE SESSION_ID = 'MASTER_SESSION_ID' AND SERVER_ID = @@aurora_server_id";
+  protected static final String IS_READER_QUERY = "SELECT @@innodb_read_only";
 
-  protected final String nodeIdQuery = "SELECT @@aurora_server_id, @@aurora_server_id";
-  protected final String isReaderQuery = "SELECT @@innodb_read_only";
-
-  private static final String BG_STATUS_QUERY =
-      "SELECT * FROM mysql.rds_topology";
-
-  private static final String TOPOLOGY_TABLE_EXIST_QUERY =
+  protected static final String BG_TOPOLOGY_EXISTS_QUERY =
       "SELECT 1 AS tmp FROM information_schema.tables WHERE"
           + " table_schema = 'mysql' AND table_name = 'rds_topology'";
+  protected static final String BG_STATUS_QUERY = "SELECT * FROM mysql.rds_topology";
 
   @Override
   public boolean isDialect(final Connection connection) {
-    Statement stmt = null;
-    ResultSet rs = null;
-    try {
-      stmt = connection.createStatement();
-      rs = stmt.executeQuery("SHOW VARIABLES LIKE 'aurora_version'");
-      if (rs.next()) {
-        // If variable with such name is presented then it means it's an Aurora cluster
-        return true;
-      }
-    } catch (final SQLException ex) {
-      // ignore
-    } finally {
-      if (stmt != null) {
-        try {
-          stmt.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
-      if (rs != null) {
-        try {
-          rs.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
-    }
-    return false;
+    return dialectUtils.checkExistenceQueries(connection, AURORA_VERSION_EXISTS_QUERY);
   }
 
   @Override
   public List</* dialect code */ String> getDialectUpdateCandidates() {
-    return Arrays.asList(
-        DialectCodes.GLOBAL_AURORA_MYSQL,
-        DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER);
+    return Collections.singletonList(DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER);
   }
 
   @Override
-  public HostListProviderSupplier getHostListProvider() {
+  public HostListProviderSupplier getHostListProviderSupplier() {
     return (properties, initialUrl, servicesContainer) -> {
       final PluginService pluginService = servicesContainer.getPluginService();
+      final TopologyUtils topologyUtils = new AuroraTopologyUtils(this, pluginService.getHostSpecBuilder());
       if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {
-        return new MonitoringRdsHostListProvider(
-            properties,
-            initialUrl,
-            servicesContainer,
-            this.topologyQuery,
-            this.nodeIdQuery,
-            this.isReaderQuery,
-            this.isWriterQuery);
+        return new MonitoringRdsHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
       }
-      return new AuroraHostListProvider(
-          properties,
-          initialUrl,
-          servicesContainer,
-          this.topologyQuery,
-          this.nodeIdQuery,
-          this.isReaderQuery);
+      return new RdsHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
     };
+  }
+
+  @Override
+  public String getTopologyQuery() {
+    return TOPOLOGY_QUERY;
+  }
+
+  @Override
+  public String getInstanceIdQuery() {
+    return INSTANCE_ID_QUERY;
+  }
+
+  @Override
+  public String getWriterIdQuery() {
+    return WRITER_ID_QUERY;
+  }
+
+  @Override
+  public String getIsReaderQuery() {
+    return IS_READER_QUERY;
+  }
+
+  @Override
+  public boolean isBlueGreenStatusAvailable(final Connection connection) {
+    return dialectUtils.checkExistenceQueries(connection, BG_TOPOLOGY_EXISTS_QUERY);
   }
 
   @Override
   public String getBlueGreenStatusQuery() {
     return BG_STATUS_QUERY;
   }
-
-  @Override
-  public boolean isBlueGreenStatusAvailable(final Connection connection) {
-    try {
-      try (Statement statement = connection.createStatement();
-          ResultSet rs = statement.executeQuery(TOPOLOGY_TABLE_EXIST_QUERY)) {
-        return rs.next();
-      }
-    } catch (SQLException ex) {
-      return false;
-    }
-  }
-
 }
-

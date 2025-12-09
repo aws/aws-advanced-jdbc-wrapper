@@ -88,6 +88,15 @@ public class HostMonitorThreadContainer {
     }
   }
 
+  public static void resetMonitors(final Set<String> endpoints) {
+    for (final String endpoint : endpoints) {
+      final HostMonitor monitor = getInstance().getMonitor(endpoint);
+      if (monitor != null) {
+        monitor.reset();
+      }
+    }
+  }
+
   private HostMonitorThreadContainer(final ExecutorServiceInitializer executorServiceInitializer) {
     this.threadPool = executorServiceInitializer.createExecutorService();
   }

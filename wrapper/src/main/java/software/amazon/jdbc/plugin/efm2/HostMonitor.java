@@ -16,11 +16,13 @@
 
 package software.amazon.jdbc.plugin.efm2;
 
+import software.amazon.jdbc.util.events.EventSubscriber;
+
 /**
  * Interface for monitors. This class uses background threads to monitor servers with one or more
  * connections for more efficient failure detection during method execution.
  */
-public interface HostMonitor extends AutoCloseable, Runnable {
+public interface HostMonitor extends AutoCloseable, Runnable, EventSubscriber {
 
   void startMonitoring(HostMonitorConnectionContext context);
 

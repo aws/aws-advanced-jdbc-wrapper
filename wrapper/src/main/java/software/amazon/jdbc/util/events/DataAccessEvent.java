@@ -73,4 +73,9 @@ public class DataAccessEvent implements Event {
     result = prime * result + this.key.hashCode();
     return result;
   }
+
+  @Override
+  public boolean isImmediateDelivery() {
+    return false;
+  }
 }

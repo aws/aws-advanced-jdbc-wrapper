@@ -21,13 +21,14 @@ import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
-import software.amazon.jdbc.HostListProvider;
 import software.amazon.jdbc.PartialPluginService;
 import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.HostListProviderSupplier;
+import software.amazon.jdbc.hostlistprovider.HostListProvider;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -44,6 +45,7 @@ public class ServiceUtility {
   public FullServicesContainer createStandardServiceContainer(
       StorageService storageService,
       MonitorService monitorService,
+      EventPublisher eventPublisher,
       ConnectionProvider defaultConnectionProvider,
       ConnectionProvider effectiveConnectionProvider,
       TelemetryFactory telemetryFactory,
@@ -53,7 +55,8 @@ public class ServiceUtility {
       Properties props,
       @Nullable ConfigurationProfile configurationProfile) throws SQLException {
     FullServicesContainer servicesContainer =
-        new FullServicesContainerImpl(storageService, monitorService, defaultConnectionProvider, telemetryFactory);
+        new FullServicesContainerImpl(
+            storageService, monitorService, eventPublisher, defaultConnectionProvider, telemetryFactory);
 
     ConnectionPluginManager pluginManager =
         new ConnectionPluginManager(props, telemetryFactory, defaultConnectionProvider, effectiveConnectionProvider);
@@ -73,7 +76,7 @@ public class ServiceUtility {
     servicesContainer.setPluginManagerService(pluginService);
 
     pluginManager.initPlugins(servicesContainer, configurationProfile);
-    final HostListProviderSupplier supplier = pluginService.getDialect().getHostListProvider();
+    final HostListProviderSupplier supplier = pluginService.getDialect().getHostListProviderSupplier();
     if (supplier != null) {
       final HostListProvider provider = supplier.getProvider(props, originalUrl, servicesContainer);
       pluginService.setHostListProvider(provider);
@@ -88,6 +91,7 @@ public class ServiceUtility {
   public FullServicesContainer createMinimalServiceContainer(
       StorageService storageService,
       MonitorService monitorService,
+      EventPublisher eventPublisher,
       ConnectionProvider connectionProvider,
       TelemetryFactory telemetryFactory,
       String originalUrl,
@@ -96,7 +100,8 @@ public class ServiceUtility {
       Dialect dbDialect,
       Properties props) throws SQLException {
     FullServicesContainer serviceContainer =
-        new FullServicesContainerImpl(storageService, monitorService, connectionProvider, telemetryFactory);
+        new FullServicesContainerImpl(
+            storageService, monitorService, eventPublisher, connectionProvider, telemetryFactory);
     ConnectionPluginManager pluginManager =
         new ConnectionPluginManager(props, telemetryFactory, connectionProvider, null);
     serviceContainer.setConnectionPluginManager(pluginManager);
@@ -123,6 +128,7 @@ public class ServiceUtility {
     return createMinimalServiceContainer(
         servicesContainer.getStorageService(),
         servicesContainer.getMonitorService(),
+        servicesContainer.getEventPublisher(),
         servicesContainer.getPluginService().getDefaultConnectionProvider(),
         servicesContainer.getTelemetryFactory(),
         servicesContainer.getPluginService().getOriginalUrl(),

@@ -24,91 +24,62 @@ import java.util.Collections;
 import java.util.List;
 import java.util.logging.Logger;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.hostlistprovider.AuroraGlobalDbHostListProvider;
-import software.amazon.jdbc.hostlistprovider.monitoring.AuroraGlobalDbMonitoringHostListProvider;
+import software.amazon.jdbc.hostlistprovider.GlobalAuroraHostListProvider;
+import software.amazon.jdbc.hostlistprovider.GlobalAuroraTopologyUtils;
+import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringGlobalAuroraHostListProvider;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
+import software.amazon.jdbc.util.Messages;
 
-public class GlobalAuroraPgDialect extends AuroraPgDialect {
+public class GlobalAuroraPgDialect extends AuroraPgDialect implements GlobalAuroraTopologyDialect {
 
-  private static final Logger LOGGER = Logger.getLogger(GlobalAuroraPgDialect.class.getName());
-
-  protected final String globalDbStatusFuncExistQuery =
-      "select 'aurora_global_db_status'::regproc";
-
-  protected final String globalDbInstanceStatusFuncExistQuery =
+  protected static final String GLOBAL_STATUS_FUNC_EXISTS_QUERY = "select 'aurora_global_db_status'::regproc";
+  protected static final String GLOBAL_INSTANCE_STATUS_FUNC_EXISTS_QUERY =
       "select 'aurora_global_db_instance_status'::regproc";
 
-  protected final String globalTopologyQuery =
+  protected static final String GLOBAL_TOPOLOGY_QUERY =
       "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
           + "VISIBILITY_LAG_IN_MSEC, AWS_REGION "
           + "FROM aurora_global_db_instance_status()";
 
-  protected final String globalDbStatusQuery =
-      "SELECT count(1) FROM aurora_global_db_status()";
-
-  protected final String regionByNodeIdQuery =
+  protected static final String REGION_COUNT_QUERY = "SELECT count(1) FROM aurora_global_db_status()";
+  protected static final String REGION_BY_INSTANCE_ID_QUERY =
       "SELECT AWS_REGION FROM aurora_global_db_instance_status() WHERE SERVER_ID = ?";
+
+  private static final Logger LOGGER = Logger.getLogger(GlobalAuroraPgDialect.class.getName());
 
   @Override
   public boolean isDialect(final Connection connection) {
-    Statement stmt = null;
-    ResultSet rs = null;
     try {
-      stmt = connection.createStatement();
-      rs = stmt.executeQuery(this.extensionsSql);
-      if (rs.next()) {
+      try (Statement stmt = connection.createStatement();
+           ResultSet rs = stmt.executeQuery(AURORA_UTILS_EXIST_QUERY)) {
+        if (!rs.next()) {
+          return false;
+        }
+
         final boolean auroraUtils = rs.getBoolean("aurora_stat_utils");
-        LOGGER.finest(() -> String.format("auroraUtils: %b", auroraUtils));
+        LOGGER.finest(Messages.get("AuroraPgDialect.auroraUtils", new Object[] {auroraUtils}));
         if (!auroraUtils) {
           return false;
         }
       }
-      rs.close();
-      stmt.close();
 
-      stmt = connection.createStatement();
-      rs = stmt.executeQuery(this.globalDbStatusFuncExistQuery);
-
-      if (rs.next()) {
-        rs.close();
-        stmt.close();
-
-        stmt = connection.createStatement();
-        rs = stmt.executeQuery(this.globalDbInstanceStatusFuncExistQuery);
-
-        if (rs.next()) {
-          rs.close();
-          stmt.close();
-
-          stmt = connection.createStatement();
-          rs = stmt.executeQuery(this.globalDbStatusQuery);
-
-          if (rs.next()) {
-            int awsRegionCount = rs.getInt(1);
-            return awsRegionCount > 1;
-          }
-        }
+      if (!dialectUtils.checkExistenceQueries(
+          connection, GLOBAL_STATUS_FUNC_EXISTS_QUERY, GLOBAL_INSTANCE_STATUS_FUNC_EXISTS_QUERY)) {
+        return false;
       }
-      return false;
+
+      try (Statement stmt = connection.createStatement();
+           ResultSet rs = stmt.executeQuery(REGION_COUNT_QUERY)) {
+        if (!rs.next()) {
+          return false;
+        }
+
+        int awsRegionCount = rs.getInt(1);
+        return awsRegionCount > 1;
+      }
     } catch (final SQLException ex) {
-      // ignore
-    } finally {
-      if (rs != null) {
-        try {
-          rs.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
-      if (stmt != null) {
-        try {
-          stmt.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
+      return false;
     }
-    return false;
   }
 
   @Override
@@ -117,27 +88,25 @@ public class GlobalAuroraPgDialect extends AuroraPgDialect {
   }
 
   @Override
-  public HostListProviderSupplier getHostListProvider() {
+  public HostListProviderSupplier getHostListProviderSupplier() {
     return (properties, initialUrl, servicesContainer) -> {
       final PluginService pluginService = servicesContainer.getPluginService();
+      final GlobalAuroraTopologyUtils topologyUtils =
+          new GlobalAuroraTopologyUtils(this, pluginService.getHostSpecBuilder());
       if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {
-        return new AuroraGlobalDbMonitoringHostListProvider(
-            properties,
-            initialUrl,
-            servicesContainer,
-            this.globalTopologyQuery,
-            this.nodeIdQuery,
-            this.isReaderQuery,
-            this.isWriterQuery,
-            this.regionByNodeIdQuery);
+        return new MonitoringGlobalAuroraHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
       }
-      return new AuroraGlobalDbHostListProvider(
-          properties,
-          initialUrl,
-          servicesContainer,
-          this.globalTopologyQuery,
-          this.nodeIdQuery,
-          this.isReaderQuery);
+      return new GlobalAuroraHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
     };
+  }
+
+  @Override
+  public String getTopologyQuery() {
+    return GLOBAL_TOPOLOGY_QUERY;
+  }
+
+  @Override
+  public String getRegionByInstanceIdQuery() {
+    return REGION_BY_INSTANCE_ID_QUERY;
   }
 }

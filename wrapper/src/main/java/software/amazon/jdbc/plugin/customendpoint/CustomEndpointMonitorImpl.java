@@ -45,7 +45,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
  * endpoint for custom endpoint information and future changes to the custom endpoint.
  */
 public class CustomEndpointMonitorImpl extends AbstractMonitor implements CustomEndpointMonitor {
-  private static final Logger LOGGER = Logger.getLogger(CustomEndpointPlugin.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(CustomEndpointMonitorImpl.class.getName());
   private static final String TELEMETRY_ENDPOINT_INFO_CHANGED = "customEndpoint.infoChanged.counter";
 
   // Keys are custom endpoint URLs, values are information objects for the associated custom endpoint.

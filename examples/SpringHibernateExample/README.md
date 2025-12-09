@@ -1,11 +1,11 @@
-# Tutorial: Getting Started with the AWS Advanced JDBC Driver, Spring Boot and Hibernate
+# Tutorial: Getting Started with the AWS Advanced JDBC Wrapper, Spring Boot and Hibernate
 
-In this tutorial, you will set up a Spring Boot and Hibernate application with the AWS Advanced JDBC Driver, and use the IAM Authentication plugin to fetch some data from an Aurora PostgreSQL database.
+In this tutorial, you will set up a Spring Boot and Hibernate application with the AWS Advanced JDBC Wrapper, and use the IAM Authentication plugin to fetch some data from an Aurora PostgreSQL database.
 
 > Note: this tutorial was written using the following technologies:
 >    - Spring Boot 2.7.1
 >    - Hibernate
->    - AWS JDBC Driver 2.6.5
+>    - AWS Advanced JDBC Wrapper 3.0.0
 >    - Postgresql 42.5.4
 >    - Gradle 7
 >    - Java 11
@@ -13,7 +13,7 @@ In this tutorial, you will set up a Spring Boot and Hibernate application with t
 You will progress through the following sections:
 1. Create a Gradle Spring Boot project
 2. Add the required Gradle dependencies
-3. Configure the AWS Advanced JDBC Driver
+3. Configure the AWS Advanced JDBC Wrapper
 
 ## Pre-requisites
 - A database with IAM authentication enabled. This tutorial uses the Aurora PostgreSQL database. For information on how to enable IAM database authentication for Aurora databases, please see the [AWS documentation](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.html).
@@ -136,10 +136,10 @@ dependencies {
 }
 ```
 
-Please note that the sample code inside the AWS JDBC Driver project will use the dependency `implementation(project(":aws-advanced-jdbc-wrapper"))` instead of `implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:latest")` as seen above.
+Please note that the sample code inside the AWS Advanced JDBC Wrapper project will use the dependency `implementation(project(":aws-advanced-jdbc-wrapper"))` instead of `implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:latest")` as seen above.
 
 ## Step 3: Configure Spring and Hibernate
-Configure Spring to use the AWS Advanced JDBC Driver as the default datasource.
+Configure Spring to use the AWS Advanced JDBC Wrapper as the default datasource.
 
 1. In the `application.yml`, add a new datasource for Spring:
 
@@ -181,4 +181,4 @@ logging:
 Start the application by running `./gradlew :springhibernate:bootRun` in the terminal. You should see the application making a connection to the database and fetching data from the Example table.
 
 # Summary
-This tutorial walks through the steps required to add and configure the AWS Advanced JDBC Driver to a simple Spring Boot and Hibernate application.
+This tutorial walks through the steps required to add and configure the AWS Advanced JDBC Wrapper to a simple Spring Boot and Hibernate application.

@@ -48,6 +48,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 class MonitorServiceImplTest {
   @Mock StorageService mockStorageService;
+  @Mock EventPublisher mockEventPublisher;
   @Mock FullServicesContainer mockContainer;
   @Mock ConnectionProvider mockConnectionProvider;
   @Mock TelemetryFactory mockTelemetryFactory;
@@ -65,7 +66,7 @@ class MonitorServiceImplTest {
 
     try {
       doReturn(mockContainer).when(spyMonitorService)
-          .newServicesContainer(any(), any(), any(), any(), any(), any(), any(), any());
+          .newServicesContainer(any(), any(), any(), any(), any(), any(), any(), any(), any());
     } catch (SQLException e) {
       Assertions.fail(
           "Encountered exception while stubbing MonitorServiceImpl#getConnectionService: " + e.getMessage());
@@ -92,6 +93,7 @@ class MonitorServiceImplTest {
         NoOpMonitor.class,
         key,
         mockStorageService,
+        mockEventPublisher,
         mockTelemetryFactory,
         mockConnectionProvider,
         "jdbc:postgresql://somehost/somedb",
@@ -136,6 +138,7 @@ class MonitorServiceImplTest {
         NoOpMonitor.class,
         key,
         mockStorageService,
+        mockEventPublisher,
         mockTelemetryFactory,
         mockConnectionProvider,
         "jdbc:postgresql://somehost/somedb",
@@ -182,6 +185,7 @@ class MonitorServiceImplTest {
         NoOpMonitor.class,
         key,
         mockStorageService,
+        mockEventPublisher,
         mockTelemetryFactory,
         mockConnectionProvider,
         "jdbc:postgresql://somehost/somedb",
@@ -215,6 +219,7 @@ class MonitorServiceImplTest {
         CustomEndpointMonitorImpl.class,
         "testMonitor",
         mockStorageService,
+        mockEventPublisher,
         mockTelemetryFactory,
         mockConnectionProvider,
         "jdbc:postgresql://somehost/somedb",
@@ -245,6 +250,7 @@ class MonitorServiceImplTest {
         NoOpMonitor.class,
         key,
         mockStorageService,
+        mockEventPublisher,
         mockTelemetryFactory,
         mockConnectionProvider,
         "jdbc:postgresql://somehost/somedb",
@@ -280,6 +286,7 @@ class MonitorServiceImplTest {
         NoOpMonitor.class,
         key,
         mockStorageService,
+        mockEventPublisher,
         mockTelemetryFactory,
         mockConnectionProvider,
         "jdbc:postgresql://somehost/somedb",

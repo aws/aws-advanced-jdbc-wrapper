@@ -19,10 +19,8 @@ package software.amazon.jdbc.plugin;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -30,13 +28,13 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.jetbrains.annotations.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
-import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
@@ -80,31 +78,11 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
           null,
           "Force to verify an opened connection to be either a writer or a reader.");
 
-  private enum VerifyOpenedConnectionType {
-    WRITER,
-    READER;
-
-    private static final Map<String, VerifyOpenedConnectionType> nameToValue =
-        new HashMap<String, VerifyOpenedConnectionType>() {
-          {
-            put("writer", WRITER);
-            put("reader", READER);
-          }
-        };
-
-    public static VerifyOpenedConnectionType fromValue(String value) {
-      if (value == null) {
-        return null;
-      }
-      return nameToValue.get(value.toLowerCase());
-    }
-  }
-
   private final PluginService pluginService;
   private HostListProviderService hostListProviderService;
   private final RdsUtils rdsUtils = new RdsUtils();
 
-  private VerifyOpenedConnectionType verifyOpenedConnectionType = null;
+  private final HostRole verifyOpenedConnectionType;
 
   static {
     PropertyDefinition.registerPluginProperties(AuroraInitialConnectionStrategyPlugin.class);
@@ -113,7 +91,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
   public AuroraInitialConnectionStrategyPlugin(final PluginService pluginService, final Properties properties) {
     this.pluginService = pluginService;
     this.verifyOpenedConnectionType =
-        VerifyOpenedConnectionType.fromValue(VERIFY_OPENED_CONNECTION_TYPE.getString(properties));
+        HostRole.verifyConnectionTypeFromValue(VERIFY_OPENED_CONNECTION_TYPE.getString(properties));
   }
 
   @Override
@@ -151,7 +129,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
     if (type == RdsUrlType.RDS_WRITER_CLUSTER
         || type == RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER
-        || isInitialConnection && this.verifyOpenedConnectionType == VerifyOpenedConnectionType.WRITER) {
+        || isInitialConnection && this.verifyOpenedConnectionType == HostRole.WRITER) {
       Connection writerCandidateConn = this.getVerifiedWriterConnection(props, isInitialConnection, connectFunc);
       if (writerCandidateConn == null) {
         // Can't get writer connection. Continue with a normal workflow.
@@ -161,7 +139,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     }
 
     if (type == RdsUrlType.RDS_READER_CLUSTER
-        || isInitialConnection && this.verifyOpenedConnectionType == VerifyOpenedConnectionType.READER) {
+        || isInitialConnection && this.verifyOpenedConnectionType == HostRole.READER) {
       Connection readerCandidateConn =
           this.getVerifiedReaderConnection(type, hostSpec, props, isInitialConnection, connectFunc);
       if (readerCandidateConn == null) {
@@ -245,6 +223,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
           if (writerCandidate != null) {
             this.pluginService.setAvailability(writerCandidate.asAliases(), HostAvailability.NOT_AVAILABLE);
           }
+          throw ex;
         }
       } catch (Throwable ex) {
         this.closeConnection(writerCandidateConn);
@@ -392,8 +371,6 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
         } else {
           return this.pluginService.getHostSpecByStrategy(HostRole.READER, strategy);
         }
-      } catch (UnsupportedOperationException ex) {
-        throw ex;
       } catch (SQLException ex) {
         // host isn't found
         return null;

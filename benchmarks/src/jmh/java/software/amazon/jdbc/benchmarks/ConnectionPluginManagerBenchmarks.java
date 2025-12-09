@@ -51,10 +51,10 @@ import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 import software.amazon.jdbc.ConnectionInfo;
-import software.amazon.jdbc.PluginFactory;
+import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
-import software.amazon.jdbc.HostListProviderService;
+import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcMethod;
@@ -144,7 +144,7 @@ public class ConnectionPluginManagerBenchmarks {
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
 
     // Create a plugin chain with 10 custom test plugins.
-    final List<Class<? extends PluginFactory>> pluginFactories = new ArrayList<>(
+    final List<Class<? extends ConnectionPluginFactory>> pluginFactories = new ArrayList<>(
         Collections.nCopies(10, BenchmarkPluginFactory.class));
 
     configurationProfile = ConfigurationProfileBuilder.get()

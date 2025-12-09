@@ -35,7 +35,6 @@ import software.amazon.jdbc.ConnectionInfo;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.ConnectionProviderManager;
-import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
@@ -44,6 +43,7 @@ import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -122,6 +122,10 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
         this.pluginService.getTargetName(), TelemetryTraceLevel.NESTED);
 
+    // Check previous autocommit value before calling jdbcMethodFunc.
+    final boolean doesSwitchAutoCommitFalseTrue = sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(
+        this.pluginService.getCurrentConnection(), methodName, jdbcMethodArgs);
+
     T result;
     try {
       result = jdbcMethodFunc.call();
@@ -144,8 +148,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     } else if (
         sqlMethodAnalyzer.doesCloseTransaction(currentConn, methodName, jdbcMethodArgs)
             // According to the JDBC spec, transactions are committed if autocommit is switched from false to true.
-            || sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(currentConn, methodName,
-            jdbcMethodArgs)) {
+            || doesSwitchAutoCommitFalseTrue) {
       this.pluginManagerService.setInTransaction(false);
     }
 

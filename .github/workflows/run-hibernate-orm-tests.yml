@@ -5,6 +5,10 @@ on:
   push:
     branches:
       - main
+      - main-2.x
+
+permissions:
+  contents: read
 
 permissions:
   contents: read

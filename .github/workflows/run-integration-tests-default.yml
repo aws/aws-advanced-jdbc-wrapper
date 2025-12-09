@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - main-2.x
 
 permissions:
   id-token: write   # This is required for requesting the JWT

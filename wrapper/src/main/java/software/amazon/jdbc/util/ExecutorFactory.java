@@ -49,7 +49,7 @@ public class ExecutorFactory {
   private static ThreadFactory createThreadFactory(String threadName) {
     AtomicLong threadCounter = new AtomicLong();
     return runnable -> {
-      String formattedThreadName = String.format("%s %s-%d", "AWS JDBC Driver",
+      String formattedThreadName = String.format("%s %s-%d", "AWS Advanced JDBC Wrapper",
           threadName, threadCounter.incrementAndGet());
       Thread thread = new Thread(runnable, formattedThreadName);
       thread.setDaemon(true);

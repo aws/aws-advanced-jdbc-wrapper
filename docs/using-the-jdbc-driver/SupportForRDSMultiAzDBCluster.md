@@ -1,12 +1,20 @@
 # Enhanced Support for Amazon RDS Multi-AZ DB Cluster
 
-As of [v2.3.0](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/2.3.0), the AWS JDBC Driver has expanded its support for Amazon RDS Multi-AZ DB Cluster Deployment. By leveraging the topology information within the RDS Multi-AZ DB Cluster, the driver is capable of switching over the connection to a new writer node in approximately 1 second or less, given there is no replica lag during minor version upgrades or OS maintenance upgrades.
+As of [v2.3.0](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/2.3.0), the AWS Advanced JDBC Wrapper has expanded its support for Amazon RDS Multi-AZ DB Cluster Deployment. By leveraging the topology information within the RDS Multi-AZ DB Cluster, the driver is capable of switching over the connection to a new writer node in approximately 1 second or less, given there is no replica lag during minor version upgrades or OS maintenance upgrades.
 
 ## General Usage
 
-The process of using the AWS JDBC Driver with RDS Multi-AZ DB Cluster is the same as using it with an RDS Aurora cluster. All properties, configurations, functions, etc., remain consistent. Instead of connecting to a generic database endpoint, simply replace the endpoint with the Cluster Writer Endpoint provided by the RDS Multi-AZ DB Cluster.
+The process of using the AWS Advanced JDBC Wrapper with RDS Multi-AZ DB Cluster is the same as using it with an RDS Aurora cluster. All properties, configurations, functions, etc., remain consistent. Instead of connecting to a generic database endpoint, simply replace the endpoint with the Cluster Writer Endpoint provided by the RDS Multi-AZ DB Cluster.
 
 ### MySQL
+
+There are extra permissions that must be granted to all non-administrative users who need database access. Without proper access, these users cannot utilize many of the wrappers's advanced features, including failover and blue/green deployment support. To grant the necessary permissions to non-administrative users, execute the following statement:
+
+```sql
+GRANT SELECT ON mysql.rds_topology TO 'non-admin-username'@'%'
+```
+
+Since granting these permissions manually introduce significant operation overhead, see the [Granting Permissions to Non-admin User In MYSQL](./using-plugins/GrantingPermissionsToNonAdminUserInMySQL.md) guide to simplify this process.
 
 Preparing a connection with MySQL in a Multi-AZ Cluster remains the same as before:
 
@@ -22,6 +30,12 @@ Per AWS documentation and [this blog post](https://aws.amazon.com/blogs/database
 
 ```sql
 CREATE EXTENSION rds_tools;
+```
+
+The extension must be granted to all non-administrative users who need database access. Without access to `rds_tools`, non-admin users cannot utilize many of the driver's advanced features, including failover support. To grant the necessary permissions to non-administrative users, execute the following statement:
+
+```sql
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA rds_tools TO non-admin-username;
 ```
 
 Then, prepare the connection with:

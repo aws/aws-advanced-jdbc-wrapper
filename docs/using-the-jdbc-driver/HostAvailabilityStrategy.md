@@ -1,7 +1,7 @@
 # Host Availability Strategy
 
 ## What is Host Availability Strategy
-The AWS JDBC Driver keeps track of the availability of database hosts. A host's availability status can be either `AVAILABLE` or `NOT_AVAILABLE`. This information is used by the driver when deciding which hosts to connect to.  
+The AWS Advanced JDBC Wrapper keeps track of the availability of database hosts. A host's availability status can be either `AVAILABLE` or `NOT_AVAILABLE`. This information is used by the driver when deciding which hosts to connect to.  
 
 When database hosts fail, they are marked as `NOT_AVAILABLE` and will not be checked again to see if they have recovered. Host Availability Strategies can help the driver keep host health statuses up to date by checking whether unavailable hosts have become available. For example, the Exponential Backoff strategy will let the driver retry hosts that have had their availability set to `NOT_AVAILABLE` by setting the host availability to `AVAILABLE` after a backoff period. 
 
