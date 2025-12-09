@@ -71,7 +71,9 @@ public abstract class TopologyUtils {
    */
   public @Nullable List<HostSpec> queryForTopology(Connection conn, HostSpec initialHostSpec, HostSpec instanceTemplate)
       throws SQLException {
-    int originalNetworkTimeout = setNetworkTimeout(conn);
+    final Pair<Integer, Boolean> networkTimeoutPair = this.setNetworkTimeout(conn);
+    int originalNetworkTimeout = networkTimeoutPair.getValue1();
+    boolean timeoutChanged = networkTimeoutPair.getValue2();
     try (final Statement stmt = conn.createStatement();
          final ResultSet rs = stmt.executeQuery(this.dialect.getTopologyQuery())) {
       if (rs.getMetaData().getColumnCount() == 0) {
@@ -84,24 +86,26 @@ public abstract class TopologyUtils {
     } catch (final SQLSyntaxErrorException e) {
       throw new SQLException(Messages.get("TopologyUtils.invalidQuery"), e);
     } finally {
-      if (originalNetworkTimeout == 0 && !conn.isClosed()) {
+      if (timeoutChanged && !conn.isClosed()) {
         conn.setNetworkTimeout(networkTimeoutExecutor, originalNetworkTimeout);
       }
     }
   }
 
-  protected int setNetworkTimeout(Connection conn) {
+  protected Pair<Integer, Boolean> setNetworkTimeout(Connection conn) {
     int networkTimeout = -1;
+    boolean timeoutChanged = false;
     try {
       networkTimeout = conn.getNetworkTimeout();
       // The topology query is not monitored by the EFM plugin, so it needs a socket timeout.
       if (networkTimeout == 0) {
         conn.setNetworkTimeout(this.networkTimeoutExecutor, DEFAULT_QUERY_TIMEOUT_MS);
+        timeoutChanged = true;
       }
     } catch (SQLException e) {
       LOGGER.warning(() -> Messages.get("TopologyUtils.errorGettingNetworkTimeout", new Object[] {e.getMessage()}));
     }
-    return networkTimeout;
+    return Pair.create(networkTimeout, timeoutChanged);
   }
 
   protected abstract @Nullable List<HostSpec> getHosts(
