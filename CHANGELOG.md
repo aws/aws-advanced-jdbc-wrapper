@@ -12,29 +12,61 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 > #### Suggested ClusterId Functionality
 > Prior to this change, the wrapper would generate a unique cluster ID based on the connection string and the cluster topology; however, in some cases (such as custom endpoints, IP addresses, and CNAME aliases, etc), the wrapper would generate an incorrect identifier. This change was needed to prevent applications with several clusters from accidentally relying on incorrect topology during failover which could result in the wrapper failing to complete failover successfully.
 > #### Migration
-> | Number of Database Clusters in Use | Requires Changes | Action Items |
-> |-----------------------------------|------------------|--------------|
-> | Single database cluster | No | No changes required |
-> | Multiple database clusters | Yes | Review all connection strings and add mandatory `clusterId` parameter ([PR #1476](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1476)). See [documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheFailover2Plugin.md#failover-plugin-v2-configuration-parameters) for `clusterId` parameter configuration |
+> | Number of Database Clusters in Use | Requires Changes | Action Items                                                                                                                                                                                                                                                                                                                                                                            |
+> |------------------------------------|------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+> | Single database cluster            | No               | No changes required                                                                                                                                                                                                                                                                                                                                                                     |
+> | Multiple database clusters         | Yes              | Review all connection strings and add mandatory `clusterId` parameter ([PR #1476](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1476)). See [documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheFailover2Plugin.md#failover-plugin-v2-configuration-parameters) for `clusterId` parameter configuration |
 
 > [!WARNING]\
-> 3.0 removes deprecated coded ([PR #1572](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1572)).
+> 3.0 removes deprecated code ([PR #1572](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1572)).
 > #### Deprecated Code Removal
 > Some methods marked as deprecated in version 2.x.x are now removed in 3.0.
+> If you implemented any custom classes such as custom Connection Plugins, please review the changes in [PR #1572](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1572) for proper replacements.
 
+> [!WARNING]\
+> 3.0 removes deprecated configuration parameters ([PR #1577](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1577)).
+> #### Deprecated Configuration Parameters Removal
+> Deprecated configuration parameters `keepSessionStateOnFailover` and `enableFailoverStrictReader` are now removed in 3.0. If you used these two parameters along with the Failover Connection Plugin, please review the changes from [PR #1577](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1577) for the proper replacements.
+
+
+### :bug: Fixed
+- Incorrect nodeId in HostSpec for RDS Multi-AZ cluster ([PR #1579](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1579)).
+- Avoid duplicates in manifest file ([PR #1607](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1607)).
+- Add expiration time for cached reader connections and refactor Blue/Green plugin ([PR #1626](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1626)).
+
+### :crab: Changed
+- Improve Javadoc ([PR #1576](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1576)). 
+- Remove mutable keys from HostSpec#hashCode and document immutability requirements ([PR #1565](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1565)).
+- Deprecate `enableGreenNodeReplacement` parameter ([PR #1578](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1578)), use the [Blue/Green Connection Plugin](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheBlueGreenPlugin.md) instead.
+- Deprecate `auroraStaleDns` plugin ([PR #1590](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1590)), use the [Aurora Initial Connection Strategy Plugin](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheAuroraInitialConnectionStrategyPlugin.md) instead.
+- Add [Aurora Initial Connection Strategy Plugin](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheAuroraInitialConnectionStrategyPlugin.md)(`initialConnection`) plugin to default plugin list ([PR #1592](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1592)).
+- Remove unused `StorageService` method ([PR #1597](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1597)).
+- Remove deprecated `ConnectionService` classes ([PR #1598](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1598)).
+- Logging improvement for RW Splitting plugin ([PR #1604](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1604)).
+- Refactor dialects and host list providers to reduce code duplication ([PR #1588](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1588)).
 
 ### :magic_wand: Added
-- Added support of Global Databases including and Global Database endpoint. ([PR #1573](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1573)).
+- Global Databases and Global Database endpoint support. Both in-region and cross-region failovers are supported now ([PR #1573](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1573), [PR #1575](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1575)).
+- Recognize RDS Proxy custom endpoints ([PR #1583](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1583)).
+- Public `PluginService` interface extended with a new method helping to identify a source of connection. Knowing whether a connection is brand new or obtained from a pool helps to improve connection management. Custom plugins implemented by user can now use this new method ([PR #1581](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1581)).
+- Allow overriding the IAM token property name ([PR #1603](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1603)).
+- [Simple Read/Write Splitting Plugin](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheSimpleReadWriteSplittingPlugin.md) (`srw`). This plugin adds functionality to switch between endpoints via calls to the `Connection#setReadOnly` method. It does not rely on cluster topology. It relies purely on the provided endpoints and their DNS resolution ([PR #1586](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1586)).
+- Automatically trigger writer failover when connections are incorrectly established as read-only connections ([PR #1609](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1609)).
+- Documentation:
+  - Required permissions for non-admin users accessing MultiAZ clusters ([PR #1602](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1602)).
+  - Add link for simplifying MySQL permission configuration process ([PR #1631](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1631)).
+
 
 ## [2.6.8] - 2025-12-04
 
 ### :bug: Fixed
-- Wait timeout for custom endpoint info ([PR #1616](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1616)) 
+- Wait timeout for custom endpoint info ([PR #1616](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1616))
 - Use custom endpoint as cluster ID to prevent accumulating of connections if using a custom endpoint in a connection string ([PR #1619](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1619))
 
 ### :crab: Changed
 - Improve exception handling when DB server reaches maximum available connections ([PR #1621](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1621))
 - Improve connection management to prevent connection leaking in topology monitor ([PR #1624](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1624))
+
 
 ## [2.6.7] - 2025-11-25
 
