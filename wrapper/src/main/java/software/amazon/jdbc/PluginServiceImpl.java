@@ -250,13 +250,6 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     return this.connectionProviderManager.getDefaultProvider();
   }
 
-  @Deprecated
-  public boolean isPooledConnectionProvider(HostSpec host, Properties props) {
-    final ConnectionProvider connectionProvider =
-        this.connectionProviderManager.getConnectionProvider(this.driverProtocol, host, props);
-    return (connectionProvider instanceof PooledConnectionProvider);
-  }
-
   @Override
   public String getDriverProtocol() {
     return this.driverProtocol;
