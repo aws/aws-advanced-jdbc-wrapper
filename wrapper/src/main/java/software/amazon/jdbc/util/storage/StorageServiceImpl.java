@@ -24,8 +24,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.jetbrains.annotations.NotNull;
 import software.amazon.jdbc.AllowedAndBlockedHosts;
 import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenStatus;
@@ -114,7 +114,7 @@ public class StorageServiceImpl implements StorageService {
   }
 
   @Override
-  public <V> @Nullable V get(Class<V> itemClass, @NotNull Object key) {
+  public <V> @Nullable V get(Class<V> itemClass, @NonNull Object key) {
     final ExpirationCache<Object, ?> cache = caches.get(itemClass);
     if (cache == null) {
       return null;
