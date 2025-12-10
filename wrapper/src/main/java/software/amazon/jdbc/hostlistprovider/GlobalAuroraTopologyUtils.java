@@ -55,7 +55,9 @@ public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
   public @Nullable List<HostSpec> queryForTopology(
       Connection conn, HostSpec initialHostSpec, Map<String, HostSpec> instanceTemplatesByRegion)
       throws SQLException {
-    int originalNetworkTimeout = setNetworkTimeout(conn);
+    final Pair<Integer, Boolean> networkTimeoutPair = this.setNetworkTimeout(conn);
+    int originalNetworkTimeout = networkTimeoutPair.getValue1();
+    boolean timeoutChanged = networkTimeoutPair.getValue2();
     try (final Statement stmt = conn.createStatement();
          final ResultSet rs = stmt.executeQuery(this.dialect.getTopologyQuery())) {
       if (rs.getMetaData().getColumnCount() == 0) {
@@ -68,7 +70,7 @@ public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
     } catch (final SQLSyntaxErrorException e) {
       throw new SQLException(Messages.get("TopologyUtils.invalidQuery"), e);
     } finally {
-      if (originalNetworkTimeout == 0 && !conn.isClosed()) {
+      if (timeoutChanged && !conn.isClosed()) {
         conn.setNetworkTimeout(networkTimeoutExecutor, originalNetworkTimeout);
       }
     }
