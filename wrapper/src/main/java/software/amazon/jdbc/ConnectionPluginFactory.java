@@ -20,13 +20,16 @@ import java.util.Properties;
 import software.amazon.jdbc.util.FullServicesContainer;
 
 /**
- * Interface for connection plugin factories. This class implements ways to initialize a connection
- * plugin.
- *
- * <p>Note: consider using {@link ServicesContainerPluginFactory} for new implementations as it provides access to all
- * services in the {@link FullServicesContainer}.
+ * Interface for plugin factories. This class implements ways to initialize a plugin.
  */
 public interface ConnectionPluginFactory {
 
-  ConnectionPlugin getInstance(PluginService pluginService, Properties props);
+  /**
+   * Get an instance of a {@link ConnectionPlugin}.
+   *
+   * @param servicesContainer the service container containing the services to be used by the {@link ConnectionPlugin}.
+   * @param props             to be used by the {@link ConnectionPlugin}.
+   * @return an instance of a {@link ConnectionPlugin}.
+   */
+  ConnectionPlugin getInstance(FullServicesContainer servicesContainer, Properties props);
 }

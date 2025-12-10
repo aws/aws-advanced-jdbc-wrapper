@@ -19,12 +19,12 @@ package software.amazon.jdbc.plugin;
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionPluginFactory;
-import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.FullServicesContainer;
 
 public class ConnectTimeConnectionPluginFactory implements ConnectionPluginFactory {
 
   @Override
-  public ConnectionPlugin getInstance(PluginService pluginService, Properties props) {
+  public ConnectionPlugin getInstance(FullServicesContainer servicesContainer, Properties props) {
     return new ConnectTimeConnectionPlugin();
   }
 }
