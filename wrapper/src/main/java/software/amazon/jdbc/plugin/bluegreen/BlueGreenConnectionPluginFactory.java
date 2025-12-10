@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.failover;
+package software.amazon.jdbc.plugin.bluegreen;
 
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.PluginFactory;
+import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 
-public class FailoverPluginFactory implements PluginFactory {
+public class BlueGreenConnectionPluginFactory implements ConnectionPluginFactory {
 
   @Override
   public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
-    return new FailoverConnectionPlugin(servicesContainer, props);
+    return new BlueGreenConnectionPlugin(servicesContainer, props);
   }
 }

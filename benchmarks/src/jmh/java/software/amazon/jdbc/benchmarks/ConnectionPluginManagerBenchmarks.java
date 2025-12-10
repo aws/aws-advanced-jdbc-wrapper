@@ -58,7 +58,7 @@ import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
-import software.amazon.jdbc.PluginFactory;
+import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
@@ -144,7 +144,7 @@ public class ConnectionPluginManagerBenchmarks {
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
 
     // Create a plugin chain with 10 custom test plugins.
-    final List<Class<? extends PluginFactory>> pluginFactories = new ArrayList<>(
+    final List<Class<? extends ConnectionPluginFactory>> pluginFactories = new ArrayList<>(
         Collections.nCopies(10, BenchmarkPluginFactory.class));
 
     configurationProfile = ConfigurationProfileBuilder.get()

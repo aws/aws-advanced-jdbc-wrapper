@@ -18,10 +18,10 @@ package software.amazon.jdbc.plugin.srw;
 
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.PluginFactory;
+import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 
-public class SimpleReadWriteSplittingPluginFactory implements PluginFactory {
+public class SimpleReadWriteSplittingPluginFactory implements ConnectionPluginFactory {
   @Override
   public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
     return new SimpleReadWriteSplittingPlugin(servicesContainer, props);

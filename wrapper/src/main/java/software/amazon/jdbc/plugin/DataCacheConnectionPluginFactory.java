@@ -14,22 +14,17 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc;
+package software.amazon.jdbc.plugin;
 
 import java.util.Properties;
+import software.amazon.jdbc.ConnectionPlugin;
+import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 
-/**
- * Interface for plugin factories. This class implements ways to initialize a plugin.
- */
-public interface PluginFactory {
+public class DataCacheConnectionPluginFactory implements ConnectionPluginFactory {
 
-  /**
-   * Get an instance of a {@link ConnectionPlugin}.
-   *
-   * @param servicesContainer the service container containing the services to be used by the {@link ConnectionPlugin}.
-   * @param props             to be used by the {@link ConnectionPlugin}.
-   * @return an instance of a {@link ConnectionPlugin}.
-   */
-  ConnectionPlugin getInstance(FullServicesContainer servicesContainer, Properties props);
+  @Override
+  public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
+    return new DataCacheConnectionPlugin(servicesContainer.getPluginService(), props);
+  }
 }

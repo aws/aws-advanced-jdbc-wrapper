@@ -19,12 +19,12 @@ package software.amazon.jdbc.plugin.federatedauth;
 import java.security.GeneralSecurityException;
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.PluginFactory;
+import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 
-public class OktaAuthPluginFactory implements PluginFactory {
+public class OktaAuthPluginFactory implements ConnectionPluginFactory {
 
   @Override
   public ConnectionPlugin getInstance(FullServicesContainer servicesContainer, Properties props) {

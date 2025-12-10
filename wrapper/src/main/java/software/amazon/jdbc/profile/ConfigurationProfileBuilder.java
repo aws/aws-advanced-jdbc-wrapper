@@ -21,7 +21,7 @@ import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionProvider;
-import software.amazon.jdbc.PluginFactory;
+import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.authentication.AwsCredentialsProviderHandler;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
@@ -32,7 +32,7 @@ import software.amazon.jdbc.util.StringUtils;
 public class ConfigurationProfileBuilder {
 
   private String name;
-  private @Nullable List<Class<? extends PluginFactory>> pluginFactories;
+  private @Nullable List<Class<? extends ConnectionPluginFactory>> pluginFactories;
   private @Nullable Properties properties;
   private @Nullable Dialect dialect;
   private @Nullable TargetDriverDialect targetDriverDialect;
@@ -57,7 +57,7 @@ public class ConfigurationProfileBuilder {
   }
 
   public ConfigurationProfileBuilder withPluginFactories(
-      final @Nullable List<Class<? extends PluginFactory>> pluginFactories) {
+      final @Nullable List<Class<? extends ConnectionPluginFactory>> pluginFactories) {
     this.pluginFactories = pluginFactories;
     return this;
   }

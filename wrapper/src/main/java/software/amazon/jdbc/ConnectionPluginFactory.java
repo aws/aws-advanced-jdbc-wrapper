@@ -14,17 +14,22 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.bluegreen;
+package software.amazon.jdbc;
 
 import java.util.Properties;
-import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.PluginFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 
-public class BlueGreenPluginFactory implements PluginFactory {
+/**
+ * Interface for plugin factories. This class implements ways to initialize a plugin.
+ */
+public interface ConnectionPluginFactory {
 
-  @Override
-  public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
-    return new BlueGreenConnectionPlugin(servicesContainer, props);
-  }
+  /**
+   * Get an instance of a {@link ConnectionPlugin}.
+   *
+   * @param servicesContainer the service container containing the services to be used by the {@link ConnectionPlugin}.
+   * @param props             to be used by the {@link ConnectionPlugin}.
+   * @return an instance of a {@link ConnectionPlugin}.
+   */
+  ConnectionPlugin getInstance(FullServicesContainer servicesContainer, Properties props);
 }

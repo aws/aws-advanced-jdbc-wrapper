@@ -18,10 +18,10 @@ package software.amazon.jdbc.plugin;
 
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.PluginFactory;
+import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 
-public class AuroraInitialConnectionStrategyPluginFactory implements PluginFactory {
+public class AuroraInitialConnectionStrategyPluginFactory implements ConnectionPluginFactory {
 
   @Override
   public ConnectionPlugin getInstance(FullServicesContainer servicesContainer, Properties props) {

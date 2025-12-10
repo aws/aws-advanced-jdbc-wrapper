@@ -141,7 +141,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
   /**
    * Initialize a chain of {@link ConnectionPlugin} using their corresponding {@link
-   * PluginFactory}. If {@code PropertyDefinition.PLUGINS} is provided by the user,
+   * ConnectionPluginFactory}. If {@code PropertyDefinition.PLUGINS} is provided by the user,
    * initialize the chain with the given connection plugins in the order they are specified.
    *
    * <p>The {@link DefaultConnectionPlugin} will always be initialized and attached as the last

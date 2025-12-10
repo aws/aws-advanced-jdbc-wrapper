@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.iam;
+package software.amazon.jdbc.plugin.efm;
 
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.PluginFactory;
+import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 
-public class IamAuthPluginFactory implements PluginFactory {
+public class HostMonitoringConnectionPluginFactory implements ConnectionPluginFactory {
 
   @Override
   public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
-    return new IamAuthConnectionPlugin(servicesContainer.getPluginService());
+    return new HostMonitoringConnectionPlugin(servicesContainer.getPluginService(), props);
   }
 }

@@ -18,10 +18,10 @@ package software.amazon.jdbc.plugin.strategy.fastestresponse;
 
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.PluginFactory;
+import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 
-public class FastestResponseStrategyPluginFactory implements PluginFactory {
+public class FastestResponseStrategyPluginFactory implements ConnectionPluginFactory {
 
   @Override
   public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {

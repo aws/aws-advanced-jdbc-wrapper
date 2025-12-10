@@ -31,8 +31,8 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.plugin.AuroraConnectionTrackerPluginFactory;
 import software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPluginFactory;
 import software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin;
-import software.amazon.jdbc.plugin.efm2.HostMonitoringPluginFactory;
-import software.amazon.jdbc.plugin.failover.FailoverPluginFactory;
+import software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPluginFactory;
+import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
 
@@ -142,7 +142,7 @@ public class DriverConfigurationProfiles {
     presets.put(ConfigurationProfilePresetCodes.C0,
         new ConfigurationProfile(
             ConfigurationProfilePresetCodes.C0,
-            Collections.singletonList(HostMonitoringPluginFactory.class),
+            Collections.singletonList(HostMonitoringConnectionPluginFactory.class),
             getProperties(
                 HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "60000",
                 HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "5",
@@ -163,7 +163,7 @@ public class DriverConfigurationProfiles {
     presets.put(ConfigurationProfilePresetCodes.C1,
         new ConfigurationProfile(
             ConfigurationProfilePresetCodes.C1,
-            Collections.singletonList(HostMonitoringPluginFactory.class),
+            Collections.singletonList(HostMonitoringConnectionPluginFactory.class),
             getProperties(
                 HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "30000",
                 HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "3",
@@ -188,7 +188,7 @@ public class DriverConfigurationProfiles {
                 AuroraInitialConnectionStrategyPluginFactory.class,
                 AuroraConnectionTrackerPluginFactory.class,
                 ReadWriteSplittingPluginFactory.class,
-                FailoverPluginFactory.class),
+                FailoverConnectionPluginFactory.class),
             getProperties(
                 PropertyDefinition.CONNECT_TIMEOUT.name, "10000",
                 PropertyDefinition.SOCKET_TIMEOUT.name, "5000",
@@ -226,7 +226,7 @@ public class DriverConfigurationProfiles {
                 AuroraInitialConnectionStrategyPluginFactory.class,
                 AuroraConnectionTrackerPluginFactory.class,
                 ReadWriteSplittingPluginFactory.class,
-                FailoverPluginFactory.class),
+                FailoverConnectionPluginFactory.class),
             getProperties(
                 PropertyDefinition.CONNECT_TIMEOUT.name, "30000",
                 PropertyDefinition.SOCKET_TIMEOUT.name, "30000",
@@ -264,7 +264,7 @@ public class DriverConfigurationProfiles {
                 AuroraInitialConnectionStrategyPluginFactory.class,
                 AuroraConnectionTrackerPluginFactory.class,
                 ReadWriteSplittingPluginFactory.class,
-                FailoverPluginFactory.class),
+                FailoverConnectionPluginFactory.class),
             getProperties(
                 PropertyDefinition.CONNECT_TIMEOUT.name, "10000",
                 PropertyDefinition.SOCKET_TIMEOUT.name, "0",
@@ -302,8 +302,8 @@ public class DriverConfigurationProfiles {
                 AuroraInitialConnectionStrategyPluginFactory.class,
                 AuroraConnectionTrackerPluginFactory.class,
                 ReadWriteSplittingPluginFactory.class,
-                FailoverPluginFactory.class,
-                HostMonitoringPluginFactory.class),
+                FailoverConnectionPluginFactory.class,
+                HostMonitoringConnectionPluginFactory.class),
             getProperties(
                 HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "60000",
                 HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "5",
@@ -347,8 +347,8 @@ public class DriverConfigurationProfiles {
                 AuroraInitialConnectionStrategyPluginFactory.class,
                 AuroraConnectionTrackerPluginFactory.class,
                 ReadWriteSplittingPluginFactory.class,
-                FailoverPluginFactory.class,
-                HostMonitoringPluginFactory.class),
+                FailoverConnectionPluginFactory.class,
+                HostMonitoringConnectionPluginFactory.class),
             getProperties(
                 HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "30000",
                 HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "3",
@@ -391,7 +391,7 @@ public class DriverConfigurationProfiles {
             Arrays.asList(
                 AuroraConnectionTrackerPluginFactory.class,
                 AuroraStaleDnsPluginFactory.class,
-                FailoverPluginFactory.class),
+                FailoverConnectionPluginFactory.class),
             getProperties(
                 PropertyDefinition.CONNECT_TIMEOUT.name, "10000",
                 PropertyDefinition.SOCKET_TIMEOUT.name, "5000",
@@ -409,7 +409,7 @@ public class DriverConfigurationProfiles {
             Arrays.asList(
                 AuroraConnectionTrackerPluginFactory.class,
                 AuroraStaleDnsPluginFactory.class,
-                FailoverPluginFactory.class),
+                FailoverConnectionPluginFactory.class),
             getProperties(
                 PropertyDefinition.CONNECT_TIMEOUT.name, "30000",
                 PropertyDefinition.SOCKET_TIMEOUT.name, "30000",
@@ -427,7 +427,7 @@ public class DriverConfigurationProfiles {
             Arrays.asList(
                 AuroraConnectionTrackerPluginFactory.class,
                 AuroraStaleDnsPluginFactory.class,
-                FailoverPluginFactory.class),
+                FailoverConnectionPluginFactory.class),
             getProperties(
                 PropertyDefinition.CONNECT_TIMEOUT.name, "10000",
                 PropertyDefinition.SOCKET_TIMEOUT.name, "0",
@@ -445,8 +445,8 @@ public class DriverConfigurationProfiles {
             Arrays.asList(
                 AuroraConnectionTrackerPluginFactory.class,
                 AuroraStaleDnsPluginFactory.class,
-                FailoverPluginFactory.class,
-                HostMonitoringPluginFactory.class),
+                FailoverConnectionPluginFactory.class,
+                HostMonitoringConnectionPluginFactory.class),
             getProperties(
                 HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "60000",
                 HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "5",
@@ -470,8 +470,8 @@ public class DriverConfigurationProfiles {
             Arrays.asList(
                 AuroraConnectionTrackerPluginFactory.class,
                 AuroraStaleDnsPluginFactory.class,
-                FailoverPluginFactory.class,
-                HostMonitoringPluginFactory.class),
+                FailoverConnectionPluginFactory.class,
+                HostMonitoringConnectionPluginFactory.class),
             getProperties(
                 HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "30000",
                 HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "3",
@@ -497,7 +497,7 @@ public class DriverConfigurationProfiles {
             Arrays.asList(
                 AuroraInitialConnectionStrategyPluginFactory.class,
                 AuroraConnectionTrackerPluginFactory.class,
-                FailoverPluginFactory.class),
+                FailoverConnectionPluginFactory.class),
             getProperties(
                 PropertyDefinition.CONNECT_TIMEOUT.name, "10000",
                 PropertyDefinition.SOCKET_TIMEOUT.name, "5000",
@@ -534,7 +534,7 @@ public class DriverConfigurationProfiles {
             Arrays.asList(
                 AuroraInitialConnectionStrategyPluginFactory.class,
                 AuroraConnectionTrackerPluginFactory.class,
-                FailoverPluginFactory.class),
+                FailoverConnectionPluginFactory.class),
             getProperties(
                 PropertyDefinition.CONNECT_TIMEOUT.name, "30000",
                 PropertyDefinition.SOCKET_TIMEOUT.name, "30000",
@@ -571,7 +571,7 @@ public class DriverConfigurationProfiles {
             Arrays.asList(
                 AuroraInitialConnectionStrategyPluginFactory.class,
                 AuroraConnectionTrackerPluginFactory.class,
-                FailoverPluginFactory.class),
+                FailoverConnectionPluginFactory.class),
             getProperties(
                 PropertyDefinition.CONNECT_TIMEOUT.name, "10000",
                 PropertyDefinition.SOCKET_TIMEOUT.name, "0",
@@ -608,8 +608,8 @@ public class DriverConfigurationProfiles {
             Arrays.asList(
                 AuroraInitialConnectionStrategyPluginFactory.class,
                 AuroraConnectionTrackerPluginFactory.class,
-                FailoverPluginFactory.class,
-                HostMonitoringPluginFactory.class),
+                FailoverConnectionPluginFactory.class,
+                HostMonitoringConnectionPluginFactory.class),
             getProperties(
                 HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "60000",
                 HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "5",
@@ -652,8 +652,8 @@ public class DriverConfigurationProfiles {
             Arrays.asList(
                 AuroraInitialConnectionStrategyPluginFactory.class,
                 AuroraConnectionTrackerPluginFactory.class,
-                FailoverPluginFactory.class,
-                HostMonitoringPluginFactory.class),
+                FailoverConnectionPluginFactory.class,
+                HostMonitoringConnectionPluginFactory.class),
             getProperties(
                 HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "30000",
                 HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "3",
