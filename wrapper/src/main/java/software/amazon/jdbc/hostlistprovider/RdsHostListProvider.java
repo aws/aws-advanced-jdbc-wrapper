@@ -164,10 +164,6 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
             this.highRefreshRateNano));
   }
 
-  protected List<HostSpec> queryForTopology(final Connection conn) throws SQLException {
-    return this.topologyUtils.queryForTopology(conn, this.initialHostSpec, this.instanceTemplate);
-  }
-
   protected List<HostSpec> queryForTopology() throws SQLException {
     ClusterTopologyMonitor monitor = this.servicesContainer.getMonitorService()
         .get(ClusterTopologyMonitorImpl.class, this.clusterId);

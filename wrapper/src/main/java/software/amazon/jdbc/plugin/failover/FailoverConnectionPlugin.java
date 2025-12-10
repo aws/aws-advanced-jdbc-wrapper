@@ -747,8 +747,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         if (exception != null) {
           throw exception;
         }
-
-        updateHostAvailability(this.writerFailoverHandler.getHostAvailabilityMap());
       }
 
       if (failoverResult == null || !failoverResult.isConnected()) {
@@ -766,6 +764,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         return;
       }
 
+      this.pluginService.forceRefreshHostList();
+      updateHostAvailability(this.writerFailoverHandler.getHostAvailabilityMap());
+
       final List<HostSpec> allowedHosts = this.pluginService.getHosts();
       if (!Utils.containsHostAndPort(allowedHosts, writerHostSpec.getHostAndPort())) {
         throwFailoverFailedException(
@@ -781,7 +782,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
               "Failover.establishedConnection",
               new Object[]{this.pluginService.getCurrentHostSpec()}));
 
-      this.pluginService.refreshHostList();
       throwFailoverSuccessException();
     } catch (FailoverSuccessSQLException ex) {
       if (telemetryContext != null) {
