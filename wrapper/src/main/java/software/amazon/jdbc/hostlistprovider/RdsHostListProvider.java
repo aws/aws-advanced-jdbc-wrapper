@@ -200,7 +200,6 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
 
       final List<HostSpec> hosts = this.queryForTopology();
       if (!Utils.isNullOrEmpty(hosts)) {
-        this.servicesContainer.getStorageService().set(this.clusterId, new Topology(hosts));
         return new FetchTopologyResult(false, hosts);
       }
     }
