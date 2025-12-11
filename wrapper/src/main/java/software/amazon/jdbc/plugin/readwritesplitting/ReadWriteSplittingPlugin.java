@@ -295,7 +295,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
 
   private void setReaderConnection(final Connection conn, final HostSpec host) {
     closeReaderConnectionIfIdle(this.readerConnection);
-    this.readerConnection = new CacheItem<>(conn, this.getKeepAliveTimeout(host));
+    this.readerConnection = new CacheItem<>(conn, this.getKeepAliveTimeout(this.isReaderConnFromInternalPool));
     this.readerHostSpec = host;
     LOGGER.finest(
         () -> Messages.get(
@@ -534,8 +534,8 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     return connection != null && !connection.isClosed();
   }
 
-  private long getKeepAliveTimeout(final HostSpec host) {
-    if (this.pluginService.isPooledConnectionProvider(host, properties)) {
+  private long getKeepAliveTimeout(boolean isPooledConnection) {
+    if (isPooledConnection) {
       // Let the connection pool handle the lifetime of the reader connection.
       return 0;
     }
