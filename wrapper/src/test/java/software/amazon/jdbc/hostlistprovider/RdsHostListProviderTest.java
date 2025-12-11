@@ -53,7 +53,6 @@ import software.amazon.jdbc.dialect.TopologyDialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider.FetchTopologyResult;
-import software.amazon.jdbc.hostlistprovider.monitoring.ClusterTopologyMonitorImpl;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.events.EventPublisher;
@@ -121,7 +120,7 @@ class RdsHostListProviderTest {
     final List<HostSpec> expected = hosts;
     storageService.set(rdsHostListProvider.clusterId, new Topology(expected));
 
-    final FetchTopologyResult result = rdsHostListProvider.getTopology(false);
+    final FetchTopologyResult result = rdsHostListProvider.getTopology();
     assertEquals(expected, result.hosts);
     assertEquals(2, result.hosts.size());
     verify(rdsHostListProvider, never()).queryForTopology();
@@ -141,7 +140,7 @@ class RdsHostListProviderTest {
     doReturn(newHosts).when(mockTopologyUtils).queryForTopology(
         eq(mockConnection), any(HostSpec.class), any(HostSpec.class));
 
-    final FetchTopologyResult result = rdsHostListProvider.getTopology(true);
+    final FetchTopologyResult result = rdsHostListProvider.getTopology();
     verify(rdsHostListProvider, atMostOnce()).queryForTopology();
     assertEquals(1, result.hosts.size());
     assertEquals(newHosts, result.hosts);
@@ -157,7 +156,7 @@ class RdsHostListProviderTest {
 
     doReturn(new ArrayList<>()).when(rdsHostListProvider).queryForTopology();
 
-    final FetchTopologyResult result = rdsHostListProvider.getTopology(false);
+    final FetchTopologyResult result = rdsHostListProvider.getTopology();
     verify(rdsHostListProvider, atMostOnce()).queryForTopology();
     assertEquals(2, result.hosts.size());
     assertEquals(expected, result.hosts);
@@ -170,7 +169,7 @@ class RdsHostListProviderTest {
 
     doReturn(new ArrayList<>()).when(rdsHostListProvider).queryForTopology();
 
-    final FetchTopologyResult result = rdsHostListProvider.getTopology(true);
+    final FetchTopologyResult result = rdsHostListProvider.getTopology();
     verify(rdsHostListProvider, atMostOnce()).queryForTopology();
     assertNotNull(result.hosts);
     assertEquals(

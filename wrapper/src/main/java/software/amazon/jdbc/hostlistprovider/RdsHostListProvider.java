@@ -34,8 +34,6 @@ import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
-import software.amazon.jdbc.hostlistprovider.monitoring.ClusterTopologyMonitor;
-import software.amazon.jdbc.hostlistprovider.monitoring.ClusterTopologyMonitorImpl;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.LogUtils;
@@ -147,7 +145,9 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
     this.rdsUrlType = rdsHelper.identifyRdsType(this.initialHostSpec.getHost());
   }
 
-  protected ClusterTopologyMonitor initMonitor() throws SQLException {
+  protected ClusterTopologyMonitor getOrCreateMonitor() throws SQLException {
+    ClusterTopologyMonitor monitor = this.servicesContainer.getMonitorService()
+        .get(ClusterTopologyMonitorImpl.class, this.clusterId);
     return this.servicesContainer.getMonitorService().runIfAbsent(
         ClusterTopologyMonitorImpl.class,
         this.clusterId,
@@ -165,12 +165,7 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
   }
 
   protected List<HostSpec> queryForTopology() throws SQLException {
-    ClusterTopologyMonitor monitor = this.servicesContainer.getMonitorService()
-        .get(ClusterTopologyMonitorImpl.class, this.clusterId);
-    if (monitor == null) {
-      monitor = this.initMonitor();
-    }
-
+    ClusterTopologyMonitor monitor = this.getOrCreateMonitor();
     try {
       return monitor.forceRefresh(false, DEFAULT_TOPOLOGY_QUERY_TIMEOUT_MS);
     } catch (TimeoutException ex) {
@@ -183,15 +178,13 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
    * cached copy of topology is returned if it's not yet outdated (controlled by {@link
    * #refreshRateNano}).
    *
-   * @param forceUpdate If true, it forces a service to ignore cached copy of topology and to fetch
-   *                    a fresh one.
    * @return a list of hosts that describes cluster topology. A writer is always at position 0.
    *     Returns an empty list if isn't available or is invalid (doesn't contain a writer).
    * @throws SQLException if errors occurred while retrieving the topology.
    */
-  protected FetchTopologyResult getTopology(final boolean forceUpdate) throws SQLException {
+  protected FetchTopologyResult getTopology() throws SQLException {
     final List<HostSpec> storedHosts = this.getStoredTopology();
-    if (storedHosts == null || forceUpdate) {
+    if (storedHosts == null) {
       // We need to re-fetch topology.
       if (!this.pluginService.isDialectConfirmed()) {
         // We need to confirm the dialect before creating a topology monitor so that it uses the correct SQL queries.
@@ -234,7 +227,7 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
 
   @Override
   public List<HostSpec> refresh() throws SQLException {
-    final FetchTopologyResult results = getTopology(false);
+    final FetchTopologyResult results = getTopology();
     LOGGER.finest(() -> LogUtils.logTopology(results.hosts, results.isCachedData ? "[From cache] Topology:" : null));
     return Collections.unmodifiableList(results.hosts);
   }
@@ -293,11 +286,7 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
   @Override
   public List<HostSpec> forceRefresh(final boolean shouldVerifyWriter, final long timeoutMs)
       throws SQLException, TimeoutException {
-    ClusterTopologyMonitor monitor =
-        this.servicesContainer.getMonitorService().get(ClusterTopologyMonitorImpl.class, this.clusterId);
-    if (monitor == null) {
-      monitor = this.initMonitor();
-    }
+    ClusterTopologyMonitor monitor = this.getOrCreateMonitor();
     assert monitor != null;
     return monitor.forceRefresh(shouldVerifyWriter, timeoutMs);
   }

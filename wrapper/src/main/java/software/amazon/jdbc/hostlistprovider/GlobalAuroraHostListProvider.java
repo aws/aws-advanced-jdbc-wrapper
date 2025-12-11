@@ -22,9 +22,6 @@ import java.util.Properties;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.hostlistprovider.monitoring.ClusterTopologyMonitor;
-import software.amazon.jdbc.hostlistprovider.monitoring.ClusterTopologyMonitorImpl;
-import software.amazon.jdbc.hostlistprovider.monitoring.GlobalAuroraTopologyMonitor;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.RdsUtils;
 
@@ -59,7 +56,7 @@ public class GlobalAuroraHostListProvider extends RdsHostListProvider {
         this.topologyUtils.parseInstanceTemplates(instanceTemplates, this::validateHostPatternSetting);
   }
 
-  protected ClusterTopologyMonitor initMonitor() throws SQLException {
+  protected ClusterTopologyMonitor getOrCreateMonitor() throws SQLException {
     return this.servicesContainer.getMonitorService().runIfAbsent(
         ClusterTopologyMonitorImpl.class,
         this.clusterId,
