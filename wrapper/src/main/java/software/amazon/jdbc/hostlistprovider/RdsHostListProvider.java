@@ -165,11 +165,11 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
   }
 
   @Override
-  public List<HostSpec> queryForTopology(Connection conn, HostSpec initialHostSpec) throws SQLException {
+  public List<HostSpec> getCurrentTopology(Connection conn, HostSpec initialHostSpec) throws SQLException {
     return this.topologyUtils.queryForTopology(conn, initialHostSpec, this.instanceTemplate);
   }
 
-  protected List<HostSpec> queryForTopology() throws SQLException {
+  protected List<HostSpec> getFreshTopology(boolean shouldVerifyWriter, long timeoutMs) throws SQLException {
     ClusterTopologyMonitor monitor = this.getOrCreateMonitor();
     try {
       return monitor.forceRefresh(false, DEFAULT_TOPOLOGY_QUERY_TIMEOUT_MS);
@@ -198,7 +198,7 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
         return new FetchTopologyResult(false, this.initialHostList);
       }
 
-      final List<HostSpec> hosts = this.queryForTopology();
+      final List<HostSpec> hosts = this.getFreshTopology(false, DEFAULT_TOPOLOGY_QUERY_TIMEOUT_MS);
       if (!Utils.isNullOrEmpty(hosts)) {
         return new FetchTopologyResult(false, hosts);
       }
@@ -281,9 +281,13 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
   @Override
   public List<HostSpec> forceRefresh(final boolean shouldVerifyWriter, final long timeoutMs)
       throws SQLException, TimeoutException {
-    ClusterTopologyMonitor monitor = this.getOrCreateMonitor();
-    assert monitor != null;
-    return monitor.forceRefresh(shouldVerifyWriter, timeoutMs);
+    if (!this.pluginService.isDialectConfirmed()) {
+      // We need to confirm the dialect before creating a topology monitor so that it uses the correct SQL queries.
+      // We will return the original hosts parsed from the connections string until the dialect has been confirmed.
+      return this.initialHostList;
+    }
+
+    return this.getFreshTopology(shouldVerifyWriter, timeoutMs);
   }
 
   @Override

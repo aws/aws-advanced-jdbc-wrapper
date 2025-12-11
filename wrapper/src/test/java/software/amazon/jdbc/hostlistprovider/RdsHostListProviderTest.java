@@ -123,7 +123,7 @@ class RdsHostListProviderTest {
     final FetchTopologyResult result = rdsHostListProvider.getTopology();
     assertEquals(expected, result.hosts);
     assertEquals(2, result.hosts.size());
-    verify(rdsHostListProvider, never()).queryForTopology();
+    verify(rdsHostListProvider, never()).refreshMonitor();
   }
 
   @Test
@@ -141,7 +141,7 @@ class RdsHostListProviderTest {
         eq(mockConnection), any(HostSpec.class), any(HostSpec.class));
 
     final FetchTopologyResult result = rdsHostListProvider.getTopology();
-    verify(rdsHostListProvider, atMostOnce()).queryForTopology();
+    verify(rdsHostListProvider, atMostOnce()).refreshMonitor();
     assertEquals(1, result.hosts.size());
     assertEquals(newHosts, result.hosts);
   }
@@ -154,10 +154,10 @@ class RdsHostListProviderTest {
     final List<HostSpec> expected = hosts;
     storageService.set(rdsHostListProvider.clusterId, new Topology(expected));
 
-    doReturn(new ArrayList<>()).when(rdsHostListProvider).queryForTopology();
+    doReturn(new ArrayList<>()).when(rdsHostListProvider).refreshMonitor();
 
     final FetchTopologyResult result = rdsHostListProvider.getTopology();
-    verify(rdsHostListProvider, atMostOnce()).queryForTopology();
+    verify(rdsHostListProvider, atMostOnce()).refreshMonitor();
     assertEquals(2, result.hosts.size());
     assertEquals(expected, result.hosts);
   }
@@ -167,10 +167,10 @@ class RdsHostListProviderTest {
     rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
     rdsHostListProvider.clear();
 
-    doReturn(new ArrayList<>()).when(rdsHostListProvider).queryForTopology();
+    doReturn(new ArrayList<>()).when(rdsHostListProvider).refreshMonitor();
 
     final FetchTopologyResult result = rdsHostListProvider.getTopology();
-    verify(rdsHostListProvider, atMostOnce()).queryForTopology();
+    verify(rdsHostListProvider, atMostOnce()).refreshMonitor();
     assertNotNull(result.hosts);
     assertEquals(
         Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("url").build()),
@@ -178,7 +178,7 @@ class RdsHostListProviderTest {
   }
 
   @Test
-  void testQueryForTopology_withDifferentDriverProtocol() throws SQLException, TimeoutException {
+  void testGetFreshTopology_withDifferentDriverProtocol() throws SQLException, TimeoutException {
     final List<HostSpec> expectedMySQL = Collections.singletonList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("mysql").port(HostSpec.NO_PORT)
             .role(HostRole.WRITER).availability(HostAvailability.AVAILABLE).weight(0).build());
@@ -195,11 +195,11 @@ class RdsHostListProviderTest {
 
     rdsHostListProvider = getRdsHostListProvider("mysql://url/");
 
-    List<HostSpec> hosts = rdsHostListProvider.queryForTopology();
+    List<HostSpec> hosts = rdsHostListProvider.refreshMonitor();
     assertEquals(expectedMySQL, hosts);
 
     rdsHostListProvider = getRdsHostListProvider("postgresql://url/");
-    hosts = rdsHostListProvider.queryForTopology();
+    hosts = rdsHostListProvider.refreshMonitor();
     assertEquals(expectedPostgres, hosts);
   }
 

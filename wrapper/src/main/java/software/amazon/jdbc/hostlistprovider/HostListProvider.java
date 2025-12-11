@@ -26,6 +26,18 @@ import software.amazon.jdbc.HostSpec;
 
 public interface HostListProvider {
 
+  /**
+   * Get current topology information for the connected database. The returned topology should be the static host list
+   * if `this` is a {@link StaticHostListProvider}. The returned topology should be fresh info returned from a topology
+   * query if `this` is a {@link DynamicHostListProvider},
+   *
+   * @param conn the connection to use to query the database for topology information, if needed.
+   * @param initialHostSpec the host details of the initial connection.
+   * @return the topology information for the connected database.
+   * @throws SQLException if an error occurs while attempting to acquire the database topology information.
+   */
+  List<HostSpec> getCurrentTopology(Connection conn, HostSpec initialHostSpec) throws SQLException;
+
   List<HostSpec> refresh() throws SQLException;
 
   /**

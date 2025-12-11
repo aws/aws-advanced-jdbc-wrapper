@@ -78,6 +78,11 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
   }
 
   @Override
+  public List<HostSpec> getCurrentTopology(Connection conn, HostSpec initialHostSpec) {
+    return Collections.unmodifiableList(hostList);
+  }
+
+  @Override
   public List<HostSpec> refresh() throws SQLException {
     return Collections.unmodifiableList(hostList);
   }

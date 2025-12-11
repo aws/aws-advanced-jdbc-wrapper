@@ -30,17 +30,11 @@ import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
-import software.amazon.jdbc.hostlistprovider.DynamicHostListProvider;
-import software.amazon.jdbc.hostlistprovider.HostListProvider;
-import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.LogUtils;
@@ -249,26 +243,10 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
         e);
   }
 
-  private @Nullable List<HostSpec> getTopology(@NonNull PluginService pluginService, @NonNull Connection conn)
-      throws SQLException {
-    HostListProvider hostListProvider = pluginService.getHostListProvider();
-    if (hostListProvider instanceof StaticHostListProvider) {
-      try {
-        return hostListProvider.forceRefresh();
-      } catch (TimeoutException e) {
-        return null;
-      }
-    }
-
-    DynamicHostListProvider dynamicProvider = (DynamicHostListProvider) hostListProvider;
-    HostSpec initialHostSpec = pluginService.getInitialConnectionHostSpec();
-    return dynamicProvider.queryForTopology(conn, initialHostSpec);
-  }
-
   /**
    * Internal class responsible for re-connecting to the current writer (aka TaskA).
    */
-  private class ReconnectToWriterHandler implements Callable<WriterFailoverResult> {
+  private static class ReconnectToWriterHandler implements Callable<WriterFailoverResult> {
     private final PluginService taskAPluginService;
     private final Map<String, HostAvailability> availabilityMap;
     private final HostSpec originalWriterHost;
@@ -306,7 +284,8 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
             }
 
             conn = this.taskAPluginService.forceConnect(this.originalWriterHost, this.props);
-            latestTopology = getTopology(this.taskAPluginService, conn);
+            HostSpec initialHostSpec = this.taskAPluginService.getInitialConnectionHostSpec();
+            latestTopology = this.taskAPluginService.getHostListProvider().getCurrentTopology(conn, initialHostSpec);
           } catch (final SQLException exception) {
             // Propagate exceptions that are not caused by network errors.
             if (!taskAPluginService.isNetworkException(exception, taskAPluginService.getTargetDriverDialect())) {
@@ -365,7 +344,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
    * Internal class responsible for getting the latest cluster topology and connecting to a newly
    * elected writer (aka TaskB).
    */
-  private class WaitForNewWriterHandler implements Callable<WriterFailoverResult> {
+  private static class WaitForNewWriterHandler implements Callable<WriterFailoverResult> {
     private final PluginService taskBPluginService;
     private final Map<String, HostAvailability> availabilityMap;
     private final ReaderFailoverHandler readerFailoverHandler;
@@ -468,7 +447,9 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
 
       while (true) {
         try {
-          final List<HostSpec> topology = getTopology(this.taskBPluginService, this.currentReaderConnection);
+          HostSpec initialHostSpec = this.taskBPluginService.getInitialConnectionHostSpec();
+          final List<HostSpec> topology = this.taskBPluginService.getHostListProvider()
+              .getCurrentTopology(this.currentReaderConnection, initialHostSpec);
           if (!Utils.isNullOrEmpty(topology)) {
             if (topology.size() == 1) {
               // The currently connected reader is in a middle of failover. It's not yet connected
