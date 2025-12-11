@@ -16,13 +16,14 @@
 
 package software.amazon.jdbc.hostlistprovider;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.List;
 import software.amazon.jdbc.HostSpec;
 
 // An interface for providers that can fetch a host list reflecting the current database topology.
 // Examples include providers for Aurora or Multi-AZ clusters, where the cluster topology, status, and instance roles
 // change over time.
 public interface DynamicHostListProvider extends HostListProvider {
-  TopologyUtils getTopologyUtils();
-
-  HostSpec getInstanceTemplate();
+  List<HostSpec> queryForTopology(Connection conn, HostSpec initialHostSpec) throws SQLException;
 }

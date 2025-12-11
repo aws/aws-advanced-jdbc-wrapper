@@ -164,6 +164,11 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
             this.highRefreshRateNano));
   }
 
+  @Override
+  public List<HostSpec> queryForTopology(Connection conn, HostSpec initialHostSpec) throws SQLException {
+    return this.topologyUtils.queryForTopology(conn, initialHostSpec, this.instanceTemplate);
+  }
+
   protected List<HostSpec> queryForTopology() throws SQLException {
     ClusterTopologyMonitor monitor = this.getOrCreateMonitor();
     try {
@@ -172,6 +177,7 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
       return null;
     }
   }
+
 
   /**
    * Get cluster topology. It may require an extra call to database to fetch the latest topology. A
@@ -255,16 +261,6 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
       LOGGER.severe(message);
       throw new RuntimeException(message);
     }
-  }
-
-  @Override
-  public TopologyUtils getTopologyUtils() {
-    return this.topologyUtils;
-  }
-
-  @Override
-  public HostSpec getInstanceTemplate() {
-    return this.instanceTemplate;
   }
 
   protected static class FetchTopologyResult {

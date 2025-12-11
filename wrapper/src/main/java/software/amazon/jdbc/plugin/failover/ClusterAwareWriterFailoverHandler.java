@@ -262,8 +262,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
 
     DynamicHostListProvider dynamicProvider = (DynamicHostListProvider) this.hostListProvider;
     HostSpec initialHostSpec = this.pluginService.getInitialConnectionHostSpec();
-    HostSpec instanceTemplate = dynamicProvider.getInstanceTemplate();
-    return dynamicProvider.getTopologyUtils().queryForTopology(conn, initialHostSpec, instanceTemplate);
+    return dynamicProvider.queryForTopology(conn, initialHostSpec);
   }
 
   /**
