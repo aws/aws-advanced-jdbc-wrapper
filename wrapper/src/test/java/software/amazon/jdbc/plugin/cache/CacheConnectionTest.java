@@ -22,7 +22,6 @@ import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.async.RedisAsyncCommands;
 import io.lettuce.core.api.sync.RedisCommands;
 import org.apache.commons.pool2.impl.GenericObjectPool;
-import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,8 +32,8 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.jdbc.plugin.iam.ElastiCacheIamTokenUtility;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.util.function.BiConsumer;
 import java.util.Properties;
@@ -71,7 +70,7 @@ public class CacheConnectionTest {
   @Test
   void testIamAuth_PropertyExtraction() throws Exception {
     Properties props = new Properties();
-    props.setProperty("cacheEndpointAddrRw", "test-cache.cache.amazonaws.com:6379");
+    props.setProperty("cacheEndpointAddrRw", "localhost:6379");
     props.setProperty("cacheIamRegion", "us-west-2");
     props.setProperty("cacheUsername", "myuser");
     props.setProperty("cacheName", "my-cache");
@@ -87,7 +86,7 @@ public class CacheConnectionTest {
   @Test
   void testIamAuth_PropertyExtractionTraditional() throws Exception {
     Properties props = new Properties();
-    props.setProperty("cacheEndpointAddrRw", "test-cache.cache.amazonaws.com:6379");
+    props.setProperty("cacheEndpointAddrRw", "localhost:6379");
     props.setProperty("cacheUsername", "myuser");
     props.setProperty("cachePassword", "password");
     props.setProperty("cacheName", "my-cache");
@@ -103,7 +102,7 @@ public class CacheConnectionTest {
   @Test
   void testIamAuthEnabled_WhenRegionProvided() throws Exception {
     Properties props = new Properties();
-    props.setProperty("cacheEndpointAddrRw", "test.cache.amazonaws.com:6379");
+    props.setProperty("cacheEndpointAddrRw", "localhost:6379");
     props.setProperty("cacheIamRegion", "us-east-1");
     props.setProperty("cacheUsername", "testuser");
     props.setProperty("cacheName", "my-cache");
@@ -123,7 +122,7 @@ public class CacheConnectionTest {
   @Test
   void testConstructor_IamAuthEnabled_MissingCacheName() {
     Properties props = new Properties();
-    props.setProperty("cacheEndpointAddrRw", "test-cache.cache.amazonaws.com:6379");
+    props.setProperty("cacheEndpointAddrRw", "localhost:6379");
     props.setProperty("cacheIamRegion", "us-west-2");
     props.setProperty("cacheUsername", "myuser");
     // Missing cacheName property
@@ -163,7 +162,7 @@ public class CacheConnectionTest {
   @Test
   void testConstructor_IamAuthEnabled_MissingCacheUsername() {
     Properties props = new Properties();
-    props.setProperty("cacheEndpointAddrRw", "test-cache.cache.amazonaws.com:6379");
+    props.setProperty("cacheEndpointAddrRw", "localhost:6379");
     props.setProperty("cacheIamRegion", "us-east-1");
 
     assertThrows(IllegalArgumentException.class, () -> new CacheConnection(props));
@@ -172,7 +171,7 @@ public class CacheConnectionTest {
   @Test
   void testConstructor_ConflictingAuthenticationMethods() {
     Properties props = new Properties();
-    props.setProperty("cacheEndpointAddrRw", "test-cache.cache.amazonaws.com:6379");
+    props.setProperty("cacheEndpointAddrRw", "localhost:6379");
     props.setProperty("cacheIamRegion", "us-west-2");  // IAM auth
     props.setProperty("cacheUsername", "myuser");
     props.setProperty("cachePassword", "mypassword");  // Traditional auth
@@ -189,7 +188,7 @@ public class CacheConnectionTest {
   @Test
   void testAwsCredentialsProvider_WithProfile() throws Exception {
     Properties props = new Properties();
-    props.setProperty("cacheEndpointAddrRw", "test.cache.amazonaws.com:6379");
+    props.setProperty("cacheEndpointAddrRw", "localhost:6379");
     props.setProperty("cacheIamRegion", "us-east-1");
     props.setProperty("cacheUsername", "testuser");
     props.setProperty("cacheName", "my-cache");
@@ -204,13 +203,13 @@ public class CacheConnectionTest {
     assertEquals("my-cache", getField(connection, "cacheName"));
     assertEquals("testuser", getField(connection, "cacheUsername"));
     assertEquals("us-east-1", getField(connection, "cacheIamRegion"));
-    assertEquals("test.cache.amazonaws.com:6379", getField(connection, "cacheRwServerAddr"));
+    assertEquals("localhost:6379", getField(connection, "cacheRwServerAddr"));
   }
 
   @Test
   void testAwsCredentialsProvider_WithoutProfile() throws Exception {
     Properties props = new Properties();
-    props.setProperty("cacheEndpointAddrRw", "test.cache.amazonaws.com:6379");
+    props.setProperty("cacheEndpointAddrRw", "localhost:6379");
     props.setProperty("cacheIamRegion", "us-east-1");
     props.setProperty("cacheUsername", "testuser");
     props.setProperty("cacheName", "my-cache");
@@ -225,13 +224,13 @@ public class CacheConnectionTest {
     assertEquals("my-cache", getField(connection, "cacheName"));
     assertEquals("testuser", getField(connection, "cacheUsername"));
     assertEquals("us-east-1", getField(connection, "cacheIamRegion"));
-    assertEquals("test.cache.amazonaws.com:6379", getField(connection, "cacheRwServerAddr"));
+    assertEquals("localhost:6379", getField(connection, "cacheRwServerAddr"));
   }
 
   @Test
   void testBuildRedisURI_IamAuth() {
     Properties props = new Properties();
-    props.setProperty("cacheEndpointAddrRw", "test-cache.cache.amazonaws.com:6379");
+    props.setProperty("cacheEndpointAddrRw", "localhost:6379");
     props.setProperty("cacheIamRegion", "us-east-1");
     props.setProperty("cacheUsername", "testuser");
     props.setProperty("cacheName", "test-cache");
@@ -239,11 +238,11 @@ public class CacheConnectionTest {
     try (MockedConstruction<ElastiCacheIamTokenUtility> mockedTokenUtility = mockConstruction(ElastiCacheIamTokenUtility.class)) {
 
       CacheConnection connection = new CacheConnection(props);
-      RedisURI uri = connection.buildRedisURI("test-cache.cache.amazonaws.com", 6379);
+      RedisURI uri = connection.buildRedisURI("localhost", 6379);
 
       // Verify URI properties
       assertNotNull(uri);
-      assertEquals("test-cache.cache.amazonaws.com", uri.getHost());
+      assertEquals("localhost", uri.getHost());
       assertEquals(6379, uri.getPort());
       assertTrue(uri.isSsl());
       assertNotNull(uri.getCredentialsProvider());
@@ -253,7 +252,7 @@ public class CacheConnectionTest {
 
       // Verify URI properties
       assertNotNull(uri);
-      assertEquals("test-cache.cache.amazonaws.com", uri.getHost());
+      assertEquals("localhost", uri.getHost());
       assertEquals(6379, uri.getPort());
       assertTrue(uri.isSsl());
       assertNotNull(uri.getCredentialsProvider()); // IAM credentials provider set
@@ -265,7 +264,7 @@ public class CacheConnectionTest {
       verify(tokenUtility).generateAuthenticationToken(
           any(AwsCredentialsProvider.class),
           eq(Region.US_EAST_1),
-          eq("test-cache.cache.amazonaws.com"),
+          eq("localhost"),
           eq(6379),
           eq("testuser")
       );
@@ -306,13 +305,19 @@ public class CacheConnectionTest {
 
   @Test
   void test_writeToCache() throws Exception {
+    CacheConnection spyConnection = spy(cacheConnection);
+    when(spyConnection.getClusterHealthStateFromCacheMonitor()).thenReturn(CacheMonitor.HealthState.HEALTHY);
+    doNothing().when(spyConnection).reportErrorToCacheMonitor(anyBoolean(), any(), any());
+    doNothing().when(spyConnection).incrementInFlightSize(anyLong());
+    doNothing().when(spyConnection).decrementInFlightSize(anyLong());
+
     String key = "myQueryKey";
     byte[] value = "myValue".getBytes(StandardCharsets.UTF_8);
     when(mockWriteConnPool.borrowObject()).thenReturn(mockConnection);
     when(mockConnection.async()).thenReturn(mockAsyncCommands);
     when(mockAsyncCommands.set(any(), any(), any())).thenReturn(mockCacheResult);
     when(mockCacheResult.whenComplete(any(BiConsumer.class))).thenReturn(null);
-    cacheConnection.writeToCache(key, value, 100);
+    spyConnection.writeToCache(key, value, 100);
     verify(mockWriteConnPool).borrowObject();
     verify(mockConnection).async();
     verify(mockAsyncCommands).set(any(), any(), any());
@@ -321,12 +326,18 @@ public class CacheConnectionTest {
 
   @Test
   void test_writeToCacheException() throws Exception {
+    CacheConnection spyConnection = spy(cacheConnection);
+    when(spyConnection.getClusterHealthStateFromCacheMonitor()).thenReturn(CacheMonitor.HealthState.HEALTHY);
+    doNothing().when(spyConnection).reportErrorToCacheMonitor(anyBoolean(), any(), any());
+    doNothing().when(spyConnection).incrementInFlightSize(anyLong());
+    doNothing().when(spyConnection).decrementInFlightSize(anyLong());
+
     String key = "myQueryKey";
     byte[] value = "myValue".getBytes(StandardCharsets.UTF_8);
     when(mockWriteConnPool.borrowObject()).thenReturn(mockConnection);
     when(mockConnection.async()).thenReturn(mockAsyncCommands);
     when(mockAsyncCommands.set(any(), any(), any())).thenThrow(new RuntimeException("test exception"));
-    cacheConnection.writeToCache(key, value, 100);
+    spyConnection.writeToCache(key, value, 100);
     verify(mockWriteConnPool).borrowObject();
     verify(mockConnection).async();
     verify(mockAsyncCommands).set(any(), any(), any());
@@ -334,20 +345,44 @@ public class CacheConnectionTest {
   }
 
   @Test
-  void test_handleCompletedCacheWrite() throws Exception {
-    cacheConnection.handleCompletedCacheWrite(mockConnection, null);
+  void testHandleCompletedCacheWrite() throws Exception {
+    CacheConnection spyConnection = spy(cacheConnection);
+    doNothing().when(spyConnection).decrementInFlightSize(anyLong());
+    doNothing().when(spyConnection).reportErrorToCacheMonitor(anyBoolean(), any(), any());
+
+    // Success: decrement called, no error reported, connection returned
+    spyConnection.handleCompletedCacheWrite(mockConnection, 150L, null);
+    verify(spyConnection).decrementInFlightSize(150L);
+    verify(spyConnection, never()).reportErrorToCacheMonitor(anyBoolean(), any(), any());
     verify(mockWriteConnPool).returnObject(mockConnection);
-    cacheConnection.handleCompletedCacheWrite(mockConnection, new RuntimeException("test"));
+
+    // Failure: decrement called, error reported, connection invalidated
+    RuntimeException writeError = new RuntimeException("Redis timeout");
+    spyConnection.handleCompletedCacheWrite(mockConnection, 200L, writeError);
+    verify(spyConnection).decrementInFlightSize(200L);
+    verify(spyConnection).reportErrorToCacheMonitor(eq(true), eq(writeError), eq("WRITE"));
     verify(mockWriteConnPool).invalidateObject(mockConnection);
+
+    // Multiple operations: mixed success/failure
+    spyConnection.handleCompletedCacheWrite(mockConnection, 100L, null);
+    spyConnection.handleCompletedCacheWrite(mockConnection, 250L, new RuntimeException("lost"));
+    verify(spyConnection).decrementInFlightSize(100L);
+    verify(spyConnection).decrementInFlightSize(250L);
+    verify(mockWriteConnPool, times(2)).returnObject(mockConnection);
+    verify(mockWriteConnPool, times(2)).invalidateObject(mockConnection);
   }
 
   @Test
   void test_readFromCache() throws Exception {
+    CacheConnection spyConnection = spy(cacheConnection);
+    when(spyConnection.getClusterHealthStateFromCacheMonitor()).thenReturn(CacheMonitor.HealthState.HEALTHY);
+    doNothing().when(spyConnection).reportErrorToCacheMonitor(anyBoolean(), any(), any());
+
     byte[] value = "myValue".getBytes(StandardCharsets.UTF_8);
     when(mockReadConnPool.borrowObject()).thenReturn(mockConnection);
     when(mockConnection.sync()).thenReturn(mockSyncCommands);
     when(mockSyncCommands.get(any())).thenReturn(value);
-    byte[] result = cacheConnection.readFromCache("myQueryKey");
+    byte[] result = spyConnection.readFromCache("myQueryKey");
     assertEquals(value, result);
     verify(mockReadConnPool).borrowObject();
     verify(mockConnection).sync();
@@ -357,10 +392,14 @@ public class CacheConnectionTest {
 
   @Test
   void test_readFromCacheException() throws Exception {
+    CacheConnection spyConnection = spy(cacheConnection);
+    when(spyConnection.getClusterHealthStateFromCacheMonitor()).thenReturn(CacheMonitor.HealthState.HEALTHY);
+    doNothing().when(spyConnection).reportErrorToCacheMonitor(anyBoolean(), any(), any());
+
     when(mockReadConnPool.borrowObject()).thenReturn(mockConnection);
     when(mockConnection.sync()).thenReturn(mockSyncCommands);
     when(mockSyncCommands.get(any())).thenThrow(new RuntimeException("test"));
-    assertNull(cacheConnection.readFromCache("myQueryKey"));
+    assertNull(spyConnection.readFromCache("myQueryKey"));
     verify(mockReadConnPool).borrowObject();
     verify(mockConnection).sync();
     verify(mockSyncCommands).get(any());
@@ -457,6 +496,53 @@ public class CacheConnectionTest {
       f.set(null, null);
     }
   }
+
+  @Test
+  void testCacheMonitorIntegration() throws Exception {
+    CacheConnection spyConnection = spy(cacheConnection);
+    doNothing().when(spyConnection).reportErrorToCacheMonitor(anyBoolean(), any(), any());
+    doNothing().when(spyConnection).incrementInFlightSize(anyLong());
+    doNothing().when(spyConnection).decrementInFlightSize(anyLong());
+
+    String key = "myQueryKey";
+    byte[] value = "myValue".getBytes(StandardCharsets.UTF_8);
+
+    // DEGRADED state: operations bypassed
+    when(spyConnection.getClusterHealthStateFromCacheMonitor()).thenReturn(CacheMonitor.HealthState.DEGRADED);
+    spyConnection.writeToCache(key, value, 100);
+    assertNull(spyConnection.readFromCache(key));
+    verify(mockWriteConnPool, never()).borrowObject();
+    verify(mockReadConnPool, never()).borrowObject();
+
+    // HEALTHY state: operations proceed
+    when(spyConnection.getClusterHealthStateFromCacheMonitor()).thenReturn(CacheMonitor.HealthState.HEALTHY);
+    when(mockWriteConnPool.borrowObject()).thenReturn(mockConnection);
+    when(mockConnection.async()).thenReturn(mockAsyncCommands);
+    when(mockAsyncCommands.set(any(), any(), any())).thenReturn(mockCacheResult);
+    when(mockCacheResult.whenComplete(any(BiConsumer.class))).thenReturn(null);
+    spyConnection.writeToCache(key, value, 100);
+    verify(mockWriteConnPool).borrowObject();
+    verify(spyConnection).incrementInFlightSize(anyLong());
+
+    // Error reporting on read failure
+    when(mockReadConnPool.borrowObject()).thenReturn(mockConnection);
+    when(mockConnection.sync()).thenReturn(mockSyncCommands);
+    RuntimeException testException = new RuntimeException("Connection failed");
+    when(mockSyncCommands.get(any())).thenThrow(testException);
+    assertNull(spyConnection.readFromCache(key));
+    verify(spyConnection).reportErrorToCacheMonitor(eq(false), eq(testException), eq("READ"));
+
+    // failWhenCacheDown: throws SQLException
+    Properties props = new Properties();
+    props.setProperty("cacheEndpointAddrRw", "localhost:6379");
+    props.setProperty("failWhenCacheDown", "true");
+    CacheConnection failConnection = spy(new CacheConnection(props));
+    failConnection.setConnectionPools(mockReadConnPool, mockWriteConnPool);
+    when(failConnection.getClusterHealthStateFromCacheMonitor()).thenReturn(CacheMonitor.HealthState.DEGRADED);
+    SQLException exception = assertThrows(SQLException.class, () -> failConnection.readFromCache(key));
+    assertTrue(exception.getMessage().contains("Cache cluster is in DEGRADED state"));
+  }
+
 
   private Object getField(Object obj, String fieldName) throws Exception {
     Field field = obj.getClass().getDeclaredField(fieldName);
