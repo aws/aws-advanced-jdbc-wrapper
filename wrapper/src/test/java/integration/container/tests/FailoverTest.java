@@ -571,8 +571,6 @@ public class FailoverTest {
   @TestTemplate
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   @EnableOnNumOfInstances(min = 2)
-  // Multi-AZ tests already simulate this in other tests instead of sending server failover requests.
-  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_writerFailover_writerReelected() throws SQLException {
     final String initialWriterId = this.currentWriter;
     TestInstanceInfo initialWriterInstanceInfo =

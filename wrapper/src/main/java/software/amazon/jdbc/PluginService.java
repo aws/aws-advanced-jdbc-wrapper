@@ -156,15 +156,13 @@ public interface PluginService extends ExceptionHandler, Wrapper {
 
   boolean isInTransaction();
 
+  boolean isDialectConfirmed();
+
   HostListProvider getHostListProvider();
 
   void refreshHostList() throws SQLException;
 
-  void refreshHostList(Connection connection) throws SQLException;
-
   void forceRefreshHostList() throws SQLException;
-
-  void forceRefreshHostList(Connection connection) throws SQLException;
 
   /**
    * Initiates a topology update.

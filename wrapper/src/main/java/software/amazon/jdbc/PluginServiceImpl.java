@@ -66,12 +66,10 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   private static final Logger LOGGER = Logger.getLogger(PluginServiceImpl.class.getName());
   protected static final long DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(5);
+  protected static final int DEFAULT_TOPOLOGY_QUERY_TIMEOUT_MS = 5000;
 
   protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache = new CacheMap<>();
   protected final FullServicesContainer servicesContainer;
-
-  protected static final CacheMap<String, Object> statusesExpiringCache = new CacheMap<>();
-  protected static final long DEFAULT_STATUS_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(60);
 
   protected final ConnectionPluginManager pluginManager;
   private final Properties props;
@@ -83,6 +81,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected HostSpec currentHostSpec;
   protected HostSpec initialConnectionHostSpec;
   private boolean isInTransaction;
+  private boolean isDialectConfirmed;
   private final ExceptionManager exceptionManager;
   protected final @Nullable ExceptionHandler exceptionHandler;
   protected final DialectProvider dialectProvider;
@@ -483,6 +482,11 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
+  public boolean isDialectConfirmed() {
+    return this.isDialectConfirmed;
+  }
+
+  @Override
   public HostListProvider getHostListProvider() {
     return this.hostListProvider;
   }
@@ -497,30 +501,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public void refreshHostList(final Connection connection) throws SQLException {
-    final List<HostSpec> updatedHostList = this.getHostListProvider().refresh(connection);
-    if (!Objects.equals(updatedHostList, this.allHosts)) {
-      updateHostAvailability(updatedHostList);
-      setNodeList(this.allHosts, updatedHostList);
-    }
-  }
-
-  @Override
   public void forceRefreshHostList() throws SQLException {
-    final List<HostSpec> updatedHostList = this.getHostListProvider().forceRefresh();
-    if (updatedHostList != null) {
-      updateHostAvailability(updatedHostList);
-      setNodeList(this.allHosts, updatedHostList);
-    }
-  }
-
-  @Override
-  public void forceRefreshHostList(final Connection connection) throws SQLException {
-    final List<HostSpec> updatedHostList = this.getHostListProvider().forceRefresh(connection);
-    if (updatedHostList != null) {
-      updateHostAvailability(updatedHostList);
-      setNodeList(this.allHosts, updatedHostList);
-    }
+    this.forceRefreshHostList(false, DEFAULT_TOPOLOGY_QUERY_TIMEOUT_MS);
   }
 
   @Override
@@ -528,15 +510,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       throws SQLException {
 
     final HostListProvider hostListProvider = this.getHostListProvider();
-    if (!(hostListProvider instanceof BlockingHostListProvider)) {
-      throw new UnsupportedOperationException(
-          Messages.get("PluginServiceImpl.requiredBlockingHostListProvider",
-              new Object[]{hostListProvider.getClass().getName()}));
-    }
-
     try {
-      final List<HostSpec> updatedHostList =
-          ((BlockingHostListProvider) hostListProvider).forceRefresh(shouldVerifyWriter, timeoutMs);
+      final List<HostSpec> updatedHostList = hostListProvider.forceRefresh(shouldVerifyWriter, timeoutMs);
       if (updatedHostList != null) {
         updateHostAvailability(updatedHostList);
         setNodeList(this.allHosts, updatedHostList);
@@ -544,7 +519,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       }
     } catch (TimeoutException ex) {
       // do nothing.
-      LOGGER.finest(Messages.get("PluginServiceImpl.forceRefreshTimeout", new Object[]{timeoutMs}));
+      LOGGER.finest(Messages.get("PluginServiceImpl.forceRefreshTimeout", new Object[] {timeoutMs}));
     }
     return false;
   }
@@ -723,13 +698,18 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
         this.originalUrl,
         this.initialConnectionHostSpec,
         connection);
+    this.isDialectConfirmed = true;
     if (originalDialect == this.dialect) {
       return;
     }
 
+    updateHostListProvider();
+  }
+
+  protected void updateHostListProvider() throws SQLException {
     final HostListProviderSupplier supplier = this.dialect.getHostListProviderSupplier();
     this.setHostListProvider(supplier.getProvider(this.props, this.originalUrl, this.servicesContainer));
-    this.refreshHostList(connection);
+    this.refreshHostList();
   }
 
   @Override

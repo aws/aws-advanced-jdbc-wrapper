@@ -67,6 +67,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
 
   private static final Logger LOGGER = Logger.getLogger(PartialPluginService.class.getName());
   protected static final long DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(5);
+  protected static final int DEFAULT_TOPOLOGY_QUERY_TIMEOUT_MS = 5000;
 
   protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache = new CacheMap<>();
   protected final FullServicesContainer servicesContainer;
@@ -92,7 +93,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
       @NonNull final String originalUrl,
       @NonNull final String targetDriverProtocol,
       @NonNull final TargetDriverDialect targetDriverDialect,
-      @NonNull final Dialect dbDialect) {
+      @NonNull final Dialect dbDialect) throws SQLException {
     this(
         servicesContainer,
         new ExceptionManager(),
@@ -112,7 +113,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
       @NonNull final String targetDriverProtocol,
       @NonNull final TargetDriverDialect targetDriverDialect,
       @NonNull final Dialect dbDialect,
-      @Nullable final ConfigurationProfile configurationProfile) {
+      @Nullable final ConfigurationProfile configurationProfile) throws SQLException {
     this.servicesContainer = servicesContainer;
     this.servicesContainer.setHostListProviderService(this);
     this.servicesContainer.setPluginService(this);
@@ -362,6 +363,12 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
+  public boolean isDialectConfirmed() {
+    throw new UnsupportedOperationException(
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"isDialectConfirmed"}));
+  }
+
+  @Override
   public void setInTransaction(final boolean inTransaction) {
     this.isInTransaction = inTransaction;
   }
@@ -381,30 +388,8 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public void refreshHostList(final Connection connection) throws SQLException {
-    final List<HostSpec> updatedHostList = this.getHostListProvider().refresh(connection);
-    if (!Objects.equals(updatedHostList, this.allHosts)) {
-      updateHostAvailability(updatedHostList);
-      setNodeList(this.allHosts, updatedHostList);
-    }
-  }
-
-  @Override
   public void forceRefreshHostList() throws SQLException {
-    final List<HostSpec> updatedHostList = this.getHostListProvider().forceRefresh();
-    if (updatedHostList != null) {
-      updateHostAvailability(updatedHostList);
-      setNodeList(this.allHosts, updatedHostList);
-    }
-  }
-
-  @Override
-  public void forceRefreshHostList(final Connection connection) throws SQLException {
-    final List<HostSpec> updatedHostList = this.getHostListProvider().forceRefresh(connection);
-    if (updatedHostList != null) {
-      updateHostAvailability(updatedHostList);
-      setNodeList(this.allHosts, updatedHostList);
-    }
+    this.forceRefreshHostList(false, DEFAULT_TOPOLOGY_QUERY_TIMEOUT_MS);
   }
 
   @Override
@@ -412,15 +397,8 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
       throws SQLException {
 
     final HostListProvider hostListProvider = this.getHostListProvider();
-    if (!(hostListProvider instanceof BlockingHostListProvider)) {
-      throw new UnsupportedOperationException(
-          Messages.get("PluginServiceImpl.requiredBlockingHostListProvider",
-              new Object[] {hostListProvider.getClass().getName()}));
-    }
-
     try {
-      final List<HostSpec> updatedHostList =
-          ((BlockingHostListProvider) hostListProvider).forceRefresh(shouldVerifyWriter, timeoutMs);
+      final List<HostSpec> updatedHostList = hostListProvider.forceRefresh(shouldVerifyWriter, timeoutMs);
       if (updatedHostList != null) {
         updateHostAvailability(updatedHostList);
         setNodeList(this.allHosts, updatedHostList);
