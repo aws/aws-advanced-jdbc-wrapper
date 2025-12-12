@@ -36,6 +36,7 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
   private static final Logger LOGGER = Logger.getLogger(ConnectionStringHostListProvider.class.getName());
 
   final List<HostSpec> hostList = new ArrayList<>();
+  private boolean isInitialized = false;
   private final boolean isSingleWriterConnectionString;
   private final ConnectionUrlParser connectionUrlParser;
   private final String initialUrl;
@@ -51,7 +52,7 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
   public ConnectionStringHostListProvider(
       final @NonNull Properties properties,
       final String initialUrl,
-      final @NonNull HostListProviderService hostListProviderService) throws SQLException {
+      final @NonNull HostListProviderService hostListProviderService) {
     this(properties, initialUrl, hostListProviderService, new ConnectionUrlParser());
   }
 
@@ -59,13 +60,18 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
       final @NonNull Properties properties,
       final String initialUrl,
       final @NonNull HostListProviderService hostListProviderService,
-      final @NonNull ConnectionUrlParser connectionUrlParser) throws SQLException {
+      final @NonNull ConnectionUrlParser connectionUrlParser) {
 
     this.isSingleWriterConnectionString = SINGLE_WRITER_CONNECTION_STRING.getBoolean(properties);
     this.initialUrl = initialUrl;
     this.connectionUrlParser = connectionUrlParser;
     this.hostListProviderService = hostListProviderService;
+  }
 
+  private void init() throws SQLException {
+    if (this.isInitialized) {
+      return;
+    }
     this.hostList.addAll(
         this.connectionUrlParser.getHostsFromConnectionUrl(this.initialUrl, this.isSingleWriterConnectionString,
             this.hostListProviderService::getHostSpecBuilder));
@@ -75,26 +81,31 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
     }
 
     this.hostListProviderService.setInitialConnectionHostSpec(this.hostList.get(0));
+    this.isInitialized = true;
   }
 
   @Override
-  public List<HostSpec> getCurrentTopology(Connection conn, HostSpec initialHostSpec) {
+  public List<HostSpec> getCurrentTopology(Connection conn, HostSpec initialHostSpec) throws SQLException {
+    init();
     return Collections.unmodifiableList(hostList);
   }
 
   @Override
   public List<HostSpec> refresh() throws SQLException {
+    init();
     return Collections.unmodifiableList(hostList);
   }
 
   @Override
   public List<HostSpec> forceRefresh() throws SQLException {
+    init();
     return Collections.unmodifiableList(hostList);
   }
 
   @Override
   public List<HostSpec> forceRefresh(boolean shouldVerifyWriter, long timeoutMs)
       throws SQLException, TimeoutException {
+    init();
     return this.forceRefresh();
   }
 
@@ -110,7 +121,7 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
   }
 
   @Override
-  public String getClusterId() {
+  public String getClusterId() throws UnsupportedOperationException {
     return "<none>";
   }
 }
