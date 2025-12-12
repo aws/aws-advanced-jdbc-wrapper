@@ -107,10 +107,9 @@ class RdsHostListProviderTest {
     closeable.close();
   }
 
-  private RdsHostListProvider getRdsHostListProvider(String originalUrl) throws SQLException {
-    RdsHostListProvider provider = new RdsHostListProvider(
+  private RdsHostListProvider getRdsHostListProvider(String originalUrl) {
+    return new RdsHostListProvider(
         mockTopologyUtils, new Properties(), originalUrl, mockServicesContainer);
-    return provider;
   }
 
   @Test
@@ -123,7 +122,7 @@ class RdsHostListProviderTest {
     final FetchTopologyResult result = rdsHostListProvider.getTopology();
     assertEquals(expected, result.hosts);
     assertEquals(2, result.hosts.size());
-    verify(rdsHostListProvider, never()).refreshMonitor();
+    verify(rdsHostListProvider, never()).getFreshTopology(anyBoolean(), anyLong());
   }
 
   @Test
@@ -141,7 +140,7 @@ class RdsHostListProviderTest {
         eq(mockConnection), any(HostSpec.class), any(HostSpec.class));
 
     final FetchTopologyResult result = rdsHostListProvider.getTopology();
-    verify(rdsHostListProvider, atMostOnce()).refreshMonitor();
+    verify(rdsHostListProvider, atMostOnce()).getFreshTopology(anyBoolean(), anyLong());
     assertEquals(1, result.hosts.size());
     assertEquals(newHosts, result.hosts);
   }
@@ -154,10 +153,10 @@ class RdsHostListProviderTest {
     final List<HostSpec> expected = hosts;
     storageService.set(rdsHostListProvider.clusterId, new Topology(expected));
 
-    doReturn(new ArrayList<>()).when(rdsHostListProvider).refreshMonitor();
+    doReturn(new ArrayList<>()).when(rdsHostListProvider).getFreshTopology(anyBoolean(), anyLong());
 
     final FetchTopologyResult result = rdsHostListProvider.getTopology();
-    verify(rdsHostListProvider, atMostOnce()).refreshMonitor();
+    verify(rdsHostListProvider, atMostOnce()).getFreshTopology(anyBoolean(), anyLong());
     assertEquals(2, result.hosts.size());
     assertEquals(expected, result.hosts);
   }
@@ -167,10 +166,10 @@ class RdsHostListProviderTest {
     rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
     rdsHostListProvider.clear();
 
-    doReturn(new ArrayList<>()).when(rdsHostListProvider).refreshMonitor();
+    doReturn(new ArrayList<>()).when(rdsHostListProvider).getFreshTopology(anyBoolean(), anyLong());
 
     final FetchTopologyResult result = rdsHostListProvider.getTopology();
-    verify(rdsHostListProvider, atMostOnce()).refreshMonitor();
+    verify(rdsHostListProvider, atMostOnce()).getFreshTopology(anyBoolean(), anyLong());
     assertNotNull(result.hosts);
     assertEquals(
         Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("url").build()),
@@ -195,11 +194,11 @@ class RdsHostListProviderTest {
 
     rdsHostListProvider = getRdsHostListProvider("mysql://url/");
 
-    List<HostSpec> hosts = rdsHostListProvider.refreshMonitor();
+    List<HostSpec> hosts = rdsHostListProvider.getFreshTopology(anyBoolean(), anyLong());
     assertEquals(expectedMySQL, hosts);
 
     rdsHostListProvider = getRdsHostListProvider("postgresql://url/");
-    hosts = rdsHostListProvider.refreshMonitor();
+    hosts = rdsHostListProvider.getFreshTopology(anyBoolean(), anyLong());
     assertEquals(expectedPostgres, hosts);
   }
 
