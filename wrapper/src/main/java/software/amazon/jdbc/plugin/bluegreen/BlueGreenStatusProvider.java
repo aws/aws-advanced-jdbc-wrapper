@@ -490,11 +490,6 @@ public class BlueGreenStatusProvider {
           x.setUseIpAddress(false);
           x.resetCollectedData();
         });
-
-        // Stop monitoring old1 cluster/instance.
-        if (!this.rollback && monitors[BlueGreenRole.SOURCE.getValue()] != null) {
-          monitors[BlueGreenRole.SOURCE.getValue()].setStop(true);
-        }
         break;
       default:
         throw new UnsupportedOperationException(Messages.get("bgd.unknownPhase",
@@ -1100,6 +1095,17 @@ public class BlueGreenStatusProvider {
 
     if (switchoverCompleted && hasActiveSwitchoverPhases) {
       LOGGER.finest(Messages.get("bgd.resetContext"));
+      final BlueGreenStatusMonitor sourceMonitor = this.monitors[BlueGreenRole.SOURCE.getValue()];
+      this.monitors[BlueGreenRole.SOURCE.getValue()] = null;
+      if (sourceMonitor != null) {
+        sourceMonitor.setStop(true);
+      }
+      final BlueGreenStatusMonitor targetMonitor = this.monitors[BlueGreenRole.TARGET.getValue()];
+      this.monitors[BlueGreenRole.TARGET.getValue()] = null;
+      if (targetMonitor != null) {
+        targetMonitor.setStop(true);
+      }
+
       this.rollback = false;
       this.summaryStatus = null;
       this.latestStatusPhase = BlueGreenPhase.NOT_CREATED;
@@ -1119,6 +1125,8 @@ public class BlueGreenStatusProvider {
       this.greenNodeChangeNameTimes.clear();
       this.monitorResetOnInProgressCompleted.set(false);
       this.monitorResetOnTopologyCompleted.set(false);
+
+      this.initMonitoring();
     }
   }
 
