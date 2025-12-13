@@ -31,6 +31,7 @@ import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.hostlistprovider.TopologyUtils;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.events.MonitorStopEvent;
 
 public class MonitoringRdsHostListProvider
     extends RdsHostListProvider implements BlockingHostListProvider, CanReleaseResources {
@@ -105,5 +106,10 @@ public class MonitoringRdsHostListProvider
   @Override
   public void releaseResources() {
     // Do nothing.
+  }
+
+  public void stopMonitor() {
+    this.servicesContainer.getEventPublisher().publish(
+        new MonitorStopEvent(ClusterTopologyMonitorImpl.class, this.clusterId));
   }
 }

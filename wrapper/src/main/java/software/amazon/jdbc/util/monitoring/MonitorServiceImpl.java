@@ -47,6 +47,7 @@ import software.amazon.jdbc.util.events.DataAccessEvent;
 import software.amazon.jdbc.util.events.Event;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.events.EventSubscriber;
+import software.amazon.jdbc.util.events.MonitorStopEvent;
 import software.amazon.jdbc.util.storage.ExternallyManagedCache;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -380,6 +381,12 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
         // monitor's expiration.
         container.getCache().extendExpiration(accessEvent.getKey());
       }
+      return;
+    }
+
+    if (event instanceof MonitorStopEvent) {
+      MonitorStopEvent stopEvent = (MonitorStopEvent) event;
+      this.stopAndRemove(stopEvent.getMonitorClass(), stopEvent.getKey());
       return;
     }
 
