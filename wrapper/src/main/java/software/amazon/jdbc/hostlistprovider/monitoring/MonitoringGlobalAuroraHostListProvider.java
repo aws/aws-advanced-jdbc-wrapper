@@ -28,10 +28,8 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.GlobalAuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.GlobalAuroraTopologyUtils;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.LogUtils;
-import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.events.MonitorStopEvent;
 
 public class MonitoringGlobalAuroraHostListProvider extends MonitoringRdsHostListProvider {
 
@@ -87,5 +85,11 @@ public class MonitoringGlobalAuroraHostListProvider extends MonitoringRdsHostLis
   @Override
   protected List<HostSpec> queryForTopology(Connection connection) throws SQLException {
     return this.topologyUtils.queryForTopology(connection, this.initialHostSpec, this.instanceTemplatesByRegion);
+  }
+
+  @Override
+  public void stopMonitor() {
+    this.servicesContainer.getEventPublisher().publish(
+        new MonitorStopEvent(GlobalAuroraTopologyMonitor.class, this.clusterId));
   }
 }
