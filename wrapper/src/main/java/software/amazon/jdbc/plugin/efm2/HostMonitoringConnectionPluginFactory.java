@@ -21,7 +21,6 @@ import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 
-/** Class initializing a {@link HostMonitoringConnectionPlugin}. */
 public class HostMonitoringConnectionPluginFactory implements ConnectionPluginFactory {
 
   @Override
