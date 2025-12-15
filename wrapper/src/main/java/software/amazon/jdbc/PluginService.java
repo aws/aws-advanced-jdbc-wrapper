@@ -234,6 +234,9 @@ public interface PluginService extends ExceptionHandler, Wrapper {
 
   ConnectionProvider getDefaultConnectionProvider();
 
+  @Deprecated
+  boolean isPooledConnectionProvider(HostSpec host, Properties props);
+
   String getDriverProtocol();
 
   Properties getProperties();
