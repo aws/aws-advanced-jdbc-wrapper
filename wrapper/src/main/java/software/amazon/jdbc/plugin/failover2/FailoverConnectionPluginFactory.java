@@ -19,12 +19,12 @@ package software.amazon.jdbc.plugin.failover2;
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionPluginFactory;
-import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.FullServicesContainer;
 
 public class FailoverConnectionPluginFactory implements ConnectionPluginFactory {
 
   @Override
-  public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
-    return new FailoverConnectionPlugin(pluginService, props);
+  public ConnectionPlugin getInstance(FullServicesContainer servicesContainer, Properties props) {
+    return new FailoverConnectionPlugin(servicesContainer.getPluginService(), props);
   }
 }

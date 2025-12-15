@@ -28,6 +28,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 > #### Deprecated Configuration Parameters Removal
 > Deprecated configuration parameters `keepSessionStateOnFailover` and `enableFailoverStrictReader` are now removed in 3.0. If you used these two parameters along with the Failover Connection Plugin, please review the changes from [PR #1577](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1577) for the proper replacements.
 
+> [!WARNING]\
+> 3.0 removes the ConnectionPluginFactory#getInstance(PluginService, Properties) method ([PR #1633](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1633)).
+> #### ConnectionPluginFactory#getInstance(PluginService, Properties) Removal
+> The ConnectionPluginFactory#getInstance(PluginService, Properties) method has now been removed.
+> The ConnectionPluginFactory#getInstance(FullServicesContainer, Properties) method should be used instead.
+> The code below shows a short example of how to migrate from the removed method to the replacement method for users
+> that have created their own ConnectionPluginFactory classes.
+> #### Migration
+> ```java
+> public class FooPluginFactory implements ConnectionPluginFactory {
+>     ConnectionPlugin getInstance(FullServicesContainer servicesContainer, Properties props) {
+>         return new FooPlugin(servicesContainer.getPluginService(), props);
+>     }
+> }
+> ```
+
 
 ### :bug: Fixed
 - Incorrect nodeId in HostSpec for RDS Multi-AZ cluster ([PR #1579](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1579)).
