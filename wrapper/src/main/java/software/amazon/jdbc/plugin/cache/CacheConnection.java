@@ -35,6 +35,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
@@ -152,9 +153,10 @@ public class CacheConnection {
           "Whether to throw SQLException on cache failures under Degraded mode.");
 
   // Adding support for read and write connection pools to the remote cache server
-  private static volatile GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readConnectionPool;
-  private static volatile GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writeConnectionPool;
-  private static final GenericObjectPoolConfig<StatefulRedisConnection<byte[], byte[]>> poolConfig = createPoolConfig();
+  private volatile GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readConnectionPool;
+  private volatile GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writeConnectionPool;
+  // Cache endpoint registry to hold connection pools for multi end points
+  private static final ConcurrentHashMap<String, GenericObjectPool<StatefulRedisConnection<byte[], byte[]>>> endpointToPoolRegistry = new ConcurrentHashMap<>();
 
   private final boolean useSSL;
   private final boolean iamAuthEnabled;
@@ -232,9 +234,6 @@ public class CacheConnection {
       throw new IllegalArgumentException(
           "Cache connection pool size must be within valid range: 1-" + DEFAULT_MAX_POOL_SIZE + ", but was: " + this.cacheConnectionPoolSize);
     }
-    // Update the static poolConfig with user values
-    poolConfig.setMaxTotal(this.cacheConnectionPoolSize);
-    poolConfig.setMaxIdle(this.cacheConnectionPoolSize);
     this.failWhenCacheDown = FAIL_WHEN_CACHE_DOWN.getBoolean(properties);
     this.iamAuthEnabled = !StringUtils.isNullOrEmpty(this.cacheIamRegion);
     boolean hasTraditionalAuth = !StringUtils.isNullOrEmpty(this.cachePassword);
@@ -310,12 +309,12 @@ public class CacheConnection {
     }
 
     GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> cacheConnectionPool =
-        isRead ? readConnectionPool : writeConnectionPool;
+        isRead ? this.readConnectionPool : this.writeConnectionPool;
     if (cacheConnectionPool == null) {
       ReentrantLock connectionPoolLock = isRead ? READ_LOCK : WRITE_LOCK;
       connectionPoolLock.lock();
       try {
-        if ((isRead && readConnectionPool == null) || (!isRead && writeConnectionPool == null)) {
+        if ((isRead && this.readConnectionPool == null) || (!isRead && this.writeConnectionPool == null)) {
           createConnectionPool(isRead);
         }
       } finally {
@@ -335,20 +334,32 @@ public class CacheConnection {
       String[] hostnameAndPort = getHostnameAndPort(serverAddr);
       RedisURI redisUri = buildRedisURI(hostnameAndPort[0], Integer.parseInt(hostnameAndPort[1]));
 
-      GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> pool = new GenericObjectPool<>(
-          new BasePooledObjectFactory<StatefulRedisConnection<byte[], byte[]>>() {
-            public StatefulRedisConnection<byte[], byte[]> create() {
-              return CacheConnection.createRedisConnection(isRead, redisUri);
-            }
-            public PooledObject<StatefulRedisConnection<byte[], byte[]>> wrap(StatefulRedisConnection<byte[], byte[]> connection) {
-              return new DefaultPooledObject<>(connection);
-            }
-          }, poolConfig);
+      // Appending RW and RO tag to the server address to make it unique in case RO and RW has same endpoint
+      String poolKey = (isRead ? "RO:" : "RW:") + serverAddr;
+      GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> pool = endpointToPoolRegistry.get(poolKey);
+
+      if (pool == null) {
+        GenericObjectPoolConfig<StatefulRedisConnection<byte[], byte[]>> poolConfig = createPoolConfig();
+        poolConfig.setMaxTotal(this.cacheConnectionPoolSize);
+        poolConfig.setMaxIdle(this.cacheConnectionPoolSize);
+
+        pool = endpointToPoolRegistry.computeIfAbsent(poolKey, k ->
+            new GenericObjectPool<>(
+                new BasePooledObjectFactory<StatefulRedisConnection<byte[], byte[]>>() {
+                  public StatefulRedisConnection<byte[], byte[]> create() {
+                    return CacheConnection.createRedisConnection(isRead, redisUri);
+                  }
+                  public PooledObject<StatefulRedisConnection<byte[], byte[]>> wrap(StatefulRedisConnection<byte[], byte[]> connection) {
+                    return new DefaultPooledObject<>(connection);
+                  }
+                }, poolConfig)
+        );
+      }
 
       if (isRead) {
-        readConnectionPool = pool;
+        this.readConnectionPool = pool;
       } else {
-        writeConnectionPool = pool;
+        this.writeConnectionPool = pool;
       }
     } catch (Exception e) {
       String poolType = isRead ? "read" : "write";
@@ -479,7 +490,7 @@ public class CacheConnection {
     // get a connection from the read connection pool
     try {
       initializeCacheConnectionIfNeeded(true);
-      conn = readConnectionPool.borrowObject();
+      conn = this.readConnectionPool.borrowObject();
       return conn.sync().get(computeHashDigest(key.getBytes(StandardCharsets.UTF_8)));
     } catch (Exception e) {
       if (conn != null) {
@@ -490,7 +501,7 @@ public class CacheConnection {
       LOGGER.warning("Failed to read result from cache. Treating it as a cache miss: " + e.getMessage());
       return null;
     } finally {
-      if (conn != null && readConnectionPool != null) {
+      if (conn != null && this.readConnectionPool != null) {
         try {
           this.returnConnectionBackToPool(conn, isBroken, true);
         } catch (Exception ex) {
@@ -508,7 +519,7 @@ public class CacheConnection {
     if (ex != null) {
       // Report error to CacheMonitor for RW endpoint
       reportErrorToCacheMonitor(true, ex, "WRITE");
-      if (writeConnectionPool != null) {
+      if (this.writeConnectionPool != null) {
         try {
           returnConnectionBackToPool(conn, true, false);
         } catch (Exception e) {
@@ -516,7 +527,7 @@ public class CacheConnection {
         }
       }
     } else {
-      if (writeConnectionPool != null) {
+      if (this.writeConnectionPool != null) {
         try {
           returnConnectionBackToPool(conn, false, false);
         } catch (Exception e) {
@@ -544,7 +555,7 @@ public class CacheConnection {
       incrementInFlightSize(writeSize);
 
       try {
-        conn = writeConnectionPool.borrowObject();
+        conn = this.writeConnectionPool.borrowObject();
       } catch (Exception borrowException) {
         // Connection borrow failed (timeout/pool exhaustion) - decrement immediately
         decrementInFlightSize(writeSize);
@@ -562,7 +573,7 @@ public class CacheConnection {
       // Connection failed, but we already incremented and will be able to detect shard level failures
       reportErrorToCacheMonitor(true, e, "WRITE");
 
-      if (conn != null && writeConnectionPool != null) {
+      if (conn != null && this.writeConnectionPool != null) {
         try {
           returnConnectionBackToPool(conn, true, false);
         } catch (Exception ex) {
@@ -573,7 +584,7 @@ public class CacheConnection {
   }
 
   private void returnConnectionBackToPool(StatefulRedisConnection <byte[], byte[]> connection, boolean isConnectionBroken, boolean isRead) {
-    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> pool = isRead ? readConnectionPool : writeConnectionPool;
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> pool = isRead ? this.readConnectionPool : this.writeConnectionPool;
     if (isConnectionBroken) {
       try {
         pool.invalidateObject(connection);
@@ -620,8 +631,8 @@ public class CacheConnection {
   // Used for unit testing only
   protected void setConnectionPools(GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readPool,
       GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writePool) {
-    readConnectionPool = readPool;
-    writeConnectionPool = writePool;
+    this.readConnectionPool = readPool;
+    this.writeConnectionPool = writePool;
   }
 
   // Used for unit testing only

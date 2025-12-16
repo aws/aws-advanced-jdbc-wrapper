@@ -408,7 +408,7 @@ public class CacheConnectionTest {
 
   @Test
   void test_cacheConnectionPoolSize_default() throws Exception {
-    clearStaticPools();
+    clearStaticRegistry();
 
     Properties props = new Properties();
     props.setProperty("cacheEndpointAddrRw", "localhost:6379");
@@ -420,8 +420,8 @@ public class CacheConnectionTest {
     connection.triggerPoolInit(true);
     connection.triggerPoolInit(false);
 
-    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readPool  = getStaticPool("readConnectionPool");
-    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writePool = getStaticPool("writeConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readPool  = getInstancePool(connection,"readConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writePool = getInstancePool(connection, "writeConnectionPool");
 
     assertNotNull(readPool, "read pool should be created");
     assertNotNull(writePool, "write pool should be created");
@@ -436,7 +436,7 @@ public class CacheConnectionTest {
 
   @Test
   void test_cacheConnectionPoolSize_Initialization() throws Exception {
-    clearStaticPools();
+    clearStaticRegistry();
 
     Properties props = new Properties();
     props.setProperty("cacheEndpointAddrRw", "localhost:6379");
@@ -449,8 +449,8 @@ public class CacheConnectionTest {
     connection.triggerPoolInit(true);
     connection.triggerPoolInit(false);
 
-    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readPool  = getStaticPool("readConnectionPool");
-    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writePool = getStaticPool("writeConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readPool  = getInstancePool(connection,"readConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writePool = getInstancePool(connection, "writeConnectionPool");
 
     assertNotNull(readPool, "read pool should be created");
     assertNotNull(writePool, "write pool should be created");
@@ -483,18 +483,18 @@ public class CacheConnectionTest {
   }
 
   @SuppressWarnings("unchecked")
-  private static GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> getStaticPool(String field) throws Exception {
-    Field f = CacheConnection.class.getDeclaredField(field);
+  private static GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> getInstancePool(CacheConnection connection, String fieldName) throws Exception {
+    Field f = CacheConnection.class.getDeclaredField(fieldName);
     f.setAccessible(true);
-    return (GenericObjectPool<StatefulRedisConnection<byte[], byte[]>>) f.get(null);
+    return (GenericObjectPool<StatefulRedisConnection<byte[], byte[]>>) f.get(connection);
   }
 
-  private static void clearStaticPools() throws Exception {
-    for (String fieldName : new String[]{"readConnectionPool", "writeConnectionPool"}) {
-      Field f = CacheConnection.class.getDeclaredField(fieldName);
-      f.setAccessible(true);
-      f.set(null, null);
-    }
+  private static void clearStaticRegistry() throws Exception {
+    Field registryField = CacheConnection.class.getDeclaredField("endpointToPoolRegistry");
+    registryField.setAccessible(true);
+    java.util.concurrent.ConcurrentHashMap<?, ?> registry =
+        (java.util.concurrent.ConcurrentHashMap<?, ?>) registryField.get(null);
+    registry.clear();
   }
 
   @Test
@@ -543,6 +543,107 @@ public class CacheConnectionTest {
     assertTrue(exception.getMessage().contains("Cache cluster is in DEGRADED state"));
   }
 
+  @Test
+  void test_multiEndpoint_PoolReuseAndIsolation() throws Exception {
+    clearStaticRegistry();
+
+    // Test 1: Same endpoints should reuse pools (first wins)
+    Properties props1 = new Properties();
+    props1.setProperty("cacheEndpointAddrRw", "localhost:6379");
+    props1.setProperty("cacheEndpointAddrRo", "localhost:6380");
+    props1.setProperty("cacheConnectionPoolSize", "10");
+
+    Properties props2 = new Properties();
+    props2.setProperty("cacheEndpointAddrRw", "localhost:6379");
+    props2.setProperty("cacheEndpointAddrRo", "localhost:6380");
+    props2.setProperty("cacheConnectionPoolSize", "15");
+
+    CacheConnection connection1 = new CacheConnection(props1);
+    CacheConnection connection2 = new CacheConnection(props2);
+
+    connection1.triggerPoolInit(true);
+    connection1.triggerPoolInit(false);
+    connection2.triggerPoolInit(true);
+    connection2.triggerPoolInit(false);
+
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readPool1 = getInstancePool(connection1, "readConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readPool2 = getInstancePool(connection2, "readConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writePool1 = getInstancePool(connection1, "writeConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writePool2 = getInstancePool(connection2, "writeConnectionPool");
+
+    assertSame(readPool1, readPool2, "Read pools should be the same instance");
+    assertSame(writePool1, writePool2, "Write pools should be the same instance");
+    assertEquals(10, readPool1.getMaxTotal(), "Pool size should be 10 (first initialized)");
+    assertEquals(10, writePool1.getMaxTotal(), "Pool size should be 10 (first initialized)");
+
+    // Test 2: Different endpoints should have isolated pools
+    Properties props3 = new Properties();
+    props3.setProperty("cacheEndpointAddrRw", "localhost:7379");
+    props3.setProperty("cacheEndpointAddrRo", "localhost:7380");
+    props3.setProperty("cacheConnectionPoolSize", "20");
+
+    CacheConnection connection3 = new CacheConnection(props3);
+    connection3.triggerPoolInit(true);
+    connection3.triggerPoolInit(false);
+
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readPool3 = getInstancePool(connection3, "readConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writePool3 = getInstancePool(connection3, "writeConnectionPool");
+
+    assertNotSame(readPool1, readPool3, "Read pools should be different instances");
+    assertNotSame(writePool1, writePool3, "Write pools should be different instances");
+    assertEquals(20, readPool3.getMaxTotal());
+    assertEquals(20, writePool3.getMaxTotal());
+
+    // Test 3: Same RW endpoint, different RO endpoints (or no RO)
+    Properties props4 = new Properties();
+    props4.setProperty("cacheEndpointAddrRw", "localhost:6379");
+
+    CacheConnection connection4 = new CacheConnection(props4);
+    connection4.triggerPoolInit(false);
+    connection4.triggerPoolInit(true);
+
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writePool4 = getInstancePool(connection4, "writeConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readPool4 = getInstancePool(connection4, "readConnectionPool");
+
+    assertSame(writePool1, writePool4, "Write pools should be shared for same RW endpoint");
+    assertEquals(10, writePool4.getMaxTotal(), "Connection pool size should not be changed.");
+    assertNotSame(readPool1, readPool4, "Read pools should be different for different RO endpoints");
+  }
+
+  @Test
+  void test_multiEndpoint_ConcurrentInitialization() throws Exception {
+    clearStaticRegistry();
+
+    Properties props = new Properties();
+    props.setProperty("cacheEndpointAddrRw", "localhost:6379");
+    props.setProperty("cacheConnectionPoolSize", "10");
+
+    CacheConnection connection1 = new CacheConnection(props);
+    CacheConnection connection2 = new CacheConnection(props);
+    CacheConnection connection3 = new CacheConnection(props);
+
+    // Simulate concurrent initialization
+    Thread t1 = new Thread(() -> connection1.triggerPoolInit(false));
+    Thread t2 = new Thread(() -> connection2.triggerPoolInit(false));
+    Thread t3 = new Thread(() -> connection3.triggerPoolInit(false));
+
+    t1.start();
+    t2.start();
+    t3.start();
+
+    t1.join();
+    t2.join();
+    t3.join();
+
+    // All should reference the same pool
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> pool1 = getInstancePool(connection1, "writeConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> pool2 = getInstancePool(connection2, "writeConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> pool3 = getInstancePool(connection3, "writeConnectionPool");
+
+    assertSame(pool1, pool2);
+    assertSame(pool2, pool3);
+    assertEquals(10, pool1.getMaxTotal());
+  }
 
   private Object getField(Object obj, String fieldName) throws Exception {
     Field field = obj.getClass().getDeclaredField(fieldName);
