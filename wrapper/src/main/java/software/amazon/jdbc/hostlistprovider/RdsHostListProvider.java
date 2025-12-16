@@ -167,8 +167,6 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
   }
 
   protected ClusterTopologyMonitor getOrCreateMonitor() throws SQLException {
-    ClusterTopologyMonitor monitor = this.servicesContainer.getMonitorService()
-        .get(ClusterTopologyMonitorImpl.class, this.clusterId);
     return this.servicesContainer.getMonitorService().runIfAbsent(
         ClusterTopologyMonitorImpl.class,
         this.clusterId,
@@ -194,7 +192,7 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
   protected List<HostSpec> getFreshTopology(boolean shouldVerifyWriter, long timeoutMs) throws SQLException {
     ClusterTopologyMonitor monitor = this.getOrCreateMonitor();
     try {
-      return monitor.forceRefresh(false, DEFAULT_TOPOLOGY_QUERY_TIMEOUT_MS);
+      return monitor.forceRefresh(shouldVerifyWriter, timeoutMs);
     } catch (TimeoutException ex) {
       return null;
     }
