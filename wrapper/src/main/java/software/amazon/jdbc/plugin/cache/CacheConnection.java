@@ -22,10 +22,14 @@ import io.lettuce.core.RedisCredentialsProvider;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.RedisCommandExecutionException;
 import io.lettuce.core.SetArgs;
+import io.lettuce.core.api.StatefulConnection;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.async.RedisAsyncCommands;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.resource.ClientResources;
+import io.lettuce.core.cluster.RedisClusterClient;
+import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
+import io.lettuce.core.cluster.api.async.RedisAdvancedClusterAsyncCommands;
 import reactor.core.publisher.Mono;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -84,8 +88,7 @@ public class CacheConnection {
   private static final long DEFAULT_MAX_BORROW_WAIT_MS = 100;
   private static final long TOKEN_CACHE_DURATION = 15 * 60 - 30;
 
-  private static final ReentrantLock READ_LOCK = new ReentrantLock();
-  private static final ReentrantLock WRITE_LOCK = new ReentrantLock();
+  private static final ReentrantLock connectionInitializationLock = new ReentrantLock();
 
   private final String cacheRwServerAddr; // read-write cache server
   private final String cacheRoServerAddr; // read-only cache server
@@ -153,10 +156,10 @@ public class CacheConnection {
           "Whether to throw SQLException on cache failures under Degraded mode.");
 
   // Adding support for read and write connection pools to the remote cache server
-  private volatile GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readConnectionPool;
-  private volatile GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writeConnectionPool;
+  private volatile GenericObjectPool<StatefulConnection<byte[], byte[]>> readConnectionPool;
+  private volatile GenericObjectPool<StatefulConnection<byte[], byte[]>> writeConnectionPool;
   // Cache endpoint registry to hold connection pools for multi end points
-  private static final ConcurrentHashMap<String, GenericObjectPool<StatefulRedisConnection<byte[], byte[]>>> endpointToPoolRegistry = new ConcurrentHashMap<>();
+  private static final ConcurrentHashMap<String, GenericObjectPool<StatefulConnection<byte[], byte[]>>> endpointToPoolRegistry = new ConcurrentHashMap<>();
 
   private final boolean useSSL;
   private final boolean iamAuthEnabled;
@@ -173,18 +176,20 @@ public class CacheConnection {
   private final long inFlightWriteSizeLimitBytes;
   private final boolean healthCheckInHealthyState;
   private volatile boolean cacheMonitorRegistered = false;
+  private volatile Boolean isClusterMode = null; // null = not yet detected, true = CME, false = CMD
 
   static {
     PropertyDefinition.registerPluginProperties(CacheConnection.class);
   }
 
   /**
-   * Wraps a StatefulRedisConnection and exposes only ping functionality.
+   * Wraps a StatefulConnection (either StatefulRedisConnection or StatefulRedisClusterConnection)
+   * and exposes only ping functionality.
    */
   private static class PingConnection implements CachePingConnection {
-    private final StatefulRedisConnection<byte[], byte[]> connection;
+    private final StatefulConnection<byte[], byte[]> connection;
 
-    PingConnection(StatefulRedisConnection<byte[], byte[]> connection) {
+    PingConnection(StatefulConnection<byte[], byte[]> connection) {
       this.connection = connection;
     }
 
@@ -194,7 +199,14 @@ public class CacheConnection {
         if (!connection.isOpen()) {
           return false;
         }
-        String result = connection.sync().ping();
+
+        // Cast to appropriate type to access sync() method
+        String result;
+        if (connection instanceof StatefulRedisClusterConnection) {
+          result = ((StatefulRedisClusterConnection<byte[], byte[]>) connection).sync().ping();
+        } else {
+          result = ((StatefulRedisConnection<byte[], byte[]>) connection).sync().ping();
+        }
         return "PONG".equalsIgnoreCase(result);
       } catch (Exception e) {
         return false;
@@ -276,80 +288,129 @@ public class CacheConnection {
     this(properties, null);
   }
 
+  /**
+   * Detects whether the Redis endpoint is running in cluster mode by executing INFO command.
+   * Caches the result to avoid repeated detection. The caller of this function needs to hold a lock for thread safety.
+   */
+  private void detectClusterMode() {
+    if (this.isClusterMode != null) {
+      return;
+    }
+
+    String[] hostnameAndPort = getHostnameAndPort(this.cacheRwServerAddr);
+    RedisURI redisUri = buildRedisURI(hostnameAndPort[0], Integer.parseInt(hostnameAndPort[1]));
+
+    ClientResources resources = ClientResources.builder().build();
+
+    try (RedisClient client = RedisClient.create(resources, redisUri);
+         StatefulRedisConnection<byte[], byte[]> conn = client.connect(new ByteArrayCodec())) {
+
+      String infoOutput = conn.sync().info("cluster");
+      boolean clusterEnabled = false;
+      if (infoOutput != null) {
+        // Parse the INFO output line by line
+        for (String line : infoOutput.split("\r?\n")) {
+          if (line.startsWith("cluster_enabled:")) {
+            String value = line.substring("cluster_enabled:".length()).trim();
+            clusterEnabled = "1".equals(value);
+            break;
+          }
+        }
+      }
+      this.isClusterMode = clusterEnabled;
+      // TODO: remove this log in final version
+      LOGGER.info("Detected cache mode: " + (this.isClusterMode ? "CLUSTER" : "STANDALONE")
+          + " for endpoint " + hostnameAndPort[0] + ":" + hostnameAndPort[1]);
+
+    } catch (Exception e) {
+      LOGGER.warning("Failed to detect cluster mode, defaulting to single-shard: " + e.getMessage());
+      this.isClusterMode = false;
+    } finally {
+      try {
+        resources.shutdown().get(5, TimeUnit.SECONDS);
+      } catch (Exception ignored) {}
+    }
+  }
+
   /* Here we check if we need to initialise connection pool for read or write to cache.
   With isRead we check if we need to initialise connection pool for read or write to cache.
   If isRead is true, we initialise connection pool for read.
   If isRead is false, we initialise connection pool for write.
    */
   private void initializeCacheConnectionIfNeeded(boolean isRead) {
-    if (StringUtils.isNullOrEmpty(cacheRwServerAddr)) return;
+    if (StringUtils.isNullOrEmpty(this.cacheRwServerAddr)) {
+      return;
+    }
 
     // Initialize the message digest
-    if (msgHashDigest == null) {
+    if (this.msgHashDigest == null) {
       try {
-        msgHashDigest = MessageDigest.getInstance("SHA-384");
+        this.msgHashDigest = MessageDigest.getInstance("SHA-384");
       } catch (NoSuchAlgorithmException e) {
         throw new RuntimeException("SHA-384 not supported", e);
       }
     }
 
-    // Register cluster with CacheMonitor on first cache operation (skip if telemetryFactory is null = test mode)
-    if (telemetryFactory != null && !cacheMonitorRegistered) {
-      synchronized (this) {
-        if (!cacheMonitorRegistered) {
-          CacheMonitor.registerCluster(
-              inFlightWriteSizeLimitBytes, healthCheckInHealthyState, telemetryFactory,
-              this.cacheRwServerAddr, this.cacheRoServerAddr,
-              this.useSSL, this.cacheConnectionTimeout, this.iamAuthEnabled, this.credentialsProvider,
-              this.cacheIamRegion, this.cacheName, this.cacheUsername, this.cachePassword
-          );
-          cacheMonitorRegistered = true;
-        }
-      }
+    // return early if connection pool is already initialized before acquiring the lock
+    if ((isRead && this.readConnectionPool != null) || (!isRead && this.writeConnectionPool != null)) {
+      return;
     }
 
-    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> cacheConnectionPool =
-        isRead ? this.readConnectionPool : this.writeConnectionPool;
-    if (cacheConnectionPool == null) {
-      ReentrantLock connectionPoolLock = isRead ? READ_LOCK : WRITE_LOCK;
-      connectionPoolLock.lock();
-      try {
-        if ((isRead && this.readConnectionPool == null) || (!isRead && this.writeConnectionPool == null)) {
-          createConnectionPool(isRead);
-        }
-      } finally {
-        connectionPoolLock.unlock();
+    connectionInitializationLock.lock();
+    try {
+      // Double check after lock is acquired
+      if ((isRead && this.readConnectionPool != null) || (!isRead && this.writeConnectionPool != null)) {
+        return;
       }
+      // Detect cluster mode first (cached for reuse)
+      detectClusterMode();
+
+      // Register cluster with CacheMonitor on first cache operation (skip if telemetryFactory is null = test mode)
+      if (telemetryFactory != null && !this.cacheMonitorRegistered) {
+        CacheMonitor.registerCluster(
+            inFlightWriteSizeLimitBytes, healthCheckInHealthyState, telemetryFactory,
+            this.cacheRwServerAddr, this.cacheRoServerAddr,
+            this.useSSL, this.cacheConnectionTimeout, this.iamAuthEnabled, this.credentialsProvider,
+            this.cacheIamRegion, this.cacheName, this.cacheUsername, this.cachePassword
+        );
+        this.cacheMonitorRegistered = true;
+      }
+
+      if ((isRead && this.readConnectionPool == null) || (!isRead && this.writeConnectionPool == null)) {
+          createConnectionPool(isRead);
+      }
+    } finally {
+      connectionInitializationLock.unlock();
     }
   }
 
   private void createConnectionPool(boolean isRead) {
     try {
       // cache server addr string is in the format "<server hostname>:<port>"
-      String serverAddr = cacheRwServerAddr;
+      String serverAddr = this.cacheRwServerAddr;
       // If read-only server is specified, use it for the read-only connections
-      if (isRead && !StringUtils.isNullOrEmpty(cacheRoServerAddr)) {
-        serverAddr = cacheRoServerAddr;
+      if (isRead && !StringUtils.isNullOrEmpty(this.cacheRoServerAddr)) {
+        serverAddr = this.cacheRoServerAddr;
       }
       String[] hostnameAndPort = getHostnameAndPort(serverAddr);
       RedisURI redisUri = buildRedisURI(hostnameAndPort[0], Integer.parseInt(hostnameAndPort[1]));
 
       // Appending RW and RO tag to the server address to make it unique in case RO and RW has same endpoint
       String poolKey = (isRead ? "RO:" : "RW:") + serverAddr;
-      GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> pool = endpointToPoolRegistry.get(poolKey);
+      GenericObjectPool<StatefulConnection<byte[], byte[]>> pool = endpointToPoolRegistry.get(poolKey);
 
       if (pool == null) {
-        GenericObjectPoolConfig<StatefulRedisConnection<byte[], byte[]>> poolConfig = createPoolConfig();
+        GenericObjectPoolConfig<StatefulConnection<byte[], byte[]>> poolConfig = createPoolConfig();
         poolConfig.setMaxTotal(this.cacheConnectionPoolSize);
         poolConfig.setMaxIdle(this.cacheConnectionPoolSize);
 
         pool = endpointToPoolRegistry.computeIfAbsent(poolKey, k ->
             new GenericObjectPool<>(
-                new BasePooledObjectFactory<StatefulRedisConnection<byte[], byte[]>>() {
-                  public StatefulRedisConnection<byte[], byte[]> create() {
-                    return CacheConnection.createRedisConnection(isRead, redisUri);
+                new BasePooledObjectFactory<StatefulConnection<byte[], byte[]>>() {
+                  public StatefulConnection<byte[], byte[]> create() {
+                    return createRedisConnection(isRead, redisUri, isClusterMode);
                   }
-                  public PooledObject<StatefulRedisConnection<byte[], byte[]>> wrap(StatefulRedisConnection<byte[], byte[]> connection) {
+                  public PooledObject<StatefulConnection<byte[], byte[]>> wrap(StatefulConnection<byte[], byte[]> connection) {
                     return new DefaultPooledObject<>(connection);
                   }
                 }, poolConfig)
@@ -369,28 +430,46 @@ public class CacheConnection {
     }
   }
 
-  private static GenericObjectPoolConfig<StatefulRedisConnection<byte[], byte[]>> createPoolConfig() {
-    GenericObjectPoolConfig<StatefulRedisConnection<byte[], byte[]>> poolConfig = new GenericObjectPoolConfig<>();
+  private static GenericObjectPoolConfig<StatefulConnection<byte[], byte[]>> createPoolConfig() {
+    GenericObjectPoolConfig<StatefulConnection<byte[], byte[]>> poolConfig = new GenericObjectPoolConfig<>();
     poolConfig.setMinIdle(DEFAULT_POOL_MIN_IDLE);
     poolConfig.setMaxWait(Duration.ofMillis(DEFAULT_MAX_BORROW_WAIT_MS));
     return poolConfig;
   }
 
-  private static StatefulRedisConnection<byte[], byte[]> createRedisConnection(boolean isReadOnly, RedisURI redisUri) {
+  /**
+   * Creates a Redis connection for either standalone or cluster mode.
+   * Returns StatefulConnection which works for both RedisClient and RedisClusterClient.
+   */
+  private static StatefulConnection<byte[], byte[]> createRedisConnection(
+      boolean isReadOnly, RedisURI redisUri, boolean isClusterMode) {
 
     ClientResources resources = ClientResources.builder().build();
-    RedisClient client = RedisClient.create(resources, redisUri);
-    StatefulRedisConnection<byte[], byte[]> conn = client.connect(new ByteArrayCodec());
+    StatefulConnection<byte[], byte[]> conn;
 
-    // Set READONLY mode for RO endpoint in cluster mode
+    if (isClusterMode) {
+      // Multi-shard cluster mode: use RedisClusterClient
+      RedisClusterClient client = RedisClusterClient.create(resources, redisUri);
+      conn = client.connect(new ByteArrayCodec());
+    } else {
+      // Single-shard standalone mode: use RedisClient
+      RedisClient client = RedisClient.create(resources, redisUri);
+      conn = client.connect(new ByteArrayCodec());
+    }
+
+    // Set READONLY mode for RO endpoint
     if (isReadOnly) {
       try {
-        conn.sync().readOnly();
+        if (conn instanceof StatefulRedisClusterConnection) {
+          ((StatefulRedisClusterConnection<byte[], byte[]>) conn).sync().readOnly();
+        } else {
+          ((StatefulRedisConnection<byte[], byte[]>) conn).sync().readOnly();
+        }
       } catch (RedisCommandExecutionException e) {
         if (e.getMessage().contains("ERR This instance has cluster support disabled")) {
           LOGGER.fine("Note: this cache cluster has cluster support disabled");
         } else {
-          throw e;
+          LOGGER.fine("Note: READONLY command not supported or failed: " + e.getMessage());
         }
       }
     }
@@ -455,9 +534,8 @@ public class CacheConnection {
       RedisURI redisUri = buildRedisURIStatic(hostname, port, useSSL, connectionTimeout, iamAuthEnabled,
           credentialsProvider, cacheIamRegion, cacheName, cacheUsername, cachePassword
       );
-
-      // Create Lettuce connection using the low-level helper
-      StatefulRedisConnection<byte[], byte[]> conn = createRedisConnection(isReadOnly, redisUri);
+      // Create Lettuce connection (use standalone mode for ping - works for both)
+      StatefulConnection<byte[], byte[]> conn = createRedisConnection(isReadOnly, redisUri, false);
 
       // Wrap in abstraction interface
       return new PingConnection(conn);
@@ -471,8 +549,8 @@ public class CacheConnection {
 
   // Get the hash digest of the given key.
   private byte[] computeHashDigest(byte[] key) {
-    msgHashDigest.update(key);
-    return msgHashDigest.digest();
+    this.msgHashDigest.update(key);
+    return this.msgHashDigest.digest();
   }
 
   public byte[] readFromCache(String key) throws SQLException {
@@ -486,12 +564,19 @@ public class CacheConnection {
     }
 
     boolean isBroken = false;
-    StatefulRedisConnection<byte[], byte[]> conn = null;
+    StatefulConnection<byte[], byte[]> conn = null;
     // get a connection from the read connection pool
     try {
       initializeCacheConnectionIfNeeded(true);
       conn = this.readConnectionPool.borrowObject();
-      return conn.sync().get(computeHashDigest(key.getBytes(StandardCharsets.UTF_8)));
+
+      // Cast to appropriate type and execute get command
+      byte[] keyHash = computeHashDigest(key.getBytes(StandardCharsets.UTF_8));
+      if (conn instanceof StatefulRedisClusterConnection) {
+        return ((StatefulRedisClusterConnection<byte[], byte[]>) conn).sync().get(keyHash);
+      } else {
+        return ((StatefulRedisConnection<byte[], byte[]>) conn).sync().get(keyHash);
+      }
     } catch (Exception e) {
       if (conn != null) {
         isBroken = true;
@@ -511,7 +596,7 @@ public class CacheConnection {
     }
   }
 
-  protected void handleCompletedCacheWrite(StatefulRedisConnection<byte[], byte[]> conn, long writeSize, Throwable ex) {
+  protected void handleCompletedCacheWrite(StatefulConnection<byte[], byte[]> conn, long writeSize, Throwable ex) {
     // Note: this callback upon completion of cache write is on a different thread
     // Always decrement in-flight size (write completed, whether success or failure)
     decrementInFlightSize(writeSize);
@@ -545,7 +630,7 @@ public class CacheConnection {
       return; // Exit without writing
     }
 
-    StatefulRedisConnection<byte[], byte[]> conn = null;
+    StatefulConnection<byte[], byte[]> conn = null;
     try {
       initializeCacheConnectionIfNeeded(false);
 
@@ -563,11 +648,20 @@ public class CacheConnection {
         return;
       }
 
-      RedisAsyncCommands<byte[], byte[]> asyncCommands = conn.async();
-      StatefulRedisConnection<byte[], byte[]> finalConn = conn;
+      // Get async commands and execute set operation based on connection type
+      StatefulConnection<byte[], byte[]> finalConn = conn;
 
-      asyncCommands.set(keyHash, value, SetArgs.Builder.ex(expiry))
-          .whenComplete((result, exception) -> handleCompletedCacheWrite(finalConn, writeSize, exception));
+      if (conn instanceof StatefulRedisClusterConnection) {
+        RedisAdvancedClusterAsyncCommands<byte[], byte[]> clusterAsyncCommands =
+            ((StatefulRedisClusterConnection<byte[], byte[]>) conn).async();
+        clusterAsyncCommands.set(keyHash, value, SetArgs.Builder.ex(expiry))
+            .whenComplete((result, exception) -> handleCompletedCacheWrite(finalConn, writeSize, exception));
+      } else {
+        RedisAsyncCommands<byte[], byte[]> asyncCommands =
+            ((StatefulRedisConnection<byte[], byte[]>) conn).async();
+        asyncCommands.set(keyHash, value, SetArgs.Builder.ex(expiry))
+            .whenComplete((result, exception) -> handleCompletedCacheWrite(finalConn, writeSize, exception));
+      }
 
     } catch (Exception e) {
       // Connection failed, but we already incremented and will be able to detect shard level failures
@@ -583,8 +677,8 @@ public class CacheConnection {
     }
   }
 
-  private void returnConnectionBackToPool(StatefulRedisConnection <byte[], byte[]> connection, boolean isConnectionBroken, boolean isRead) {
-    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> pool = isRead ? this.readConnectionPool : this.writeConnectionPool;
+  private void returnConnectionBackToPool(StatefulConnection<byte[], byte[]> connection, boolean isConnectionBroken, boolean isRead) {
+    GenericObjectPool<StatefulConnection<byte[], byte[]>> pool = isRead ? this.readConnectionPool : this.writeConnectionPool;
     if (isConnectionBroken) {
       try {
         pool.invalidateObject(connection);
@@ -609,19 +703,19 @@ public class CacheConnection {
   }
 
   protected CacheMonitor.HealthState getClusterHealthStateFromCacheMonitor() {
-    return CacheMonitor.getClusterState(cacheRwServerAddr, cacheRoServerAddr);
+    return CacheMonitor.getClusterState(this.cacheRwServerAddr, this.cacheRoServerAddr);
   }
 
   protected void reportErrorToCacheMonitor(boolean isWrite, Throwable error, String operation) {
-    CacheMonitor.reportError(cacheRwServerAddr, cacheRoServerAddr, isWrite, error, operation);
+    CacheMonitor.reportError(this.cacheRwServerAddr, this.cacheRoServerAddr, isWrite, error, operation);
   }
 
   protected void incrementInFlightSize(long writeSize) {
-    CacheMonitor.incrementInFlightSizeStatic(cacheRwServerAddr, cacheRoServerAddr, writeSize);
+    CacheMonitor.incrementInFlightSizeStatic(this.cacheRwServerAddr, this.cacheRoServerAddr, writeSize);
   }
 
   protected void decrementInFlightSize(long writeSize) {
-    CacheMonitor.decrementInFlightSizeStatic(cacheRwServerAddr, cacheRoServerAddr, writeSize);
+    CacheMonitor.decrementInFlightSizeStatic(this.cacheRwServerAddr, this.cacheRoServerAddr, writeSize);
   }
 
   protected boolean shouldProceedWithOperation(CacheMonitor.HealthState state) {
@@ -629,8 +723,8 @@ public class CacheConnection {
   }
 
   // Used for unit testing only
-  protected void setConnectionPools(GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readPool,
-      GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writePool) {
+  protected void setConnectionPools(GenericObjectPool<StatefulConnection<byte[], byte[]>> readPool,
+      GenericObjectPool<StatefulConnection<byte[], byte[]>> writePool) {
     this.readConnectionPool = readPool;
     this.writeConnectionPool = writePool;
   }
@@ -638,5 +732,10 @@ public class CacheConnection {
   // Used for unit testing only
   protected void triggerPoolInit(boolean isRead) {
     initializeCacheConnectionIfNeeded(isRead);
+  }
+
+  // Used for unit testing only - allows tests to bypass cluster detection
+  protected void setClusterMode(boolean clusterMode) {
+    this.isClusterMode = clusterMode;
   }
 }
