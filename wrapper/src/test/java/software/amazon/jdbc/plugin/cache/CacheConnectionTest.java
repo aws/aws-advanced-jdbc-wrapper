@@ -18,13 +18,19 @@ package software.amazon.jdbc.plugin.cache;
 
 import io.lettuce.core.RedisFuture;
 import io.lettuce.core.RedisURI;
+import io.lettuce.core.api.StatefulConnection;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.async.RedisAsyncCommands;
 import io.lettuce.core.api.sync.RedisCommands;
+import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
+import io.lettuce.core.cluster.api.async.RedisAdvancedClusterAsyncCommands;
+import io.lettuce.core.cluster.api.sync.RedisAdvancedClusterCommands;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.MockedConstruction;
 import org.mockito.MockitoAnnotations;
@@ -42,11 +48,14 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 public class CacheConnectionTest {
-  @Mock GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> mockReadConnPool;
-  @Mock GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> mockWriteConnPool;
+  @Mock GenericObjectPool<StatefulConnection<byte[], byte[]>> mockReadConnPool;
+  @Mock GenericObjectPool<StatefulConnection<byte[], byte[]>> mockWriteConnPool;
   @Mock StatefulRedisConnection<byte[], byte[]> mockConnection;
   @Mock RedisCommands<byte[], byte[]> mockSyncCommands;
   @Mock RedisAsyncCommands<byte[], byte[]> mockAsyncCommands;
+  @Mock StatefulRedisClusterConnection<byte[], byte[]> mockClusterConnection;
+  @Mock RedisAdvancedClusterCommands<byte[], byte[]> mockClusterSyncCommands;
+  @Mock RedisAdvancedClusterAsyncCommands<byte[], byte[]> mockClusterAsyncCommands;
   @Mock RedisFuture<String> mockCacheResult;
   private AutoCloseable closeable;
   private CacheConnection cacheConnection;
@@ -60,6 +69,8 @@ public class CacheConnectionTest {
     props.setProperty("cacheEndpointAddrRo", "localhost:6380");
     cacheConnection = new CacheConnection(props);
     cacheConnection.setConnectionPools(mockReadConnPool, mockWriteConnPool);
+    // Bypass cluster detection for tests to avoid real Redis connections
+    cacheConnection.setClusterMode(false);
   }
 
   @AfterEach
@@ -406,6 +417,116 @@ public class CacheConnectionTest {
     verify(mockReadConnPool).invalidateObject(mockConnection);
   }
 
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})  // false = CMD (standalone), true = CME (cluster)
+  void test_readAndWriteCache_BothModes(boolean isClusterMode) throws Exception {
+    // Setup connection with appropriate cluster mode
+    CacheConnection spyConnection = spy(cacheConnection);
+    spyConnection.setClusterMode(isClusterMode);
+
+    when(spyConnection.getClusterHealthStateFromCacheMonitor()).thenReturn(CacheMonitor.HealthState.HEALTHY);
+    doNothing().when(spyConnection).reportErrorToCacheMonitor(anyBoolean(), any(), any());
+    doNothing().when(spyConnection).incrementInFlightSize(anyLong());
+    doNothing().when(spyConnection).decrementInFlightSize(anyLong());
+
+    String key = "testKey";
+    byte[] value = "testValue".getBytes(StandardCharsets.UTF_8);
+
+    // Test WRITE operation
+    if (isClusterMode) {
+      // Mock cluster connection for write
+      when(mockWriteConnPool.borrowObject()).thenReturn(mockClusterConnection);
+      when(mockClusterConnection.async()).thenReturn(mockClusterAsyncCommands);
+      when(mockClusterAsyncCommands.set(any(), any(), any())).thenReturn(mockCacheResult);
+      when(mockCacheResult.whenComplete(any(BiConsumer.class))).thenReturn(null);
+    } else {
+      // Mock standalone connection for write
+      when(mockWriteConnPool.borrowObject()).thenReturn(mockConnection);
+      when(mockConnection.async()).thenReturn(mockAsyncCommands);
+      when(mockAsyncCommands.set(any(), any(), any())).thenReturn(mockCacheResult);
+      when(mockCacheResult.whenComplete(any(BiConsumer.class))).thenReturn(null);
+    }
+
+    spyConnection.writeToCache(key, value, 100);
+    verify(mockWriteConnPool).borrowObject();
+    verify(spyConnection).incrementInFlightSize(anyLong());
+
+    // Test READ operation
+    if (isClusterMode) {
+      // Mock cluster connection for read
+      when(mockReadConnPool.borrowObject()).thenReturn(mockClusterConnection);
+      when(mockClusterConnection.sync()).thenReturn(mockClusterSyncCommands);
+      when(mockClusterSyncCommands.get(any())).thenReturn(value);
+    } else {
+      // Mock standalone connection for read
+      when(mockReadConnPool.borrowObject()).thenReturn(mockConnection);
+      when(mockConnection.sync()).thenReturn(mockSyncCommands);
+      when(mockSyncCommands.get(any())).thenReturn(value);
+    }
+
+    byte[] result = spyConnection.readFromCache(key);
+    assertEquals(value, result);
+    verify(mockReadConnPool).borrowObject();
+
+    // Verify appropriate connection type was used
+    if (isClusterMode) {
+      verify(mockClusterConnection).async();
+      verify(mockClusterConnection).sync();
+      verify(mockClusterAsyncCommands).set(any(), any(), any());
+      verify(mockClusterSyncCommands).get(any());
+    } else {
+      verify(mockConnection).async();
+      verify(mockConnection).sync();
+      verify(mockAsyncCommands).set(any(), any(), any());
+      verify(mockSyncCommands).get(any());
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void test_readAndWriteException_BothModes(boolean isClusterMode) throws Exception {
+    CacheConnection spyConnection = spy(cacheConnection);
+    spyConnection.setClusterMode(isClusterMode);
+
+    when(spyConnection.getClusterHealthStateFromCacheMonitor()).thenReturn(CacheMonitor.HealthState.HEALTHY);
+    doNothing().when(spyConnection).reportErrorToCacheMonitor(anyBoolean(), any(), any());
+    doNothing().when(spyConnection).incrementInFlightSize(anyLong());
+    doNothing().when(spyConnection).decrementInFlightSize(anyLong());
+
+    String key = "testKey";
+    byte[] value = "testValue".getBytes(StandardCharsets.UTF_8);
+
+    // Test WRITE exception handling
+    if (isClusterMode) {
+      when(mockWriteConnPool.borrowObject()).thenReturn(mockClusterConnection);
+      when(mockClusterConnection.async()).thenReturn(mockClusterAsyncCommands);
+      when(mockClusterAsyncCommands.set(any(), any(), any())).thenThrow(new RuntimeException("cluster write error"));
+    } else {
+      when(mockWriteConnPool.borrowObject()).thenReturn(mockConnection);
+      when(mockConnection.async()).thenReturn(mockAsyncCommands);
+      when(mockAsyncCommands.set(any(), any(), any())).thenThrow(new RuntimeException("standalone write error"));
+    }
+
+    spyConnection.writeToCache(key, value, 100);
+    verify(mockWriteConnPool).borrowObject();
+    verify(mockWriteConnPool).invalidateObject(isClusterMode ? mockClusterConnection : mockConnection);
+
+    // Test READ exception handling
+    if (isClusterMode) {
+      when(mockReadConnPool.borrowObject()).thenReturn(mockClusterConnection);
+      when(mockClusterConnection.sync()).thenReturn(mockClusterSyncCommands);
+      when(mockClusterSyncCommands.get(any())).thenThrow(new RuntimeException("cluster read error"));
+    } else {
+      when(mockReadConnPool.borrowObject()).thenReturn(mockConnection);
+      when(mockConnection.sync()).thenReturn(mockSyncCommands);
+      when(mockSyncCommands.get(any())).thenThrow(new RuntimeException("standalone read error"));
+    }
+
+    assertNull(spyConnection.readFromCache(key));
+    verify(mockReadConnPool).borrowObject();
+    verify(mockReadConnPool).invalidateObject(isClusterMode ? mockClusterConnection : mockConnection);
+  }
+
   @Test
   void test_cacheConnectionPoolSize_default() throws Exception {
     clearStaticRegistry();
@@ -415,6 +536,8 @@ public class CacheConnectionTest {
     props.setProperty("cacheEndpointAddrRo", "localhost:6380");
 
     CacheConnection connection = new CacheConnection(props);
+    // Bypass cluster detection for tests
+    connection.setClusterMode(false);
 
     // Create real pools (no network until borrow)
     connection.triggerPoolInit(true);
@@ -444,6 +567,8 @@ public class CacheConnectionTest {
     props.setProperty("cacheConnectionPoolSize", "15");
 
     CacheConnection connection = new CacheConnection(props);
+    // Bypass cluster detection for tests
+    connection.setClusterMode(false);
 
     // Create real pools (no network until borrow)
     connection.triggerPoolInit(true);
@@ -498,7 +623,7 @@ public class CacheConnectionTest {
   }
 
   @Test
-  void testCacheMonitorIntegration() throws Exception {
+  void test_cacheMonitorIntegration() throws Exception {
     CacheConnection spyConnection = spy(cacheConnection);
     doNothing().when(spyConnection).reportErrorToCacheMonitor(anyBoolean(), any(), any());
     doNothing().when(spyConnection).incrementInFlightSize(anyLong());
@@ -559,7 +684,9 @@ public class CacheConnectionTest {
     props2.setProperty("cacheConnectionPoolSize", "15");
 
     CacheConnection connection1 = new CacheConnection(props1);
+    connection1.setClusterMode(false);
     CacheConnection connection2 = new CacheConnection(props2);
+    connection2.setClusterMode(false);
 
     connection1.triggerPoolInit(true);
     connection1.triggerPoolInit(false);
@@ -583,6 +710,7 @@ public class CacheConnectionTest {
     props3.setProperty("cacheConnectionPoolSize", "20");
 
     CacheConnection connection3 = new CacheConnection(props3);
+    connection3.setClusterMode(false);
     connection3.triggerPoolInit(true);
     connection3.triggerPoolInit(false);
 
@@ -599,6 +727,7 @@ public class CacheConnectionTest {
     props4.setProperty("cacheEndpointAddrRw", "localhost:6379");
 
     CacheConnection connection4 = new CacheConnection(props4);
+    connection4.setClusterMode(false);
     connection4.triggerPoolInit(false);
     connection4.triggerPoolInit(true);
 
@@ -619,8 +748,11 @@ public class CacheConnectionTest {
     props.setProperty("cacheConnectionPoolSize", "10");
 
     CacheConnection connection1 = new CacheConnection(props);
+    connection1.setClusterMode(false);
     CacheConnection connection2 = new CacheConnection(props);
+    connection2.setClusterMode(false);
     CacheConnection connection3 = new CacheConnection(props);
+    connection3.setClusterMode(false);
 
     // Simulate concurrent initialization
     Thread t1 = new Thread(() -> connection1.triggerPoolInit(false));
