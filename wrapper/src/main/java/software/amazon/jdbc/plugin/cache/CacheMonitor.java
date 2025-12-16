@@ -520,7 +520,7 @@ public class CacheMonitor implements Runnable {
     try {
       return conn.ping();
     } catch (Exception e) {
-      LOGGER.warning("[ping()] Ping failed for " + (isRw ? cluster.rwEndpoint : cluster.roEndpoint) + " (" + (isRw ? "RW" : "RO") + "): " + e.getMessage());
+      LOGGER.warning("Ping failed for " + (isRw ? cluster.rwEndpoint : cluster.roEndpoint) + " (" + (isRw ? "RW" : "RO") + "): " + e.getMessage());
       return false;
     }
   }
