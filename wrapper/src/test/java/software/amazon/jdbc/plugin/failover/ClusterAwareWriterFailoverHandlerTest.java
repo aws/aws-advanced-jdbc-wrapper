@@ -354,8 +354,8 @@ class ClusterAwareWriterFailoverHandlerTest {
     when(mockPluginService.forceConnect(refEq(newWriterHost), eq(properties))).thenThrow(exception);
     when(mockPluginService.isNetworkException(eq(exception), any())).thenReturn(true);
 
-    when(mockTopologyUtils.queryForTopology(
-        any(), eq(mockInitialHostSpec), eq(mockInstanceTemplate))).thenReturn(newTopology);
+    when(mockHostListProvider.getCurrentTopology(
+        eq(mockReaderAConnection), eq(mockInitialHostSpec))).thenReturn(newTopology);
 
     when(mockReaderFailoverHandler.getReaderConnection(ArgumentMatchers.anyList()))
         .thenReturn(new ReaderFailoverResult(mockReaderAConnection, readerA, true));

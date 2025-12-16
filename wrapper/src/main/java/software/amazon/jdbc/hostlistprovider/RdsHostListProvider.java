@@ -189,7 +189,7 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
     return this.topologyUtils.queryForTopology(conn, initialHostSpec, this.instanceTemplate);
   }
 
-  protected List<HostSpec> getFreshTopology(boolean shouldVerifyWriter, long timeoutMs) throws SQLException {
+  protected List<HostSpec> forceRefreshMonitor(boolean shouldVerifyWriter, long timeoutMs) throws SQLException {
     ClusterTopologyMonitor monitor = this.getOrCreateMonitor();
     try {
       return monitor.forceRefresh(shouldVerifyWriter, timeoutMs);
@@ -220,7 +220,7 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
         return new FetchTopologyResult(false, this.initialHostList);
       }
 
-      final List<HostSpec> hosts = this.getFreshTopology(false, DEFAULT_TOPOLOGY_QUERY_TIMEOUT_MS);
+      final List<HostSpec> hosts = this.forceRefreshMonitor(false, DEFAULT_TOPOLOGY_QUERY_TIMEOUT_MS);
       if (!Utils.isNullOrEmpty(hosts)) {
         return new FetchTopologyResult(false, hosts);
       }
@@ -313,7 +313,7 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
       return this.initialHostList;
     }
 
-    return this.getFreshTopology(shouldVerifyWriter, timeoutMs);
+    return this.forceRefreshMonitor(shouldVerifyWriter, timeoutMs);
   }
 
   @Override
