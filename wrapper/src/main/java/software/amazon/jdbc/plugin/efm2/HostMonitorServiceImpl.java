@@ -161,9 +161,9 @@ public class HostMonitorServiceImpl implements HostMonitorService {
             servicesContainer,
             hostSpec,
             properties,
-            failureDetectionTimeMillis,
-            failureDetectionIntervalMillis,
-            failureDetectionCount,
+            this.failureDetectionTimeMillis,
+            this.failureDetectionIntervalMillis,
+            this.failureDetectionCount,
             this.abortedConnectionsCounter));
   }
 
