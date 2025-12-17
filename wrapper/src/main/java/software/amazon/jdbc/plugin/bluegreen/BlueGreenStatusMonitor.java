@@ -52,7 +52,6 @@ import software.amazon.jdbc.dialect.BlueGreenDialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.HostListProvider;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
-import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.ExecutorFactory;
@@ -204,11 +203,11 @@ public class BlueGreenStatusMonitor {
       }
     } finally {
       this.closeConnection();
-      if (this.hostListProvider instanceof MonitoringRdsHostListProvider) {
-        ((MonitoringRdsHostListProvider) this.hostListProvider).stopMonitor();
-      }
-      if (this.hostListProvider instanceof CanReleaseResources) {
-        ((CanReleaseResources) this.hostListProvider).releaseResources();
+      if (this.hostListProvider != null) {
+        this.hostListProvider.stopMonitor();
+        if (this.hostListProvider instanceof CanReleaseResources) {
+          ((CanReleaseResources) this.hostListProvider).releaseResources();
+        }
       }
       this.hostListProvider = null;
       this.openConnectionFuture = null;

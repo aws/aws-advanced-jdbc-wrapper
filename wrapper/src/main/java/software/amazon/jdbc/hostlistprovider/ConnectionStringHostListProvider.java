@@ -124,4 +124,9 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
   public String getClusterId() throws UnsupportedOperationException {
     return "<none>";
   }
+
+  @Override
+  public void stopMonitor() {
+    // do nothing since this provider doesn't implement active monitoring
+  }
 }
