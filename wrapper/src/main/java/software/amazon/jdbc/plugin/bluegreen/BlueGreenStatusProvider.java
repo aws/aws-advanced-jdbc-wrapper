@@ -841,14 +841,15 @@ public class BlueGreenStatusProvider {
 
               // Check whether green host is already been connected with blue (no-prefixes) IAM host name.
               List<HostSpec> iamHosts;
-              if (this.isAlreadySuccessfullyConnected(greenHost, blueHost)) {
+              HostSpec iamBlueHost = this.hostSpecBuilder.copyFrom(greenHostSpec)
+                  .host(this.rdsUtils.removeGreenInstancePrefix(greenHost))
+                  .build();
+              if (this.isAlreadySuccessfullyConnected(greenHost, iamBlueHost.getHost())) {
                 // Green node has already changed its name, and it's not a new blue node (no prefixes).
-                iamHosts = blueHostSpec == null ? null : Collections.singletonList(blueHostSpec);
+                iamHosts = Collections.singletonList(iamBlueHost);
               } else {
                 // Green node isn't yet changed its name, so we need to try both possible IAM host options.
-                iamHosts = blueHostSpec == null
-                    ? Collections.singletonList(greenHostSpec)
-                    : Arrays.asList(greenHostSpec, blueHostSpec);
+                iamHosts = Arrays.asList(greenHostSpec, iamBlueHost);
               }
 
               connectRouting.add(new SubstituteConnectRouting(
