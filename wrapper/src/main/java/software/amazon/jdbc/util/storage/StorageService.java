@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.util.storage;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public interface StorageService {
@@ -58,7 +59,7 @@ public interface StorageService {
    * @param <V>       the type of the item being retrieved.
    * @return the item stored at the given key for the given item class.
    */
-  <V> @Nullable V get(Class<V> itemClass, Object key);
+  <V> @Nullable V get(Class<V> itemClass, @NonNull Object key);
 
   /**
    * Indicates whether an item exists under the given item class and key.

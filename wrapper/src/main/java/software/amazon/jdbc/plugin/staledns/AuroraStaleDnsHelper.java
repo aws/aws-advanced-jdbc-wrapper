@@ -63,7 +63,6 @@ public class AuroraStaleDnsHelper {
   public Connection getVerifiedConnection(
       final boolean isInitialConnection,
       final HostListProviderService hostListProviderService,
-      final String driverProtocol,
       final HostSpec hostSpec,
       final Properties props,
       final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
@@ -97,9 +96,9 @@ public class AuroraStaleDnsHelper {
       // This is if-statement is only reached if the connection url is a writer cluster endpoint.
       // If the new connection resolves to a reader instance, this means the topology is outdated.
       // Force refresh to update the topology.
-      this.pluginService.forceRefreshHostList(conn);
+      this.pluginService.forceRefreshHostList();
     } else {
-      this.pluginService.refreshHostList(conn);
+      this.pluginService.refreshHostList();
     }
 
     LOGGER.finest(() -> LogUtils.logTopology(this.pluginService.getAllHosts()));
