@@ -344,7 +344,8 @@ class FailoverConnectionPluginTest {
         () -> mockReaderFailoverHandler,
         () -> mockWriterFailoverHandler);
 
-    final SQLException exception = assertThrows(FailoverSuccessSQLException.class, () -> spyPlugin.failoverWriter(false));
+    final SQLException exception =
+        assertThrows(FailoverSuccessSQLException.class, () -> spyPlugin.failoverWriter(false));
     assertEquals(SqlState.COMMUNICATION_LINK_CHANGED.getState(), exception.getSQLState());
 
     verify(mockWriterFailoverHandler).failover(eq(defaultHosts));
