@@ -148,11 +148,6 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       return jdbcMethodFunc.call();
     }
 
-    final int failureDetectionTimeMillis = FAILURE_DETECTION_TIME.getInteger(this.properties);
-    final int failureDetectionIntervalMillis =
-        FAILURE_DETECTION_INTERVAL.getInteger(this.properties);
-    final int failureDetectionCount = FAILURE_DETECTION_COUNT.getInteger(this.properties);
-
     initMonitorService();
 
     T result;
@@ -167,14 +162,10 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       final HostSpec monitoringHostSpec = this.getMonitoringHostSpec();
 
       try {
-        monitorContext =
-            this.monitorService.startMonitoring(
-                this.pluginService.getCurrentConnection(), // abort this connection if needed
-                monitoringHostSpec,
-                this.properties,
-                failureDetectionTimeMillis,
-                failureDetectionIntervalMillis,
-                failureDetectionCount);
+        monitorContext = this.monitorService.startMonitoring(
+            this.pluginService.getCurrentConnection(), // abort this connection if needed
+            monitoringHostSpec,
+            this.properties);
       } catch (SQLException e) {
         throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
       }

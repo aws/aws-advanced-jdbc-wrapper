@@ -16,6 +16,10 @@
 
 package software.amazon.jdbc.plugin.efm2;
 
+import static software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT;
+import static software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL;
+import static software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME;
+
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
@@ -54,13 +58,22 @@ public class HostMonitorServiceImpl implements HostMonitorService {
   protected final MonitorService coreMonitorService;
   protected final TelemetryFactory telemetryFactory;
   protected final TelemetryCounter abortedConnectionsCounter;
+  protected final int failureDetectionTimeMillis;
+  protected final int failureDetectionIntervalMillis;
+  protected final int failureDetectionCount;
 
-  public HostMonitorServiceImpl(final @NonNull FullServicesContainer serviceContainer, Properties props) {
+  protected HostMonitorKey monitorKey;
+
+  public HostMonitorServiceImpl(final @NonNull FullServicesContainer serviceContainer, final Properties props) {
     this.serviceContainer = serviceContainer;
     this.coreMonitorService = serviceContainer.getMonitorService();
     this.pluginService = serviceContainer.getPluginService();
     this.telemetryFactory = serviceContainer.getTelemetryFactory();
     this.abortedConnectionsCounter = telemetryFactory.createCounter("efm2.connections.aborted");
+
+    this.failureDetectionTimeMillis = FAILURE_DETECTION_TIME.getInteger(props);
+    this.failureDetectionIntervalMillis = FAILURE_DETECTION_INTERVAL.getInteger(props);
+    this.failureDetectionCount = FAILURE_DETECTION_COUNT.getInteger(props);
 
     this.coreMonitorService.registerMonitorTypeIfAbsent(
         HostMonitorImpl.class,
@@ -78,21 +91,10 @@ public class HostMonitorServiceImpl implements HostMonitorService {
   public HostMonitorConnectionContext startMonitoring(
       final Connection connectionToAbort,
       final HostSpec hostSpec,
-      final Properties properties,
-      final int failureDetectionTimeMillis,
-      final int failureDetectionIntervalMillis,
-      final int failureDetectionCount) throws SQLException {
-
-    final HostMonitor monitor = this.getMonitor(
-        hostSpec,
-        properties,
-        failureDetectionTimeMillis,
-        failureDetectionIntervalMillis,
-        failureDetectionCount);
-
+      final Properties properties) throws SQLException {
+    final HostMonitor monitor = this.getMonitor(hostSpec, properties);
     final HostMonitorConnectionContext context = new HostMonitorConnectionContext(connectionToAbort);
     monitor.startMonitoring(context);
-
     return context;
   }
 
@@ -131,37 +133,55 @@ public class HostMonitorServiceImpl implements HostMonitorService {
    *
    * @param hostSpec Information such as hostname of the server.
    * @param properties The user configuration for the current connection.
-   * @param failureDetectionTimeMillis A failure detection time in millis.
-   * @param failureDetectionIntervalMillis A failure detection interval in millis.
-   * @param failureDetectionCount A failure detection count.
    * @return A {@link HostMonitorImpl} object associated with a specific server.
    * @throws SQLException if there's errors getting or creating a monitor
    */
   protected HostMonitor getMonitor(
       final HostSpec hostSpec,
-      final Properties properties,
-      final int failureDetectionTimeMillis,
-      final int failureDetectionIntervalMillis,
-      final int failureDetectionCount) throws SQLException {
-
-    final String monitorKey = String.format("%d:%d:%d:%s",
-        failureDetectionTimeMillis,
-        failureDetectionIntervalMillis,
-        failureDetectionCount,
-        hostSpec.getUrl());
+      final Properties properties) throws SQLException {
+    String hostUrl = hostSpec.getUrl();
+    if (this.monitorKey == null || !hostUrl.equals(this.monitorKey.getUrl())) {
+      // The URL being monitored has changed, so we need to recalculate the monitor key.
+      this.monitorKey = new HostMonitorKey(
+          hostUrl,
+          String.format("%d:%d:%d:%s",
+              this.failureDetectionTimeMillis,
+              this.failureDetectionIntervalMillis,
+              this.failureDetectionCount,
+              hostUrl)
+      );
+    }
 
     return this.coreMonitorService.runIfAbsent(
         HostMonitorImpl.class,
-        monitorKey,
+        this.monitorKey,
         this.serviceContainer,
         this.pluginService.getProperties(),
         (servicesContainer) -> new HostMonitorImpl(
             servicesContainer,
             hostSpec,
             properties,
-            failureDetectionTimeMillis,
-            failureDetectionIntervalMillis,
-            failureDetectionCount,
+            this.failureDetectionTimeMillis,
+            this.failureDetectionIntervalMillis,
+            this.failureDetectionCount,
             this.abortedConnectionsCounter));
+  }
+
+  protected static class HostMonitorKey {
+    private final String url;
+    private final String keyValue;
+
+    public HostMonitorKey(String url, String keyValue) {
+      this.url = url;
+      this.keyValue = keyValue;
+    }
+
+    public String getUrl() {
+      return url;
+    }
+
+    public String getKeyValue() {
+      return keyValue;
+    }
   }
 }
