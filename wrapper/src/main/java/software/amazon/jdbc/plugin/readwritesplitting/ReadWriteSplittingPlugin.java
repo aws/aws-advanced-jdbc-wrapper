@@ -554,24 +554,24 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     closeWriterConnectionIfIdle(this.writerConnection);
   }
 
-  void closeReaderConnectionIfIdle(CacheItem<Connection> readerConnection) {
-    if (readerConnection == null) {
+  void closeReaderConnectionIfIdle(CacheItem<Connection> readerCacheItem) {
+    if (readerCacheItem == null) {
       return;
     }
 
     final Connection currentConnection = this.pluginService.getCurrentConnection();
-    final Connection readerConnectionCache = readerConnection.get(true);
+    final Connection readerConnection = readerCacheItem.get(true);
 
     try {
-      if (isConnectionUsable(readerConnectionCache) && readerConnectionCache != currentConnection) {
-        readerConnectionCache.close();
+      if (isConnectionUsable(readerConnection) && readerConnection != currentConnection) {
+        // readerConnection is open but is not currently in use, so we close it.
+        readerConnection.close();
+        this.readerConnection = null;
+        this.readerHostSpec = null;
       }
     } catch (SQLException e) {
       // Do nothing.
     }
-
-    this.readerConnection = null;
-    this.readerHostSpec = null;
   }
 
   void closeWriterConnectionIfIdle(final Connection internalConnection) {
