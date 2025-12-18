@@ -1,5 +1,7 @@
 # Database URL types compatibility
 
+This document is part of the [Compatibility Guide](./Compatibility.md) and explains plugin compatibility with various database endpoints.
+
 There are many different URL types (endpoints) that can be used with The AWS Advanced JDBC Wrapper, but certain URL types are not compatible with certain plugins. This page outlines the various URL types and which plugins are compatible with each type.
 
 - [Aurora Global Database Endpoint](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-global-database-connecting.html) - `<global-db-name>.global-<XYZ>.global.rds.amazonaws.com`

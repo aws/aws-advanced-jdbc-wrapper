@@ -26,7 +26,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -219,11 +218,11 @@ class FailoverConnectionPluginTest {
     when(mockPluginService.isInTransaction()).thenReturn(true);
 
     initializePlugin();
-    doThrow(FailoverSuccessSQLException.class).when(spyPlugin).failoverWriter();
+    doThrow(FailoverSuccessSQLException.class).when(spyPlugin).failoverWriter(false);
     spyPlugin.failoverMode = FailoverMode.STRICT_WRITER;
 
-    assertThrows(FailoverSuccessSQLException.class, () -> spyPlugin.failover(mockHostSpec));
-    verify(spyPlugin).failoverWriter();
+    assertThrows(FailoverSuccessSQLException.class, () -> spyPlugin.failover(mockHostSpec, false));
+    verify(spyPlugin).failoverWriter(false);
   }
 
   @Test
@@ -234,7 +233,7 @@ class FailoverConnectionPluginTest {
     doThrow(FailoverSuccessSQLException.class).when(spyPlugin).failoverReader(eq(mockHostSpec));
     spyPlugin.failoverMode = FailoverMode.READER_OR_WRITER;
 
-    assertThrows(FailoverSuccessSQLException.class, () -> spyPlugin.failover(mockHostSpec));
+    assertThrows(FailoverSuccessSQLException.class, () -> spyPlugin.failover(mockHostSpec, false));
     verify(spyPlugin).failoverReader(eq(mockHostSpec));
   }
 
@@ -304,7 +303,7 @@ class FailoverConnectionPluginTest {
         () -> mockReaderFailoverHandler,
         () -> mockWriterFailoverHandler);
 
-    assertThrows(SQLException.class, () -> spyPlugin.failoverWriter());
+    assertThrows(SQLException.class, () -> spyPlugin.failoverWriter(false));
     verify(mockWriterFailoverHandler).failover(eq(hosts));
   }
 
@@ -326,7 +325,7 @@ class FailoverConnectionPluginTest {
         () -> mockReaderFailoverHandler,
         () -> mockWriterFailoverHandler);
 
-    final SQLException exception = assertThrows(SQLException.class, () -> spyPlugin.failoverWriter());
+    final SQLException exception = assertThrows(SQLException.class, () -> spyPlugin.failoverWriter(false));
     assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), exception.getSQLState());
 
     verify(mockWriterFailoverHandler).failover(eq(hosts));
@@ -345,7 +344,8 @@ class FailoverConnectionPluginTest {
         () -> mockReaderFailoverHandler,
         () -> mockWriterFailoverHandler);
 
-    final SQLException exception = assertThrows(FailoverSuccessSQLException.class, () -> spyPlugin.failoverWriter());
+    final SQLException exception =
+        assertThrows(FailoverSuccessSQLException.class, () -> spyPlugin.failoverWriter(false));
     assertEquals(SqlState.COMMUNICATION_LINK_CHANGED.getState(), exception.getSQLState());
 
     verify(mockWriterFailoverHandler).failover(eq(defaultHosts));
@@ -438,7 +438,7 @@ class FailoverConnectionPluginTest {
     verify(mockHostListProvider, never()).getRdsUrlType();
   }
 
-  private void initializePlugin() throws SQLException {
+  private void initializePlugin() {
     spyPlugin = spy(new FailoverConnectionPlugin(mockContainer, properties));
     spyPlugin.setWriterFailoverHandler(mockWriterFailoverHandler);
     spyPlugin.setReaderFailoverHandler(mockReaderFailoverHandler);

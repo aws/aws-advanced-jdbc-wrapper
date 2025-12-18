@@ -50,10 +50,7 @@ import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
  */
 public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
 
-  private static final Logger LOGGER = Logger.getLogger(AuroraStaleDnsPlugin.class.getName());
-
   private final Set<String> subscribedMethods;
-
   private final PluginService pluginService;
   private final AuroraStaleDnsHelper helper;
   private HostListProviderService hostListProviderService;
@@ -83,8 +80,8 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
-    return this.helper.getVerifiedConnection(isInitialConnection, this.hostListProviderService,
-        driverProtocol, hostSpec, props, connectFunc);
+    return this.helper.getVerifiedConnection(
+        isInitialConnection, this.hostListProviderService, hostSpec, props, connectFunc);
   }
 
   @Override

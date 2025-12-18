@@ -1,5 +1,12 @@
 # Cross plugin compatibility
 
+This document is part of the [Compatibility Guide](./Compatibility.md) and explains compatibility between various plugins. While combining plugins in a single driver configuration is common, some plugins may not work properly together. Such incompatibilities can arise from either plugin design constraints or logical conflicts.
+
+For example, the `failover` plugin is incompatible with `failover2`. Both plugins support database cluster failover but implement this functionality differently. Combining them in a single configuration causes interference between their operations, leading to instability.
+
+Similarly, the `limitless` plugin and `customEndpoint` plugin are incompatible because Limitless Database does not support custom endpoints.
+
+
 | Plugin codes / Plugin codes                                                           | executionTime                                            | logQuery                                                 | dataCache                                                | customEndpoint                                           |
 |---------------------------------------------------------------------------------------|----------------------------------------------------------|----------------------------------------------------------|----------------------------------------------------------|----------------------------------------------------------|
 | executionTime                                                                         |                                                          |                                                          |                                                          |                                                          |
