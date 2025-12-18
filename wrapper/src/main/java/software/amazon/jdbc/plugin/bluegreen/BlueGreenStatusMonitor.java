@@ -47,6 +47,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.BlueGreenDialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.HostListProvider;
@@ -202,6 +203,14 @@ public class BlueGreenStatusMonitor {
       }
     } finally {
       this.closeConnection();
+      if (this.hostListProvider != null) {
+        this.hostListProvider.stopMonitor();
+        if (this.hostListProvider instanceof CanReleaseResources) {
+          ((CanReleaseResources) this.hostListProvider).releaseResources();
+        }
+      }
+      this.hostListProvider = null;
+      this.openConnectionFuture = null;
       LOGGER.finest(() -> Messages.get("bgd.threadCompleted", new Object[] {this.role}));
     }
   }
@@ -245,6 +254,13 @@ public class BlueGreenStatusMonitor {
   public void setStop(boolean stop) {
     this.stop.set(stop);
     this.notifyChanges();
+    try {
+      if (!this.executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+        this.executorService.shutdownNow();
+      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   public void resetCollectedData() {

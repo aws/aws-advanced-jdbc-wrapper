@@ -68,7 +68,7 @@ public class BatchingEventPublisher implements EventPublisher {
   }
 
   protected void deliverEvent(Event event) {
-    Set<EventSubscriber> subscribers = subscribersMap.get(event.getClass());
+    Set<EventSubscriber> subscribers = this.subscribersMap.get(event.getClass());
     if (subscribers == null) {
       return;
     }
@@ -82,7 +82,7 @@ public class BatchingEventPublisher implements EventPublisher {
   public void subscribe(EventSubscriber subscriber, Set<Class<? extends Event>> eventClasses) {
     for (Class<? extends Event> eventClass : eventClasses) {
       // The subscriber collection is a weakly referenced set so that we avoid garbage collection issues.
-      subscribersMap.computeIfAbsent(
+      this.subscribersMap.computeIfAbsent(
           eventClass, (k) -> Collections.newSetFromMap(new WeakHashMap<>())).add(subscriber);
     }
   }

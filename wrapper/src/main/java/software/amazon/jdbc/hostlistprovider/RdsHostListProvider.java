@@ -43,6 +43,7 @@ import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.events.MonitorStopEvent;
 
 public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseResources {
 
@@ -377,5 +378,11 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
   public String getClusterId() throws SQLException {
     init();
     return this.clusterId;
+  }
+
+  @Override
+  public void stopMonitor() {
+    this.servicesContainer.getEventPublisher().publish(
+        new MonitorStopEvent(ClusterTopologyMonitorImpl.class, this.clusterId));
   }
 }
