@@ -21,6 +21,7 @@ import java.util.logging.Logger;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.FullServicesContainer;
 
 import java.util.Properties;
 
@@ -32,16 +33,9 @@ public class KmsEncryptionConnectionPluginFactory implements ConnectionPluginFac
 
     private static final Logger LOGGER = Logger.getLogger(KmsEncryptionConnectionPluginFactory.class.getName());
 
-    /**
-     * Creates a new KmsEncryptionConnectionPlugin instance.
-     *
-     * @param pluginService The PluginService instance from AWS JDBC Wrapper
-     * @param properties Configuration properties for the plugin
-     * @return New plugin instance
-     */
     @Override
-    public ConnectionPlugin getInstance(PluginService pluginService, Properties properties) {
+    public ConnectionPlugin getInstance( final FullServicesContainer servicesContainer, final Properties properties) {
         LOGGER.info(()->"Creating KmsEncryptionConnectionPlugin instance");
-        return new KmsEncryptionConnectionPlugin(pluginService, properties);
+        return new KmsEncryptionConnectionPlugin(servicesContainer.getPluginService(), properties);
     }
 }

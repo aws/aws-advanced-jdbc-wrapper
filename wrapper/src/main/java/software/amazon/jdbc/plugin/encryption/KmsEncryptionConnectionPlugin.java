@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin.encryption;
 
 import java.util.logging.Logger;
 import software.amazon.jdbc.*;
+import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 
 import java.sql.Connection;
 import java.sql.SQLException;
