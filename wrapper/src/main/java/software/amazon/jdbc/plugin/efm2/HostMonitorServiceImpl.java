@@ -154,7 +154,7 @@ public class HostMonitorServiceImpl implements HostMonitorService {
 
     return this.coreMonitorService.runIfAbsent(
         HostMonitorImpl.class,
-        this.monitorKey,
+        this.monitorKey.getKeyValue(),
         this.serviceContainer,
         this.pluginService.getProperties(),
         (servicesContainer) -> new HostMonitorImpl(
