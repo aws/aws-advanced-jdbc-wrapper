@@ -668,7 +668,11 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       }
       return hosts;
     } catch (SQLException ex) {
-      LOGGER.finest(() -> Messages.get("ClusterTopologyMonitorImpl.errorFetchingTopology", new Object[] {ex}));
+      if (LOGGER.isLoggable(Level.FINEST)) {
+        LOGGER.log(Level.FINEST,
+            Messages.get("ClusterTopologyMonitorImpl.errorFetchingTopology", new Object[]{ex}),
+            ex);
+      }
     }
 
     return null;
@@ -846,8 +850,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
       List<HostSpec> hosts;
       try {
-        hosts = this.monitor.topologyUtils.queryForTopology(
-            connection, this.monitor.initialHostSpec, this.monitor.instanceTemplate);
+        hosts = this.monitor.queryForTopology(connection);
         if (hosts == null) {
           return;
         }
