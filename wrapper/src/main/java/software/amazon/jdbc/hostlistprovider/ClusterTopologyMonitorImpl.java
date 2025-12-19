@@ -668,10 +668,14 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       }
       return hosts;
     } catch (SQLException ex) {
-      if (LOGGER.isLoggable(Level.FINEST)) {
-        LOGGER.log(Level.FINEST,
-            Messages.get("ClusterTopologyMonitorImpl.errorFetchingTopology", new Object[]{ex}),
-            ex);
+      // Ignore exceptions related to network. Log other exceptions.
+      if (!this.servicesContainer.getPluginService().isNetworkException(ex,
+          this.servicesContainer.getPluginService().getTargetDriverDialect())) {
+        if (LOGGER.isLoggable(Level.FINEST)) {
+          LOGGER.log(Level.FINEST,
+              Messages.get("ClusterTopologyMonitorImpl.errorFetchingTopology", new Object[]{ex}),
+              ex);
+        }
       }
     }
 

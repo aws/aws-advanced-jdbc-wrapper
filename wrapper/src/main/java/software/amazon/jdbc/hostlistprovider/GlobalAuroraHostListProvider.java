@@ -16,7 +16,9 @@
 
 package software.amazon.jdbc.hostlistprovider;
 
+import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import software.amazon.jdbc.AwsWrapperProperty;
@@ -79,5 +81,11 @@ public class GlobalAuroraHostListProvider extends RdsHostListProvider {
                 this.refreshRateNano,
                 this.highRefreshRateNano,
                 this.instanceTemplatesByRegion));
+  }
+
+  @Override
+  public List<HostSpec> getCurrentTopology(Connection conn, HostSpec initialHostSpec) throws SQLException {
+    init();
+    return this.topologyUtils.queryForTopology(conn, initialHostSpec, this.instanceTemplatesByRegion);
   }
 }
