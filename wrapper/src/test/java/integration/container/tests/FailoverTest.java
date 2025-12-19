@@ -718,6 +718,9 @@ public class FailoverTest {
             == DatabaseEngine.MYSQL) {
       // Connecting to Mysql database with MariaDb driver requires a configuration parameter: "permitMysqlScheme"
       targetDataSourceProps.setProperty("permitMysqlScheme", "1");
+      // These options may cause issues for non-MariaDB databases.
+      targetDataSourceProps.setProperty("usePipelineAuth", "false");
+      targetDataSourceProps.setProperty("useBatchMultiSend", "false");
     }
 
     ds.setTargetDataSourceProperties(targetDataSourceProps);

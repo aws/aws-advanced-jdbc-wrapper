@@ -38,6 +38,12 @@ public class AwsIamAuthenticationMariadbExample {
     properties.setProperty(PropertyDefinition.USER.name, USERNAME);
     properties.setProperty(PropertyDefinition.PLUGINS.name, "iam");
 
+    // Aurora is not compatible with pipelining, so these properties should be set. Additionally, MariaDB 3.x uses
+    // pipelining extensively, so 2.x should be used instead.
+    // See https://github.com/aws/aws-advanced-jdbc-wrapper?tab=readme-ov-file#mariadb for more information.
+    properties.setProperty("usePipelineAuth", "false");
+    properties.setProperty("useBatchMultiSend", "false");
+
     // The properties sslMode and severSslCert are required when using the IAM Authentication plugin with the MariaDB driver.
     properties.setProperty("sslMode", "verify-ca");
 

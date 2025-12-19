@@ -109,9 +109,10 @@ public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
   }
 
   @Override
-  public ConnectInfo prepareConnectInfo(final @NonNull String protocol,
+  public ConnectInfo prepareConnectInfo(
+      final @NonNull String protocol,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props) throws SQLException {
+      final @NonNull Properties props) {
 
     final String databaseName =
         PropertyDefinition.DATABASE.getString(props) != null
