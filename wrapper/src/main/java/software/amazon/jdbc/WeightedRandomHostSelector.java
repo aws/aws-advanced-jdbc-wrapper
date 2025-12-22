@@ -57,16 +57,17 @@ public class WeightedRandomHostSelector implements HostSelector {
 
   public HostSpec getHost(
       @NonNull List<HostSpec> hosts,
-      @NonNull HostRole role,
+      @Nullable HostRole role,
       @Nullable Properties props) throws SQLException {
 
     final Map<String, Integer> hostWeightMap =
-        this.getHostWeightPairMap(WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS.getString(props));
+        this.getHostWeightPairMap(props == null ? null : WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS.getString(props));
 
     // Get and check eligible hosts
     final List<HostSpec> eligibleHosts = hosts.stream()
         .filter(hostSpec ->
-            role.equals(hostSpec.getRole()) && hostSpec.getAvailability().equals(HostAvailability.AVAILABLE))
+            (role == null || role.equals(hostSpec.getRole()))
+            && hostSpec.getAvailability().equals(HostAvailability.AVAILABLE))
         .sorted(Comparator.comparing(HostSpec::getHost))
         .collect(Collectors.toList());
 
@@ -108,11 +109,12 @@ public class WeightedRandomHostSelector implements HostSelector {
     throw new SQLException(Messages.get("HostSelector.weightedRandomUnableToGetHost", new Object[] {role}));
   }
 
-  private Map<String, Integer> getHostWeightPairMap(final String hostWeightMapString) throws SQLException {
+  private Map<String, Integer> getHostWeightPairMap(final @Nullable String hostWeightMapString) throws SQLException {
     try {
       lock.lock();
       if (this.cachedHostWeightMapString != null
-          && this.cachedHostWeightMapString.trim().equals(hostWeightMapString.trim())
+          && this.cachedHostWeightMapString.equals(
+              hostWeightMapString == null ? "" : hostWeightMapString.trim())
           && this.cachedHostWeightMap != null
           && !this.cachedHostWeightMap.isEmpty()) {
         return this.cachedHostWeightMap;
@@ -146,7 +148,7 @@ public class WeightedRandomHostSelector implements HostSelector {
         }
       }
       this.cachedHostWeightMap = hostWeightMap;
-      this.cachedHostWeightMapString = hostWeightMapString;
+      this.cachedHostWeightMapString = hostWeightMapString.trim();
       return hostWeightMap;
     } finally {
       lock.unlock();
