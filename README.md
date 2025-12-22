@@ -58,12 +58,14 @@ As of version [3.0.0](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/
 
 ### Plain Amazon RDS databases
 
-The AWS Advanced JDBC Wrapper also provides limited functionality for RDS provided databases that are not Aurora, see the [compatability matrix](https://github.com/davecramer/aws-advanced-jdbc-wrapper/blob/fix_docs_3.0/docs/using-the-jdbc-driver/Compatibility.md) for details.
+The AWS Advanced JDBC Wrapper also provides limited functionality for RDS provided databases that are not Aurora, see the compatability matrix for details.
 
 ### RDS Proxy
 
-As of version [3.0.0](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/3.0.0), the [Simple R/W Splitting Plugin](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/
-UsingTheSimpleReadWriteSplittingPlugin.md#using-the-simple-readwrite-splitting-plugin-with-rds-proxy) can be used with RDS Proxy. However, most AWS Advanced JDBC Wrapper functionality has limited compatibility with RDS Proxy by design.
+As of version [3.0.0](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/3.0.0) the [Simple R/W Splitting Plugin](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheSimpleReadWriteSplittingPlugin.md#using-the-simple-readwrite-splitting-plugin-with-rds-proxy) can be used with There are limitations with the AWS Advanced JDBC Wrapper and RDS Proxy. 
+This is currently intended, by design, since the main reason is that RDS Proxy transparently re-routes requests to a single database instance. 
+RDS Proxy decides which database instance is used based on many criteria (on a per-request basis). 
+Due to this, functionality like Failover, Enhanced Host Monitoring, and Read/Write Splitting is not compatible since the driver relies on cluster topology and RDS Proxy handles this automatically.
 
 RDS Proxy transparently routes requests to database instances based on its own criteria, making per-request routing decisions. Since the proxy manages database instance selection automatically, driver features that depend on cluster topology awareness
 are incompatible:
