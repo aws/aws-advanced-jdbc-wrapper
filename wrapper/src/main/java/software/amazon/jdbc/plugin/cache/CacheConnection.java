@@ -155,6 +155,12 @@ public class CacheConnection {
           "false",
           "Whether to throw SQLException on cache failures under Degraded mode.");
 
+  protected static final AwsWrapperProperty CACHE_KEY_PREFIX =
+      new AwsWrapperProperty(
+          "cacheKeyPrefix",
+          null,
+          "Optional prefix for cache keys (max 10 characters). Enables multi-tenant cache isolation.");
+
   // Adding support for read and write connection pools to the remote cache server
   private volatile GenericObjectPool<StatefulConnection<byte[], byte[]>> readConnectionPool;
   private volatile GenericObjectPool<StatefulConnection<byte[], byte[]>> writeConnectionPool;
@@ -175,6 +181,7 @@ public class CacheConnection {
   private final TelemetryFactory telemetryFactory;
   private final long inFlightWriteSizeLimitBytes;
   private final boolean healthCheckInHealthyState;
+  private final String cacheKeyPrefix;
   private volatile boolean cacheMonitorRegistered = false;
   private volatile Boolean isClusterMode = null; // null = not yet detected, true = CME, false = CMD
 
@@ -247,6 +254,15 @@ public class CacheConnection {
           "Cache connection pool size must be within valid range: 1-" + DEFAULT_MAX_POOL_SIZE + ", but was: " + this.cacheConnectionPoolSize);
     }
     this.failWhenCacheDown = FAIL_WHEN_CACHE_DOWN.getBoolean(properties);
+    this.cacheKeyPrefix = CACHE_KEY_PREFIX.getString(properties);
+    if (this.cacheKeyPrefix != null) {
+      if (this.cacheKeyPrefix.isEmpty() || this.cacheKeyPrefix.trim().isEmpty()) {
+        throw new IllegalArgumentException("Cache key prefix cannot be empty or whitespace. Use null for no prefix.");
+      }
+      if (this.cacheKeyPrefix.length() > 10) {
+        throw new IllegalArgumentException("Cache key prefix must be 10 characters or less");
+      }
+    }
     this.iamAuthEnabled = !StringUtils.isNullOrEmpty(this.cacheIamRegion);
     boolean hasTraditionalAuth = !StringUtils.isNullOrEmpty(this.cachePassword);
     // Validate authentication configuration
@@ -553,6 +569,20 @@ public class CacheConnection {
     return this.msgHashDigest.digest();
   }
 
+  // Computes the final cache key by hashing the input key and preprending the configured prefix
+  private byte[] computeCacheKey(String key) {
+    byte[] keyHash = computeHashDigest(key.getBytes(StandardCharsets.UTF_8));
+
+    if (this.cacheKeyPrefix == null) {
+      return keyHash;
+    }
+    byte[] prefixBytes = this.cacheKeyPrefix.getBytes(StandardCharsets.UTF_8);
+    byte[] finalKey = new byte[prefixBytes.length + keyHash.length];
+    System.arraycopy(prefixBytes, 0, finalKey, 0, prefixBytes.length);
+    System.arraycopy(keyHash, 0, finalKey, prefixBytes.length, keyHash.length);
+    return finalKey;
+  }
+
   public byte[] readFromCache(String key) throws SQLException {
     // Check cluster state before attempting read
     CacheMonitor.HealthState state = getClusterHealthStateFromCacheMonitor();
@@ -571,11 +601,11 @@ public class CacheConnection {
       conn = this.readConnectionPool.borrowObject();
 
       // Cast to appropriate type and execute get command
-      byte[] keyHash = computeHashDigest(key.getBytes(StandardCharsets.UTF_8));
+      byte[] cacheKey = computeCacheKey(key);
       if (conn instanceof StatefulRedisClusterConnection) {
-        return ((StatefulRedisClusterConnection<byte[], byte[]>) conn).sync().get(keyHash);
+        return ((StatefulRedisClusterConnection<byte[], byte[]>) conn).sync().get(cacheKey);
       } else {
-        return ((StatefulRedisConnection<byte[], byte[]>) conn).sync().get(keyHash);
+        return ((StatefulRedisConnection<byte[], byte[]>) conn).sync().get(cacheKey);
       }
     } catch (Exception e) {
       if (conn != null) {
@@ -635,8 +665,8 @@ public class CacheConnection {
       initializeCacheConnectionIfNeeded(false);
 
       // Calculate write size and increment before borrowing connection
-      byte[] keyHash = computeHashDigest(key.getBytes(StandardCharsets.UTF_8));
-      long writeSize = keyHash.length + value.length;
+      byte[] cacheKey = computeCacheKey(key);
+      long writeSize = cacheKey.length + value.length;
       incrementInFlightSize(writeSize);
 
       try {
@@ -654,12 +684,12 @@ public class CacheConnection {
       if (conn instanceof StatefulRedisClusterConnection) {
         RedisAdvancedClusterAsyncCommands<byte[], byte[]> clusterAsyncCommands =
             ((StatefulRedisClusterConnection<byte[], byte[]>) conn).async();
-        clusterAsyncCommands.set(keyHash, value, SetArgs.Builder.ex(expiry))
+        clusterAsyncCommands.set(cacheKey, value, SetArgs.Builder.ex(expiry))
             .whenComplete((result, exception) -> handleCompletedCacheWrite(finalConn, writeSize, exception));
       } else {
         RedisAsyncCommands<byte[], byte[]> asyncCommands =
             ((StatefulRedisConnection<byte[], byte[]>) conn).async();
-        asyncCommands.set(keyHash, value, SetArgs.Builder.ex(expiry))
+        asyncCommands.set(cacheKey, value, SetArgs.Builder.ex(expiry))
             .whenComplete((result, exception) -> handleCompletedCacheWrite(finalConn, writeSize, exception));
       }
 
