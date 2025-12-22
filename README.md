@@ -62,17 +62,10 @@ The AWS Advanced JDBC Wrapper also provides limited functionality for RDS provid
 
 ### RDS Proxy
 
-As of version [3.0.0](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/3.0.0) the [Simple R/W Splitting Plugin](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheSimpleReadWriteSplittingPlugin.md#using-the-simple-readwrite-splitting-plugin-with-rds-proxy) can be used with There are limitations with the AWS Advanced JDBC Wrapper and RDS Proxy. 
-This is currently intended, by design, since the main reason is that RDS Proxy transparently re-routes requests to a single database instance. 
-RDS Proxy decides which database instance is used based on many criteria (on a per-request basis). 
+As of version [3.0.0](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/3.0.0) the [Simple R/W Splitting Plugin](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheSimpleReadWriteSplittingPlugin.md#using-the-simple-readwrite-splitting-plugin-with-rds-proxy) can be used with RDS Proxy. 
+There are limitations with the AWS Advanced JDBC Wrapper and RDS Proxy.  This is currently intended, by design, since the main reason is that RDS Proxy transparently re-routes requests to a single database instance. 
+RDS Proxy decides which database instance is used based on many criteria (on a per-request basis).
 Due to this, functionality like Failover, Enhanced Host Monitoring, and Read/Write Splitting is not compatible since the driver relies on cluster topology and RDS Proxy handles this automatically.
-
-RDS Proxy transparently routes requests to database instances based on its own criteria, making per-request routing decisions. Since the proxy manages database instance selection automatically, driver features that depend on cluster topology awareness
-are incompatible:
-
-- **Failover Plugin**: Cannot manage failover when RDS Proxy handles routing
-- **Enhanced Host Monitoring**: Cannot monitor specific instances when connections are proxied
-- **Read/Write Splitting Plugin**: Cannot control instance selection when proxy manages routing
 
 The driver remains useful with RDS Proxy for authentication workflows, such as IAM authentication and AWS Secrets Manager integration. For detailed compatibility information, refer to the specific plugin documentation.
 
