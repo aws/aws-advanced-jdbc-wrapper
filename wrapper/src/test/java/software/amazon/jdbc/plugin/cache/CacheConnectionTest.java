@@ -38,6 +38,7 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.jdbc.plugin.iam.ElastiCacheIamTokenUtility;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.time.Duration;
@@ -775,6 +776,131 @@ public class CacheConnectionTest {
     assertSame(pool1, pool2);
     assertSame(pool2, pool3);
     assertEquals(10, pool1.getMaxTotal());
+  }
+
+  @Test
+  void test_computeCacheKey() throws Exception {
+    // With prefix
+    Properties propsWithPrefix = createBaseProperties();
+    propsWithPrefix.setProperty("cacheKeyPrefix", "app1");
+    CacheConnection connWithPrefix = new CacheConnection(propsWithPrefix);
+    connWithPrefix.setConnectionPools(mockReadConnPool, mockWriteConnPool);
+    connWithPrefix.setClusterMode(false);
+    connWithPrefix.triggerPoolInit(true);
+
+    Method method = CacheConnection.class.getDeclaredMethod("computeCacheKey", String.class);
+    method.setAccessible(true);
+
+    byte[] resultWithPrefix = (byte[]) method.invoke(connWithPrefix, "test_key");
+    assertEquals(52, resultWithPrefix.length); // 4 (prefix) + 48 (SHA-384 hash)
+    assertEquals("app1", new String(resultWithPrefix, 0, 4, StandardCharsets.UTF_8));
+
+    // Without prefix
+    Properties propsNoPrefix = createBaseProperties();
+    CacheConnection connNoPrefix = new CacheConnection(propsNoPrefix);
+    connNoPrefix.setConnectionPools(mockReadConnPool, mockWriteConnPool);
+    connNoPrefix.setClusterMode(false);
+    connNoPrefix.triggerPoolInit(true);
+
+    byte[] resultNoPrefix = (byte[]) method.invoke(connNoPrefix, "test_key");
+    assertEquals(48, resultNoPrefix.length); // Just the SHA-384 hash
+  }
+
+  @Test
+  void test_cacheKeyPrefix_readWriteOperations() throws Exception {
+    Properties props = createBaseProperties();
+    // prefix exceeds 10 characters should throw IllegalArgumentException
+    props.setProperty("cacheKeyPrefix", "thisistoolong"); // 14 chars
+    IllegalArgumentException ex1 = assertThrows(IllegalArgumentException.class,
+        () -> new CacheConnection(props));
+    assertTrue(ex1.getMessage().contains("Cache key prefix must be 10 characters or less"));
+
+    // empty or whitespace string should throw IllegalArgumentException
+    props.setProperty("cacheKeyPrefix", "");
+    IllegalArgumentException ex2 = assertThrows(IllegalArgumentException.class,
+        () -> new CacheConnection(props));
+    assertTrue(ex2.getMessage().contains("Cache key prefix cannot be empty or whitespace. Use null for no prefix."));
+
+    props.setProperty("cacheKeyPrefix", " ");
+    IllegalArgumentException ex3 = assertThrows(IllegalArgumentException.class,
+        () -> new CacheConnection(props));
+    assertTrue(ex3.getMessage().contains("Cache key prefix cannot be empty or whitespace. Use null for no prefix."));
+
+    String prefix = "app1";
+    props.setProperty("cacheKeyPrefix", prefix);
+
+    CacheConnection connection = new CacheConnection(props);
+    connection.setConnectionPools(mockReadConnPool, mockWriteConnPool);
+    connection.setClusterMode(false);
+
+    CacheConnection spyConnection = spy(connection);
+    when(spyConnection.getClusterHealthStateFromCacheMonitor()).thenReturn(CacheMonitor.HealthState.HEALTHY);
+    doNothing().when(spyConnection).reportErrorToCacheMonitor(anyBoolean(), any(), any());
+    doNothing().when(spyConnection).incrementInFlightSize(anyLong());
+    doNothing().when(spyConnection).decrementInFlightSize(anyLong());
+
+    String testKey = "test_key";
+    byte[] testValue = "test_value".getBytes(StandardCharsets.UTF_8);
+
+    // write operation with size calculation
+    when(mockWriteConnPool.borrowObject()).thenReturn(mockConnection);
+    when(mockConnection.async()).thenReturn(mockAsyncCommands);
+    when(mockAsyncCommands.set(any(byte[].class), any(byte[].class), any()))
+        .thenReturn(mockCacheResult);
+    when(mockCacheResult.whenComplete(any(BiConsumer.class))).thenAnswer(invocation -> {
+      BiConsumer<String, Throwable> callback = invocation.getArgument(0);
+      callback.accept("OK", null);
+      return null;
+    });
+
+    spyConnection.writeToCache(testKey, testValue, 300);
+    Thread.sleep(100); // Wait for async completion
+
+    // set was called with prefixed key
+    verify(mockAsyncCommands).set(
+        argThat(key -> {
+          if (key.length < 4) return false;
+          String keyStr = new String(key, 0, 4, StandardCharsets.UTF_8);
+          return keyStr.equals(prefix);
+        }),
+        eq(testValue),
+        any()
+    );
+
+    // write size calculation includes prefix (prefix=4 + hash=48 + value=10 = 62)
+    long expectedSize = prefix.length() + 48 + testValue.length;
+    verify(spyConnection).incrementInFlightSize(expectedSize);
+    verify(spyConnection).decrementInFlightSize(expectedSize);
+    verify(mockWriteConnPool).returnObject(mockConnection);
+
+    // read operation
+    byte[] expectedValue = "cached_data".getBytes(StandardCharsets.UTF_8);
+    when(mockReadConnPool.borrowObject()).thenReturn(mockConnection);
+    when(mockConnection.sync()).thenReturn(mockSyncCommands);
+    when(mockSyncCommands.get(any(byte[].class))).thenReturn(expectedValue);
+
+    byte[] result = spyConnection.readFromCache(testKey);
+
+    assertArrayEquals(expectedValue, result);
+
+    // get was called with prefixed key
+    verify(mockSyncCommands).get(argThat(key -> {
+      if (key.length < 4) return false;
+      String keyStr = new String(key, 0, 4, StandardCharsets.UTF_8);
+      return keyStr.equals(prefix);
+    }));
+
+    verify(mockReadConnPool).returnObject(mockConnection);
+  }
+
+  private Properties createBaseProperties() {
+    Properties props = new Properties();
+    props.setProperty("cacheEndpointAddrRw", "localhost:6379");
+    props.setProperty("cacheUseSSL", "false");
+    props.setProperty("wrapperLogUnclosedConnections", "true");
+    props.setProperty("cacheConnectionTimeout", "2000");
+    props.setProperty("cacheConnectionPoolSize", "20");
+    return props;
   }
 
   private Object getField(Object obj, String fieldName) throws Exception {
