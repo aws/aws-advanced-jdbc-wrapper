@@ -62,7 +62,7 @@ The AWS Advanced JDBC Wrapper also provides limited functionality for RDS provid
 
 ### RDS Proxy
 
-As of version [3.0.0]() the [Simple R/W Splitting Plugin](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheSimpleReadWriteSplittingPlugin.md#using-the-simple-readwrite-splitting-plugin-with-rds-proxy) can be used with There are limitations with the AWS Advanced JDBC Wrapper and RDS Proxy. 
+As of version [3.0.0](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/3.0.0) the [Simple R/W Splitting Plugin](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheSimpleReadWriteSplittingPlugin.md#using-the-simple-readwrite-splitting-plugin-with-rds-proxy) can be used with There are limitations with the AWS Advanced JDBC Wrapper and RDS Proxy. 
 This is currently intended, by design, since the main reason is that RDS Proxy transparently re-routes requests to a single database instance. 
 RDS Proxy decides which database instance is used based on many criteria (on a per-request basis). 
 Due to this, functionality like Failover, Enhanced Host Monitoring, and Read/Write Splitting is not compatible since the driver relies on cluster topology and RDS Proxy handles this automatically.
@@ -79,7 +79,7 @@ and how to integrate it within your project and with your JDBC driver of choice,
 ### Maven Central
 You can find our driver by searching in The Central Repository with GroupId and ArtifactId [software.amazon:aws-advanced-jdbc-wrapper][mvn-search].
 
-[![Maven Central](https://img.shields.io/maven-central/v/software.amazon.jdbc/aws-advanced-jdbc-wrapper)](https://maven-badges.herokuapp.com/maven-central/software.amazon.jdbc/aws-advanced-jdbc-wrapper)
+[![Maven Central](https://img.shields.io/maven-central/v/software.amazon.jdbc/aws-advanced-jdbc-wrapper)](https://central.sonatype.com/artifact/software.amazon.jdbc/aws-advanced-jdbc-wrapper)
 ```xml
 <!-- Add the following dependency to your pom.xml, -->
 <!-- replacing LATEST with the specific version as required -->
