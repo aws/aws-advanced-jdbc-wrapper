@@ -2,6 +2,9 @@
 
 The read/write splitting plugin adds functionality to switch between writer/reader instances via calls to the `Connection#setReadOnly` method. Upon calling `setReadOnly(true)`, the plugin will connect to a reader instance according to a [reader selection strategy](../ReaderSelectionStrategies.md) and direct subsequent queries to this instance. Future calls to `setReadOnly` will switch between the established writer and reader connections according to the boolean argument you supply to the `setReadOnly` method.
 
+## Plugin Availability
+The plugin is available since version 1.0.1.
+
 ## Loading the Read/Write Splitting Plugin
 
 The read/write splitting plugin is not loaded by default. To load the plugin, include it in the `wrapperPlugins` connection parameter. If you would like to load the read/write splitting plugin alongside the failover and host monitoring plugins, the read/write splitting plugin must be listed before these plugins in the plugin chain. If it is not, failover exceptions will not be properly processed by the plugin. See the example below to properly load the read/write splitting plugin with these plugins.

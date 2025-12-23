@@ -9,6 +9,9 @@ When using Aurora Global Database, the user has an option to use an [Aurora Glob
 
 Verify plugin compatibility within your driver configuration using the [compatibility guide](../Compatibility.md).
 
+## Plugin Availability
+The plugin is available since version 2.3.1.
+
 ## Enabling the Aurora Initial Connection Strategy Plugin
 
 To enable the Aurora Initial Connection Strategy Plugin, add `initialConnection` to the [`wrapperPlugins`](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters) value.

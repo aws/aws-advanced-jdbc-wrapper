@@ -1,5 +1,8 @@
 # Blue/Green Deployment Plugin
 
+## Plugin Availability
+The plugin is available since version 2.6.0.
+
 ## What is Blue/Green Deployment?
 
 The [Blue/Green Deployment](https://docs.aws.amazon.com/whitepapers/latest/blue-green-deployments/introduction.html) technique enables organizations to release applications by seamlessly shifting traffic between two identical environments running different versions of the application. This strategy effectively mitigates common risks associated with software deployment, such as downtime and limited rollback capability.

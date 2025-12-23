@@ -1,6 +1,9 @@
 # Failover Plugin v2
 The AWS Advanced JDBC Wrapper uses the Failover Plugin v2 to provide minimal downtime in the event of a DB instance failure. The plugin is the next version (v2) of the [Failover Plugin](./UsingTheFailoverPlugin.md) and unless explicitly stated otherwise, most of the information and suggestions for the Failover Plugin are applicable to the Failover Plugin v2.
 
+## Plugin Availability
+The plugin is available since version 2.4.0.
+
 ## Differences between the Failover Plugin and the Failover Plugin v2
 
 The Failover Plugin performs a failover process for each DB connection. Each failover process is triggered independently and is unrelated to failover processes in other connections. While such independence between failover processes has some benefits, it also leads to additional resources like extra threads. If dozens of DB connections are failing over at the same time, it may cause significant load on a client environment.
