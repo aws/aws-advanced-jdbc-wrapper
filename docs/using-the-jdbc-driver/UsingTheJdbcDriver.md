@@ -265,7 +265,7 @@ To use a snapshot build in your project, check the following examples. More info
 #### As a Gradle dependency
 ```gradle
 dependencies {
-    implementation(files("path-to-snapshot-jar"))
+    implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:3.0.1-SNAPSHOT")
 }
 
 repositories {
