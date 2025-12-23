@@ -1,5 +1,8 @@
 # Host Availability Strategy
 
+## Availability
+The feature is available since version 2.2.4.
+
 ## What is Host Availability Strategy
 The AWS Advanced JDBC Wrapper keeps track of the availability of database hosts. A host's availability status can be either `AVAILABLE` or `NOT_AVAILABLE`. This information is used by the driver when deciding which hosts to connect to.  
 
