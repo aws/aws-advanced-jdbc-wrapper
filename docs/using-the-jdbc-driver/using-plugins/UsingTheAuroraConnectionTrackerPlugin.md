@@ -5,6 +5,9 @@ If no plugins are explicitly specified, this plugin is enabled by default.
 
 Verify plugin compatibility within your driver configuration using the [compatibility guide](../Compatibility.md).
 
+## Plugin Availability
+The plugin is available since version 1.0.0.
+
 ## Use Case
 User applications can have two types of connections:
 

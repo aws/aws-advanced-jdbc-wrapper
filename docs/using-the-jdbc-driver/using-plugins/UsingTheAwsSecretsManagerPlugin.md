@@ -2,6 +2,10 @@
 
 The AWS Advanced JDBC Wrapper supports usage of database credentials stored as secrets in the [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/) through the AWS Secrets Manager Connection Plugin. When you create a new connection with this plugin enabled, the plugin will retrieve the secret and the connection will be created with the credentials inside that secret.
 
+## Plugin Availability
+The plugin is available since version 1.0.0.
+
+
 ## Enabling the AWS Secrets Manager Connection Plugin
 > :warning: **Note:** To use this plugin, you must include the runtime dependencies [Jackson Databind](https://central.sonatype.com/artifact/com.fasterxml.jackson.core/jackson-databind) and [AWS Secrets Manager](https://central.sonatype.com/artifact/software.amazon.awssdk/secretsmanager) in your project. These parameters are required for the AWS Advanced JDBC Wrapper to pass database credentials to the underlying driver.
 
