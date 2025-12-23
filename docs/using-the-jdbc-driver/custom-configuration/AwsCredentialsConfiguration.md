@@ -6,5 +6,8 @@ The `IamAuthenticationPlugin` and `AwsSecretsManagerPlugin` both require authent
 
 If you would like to use a different `AwsCredentialsProvider` or would like to define your own mechanism for providing AWS credentials, you can do so using the methods defined in the `AwsCredentialsManager` class. To configure the plugins to use your own logic, you can call the `AwsCredentialsManager.setCustomHandler` method, passing in a lambda or `AwsCredentialsProviderHandler` that returns an `AwsCredentialsProvider`.
 
+## Availability
+The feature is available since version 1.0.1.
+
 ## Sample code
 [AwsCredentialsManagerExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/AwsCredentialsManagerExample.java)

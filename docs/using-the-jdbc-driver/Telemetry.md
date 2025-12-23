@@ -1,5 +1,9 @@
 # Monitoring
 
+## Availability
+The feature is available since version 2.3.0.
+
+## Overview
 Monitoring is the ability to gather data and insights on the execution of an application. Users will also be able to inspect the gathered data and determine potential actions to take depending on the data collected.
 
 Version 2.3.0 of the AWS Advanced JDBC Wrapper introduced the Telemetry feature. This feature allows you to collect and visualize data of the AWS Advanced JDBC Wrapper execution at a global level and at plugin level. You can now monitor the performance of the driver as a whole or within specific plugins with your configurations, and determine whether the driver's performance meets your expectations.

@@ -6,6 +6,9 @@ The plugin will use the current connection, which may be the writer or initial c
 
 The plugin does not rely on cluster topology. It relies purely on the provided endpoints and their DNS resolution.
 
+## Plugin Availability
+The plugin is available since version 3.0.0.
+
 ## Loading the Simple Read/Write Splitting Plugin
 
 The Simple Read/Write Splitting Plugin is not loaded by default. To load the plugin, include it in the `wrapperPlugins` connection parameter. 
