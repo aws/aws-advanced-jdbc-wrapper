@@ -451,6 +451,7 @@ public class Driver implements java.sql.Driver {
     CoreServicesContainer.getInstance().getMonitorService().stopAndRemoveAll();
     HostMonitorThreadContainer.releaseInstance();
     ConnectionProviderManager.releaseResources();
+    InternalConnectionPoolService.releaseResources();
     HikariPoolsHolder.closeAllPools();
     clearCaches();
   }
