@@ -34,11 +34,15 @@ import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.RdsUrlType;
+import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.storage.SlidingExpirationCache;
 
 public class C3P0PooledConnectionProvider implements PooledConnectionProvider, CanReleaseResources {
 
   private static final Logger LOGGER = Logger.getLogger(C3P0PooledConnectionProvider.class.getName());
+
+  private static final String CONNECTION_POOL_PROPERTY_PREFIX = "cp-";
 
   protected static final SlidingExpirationCache<String, ComboPooledDataSource> databasePools =
       new SlidingExpirationCache<>(null, ComboPooledDataSource::close);
@@ -53,10 +57,15 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
         }
       });
   protected static final long poolExpirationCheckNanos = TimeUnit.MINUTES.toNanos(30);
+  protected static final RdsUtils rdsUtils = new RdsUtils();
+
+  public C3P0PooledConnectionProvider() {
+  }
 
   @Override
   public boolean acceptsUrl(@NonNull String protocol, @NonNull HostSpec hostSpec, @NonNull Properties props) {
-    return true;
+    final RdsUrlType urlType = rdsUtils.identifyRdsType(hostSpec.getHost());
+    return RdsUrlType.RDS_INSTANCE.equals(urlType);
   }
 
   @Override
@@ -92,6 +101,8 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
 
     ds.setPassword(copy.getProperty(PropertyDefinition.PASSWORD.name));
 
+    //this.logConnections();
+
     return new ConnectionInfo(ds.getConnection(), true);
   }
 
@@ -100,9 +111,22 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
       @NonNull HostSpec hostSpec,
       @NonNull Properties props,
       TargetDriverDialect driverDialect) {
+
+    final Properties copy = PropertyUtils.copyProperties(props);
+    final Properties poolProperties = new Properties();
+    props.stringPropertyNames().stream()
+        .filter(p -> p.startsWith(CONNECTION_POOL_PROPERTY_PREFIX))
+        .forEach(
+            p -> {
+              poolProperties.put(
+                  p.substring(CONNECTION_POOL_PROPERTY_PREFIX.length()),
+                  props.getProperty(p));
+              copy.remove(p);
+            });
+
     ConnectInfo connectInfo;
     try {
-      connectInfo = driverDialect.prepareConnectInfo(protocol, hostSpec, props);
+      connectInfo = driverDialect.prepareConnectInfo(protocol, hostSpec, copy);
     } catch (SQLException ex) {
       throw new RuntimeException(ex);
     }
@@ -131,6 +155,13 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
       ds.setPassword(password);
     }
 
+    LOGGER.finest(() -> PropertyUtils.logProperties(PropertyUtils.maskProperties(poolProperties),
+        "ComboPooledDataSource properties: \n"));
+
+    if (!poolProperties.isEmpty()) {
+      PropertyUtils.applyProperties(ds, poolProperties);
+    }
+
     return ds;
   }
 
@@ -144,4 +175,26 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
     databasePools.getEntries().forEach((key, pool) -> pool.close());
     databasePools.clear();
   }
+
+  public void logConnections() {
+    LOGGER.finest(() -> {
+      final StringBuilder builder = new StringBuilder();
+      databasePools.getEntries().forEach((key, dataSource) -> {
+        builder.append("\t[ ");
+        builder.append(key).append(":");
+        builder.append("\n\t {");
+        builder.append("\n\t\t").append(dataSource);
+        try {
+          builder.append(String.format(" %d/%d",
+              dataSource.getNumBusyConnections(), dataSource.getNumConnections()));
+        } catch (SQLException e) {
+          // ignore
+        }
+        builder.append("\n\t }\n");
+        builder.append("\t");
+      });
+      return String.format("c3p0 Pooled Connection: \n[\n%s\n]", builder);
+    });
+  }
+
 }
