@@ -18,10 +18,12 @@ package software.amazon.jdbc;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import com.zaxxer.hikari.HikariPoolMXBean;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -38,6 +40,7 @@ import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.HikariCPSQLException;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
@@ -50,6 +53,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
 
   private static final String thisClassName = HikariPooledConnectionProvider.class.getName();
   private static final Logger LOGGER = Logger.getLogger(HikariPooledConnectionProvider.class.getName());
+  private static final String CONNECTION_POOL_PROPERTY_PREFIX = "cp-";
 
   protected static final Map<String, HostSelector> acceptedStrategies =
       Collections.unmodifiableMap(new HashMap<String, HostSelector>() {
@@ -76,6 +80,31 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
           }
           return true;
         });
+  }
+
+  public HikariPooledConnectionProvider() {
+    this((hostSpec, originalProps) -> {
+      HikariConfig config = new HikariConfig();
+      config.setExceptionOverrideClassName(HikariCPSQLException.class.getName());
+
+      final Properties poolProperties = new Properties();
+      originalProps.stringPropertyNames().stream()
+          .filter(p -> p.startsWith(CONNECTION_POOL_PROPERTY_PREFIX))
+          .forEach(
+              p -> {
+                poolProperties.put(
+                    p.substring(CONNECTION_POOL_PROPERTY_PREFIX.length()),
+                    originalProps.getProperty(p));
+              });
+
+      LOGGER.finest(() -> PropertyUtils.logProperties(PropertyUtils.maskProperties(poolProperties),
+          "HikariConfig properties: \n"));
+
+      if (!poolProperties.isEmpty()) {
+        PropertyUtils.applyProperties(config, poolProperties);
+      }
+      return config;
+    }, null);
   }
 
   /**
@@ -286,6 +315,8 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
 
     ds.setPassword(copy.getProperty(PropertyDefinition.PASSWORD.name));
 
+    //this.logConnections();
+
     return new ConnectionInfo(ds.getConnection(), true);
   }
 
@@ -327,6 +358,12 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
       final @NonNull TargetDriverDialect targetDriverDialect) {
 
     final Properties copy = PropertyUtils.copyProperties(connectionProps);
+
+    final ArrayList<String> poolProperties = new ArrayList<>();
+    copy.stringPropertyNames().stream()
+        .filter(p -> p.startsWith(CONNECTION_POOL_PROPERTY_PREFIX))
+        .forEach(poolProperties::add);
+    poolProperties.forEach(copy::remove);
 
     ConnectInfo connectInfo;
     try {
@@ -409,6 +446,10 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
         builder.append(key).append(":");
         builder.append("\n\t {");
         builder.append("\n\t\t").append(dataSource);
+        if (dataSource instanceof HikariDataSource) {
+          HikariPoolMXBean bean = ((HikariDataSource) dataSource).getHikariPoolMXBean();
+          builder.append(String.format(" %d/%d", bean.getActiveConnections(), bean.getTotalConnections()));
+        }
         builder.append("\n\t }\n");
         builder.append("\t");
       });

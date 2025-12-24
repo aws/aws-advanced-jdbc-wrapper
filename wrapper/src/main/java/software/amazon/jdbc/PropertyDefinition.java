@@ -184,6 +184,15 @@ public class PropertyDefinition {
               + " This setting modifies all future connections established by the driver, not just the current"
               + " connection using this set of connection properties.");
 
+  public static final AwsWrapperProperty CONNECTION_POOL_TYPE =
+      new AwsWrapperProperty(
+          "connectionPoolType", null,
+          "Enable internal connection pooling with specified type for the current cluster.",
+          false,
+          new String[] {
+              "hikari", "c3p0"
+          });
+
   private static final Map<String, AwsWrapperProperty> PROPS_BY_NAME =
       new ConcurrentHashMap<>();
   private static final Map<String, AwsWrapperProperty> PROPS_BY_NAME_LOWERCASE =
