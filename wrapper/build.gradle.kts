@@ -131,6 +131,56 @@ java {
     }
 }
 
+// Create a separate source set for Java 11+ specific code (e.g., java.lang.ref.Cleaner)
+val java11 = sourceSets.create("java11") {
+    java {
+        srcDir("src/main/java11")
+    }
+    // Make java11 source set depend on main source set
+    compileClasspath += sourceSets.main.get().output
+}
+
+dependencies {
+    add(java11.implementationConfigurationName, "org.checkerframework:checker-qual:3.52.0")
+}
+
+// Configure the java11 source set to compile with Java 11
+tasks.named<JavaCompile>(java11.compileJavaTaskName) {
+    javaCompiler.set(javaToolchains.compilerFor {
+        languageVersion.set(JavaLanguageVersion.of(11))
+    })
+    options.release.set(11)
+    // Ensure main classes are compiled before java11 classes
+    dependsOn(tasks.compileJava)
+}
+
+fun CopySpec.addMultiReleaseContents() {
+    into("META-INF/versions/11") {
+        from(java11.output)
+    }
+}
+
+// Add java11 compiled classes to the main JAR
+tasks.jar {
+    dependsOn(tasks.named(java11.compileJavaTaskName))
+    
+    // Add multi-release content after bnd processing
+    doLast {
+        val java11Dir = java11.output.classesDirs.files.first()
+        if (java11Dir.exists()) {
+            ant.withGroovyBuilder {
+                "jar"("destfile" to archiveFile.get().asFile, "update" to true) {
+                    "zipfileset"("dir" to java11Dir, "prefix" to "META-INF/versions/11")
+                }
+            }
+        }
+    }
+    
+    manifest {
+        attributes["Multi-Release"] = "true"
+    }
+}
+
 tasks.named("sourcesJar") {
     dependsOn("preprocessVersion")
 }
@@ -248,6 +298,8 @@ tasks.jar {
             """
             -exportcontents: software.*
             -removeheaders: Created-By
+            -noclassforname: true
+            -noextraheaders: true
             Bundle-Description: Amazon Web Services (AWS) Advanced JDBC Wrapper Driver
             Bundle-DocURL: https://github.com/aws/aws-advanced-jdbc-wrapper
             Bundle-Vendor: Amazon Web Services (AWS)
