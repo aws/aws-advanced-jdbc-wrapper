@@ -73,14 +73,15 @@ public class RoundRobinHostSelector implements HostSelector {
   @Override
   public HostSpec getHost(
       final @NonNull List<HostSpec> hosts,
-      final @NonNull HostRole role,
+      final @Nullable HostRole role,
       final @Nullable Properties props) throws SQLException {
 
     lock.lock();
     try {
       final List<HostSpec> eligibleHosts = hosts.stream()
           .filter(hostSpec ->
-              role.equals(hostSpec.getRole()) && hostSpec.getAvailability().equals(HostAvailability.AVAILABLE))
+              (role == null || role.equals(hostSpec.getRole()))
+              && hostSpec.getAvailability().equals(HostAvailability.AVAILABLE))
           .sorted(Comparator.comparing(HostSpec::getHost))
           .collect(Collectors.toList());
 

@@ -61,13 +61,14 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
   }
 
   @Override
-  public boolean acceptsStrategy(@NonNull HostRole role, @NonNull String strategy) {
+  public boolean acceptsStrategy(@Nullable HostRole role, @NonNull String strategy) {
     return acceptedStrategies.containsKey(strategy);
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(@NonNull List<HostSpec> hosts, @NonNull HostRole role, @NonNull String strategy,
-      @Nullable Properties props) throws SQLException, UnsupportedOperationException {
+  public HostSpec getHostSpecByStrategy(
+      @NonNull List<HostSpec> hosts, @Nullable HostRole role, @NonNull String strategy, @Nullable Properties props)
+      throws SQLException, UnsupportedOperationException {
     if (!acceptsStrategy(role, strategy)) {
       throw new UnsupportedOperationException(
           Messages.get(

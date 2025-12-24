@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 
 /**
@@ -112,7 +113,7 @@ public interface ConnectionPlugin {
    * @return true if this {@link ConnectionPlugin} supports the selection of a host with the requested role and strategy
    *     via {@link #getHostSpecByStrategy}. Otherwise, return false.
    */
-  boolean acceptsStrategy(final HostRole role, final String strategy);
+  boolean acceptsStrategy(final @Nullable HostRole role, final String strategy);
 
   /**
    * Selects a {@link HostSpec} with the requested role from available hosts using the requested
@@ -130,10 +131,10 @@ public interface ConnectionPlugin {
    * @throws UnsupportedOperationException if this {@link ConnectionPlugin} does not support the
    *                                       requested strategy
    */
-  HostSpec getHostSpecByStrategy(final HostRole role, final String strategy)
+  HostSpec getHostSpecByStrategy(final @Nullable HostRole role, final String strategy)
       throws SQLException, UnsupportedOperationException;
 
-  HostSpec getHostSpecByStrategy(final List<HostSpec> hosts, final HostRole role, final String strategy)
+  HostSpec getHostSpecByStrategy(final List<HostSpec> hosts, final @Nullable HostRole role, final String strategy)
       throws SQLException, UnsupportedOperationException;
 
   void initHostProvider(

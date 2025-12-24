@@ -216,7 +216,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   }
 
   @Override
-  public boolean acceptsStrategy(@NonNull HostRole role, @NonNull String strategy) {
+  public boolean acceptsStrategy(@Nullable HostRole role, @NonNull String strategy) {
     return acceptedStrategies.containsKey(strategy)
         || LeastConnectionsHostSelector.STRATEGY_LEAST_CONNECTIONS.equals(strategy);
   }
@@ -224,7 +224,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   @Override
   public HostSpec getHostSpecByStrategy(
       @NonNull List<HostSpec> hosts,
-      @NonNull HostRole role,
+      @Nullable HostRole role,
       @NonNull String strategy,
       @Nullable Properties props) throws SQLException {
     if (!acceptsStrategy(role, strategy)) {
