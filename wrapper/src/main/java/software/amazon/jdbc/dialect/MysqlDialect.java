@@ -35,6 +35,7 @@ public class MysqlDialect implements Dialect {
 
   protected static final String VERSION_QUERY = "SHOW VARIABLES LIKE 'version_comment'";
   protected static final String HOST_ALIAS_QUERY = "SELECT CONCAT(@@hostname, ':', @@port)";
+  protected static final String IS_READER_QUERY = "SELECT @@read_only";
 
   private static MySQLExceptionHandler mySQLExceptionHandler;
   private static final EnumSet<FailoverRestriction> NO_FAILOVER_RESTRICTIONS =
@@ -102,6 +103,11 @@ public class MysqlDialect implements Dialect {
   @Override
   public String getServerVersionQuery() {
     return VERSION_QUERY;
+  }
+
+  @Override
+  public String getIsReaderQuery() {
+    return IS_READER_QUERY;
   }
 
   @Override

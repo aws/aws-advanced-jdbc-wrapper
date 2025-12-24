@@ -45,4 +45,6 @@ public interface Dialect {
   EnumSet<FailoverRestriction> getFailoverRestrictions();
 
   String getServerVersionQuery();
+
+  String getIsReaderQuery();
 }

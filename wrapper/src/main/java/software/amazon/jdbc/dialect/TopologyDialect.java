@@ -22,6 +22,4 @@ public interface TopologyDialect extends Dialect {
   String getInstanceIdQuery();
 
   String getWriterIdQuery();
-
-  String getIsReaderQuery();
 }

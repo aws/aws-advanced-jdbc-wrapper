@@ -40,6 +40,7 @@ public class PgDialect implements Dialect {
   protected static final String VERSION_QUERY = "SELECT 'version', pg_catalog.VERSION()";
   protected static final String HOST_ALIAS_QUERY =
       "SELECT pg_catalog.CONCAT(pg_catalog.inet_server_addr(), ':', pg_catalog.inet_server_port())";
+  protected static final String IS_READER_QUERY = "SELECT pg_catalog.pg_is_in_recovery()";
 
   private static PgExceptionHandler pgExceptionHandler;
   private static final EnumSet<FailoverRestriction> NO_FAILOVER_RESTRICTIONS =
@@ -95,6 +96,11 @@ public class PgDialect implements Dialect {
   @Override
   public String getServerVersionQuery() {
     return VERSION_QUERY;
+  }
+
+  @Override
+  public String getIsReaderQuery() {
+    return IS_READER_QUERY;
   }
 
   @Override
