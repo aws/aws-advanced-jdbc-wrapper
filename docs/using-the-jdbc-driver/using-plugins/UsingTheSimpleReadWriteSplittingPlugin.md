@@ -43,7 +43,8 @@ When connecting with custom endpoints and other non-standard URLs, role verifica
 ## Limitations When Verifying Connections
 
 #### Non-RDS clusters
-The verification step determines the role of the connection by executing a query against it. If the endpoint is not part of an Aurora or RDS cluster, the plugin will not be able to verify the role, so `verifyNewSrwConnections` must be set to `false`.
+At this time, the AWS JDBC Driver only supports verifying the role of the connection for Aurora and RDS clusters. Thus, when not connecting to an Aurora or RDS cluster `verifyNewSrwConnections` must be set to `false`.
+The Simple Read/Write Splitting Plugin will continue to function, relying purely on the endpoints. For further information on compatible endpoints see [Compatibility](../CompatibilityEndpoints.md).
 
 #### Autocommit
 The verification logic results in errors such as `Cannot change transaction read-only property in the middle of a transaction` from the underlying driver when:
