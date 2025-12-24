@@ -33,6 +33,7 @@ public class PgExceptionHandler extends AbstractPgExceptionHandler {
   );
 
   private static final List<String> ACCESS_ERRORS = Arrays.asList(
+      "08004", // The server requested SCRAM-based authentication, but no password was provided.
       "28P01",
       "28000" // PAM authentication errors
   );
