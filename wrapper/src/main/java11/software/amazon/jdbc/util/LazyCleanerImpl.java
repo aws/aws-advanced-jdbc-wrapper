@@ -19,11 +19,22 @@ package software.amazon.jdbc.util;
 import java.lang.ref.Cleaner;
 import java.time.Duration;
 import java.util.concurrent.ThreadFactory;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
- * Java 11+ implementation using java.lang.ref.Cleaner.
+ * LazyCleaner is a utility class that allows to register objects for deferred cleanup.
+ *
+ * <p>This is the Java 11+ implementation that uses the native {@link Cleaner} API
+ * introduced in Java 9+ for deferred cleanup operations.</p>
+ *
+ * <p>This class replaces the Java 8 PhantomReference-based implementation via the
+ * multi-release JAR mechanism when running on Java 11+.</p>
+ *
+ * <p>Note: this is a driver-internal class</p>
  */
 public class LazyCleanerImpl implements LazyCleaner {
+  private static final Logger LOGGER = Logger.getLogger(LazyCleanerImpl.class.getName());
   private static final LazyCleanerImpl instance =
       new LazyCleanerImpl(
           Duration.ofMillis(Long.getLong("aws.jdbc.cleanup.thread.ttl", 30000)),
@@ -32,10 +43,25 @@ public class LazyCleanerImpl implements LazyCleaner {
 
   private final Cleaner cleaner;
 
+  /**
+   * Returns a default cleaner instance.
+   *
+   * <p>Note: this is driver-internal API.</p>
+   * @return the instance of LazyCleaner
+   */
   public static LazyCleanerImpl getInstance() {
     return instance;
   }
 
+  /**
+   * Creates a LazyCleaner with the specified configuration.
+   *
+   * <p>Note: The {@code threadName} and {@code threadTtl} parameters are ignored
+   * in this implementation since the JVM manages Cleaner threads internally.</p>
+   *
+   * @param threadTtl the maximum time the cleanup thread will wait (ignored, for API compatibility)
+   * @param threadName the name for the cleanup thread (ignored, for API compatibility)
+   */
   public LazyCleanerImpl(Duration threadTtl, final String threadName) {
     this(threadTtl, runnable -> {
       Thread thread = new Thread(runnable, threadName);
@@ -48,34 +74,63 @@ public class LazyCleanerImpl implements LazyCleaner {
     this.cleaner = Cleaner.create(threadFactory);
   }
 
-  public Cleanable register(Object obj, CleaningAction action) {
-    return new CleanableWrapper(cleaner.register(obj, () -> {
-      try {
-        action.onClean(true);
-      } catch (Throwable e) {
-        // Cleaner swallows exceptions, but we should at least log them
-        // The logging is handled by the action itself
-      }
-    }), action);
+  public <T extends Throwable> Cleanable<T> register(Object obj, CleaningAction<T> action) {
+    assert obj != action : "object handle should not be the same as cleaning action, otherwise"
+        + " the object will never become phantom reachable, so the action will never trigger";
+
+    CleanableWrapper<T> wrapper = new CleanableWrapper<>(action);
+    Cleaner.Cleanable nativeCleanable = cleaner.register(obj, wrapper::leakDetected);
+    wrapper.setNativeCleanable(nativeCleanable);
+    return wrapper;
   }
 
-  private static class CleanableWrapper implements Cleanable {
-    private final java.lang.ref.Cleaner.Cleanable cleanable;
-    private final CleaningAction action;
-    private volatile boolean cleaned = false;
+  private static class CleanableWrapper<T extends Throwable> implements Cleanable<T> {
+    private java.lang.ref.Cleaner.Cleanable nativeCleanable;
+    private volatile CleaningAction<T> action;
 
-    CleanableWrapper(java.lang.ref.Cleaner.Cleanable cleanable, CleaningAction action) {
-      this.cleanable = cleanable;
+    CleanableWrapper(CleaningAction<T> action) {
       this.action = action;
     }
 
-    @Override
-    public void clean() throws Exception {
-      if (!cleaned) {
-        cleaned = true;
-        cleanable.clean();
-        action.onClean(false);
+    void setNativeCleanable(java.lang.ref.Cleaner.Cleanable nativeCleanable) {
+      this.nativeCleanable = nativeCleanable;
+    }
+
+    private synchronized CleaningAction<T> getCleaningAction() {
+      CleaningAction<T> action = this.action;
+      this.action = null;
+      return action;
+    }
+
+    void leakDetected() {
+      CleaningAction<T> cleaningAction = getCleaningAction();
+      if (cleaningAction == null) {
+        return;
       }
+      try {
+        cleaningAction.onClean(true);
+      } catch (Throwable e) {
+        if (e instanceof InterruptedException) {
+          LOGGER.log(Level.WARNING, "Unexpected interrupt while executing onClean", e);
+        } else {
+          // Should not happen if cleaners are well-behaved
+          LOGGER.log(Level.WARNING, "Unexpected exception while executing onClean", e);
+        }      }
+    }
+
+    @Override
+    public void clean() throws T {
+      CleaningAction<T> cleaningAction = getCleaningAction();
+      if (cleaningAction == null) {
+        return;
+      }
+
+      if (nativeCleanable != null) {
+        nativeCleanable.clean();
+        nativeCleanable = null;
+      }
+
+      cleaningAction.onClean(false);
     }
   }
 }

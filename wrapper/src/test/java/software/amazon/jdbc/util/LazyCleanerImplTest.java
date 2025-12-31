@@ -61,7 +61,11 @@ public class LazyCleanerImplTest {
 
     assertTrue(t.isThreadRunning(), "cleanup thread should be running, and it should wait for the leaks");
 
-    cleaners.get(1).clean();
+    try {
+      cleaners.get(1).clean();
+    } catch (Throwable e) {
+      // Expected for test
+    }
     list.set(0, null);
     System.gc();
     System.gc();
@@ -97,7 +101,11 @@ public class LazyCleanerImplTest {
 
     assertTrue(t.isThreadRunning(), "cleanup thread should be running when there are objects to monitor");
 
-    cleanable.clean();
+    try {
+      cleanable.clean();
+    } catch (Throwable e) {
+      // Expected for test
+    }
     assertTrue(cleaned.get(), "Object should be cleaned after manual clean");
 
     list.clear();

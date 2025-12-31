@@ -163,7 +163,7 @@ fun CopySpec.addMultiReleaseContents() {
 // Add java11 compiled classes to the main JAR
 tasks.jar {
     dependsOn(tasks.named(java11.compileJavaTaskName))
-    
+
     // Add multi-release content after bnd processing
     doLast {
         val java11Dir = java11.output.classesDirs.files.first()
@@ -175,7 +175,7 @@ tasks.jar {
             }
         }
     }
-    
+
     manifest {
         attributes["Multi-Release"] = "true"
     }

@@ -42,6 +42,17 @@ import java.util.function.BooleanSupplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+/**
+ * LazyCleaner is a utility class that allows to register objects for deferred cleanup.
+ *
+ * <p>This is the Java 8 compatible implementation that uses PhantomReferences
+ * and ForkJoinPool for deferred cleanup operations.</p>
+ *
+ * <p>On Java 11+, this class is replaced by a version that uses the native
+ * {@link java.lang.ref.Cleaner} API via the multi-release JAR mechanism.</p>
+ *
+ * <p>Note: this is a driver-internal class</p>
+ */
 public class LazyCleanerImpl implements LazyCleaner {
   private static final Logger LOGGER = Logger.getLogger(LazyCleanerImpl.class.getName());
 
@@ -56,20 +67,40 @@ public class LazyCleanerImpl implements LazyCleaner {
   private boolean threadRunning;
   private Node<?> first;
 
+  /**
+   * Creates a LazyCleaner with the specified configuration.
+   *
+   * @param threadName the name for the cleanup thread
+   * @param threadTtl the maximum time the cleanup thread will wait for references
+   */
   public LazyCleanerImpl(String threadName, Duration threadTtl) {
     this.threadName = threadName;
     this.threadTtl = threadTtl;
   }
 
+  /**
+   * Returns a default cleaner instance.
+   *
+   * <p>Note: this is driver-internal API.</p>
+   *
+   * @return the instance of LazyCleaner
+   */
   public static LazyCleanerImpl getInstance() {
     return instance;
   }
 
   @Override
-  public Cleanable register(Object obj, CleaningAction action) {
+  public <T extends Throwable> Cleanable<T> register(Object obj, CleaningAction<T> action) {
+    assert obj != action : "object handle should not be the same as cleaning action, otherwise"
+        + " the object will never become phantom reachable, so the action will never trigger";
     return add(new Node<>(obj, action));
   }
 
+  /**
+   * Returns whether the cleanup thread is currently running.
+   *
+   * @return true if cleanup operations are active
+   */
   public synchronized boolean isThreadRunning() {
     return threadRunning;
   }
@@ -82,7 +113,7 @@ public class LazyCleanerImpl implements LazyCleaner {
     return false;
   }
 
-  private synchronized <T> Node<T> add(Node<T> node) {
+  private synchronized <T extends Throwable> Node<T> add(Node<T> node) {
     if (first != null) {
       node.next = first;
       first.prev = node;
@@ -94,6 +125,12 @@ public class LazyCleanerImpl implements LazyCleaner {
     return node;
   }
 
+  /**
+   * RefQueueBlocker retrieves references from the reference queue without blocking ForkJoinPool
+   * CPU threads.
+   *
+   * @param <T> the type of the objects referenced by the {@link Reference}s in the queue
+   */
   private static class RefQueueBlocker<T> implements ForkJoinPool.ManagedBlocker {
     private final ReferenceQueue<T> queue;
     private final String threadName;
@@ -101,7 +138,8 @@ public class LazyCleanerImpl implements LazyCleaner {
     private final long blockTimeoutMillis;
     private final BooleanSupplier shouldTerminate;
 
-    RefQueueBlocker(ReferenceQueue<T> queue, String threadName, Duration blockTimeout, BooleanSupplier shouldTerminate) {
+    RefQueueBlocker(ReferenceQueue<T> queue, String threadName, Duration blockTimeout,
+                    BooleanSupplier shouldTerminate) {
       this.queue = queue;
       this.threadName = threadName;
       this.blockTimeoutMillis = blockTimeout.toMillis();
@@ -111,9 +149,10 @@ public class LazyCleanerImpl implements LazyCleaner {
     @Override
     public boolean isReleasable() {
       if (ref != null || shouldTerminate.getAsBoolean()) {
-        return true;
+        return true; // already have a ref from a previous call
       }
       ref = queue.poll();
+      // no need to block if we already have a ref from a previous call
       return ref != null;
     }
 
@@ -123,9 +162,11 @@ public class LazyCleanerImpl implements LazyCleaner {
         return true;
       }
       Thread currentThread = Thread.currentThread();
+      // ForkJoinPool reuses threads, so we set the thread name just for the blocking operation
       String oldName = currentThread.getName();
       try {
         currentThread.setName(threadName);
+        // Perform blocking operation
         ref = queue.remove(blockTimeoutMillis);
       } finally {
         currentThread.setName(oldName);
@@ -141,14 +182,18 @@ public class LazyCleanerImpl implements LazyCleaner {
   }
 
   private boolean startThread() {
+    // We use ForkJoinPool to work around Thread.inheritedAccessControlContext memory leak
+    // Java creates FJP threads without caller's access control context, thus we reduce
+    // the surface for the leak.
     ForkJoinPool.commonPool().execute(() -> {
+      // Clear setContextClassLoader to avoid leaking the classloader
       Thread.currentThread().setContextClassLoader(null);
       RefQueueBlocker<Object> blocker = new RefQueueBlocker<>(queue, threadName, threadTtl, this::checkEmpty);
       while (!checkEmpty()) {
         try {
           ForkJoinPool.managedBlock(blocker);
           @SuppressWarnings("unchecked")
-          Node<Object> ref = (Node<Object>) blocker.drainOne();
+          Node<?> ref = (Node<?>) blocker.drainOne();
           if (ref != null) {
             ref.onClean(true);
           }
@@ -167,6 +212,7 @@ public class LazyCleanerImpl implements LazyCleaner {
   }
 
   private synchronized boolean remove(Node<?> node) {
+    // If already removed, do nothing
     if (node.next == node) {
       return false;
     }
@@ -184,23 +230,23 @@ public class LazyCleanerImpl implements LazyCleaner {
     return true;
   }
 
-  private class Node<T> extends PhantomReference<T> implements Cleanable, CleaningAction {
-    private final CleaningAction action;
+  private class Node<T extends Throwable> extends PhantomReference<Object> implements Cleanable<T>, CleaningAction<T> {
+    private final CleaningAction<T> action;
     private Node<?> prev;
     private Node<?> next;
 
-    Node(T referent, CleaningAction action) {
+    Node(Object referent, CleaningAction<T> action) {
       super(referent, queue);
       this.action = action;
     }
 
     @Override
-    public void clean() throws Exception {
+    public void clean() throws T {
       onClean(false);
     }
 
     @Override
-    public void onClean(boolean leak) throws Exception {
+    public void onClean(boolean leak) throws T {
       if (!remove(this)) {
         return;
       }
