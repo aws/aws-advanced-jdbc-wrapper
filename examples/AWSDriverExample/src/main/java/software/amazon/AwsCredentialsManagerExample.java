@@ -43,8 +43,13 @@ public class AwsCredentialsManagerExample {
 
   public static void main(String[] args) throws SQLException {
 
-    // Configure AwsCredentialsManager to use EnvironmentVariableCredentialsProvider when connecting
-    // to MySQL and DefaultCredentialsProvider otherwise.
+    /* Configure AwsCredentialsManager to use EnvironmentVariableCredentialsProvider when connecting
+    * to MySQL and DefaultCredentialsProvider otherwise.
+    * There is nothing special about MySQL here, it is just used to show how to use different
+    * credentials providers.
+    *
+    * We just use the MYSQL_URL to pick a different credential provider
+    */
     AwsCredentialsManager.setCustomHandler((hostSpec, props) -> {
       if (MYSQL_URL.equals(hostSpec.getHost())) {
         return EnvironmentVariableCredentialsProvider.create();

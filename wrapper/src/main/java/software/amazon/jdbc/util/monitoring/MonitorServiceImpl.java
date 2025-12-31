@@ -18,6 +18,7 @@ package software.amazon.jdbc.util.monitoring;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -34,8 +35,8 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.hostlistprovider.ClusterTopologyMonitorImpl;
 import software.amazon.jdbc.hostlistprovider.Topology;
-import software.amazon.jdbc.hostlistprovider.monitoring.ClusterTopologyMonitorImpl;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.NodeResponseTimeMonitor;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ExecutorFactory;
@@ -47,6 +48,7 @@ import software.amazon.jdbc.util.events.DataAccessEvent;
 import software.amazon.jdbc.util.events.Event;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.events.EventSubscriber;
+import software.amazon.jdbc.util.events.MonitorStopEvent;
 import software.amazon.jdbc.util.storage.ExternallyManagedCache;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -87,7 +89,8 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
    */
   public MonitorServiceImpl(long cleanupIntervalNanos, EventPublisher publisher) {
     this.publisher = publisher;
-    this.publisher.subscribe(this, new HashSet<>(Collections.singletonList(DataAccessEvent.class)));
+    this.publisher.subscribe(this,
+        new HashSet<>(Arrays.asList(DataAccessEvent.class, MonitorStopEvent.class)));
     initCleanupThread(cleanupIntervalNanos);
   }
 
@@ -283,7 +286,7 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
   }
 
   @Override
-  public @Nullable <T extends Monitor> T get(Class<T> monitorClass, Object key) {
+  public @Nullable <T extends Monitor> T get(Class<T> monitorClass, @NonNull Object key) {
     CacheContainer cacheContainer = monitorCaches.get(monitorClass);
     if (cacheContainer == null) {
       return null;
@@ -380,6 +383,12 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
         // monitor's expiration.
         container.getCache().extendExpiration(accessEvent.getKey());
       }
+      return;
+    }
+
+    if (event instanceof MonitorStopEvent) {
+      MonitorStopEvent stopEvent = (MonitorStopEvent) event;
+      this.stopAndRemove(stopEvent.getMonitorClass(), stopEvent.getKey());
       return;
     }
 

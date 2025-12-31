@@ -220,12 +220,7 @@ public class ConnectionPluginChainBuilder {
       // make a chain of connection plugins
       plugins = new ArrayList<>(pluginFactories.size() + 1);
       for (final ConnectionPluginFactory factory : pluginFactories) {
-        if (factory instanceof ServicesContainerPluginFactory) {
-          ServicesContainerPluginFactory servicesContainerPluginFactory = (ServicesContainerPluginFactory) factory;
-          plugins.add(servicesContainerPluginFactory.getInstance(servicesContainer, props));
-        } else {
-          plugins.add(factory.getInstance(servicesContainer.getPluginService(), props));
-        }
+        plugins.add(factory.getInstance(servicesContainer, props));
       }
     } else {
       plugins = new ArrayList<>(1); // one spot for default connection plugin

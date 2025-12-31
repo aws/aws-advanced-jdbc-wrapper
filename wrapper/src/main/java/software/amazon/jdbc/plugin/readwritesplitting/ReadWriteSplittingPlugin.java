@@ -295,7 +295,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
 
   private void setReaderConnection(final Connection conn, final HostSpec host) {
     closeReaderConnectionIfIdle(this.readerConnection);
-    this.readerConnection = new CacheItem<>(conn, this.getKeepAliveTimeout(host));
+    this.readerConnection = new CacheItem<>(conn, this.getKeepAliveTimeout(this.isReaderConnFromInternalPool));
     this.readerHostSpec = host;
     LOGGER.finest(
         () -> Messages.get(
@@ -534,8 +534,8 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     return connection != null && !connection.isClosed();
   }
 
-  private long getKeepAliveTimeout(final HostSpec host) {
-    if (this.pluginService.isPooledConnectionProvider(host, properties)) {
+  private long getKeepAliveTimeout(boolean isPooledConnection) {
+    if (isPooledConnection) {
       // Let the connection pool handle the lifetime of the reader connection.
       return 0;
     }
@@ -554,24 +554,24 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     closeWriterConnectionIfIdle(this.writerConnection);
   }
 
-  void closeReaderConnectionIfIdle(CacheItem<Connection> readerConnection) {
-    if (readerConnection == null) {
+  void closeReaderConnectionIfIdle(CacheItem<Connection> readerCacheItem) {
+    if (readerCacheItem == null) {
       return;
     }
 
     final Connection currentConnection = this.pluginService.getCurrentConnection();
-    final Connection readerConnectionCache = readerConnection.get(true);
+    final Connection readerConnection = readerCacheItem.get(true);
 
     try {
-      if (isConnectionUsable(readerConnectionCache) && readerConnectionCache != currentConnection) {
-        readerConnectionCache.close();
+      if (isConnectionUsable(readerConnection) && readerConnection != currentConnection) {
+        // readerConnection is open but is not currently in use, so we close it.
+        readerConnection.close();
+        this.readerConnection = null;
+        this.readerHostSpec = null;
       }
     } catch (SQLException e) {
       // Do nothing.
     }
-
-    this.readerConnection = null;
-    this.readerHostSpec = null;
   }
 
   void closeWriterConnectionIfIdle(final Connection internalConnection) {

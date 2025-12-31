@@ -599,13 +599,13 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @param failedHost The host with network errors.
    * @throws SQLException if an error occurs
    */
-  protected void failover(@Nullable final HostSpec failedHost) throws SQLException {
+  protected void failover(@Nullable final HostSpec failedHost, boolean isInitialConnection) throws SQLException {
     if (failedHost != null) {
       this.pluginService.setAvailability(failedHost.asAliases(), HostAvailability.NOT_AVAILABLE);
     }
 
     if (this.failoverMode == FailoverMode.STRICT_WRITER) {
-      failoverWriter();
+      failoverWriter(isInitialConnection);
     } else {
       failoverReader(failedHost);
     }
@@ -713,7 +713,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
   }
 
-  protected void failoverWriter() throws SQLException {
+  protected void failoverWriter(boolean isInitialConnection) throws SQLException {
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
         TELEMETRY_WRITER_FAILOVER, TelemetryTraceLevel.NESTED);
@@ -747,8 +747,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         if (exception != null) {
           throw exception;
         }
-
-        updateHostAvailability(this.writerFailoverHandler.getHostAvailabilityMap());
       }
 
       if (failoverResult == null || !failoverResult.isConnected()) {
@@ -766,6 +764,14 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         return;
       }
 
+      Connection conn = failoverResult.getNewConnection();
+      if (isInitialConnection) {
+        this.pluginService.updateDialect(conn);
+      }
+
+      this.pluginService.forceRefreshHostList();
+      updateHostAvailability(this.writerFailoverHandler.getHostAvailabilityMap());
+
       final List<HostSpec> allowedHosts = this.pluginService.getHosts();
       if (!Utils.containsHostAndPort(allowedHosts, writerHostSpec.getHostAndPort())) {
         throwFailoverFailedException(
@@ -774,14 +780,13 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         return;
       }
 
-      this.pluginService.setCurrentConnection(failoverResult.getNewConnection(), writerHostSpec);
+      this.pluginService.setCurrentConnection(conn, writerHostSpec);
 
       LOGGER.fine(
           () -> Messages.get(
               "Failover.establishedConnection",
               new Object[]{this.pluginService.getCurrentHostSpec()}));
 
-      this.pluginService.refreshHostList();
       throwFailoverSuccessException();
     } catch (FailoverSuccessSQLException ex) {
       if (telemetryContext != null) {
@@ -863,10 +868,10 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       try {
         connectTo(Utils.getWriter(this.pluginService.getAllHosts()));
       } catch (final SQLException e) {
-        failover(Utils.getWriter(this.pluginService.getAllHosts()));
+        failover(Utils.getWriter(this.pluginService.getAllHosts()), false);
       }
     } else {
-      failover(this.pluginService.getCurrentHostSpec());
+      failover(this.pluginService.getCurrentHostSpec(), false);
     }
   }
 
@@ -928,16 +933,15 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
     Connection conn = null;
     try {
-      conn =
-          this.staleDnsHelper.getVerifiedConnection(isInitialConnection, this.hostListProviderService,
-              driverProtocol, hostSpec, props, connectFunc);
+      conn = this.staleDnsHelper.getVerifiedConnection(
+          isInitialConnection, this.hostListProviderService, hostSpec, props, connectFunc);
     } catch (final SQLException e) {
       if (!this.enableConnectFailover || !shouldExceptionTriggerConnectionSwitch(e)) {
         throw e;
       }
 
       try {
-        failover(this.pluginService.getCurrentHostSpec());
+        failover(this.pluginService.getCurrentHostSpec(), isInitialConnection);
       } catch (FailoverSuccessSQLException failoverSuccessException) {
         conn = this.pluginService.getCurrentConnection();
       }
@@ -949,7 +953,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     if (isInitialConnection) {
-      this.pluginService.refreshHostList(conn);
+      this.pluginService.refreshHostList();
     }
 
     return conn;

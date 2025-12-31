@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.hostlistprovider.monitoring;
+package software.amazon.jdbc.hostlistprovider;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -40,8 +40,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.hostlistprovider.Topology;
-import software.amazon.jdbc.hostlistprovider.TopologyUtils;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.LogUtils;
@@ -175,18 +173,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     }
 
     return this.waitTillTopologyGetsUpdated(timeoutMs);
-  }
-
-  @Override
-  public List<HostSpec> forceRefresh(@Nullable Connection connection, final long timeoutMs)
-      throws SQLException, TimeoutException {
-    if (this.isVerifiedWriterConnection) {
-      // Get the monitoring thread to refresh the topology using a verified connection.
-      return this.waitTillTopologyGetsUpdated(timeoutMs);
-    }
-
-    // Otherwise, use the provided unverified connection to update the topology.
-    return this.fetchTopologyAndUpdateCache(connection);
   }
 
   protected List<HostSpec> waitTillTopologyGetsUpdated(final long timeoutMs) throws TimeoutException {
@@ -626,6 +612,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     return hosts;
   }
 
+  // Note: even though the parameters are not used here, they may be used in subclasses overriding this method.
   protected HostSpec getInstanceTemplate(String nodeId, Connection connection) throws SQLException {
     return this.instanceTemplate;
   }
@@ -673,6 +660,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     if (connection == null) {
       return null;
     }
+
     try {
       final List<HostSpec> hosts = this.queryForTopology(connection);
       if (!Utils.isNullOrEmpty(hosts)) {
@@ -680,7 +668,15 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       }
       return hosts;
     } catch (SQLException ex) {
-      LOGGER.finest(() -> Messages.get("ClusterTopologyMonitorImpl.errorFetchingTopology", new Object[] {ex}));
+      // Ignore exceptions related to network. Log other exceptions.
+      if (!this.servicesContainer.getPluginService().isNetworkException(ex,
+          this.servicesContainer.getPluginService().getTargetDriverDialect())) {
+        if (LOGGER.isLoggable(Level.FINEST)) {
+          LOGGER.log(Level.FINEST,
+              Messages.get("ClusterTopologyMonitorImpl.errorFetchingTopology", new Object[]{ex}),
+              ex);
+        }
+      }
     }
 
     return null;
@@ -858,8 +854,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
       List<HostSpec> hosts;
       try {
-        hosts = this.monitor.topologyUtils.queryForTopology(
-            connection, this.monitor.initialHostSpec, this.monitor.instanceTemplate);
+        hosts = this.monitor.queryForTopology(connection);
         if (hosts == null) {
           return;
         }

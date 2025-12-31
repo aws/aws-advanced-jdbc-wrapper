@@ -3,7 +3,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
-## [3.0.0] - TBD
+## [3.0.0] - 2025-12-18
 
 ### :crab: Breaking Changes
 
@@ -18,7 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 > | Multiple database clusters         | Yes              | Review all connection strings and add mandatory `clusterId` parameter ([PR #1476](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1476)). See [documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheFailover2Plugin.md#failover-plugin-v2-configuration-parameters) for `clusterId` parameter configuration |
 
 > [!WARNING]\
-> 3.0 removes deprecated code ([PR #1572](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1572)).
+> 3.0 removes deprecated code ([PR #1572](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1572) and [PR #1637](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1637)).
 > #### Deprecated Code Removal
 > Some methods marked as deprecated in version 2.x.x are now removed in 3.0.
 > If you implemented any custom classes such as custom Connection Plugins, please review the changes in [PR #1572](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1572) for proper replacements.
@@ -28,11 +28,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 > #### Deprecated Configuration Parameters Removal
 > Deprecated configuration parameters `keepSessionStateOnFailover` and `enableFailoverStrictReader` are now removed in 3.0. If you used these two parameters along with the Failover Connection Plugin, please review the changes from [PR #1577](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1577) for the proper replacements.
 
+> [!WARNING]\
+> 3.0 removes the ConnectionPluginFactory#getInstance(PluginService, Properties) method ([PR #1633](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1633)).
+> #### ConnectionPluginFactory#getInstance(PluginService, Properties) Removal
+> The ConnectionPluginFactory#getInstance(PluginService, Properties) method has now been removed.
+> The ConnectionPluginFactory#getInstance(FullServicesContainer, Properties) method should be used instead.
+> The code below shows a short example of how to migrate from the removed method to the replacement method for users
+> that have created their own ConnectionPluginFactory classes.
+> #### Migration
+> ```java
+> public class FooPluginFactory implements ConnectionPluginFactory {
+>     ConnectionPlugin getInstance(FullServicesContainer servicesContainer, Properties props) {
+>         return new FooPlugin(servicesContainer.getPluginService(), props);
+>     }
+> }
+> ```
+
 
 ### :bug: Fixed
 - Incorrect nodeId in HostSpec for RDS Multi-AZ cluster ([PR #1579](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1579)).
 - Avoid duplicates in manifest file ([PR #1607](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1607)).
 - Add expiration time for cached reader connections and refactor Blue/Green plugin ([PR #1626](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1626)).
+- During Blue/Green switchover IAM host name should be based on green host ([PR #1642](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1642)).
+- Restart Blue/Green monitors when B/G switchover is completed. That closes unnecessary monitoring connections to old blue and green clusters. It also prepares for further Blue/Green switchover ([PR #1639](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1639)). 
 
 ### :crab: Changed
 - Improve Javadoc ([PR #1576](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1576)). 
@@ -44,9 +62,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Remove deprecated `ConnectionService` classes ([PR #1598](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1598)).
 - Logging improvement for RW Splitting plugin ([PR #1604](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1604)).
 - Refactor dialects and host list providers to reduce code duplication ([PR #1588](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1588)).
+- Use monitoring host list providers by default ([PR #1636](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1636)).
+- Cache `efm2` monitor key for better performance ([PR #1644](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1644)).
 
 ### :magic_wand: Added
-- Global Databases and Global Database endpoint support. Both in-region and cross-region failovers are supported now ([PR #1573](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1573), [PR #1575](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1575)).
+- Global Databases and Global Database endpoint support. Both in-region and cross-region failovers are supported now ([PR #1573](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1573), [PR #1575](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1575), [PR #1645](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1645)).
 - Recognize RDS Proxy custom endpoints ([PR #1583](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1583)).
 - Public `PluginService` interface extended with a new method helping to identify a source of connection. Knowing whether a connection is brand new or obtained from a pool helps to improve connection management. Custom plugins implemented by user can now use this new method ([PR #1581](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1581)).
 - Allow overriding the IAM token property name ([PR #1603](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1603)).
@@ -55,6 +75,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Documentation:
   - Required permissions for non-admin users accessing MultiAZ clusters ([PR #1602](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1602)).
   - Add link for simplifying MySQL permission configuration process ([PR #1631](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1631)).
+  - Improved [Compatibility Guide](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/Compatibility.md) ([PR #1638](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1638)).
+  - Example code improvements ([PR #1623](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1623)).
 
 
 ## [2.6.8] - 2025-12-04
@@ -625,6 +647,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[3.0.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.8...3.0.0
 [2.6.8]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.7...2.6.8
 [2.6.7]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.6...2.6.7
 [2.6.6]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.5...2.6.6

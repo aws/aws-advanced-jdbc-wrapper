@@ -19,6 +19,7 @@ package software.amazon.jdbc.util.monitoring;
 import java.sql.SQLException;
 import java.util.EnumSet;
 import java.util.Properties;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.dialect.Dialect;
@@ -120,7 +121,7 @@ public interface MonitorService {
    * @return the monitor stored at the given key.
    */
   @Nullable
-  <T extends Monitor> T get(Class<T> monitorClass, Object key);
+  <T extends Monitor> T get(Class<T> monitorClass, @NonNull Object key);
 
   /**
    * Removes the monitor stored at the given key. If the expected monitor class does not match the actual monitor class

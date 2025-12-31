@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.dialect;
 
+import java.sql.SQLException;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.hostlistprovider.HostListProvider;
@@ -26,5 +27,5 @@ public interface HostListProviderSupplier {
   @NonNull HostListProvider getProvider(
       final @NonNull Properties properties,
       final String initialUrl,
-      final @NonNull FullServicesContainer servicesContainer);
+      final @NonNull FullServicesContainer servicesContainer) throws SQLException;
 }

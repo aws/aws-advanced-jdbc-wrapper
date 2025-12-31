@@ -757,8 +757,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     Connection conn = null;
 
     if (!ENABLE_CONNECT_FAILOVER.getBoolean(props)) {
-      return this.staleDnsHelper.getVerifiedConnection(isInitialConnection, this.hostListProviderService,
-            driverProtocol, hostSpec, props, connectFunc);
+      return this.staleDnsHelper.getVerifiedConnection(
+          isInitialConnection, this.hostListProviderService, hostSpec, props, connectFunc);
     }
 
     final HostSpec hostSpecWithAvailability = this.pluginService.getHosts().stream()
@@ -770,8 +770,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         || hostSpecWithAvailability.getAvailability() != HostAvailability.NOT_AVAILABLE) {
 
       try {
-        conn = this.staleDnsHelper.getVerifiedConnection(isInitialConnection, this.hostListProviderService,
-            driverProtocol, hostSpec, props, connectFunc);
+        conn = this.staleDnsHelper.getVerifiedConnection(
+            isInitialConnection, this.hostListProviderService, hostSpec, props, connectFunc);
       } catch (final SQLException e) {
         if (!this.shouldExceptionTriggerConnectionSwitch(e)) {
           throw e;
@@ -800,7 +800,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     if (isInitialConnection) {
-      this.pluginService.refreshHostList(conn);
+      this.pluginService.refreshHostList();
     }
 
     return conn;

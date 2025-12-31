@@ -30,10 +30,7 @@ public interface HostMonitorService {
   HostMonitorConnectionContext startMonitoring(
       Connection connectionToAbort,
       HostSpec hostSpec,
-      Properties properties,
-      int failureDetectionTimeMillis,
-      int failureDetectionIntervalMillis,
-      int failureDetectionCount) throws SQLException;
+      Properties properties) throws SQLException;
 
   /**
    * Stop monitoring for a connection represented by the given {@link HostMonitorConnectionContext}.

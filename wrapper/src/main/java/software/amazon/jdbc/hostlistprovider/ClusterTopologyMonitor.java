@@ -14,20 +14,19 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.limitless;
+package software.amazon.jdbc.hostlistprovider;
 
+import java.sql.SQLException;
 import java.util.List;
-import java.util.Properties;
+import java.util.concurrent.TimeoutException;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.util.storage.SlidingExpirationCacheWithCleanupThread;
+import software.amazon.jdbc.util.events.EventSubscriber;
+import software.amazon.jdbc.util.monitoring.Monitor;
 
-@FunctionalInterface
-public interface LimitlessRouterMonitorInitializer {
-  LimitlessRouterMonitor createLimitlessRouterMonitor(
-      final HostSpec hostSpec,
-      final SlidingExpirationCacheWithCleanupThread<String, List<HostSpec>> limitlessRouterCache,
-      final String limitlessRouterCacheKey,
-      final Properties props,
-      final int intervalMs
-  );
+public interface ClusterTopologyMonitor extends Monitor, EventSubscriber {
+
+  boolean canDispose();
+
+  List<HostSpec> forceRefresh(final boolean writerImportant, final long timeoutMs)
+      throws SQLException, TimeoutException;
 }

@@ -159,7 +159,6 @@ public class OpenedConnectionTracker {
 
     final Queue<WeakReference<Connection>> connectionQueue = openedConnections.get(host);
     if (connectionQueue != null) {
-      logConnectionQueue(host, connectionQueue);
       connectionQueue.removeIf(
           connectionWeakReference -> Objects.equals(connectionWeakReference.get(), connection));
     }

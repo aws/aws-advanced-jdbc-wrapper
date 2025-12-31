@@ -2,6 +2,9 @@
 
 The Okta Authentication Plugin adds support for authentication via Federated Identity and then database access via IAM.
 
+## Plugin Availability
+The plugin is available since version 2.3.6.
+
 ## What is Federated Identity
 Federated Identity allows users to use the same set of credentials to access multiple services or resources across different organizations. This works by having Identity Providers (IdP) that manage and authenticate user credentials, and Service Providers (SP) that are services or resources that can be internal, external, and/or belonging to various organizations. Multiple SPs can establish trust relationships with a single IdP.
 
