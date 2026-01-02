@@ -17,40 +17,33 @@
 package software.amazon.jdbc.authentication;
 
 import java.util.Properties;
-import java.util.concurrent.locks.ReentrantLock;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.StringUtils;
 
 public class AwsCredentialsManager {
   private static AwsCredentialsProviderHandler handler = null;
 
-  private static final ReentrantLock lock = new ReentrantLock();
+  private static final ResourceLock lock = new ResourceLock();
 
   public static void setCustomHandler(final AwsCredentialsProviderHandler customHandler) {
-    lock.lock();
-    try {
+    try (ResourceLock ignored = lock.obtain()) {
       handler = customHandler;
-    } finally {
-      lock.unlock();
     }
   }
 
   public static void resetCustomHandler() {
-    lock.lock();
-    try {
+    try (ResourceLock ignored = lock.obtain()) {
       handler = null;
-    } finally {
-      lock.unlock();
     }
   }
 
   public static AwsCredentialsProvider getProvider(final HostSpec hostSpec, final Properties props) {
-    lock.lock();
-    try {
+    try (ResourceLock ignored = lock.obtain()) {
       AwsCredentialsProvider provider = handler == null
           ? null
           : handler.getAwsCredentialsProvider(hostSpec, props);
@@ -60,8 +53,6 @@ public class AwsCredentialsManager {
       }
 
       return provider;
-    } finally {
-      lock.unlock();
     }
   }
 

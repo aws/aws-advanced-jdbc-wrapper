@@ -36,7 +36,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.locks.ReentrantLock;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -64,13 +63,13 @@ public class WrapperUtilsTest {
   @Mock TelemetryFactory mockTelemetryFactory;
   @Mock TelemetryContext mockTelemetryContext;
   @Mock Object object;
-  ReentrantLock testLock;
+  ResourceLock testLock;
   private AutoCloseable closeable;
 
   @BeforeEach
   @SuppressWarnings("unchecked")
   void init() {
-    testLock = new ReentrantLock();
+    testLock = new ResourceLock();
     closeable = MockitoAnnotations.openMocks(this);
 
     mockExecuteReturnValue(1);
@@ -86,13 +85,13 @@ public class WrapperUtilsTest {
 
   private void mockExecuteReturnValue(Object returnValue) {
     doAnswer(invocation -> {
-      boolean lockIsFree = testLock.tryLock();
-      if (!lockIsFree) {
-        fail("Lock is in use, should not be attempting to fetch it right now");
+      try (ResourceLock  lockIsFree = testLock.obtain()) {
+        if (lockIsFree == null) {
+          fail("Lock is in use, should not be attempting to fetch it right now");
+        }
+        Thread.sleep(3000);
+        return returnValue;
       }
-      Thread.sleep(3000);
-      testLock.unlock();
-      return returnValue;
     }).when(mockPluginManager).execute(
         any(Class.class),
         any(Class.class),

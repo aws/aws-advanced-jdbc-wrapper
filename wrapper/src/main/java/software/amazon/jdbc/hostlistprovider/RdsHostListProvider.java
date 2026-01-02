@@ -25,7 +25,6 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
@@ -42,6 +41,7 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.events.MonitorStopEvent;
 
@@ -86,7 +86,7 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
     PropertyDefinition.registerPluginProperties(RdsHostListProvider.class);
   }
 
-  protected final ReentrantLock lock = new ReentrantLock();
+  protected final ResourceLock lock = new ResourceLock();
   protected final Properties properties;
   protected final String originalUrl;
   protected final FullServicesContainer servicesContainer;
@@ -125,15 +125,12 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
       return;
     }
 
-    lock.lock();
-    try {
+    try (ResourceLock ignored = lock.obtain()) {
       if (this.isInitialized) {
         return;
       }
       this.initSettings();
       this.isInitialized = true;
-    } finally {
-      lock.unlock();
     }
   }
 
