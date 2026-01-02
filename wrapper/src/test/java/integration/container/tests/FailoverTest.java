@@ -330,72 +330,83 @@ public class FailoverTest {
     final Properties props = initDefaultProxiedProps();
     props.setProperty(PropertyDefinition.PLUGINS.name, "auroraConnectionTracker," + getFailoverPlugin());
 
-    for (int i = 0; i < IDLE_CONNECTIONS_NUM; i++) {
-      // Keep references to 5 idle connections created using the cluster endpoints.
-      idleConnections.add(DriverManager.getConnection(
+    try {
+      for (int i = 0; i < IDLE_CONNECTIONS_NUM; i++) {
+        // Keep references to 5 idle connections created using the cluster endpoints.
+        idleConnections.add(DriverManager.getConnection(
+            ConnectionStringHelper.getWrapperUrl(
+                clusterEndpoint,
+                clusterEndpointPort,
+                TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
+            props));
+      }
+
+      // Connect to a writer instance.
+      try (final Connection conn = DriverManager.getConnection(
           ConnectionStringHelper.getWrapperUrl(
               clusterEndpoint,
               clusterEndpointPort,
               TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
-          props));
-    }
+          props)) {
 
-    // Connect to a writer instance.
-    try (final Connection conn = DriverManager.getConnection(
-        ConnectionStringHelper.getWrapperUrl(
-            clusterEndpoint,
-            clusterEndpointPort,
-            TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
-        props)) {
+        final String instanceId = auroraUtil.queryInstanceId(
+            TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+            TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
+            conn);
+        assertEquals(this.currentWriter, instanceId);
 
-      final String instanceId = auroraUtil.queryInstanceId(
-          TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-          TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
-          conn);
-      assertEquals(this.currentWriter, instanceId);
+        // Ensure that all idle connections are still opened.
+        for (Connection idleConnection : idleConnections) {
+          assertFalse(idleConnection.isClosed());
+        }
 
-      // Ensure that all idle connections are still opened.
+        auroraUtil.crashInstance(executor, instanceId);
+
+        assertThrows(
+            FailoverSuccessSQLException.class,
+            () -> auroraUtil.queryInstanceId(
+                TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+                TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
+                conn));
+      }
+
+      // Sleep for 30 seconds to allow daemon threads to finish running.
+      Thread.sleep(30000);
+
+      try (final Connection conn = DriverManager.getConnection(
+          ConnectionStringHelper.getWrapperUrl(
+              clusterEndpoint,
+              clusterEndpointPort,
+              TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
+          props)) {
+
+        final String instanceId = auroraUtil.queryInstanceId(
+            TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+            TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
+            conn);
+
+        if (this.currentWriter.equals(instanceId)) {
+          LOGGER.finest("Cluster failed over to the same instance " + instanceId + ".");
+          for (Connection idleConnection : idleConnections) {
+            assertFalse(idleConnection.isClosed(), String.format("Idle connection %s is closed.", idleConnection));
+          }
+        } else {
+          LOGGER.finest("Cluster failed over to the instance " + instanceId + ".");
+          // Ensure that all idle connections are closed.
+          for (Connection idleConnection : idleConnections) {
+            assertTrue(idleConnection.isClosed(), String.format("Idle connection %s is still opened.", idleConnection));
+          }
+        }
+      }
+    } finally {
       for (Connection idleConnection : idleConnections) {
-        assertFalse(idleConnection.isClosed());
-      }
-
-      auroraUtil.crashInstance(executor, instanceId);
-
-      assertThrows(
-          FailoverSuccessSQLException.class,
-          () -> auroraUtil.queryInstanceId(
-              TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-              TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
-              conn));
-    }
-
-    // Sleep for 30 seconds to allow daemon threads to finish running.
-    Thread.sleep(30000);
-
-    try (final Connection conn = DriverManager.getConnection(
-        ConnectionStringHelper.getWrapperUrl(
-            clusterEndpoint,
-            clusterEndpointPort,
-            TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
-        props)) {
-
-      final String instanceId = auroraUtil.queryInstanceId(
-          TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-          TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
-          conn);
-
-      if (this.currentWriter.equals(instanceId)) {
-        LOGGER.finest("Cluster failed over to the same instance " + instanceId + ".");
-        for (Connection idleConnection : idleConnections) {
-          assertFalse(idleConnection.isClosed(), String.format("Idle connection %s is closed.", idleConnection));
-        }
-      } else {
-        LOGGER.finest("Cluster failed over to the instance " + instanceId + ".");
-        // Ensure that all idle connections are closed.
-        for (Connection idleConnection : idleConnections) {
-          assertTrue(idleConnection.isClosed(), String.format("Idle connection %s is still opened.", idleConnection));
+        try {
+          idleConnection.close();
+        } catch (SQLException e) {
+          // Ignore
         }
       }
+      idleConnections.clear();
     }
   }
 

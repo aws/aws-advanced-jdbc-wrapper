@@ -44,9 +44,11 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.AtomicConnection;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.BlueGreenDialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
@@ -117,7 +119,7 @@ public class BlueGreenStatusMonitor {
   protected String version = "1.0";
   protected int port = -1;
 
-  protected final AtomicReference<Connection> connection = new AtomicReference<>(null);
+  protected AtomicConnection connection;
   protected final AtomicReference<HostSpec> connectionHostSpec = new AtomicReference<>(null);
   protected final AtomicReference<String> connectedIpAddress = new AtomicReference<>(null);
   protected final AtomicBoolean connectionHostSpecCorrect = new AtomicBoolean(false);
@@ -143,6 +145,7 @@ public class BlueGreenStatusMonitor {
     this.onBlueGreenStatusChangeFunc = onBlueGreenStatusChangeFunc;
 
     this.blueGreenDialect = (BlueGreenDialect) this.pluginService.getDialect();
+    this.connection = new AtomicConnection(this, PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(props));
   }
 
   public void start() {
@@ -202,7 +205,7 @@ public class BlueGreenStatusMonitor {
         }
       }
     } finally {
-      this.closeConnection();
+      this.connection.clean();
       if (this.hostListProvider != null) {
         this.hostListProvider.stopMonitor();
         if (this.hostListProvider instanceof CanReleaseResources) {
@@ -370,18 +373,6 @@ public class BlueGreenStatusMonitor {
     }
   }
 
-  protected void closeConnection() {
-    final Connection conn = this.connection.get();
-    this.connection.set(null);
-    try {
-      if (conn != null && !conn.isClosed()) {
-        conn.close();
-      }
-    } catch (SQLException sqlException) {
-      // ignore
-    }
-  }
-
   protected void collectStatus() {
     final Connection conn = this.connection.get();
     try {
@@ -488,7 +479,7 @@ public class BlueGreenStatusMonitor {
               .port(statusInfo.port)
               .build());
           this.connectionHostSpecCorrect.set(true);
-          this.closeConnection();
+          this.connection.set(null);
           this.panicMode.set(true);
 
         } else {
@@ -529,7 +520,7 @@ public class BlueGreenStatusMonitor {
           LOGGER.log(Level.FINEST, Messages.get("bgd.unhandledSqlException", new Object[] {this.role}), e);
         }
       }
-      this.closeConnection();
+      this.connection.set(null);
       this.panicMode.set(true);
     } catch (Exception e) {
       if (LOGGER.isLoggable(Level.FINEST)) {
