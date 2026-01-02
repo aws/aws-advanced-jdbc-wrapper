@@ -18,9 +18,9 @@ package software.amazon.jdbc.util.storage;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import software.amazon.jdbc.util.ExecutorFactory;
+import software.amazon.jdbc.util.ResourceLock;
 
 public class SlidingExpirationCacheWithCleanupThread<K, V> extends SlidingExpirationCache<K, V> {
 
@@ -29,7 +29,7 @@ public class SlidingExpirationCacheWithCleanupThread<K, V> extends SlidingExpira
 
   protected final ExecutorService cleanupThreadPool =
       ExecutorFactory.newFixedThreadPool(1, "threadPool");
-  protected final ReentrantLock initLock = new ReentrantLock();
+  protected final ResourceLock initLock = new ResourceLock();
   protected boolean isInitialized = false;
 
   public SlidingExpirationCacheWithCleanupThread() {
@@ -54,8 +54,7 @@ public class SlidingExpirationCacheWithCleanupThread<K, V> extends SlidingExpira
 
   protected void initCleanupThread() {
     if (!isInitialized) {
-      initLock.lock();
-      try {
+      try (ResourceLock ignored = initLock.obtain()) {
         if (!isInitialized) {
           cleanupThreadPool.submit(() -> {
             while (true) {
@@ -75,8 +74,6 @@ public class SlidingExpirationCacheWithCleanupThread<K, V> extends SlidingExpira
           cleanupThreadPool.shutdown();
           isInitialized = true;
         }
-      } finally {
-        initLock.unlock();
       }
     }
   }
