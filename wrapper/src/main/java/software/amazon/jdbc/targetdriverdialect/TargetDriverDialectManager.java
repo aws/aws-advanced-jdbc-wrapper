@@ -52,7 +52,7 @@ public class TargetDriverDialectManager implements TargetDriverDialectProvider {
         {
           put(TargetDriverDialectCodes.PG_JDBC, new PgTargetDriverDialect());
           put(TargetDriverDialectCodes.MYSQL_CONNECTOR_J, new MysqlConnectorJTargetDriverDialect());
-          put(TargetDriverDialectCodes.MARIADB_CONNECTOR_J_VER_3, new MariadbTargetDriverDialect());
+          put(TargetDriverDialectCodes.MARIADB_CONNECTOR_J_VER_2, new MariadbTargetDriverDialect());
           put(TargetDriverDialectCodes.GENERIC, new GenericTargetDriverDialect());
         }
       };
@@ -62,7 +62,7 @@ public class TargetDriverDialectManager implements TargetDriverDialectProvider {
         {
           put("jdbc:postgresql://", TargetDriverDialectCodes.PG_JDBC);
           put("jdbc:mysql://", TargetDriverDialectCodes.MYSQL_CONNECTOR_J);
-          put("jdbc:mariadb://", TargetDriverDialectCodes.MARIADB_CONNECTOR_J_VER_3);
+          put("jdbc:mariadb://", TargetDriverDialectCodes.MARIADB_CONNECTOR_J_VER_2);
         }
       };
 

@@ -154,6 +154,9 @@ public class HikariTests {
         // Connecting to Mysql database with MariaDb driver requires a configuration parameter
         // "permitMysqlScheme"
         targetDataSourceProps.setProperty("permitMysqlScheme", "1");
+        // These options may cause issues for non-MariaDB databases.
+        targetDataSourceProps.setProperty("usePipelineAuth", "false");
+        targetDataSourceProps.setProperty("useBatchMultiSend", "false");
       }
 
       dataSource.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
@@ -411,6 +414,9 @@ public class HikariTests {
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
         && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.MYSQL) {
       targetDataSourceProps.setProperty("permitMysqlScheme", "1");
+      // These options may cause issues for non-MariaDB databases.
+      targetDataSourceProps.setProperty("usePipelineAuth", "false");
+      targetDataSourceProps.setProperty("useBatchMultiSend", "false");
     }
 
     AwsWrapperDataSource ds = new AwsWrapperDataSource();
@@ -528,6 +534,9 @@ public class HikariTests {
       // Connecting to Mysql database with MariaDb driver requires a configuration parameter
       // "permitMysqlScheme"
       targetDataSourceProps.setProperty("permitMysqlScheme", "1");
+      // These options may cause issues for non-MariaDB databases.
+      targetDataSourceProps.setProperty("usePipelineAuth", "false");
+      targetDataSourceProps.setProperty("useBatchMultiSend", "false");
     }
 
     targetDataSourceProps.setProperty("monitoring-" + PropertyDefinition.CONNECT_TIMEOUT.name, "3000");

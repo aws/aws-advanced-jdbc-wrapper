@@ -17,12 +17,12 @@ By default, target driver dialect is determined based on used target driver clas
 ### List of Available Target Driver Codes
 Target Driver Dialect codes specify what target driver dialect class to use. 
 
-| Dialect Code Reference      | Value                   | Target driver or DataSource class names                                                                                                                   |
-|-----------------------------|-------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Dialect Code Reference      | Value                   | Target driver or DataSource class names                                                                                                                  |
+|-----------------------------|-------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `PG_JDBC`                   | `pgjdbc`                | org.postgresql.Driver,<br>org.postgresql.ds.PGSimpleDataSource,<br>org.postgresql.ds.PGPoolingDataSource,<br>org.postgresql.ds.PGConnectionPoolDataSource |
-| `MYSQL_CONNECTOR_J`         | `mysql-connector-j`     | com.mysql.cj.jdbc.Driver,<br>com.mysql.cj.jdbc.MysqlDataSource,<br>com.mysql.cj.jdbc.MysqlConnectionPoolDataSource                                        |
-| `MARIADB_CONNECTOR_J_VER_3` | `mariadb-connector-j-3` | org.mariadb.jdbc.Driver (ver. 3+),<br>org.mariadb.jdbc.MariaDbDataSource,<br>org.mariadb.jdbc.MariaDbPoolDataSource                                       |
-| `GENERIC`                   | `generic`               | Any other JDBC driver                                                                                                                                     |
+| `MYSQL_CONNECTOR_J`         | `mysql-connector-j`     | com.mysql.cj.jdbc.Driver,<br>com.mysql.cj.jdbc.MysqlDataSource,<br>com.mysql.cj.jdbc.MysqlConnectionPoolDataSource                                       |
+| `MARIADB_CONNECTOR_J_VER_2` | `mariadb-connector-j-2` | org.mariadb.jdbc.Driver (ver. 2.x),<br>org.mariadb.jdbc.MariaDbDataSource,<br>org.mariadb.jdbc.MariaDbPoolDataSource                                     |
+| `GENERIC`                   | `generic`               | Any other JDBC driver                                                                                                                                    |
 
 ## Custom Target Driver Dialects
 If you are interested in using the AWS Advanced JDBC Wrapper but your desired target driver has unique features so the existing generic dialect doesn't work well with it, it is possible to create a custom target driver dialect.
