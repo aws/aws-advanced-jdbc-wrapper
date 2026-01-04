@@ -54,6 +54,7 @@ public class ServiceUtility {
       TargetDriverDialect driverDialect,
       Properties props,
       @Nullable ConfigurationProfile configurationProfile) throws SQLException {
+
     FullServicesContainer servicesContainer =
         new FullServicesContainerImpl(
             storageService, monitorService, eventPublisher, defaultConnectionProvider, telemetryFactory);

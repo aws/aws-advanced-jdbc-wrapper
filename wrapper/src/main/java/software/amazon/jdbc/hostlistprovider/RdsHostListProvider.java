@@ -255,7 +255,7 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
   public List<HostSpec> refresh() throws SQLException {
     init();
     final FetchTopologyResult results = getTopology();
-    LOGGER.finest(() -> LogUtils.logTopology(results.hosts, results.isCachedData ? "[From cache] Topology:" : null));
+    //LOGGER.finest(() -> LogUtils.logTopology(results.hosts, results.isCachedData ? "[From cache] Topology:" : null));
     return Collections.unmodifiableList(results.hosts);
   }
 

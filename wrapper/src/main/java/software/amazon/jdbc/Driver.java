@@ -241,6 +241,14 @@ public class Driver implements java.sql.Driver {
         effectiveConnectionProvider = configurationProfile.getConnectionProvider();
       }
 
+      if (PropertyDefinition.CONNECTION_POOL_TYPE.getString(props) != null) {
+        ConnectionProvider connectionPoolProvider =
+            InternalConnectionPoolService.getInstance().getEffectiveConnectionProvider(props);
+        if (connectionPoolProvider != null) {
+          effectiveConnectionProvider = connectionPoolProvider;
+        }
+      }
+
       String targetDriverProtocol = urlParser.getProtocol(driverUrl);
       FullServicesContainer servicesContainer = ServiceUtility.getInstance().createStandardServiceContainer(
           this.storageService,
@@ -443,6 +451,7 @@ public class Driver implements java.sql.Driver {
     CoreServicesContainer.getInstance().getMonitorService().stopAndRemoveAll();
     HostMonitorThreadContainer.releaseInstance();
     ConnectionProviderManager.releaseResources();
+    InternalConnectionPoolService.releaseResources();
     HikariPoolsHolder.closeAllPools();
     clearCaches();
   }
