@@ -54,12 +54,14 @@ Visit [Support for RDS MultiAZ](./docs/using-the-jdbc-driver/SupportForRDSMultiA
 
 ### Using the AWS Advanced JDBC Wrapper with Amazon Aurora Global Databases
 
-As of version [3.0.0](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/3.0.0) the driver supports in-region `failover` and 
+As of version [3.0.0](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/3.0.0), the driver supports in-region `failover` and 
 cross-region `planned failover` and `switchover` of [Amazon Aurora Global Databases](https://aws.amazon.com/ru/rds/aurora/global-database/). 
 A [Global Writer Endpoint](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-global-database-connecting.html) 
 is also recognized and can be handled to minimize potential stale DNS issues. 
 Please check [failover plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md), [failover2 plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailover2Plugin.md) and 
 [Aurora Initial Connection Strategy plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAuroraInitialConnectionStrategyPlugin.md) for more information.
+
+For detailed configuration instructions, see [Aurora Global Databases](./docs/using-the-jdbc-driver/GlobalDatabases.md).
 
 ### Plain Amazon RDS databases
 
