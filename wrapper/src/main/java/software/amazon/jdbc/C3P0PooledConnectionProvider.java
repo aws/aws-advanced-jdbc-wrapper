@@ -101,8 +101,6 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
 
     ds.setPassword(copy.getProperty(PropertyDefinition.PASSWORD.name));
 
-    //this.logConnections();
-
     return new ConnectionInfo(ds.getConnection(), true);
   }
 

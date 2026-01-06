@@ -315,8 +315,6 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
 
     ds.setPassword(copy.getProperty(PropertyDefinition.PASSWORD.name));
 
-    //this.logConnections();
-
     return new ConnectionInfo(ds.getConnection(), true);
   }
 

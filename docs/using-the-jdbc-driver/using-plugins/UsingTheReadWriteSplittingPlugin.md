@@ -47,7 +47,7 @@ The wrapper driver currently uses [Hikari](https://github.com/brettwooldridge/Hi
 
 The internal connection pool can be activated using the `connectionPoolType` parameter. This parameter should be added to the connection string along with additional configuration parameters to configure the pool itself. See [configuration parameter documentation](../UsingTheJdbcDriver.md) for more details.
 
-For example, to activate the internal connection pool with HikariCP underlying implementation, the following parameter can be added. Users can add additional parameters to configure the pool as needed. Consult with [Hikari documentation](https://github.com/brettwooldridge/HikariCP) to get configuration property names. 
+For example, to activate the internal connection pool with HikariCP underlying implementation, the following parameter can be added. Users can add additional parameters to configure the pool as needed. These additional parameters should be prefixed by `cp-`. Consult with [Hikari documentation](https://github.com/brettwooldridge/HikariCP) to get configuration property names. 
 
 ```
 connectionPoolType=hikari&cp-MaximumPoolSize=20&cp-MinimumIdle=1

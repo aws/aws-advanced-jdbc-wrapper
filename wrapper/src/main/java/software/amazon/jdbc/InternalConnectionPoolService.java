@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc;
 
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
@@ -71,7 +72,7 @@ public class InternalConnectionPoolService {
         return null;
       }
       PooledConnectionProvider provider = null;
-      switch (connectionPoolType) {
+      switch (connectionPoolType.toLowerCase()) {
         case "c3p0":
           try {
             provider = WrapperUtils.createInstance(
