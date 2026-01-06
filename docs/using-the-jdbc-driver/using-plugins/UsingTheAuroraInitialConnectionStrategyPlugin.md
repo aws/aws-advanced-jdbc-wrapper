@@ -7,6 +7,8 @@ This plugin also helps retrieve connections more reliably. When a user connects 
 
 When using Aurora Global Database, the user has an option to use an [Aurora Global Writer Endpoint](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-global-database-connecting.html). The Global Writer Endpoint makes a user application configuration easier. However, similar to the cluster writer endpoint mentioned above, it can also be affected by DNS updates. The Aurora Initial Connection Strategy Plugin recognizes an Aurora Global Writer Endpoint and substitutes it with the current writer endpoint.
 
+For detailed Aurora Global Database configuration, see [Aurora Global Databases](../GlobalDatabases.md).
+
 Verify plugin compatibility within your driver configuration using the [compatibility guide](../Compatibility.md).
 
 ## Plugin Availability

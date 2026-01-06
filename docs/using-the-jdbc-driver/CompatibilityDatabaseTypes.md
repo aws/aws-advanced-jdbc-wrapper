@@ -4,6 +4,8 @@ This document is part of the [Compatibility Guide](./Compatibility.md) and expla
 
 For example, the `limitless` plugin is incompatible with [Aurora Global Database](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-global-database.html) because it's built on different architectural principles than [Limitless Database](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/limitless-architecture.html). Aurora Global Database doesn't use transaction routers and doesn't provide the transaction routers' metadata. This lack of required metadata makes it incompatible with the `limitless` plugin.
 
+For Aurora Global Database configuration details, see [Aurora Global Databases](./GlobalDatabases.md).
+
 
 | Plugin codes / Database types                                                         | [Aurora Global Database](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-global-database.html) <br>(MySQL and PG) | [Aurora Cluster](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Overview.html) <br>(MySQL and PG) | [RDS Multi-AZ DB Cluster deployment (3 instances)](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/multi-az-db-clusters-concepts.html) <br>(MySQL and PG) |
 |---------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------|
