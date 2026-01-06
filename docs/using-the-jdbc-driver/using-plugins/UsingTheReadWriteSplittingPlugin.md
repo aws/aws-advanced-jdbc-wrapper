@@ -41,7 +41,27 @@ If your application frequently calls `setReadOnly`, this may have a performance 
 > [!NOTE]\
 > Initial connections to a cluster URL will not be pooled. The driver does not pool cluster URLs because it can be problematic to pool a URL that resolves to different instances over time. The main benefit of internal connection pools is when setReadOnly is called. When setReadOnly is called (regardless of the initial connection URL), an internal pool will be created for the writer/reader that the plugin switches to and connections for that instance can be reused in the future.
 
-The wrapper driver currently uses [Hikari](https://github.com/brettwooldridge/HikariCP) to create and maintain its internal connection pools. The sample code [here](../../../examples/AWSDriverExample/src/main/java/software/amazon/ReadWriteSplittingPostgresExample.java) provides a useful example of how to enable this feature. The steps are as follows:
+The wrapper driver currently uses [Hikari](https://github.com/brettwooldridge/HikariCP) and [c3p0](https://www.mchange.com/projects/c3p0/) to create and maintain its internal connection pools. 
+
+### Activate and configure with built-in configuration parameters
+
+The internal connection pool can be activated using the `connectionPoolType` parameter. This parameter should be added to the connection string along with additional configuration parameters to configure the pool itself. See [configuration parameter documentation](../UsingTheJdbcDriver.md) for more details.
+
+For example, to activate the internal connection pool with HikariCP underlying implementation, the following parameter can be added. Users can add additional parameters to configure the pool as needed. These additional parameters should be prefixed by `cp-`. Consult with [Hikari documentation](https://github.com/brettwooldridge/HikariCP) to get configuration property names. 
+
+```
+connectionPoolType=hikari&cp-MaximumPoolSize=20&cp-MinimumIdle=1
+```
+
+To configure the internal connection pool with [c3p0](https://www.mchange.com/projects/c3p0/) as the underlying implementation, users can use the following parameters. Consult the [c3p0 documentation](https://www.mchange.com/projects/c3p0/) for more configuration parameters.
+
+```
+connectionPoolType=c3p0&cp-MaxConnectionAge=3600&cp-MaxPoolSize=15
+```
+
+### Activate and configure with custom connection provider
+
+Alternative way to activate and configure internal connection pool is described below. This approach provides additional configurable options and may be helpful for some scenarios. The sample code [here](../../../examples/AWSDriverExample/src/main/java/software/amazon/ReadWriteSplittingPostgresExample.java) provides a useful example of how to enable this feature. The steps are as follows:
 
 1.  Create an instance of `HikariPooledConnectionProvider`. The `HikariPooledConnectionProvider` constructor requires you to pass in a `HikariPoolConfigurator` function. Inside this function, you should create a `HikariConfig`, configure any desired properties on it, and return it. Note that the Hikari properties below will be set by default and will override any values you set in your function. This is done to follow desired behavior and ensure that the read/write plugin can internally establish connections to new instances.
 
