@@ -103,8 +103,6 @@ public class GlobalDatabaseExample {
 ## Important Considerations
 
 ### Plugin Selection
-- **Primary Clusters**: Use `failover2` plugin for optimal performance
-- **Secondary Clusters**: Must explicitly specify plugins to avoid default `failover2` behavior
 - **Connection Pooling**: Include `auroraConnectionTracker` plugin when using connection pooling
 
 ### Global Cluster Instance Host Patterns
