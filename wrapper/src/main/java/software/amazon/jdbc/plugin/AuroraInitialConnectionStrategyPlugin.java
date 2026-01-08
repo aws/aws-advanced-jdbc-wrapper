@@ -85,10 +85,11 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
       new AwsWrapperProperty(
           "verifyOpenedConnectionType",
           null,
-          "Force to verify an opened connection to be either a writer or a reader.",
+          "Defines whether an opened connection should be verified to be a writer or reader, "
+              + "or if no role verification should be performed.",
           false,
           new String[] {
-              "writer", "reader", "no"
+              "writer", "reader", "none"
           });
 
   private final @NonNull RoleVerificationSetting verifyOpenedConnectionType;
@@ -157,7 +158,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
         && this.verifyOpenedConnectionType == RoleVerificationSetting.READER) {
       throw new SQLException(Messages.get(
           "AuroraInitialConnectionStrategyPlugin.invalidVerifyConfiguration",
-          new Object[]{"reader", "cluster writer"}));
+          new Object[]{"reader", "writer cluster"}));
     }
 
     if (type == RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER
@@ -167,11 +168,12 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
           new Object[]{"reader", "global cluster"}));
     }
 
-    if (type == RdsUrlType.RDS_READER_CLUSTER
+    // When you create a custom cluster, it can only be of type "reader" or type "any".
+    if ((type == RdsUrlType.RDS_READER_CLUSTER || type == RdsUrlType.RDS_CUSTOM_CLUSTER)
         && this.verifyOpenedConnectionType == RoleVerificationSetting.WRITER) {
       throw new SQLException(Messages.get(
           "AuroraInitialConnectionStrategyPlugin.invalidVerifyConfiguration",
-          new Object[]{"writer", "cluster reader"}));
+          new Object[]{"writer", "reader cluster or custom cluster"}));
     }
   }
 
@@ -402,7 +404,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
             // Note that there is no entry for HostRole.UNKNOWN, as that is not a valid role verification setting.
             put("writer", WRITER);
             put("reader", READER);
-            put("no", NO_VERIFICATION);
+            put("none", NO_VERIFICATION);
           }
         };
 

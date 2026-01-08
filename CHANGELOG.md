@@ -386,7 +386,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - HostSelector implementations to take into account HostAvailability ([PR #856](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/856)).
 - Reduced the number of Regular Expression checks with `Matcher.find` to improve performance ([PR #854](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/854)).
 - HostSpec class to not use a default lastUpdateTime and instead use null ([PR 877](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/877)).
-- Moved Reader Selection Strategies out of the `UsingTheReadWriteSplittingPlugin` doc and into its own page. See [ReaderSelectionStrategies](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/ReaderSelectionStrategies.md). 
+- Moved Reader Selection Strategies out of the `UsingTheReadWriteSplittingPlugin` doc and into its own page. See [HostSelectionStrategies](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/HostSelectionStrategies.md). 
 
 ## [2.3.3] - 2024-01-23
 ### :magic_wand: Added

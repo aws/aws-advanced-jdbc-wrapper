@@ -1,6 +1,6 @@
 # Read/Write Splitting Plugin
 
-The read/write splitting plugin adds functionality to switch between writer/reader instances via calls to the `Connection#setReadOnly` method. Upon calling `setReadOnly(true)`, the plugin will connect to a reader instance according to a [reader selection strategy](../ReaderSelectionStrategies.md) and direct subsequent queries to this instance. Future calls to `setReadOnly` will switch between the established writer and reader connections according to the boolean argument you supply to the `setReadOnly` method.
+The read/write splitting plugin adds functionality to switch between writer/reader instances via calls to the `Connection#setReadOnly` method. Upon calling `setReadOnly(true)`, the plugin will connect to a reader instance according to a [reader selection strategy](../HostSelectionStrategies.md) and direct subsequent queries to this instance. Future calls to `setReadOnly` will switch between the established writer and reader connections according to the boolean argument you supply to the `setReadOnly` method.
 
 ## Loading the Read/Write Splitting Plugin
 
@@ -84,7 +84,7 @@ private static String getPoolKey(HostSpec hostSpec, Properties props) {
 
 ### Reader Selection
 
-To indicate which selection strategy to use, the `readerHostSelectorStrategy` configuration parameter can be set to one of the selection strategies in this [table](../ReaderSelectionStrategies.md). The following is an example of enabling the least connections strategy:
+To indicate which selection strategy to use, the `readerHostSelectorStrategy` configuration parameter can be set to one of the selection strategies in this [table](../HostSelectionStrategies.md). The following is an example of enabling the least connections strategy:
 
 ```java
 props.setProperty(ReadWriteSplittingPlugin.READER_HOST_SELECTOR_STRATEGY.name, "leastConnections");

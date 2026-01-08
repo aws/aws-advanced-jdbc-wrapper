@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import software.amazon.awssdk.services.rds.model.DBClusterEndpoint;
+import software.amazon.jdbc.util.Utils;
 
 /**
  * Represents custom endpoint information for a given custom endpoint.
@@ -72,18 +73,24 @@ public class CustomEndpointInfo {
    * Constructs a CustomEndpointInfo object from a DBClusterEndpoint instance as returned by the RDS API.
    *
    * @param responseEndpointInfo The endpoint info returned by the RDS API.
-   * @return a CustomEndPointInfo object representing the information in the given DBClusterEndpoint.
+   * @return a CustomEndPointInfo object representing the information in the given DBClusterEndpoint, or null if valid
+   *     custom endpoint info could not be acquired.
    */
   public static CustomEndpointInfo fromDBClusterEndpoint(DBClusterEndpoint responseEndpointInfo) {
     final List<String> members;
     final MemberListType memberListType;
 
-    if (responseEndpointInfo.hasStaticMembers() && !responseEndpointInfo.staticMembers().isEmpty()) {
+    if (responseEndpointInfo.hasStaticMembers()) {
       members = responseEndpointInfo.staticMembers();
       memberListType = MemberListType.STATIC_LIST;
     } else {
       members = responseEndpointInfo.excludedMembers();
       memberListType = MemberListType.EXCLUSION_LIST;
+    }
+
+    if (Utils.isNullOrEmpty(members)) {
+      // Invalid member list.
+      return null;
     }
 
     return new CustomEndpointInfo(
