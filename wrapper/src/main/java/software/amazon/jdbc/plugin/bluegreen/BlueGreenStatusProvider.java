@@ -32,7 +32,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -60,6 +59,7 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.events.MonitorResetEvent;
@@ -115,7 +115,7 @@ public class BlueGreenStatusProvider {
   protected AtomicBoolean monitorResetOnTopologyCompleted = new AtomicBoolean(false);
   protected final AtomicBoolean allGreenNodesChangedName = new AtomicBoolean(false);
   protected long postStatusEndTimeNano = 0;
-  protected final ReentrantLock processStatusLock = new ReentrantLock();
+  protected final ResourceLock processStatusLock = new ResourceLock();
 
   // Status check interval time in millis for each BlueGreenIntervalRate.
   protected final Map<BlueGreenIntervalRate, Long> statusCheckIntervalMap = new HashMap<>();
@@ -208,8 +208,7 @@ public class BlueGreenStatusProvider {
       final @NonNull BlueGreenRole role,
       final @NonNull BlueGreenInterimStatus interimStatus) {
 
-    this.processStatusLock.lock();
-    try {
+    try (ResourceLock ignored = this.processStatusLock.obtain()) {
 
       // Detect changes
       int statusHash = interimStatus.getCustomHashCode();
@@ -249,8 +248,6 @@ public class BlueGreenStatusProvider {
 
       this.resetContextWhenCompleted();
 
-    } finally {
-      this.processStatusLock.unlock();
     }
   }
 

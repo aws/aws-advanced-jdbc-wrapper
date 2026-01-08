@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -31,8 +30,8 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.StringUtils;
-import software.amazon.jdbc.util.Utils;
 
 public class WeightedRandomHostSelector implements HostSelector {
   public static final AwsWrapperProperty WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS = new AwsWrapperProperty(
@@ -47,7 +46,7 @@ public class WeightedRandomHostSelector implements HostSelector {
   private String cachedHostWeightMapString;
   private Random random;
 
-  private final ReentrantLock lock = new ReentrantLock();
+  private final ResourceLock lock = new ResourceLock();
 
   public WeightedRandomHostSelector() {
     this(new Random());
@@ -115,8 +114,7 @@ public class WeightedRandomHostSelector implements HostSelector {
   }
 
   private Map<String, Integer> getHostWeightPairMap(final @NonNull String hostWeightMapString) throws SQLException {
-    try {
-      lock.lock();
+    try (ResourceLock ignored = lock.obtain()) {
       if (this.cachedHostWeightMapString != null
           && this.cachedHostWeightMapString.equals(
               hostWeightMapString == null ? "" : hostWeightMapString.trim())
@@ -155,8 +153,6 @@ public class WeightedRandomHostSelector implements HostSelector {
       this.cachedHostWeightMap = hostWeightMap;
       this.cachedHostWeightMapString = hostWeightMapString.trim();
       return hostWeightMap;
-    } finally {
-      lock.unlock();
     }
   }
 

@@ -32,7 +32,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -47,6 +46,7 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.ServiceUtility;
 import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
@@ -82,7 +82,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected final AtomicLong ignoreNewTopologyRequestsEndTimeNano = new AtomicLong(-1);
   protected final ConcurrentHashMap<String, Boolean> submittedNodes = new ConcurrentHashMap<>();
 
-  protected final ReentrantLock nodeExecutorLock = new ReentrantLock();
+  protected final ResourceLock nodeExecutorLock = new ResourceLock();
   protected final AtomicBoolean nodeThreadsStop = new AtomicBoolean(false);
   protected final AtomicReference<Connection> nodeThreadsWriterConnection = new AtomicReference<>(null);
   protected final AtomicReference<HostSpec> nodeThreadsWriterHostSpec = new AtomicReference<>(null);
@@ -491,8 +491,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected void closeNodeMonitors() {
     if (this.nodeExecutorService != null) {
 
-      this.nodeExecutorLock.lock();
-      try {
+      try (ResourceLock ignored = this.nodeExecutorLock.obtain()) {
 
         if (this.nodeExecutorService == null) {
           return;
@@ -512,19 +511,13 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
         this.nodeExecutorService = null;
         this.nodeThreadConnectionCleanUp();
-
-      } finally {
-        this.nodeExecutorLock.unlock();
       }
     }
   }
 
   protected void createNodeExecutorService() {
-    this.nodeExecutorLock.lock();
-    try {
+    try (ResourceLock ignored = this.nodeExecutorLock.obtain()) {
       this.nodeExecutorService = ExecutorFactory.newCachedThreadPool("node");
-    } finally {
-      this.nodeExecutorLock.unlock();
     }
   }
 
@@ -687,6 +680,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   }
 
   protected void updateTopologyCache(final @NonNull List<HostSpec> hosts) {
+    LOGGER.finest(() -> LogUtils.logTopology(hosts, null));
     synchronized (this.requestToUpdateTopology) {
       this.servicesContainer.getStorageService().set(this.clusterId, new Topology(hosts));
       synchronized (this.topologyUpdated) {

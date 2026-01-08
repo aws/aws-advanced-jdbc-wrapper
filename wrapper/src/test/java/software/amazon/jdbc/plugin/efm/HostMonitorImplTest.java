@@ -41,7 +41,6 @@ import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.RepeatedTest;
@@ -50,6 +49,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -71,7 +71,7 @@ class HostMonitorImplTest {
   @Mock TelemetryFactory telemetryFactory;
   @Mock TelemetryContext telemetryContext;
   @Mock TelemetryCounter telemetryCounter;
-  @Mock ReentrantLock mockReentrantLock;
+  @Mock ResourceLock mockResourceLock;
 
   private static final long SHORT_INTERVAL_MILLIS = 30;
   private static final long SHORT_INTERVAL_SECONDS = TimeUnit.MILLISECONDS.toSeconds(SHORT_INTERVAL_MILLIS);
@@ -90,7 +90,7 @@ class HostMonitorImplTest {
     when(contextWithLongInterval.getFailureDetectionIntervalMillis())
         .thenReturn(LONG_INTERVAL_MILLIS);
     when(contextWithShortInterval.getLock())
-        .thenReturn(mockReentrantLock);
+        .thenReturn(mockResourceLock);
     when(booleanProperty.getStringValue()).thenReturn(Boolean.TRUE.toString());
     when(longProperty.getValue()).thenReturn(SHORT_INTERVAL_MILLIS);
     when(pluginService.forceConnect(any(HostSpec.class), any(Properties.class))).thenReturn(connection);

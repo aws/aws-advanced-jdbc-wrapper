@@ -25,7 +25,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -36,6 +35,7 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.WrapperUtils;
 
@@ -59,7 +59,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
   private final @NonNull DataSource dataSource;
   private final @NonNull String dataSourceClassName;
 
-  private final ReentrantLock lock = new ReentrantLock();
+  private final ResourceLock lock = new ResourceLock();
 
   private final RdsUtils rdsUtils = new RdsUtils();
 
@@ -138,12 +138,9 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
 
       // Data Source object could be shared between different threads while failover in progress.
       // That's why it's important to configure Data Source object and get connection atomically.
-      this.lock.lock();
       LOGGER.finest(() -> "Use main DataSource object to create a connection.");
-      try {
+      try (ResourceLock ignored = this.lock.obtain()) {
         conn = this.openConnection(this.dataSource, protocol, targetDriverDialect, hostSpec, copy);
-      } finally {
-        this.lock.unlock();
       }
     }
 

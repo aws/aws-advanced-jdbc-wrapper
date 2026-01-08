@@ -42,7 +42,7 @@ The driver includes Enhanced Failure Monitoring (EFM) that proactively monitors 
 
 The AWS Advanced JDBC Wrapper provides fast failover capabilities for Aurora PostgreSQL and Aurora MySQL clusters, significantly reducing connection recovery time during database failovers.
 
-Visit [this page](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailover2Plugin.md) for more details.
+Visit [Using Failover 2](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailover2Plugin.md) for more details.
 
 ### Amazon RDS Multi-AZ DB Clusters
 
@@ -50,11 +50,18 @@ The [AWS RDS Multi-AZ DB Clusters](https://docs.aws.amazon.com/AmazonRDS/latest/
 
 With the `failover` plugin, the downtime during certain DB cluster operations, such as engine minor version upgrades, can be reduced to one second or even less with finely tuned parameters. It supports both MySQL and PostgreSQL clusters.
 
-Visit [this page](./docs/using-the-jdbc-driver/SupportForRDSMultiAzDBCluster.md) for more details.
+Visit [Support for RDS MultiAZ](./docs/using-the-jdbc-driver/SupportForRDSMultiAzDBCluster.md) for more details.
 
 ### Using the AWS Advanced JDBC Wrapper with Amazon Aurora Global Databases
 
-As of version [3.0.0](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/3.0.0) the driver supports in-region `failover` and cross-region `planned failover` and `switchover` of [Amazon Aurora Global Databases](https://aws.amazon.com/ru/rds/aurora/global-database/). A [Global Writer Endpoint](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-global-database-connecting.html) is also recognized and can be handled to minimize potential stale DNS issues. Please check [failover plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md), [failover2 plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailover2Plugin.md) and [Aurora Initial Connection Strategy plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAuroraInitialConnectionStrategyPlugin.md) for more information.
+As of version [3.0.0](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/3.0.0), the driver supports in-region `failover` and 
+cross-region `planned failover` and `switchover` of [Amazon Aurora Global Databases](https://aws.amazon.com/ru/rds/aurora/global-database/). 
+A [Global Writer Endpoint](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-global-database-connecting.html) 
+is also recognized and can be handled to minimize potential stale DNS issues. 
+Please check [failover plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md), [failover2 plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailover2Plugin.md) and 
+[Aurora Initial Connection Strategy plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAuroraInitialConnectionStrategyPlugin.md) for more information.
+
+For detailed configuration instructions, see [Aurora Global Databases](./docs/using-the-jdbc-driver/GlobalDatabases.md).
 
 ### Plain Amazon RDS databases
 
@@ -62,14 +69,15 @@ The AWS Advanced JDBC Wrapper also provides limited functionality for RDS provid
 
 ### RDS Proxy
 
-As of version [3.0.0](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/3.0.0) the [Simple R/W Splitting Plugin](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheSimpleReadWriteSplittingPlugin.md#using-the-simple-readwrite-splitting-plugin-with-rds-proxy) can be used with There are limitations with the AWS Advanced JDBC Wrapper and RDS Proxy. 
-This is currently intended, by design, since the main reason is that RDS Proxy transparently re-routes requests to a single database instance. 
-RDS Proxy decides which database instance is used based on many criteria (on a per-request basis). 
+As of version [3.0.0](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/3.0.0) the [Simple R/W Splitting Plugin](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheSimpleReadWriteSplittingPlugin.md#using-the-simple-readwrite-splitting-plugin-with-rds-proxy) can be used with RDS Proxy. 
+There are limitations with the AWS Advanced JDBC Wrapper and RDS Proxy.  This is currently intended, by design, since the main reason is that RDS Proxy transparently re-routes requests to a single database instance. 
+RDS Proxy decides which database instance is used based on many criteria (on a per-request basis).
 Due to this, functionality like Failover, Enhanced Host Monitoring, and Read/Write Splitting is not compatible since the driver relies on cluster topology and RDS Proxy handles this automatically.
 
-However, the driver can still be used to handle authentication workflows. For more information regarding compatibility, please refer to the specific plugin documentation.
+The driver remains useful with RDS Proxy for authentication workflows, such as IAM authentication and AWS Secrets Manager integration. 
+See [Compatibility](./docs/using-the-jdbc-driver/Compatibility.md) for compatibility information and refer to the [using plugins](./docs/using-the-jdbc-driver/using-plugins) documentation for details.
 
-Visit [this page](./docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#using-the-aws-advanced-jdbc-wrapper-with-plain-rds-databases) for more details.
+Visit [Using Plain RDS](./docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#using-the-aws-advanced-jdbc-wrapper-with-plain-rds-databases) for more details.
 
 ## Getting Started
 For more information on how to download the AWS Advanced JDBC Wrapper, minimum requirements to use it,
@@ -139,7 +147,8 @@ Enabling logging is a very useful mechanism for troubleshooting any issue one mi
 In order to learn how to enable and configure logging, check out the [Logging](./docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#logging) section.
 
 ## Documentation
-Technical documentation regarding the functionality of the AWS Advanced JDBC Wrapper will be maintained in this GitHub repository. Since the AWS Advanced JDBC Wrapper requires an underlying JDBC driver, please refer to the individual driver's documentation for driver-specific information.
+Technical documentation regarding the functionality of the AWS Advanced JDBC Wrapper will be maintained in this GitHub repository. 
+Since the AWS Advanced JDBC Wrapper requires an underlying JDBC driver, please refer to the individual driver's documentation for driver-specific information.
 
 ### Using the AWS Advanced JDBC Wrapper
 To find all the documentation and concrete examples on how to use the AWS Advanced JDBC Wrapper, please refer to the [AWS Advanced JDBC Wrapper Documentation](./docs/Documentation.md) page.
@@ -156,9 +165,6 @@ Support for Blue/Green deployments using the AWS Advanced JDBC Wrapper requires 
 
 Please note that Aurora Global Database and RDS Multi-AZ clusters with Blue/Green deployments is currently not supported. For detailed information on supported database versions, refer to the [Blue/Green Deployment Plugin Documentation](./docs/using-the-jdbc-driver/using-plugins/UsingTheBlueGreenPlugin.md).
 
-#### Amazon Aurora Global Databases
-
-This driver currently does not support `planned failover` or `switchover` of Amazon Aurora Global Databases. Failing over to a secondary cluster will result in errors and there may be additional unforeseen errors when working with global databases. Connecting to the primary cluster is fully supported. There is a limitation when connected to the secondary cluster; the [failover2 plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailover2Plugin.md) will not work on the secondary cluster, however the [failover plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md) will work. When working with Global Databases and accepting the driver's limited support, ensure you explicitly provide a list of plugins. This is crucial because the `failover2` plugin, which is enabled by default, does not support Global Databases as previously mentioned. By specifying `failover` plugin along with your desired plugins, you can ensure (still limited) functionality with Global Databases. Full Support for Amazon Aurora Global Databases is in the backlog, but we cannot comment on a timeline right now.
 
 ## Examples
 
