@@ -131,6 +131,35 @@ java {
     }
 }
 
+// Create a separate source set for Java 11+ specific code (e.g., java.lang.ref.Cleaner)
+val java11 = sourceSets.create("java11") {
+    java {
+        srcDir("src/main/java11")
+    }
+    // Make java11 source set depend on main source set
+    compileClasspath += sourceSets.main.get().output
+}
+
+dependencies {
+    add(java11.implementationConfigurationName, "org.checkerframework:checker-qual:3.52.0")
+}
+
+// Configure the java11 source set to compile with Java 11
+tasks.named<JavaCompile>(java11.compileJavaTaskName) {
+    javaCompiler.set(javaToolchains.compilerFor {
+        languageVersion.set(JavaLanguageVersion.of(11))
+    })
+    options.release.set(11)
+    // Ensure main classes are compiled before java11 classes
+    dependsOn(tasks.compileJava)
+}
+
+fun CopySpec.addMultiReleaseContents() {
+    into("META-INF/versions/11") {
+        from(java11.output)
+    }
+}
+
 tasks.named("sourcesJar") {
     dependsOn("preprocessVersion")
 }
@@ -232,6 +261,8 @@ if (useJacoco) {
 }
 
 tasks.jar {
+    dependsOn(tasks.named(java11.compileJavaTaskName))
+
     from("${project.rootDir}") {
         include("README")
         include("LICENSE")
@@ -248,6 +279,8 @@ tasks.jar {
             """
             -exportcontents: software.*
             -removeheaders: Created-By
+            -noclassforname: true
+            -noextraheaders: true
             Bundle-Description: Amazon Web Services (AWS) Advanced JDBC Wrapper Driver
             Bundle-DocURL: https://github.com/aws/aws-advanced-jdbc-wrapper
             Bundle-Vendor: Amazon Web Services (AWS)
@@ -268,6 +301,22 @@ tasks.jar {
             driverFile.writeText("software.amazon.jdbc.Driver")
         }
     }
+
+    manifest {
+        attributes["Multi-Release"] = "true"
+    }
+
+    // Add multi-release content after bnd processing
+    doLast {
+        val java11Dir = java11.output.classesDirs.files.first()
+        if (java11Dir.exists()) {
+            ant.withGroovyBuilder {
+                "jar"("destfile" to archiveFile.get().asFile, "update" to true) {
+                    "zipfileset"("dir" to java11Dir, "prefix" to "META-INF/versions/11")
+                }
+            }
+        }
+    }
 }
 
 configurations {
@@ -277,6 +326,8 @@ configurations {
 }
 
 tasks.shadowJar {
+
+    dependsOn(tasks.named(java11.compileJavaTaskName))
 
     configurations = listOf(project.configurations.federatedAuthBundleImplementation.get())
     from(sourceSets.main.get().output)
@@ -297,16 +348,31 @@ tasks.shadowJar {
         attributes("Implementation-Vendor" to "Amazon Web Services")
         attributes("Export-Package" to
                 "software.amazon.jdbc.*,shaded.software.amazon.awssdk.*,shaded.org.apache.http.*,shaded.org.jsoup.*")
+        attributes["Multi-Release"] = "true"
     }
 
     relocate("au", "shaded.au")
     relocate("com", "shaded.com")
     relocate("io", "shaded.io")
     relocate("org", "shaded.org")
+    relocate("META-INF/versions/*/org", "shaded.org")
 
     relocate("software", "shaded.software") {
         exclude("software.amazon.jdbc.**")
     }
+
+    // Add multi-release content after bnd processing
+    doLast {
+        val java11Dir = java11.output.classesDirs.files.first()
+        if (java11Dir.exists()) {
+            ant.withGroovyBuilder {
+                "jar"("destfile" to archiveFile.get().asFile, "update" to true) {
+                    "zipfileset"("dir" to java11Dir, "prefix" to "META-INF/versions/11")
+                }
+            }
+        }
+    }
+
 }
 
 junitHtmlReport {
