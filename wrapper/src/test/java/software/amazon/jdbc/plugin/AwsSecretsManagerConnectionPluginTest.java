@@ -34,6 +34,7 @@ import static software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin.SECR
 import com.mysql.cj.exceptions.CJException;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.util.Properties;
 import java.util.stream.Stream;
 import org.jetbrains.annotations.NotNull;
@@ -88,6 +89,8 @@ public class AwsSecretsManagerConnectionPluginTest {
   private static final String TEST_SECRET_ID = "secretId";
   private static final String TEST_USERNAME = "testUser";
   private static final String TEST_PASSWORD = "testPassword";
+  private static final String TEST_EXPIRED_USERNAME = "expiredUser";
+  private static final String TEST_EXPIRED_PASSWORD = "expiredPass";
   private static final String VALID_SECRET_STRING =
       "{\"username\": \"" + TEST_USERNAME + "\", \"password\": \"" + TEST_PASSWORD + "\"}";
   private static final String INVALID_SECRET_STRING = "{username: invalid, password: invalid}";
@@ -95,9 +98,13 @@ public class AwsSecretsManagerConnectionPluginTest {
   private static final String TEST_SQL_ERROR = "SQL exception error message";
   private static final String UNHANDLED_ERROR_CODE = "HY000";
   private static final int TEST_PORT = 5432;
+  private static final long EXPIRATION_TIME = 900;
   private static final Pair<String, String> SECRET_CACHE_KEY = Pair.create(TEST_SECRET_ID, TEST_REGION);
   private static final AwsSecretsManagerConnectionPlugin.Secret TEST_SECRET =
-      new AwsSecretsManagerConnectionPlugin.Secret("testUser", "testPassword");
+      new AwsSecretsManagerConnectionPlugin.Secret(
+          TEST_USERNAME,
+          TEST_PASSWORD,
+          Instant.now().plusSeconds(EXPIRATION_TIME));
   private static final HostSpec TEST_HOSTSPEC = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
       .host(TEST_HOST).port(TEST_PORT).build();
   private static final GetSecretValueResponse VALID_GET_SECRET_VALUE_RESPONSE =
@@ -440,6 +447,45 @@ public class AwsSecretsManagerConnectionPluginTest {
 
     assertEquals(1, AwsSecretsManagerCacheHolder.secretsCache.size());
     verify(connectFunc).call();
+    assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
+    assertEquals(TEST_PASSWORD, TEST_PROPS.get(PropertyDefinition.PASSWORD.name));
+  }
+
+  @Test
+  public void testConnectWithExpiredSecret() throws SQLException {
+    final AwsSecretsManagerConnectionPlugin.Secret expiredSecret =
+        new AwsSecretsManagerConnectionPlugin.Secret(
+            TEST_EXPIRED_USERNAME,
+            TEST_EXPIRED_PASSWORD,
+            Instant.now().minusSeconds(1));
+    AwsSecretsManagerCacheHolder.secretsCache.put(SECRET_CACHE_KEY, expiredSecret);
+
+    when(this.mockSecretsManagerClient.getSecretValue(this.mockGetValueRequest))
+        .thenReturn(VALID_GET_SECRET_VALUE_RESPONSE);
+
+    this.plugin.connect(TEST_PG_PROTOCOL, TEST_HOSTSPEC, TEST_PROPS, true, this.connectFunc);
+
+    assertEquals(1, AwsSecretsManagerCacheHolder.secretsCache.size());
+    verify(this.mockSecretsManagerClient).getSecretValue(this.mockGetValueRequest);
+    verify(this.connectFunc).call();
+    assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
+    assertEquals(TEST_PASSWORD, TEST_PROPS.get(PropertyDefinition.PASSWORD.name));
+  }
+
+  @Test
+  public void testConnectWithNonExpiredSecret() throws SQLException {
+    final AwsSecretsManagerConnectionPlugin.Secret nonExpiredSecret =
+        new AwsSecretsManagerConnectionPlugin.Secret(
+            TEST_USERNAME,
+            TEST_PASSWORD,
+            Instant.now().plusSeconds(300));
+    AwsSecretsManagerCacheHolder.secretsCache.put(SECRET_CACHE_KEY, nonExpiredSecret);
+
+    this.plugin.connect(TEST_PG_PROTOCOL, TEST_HOSTSPEC, TEST_PROPS, true, this.connectFunc);
+
+    assertEquals(1, AwsSecretsManagerCacheHolder.secretsCache.size());
+    verify(this.mockSecretsManagerClient, never()).getSecretValue(this.mockGetValueRequest);
+    verify(this.connectFunc).call();
     assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
     assertEquals(TEST_PASSWORD, TEST_PROPS.get(PropertyDefinition.PASSWORD.name));
   }
