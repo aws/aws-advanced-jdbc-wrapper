@@ -92,7 +92,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
               "writer", "reader", "none"
           });
 
-  private final @NonNull RoleVerificationSetting verifyOpenedConnectionType;
+  private final @NonNull RoleVerificationSetting verifyOpenedConnectionSetting;
   private final RdsUtils rdsUtils = new RdsUtils();
   private final PluginService pluginService;
   private final String hostSelectionStrategy;
@@ -106,7 +106,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
   public AuroraInitialConnectionStrategyPlugin(final PluginService pluginService, final Properties properties) {
     this.pluginService = pluginService;
-    this.verifyOpenedConnectionType =
+    this.verifyOpenedConnectionSetting =
         RoleVerificationSetting.getRoleVerificationSetting(VERIFY_OPENED_CONNECTION_TYPE.getString(properties));
     this.retryDelayMs = OPEN_CONNECTION_RETRY_INTERVAL_MS.getInteger(properties);
     this.openConnectionRetryTimeoutNano =
@@ -155,14 +155,14 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
   private void validateVerificationSetting(RdsUrlType type) throws SQLException {
     if (type == RdsUrlType.RDS_WRITER_CLUSTER
-        && this.verifyOpenedConnectionType == RoleVerificationSetting.READER) {
+        && this.verifyOpenedConnectionSetting == RoleVerificationSetting.READER) {
       throw new SQLException(Messages.get(
           "AuroraInitialConnectionStrategyPlugin.invalidVerifyConfiguration",
           new Object[]{"reader", "writer cluster"}));
     }
 
     if (type == RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER
-        && this.verifyOpenedConnectionType == RoleVerificationSetting.READER) {
+        && this.verifyOpenedConnectionSetting == RoleVerificationSetting.READER) {
       throw new SQLException(Messages.get(
           "AuroraInitialConnectionStrategyPlugin.invalidVerifyConfiguration",
           new Object[]{"reader", "global cluster"}));
@@ -170,7 +170,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
     // When you create a custom cluster, it can only be of type "reader" or type "any".
     if ((type == RdsUrlType.RDS_READER_CLUSTER || type == RdsUrlType.RDS_CUSTOM_CLUSTER)
-        && this.verifyOpenedConnectionType == RoleVerificationSetting.WRITER) {
+        && this.verifyOpenedConnectionSetting == RoleVerificationSetting.WRITER) {
       throw new SQLException(Messages.get(
           "AuroraInitialConnectionStrategyPlugin.invalidVerifyConfiguration",
           new Object[]{"writer", "reader cluster or custom cluster"}));
@@ -202,6 +202,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
         if (candidateHost == null || this.rdsUtils.isRdsClusterDns(candidateHost.getHost())) {
           // Unable to find an instance URL host. Topology may not exist yet, or may be outdated.
           candidateConn = connectFunc.call();
+          candidateHost = originalConnectHost;
           this.pluginService.forceRefreshHostList();
         } else {
           candidateConn = this.pluginService.connect(candidateHost, props, this);
@@ -238,7 +239,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
         // A reader was requested but the cluster has no readers.
         // Simulate the reader cluster endpoint logic and return the current (writer) connection.
-        if (this.verifyOpenedConnectionType == RoleVerificationSetting.READER) {
+        if (this.verifyOpenedConnectionSetting == RoleVerificationSetting.READER) {
           LOGGER.finest("AuroraInitialConnectionStrategyPlugin.verifyReaderConfiguredButNoReadersExist");
         }
 
@@ -282,10 +283,10 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
   private UrlSubstitutionStrategy getUrlSubstitutionStrategy(RdsUrlType urlType, boolean isInitialConnection) {
     if (urlType == RdsUrlType.RDS_WRITER_CLUSTER
         || urlType == RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER
-        || isInitialConnection && this.verifyOpenedConnectionType == RoleVerificationSetting.WRITER) {
+        || isInitialConnection && this.verifyOpenedConnectionSetting == RoleVerificationSetting.WRITER) {
       return UrlSubstitutionStrategy.SUBSTITUTE_WRITER;
     } else if (urlType == RdsUrlType.RDS_READER_CLUSTER
-        || isInitialConnection && this.verifyOpenedConnectionType == RoleVerificationSetting.READER) {
+        || isInitialConnection && this.verifyOpenedConnectionSetting == RoleVerificationSetting.READER) {
       return UrlSubstitutionStrategy.SUBSTITUTE_READER;
     } else if (urlType == RdsUrlType.RDS_CUSTOM_CLUSTER) {
       return UrlSubstitutionStrategy.SUBSTITUTE_ANY;
@@ -295,19 +296,19 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
   }
 
   private HostRole getRoleToVerify(RdsUrlType urlType, boolean isInitialConnection) {
-    if (this.verifyOpenedConnectionType == RoleVerificationSetting.NO_VERIFICATION) {
+    if (this.verifyOpenedConnectionSetting == RoleVerificationSetting.NO_VERIFICATION) {
       return null;
     }
 
-    if (isInitialConnection && this.verifyOpenedConnectionType == RoleVerificationSetting.WRITER) {
+    if (isInitialConnection && this.verifyOpenedConnectionSetting == RoleVerificationSetting.WRITER) {
       return HostRole.WRITER;
     }
 
-    if (isInitialConnection && this.verifyOpenedConnectionType == RoleVerificationSetting.READER) {
+    if (isInitialConnection && this.verifyOpenedConnectionSetting == RoleVerificationSetting.READER) {
       return HostRole.READER;
     }
 
-    // Role verification setting is not set.
+    // Role verification setting is not set or this is not an initial connection.
     // We still should verify the correct role if we are using a writer/reader cluster.
     if (urlType == RdsUrlType.RDS_WRITER_CLUSTER
         || urlType == RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER) {
