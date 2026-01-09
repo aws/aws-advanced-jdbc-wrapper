@@ -92,7 +92,7 @@ public class GlobalDatabaseExample {
         readerProps.setProperty("wrapperDialect", "global-aurora-mysql");
         readerProps.setProperty("wrapperPlugins", "initialConnection,failover2,efm2");
         readerProps.setProperty("globalClusterInstanceHostPatterns", 
-            "?.cluster-abc123.us-east-1.rds.amazonaws.com,?.cluster-def456.us-west-2.rds.amazonaws.com");
+            "?.abc123.us-east-1.rds.amazonaws.com,?.def456.us-west-2.rds.amazonaws.com");
         readerProps.setProperty("failoverMode", "strict-reader");
         
         Connection readerConn = DriverManager.getConnection(readerUrl, readerProps);
@@ -106,7 +106,8 @@ public class GlobalDatabaseExample {
 - **Connection Pooling**: Include `auroraConnectionTracker` plugin when using connection pooling
 
 ### Global Cluster Instance Host Patterns
-The `globalClusterInstanceHostPatterns` parameter is **required** for Aurora Global Databases. It should contain:
+The `globalClusterInstanceHostPatterns` parameter is **required** for Aurora Global Databases. The patterns are based on
+instance endpoints. It should contain:
 - Comma-separated list of host patterns for each region
 - Different cluster identifiers for each region (e.g., `XYZ1`, `XYZ2`)
 - Proper region specification for custom domains: `[us-east-1]?.custom.com`
