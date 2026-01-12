@@ -134,7 +134,7 @@ public HibernateExceptionTranslator hibernateExceptionTranslator(){
 1. **Method Call**: Application calls a method with `@Transactional` (no readOnly flag)
 2. **Transaction Start**: Spring starts a read-write transaction
 3. **Connection Request**: Hibernate requests a connection from the datasource
-4. **Driver Detection**: AWS JDBC Driver detects the read-write transaction
+4. **Driver Detection**: AWS Advanced JDBC Wrapper detects the read-write transaction
 5. **Writer Routing**: Driver routes the connection to the writer instance
 6. **Query Execution**: Read and write queries execute on the writer instance
 7. **Transaction Commit**: Spring commits the transaction
