@@ -9,7 +9,7 @@ The SpringHibernateBalancedReaderOneDataSourceExample demonstrates a **single da
 | Aspect | OneDataSourceExample | TwoDataSourceExample |
 |--------|---------------------|----------------------|
 | **Datasources** | Single datasource | Two separate datasources (writer + reader) |
-| **Routing Mechanism** | AWS JDBC Driver's Read/Write Splitting Plugin | Custom `@WithLoadBalancedReaderDataSource` annotation |
+| **Routing Mechanism** | AWS Advanced JDBC Wrapper's Read/Write Splitting Plugin | Custom `@WithLoadBalancedReaderDataSource` annotation |
 | **Configuration** | Connection string with `wrapperProfileName=F0` | Spring's `AbstractRoutingDataSource` + AOP |
 | **Custom Annotations** | None (uses standard Spring annotations) | Custom annotation with AspectJ interception |
 | **Complexity** | Simpler, driver-managed | More complex, application-managed |
