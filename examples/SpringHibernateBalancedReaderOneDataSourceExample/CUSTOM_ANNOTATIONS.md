@@ -24,7 +24,7 @@ The key to routing in this example is Spring's standard `@Transactional` annotat
 @Retryable(value = { ShouldRetryTransactionException.class }, maxAttempts = 3)
 @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
 public int getNumOfBooksTransactional() {
-    // AWS JDBC Driver automatically routes this to a reader instance
+    // AWS Advanced JDBC Wrapper automatically routes this to a reader instance
     return this.repository.findAll().stream().mapToInt(Book::getQuantityAvailable).sum();
 }
 ```
