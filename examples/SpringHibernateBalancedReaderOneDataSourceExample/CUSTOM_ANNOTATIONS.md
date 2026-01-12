@@ -152,7 +152,7 @@ public HibernateExceptionTranslator hibernateExceptionTranslator(){
 ## Benefits of Single Datasource Approach
 
 1. **Simplicity**: No custom annotations or AOP configuration needed
-2. **Driver-Managed**: AWS JDBC Driver handles all routing logic
+2. **Driver-Managed**: AWS Advanced JDBC Wrapper handles all routing logic
 3. **Automatic Detection**: Uses standard Spring `readOnly` flag
 4. **Internal Pooling**: Driver manages connection pools for both writer and readers
 5. **Failover Support**: Built-in failover handling with retry logic
