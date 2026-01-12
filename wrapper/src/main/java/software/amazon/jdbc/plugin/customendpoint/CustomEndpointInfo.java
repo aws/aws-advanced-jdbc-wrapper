@@ -80,7 +80,7 @@ public class CustomEndpointInfo {
     final List<String> members;
     final MemberListType memberListType;
 
-    if (responseEndpointInfo.hasStaticMembers()) {
+    if (responseEndpointInfo.hasStaticMembers() && !responseEndpointInfo.staticMembers().isEmpty()) {
       members = responseEndpointInfo.staticMembers();
       memberListType = MemberListType.STATIC_LIST;
     } else {

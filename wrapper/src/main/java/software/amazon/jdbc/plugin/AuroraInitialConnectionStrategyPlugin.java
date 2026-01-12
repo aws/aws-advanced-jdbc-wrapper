@@ -257,23 +257,28 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
         "AuroraInitialConnectionStrategyPlugin.timeout", new Object[] {this.openConnectionRetryTimeoutNano}));
   }
 
-  private @NonNull InstanceSubstitutionStrategy getInstanceSubstitutionStrategy(
-      Properties props, RdsUrlType urlType, boolean isInitialConnection) throws SQLException {
-    InstanceSubstitutionStrategy strategy =
-        InstanceSubstitutionStrategy.fromPropertyValue(INSTANCE_SUBSTITUTION_ROLE.getString(props));
-    if (strategy != null) {
-      validateSubstitutionStrategy(strategy, urlType);
-      return strategy;
+  protected @NonNull InstanceSubstitutionStrategy getInstanceSubstitutionStrategy(
+      Properties props, RdsUrlType urlType, boolean isInitialConnection)
+      throws SQLException {
+    if (isInitialConnection) {
+      InstanceSubstitutionStrategy strategy =
+          InstanceSubstitutionStrategy.fromPropertyValue(INSTANCE_SUBSTITUTION_ROLE.getString(props));
+      if (strategy != null) {
+        validateSubstitutionStrategy(strategy, urlType);
+        return strategy;
+      }
     }
 
-    // INSTANCE_SUBSTITUTION_ROLE was not set, so we will pick a strategy according to the default behavior.
+    // This is not an initial connection, or INSTANCE_SUBSTITUTION_ROLE was not set.
+    // We will pick a strategy according to the default behavior.
     if (urlType == RdsUrlType.RDS_WRITER_CLUSTER
         || urlType == RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER) {
       return InstanceSubstitutionStrategy.SUBSTITUTE_WRITER;
     } else if (urlType == RdsUrlType.RDS_READER_CLUSTER) {
       return InstanceSubstitutionStrategy.SUBSTITUTE_READER;
     } else if (urlType == RdsUrlType.RDS_CUSTOM_CLUSTER
-        // If the custom endpoint plugin is not in use, we should not substitute.
+        // If the custom endpoint plugin is not in use, we should not substitute, because the host list will include
+        // instances that are not part of the custom endpoint.
         && this.pluginService.isPluginInUse(CustomEndpointPlugin.class)) {
       return InstanceSubstitutionStrategy.SUBSTITUTE_ANY;
     }
@@ -281,7 +286,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     return InstanceSubstitutionStrategy.DO_NOT_SUBSTITUTE;
   }
 
-  private void validateSubstitutionStrategy(@NonNull InstanceSubstitutionStrategy setting, RdsUrlType urlType)
+  protected void validateSubstitutionStrategy(@NonNull InstanceSubstitutionStrategy setting, RdsUrlType urlType)
       throws SQLException {
     if (setting == InstanceSubstitutionStrategy.DO_NOT_SUBSTITUTE || !urlType.isRdsCluster()) {
       return;
@@ -317,7 +322,11 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     }
   }
 
-  private @Nullable HostRole getRoleToVerify(RdsUrlType urlType, boolean isInitialConnection) throws SQLException {
+  protected @Nullable HostRole getRoleToVerify(RdsUrlType urlType, boolean isInitialConnection) throws SQLException {
+    if (!isInitialConnection) {
+      return null;
+    }
+
     RoleVerificationSetting setting = RoleVerificationSetting.fromPropertyValue(this.verifyRolePropValue);
     if (setting != null) {
       validateVerificationSetting(setting, urlType);
@@ -349,7 +358,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     return null;
   }
 
-  private void validateVerificationSetting(@NonNull RoleVerificationSetting setting, RdsUrlType urlType)
+  protected void validateVerificationSetting(@NonNull RoleVerificationSetting setting, RdsUrlType urlType)
       throws SQLException {
     if (setting == RoleVerificationSetting.READER
         && (urlType == RdsUrlType.RDS_WRITER_CLUSTER || urlType == RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER)) {
@@ -385,7 +394,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     }
   }
 
-  private HostSpec getCandidateHost(
+  protected HostSpec getCandidateHost(
       final @NonNull HostSpec originalConnectHost,
       final @NonNull RdsUrlType urlType,
       final @NonNull InstanceSubstitutionStrategy substitutionStrategy)
@@ -424,7 +433,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     }
   }
 
-  private boolean hasReaders(@NonNull List<HostSpec> hosts) {
+  protected boolean hasReaders(@NonNull List<HostSpec> hosts) {
     for (HostSpec hostSpec : hosts) {
       if (hostSpec.getRole() == HostRole.WRITER) {
         continue;
@@ -438,7 +447,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     return false;
   }
 
-  private enum InstanceSubstitutionStrategy {
+  protected enum InstanceSubstitutionStrategy {
     SUBSTITUTE_WRITER,
     SUBSTITUTE_READER,
     SUBSTITUTE_ANY,
@@ -483,7 +492,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     }
   }
 
-  private enum RoleVerificationSetting {
+  protected enum RoleVerificationSetting {
     WRITER,
     READER,
     NO_VERIFICATION;
