@@ -139,7 +139,7 @@ public class RoutingDataSource extends AbstractRoutingDataSource {
 3. **Declarative**: Simple annotation-based approach, no manual datasource switching
 4. **Thread-Safe**: ThreadLocal ensures isolation between concurrent requests
 5. **Nested Support**: Counter-based approach supports nested annotated method calls
-6. **Failover Compatible**: Works with AWS JDBC Driver's failover capabilities
+6. **Failover Compatible**: Works with AWS Advanced JDBC Wrapper's failover capabilities
 
 ## Best Practices
 
