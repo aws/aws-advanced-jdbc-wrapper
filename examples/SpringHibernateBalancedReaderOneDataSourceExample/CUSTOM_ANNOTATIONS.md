@@ -123,7 +123,7 @@ public HibernateExceptionTranslator hibernateExceptionTranslator(){
 1. **Method Call**: Application calls a method with `@Transactional(readOnly = true)`
 2. **Transaction Start**: Spring starts a read-only transaction
 3. **Connection Request**: Hibernate requests a connection from the datasource
-4. **Driver Detection**: AWS JDBC Driver detects the read-only transaction flag
+4. **Driver Detection**: AWS Advanced JDBC Wrapper detects the read-only transaction flag
 5. **Reader Routing**: Driver routes the connection to a reader instance (using round-robin strategy)
 6. **Query Execution**: Read queries execute on the reader instance
 7. **Transaction Commit**: Spring commits the read-only transaction
