@@ -149,7 +149,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
 
           CustomEndpointInfo endpointInfo = CustomEndpointInfo.fromDBClusterEndpoint(endpoints.get(0));
           CustomEndpointInfo cachedEndpointInfo = customEndpointInfoCache.get(this.customEndpointHostSpec.getUrl());
-          if (endpointInfo == null || (cachedEndpointInfo != null && cachedEndpointInfo.equals(endpointInfo))) {
+          if (cachedEndpointInfo != null && cachedEndpointInfo.equals(endpointInfo)) {
             long elapsedTime = System.nanoTime() - start;
             long sleepDuration = Math.max(0, this.refreshRateNano - elapsedTime);
             this.sleep(sleepDuration);
