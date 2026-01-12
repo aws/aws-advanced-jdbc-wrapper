@@ -42,7 +42,7 @@ For write operations, use `@Transactional` without the `readOnly` flag:
 @Retryable(value = { ShouldRetryTransactionException.class, TransactionSystemException.class}, maxAttempts = 3)
 @Transactional(propagation = Propagation.REQUIRES_NEW)
 public void updateBookAvailabilityTransactional() {
-    // AWS JDBC Driver automatically routes this to the writer instance
+    // AWS Advanced JDBC Wrapper automatically routes this to the writer instance
     final List<Book> allBooks = this.repository.findAll();
     this.repository.saveAll(allBooks);
 }
