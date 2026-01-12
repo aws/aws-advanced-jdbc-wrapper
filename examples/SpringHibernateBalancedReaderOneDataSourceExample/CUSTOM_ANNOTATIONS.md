@@ -30,7 +30,7 @@ public int getNumOfBooksTransactional() {
 ```
 
 **How it works:**
-- The AWS JDBC Driver's Read/Write Splitting Plugin detects the `readOnly` flag on the transaction
+- The AWS Advanced JDBC Wrapper's Read/Write Splitting Plugin detects the `readOnly` flag on the transaction
 - When `readOnly = true`, the driver automatically routes the connection to a reader instance
 - When `readOnly = false` (or not specified), the driver routes to the writer instance
 
