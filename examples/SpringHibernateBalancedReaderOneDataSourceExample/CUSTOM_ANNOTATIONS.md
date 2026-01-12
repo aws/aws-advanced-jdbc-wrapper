@@ -2,7 +2,7 @@
 
 ## Overview
 
-The SpringHibernateBalancedReaderOneDataSourceExample demonstrates a **single datasource approach** for load-balanced read-write and read-only connections using the AWS Advanced JDBC Driver's built-in Read/Write Splitting Plugin. Unlike the TwoDataSourceExample, this approach does **not** use custom annotations for datasource routing.
+The SpringHibernateBalancedReaderOneDataSourceExample demonstrates a **single datasource approach** for load-balanced read-write and read-only connections using the AWS Advanced JDBC Wrapper's built-in Read/Write Splitting Plugin. Unlike the TwoDataSourceExample, this approach does **not** use custom annotations for datasource routing.
 
 ## Key Difference from TwoDataSourceExample
 
