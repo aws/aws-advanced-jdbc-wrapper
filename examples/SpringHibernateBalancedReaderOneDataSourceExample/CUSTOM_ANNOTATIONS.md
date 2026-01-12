@@ -196,7 +196,7 @@ public int getNumOfBooksTransactional() {
 
 ### Read-Write Method
 ```java
-@Retryable(value = { ShouldRetryTransactionException.class, TransactionSystemException.class}, maxAttempts = 3)
+@Retryable(value = {ShouldRetryTransactionException.class, TransactionSystemException.class}, maxAttempts = 3)
 @Transactional(propagation = Propagation.REQUIRES_NEW)
 public void updateBookAvailabilityTransactional() {
     // Automatically routed to writer instance
