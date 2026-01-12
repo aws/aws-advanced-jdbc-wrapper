@@ -261,4 +261,4 @@ See [Configuration Profiles](../../docs/using-the-jdbc-driver/UsingTheJdbcDriver
 
 ## Summary
 
-The SpringHibernateBalancedReaderOneDataSourceExample demonstrates a **driver-managed approach** to read/write splitting using standard Spring annotations. The AWS JDBC Driver automatically routes connections based on the `@Transactional(readOnly)` flag, eliminating the need for custom annotations or AOP configuration. This approach is simpler, requires less code, and is ideal for most use cases.
+The SpringHibernateBalancedReaderOneDataSourceExample demonstrates a **driver-managed approach** to read/write splitting using standard Spring annotations. The AWS Advanced JDBC Wrapper automatically routes connections based on the `@Transactional(readOnly)` flag, eliminating the need for custom annotations or AOP configuration. This approach is simpler, requires less code, and is ideal for most use cases.
