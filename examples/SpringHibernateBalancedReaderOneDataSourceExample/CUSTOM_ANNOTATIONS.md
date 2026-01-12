@@ -77,7 +77,7 @@ public class SpringHibernateBalancedReaderOneDataSourceExampleApplication {
 
 ### Connection String Configuration
 
-The datasource is configured with the AWS JDBC Driver's Read/Write Splitting Plugin:
+The datasource is configured with the AWS Advanced JDBC Wrapper's Read/Write Splitting Plugin:
 
 ```yaml
 spring:
