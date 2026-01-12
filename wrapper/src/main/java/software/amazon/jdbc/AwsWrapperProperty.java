@@ -89,6 +89,10 @@ public class AwsWrapperProperty extends DriverPropertyInfo {
     }
   }
 
+  public @Nullable String[] getChoices() {
+    return this.choices;
+  }
+
   public DriverPropertyInfo toDriverPropertyInfo(final Properties properties) {
     final DriverPropertyInfo propertyInfo = new DriverPropertyInfo(name, getString(properties));
     propertyInfo.required = required;
