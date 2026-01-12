@@ -221,6 +221,15 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
 
   private Connection connectInternal(HostSpec hostSpec, Properties props,
       JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
+
+    if (StringUtils.isNullOrEmpty(this.secretUsername)) {
+      throw new SQLException("secretsManagerSecretUsernameProperty shouldn't be an empty string.");
+    }
+
+    if (StringUtils.isNullOrEmpty(this.secretPassword)) {
+      throw new SQLException("secretsManagerSecretPasswordProperty shouldn't be an empty string.");
+    }
+
     boolean secretWasFetched = updateSecret(hostSpec, false);
 
     try {
