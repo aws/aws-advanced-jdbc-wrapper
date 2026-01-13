@@ -94,7 +94,7 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter:1.21.2")
     testImplementation("org.testcontainers:toxiproxy:1.21.2")
     testImplementation("eu.rekawek.toxiproxy:toxiproxy-java:2.1.7")
-    testImplementation("org.apache.poi:poi-ooxml:5.4.1")
+    testImplementation("org.apache.poi:poi-ooxml:5.5.1")
     testImplementation("org.slf4j:slf4j-simple:2.0.17")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.19.0")
     testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
