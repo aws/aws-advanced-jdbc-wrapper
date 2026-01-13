@@ -172,7 +172,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
           candidateConn = connectFunc.call();
         } else {
           candidateHost = this.getCandidateHost(originalConnectHost, urlType, substitutionStrategy);
-          if (candidateHost == null || this.rdsUtils.isRdsClusterDns(candidateHost.getHost())) {
+          if (candidateHost == null || !this.rdsUtils.isRdsInstance(candidateHost.getHost())) {
             // Unable to find an instance URL host. Topology may not exist yet, or may be outdated.
             candidateConn = connectFunc.call();
             candidateHost = originalConnectHost;
