@@ -81,9 +81,9 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
           "1000",
           "Time between each retry of opening a connection.");
 
-  public static final AwsWrapperProperty INSTANCE_SUBSTITUTION_ROLE =
+  public static final AwsWrapperProperty ENDPOINT_SUBSTITUTION_ROLE =
       new AwsWrapperProperty(
-          "instanceSubstitutionRole",
+          "endpointSubstitutionRole",
           null,
           "Defines whether or not the initial connection URL should be replaced with an instance URL from the"
               + " topology info when available, and if so, the role of the instance URL that should be selected.",
@@ -268,7 +268,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
       throws SQLException {
     if (isInitialConnection) {
       InstanceSubstitutionStrategy strategy =
-          InstanceSubstitutionStrategy.fromPropertyValue(INSTANCE_SUBSTITUTION_ROLE.getString(props));
+          InstanceSubstitutionStrategy.fromPropertyValue(ENDPOINT_SUBSTITUTION_ROLE.getString(props));
       if (strategy != null) {
         validateSubstitutionStrategy(strategy, urlType);
         return strategy;
@@ -282,8 +282,6 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
       return InstanceSubstitutionStrategy.SUBSTITUTE_WITH_WRITER;
     } else if (urlType == RdsUrlType.RDS_READER_CLUSTER) {
       return InstanceSubstitutionStrategy.SUBSTITUTE_WITH_READER;
-    } else if (urlType == RdsUrlType.RDS_CUSTOM_CLUSTER) {
-      return InstanceSubstitutionStrategy.SUBSTITUTE_WITH_ANY;
     }
 
     return InstanceSubstitutionStrategy.DO_NOT_SUBSTITUTE;
@@ -298,7 +296,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     if (urlType == RdsUrlType.RDS_INSTANCE) {
       throw new SQLException(Messages.get(
           "AuroraInitialConnectionStrategyPlugin.invalidSettingForInstanceEndpoint",
-          new Object[] {INSTANCE_SUBSTITUTION_ROLE.name}));
+          new Object[] {ENDPOINT_SUBSTITUTION_ROLE.name}));
     }
 
     if (!urlType.isRdsCluster()) {
@@ -311,20 +309,20 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
         && (urlType == RdsUrlType.RDS_READER_CLUSTER || urlType == RdsUrlType.RDS_CUSTOM_CLUSTER)) {
       throw new SQLException(Messages.get(
           "AuroraInitialConnectionStrategyPlugin.invalidSettingForEndpoint",
-          new Object[] {INSTANCE_SUBSTITUTION_ROLE.name, "writer", "reader cluster or custom cluster"}));
+          new Object[] {ENDPOINT_SUBSTITUTION_ROLE.name, "writer", "reader cluster or custom cluster"}));
     }
 
     if (setting == InstanceSubstitutionStrategy.SUBSTITUTE_WITH_READER
         && (urlType == RdsUrlType.RDS_WRITER_CLUSTER || urlType == RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER)) {
       throw new SQLException(Messages.get(
           "AuroraInitialConnectionStrategyPlugin.invalidSettingForEndpoint",
-          new Object[] {INSTANCE_SUBSTITUTION_ROLE.name, "reader", "writer cluster or global cluster"}));
+          new Object[] {ENDPOINT_SUBSTITUTION_ROLE.name, "reader", "writer cluster or global cluster"}));
     }
 
     if (setting == InstanceSubstitutionStrategy.SUBSTITUTE_WITH_ANY && urlType != RdsUrlType.RDS_CUSTOM_CLUSTER) {
       throw new SQLException(Messages.get(
           "AuroraInitialConnectionStrategyPlugin.invalidSettingForEndpoint",
-          new Object[] {INSTANCE_SUBSTITUTION_ROLE.name, "any", "writer cluster, reader cluster, or global cluster"}));
+          new Object[] {ENDPOINT_SUBSTITUTION_ROLE.name, "any", "writer cluster, reader cluster, or global cluster"}));
     }
   }
 
@@ -479,7 +477,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
       if (strategy == null) {
         throw new SQLException(Messages.get(
             "AuroraInitialConnectionStrategyPlugin.invalidPropertyValue",
-            new Object[]{INSTANCE_SUBSTITUTION_ROLE.name, value, INSTANCE_SUBSTITUTION_ROLE.getChoices()}));
+            new Object[]{ENDPOINT_SUBSTITUTION_ROLE.name, value, ENDPOINT_SUBSTITUTION_ROLE.getChoices()}));
       }
 
       return strategy;
