@@ -228,6 +228,8 @@ public class ConnectionStringHelper {
       props.setProperty("allowPublicKeyRetrieval", "true");
     }
 
+    props.setProperty(PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.name, "true");
+
     return props;
   }
 

@@ -35,7 +35,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.AtomicConnection;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
@@ -70,7 +72,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
   private final TelemetryFactory telemetryFactory;
   private final Properties properties;
   private final HostSpec hostSpec;
-  private final AtomicReference<Connection> monitoringConn = new AtomicReference<>(null);
+  private AtomicConnection monitoringConn;
 
   private final long failureDetectionTimeNano;
   private final long failureDetectionIntervalNano;
@@ -112,6 +114,8 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
     this.failureDetectionIntervalNano = TimeUnit.MILLISECONDS.toNanos(failureDetectionIntervalMillis);
     this.failureDetectionCount = failureDetectionCount;
     this.abortedConnectionsCounter = abortedConnectionsCounter;
+    this.monitoringConn = new AtomicConnection(
+        this, PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(properties));
   }
 
   @Override
@@ -186,7 +190,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
         TimeUnit.SECONDS.sleep(1);
       }
     } catch (final InterruptedException intEx) {
-      // do nothing; just exit the thread
+      Thread.currentThread().interrupt();
     } catch (final Exception ex) {
       // this should not be reached; log and exit thread
       if (LOGGER.isLoggable(Level.FINEST)) {
@@ -269,7 +273,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
         TimeUnit.NANOSECONDS.sleep(delayNano);
       }
     } catch (final InterruptedException intEx) {
-      // do nothing
+      Thread.currentThread().interrupt();
     } catch (final Exception ex) {
       // this should not be reached; log and exit thread
       if (LOGGER.isLoggable(Level.FINEST)) {
@@ -282,7 +286,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
       }
     } finally {
       this.stop.set(true);
-      this.closeConnection();
+      this.monitoringConn.clean();
       this.servicesContainer.getEventPublisher().unsubscribe(
           this, Collections.singleton(MonitorResetEvent.class));
     }
@@ -290,17 +294,6 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
     LOGGER.finest(() -> Messages.get(
         "HostMonitorImpl.stopMonitoringThread",
         new Object[] {this.hostSpec.getHost()}));
-  }
-
-  protected void closeConnection() {
-    final Connection conn = this.monitoringConn.getAndSet(null);
-    if (conn != null) {
-      try {
-        conn.close();
-      } catch (final SQLException ex) {
-        // ignore
-      }
-    }
   }
 
   /**
@@ -411,12 +404,12 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
 
   @Override
   public void close() {
-    this.closeConnection();
+    this.monitoringConn.clean();
   }
 
   protected void reset() {
     LOGGER.finest("Reset: " + this.hostSpec.getHost());
-    this.closeConnection();
+    this.monitoringConn.set(null);
     this.invalidNodeStartTimeNano.set(0);
     this.failureCount.set(0);
     this.nodeUnhealthy.set(false);

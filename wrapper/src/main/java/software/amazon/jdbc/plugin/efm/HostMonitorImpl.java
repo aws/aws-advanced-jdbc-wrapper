@@ -26,8 +26,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.AtomicConnection;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.StringUtils;
@@ -69,7 +71,7 @@ public class HostMonitorImpl implements HostMonitor {
   private final long monitorDisposalTimeMillis;
   private volatile long contextLastUsedTimestampNano;
   private volatile boolean stopped = false;
-  private final AtomicReference<Connection> monitoringConn = new AtomicReference<>(null);
+  private AtomicConnection monitoringConn;
   private long nodeCheckTimeoutMillis = MIN_CONNECTION_CHECK_TIMEOUT_MILLIS;
 
   private final TelemetryGauge contextsSizeGauge;
@@ -101,6 +103,8 @@ public class HostMonitorImpl implements HostMonitor {
     this.properties = properties;
     this.monitorDisposalTimeMillis = monitorDisposalTimeMillis;
     this.threadContainer = threadContainer;
+    this.monitoringConn = new AtomicConnection(
+        this, PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(properties));
 
     this.contextLastUsedTimestampNano = this.getCurrentTimeNano();
     this.contextsSizeGauge = telemetryFactory.createGauge("efm.activeContexts.queue.size",
@@ -271,7 +275,7 @@ public class HostMonitorImpl implements HostMonitor {
       }
     } catch (final InterruptedException intEx) {
       // exit thread
-      LOGGER.warning(
+      LOGGER.finest(
           () -> Messages.get(
               "HostMonitorImpl.interruptedExceptionDuringMonitoring",
               new Object[] {this.hostSpec.getHost()}));
@@ -288,7 +292,7 @@ public class HostMonitorImpl implements HostMonitor {
     } finally {
       threadContainer.releaseResource(this);
       this.stopped = true;
-      this.closeConnection();
+      this.monitoringConn.clean();
     }
 
     LOGGER.finest(() -> Messages.get(
@@ -383,20 +387,9 @@ public class HostMonitorImpl implements HostMonitor {
     TimeUnit.MILLISECONDS.sleep(duration);
   }
 
-  protected void closeConnection() {
-    final Connection conn = this.monitoringConn.getAndSet(null);
-    if (conn != null) {
-      try {
-        conn.close();
-      } catch (final SQLException ex) {
-        // ignore
-      }
-    }
-  }
-
   @Override
   public void reset() {
     LOGGER.finest("Reset: " + this.hostSpec.getHost());
-    this.closeConnection();
+    this.monitoringConn.set(null);
   }
 }

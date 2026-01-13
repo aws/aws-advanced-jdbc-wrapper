@@ -103,6 +103,19 @@ These parameters are applicable to any instance of the AWS Advanced JDBC Wrapper
 | `skipWrappingForPackages`                         | `String`  | No                                                                                                                                                                              | Register Java package names (separated by comma) which will be left unwrapped. This setting modifies all future connections established by the driver, not just a particular connection.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | `com.pgvector` |
 | `connectionPoolType`                              | `String`  | No                                                                                                                                                                              | Activate internal connection pooling and set up an internal pool implementation type. Possible values are `hikari` and `c3p0`.<br><br>In order to configure specific pooling parameters use configuration property names for classes `com.zaxxer.hikariHikariConfig` or `com.mchange.v2.c3p0.ComboPooledDataSource` prefixed with `cp-`. For example, `connectionPoolType=hikari&cp-MaximumPoolSize=20&cp-MinimumIdle=1`. <br><br>Internal connection pool is maintained per database cluster specified by `clusterId` parameter. Clusters with different `clusterId` values will use separate connection pools.                                                              | `null`         |
 
+## System Properties
+
+These Java system properties can be set using `-D` flags when starting the JVM to configure global behavior of the AWS Advanced JDBC Wrapper.
+
+| Property                      | Value  | Description                                                                                                                                                                                                                                      | Default Value        |
+|-------------------------------|--------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------|
+| `aws.jdbc.cleanup.thread.ttl` | `Long` | Time-to-live in milliseconds for the cleanup thread that monitors unclosed connections. The thread will automatically stop after this period of inactivity to conserve resources. Only relevant when `wrapperLogUnclosedConnections` is enabled. | `30000` (30 seconds) |
+
+**Example:**
+```bash
+java -Daws.jdbc.cleanup.thread.ttl=60000 -jar myapp.jar
+```
+
 ## Plugins
 The AWS Advanced JDBC Wrapper uses plugins to execute JDBC methods. You can think of a plugin as an extensible code module that adds extra logic around any JDBC method calls. The AWS Advanced JDBC Wrapper has a number of [built-in plugins](#list-of-available-plugins) available for use. 
 

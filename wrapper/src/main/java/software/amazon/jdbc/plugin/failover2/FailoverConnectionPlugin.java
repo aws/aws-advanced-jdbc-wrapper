@@ -447,8 +447,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           break;
         }
 
+        Connection candidateConn = null;
         try {
-          Connection candidateConn = this.pluginService.connect(readerCandidate, this.properties, this);
+          candidateConn = this.pluginService.connect(readerCandidate, this.properties, this);
           // Since the roles in the host list might not be accurate, we execute a query to check the instance's role.
           HostRole role = this.pluginService.getHostRole(candidateConn);
           if (role == HostRole.READER || this.failoverMode != STRICT_READER) {
@@ -459,6 +460,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           // The role is WRITER or UNKNOWN, and we are in STRICT_READER mode, so the connection is not valid.
           remainingReaders.remove(readerCandidate);
           candidateConn.close();
+          candidateConn = null;
 
           if (role == HostRole.WRITER) {
             // The reader candidate is actually a writer, which is not valid when failoverMode is STRICT_READER.
@@ -470,6 +472,13 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           }
         } catch (SQLException ex) {
           remainingReaders.remove(readerCandidate);
+          if (candidateConn != null) {
+            try {
+              candidateConn.close();
+            } catch (SQLException e) {
+              // Ignore
+            }
+          }
         }
       }
 
@@ -487,8 +496,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
 
       // Try the original writer, which may have been demoted to a reader.
+      Connection candidateConn = null;
       try {
-        Connection candidateConn = this.pluginService.connect(originalWriter, this.properties, this);
+        candidateConn = this.pluginService.connect(originalWriter, this.properties, this);
         HostRole role = this.pluginService.getHostRole(candidateConn);
         if (role == HostRole.READER || this.failoverMode != STRICT_READER) {
           HostSpec updatedHostSpec = new HostSpec(originalWriter, role);
@@ -497,6 +507,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
         // The role is WRITER or UNKNOWN, and we are in STRICT_READER mode, so the connection is not valid.
         candidateConn.close();
+        candidateConn = null;
 
         if (role == HostRole.WRITER) {
           isOriginalWriterStillWriter = true;
@@ -505,6 +516,14 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         }
       } catch (SQLException ex) {
         LOGGER.fine(Messages.get("Failover.failedReaderConnection", new Object[]{originalWriter.getUrl()}));
+      } finally {
+        if (candidateConn != null) {
+          try {
+            candidateConn.close();
+          } catch (SQLException e) {
+            // Ignore
+          }
+        }
       }
     } while (System.nanoTime() < failoverEndTimeNano); // All hosts failed. Keep trying until we hit the timeout.
 
@@ -539,6 +558,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
     long failoverStartTimeNano = System.nanoTime();
 
+    Connection writerCandidateConn = null;
     try {
       LOGGER.info(() -> Messages.get("Failover.startWriterFailover"));
 
@@ -554,7 +574,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
       final List<HostSpec> updatedHosts = this.pluginService.getAllHosts();
 
-      Connection writerCandidateConn;
       final HostSpec writerCandidate = updatedHosts.stream()
           .filter(x -> x.getRole() == HostRole.WRITER)
           .findFirst()
@@ -598,6 +617,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       if (role != HostRole.WRITER) {
         try {
           writerCandidateConn.close();
+          writerCandidateConn = null;
         } catch (SQLException ex) {
           // do nothing
         }
@@ -611,12 +631,14 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
 
       this.pluginService.setCurrentConnection(writerCandidateConn, writerCandidate);
+      writerCandidateConn = null; // Prevent connection to be closed in the finally block.
 
       LOGGER.fine(
           () -> Messages.get(
               "Failover.establishedConnection",
               new Object[]{this.pluginService.getCurrentHostSpec()}));
       throwFailoverSuccessException();
+
     } catch (FailoverSuccessSQLException ex) {
       if (this.failoverWriterSuccessCounter != null) {
         this.failoverWriterSuccessCounter.inc();
@@ -639,6 +661,15 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       LOGGER.finest(() -> Messages.get(
           "Failover.writerFailoverElapsed",
           new Object[]{TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - failoverStartTimeNano)}));
+
+      if (writerCandidateConn != null && this.pluginService.getCurrentConnection() != writerCandidateConn) {
+        try {
+          writerCandidateConn.close();
+        } catch (SQLException ex) {
+          // do nothing
+        }
+      }
+
       if (telemetryContext != null) {
         telemetryContext.closeContext();
         if (this.telemetryFailoverAdditionalTopTraceSetting) {
