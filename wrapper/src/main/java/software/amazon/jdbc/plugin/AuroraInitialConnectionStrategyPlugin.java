@@ -222,6 +222,9 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
         }
 
         // Failed to verify the connection. We will try to get a verified connection again on the next iteration.
+        LOGGER.finest(Messages.get(
+            "AuroraInitialConnectionStrategyPlugin.incorrectRole",
+            new Object[]{candidateHost.getHost(), roleToVerify}));
         this.closeConnection(candidateConn);
         this.delay(this.retryDelayMs);
       } catch (SQLException ex) {
@@ -254,7 +257,10 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     }
 
     throw new SQLException(Messages.get(
-        "AuroraInitialConnectionStrategyPlugin.timeout", new Object[] {this.openConnectionRetryTimeoutNano}));
+        "AuroraInitialConnectionStrategyPlugin.timeout",
+        new Object[] {
+            TimeUnit.NANOSECONDS.toMillis(this.openConnectionRetryTimeoutNano),
+            VERIFY_OPENED_CONNECTION_ROLE.name}));
   }
 
   protected @NonNull InstanceSubstitutionStrategy getInstanceSubstitutionStrategy(
@@ -288,7 +294,17 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
   protected void validateSubstitutionStrategy(@NonNull InstanceSubstitutionStrategy setting, RdsUrlType urlType)
       throws SQLException {
-    if (setting == InstanceSubstitutionStrategy.DO_NOT_SUBSTITUTE || !urlType.isRdsCluster()) {
+    if (setting == InstanceSubstitutionStrategy.DO_NOT_SUBSTITUTE) {
+      return;
+    }
+
+    if (urlType == RdsUrlType.RDS_INSTANCE) {
+      throw new SQLException(Messages.get(
+          "AuroraInitialConnectionStrategyPlugin.invalidSettingForInstanceEndpoint",
+          new Object[]{INSTANCE_SUBSTITUTION_ROLE.name}));
+    }
+
+    if (!urlType.isRdsCluster()) {
       return;
     }
 
