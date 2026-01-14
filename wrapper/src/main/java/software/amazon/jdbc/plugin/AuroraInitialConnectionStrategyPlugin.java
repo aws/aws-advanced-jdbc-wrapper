@@ -92,6 +92,18 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
               "writer", "reader", "any", "none"
           });
 
+  public static final AwsWrapperProperty INACTIVE_CLUSTER_WRITER_SUBSTITUTION_ROLE =
+      new AwsWrapperProperty(
+          "inactiveClusterWriterEndpointSubstitutionRole",
+          "writer",
+          "Defines whether or not the inactive cluster writer endpoint in initial connection URL should"
+              + " be replaced with an instance URL from the"
+              + " topology info when available, and if so, the role of the instance URL that should be selected.",
+          false,
+          new String[] {
+              "writer", "none"
+          });
+
   public static final AwsWrapperProperty VERIFY_OPENED_CONNECTION_ROLE =
       new AwsWrapperProperty(
           "verifyOpenedConnectionType",
@@ -101,6 +113,17 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
           false,
           new String[] {
               "writer", "reader", "none"
+          });
+
+  public static final AwsWrapperProperty VERIFY_INACTIVE_CLUSTER_WRITER_CONNECTION_ROLE =
+      new AwsWrapperProperty(
+          "verifyInactiveClusterWriterEndpointConnectionType",
+          "writer",
+          "Defines whether inactive cluster writer connection should be verified to be a writer, "
+              + "or if no role verification should be performed.",
+          false,
+          new String[] {
+              "writer", "none"
           });
 
   private final RdsUtils rdsUtils = new RdsUtils();
@@ -158,8 +181,9 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
       throws SQLException {
     final RdsUrlType urlType = this.rdsUtils.identifyRdsType(originalConnectHost.getHost());
     final InstanceSubstitutionStrategy substitutionStrategy =
-        this.getInstanceSubstitutionStrategy(props, urlType, isInitialConnection);
-    final HostRole roleToVerify = this.getRoleToVerify(urlType, isInitialConnection);
+        this.getInstanceSubstitutionStrategy(props, urlType, isInitialConnection, originalConnectHost.getHost());
+    final HostRole roleToVerify = this.getRoleToVerify(
+        urlType, isInitialConnection, props, originalConnectHost.getHost());
     final long endTimeNano = System.nanoTime() + this.openConnectionRetryTimeoutNano;
 
     while (System.nanoTime() < endTimeNano) {
@@ -264,7 +288,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
   }
 
   protected @NonNull InstanceSubstitutionStrategy getInstanceSubstitutionStrategy(
-      Properties props, RdsUrlType urlType, boolean isInitialConnection)
+      Properties props, RdsUrlType urlType, boolean isInitialConnection, @NonNull String originalConnectHost)
       throws SQLException {
     if (isInitialConnection) {
       InstanceSubstitutionStrategy strategy =
@@ -277,9 +301,29 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
     // This is not an initial connection, or INSTANCE_SUBSTITUTION_ROLE was not set.
     // We will pick a strategy according to the default behavior.
-    if (urlType == RdsUrlType.RDS_WRITER_CLUSTER
-        || urlType == RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER) {
+    if (urlType == RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER) {
       return InstanceSubstitutionStrategy.SUBSTITUTE_WITH_WRITER;
+    } else if (urlType == RdsUrlType.RDS_WRITER_CLUSTER) {
+      final HostSpec writer = Utils.getWriter(this.pluginService.getAllHosts());
+      if (writer != null && this.rdsUtils.isRdsInstance(writer.getHost())) {
+        final String writerRegion = this.rdsUtils.getRdsRegion(writer.getHost());
+        final String clusterRegion = this.rdsUtils.getRdsRegion(originalConnectHost);
+        if (!clusterRegion.equalsIgnoreCase(writerRegion)) {
+          // The cluster writer endpoint belongs to a different region than the current writer region.
+          // It means that the cluster is Aurora Global Database and cluster writer endpoint is in secondary region.
+          // In this case the cluster writer endpoint is in inactive state and doesn't represent the current writer
+          // so any connection check should be skipped.
+          // Continue with a normal workflow.
+          InstanceSubstitutionStrategy inactiveClusterWriterStrategy = InstanceSubstitutionStrategy.fromPropertyValue(
+              INACTIVE_CLUSTER_WRITER_SUBSTITUTION_ROLE.getString(props));
+          return inactiveClusterWriterStrategy != null
+              ? inactiveClusterWriterStrategy
+              : InstanceSubstitutionStrategy.SUBSTITUTE_WITH_WRITER;
+        }
+        return InstanceSubstitutionStrategy.SUBSTITUTE_WITH_WRITER;
+      } else {
+        return InstanceSubstitutionStrategy.DO_NOT_SUBSTITUTE;
+      }
     } else if (urlType == RdsUrlType.RDS_READER_CLUSTER) {
       return InstanceSubstitutionStrategy.SUBSTITUTE_WITH_READER;
     }
@@ -326,7 +370,10 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     }
   }
 
-  protected @Nullable HostRole getRoleToVerify(RdsUrlType urlType, boolean isInitialConnection) throws SQLException {
+  protected @Nullable HostRole getRoleToVerify(
+      RdsUrlType urlType, boolean isInitialConnection, Properties props, @NonNull String originalConnectHost)
+      throws SQLException {
+
     if (!isInitialConnection) {
       return null;
     }
@@ -350,9 +397,31 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
 
     // Role verification setting is not set.
     // We still should verify the correct role if we are using a writer/reader cluster.
-    if (urlType == RdsUrlType.RDS_WRITER_CLUSTER
-        || urlType == RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER) {
+    if (urlType == RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER) {
       return HostRole.WRITER;
+    }
+
+    if (urlType == RdsUrlType.RDS_WRITER_CLUSTER) {
+      final HostSpec writer = Utils.getWriter(this.pluginService.getAllHosts());
+      if (writer != null && this.rdsUtils.isRdsInstance(writer.getHost())) {
+        final String writerRegion = this.rdsUtils.getRdsRegion(writer.getHost());
+        final String clusterRegion = this.rdsUtils.getRdsRegion(originalConnectHost);
+        if (clusterRegion.equals(writerRegion)) {
+          // The cluster writer endpoint belongs to the same region as the current writer region.
+          // It means it's an active endpoint.
+          return HostRole.WRITER;
+        }
+      }
+
+      // Writer is not found (it might be the case when the topology cache isn't yet available)
+      // or the cluster writer endpoint belongs to a different region than the current writer region.
+      // In either case, it's safer to assume that the cluster writer endpoint maybe inactive so we have to use
+      // the corresponding setting.
+      InstanceSubstitutionStrategy inactiveClusterWriterStrategy = InstanceSubstitutionStrategy.fromPropertyValue(
+          VERIFY_INACTIVE_CLUSTER_WRITER_CONNECTION_ROLE.getString(props));
+      return inactiveClusterWriterStrategy != null
+          ? InstanceSubstitutionStrategy.toTargetRole(inactiveClusterWriterStrategy)
+          : HostRole.WRITER;
     }
 
     if (urlType == RdsUrlType.RDS_READER_CLUSTER) {
@@ -362,8 +431,10 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     return null;
   }
 
-  protected void validateVerificationSetting(@NonNull RoleVerificationSetting setting, RdsUrlType urlType)
+  protected void validateVerificationSetting(
+      final @NonNull RoleVerificationSetting setting, final @NonNull RdsUrlType urlType)
       throws SQLException {
+
     if (setting == RoleVerificationSetting.READER
         && (urlType == RdsUrlType.RDS_WRITER_CLUSTER || urlType == RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER)) {
       throw new SQLException(Messages.get(
@@ -420,11 +491,11 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     }
 
     try {
-      final String awsRegion = urlType.isRdsCluster()
-          ? this.rdsUtils.getRdsRegion(originalConnectHost.getHost()) : null;
+      final String awsRegion = urlType.isHasRegion()
+          ? this.rdsUtils.getRdsRegion(originalConnectHost.getHost())
+          : null;
       if (!StringUtils.isNullOrEmpty(awsRegion)) {
-        final List<HostSpec> hostsInRegion = this.pluginService.getHosts()
-            .stream()
+        final List<HostSpec> hostsInRegion = this.pluginService.getHosts().stream()
             .filter(x -> awsRegion.equalsIgnoreCase(this.rdsUtils.getRdsRegion(x.getHost())))
             .collect(Collectors.toList());
         return this.pluginService.getHostSpecByStrategy(hostsInRegion, targetRole, this.selectionStrategyPropValue);
@@ -467,7 +538,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
           }
         };
 
-    public static @Nullable InstanceSubstitutionStrategy fromPropertyValue(String value)
+    public static @Nullable InstanceSubstitutionStrategy fromPropertyValue(final @Nullable String value)
         throws SQLException {
       if (value == null) {
         return null;
@@ -483,7 +554,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
       return strategy;
     }
 
-    public static @Nullable HostRole toTargetRole(InstanceSubstitutionStrategy substitutionStrategy) {
+    public static @Nullable HostRole toTargetRole(final InstanceSubstitutionStrategy substitutionStrategy) {
       if (substitutionStrategy == InstanceSubstitutionStrategy.SUBSTITUTE_WITH_WRITER) {
         return HostRole.WRITER;
       }
@@ -511,7 +582,8 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
           }
         };
 
-    public static @Nullable RoleVerificationSetting fromPropertyValue(String value) throws SQLException {
+    public static @Nullable RoleVerificationSetting fromPropertyValue(final @Nullable String value)
+        throws SQLException {
       if (value == null) {
         return null;
       }

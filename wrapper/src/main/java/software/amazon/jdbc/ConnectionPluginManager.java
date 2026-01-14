@@ -78,6 +78,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
           put(software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin.class, "plugin:efm2");
           put(FailoverConnectionPlugin.class, "plugin:failover");
           put(software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin.class, "plugin:failover2");
+          put(software.amazon.jdbc.plugin.gdbfailover.GlobalDbFailoverConnectionPlugin.class, "plugin:gdbFailover");
           put(IamAuthConnectionPlugin.class, "plugin:iam");
           put(AwsSecretsManagerConnectionPlugin.class, "plugin:awsSecretsManager");
           put(FederatedAuthPlugin.class, "plugin:federatedAuth");
@@ -476,7 +477,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
         if (isSubscribed) {
           try {
-            final HostSpec host = Utils.isNullOrEmpty(hosts)
+            final HostSpec host = hosts == null
                 ? plugin.getHostSpecByStrategy(role, strategy)
                 : plugin.getHostSpecByStrategy(hosts, role, strategy);
 
