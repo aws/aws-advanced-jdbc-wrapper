@@ -79,7 +79,7 @@ public class GlobalDatabaseExample {
         writerProps.setProperty("wrapperDialect", "global-aurora-mysql");
         writerProps.setProperty("wrapperPlugins", "initialConnection,failover2,efm2");
         writerProps.setProperty("globalClusterInstanceHostPatterns", 
-            "?.cluster-abc123.us-east-1.rds.amazonaws.com,?.cluster-def456.us-west-2.rds.amazonaws.com");
+            "?.abc123.us-east-1.rds.amazonaws.com,?.def456.us-west-2.rds.amazonaws.com");
         
         Connection writerConn = DriverManager.getConnection(writerUrl, writerProps);
         
