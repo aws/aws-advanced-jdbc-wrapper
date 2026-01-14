@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
@@ -126,21 +127,23 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
   }
 
   @Override
-  public boolean acceptsStrategy(HostRole role, String strategy) {
+  public boolean acceptsStrategy(@Nullable HostRole role, String strategy) {
     return FASTEST_RESPONSE_STRATEGY_NAME.equalsIgnoreCase(strategy);
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(final HostRole role, final String strategy)
+  public HostSpec getHostSpecByStrategy(final @Nullable HostRole role, final String strategy)
       throws SQLException, UnsupportedOperationException {
 
     if (!acceptsStrategy(role, strategy)) {
       return null;
     }
 
+    final String roleName = role == null ? "<null>" : role.name();
+
     // The cache holds a host with the fastest response time.
     // If cache doesn't have a host for a role, it's necessary to find the fastest node in the topology.
-    final HostSpec fastestResponseHost = cachedFastestResponseHostByRole.get(role.name());
+    final HostSpec fastestResponseHost = cachedFastestResponseHostByRole.get(roleName);
 
     if (fastestResponseHost != null) {
       // Found a fastest host. Let find it in the latest topology.
@@ -161,7 +164,7 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
     // Cached result isn't available. Need to find the fastest response time host.
 
     final HostSpec calculatedFastestResponseHost = this.pluginService.getHosts().stream()
-        .filter(x -> role.equals(x.getRole()))
+        .filter(x -> role == null || role.equals(x.getRole()))
         .map(x -> new ResponseTimeTuple(x, this.hostResponseTimeService.getResponseTime(x)))
         .sorted(Comparator.comparingInt(x -> x.responseTime))
         .map(x -> x.hostSpec)
@@ -174,7 +177,7 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
       return randomHostSelector.getHost(this.hosts, role, properties);
     }
 
-    cachedFastestResponseHostByRole.put(role.name(), calculatedFastestResponseHost, this.cacheExpirationNano);
+    cachedFastestResponseHostByRole.put(roleName, calculatedFastestResponseHost, this.cacheExpirationNano);
 
     return calculatedFastestResponseHost;
   }

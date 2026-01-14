@@ -33,13 +33,14 @@ public class RandomHostSelector implements HostSelector {
   @Override
   public HostSpec getHost(
       @NonNull final List<HostSpec> hosts,
-      @NonNull final HostRole role,
+      @Nullable final HostRole role,
       @Nullable final Properties props) throws SQLException {
     final List<HostSpec> eligibleHosts = hosts.stream()
         .filter(hostSpec ->
-            role.equals(hostSpec.getRole()) && hostSpec.getAvailability().equals(HostAvailability.AVAILABLE))
+            (role == null || role.equals(hostSpec.getRole()))
+            && hostSpec.getAvailability().equals(HostAvailability.AVAILABLE))
         .collect(Collectors.toList());
-    if (eligibleHosts.size() == 0) {
+    if (eligibleHosts.isEmpty()) {
       throw new SQLException(Messages.get("HostSelector.noHostsMatchingRole", new Object[]{role}));
     }
 

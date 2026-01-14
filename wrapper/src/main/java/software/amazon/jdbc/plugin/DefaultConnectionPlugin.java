@@ -236,7 +236,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
   }
 
   @Override
-  public boolean acceptsStrategy(HostRole role, String strategy) {
+  public boolean acceptsStrategy(@Nullable HostRole role, String strategy) {
     if (HostRole.UNKNOWN.equals(role)) {
       // Users must request either a writer or a reader role.
       return false;
@@ -246,7 +246,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(HostRole role, String strategy)
+  public HostSpec getHostSpecByStrategy(@Nullable HostRole role, String strategy)
       throws SQLException {
     List<HostSpec> hosts = this.pluginService.getHosts();
 
@@ -254,7 +254,8 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(final List<HostSpec> hosts, final HostRole role, final String strategy)
+  public HostSpec getHostSpecByStrategy(
+      final List<HostSpec> hosts, final @Nullable HostRole role, final String strategy)
       throws SQLException {
     if (HostRole.UNKNOWN.equals(role)) {
       // Users must request either a writer or a reader role.

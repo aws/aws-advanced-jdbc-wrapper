@@ -82,13 +82,13 @@ public class DriverConnectionProvider implements ConnectionProvider {
   }
 
   @Override
-  public boolean acceptsStrategy(@NonNull HostRole role, @NonNull String strategy) {
+  public boolean acceptsStrategy(@Nullable HostRole role, @NonNull String strategy) {
     return acceptedStrategies.containsKey(strategy);
   }
 
   @Override
   public HostSpec getHostSpecByStrategy(
-      @NonNull List<HostSpec> hosts, @NonNull HostRole role, @NonNull String strategy, @Nullable Properties props)
+      @NonNull List<HostSpec> hosts, @Nullable HostRole role, @NonNull String strategy, @Nullable Properties props)
       throws SQLException {
     if (!acceptedStrategies.containsKey(strategy)) {
       throw new UnsupportedOperationException(
