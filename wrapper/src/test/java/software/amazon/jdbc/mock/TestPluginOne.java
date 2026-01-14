@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import org.jetbrains.annotations.Nullable;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
@@ -114,12 +115,12 @@ public class TestPluginOne implements ConnectionPlugin {
   }
 
   @Override
-  public boolean acceptsStrategy(HostRole role, String strategy) {
+  public boolean acceptsStrategy(@Nullable HostRole role, String strategy) {
     return false;
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(HostRole role, String strategy) {
+  public HostSpec getHostSpecByStrategy(@Nullable HostRole role, String strategy) {
     this.calls.add(this.getClass().getSimpleName() + ":before getHostSpecByStrategy");
     HostSpec result = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("host").port(1234).role(role).build();
@@ -128,7 +129,7 @@ public class TestPluginOne implements ConnectionPlugin {
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy) {
+  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, @Nullable HostRole role, String strategy) {
     return getHostSpecByStrategy(role, strategy);
   }
 

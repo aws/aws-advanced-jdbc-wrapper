@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
@@ -71,18 +72,19 @@ public abstract class AbstractConnectionPlugin implements ConnectionPlugin {
   }
 
   @Override
-  public boolean acceptsStrategy(HostRole role, String strategy) {
+  public boolean acceptsStrategy(@Nullable HostRole role, String strategy) {
     return false;
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(final HostRole role, final String strategy)
+  public HostSpec getHostSpecByStrategy(final @Nullable HostRole role, final String strategy)
       throws SQLException, UnsupportedOperationException {
     throw new UnsupportedOperationException("getHostSpecByStrategy is not supported by this plugin.");
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(final List<HostSpec> hosts, final HostRole role, final String strategy)
+  public HostSpec getHostSpecByStrategy(
+      final List<HostSpec> hosts, final @Nullable HostRole role, final String strategy)
       throws SQLException, UnsupportedOperationException {
     throw new UnsupportedOperationException("getHostSpecByStrategy is not supported by this plugin.");
   }

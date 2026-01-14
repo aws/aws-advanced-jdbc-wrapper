@@ -80,7 +80,7 @@ Configure Spring to use the AWS Advanced JDBC Wrapper as the default datasource.
     ```
 2. The datasources mentioned above do not use Hikari datasources which are the default for Spring 2+ applications. The AWS Advanced JDBC Wrapper manages its own internal connection pool (or several connection pools, if needed), which increases overall efficiency and helps facilitate failover support. All necessary configuration parameters are defined in `SF_F0` configuration profile. Other configuration presets from `SF_` family can be used as well. More details are available at [Configuration Profiles](../../docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#configuration-profiles) and [Configuration Presets](../../docs/using-the-jdbc-driver/ConfigurationPresets.md).
  <br><br>
-   Optional configuration parameter `readerInitialConnectionHostSelectorStrategy` in connection string helps to setup a strategy selecting a reader node. Possible values are `random`, `roundRobin` and `leastConnections`. More details are available at [Reader Selection Strategies](../../docs/using-the-jdbc-driver/ReaderSelectionStrategies.md).
+   Optional configuration parameter `readerInitialConnectionHostSelectorStrategy` in connection string helps to setup a strategy selecting a reader node. Possible values are `random`, `roundRobin` and `leastConnections`. More details are available at [Reader Selection Strategies](../../docs/using-the-jdbc-driver/HostSelectionStrategies.md).
 
 
 3. Configure Hibernate dialect:
