@@ -75,6 +75,7 @@ public class ConnectionPluginChainBuilder {
           put("efm2", new software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPluginFactory());
           put("failover", new FailoverConnectionPluginFactory());
           put("failover2", new software.amazon.jdbc.plugin.failover2.FailoverConnectionPluginFactory());
+          put("gdbFailover", new software.amazon.jdbc.plugin.gdbfailover.GlobalDbFailoverConnectionPluginFactory());
           put("iam", new IamAuthConnectionPluginFactory());
           put("awsSecretsManager", new AwsSecretsManagerConnectionPluginFactory());
           put("federatedAuth", new FederatedAuthPluginFactory());
@@ -112,6 +113,7 @@ public class ConnectionPluginChainBuilder {
           put(SimpleReadWriteSplittingPluginFactory.class, 610);
           put(FailoverConnectionPluginFactory.class, 700);
           put(software.amazon.jdbc.plugin.failover2.FailoverConnectionPluginFactory.class, 710);
+          put(software.amazon.jdbc.plugin.gdbfailover.GlobalDbFailoverConnectionPluginFactory.class, 720);
           put(HostMonitoringConnectionPluginFactory.class, 800);
           put(software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPluginFactory.class, 810);
           put(FastestResponseStrategyPluginFactory.class, 900);
