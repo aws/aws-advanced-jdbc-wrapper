@@ -25,11 +25,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
+import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
@@ -43,6 +45,13 @@ public class AuroraStaleDnsHelper {
 
   private static final Logger LOGGER = Logger.getLogger(AuroraStaleDnsHelper.class.getName());
 
+  private static final int RETRIES = 3;
+
+  public static final AwsWrapperProperty SKIP_INACTIVE_WRITER_CLUSTER_CHECK =
+      new AwsWrapperProperty(
+          "skipInactiveWriterClusterEndpointCheck", "false",
+          "Allows to avoid connection check for inactive cluster writer endpoint.");
+
   private final PluginService pluginService;
   private final TelemetryFactory telemetryFactory;
   private final TelemetryCounter staleDNSDetectedCounter;
@@ -52,7 +61,9 @@ public class AuroraStaleDnsHelper {
   private HostSpec writerHostSpec = null;
   private String writerHostAddress = null;
 
-  private static final int RETRIES = 3;
+  static {
+    PropertyDefinition.registerPluginProperties(AuroraStaleDnsHelper.class);
+  }
 
   public AuroraStaleDnsHelper(final PluginService pluginService) {
     this.pluginService = pluginService;
@@ -73,6 +84,28 @@ public class AuroraStaleDnsHelper {
         && type != RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER) {
       // It's not a writer cluster endpoint. Continue with a normal workflow.
       return connectFunc.call();
+    }
+
+    if (type == RdsUrlType.RDS_WRITER_CLUSTER) {
+      final HostSpec writer = Utils.getWriter(this.pluginService.getAllHosts());
+      if (writer != null && this.rdsUtils.isRdsInstance(writer.getHost())) {
+        final String writerRegion = this.rdsUtils.getRdsRegion(writer.getHost());
+        final String clusterRegion = this.rdsUtils.getRdsRegion(hostSpec.getHost());
+        if (isInitialConnection
+            && !clusterRegion.equals(writerRegion)
+            && SKIP_INACTIVE_WRITER_CLUSTER_CHECK.getBoolean(props)) {
+          // The cluster writer endpoint belongs to a different region than the current writer region.
+          // It means that the cluster is Aurora Global Database and cluster writer endpoint is in secondary region.
+          // In this case the cluster writer endpoint is in inactive state and doesn't represent the current writer
+          // so any connection check should be skipped.
+          // Continue with a normal workflow.
+          return connectFunc.call();
+        }
+      } else {
+        // No writer is available. It could be the case with the first connection when topology isn't yet available.
+        // Continue with a normal workflow.
+        return connectFunc.call();
+      }
     }
 
     final Connection conn = connectFunc.call();
