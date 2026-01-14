@@ -607,7 +607,7 @@ public class ReadWriteSplittingPluginTest {
     spyPlugin.switchConnectionIfRequired(true);
     spyPlugin.switchConnectionIfRequired(false);
 
-    verify(spyPlugin, times(2)).closeReaderConnectionIfIdle(any());
+    verify(spyPlugin, times(2)).closeReaderConnectionIfIdle();
   }
 
   @Test
@@ -634,7 +634,7 @@ public class ReadWriteSplittingPluginTest {
     spyPlugin.switchConnectionIfRequired(false);
     spyPlugin.switchConnectionIfRequired(true);
 
-    verify(spyPlugin, times(1)).closeWriterConnectionIfIdle(eq(mockWriterConn));
+    verify(spyPlugin, times(1)).closeWriterConnectionIfIdle();
   }
 
   private static HikariConfig getHikariConfig(HostSpec hostSpec, Properties props) {
