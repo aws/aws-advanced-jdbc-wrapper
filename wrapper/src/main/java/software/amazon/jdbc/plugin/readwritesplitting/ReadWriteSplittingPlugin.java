@@ -294,7 +294,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   }
 
   private void setReaderConnection(final Connection conn, final HostSpec host) {
-    closeReaderConnectionIfIdle(this.readerCacheItem);
+    closeReaderConnectionIfIdle();
     this.readerCacheItem = new CacheItem<>(conn, this.getKeepAliveTimeout(this.isReaderConnFromInternalPool));
     this.readerHostSpec = host;
     LOGGER.finest(
@@ -400,7 +400,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     }
 
     if (this.isReaderConnFromInternalPool) {
-      this.closeReaderConnectionIfIdle(this.readerCacheItem);
+      this.closeReaderConnectionIfIdle();
     }
 
     LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.switchedFromReaderToWriter",
@@ -437,7 +437,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
           Messages.get(
               "ReadWriteSplittingPlugin.previousReaderNotAllowed",
               new Object[] {this.readerHostSpec, LogUtils.logTopology(hosts, "")}));
-      closeReaderConnectionIfIdle(this.readerCacheItem);
+      closeReaderConnectionIfIdle();
     }
 
     this.inReadWriteSplit = true;
@@ -458,13 +458,13 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
               new Object[] {this.readerHostSpec.getHostAndPort()}));
         }
 
-        closeReaderConnectionIfIdle(this.readerCacheItem);
+        closeReaderConnectionIfIdle();
         initializeReaderConnection(hosts);
       }
     }
 
     if (this.isWriterConnFromInternalPool) {
-      this.closeWriterConnectionIfIdle(this.writerConnection);
+      this.closeWriterConnectionIfIdle();
     }
   }
 
@@ -550,8 +550,8 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
 
   private void closeIdleConnections() {
     LOGGER.finest(() -> Messages.get("ReadWriteSplittingPlugin.closingInternalConnections"));
-    closeReaderConnectionIfIdle(this.readerCacheItem);
-    closeWriterConnectionIfIdle(this.writerConnection);
+    closeReaderConnectionIfIdle();
+    closeWriterConnectionIfIdle();
   }
 
   void closeReaderConnectionIfIdle() {
