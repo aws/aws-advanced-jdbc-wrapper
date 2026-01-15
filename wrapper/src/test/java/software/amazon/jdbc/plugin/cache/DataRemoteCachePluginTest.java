@@ -100,6 +100,9 @@ public class DataRemoteCachePluginTest {
     assertEquals(180, plugin.getTtlForQuery("FIRST_ROWS(10) CACHE_PARAM(ttl=180s) PARALLEL(4)"));
     assertEquals(200, plugin.getTtlForQuery("foo=bar,CACHE_PARAM(ttl=200s),baz=qux"));
 
+    // Maximum TTL enforcement
+    assertEquals(15552000, plugin.getTtlForQuery("CACHE_PARAM(ttl=1000000000s)"));
+
     // Whitespace handling
     assertEquals(400, plugin.getTtlForQuery("CACHE_PARAM( ttl=400s )"));
     assertEquals(500, plugin.getTtlForQuery("CACHE_PARAM(ttl = 500s)"));
