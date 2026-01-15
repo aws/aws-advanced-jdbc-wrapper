@@ -14,20 +14,17 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.efm2;
+package software.amazon.jdbc.exceptions;
 
-import java.util.Properties;
-import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.util.telemetry.TelemetryCounter;
+import software.amazon.jdbc.util.Messages;
 
-/** Interface for initialize a new {@link HostMonitorImpl}. */
-@FunctionalInterface
-public interface HostMonitorInitializer {
-  HostMonitor createMonitor(
-      HostSpec hostSpec,
-      Properties properties,
-      final int failureDetectionTimeMillis,
-      final int failureDetectionIntervalMillis,
-      final int failureDetectionCount,
-      final TelemetryCounter abortedConnectionsCounter);
+public class UnclosedConnectionException extends Throwable {
+
+  public UnclosedConnectionException() {
+    super(Messages.get("ConnectionWrapper.unclosedConnectionInstantiated"));
+  }
+
+  public UnclosedConnectionException(Throwable cause) {
+    super(Messages.get("ConnectionWrapper.unclosedConnectionInstantiated"), cause);
+  }
 }

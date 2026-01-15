@@ -1,5 +1,8 @@
 # Host Monitoring Plugin
 
+## Plugin Availability
+The plugin is available since version 1.0.0.
+
 ## Enhanced Failure Monitoring
 The figure that follows shows a simplified Enhanced Failure Monitoring (EFM) workflow. Enhanced Failure Monitoring is a feature available from the Host Monitoring Connection Plugin. The Host Monitoring Connection Plugin periodically checks the connected database node's health or availability. If a database node is determined to be unhealthy, the connection will be aborted. The Host Monitoring Connection Plugin uses the [Enhanced Failure Monitoring Parameters](#enhanced-failure-monitoring-parameters) and a database node's responsiveness to determine whether a node is healthy.
 
@@ -76,6 +79,10 @@ properties.setProperty("monitoring-socketTimeout", "10");
 
 # Host Monitoring Plugin v2
 
+## Plugin Availability
+The plugin is available since version 2.3.2.
+
+## Overview
 Host Monitoring Plugin v2, also known as `efm2`, is an alternative implementation of enhanced failure monitoring and it is functionally equal to the Host Monitoring Plugin described above. Both plugins share the same set of [configuration parameters](#enhanced-failure-monitoring-parameters). The `efm2` plugin is designed to be a drop-in replacement for the `efm` plugin.
 The `efm2` plugin can be used in any scenario where the `efm` plugin is mentioned. This plugin is enabled by default since [version 2.3.3](https://github.com/aws/aws-advanced-jdbc-wrapper/releases/tag/2.3.3) of the driver. The original EFM plugin can still be used by specifying `efm` in the `wrapperPlugins` parameter.
 

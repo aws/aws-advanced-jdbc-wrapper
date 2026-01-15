@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -31,6 +30,8 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.ResourceLock;
+import software.amazon.jdbc.util.StringUtils;
 
 public class WeightedRandomHostSelector implements HostSelector {
   public static final AwsWrapperProperty WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS = new AwsWrapperProperty(
@@ -45,7 +46,7 @@ public class WeightedRandomHostSelector implements HostSelector {
   private String cachedHostWeightMapString;
   private Random random;
 
-  private final ReentrantLock lock = new ReentrantLock();
+  private final ResourceLock lock = new ResourceLock();
 
   public WeightedRandomHostSelector() {
     this(new Random());
@@ -57,16 +58,20 @@ public class WeightedRandomHostSelector implements HostSelector {
 
   public HostSpec getHost(
       @NonNull List<HostSpec> hosts,
-      @NonNull HostRole role,
+      @Nullable HostRole role,
       @Nullable Properties props) throws SQLException {
+    String hostWeightPairsValue = props == null ? null : WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS.getString(props);
+    if (StringUtils.isNullOrEmpty(hostWeightPairsValue)) {
+      throw new SQLException(Messages.get("WeightedRandomHostSelector.hostWeightPairsPropertyRequired"));
+    }
 
-    final Map<String, Integer> hostWeightMap =
-        this.getHostWeightPairMap(WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS.getString(props));
+    final Map<String, Integer> hostWeightMap = this.getHostWeightPairMap(hostWeightPairsValue);
 
     // Get and check eligible hosts
     final List<HostSpec> eligibleHosts = hosts.stream()
         .filter(hostSpec ->
-            role.equals(hostSpec.getRole()) && hostSpec.getAvailability().equals(HostAvailability.AVAILABLE))
+            (role == null || role.equals(hostSpec.getRole()))
+            && hostSpec.getAvailability().equals(HostAvailability.AVAILABLE))
         .sorted(Comparator.comparing(HostSpec::getHost))
         .collect(Collectors.toList());
 
@@ -108,11 +113,11 @@ public class WeightedRandomHostSelector implements HostSelector {
     throw new SQLException(Messages.get("HostSelector.weightedRandomUnableToGetHost", new Object[] {role}));
   }
 
-  private Map<String, Integer> getHostWeightPairMap(final String hostWeightMapString) throws SQLException {
-    try {
-      lock.lock();
+  private Map<String, Integer> getHostWeightPairMap(final @NonNull String hostWeightMapString) throws SQLException {
+    try (ResourceLock ignored = lock.obtain()) {
       if (this.cachedHostWeightMapString != null
-          && this.cachedHostWeightMapString.trim().equals(hostWeightMapString.trim())
+          && this.cachedHostWeightMapString.equals(
+              hostWeightMapString == null ? "" : hostWeightMapString.trim())
           && this.cachedHostWeightMap != null
           && !this.cachedHostWeightMap.isEmpty()) {
         return this.cachedHostWeightMap;
@@ -146,10 +151,8 @@ public class WeightedRandomHostSelector implements HostSelector {
         }
       }
       this.cachedHostWeightMap = hostWeightMap;
-      this.cachedHostWeightMapString = hostWeightMapString;
+      this.cachedHostWeightMapString = hostWeightMapString.trim();
       return hostWeightMap;
-    } finally {
-      lock.unlock();
     }
   }
 

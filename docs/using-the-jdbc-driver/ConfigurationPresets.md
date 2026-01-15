@@ -4,6 +4,9 @@
 
 A Configuration Preset is a [configuration profile](./UsingTheJdbcDriver.md#configuration-profiles) that has already been set up by the AWS Advanced JDBC Wrapper team. Preset configuration profiles are optimized, profiled, verified and can be used right away. If the existing presets do not cover an exact use case, users can also create their own configuration profiles based on the built-in presets.
 
+## Availability
+The feature is available since version 2.3.1.
+
 ## Using Configuration Presets
 
 The Configuration Preset name should be specified with the [`wrapperProfileName`](../../README.md#Properties) parameter.

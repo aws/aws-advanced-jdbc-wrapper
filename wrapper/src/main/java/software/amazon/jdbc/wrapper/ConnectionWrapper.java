@@ -44,9 +44,12 @@ import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
+import software.amazon.jdbc.exceptions.UnclosedConnectionException;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.LazyCleaner;
+import software.amazon.jdbc.util.LazyCleanerImpl;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -64,6 +67,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   protected @Nullable ConfigurationProfile configurationProfile;
   protected @Nullable Throwable openConnectionStacktrace;
   protected FullServicesContainer servicesContainer;
+  private LazyCleaner.Cleanable cleanable;
 
   public ConnectionWrapper(
       @NonNull final FullServicesContainer servicesContainer,
@@ -72,6 +76,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       @NonNull final String targetDriverProtocol,
       @Nullable final ConfigurationProfile configurationProfile)
       throws SQLException {
+
     this.servicesContainer = servicesContainer;
     this.pluginManager = servicesContainer.getConnectionPluginManager();
     this.pluginService = servicesContainer.getPluginService();
@@ -82,9 +87,17 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     this.configurationProfile = configurationProfile;
     init(props);
 
-    if (PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(props)) {
-      this.openConnectionStacktrace = new Throwable(Messages.get("ConnectionWrapper.unclosedConnectionInstantiated"));
+    final boolean logUnclosedConnections = PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(props);
+    if (logUnclosedConnections) {
+      this.openConnectionStacktrace = new UnclosedConnectionException();
     }
+
+    // PluginService (this.pluginService) contains a connection object and should be
+    // tracked and monitored more precisely. That's why LazyCleaner.Cleanable is used instead of
+    // simple calling this.pluginService.releaseResources().
+    // Both PluginService and ConnectionPluginManager is cleaned by LazyCleaner.Cleanable.
+    this.cleanable = LazyCleanerImpl.getInstance().register(this, new CleanupAction(
+        this.openConnectionStacktrace, logUnclosedConnections, this.pluginService, this.pluginManager));
   }
 
   // For testing purposes only
@@ -131,9 +144,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   public void releaseResources() {
-    this.pluginManager.releaseResources();
-    if (this.pluginService instanceof CanReleaseResources) {
-      ((CanReleaseResources) this.pluginService).releaseResources();
+    // Clean PluginService (this.pluginService) and ConnectionPluginManager (this.pluginManager)
+    try {
+      this.cleanable.clean();
+    } catch (Throwable e) {
+      // Ignore cleanup exceptions
     }
   }
 
@@ -1139,32 +1154,63 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     return this.pluginService.getCurrentConnection().unwrap(iface);
   }
 
+  public Connection getCurrentConnection() {
+    return this.pluginService.getCurrentConnection();
+  }
+
   @Override
   public String toString() {
     return super.toString() + " - " + this.pluginService.getCurrentConnection();
   }
 
-  @SuppressWarnings("checkstyle:NoFinalizer")
-  protected void finalize() throws Throwable {
+  private static class CleanupAction implements LazyCleaner.CleaningAction {
+    private final Throwable openConnectionStacktrace;
+    private final PluginService pluginService;
+    private final ConnectionPluginManager pluginManager;
+    private final String threadName;
+    private final boolean logUnclosedConnections;
+    private volatile boolean cleaned = false;
 
-    try {
-      if (this.openConnectionStacktrace != null) {
+    CleanupAction(
+        final @Nullable Throwable openConnectionStacktrace,
+        final boolean logUnclosedConnections,
+        final PluginService pluginService,
+        final ConnectionPluginManager pluginManager) {
+
+      this.openConnectionStacktrace = openConnectionStacktrace;
+      this.logUnclosedConnections = logUnclosedConnections;
+      this.pluginService = pluginService;
+      this.pluginManager = pluginManager;
+      this.threadName = Thread.currentThread().getName();
+    }
+
+    @Override
+    public void onClean(boolean leak) {
+      if (this.cleaned) {
+        return;
+      }
+      this.cleaned = true;
+
+      if (this.logUnclosedConnections && leak) {
         LOGGER.log(
             Level.WARNING,
             this.openConnectionStacktrace,
-            () -> Messages.get(
-                "ConnectionWrapper.finalizingUnclosedConnection"));
-        this.openConnectionStacktrace = null;
+            () -> Messages.get("ConnectionWrapper.finalizingUnclosedConnection", new Object[] {this.threadName}));
       }
 
-      this.releaseResources();
+      try {
+        if (this.pluginService instanceof CanReleaseResources) {
+          ((CanReleaseResources) this.pluginService).releaseResources();
+        }
+      } catch (Exception e) {
+        // Ignore exceptions during cleanup
+      }
 
-    } finally {
-      super.finalize();
+      try {
+        this.pluginManager.releaseResources();
+      } catch (Exception e) {
+        // Ignore exceptions during cleanup
+      }
     }
-  }
-
-  public Connection getCurrentConnection() {
-    return this.pluginService.getCurrentConnection();
   }
 }

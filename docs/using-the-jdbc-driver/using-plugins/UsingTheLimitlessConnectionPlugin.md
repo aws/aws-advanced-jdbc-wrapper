@@ -17,6 +17,9 @@ The Limitless Connection Plugin achieves this with a monitoring thread that peri
 When a new connection is made, the plugin directs the connection to a transaction router selected from the cache using a weighted round-robin strategy.
 Routers with a higher load are assigned a lower weight, and routers with a lower load are assigned a higher weight.
 
+## Plugin Availability
+The plugin is available since version 2.4.0.
+
 ## How to use the Limitless Connection Plugin with the AWS Advanced JDBC Wrapper
 To enable the Limitless Connection Plugin, add the plugin code `limitless` to the [`wrapperPlugins`](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters) value, or to the current [driver profile](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters).
 

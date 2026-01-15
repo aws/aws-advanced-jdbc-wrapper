@@ -209,26 +209,30 @@ public class AwsIamIntegrationTest {
         initAwsIamProps(TestEnvironment.getCurrent().getInfo().getIamUsername(), "<anything>");
     awsIamProp.remove(PropertyDefinition.USER.name);
 
-    final Connection validConn =
+    try (final Connection validConn =
         DriverManager.getConnection(
             dbConn
                 + (dbConn.contains("?") ? "&" : "?")
                 + PropertyDefinition.USER.name
                 + "="
                 + TestEnvironment.getCurrent().getInfo().getIamUsername(),
-            awsIamProp);
-    Assertions.assertNotNull(validConn);
-    Assertions.assertThrows(
-        SQLException.class,
-        () ->
-            DriverManager.getConnection(
-                dbConn
-                    + (dbConn.contains("?") ? "&" : "?")
-                    + PropertyDefinition.USER.name
-                    + "="
-                    + "WRONG_"
-                    + TestEnvironment.getCurrent().getInfo().getIamUsername(),
-                awsIamProp));
+            awsIamProp)) {
+      Assertions.assertNotNull(validConn);
+      Assertions.assertThrows(
+          SQLException.class,
+          () -> {
+              try (Connection conn = DriverManager.getConnection(
+                  dbConn
+                      + (dbConn.contains("?") ? "&" : "?")
+                      + PropertyDefinition.USER.name
+                      + "="
+                      + "WRONG_"
+                      + TestEnvironment.getCurrent().getInfo().getIamUsername(),
+                  awsIamProp)) {
+                Assertions.assertNotNull(conn);
+              }
+          });
+    }
   }
 
   /**

@@ -61,6 +61,18 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
       "customEndpointInfoRefreshRateMs", "30000",
       "Controls how frequently custom endpoint monitors fetch custom endpoint info, in milliseconds.");
 
+  public static final AwsWrapperProperty CUSTOM_ENDPOINT_INFO_REFRESH_RATE_BACKOFF_FACTOR = new AwsWrapperProperty(
+      "customEndpointInfoRefreshRateBackoffFactor", "2",
+      "Controls the exponential backoff factor for the custom endpoint monitor. In the event the custom "
+          + "endpoint monitor encounters a throttling exception from the AWS RDS SDK, the refresh time between fetches "
+          + "for custom endpoint info will increase by this factor. When a successful call is made, it will decrease "
+          + "by the same factor");
+
+  public static final AwsWrapperProperty CUSTOM_ENDPOINT_INFO_MAX_REFRESH_RATE_MS = new AwsWrapperProperty(
+      "customEndpointInfoMaxRefreshRateMs", "300000",
+      "Controls the maximum time the custom endpoint monitor will wait in between fetches for custom endpoint "
+          + "info, in milliseconds.");
+
   public static final AwsWrapperProperty WAIT_FOR_CUSTOM_ENDPOINT_INFO = new AwsWrapperProperty(
       "waitForCustomEndpointInfo", "true",
       "Controls whether to wait for custom endpoint info to become available before connecting or executing a "
@@ -225,6 +237,8 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
             this.customEndpointId,
             this.region,
             TimeUnit.MILLISECONDS.toNanos(CUSTOM_ENDPOINT_INFO_REFRESH_RATE_MS.getLong(props)),
+            CUSTOM_ENDPOINT_INFO_REFRESH_RATE_BACKOFF_FACTOR.getInteger(props),
+            TimeUnit.MILLISECONDS.toNanos(CUSTOM_ENDPOINT_INFO_MAX_REFRESH_RATE_MS.getLong(props)),
             this.rdsClientFunc
         ));
   }

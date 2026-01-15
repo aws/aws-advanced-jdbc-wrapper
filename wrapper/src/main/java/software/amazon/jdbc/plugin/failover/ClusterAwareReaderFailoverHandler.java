@@ -324,7 +324,11 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   }
 
   protected FullServicesContainer newServicesContainer() throws SQLException {
-    return ServiceUtility.getInstance().createMinimalServiceContainer(this.servicesContainer, this.props);
+    FullServicesContainer fullServicesContainer = ServiceUtility.getInstance().createMinimalServiceContainer(
+        this.servicesContainer, this.props);
+    fullServicesContainer.getHostListProviderService().setInitialConnectionHostSpec(
+        this.pluginService.getInitialConnectionHostSpec());
+    return fullServicesContainer;
   }
 
   private ReaderFailoverResult getResultFromNextTaskBatch(

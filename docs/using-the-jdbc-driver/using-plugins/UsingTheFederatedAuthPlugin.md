@@ -3,6 +3,9 @@
 The Federated Authentication Plugin adds support for authentication via Federated Identity and then database access via IAM. 
 Currently, Microsoft Active Directory Federation Services (AD FS) and Okta are supported. To see information on how to configure and use Okta authentication, see [Using the Okta Authentication Plugin](./UsingTheOktaAuthPlugin.md).
 
+## Plugin Availability
+The plugin is available since version 2.3.2.
+
 ## What is Federated Identity
 Federated Identity allows users to use the same set of credentials to access multiple services or resources across different organizations. This works by having Identity Providers (IdP) that manage and authenticate user credentials, and Service Providers (SP) that are services or resources that can be internal, external, and/or belonging to various organizations. Multiple SPs can establish trust relationships with a single IdP.
 

@@ -41,7 +41,6 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
@@ -66,6 +65,7 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.ResourceLock;
 
 class HostMonitoringConnectionPluginTest {
 
@@ -88,7 +88,7 @@ class HostMonitoringConnectionPluginTest {
   @Mock Supplier<HostMonitorService> supplier;
   @Mock RdsUtils rdsUtils;
   @Mock HostMonitorConnectionContext context;
-  @Mock ReentrantLock mockReentrantLock;
+  @Mock ResourceLock mockResourceLock;
   @Mock HostMonitorService monitorService;
   @Mock JdbcCallable<ResultSet, SQLException> sqlFunction;
   @Mock TargetDriverDialect targetDriverDialect;
@@ -136,7 +136,7 @@ class HostMonitoringConnectionPluginTest {
             anyInt(),
             anyInt()))
         .thenReturn(context);
-    when(context.getLock()).thenReturn(mockReentrantLock);
+    when(context.getLock()).thenReturn(mockResourceLock);
 
     when(pluginService.getCurrentConnection()).thenReturn(connection);
     when(pluginService.getCurrentHostSpec()).thenReturn(hostSpec);

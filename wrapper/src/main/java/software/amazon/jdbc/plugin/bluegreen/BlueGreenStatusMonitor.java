@@ -36,6 +36,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
@@ -43,9 +44,12 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.AtomicConnection;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.BlueGreenDialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.HostListProvider;
@@ -115,7 +119,7 @@ public class BlueGreenStatusMonitor {
   protected String version = "1.0";
   protected int port = -1;
 
-  protected final AtomicReference<Connection> connection = new AtomicReference<>(null);
+  protected AtomicConnection connection;
   protected final AtomicReference<HostSpec> connectionHostSpec = new AtomicReference<>(null);
   protected final AtomicReference<String> connectedIpAddress = new AtomicReference<>(null);
   protected final AtomicBoolean connectionHostSpecCorrect = new AtomicBoolean(false);
@@ -141,6 +145,7 @@ public class BlueGreenStatusMonitor {
     this.onBlueGreenStatusChangeFunc = onBlueGreenStatusChangeFunc;
 
     this.blueGreenDialect = (BlueGreenDialect) this.pluginService.getDialect();
+    this.connection = new AtomicConnection(this, PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(props));
   }
 
   public void start() {
@@ -200,7 +205,15 @@ public class BlueGreenStatusMonitor {
         }
       }
     } finally {
-      this.closeConnection();
+      this.connection.clean();
+      if (this.hostListProvider != null) {
+        this.hostListProvider.stopMonitor();
+        if (this.hostListProvider instanceof CanReleaseResources) {
+          ((CanReleaseResources) this.hostListProvider).releaseResources();
+        }
+      }
+      this.hostListProvider = null;
+      this.openConnectionFuture = null;
       LOGGER.finest(() -> Messages.get("bgd.threadCompleted", new Object[] {this.role}));
     }
   }
@@ -244,6 +257,13 @@ public class BlueGreenStatusMonitor {
   public void setStop(boolean stop) {
     this.stop.set(stop);
     this.notifyChanges();
+    try {
+      if (!this.executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+        this.executorService.shutdownNow();
+      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   public void resetCollectedData() {
@@ -334,7 +354,13 @@ public class BlueGreenStatusMonitor {
     if (conn == null || conn.isClosed()) {
       return;
     }
-    this.currentTopology.set(this.hostListProvider.forceRefresh(conn));
+
+    try {
+      this.currentTopology.set(this.hostListProvider.forceRefresh());
+    } catch (TimeoutException e) {
+      LOGGER.finest("bgd.forceRefreshTimeout");
+      return;
+    }
 
     if (this.collectTopology.get()) {
       this.startTopology = this.currentTopology.get();
@@ -344,18 +370,6 @@ public class BlueGreenStatusMonitor {
     final List<HostSpec> currentTopologyCopy = this.currentTopology.get();
     if (currentTopologyCopy != null && this.collectTopology.get()) {
       this.hostNames.addAll(currentTopologyCopy.stream().map(HostSpec::getHost).collect(Collectors.toSet()));
-    }
-  }
-
-  protected void closeConnection() {
-    final Connection conn = this.connection.get();
-    this.connection.set(null);
-    try {
-      if (conn != null && !conn.isClosed()) {
-        conn.close();
-      }
-    } catch (SQLException sqlException) {
-      // ignore
     }
   }
 
@@ -465,7 +479,7 @@ public class BlueGreenStatusMonitor {
               .port(statusInfo.port)
               .build());
           this.connectionHostSpecCorrect.set(true);
-          this.closeConnection();
+          this.connection.set(null);
           this.panicMode.set(true);
 
         } else {
@@ -506,7 +520,7 @@ public class BlueGreenStatusMonitor {
           LOGGER.log(Level.FINEST, Messages.get("bgd.unhandledSqlException", new Object[] {this.role}), e);
         }
       }
-      this.closeConnection();
+      this.connection.set(null);
       this.panicMode.set(true);
     } catch (Exception e) {
       if (LOGGER.isLoggable(Level.FINEST)) {
@@ -605,7 +619,7 @@ public class BlueGreenStatusMonitor {
     }
   }
 
-  protected void initHostListProvider() {
+  protected void initHostListProvider() throws SQLException {
     if (this.hostListProvider != null || !this.connectionHostSpecCorrect.get()) {
       return;
     }

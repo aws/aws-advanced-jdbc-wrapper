@@ -54,6 +54,7 @@ public class ServiceUtility {
       TargetDriverDialect driverDialect,
       Properties props,
       @Nullable ConfigurationProfile configurationProfile) throws SQLException {
+
     FullServicesContainer servicesContainer =
         new FullServicesContainerImpl(
             storageService, monitorService, eventPublisher, defaultConnectionProvider, telemetryFactory);
@@ -83,8 +84,9 @@ public class ServiceUtility {
     }
 
     pluginManager.initHostProvider(targetDriverProtocol, originalUrl, props, pluginService);
+    // This call initializes pluginService.allHosts with the stored topology if it exists or with the initial host spec
+    // if it doesn't exist. Plugins may require this information even before connecting.
     pluginService.refreshHostList();
-
     return servicesContainer;
   }
 

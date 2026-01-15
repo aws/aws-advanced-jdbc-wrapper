@@ -113,6 +113,7 @@ public class CustomEndpointMonitorImplTest {
   @Test
   public void testRun() throws InterruptedException {
     int refreshRateMs = 50;
+    int maxRefreshRateMs = refreshRateMs * 10;
     CustomEndpointMonitorImpl monitor = new CustomEndpointMonitorImpl(
         mockStorageService,
         mockTelemetryFactory,
@@ -120,6 +121,8 @@ public class CustomEndpointMonitorImplTest {
         endpointId,
         Region.US_EAST_1,
         TimeUnit.MILLISECONDS.toNanos(refreshRateMs),
+        2,
+        TimeUnit.MILLISECONDS.toNanos(maxRefreshRateMs),
         mockRdsClientFunc);
     monitor.start();
 

@@ -18,7 +18,6 @@ package software.amazon.jdbc.profile;
 
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -28,6 +27,7 @@ import software.amazon.jdbc.authentication.AwsCredentialsProviderHandler;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.ResourceLock;
 
 public class ConfigurationProfile {
 
@@ -46,7 +46,7 @@ public class ConfigurationProfile {
   private @Nullable AwsCredentialsProviderHandler awsCredentialsProviderHandler;
   private @Nullable ConnectionProvider connectionProvider;
 
-  private final ReentrantLock lock = new ReentrantLock();
+  private final ResourceLock lock = new ResourceLock();
 
   ConfigurationProfile(final @NonNull String name,
       @Nullable List<Class<? extends ConnectionPluginFactory>> pluginFactories,
@@ -106,12 +106,9 @@ public class ConfigurationProfile {
       return null;
     }
 
-    this.lock.lock();
-    try {
+    try (ResourceLock ignored = this.lock.obtain()) {
       this.dialect = this.dialectSupplier.get();
       return this.dialect;
-    } finally {
-      this.lock.unlock();
     }
   }
 
@@ -122,15 +119,12 @@ public class ConfigurationProfile {
     if (this.targetDriverDialectSupplier == null) {
       return null;
     }
-    try {
-      this.lock.lock();
+    try (ResourceLock ignored = this.lock.obtain()) {
       if (this.targetDriverDialect != null) {
         return this.targetDriverDialect;
       }
       this.targetDriverDialect = this.targetDriverDialectSupplier.get();
       return this.targetDriverDialect;
-    } finally {
-      this.lock.unlock();
     }
   }
 
@@ -141,15 +135,12 @@ public class ConfigurationProfile {
     if (this.exceptionHandlerSupplier == null) {
       return null;
     }
-    try {
-      this.lock.lock();
+    try (ResourceLock ignored = this.lock.obtain()) {
       if (this.exceptionHandler != null) {
         return this.exceptionHandler;
       }
       this.exceptionHandler = this.exceptionHandlerSupplier.get();
       return this.exceptionHandler;
-    } finally {
-      this.lock.unlock();
     }
   }
 
@@ -160,15 +151,12 @@ public class ConfigurationProfile {
     if (this.connectionProviderSupplier == null) {
       return null;
     }
-    try {
-      this.lock.lock();
+    try (ResourceLock ignored = this.lock.obtain()) {
       if (this.connectionProvider != null) {
         return this.connectionProvider;
       }
       this.connectionProvider = this.connectionProviderSupplier.get();
       return this.connectionProvider;
-    } finally {
-      this.lock.unlock();
     }
   }
 
@@ -179,15 +167,12 @@ public class ConfigurationProfile {
     if (this.awsCredentialsProviderHandlerSupplier == null) {
       return null;
     }
-    try {
-      this.lock.lock();
+    try (ResourceLock ignored = this.lock.obtain()) {
       if (this.awsCredentialsProviderHandler != null) {
         return this.awsCredentialsProviderHandler;
       }
       this.awsCredentialsProviderHandler = this.awsCredentialsProviderHandlerSupplier.get();
       return this.awsCredentialsProviderHandler;
-    } finally {
-      this.lock.unlock();
     }
   }
 }

@@ -27,8 +27,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.AtomicConnection;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.StringUtils;
@@ -63,7 +65,7 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
   private final TelemetryFactory telemetryFactory;
   private final TelemetryGauge responseTimeMsGauge;
 
-  private final AtomicReference<Connection> monitoringConn = new AtomicReference<>(null);
+  private AtomicConnection monitoringConn;
 
   public NodeResponseTimeMonitor(
       final @NonNull PluginService pluginService,
@@ -77,6 +79,8 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
     this.props = props;
     this.intervalMs = intervalMs;
     this.telemetryFactory = this.pluginService.getTelemetryFactory();
+    this.monitoringConn = new AtomicConnection(
+        this, PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(props));
 
     final String nodeId = StringUtils.isNullOrEmpty(this.hostSpec.getHostId())
         ? this.hostSpec.getHost()
@@ -166,7 +170,7 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
       }
     } finally {
       this.stopped.set(true);
-      this.closeConnection();
+      this.monitoringConn.clean();
       if (telemetryContext != null) {
         telemetryContext.closeContext();
       }
@@ -199,29 +203,18 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
             new Object[] {this.monitoringConn.get()}));
       }
     } catch (SQLException ex) {
-      this.closeConnection();
+      this.monitoringConn.set(null);
     }
   }
 
   @Override
   public void close() {
-    this.closeConnection();
-  }
-
-  protected void closeConnection() {
-    final Connection conn = this.monitoringConn.getAndSet(null);
-    if (conn != null) {
-      try {
-        conn.close();
-      } catch (SQLException e) {
-        // ignore
-      }
-    }
+    this.monitoringConn.clean();
   }
 
   protected void reset() {
     LOGGER.finest("Reset: " + this.hostSpec.getHost());
-    this.closeConnection();
+    this.monitoringConn.set(null);
     this.responseTime.set(Integer.MAX_VALUE);
     this.checkTimestamp.set(this.getCurrentTime());
   }

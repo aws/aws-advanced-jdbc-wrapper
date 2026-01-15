@@ -14,20 +14,25 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.limitless;
+package software.amazon.jdbc.util;
 
-import java.util.List;
-import java.util.Properties;
-import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.util.storage.SlidingExpirationCacheWithCleanupThread;
+import java.util.concurrent.locks.ReentrantLock;
 
-@FunctionalInterface
-public interface LimitlessRouterMonitorInitializer {
-  LimitlessRouterMonitor createLimitlessRouterMonitor(
-      final HostSpec hostSpec,
-      final SlidingExpirationCacheWithCleanupThread<String, List<HostSpec>> limitlessRouterCache,
-      final String limitlessRouterCacheKey,
-      final Properties props,
-      final int intervalMs
-  );
+public class ResourceLock extends ReentrantLock implements AutoCloseable {
+
+  /**
+   * Obtain a lock and return the ResourceLock for use in try-with-resources block.
+   */
+  public ResourceLock obtain() {
+    lock();
+    return this;
+  }
+
+  /**
+   * Unlock on exit of try-with-resources block.
+   */
+  @Override
+  public void close() {
+    this.unlock();
+  }
 }

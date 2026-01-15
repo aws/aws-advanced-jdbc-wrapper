@@ -32,7 +32,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -60,6 +59,7 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.events.MonitorResetEvent;
@@ -115,7 +115,7 @@ public class BlueGreenStatusProvider {
   protected AtomicBoolean monitorResetOnTopologyCompleted = new AtomicBoolean(false);
   protected final AtomicBoolean allGreenNodesChangedName = new AtomicBoolean(false);
   protected long postStatusEndTimeNano = 0;
-  protected final ReentrantLock processStatusLock = new ReentrantLock();
+  protected final ResourceLock processStatusLock = new ResourceLock();
 
   // Status check interval time in millis for each BlueGreenIntervalRate.
   protected final Map<BlueGreenIntervalRate, Long> statusCheckIntervalMap = new HashMap<>();
@@ -208,8 +208,7 @@ public class BlueGreenStatusProvider {
       final @NonNull BlueGreenRole role,
       final @NonNull BlueGreenInterimStatus interimStatus) {
 
-    this.processStatusLock.lock();
-    try {
+    try (ResourceLock ignored = this.processStatusLock.obtain()) {
 
       // Detect changes
       int statusHash = interimStatus.getCustomHashCode();
@@ -249,8 +248,6 @@ public class BlueGreenStatusProvider {
 
       this.resetContextWhenCompleted();
 
-    } finally {
-      this.processStatusLock.unlock();
     }
   }
 
@@ -490,11 +487,6 @@ public class BlueGreenStatusProvider {
           x.setUseIpAddress(false);
           x.resetCollectedData();
         });
-
-        // Stop monitoring old1 cluster/instance.
-        if (!this.rollback && monitors[BlueGreenRole.SOURCE.getValue()] != null) {
-          monitors[BlueGreenRole.SOURCE.getValue()].setStop(true);
-        }
         break;
       default:
         throw new UnsupportedOperationException(Messages.get("bgd.unknownPhase",
@@ -841,14 +833,15 @@ public class BlueGreenStatusProvider {
 
               // Check whether green host is already been connected with blue (no-prefixes) IAM host name.
               List<HostSpec> iamHosts;
-              if (this.isAlreadySuccessfullyConnected(greenHost, blueHost)) {
+              HostSpec iamBlueHost = this.hostSpecBuilder.copyFrom(greenHostSpec)
+                  .host(this.rdsUtils.removeGreenInstancePrefix(greenHost))
+                  .build();
+              if (this.isAlreadySuccessfullyConnected(greenHost, iamBlueHost.getHost())) {
                 // Green node has already changed its name, and it's not a new blue node (no prefixes).
-                iamHosts = blueHostSpec == null ? null : Collections.singletonList(blueHostSpec);
+                iamHosts = Collections.singletonList(iamBlueHost);
               } else {
                 // Green node isn't yet changed its name, so we need to try both possible IAM host options.
-                iamHosts = blueHostSpec == null
-                    ? Collections.singletonList(greenHostSpec)
-                    : Arrays.asList(greenHostSpec, blueHostSpec);
+                iamHosts = Arrays.asList(greenHostSpec, iamBlueHost);
               }
 
               connectRouting.add(new SubstituteConnectRouting(
@@ -1099,6 +1092,17 @@ public class BlueGreenStatusProvider {
 
     if (switchoverCompleted && hasActiveSwitchoverPhases) {
       LOGGER.finest(Messages.get("bgd.resetContext"));
+      final BlueGreenStatusMonitor sourceMonitor = this.monitors[BlueGreenRole.SOURCE.getValue()];
+      this.monitors[BlueGreenRole.SOURCE.getValue()] = null;
+      if (sourceMonitor != null) {
+        sourceMonitor.setStop(true);
+      }
+      final BlueGreenStatusMonitor targetMonitor = this.monitors[BlueGreenRole.TARGET.getValue()];
+      this.monitors[BlueGreenRole.TARGET.getValue()] = null;
+      if (targetMonitor != null) {
+        targetMonitor.setStop(true);
+      }
+
       this.rollback = false;
       this.summaryStatus = null;
       this.latestStatusPhase = BlueGreenPhase.NOT_CREATED;
@@ -1118,6 +1122,8 @@ public class BlueGreenStatusProvider {
       this.greenNodeChangeNameTimes.clear();
       this.monitorResetOnInProgressCompleted.set(false);
       this.monitorResetOnTopologyCompleted.set(false);
+
+      this.initMonitoring();
     }
   }
 

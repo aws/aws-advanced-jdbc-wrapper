@@ -29,7 +29,6 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.MultiAzTopologyUtils;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.hostlistprovider.TopologyUtils;
-import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverRestriction;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.DriverInfo;
@@ -88,9 +87,6 @@ public class MultiAzClusterMysqlDialect extends MysqlDialect implements MultiAzC
     return (properties, initialUrl, servicesContainer) -> {
       final PluginService pluginService = servicesContainer.getPluginService();
       final TopologyUtils topologyUtils = new MultiAzTopologyUtils(this, pluginService.getHostSpecBuilder());
-      if (pluginService.isPluginInUse(FailoverConnectionPlugin.class)) {
-        return new MonitoringRdsHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
-      }
       return new RdsHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
     };
   }

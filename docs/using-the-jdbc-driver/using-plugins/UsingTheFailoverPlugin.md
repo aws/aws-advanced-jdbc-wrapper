@@ -1,6 +1,9 @@
 # Failover Plugin
 In an Amazon Aurora database (DB) cluster, failover is a mechanism by which Aurora automatically repairs the DB cluster status when a primary DB instance becomes unavailable. It achieves this goal by electing an Aurora Replica to become the new primary DB instance, so that the DB cluster can provide maximum availability to a primary read-write DB instance. The AWS Advanced JDBC Wrapper uses the Failover Plugin to coordinate with this behavior in order to provide minimal downtime in the event of a DB instance failure.
 
+## Plugin Availability
+The plugin is available since version 1.0.0.
+
 ## The AWS Advanced JDBC Wrapper Failover Process
 
 <div style="text-align:center"><img src="../../images/failover_diagram.png" /></div>

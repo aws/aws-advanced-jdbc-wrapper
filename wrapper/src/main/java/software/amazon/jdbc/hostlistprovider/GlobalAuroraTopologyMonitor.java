@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.hostlistprovider.monitoring;
+package software.amazon.jdbc.hostlistprovider;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.hostlistprovider.GlobalAuroraTopologyUtils;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;

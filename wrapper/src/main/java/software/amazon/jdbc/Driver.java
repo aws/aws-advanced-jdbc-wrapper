@@ -37,8 +37,6 @@ import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
-import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
-import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 import software.amazon.jdbc.plugin.AwsSecretsManagerCacheHolder;
 import software.amazon.jdbc.plugin.DataCacheConnectionPlugin;
 import software.amazon.jdbc.plugin.OpenedConnectionTracker;
@@ -243,6 +241,14 @@ public class Driver implements java.sql.Driver {
         effectiveConnectionProvider = configurationProfile.getConnectionProvider();
       }
 
+      if (PropertyDefinition.CONNECTION_POOL_TYPE.getString(props) != null) {
+        ConnectionProvider connectionPoolProvider =
+            InternalConnectionPoolService.getInstance().getEffectiveConnectionProvider(props);
+        if (connectionPoolProvider != null) {
+          effectiveConnectionProvider = connectionPoolProvider;
+        }
+      }
+
       String targetDriverProtocol = urlParser.getProtocol(driverUrl);
       FullServicesContainer servicesContainer = ServiceUtility.getInstance().createStandardServiceContainer(
           this.storageService,
@@ -445,6 +451,7 @@ public class Driver implements java.sql.Driver {
     CoreServicesContainer.getInstance().getMonitorService().stopAndRemoveAll();
     HostMonitorThreadContainer.releaseInstance();
     ConnectionProviderManager.releaseResources();
+    InternalConnectionPoolService.releaseResources();
     HikariPoolsHolder.closeAllPools();
     clearCaches();
   }

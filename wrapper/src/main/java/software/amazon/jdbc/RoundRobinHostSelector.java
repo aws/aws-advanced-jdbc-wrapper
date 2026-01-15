@@ -23,7 +23,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -31,6 +30,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.storage.CacheMap;
 
@@ -48,7 +48,7 @@ public class RoundRobinHostSelector implements HostSelector {
       Pattern.compile("((?<host>[^:/?#]*):(?<weight>[0-9]*))");
   protected static final CacheMap<String, RoundRobinClusterInfo> roundRobinCache = new CacheMap<>();
 
-  protected static final ReentrantLock lock = new ReentrantLock();
+  protected static final ResourceLock lock = new ResourceLock();
 
   static {
     PropertyDefinition.registerPluginProperties(RoundRobinHostSelector.class);
@@ -73,14 +73,14 @@ public class RoundRobinHostSelector implements HostSelector {
   @Override
   public HostSpec getHost(
       final @NonNull List<HostSpec> hosts,
-      final @NonNull HostRole role,
+      final @Nullable HostRole role,
       final @Nullable Properties props) throws SQLException {
 
-    lock.lock();
-    try {
+    try (ResourceLock ignored = lock.obtain()) {
       final List<HostSpec> eligibleHosts = hosts.stream()
           .filter(hostSpec ->
-              role.equals(hostSpec.getRole()) && hostSpec.getAvailability().equals(HostAvailability.AVAILABLE))
+              (role == null || role.equals(hostSpec.getRole()))
+              && hostSpec.getAvailability().equals(HostAvailability.AVAILABLE))
           .sorted(Comparator.comparing(HostSpec::getHost))
           .collect(Collectors.toList());
 
@@ -125,8 +125,6 @@ public class RoundRobinHostSelector implements HostSelector {
 
       return eligibleHosts.get(targetHostIndex);
 
-    } finally {
-      lock.unlock();
     }
   }
 

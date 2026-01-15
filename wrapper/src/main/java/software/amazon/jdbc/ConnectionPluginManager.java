@@ -422,7 +422,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    *     {@link #getHostSpecByStrategy}. Otherwise, return false.
    * @throws SQLException if there's error processing this method
    */
-  public boolean acceptsStrategy(HostRole role, String strategy) throws SQLException {
+  public boolean acceptsStrategy(@Nullable HostRole role, String strategy) throws SQLException {
     try {
       for (ConnectionPlugin plugin : this.plugins) {
         Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
@@ -462,12 +462,12 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    *                                       {@link ConnectionPlugin} instances do not support the
    *                                       requested strategy
    */
-  public HostSpec getHostSpecByStrategy(HostRole role, String strategy)
+  public HostSpec getHostSpecByStrategy(@Nullable HostRole role, String strategy)
       throws SQLException, UnsupportedOperationException {
     return getHostSpecByStrategy(null, role, strategy);
   }
 
-  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy)
+  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, @Nullable HostRole role, String strategy)
       throws SQLException, UnsupportedOperationException {
     try {
       for (ConnectionPlugin plugin : this.plugins) {

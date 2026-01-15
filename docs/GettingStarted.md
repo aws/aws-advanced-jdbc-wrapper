@@ -17,7 +17,7 @@ If you are using the AWS Advanced JDBC Wrapper as part of a Gradle project, incl
 ```gradle
 dependencies {
     implementation group: 'software.amazon.jdbc', name: 'aws-advanced-jdbc-wrapper', version: '3.0.0'
-    implementation group: 'org.postgresql', name: 'postgresql', version: '42.5.0'
+    implementation group: 'org.postgresql', name: 'postgresql', version: '42.7.8'
 }
 ```
 

@@ -132,16 +132,15 @@ public class BasicConnectivityTests {
             TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     LOGGER.finest("Connecting to " + url);
 
-    final Connection conn = DriverManager.getConnection(url, props);
-    assertTrue(conn.isValid(5));
+    try (final Connection conn = DriverManager.getConnection(url, props)) {
+      assertTrue(conn.isValid(5));
 
-    Statement stmt = conn.createStatement();
-    stmt.executeQuery("SELECT 1");
-    ResultSet rs = stmt.getResultSet();
-    rs.next();
-    assertEquals(1, rs.getInt(1));
-
-    conn.close();
+      Statement stmt = conn.createStatement();
+      stmt.executeQuery("SELECT 1");
+      ResultSet rs = stmt.getResultSet();
+      rs.next();
+      assertEquals(1, rs.getInt(1));
+    }
   }
 
   @TestTemplate

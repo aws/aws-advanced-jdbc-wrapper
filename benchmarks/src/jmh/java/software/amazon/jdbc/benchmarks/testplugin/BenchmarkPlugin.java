@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.HostRole;
@@ -76,19 +77,19 @@ public class BenchmarkPlugin implements ConnectionPlugin, CanReleaseResources {
   }
 
   @Override
-  public boolean acceptsStrategy(HostRole role, String strategy) {
+  public boolean acceptsStrategy(@Nullable HostRole role, String strategy) {
     return false;
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(HostRole role, String strategy) {
+  public HostSpec getHostSpecByStrategy(@Nullable HostRole role, String strategy) {
     LOGGER.finer(() -> String.format("getHostSpecByStrategy=''%s''", strategy));
     resources.add("getHostSpecByStrategy");
     return new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host").port(1234).role(role).build();
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy) {
+  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, @Nullable HostRole role, String strategy) {
     return getHostSpecByStrategy(role, strategy);
   }
 

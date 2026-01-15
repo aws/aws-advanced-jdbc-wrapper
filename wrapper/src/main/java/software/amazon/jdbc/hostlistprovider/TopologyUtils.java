@@ -165,7 +165,7 @@ public abstract class TopologyUtils {
     final String endpoint = instanceTemplate.getHost().replace("?", instanceName);
     final int port = instanceTemplate.isPortSpecified()
         ? instanceTemplate.getPort()
-        : initialHostSpec.getPort();
+        : (initialHostSpec == null ? HostSpec.NO_PORT : initialHostSpec.getPort());
 
     final HostSpec hostSpec = this.hostSpecBuilder
         .hostId(instanceId)

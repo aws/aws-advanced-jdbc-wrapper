@@ -60,7 +60,10 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
   protected final HostSpec customEndpointHostSpec;
   protected final String endpointIdentifier;
   protected final Region region;
+  protected long minRefreshRateNano;
+  protected long maxRefreshRateNano;
   protected long refreshRateNano;
+  protected int refreshRateBackoffFactor;
   protected final StorageService storageService;
 
   private final TelemetryCounter infoChangedCounter;
@@ -86,6 +89,8 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
       String endpointIdentifier,
       Region region,
       long refreshRateNano,
+      int refreshRateBackoffFactor,
+      long maxRefreshRateNano,
       BiFunction<HostSpec, Region, RdsClient> rdsClientFunc) {
     super(MONITOR_TERMINATION_TIMEOUT_SEC);
     this.storageService = storageService;
@@ -93,6 +98,9 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
     this.endpointIdentifier = endpointIdentifier;
     this.region = region;
     this.refreshRateNano = refreshRateNano;
+    this.refreshRateBackoffFactor = refreshRateBackoffFactor;
+    this.minRefreshRateNano = refreshRateNano;
+    this.maxRefreshRateNano = maxRefreshRateNano;
     this.rdsClient = rdsClientFunc.apply(customEndpointHostSpec, this.region);
 
     this.infoChangedCounter = telemetryFactory.createCounter(TELEMETRY_ENDPOINT_INFO_CHANGED);
@@ -169,6 +177,8 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
             this.infoChangedCounter.inc();
           }
 
+          speedupRefreshRate();
+
           long elapsedTime = System.nanoTime() - start;
           long sleepDuration = Math.max(0, this.refreshRateNano - elapsedTime);
           this.sleep(sleepDuration);
@@ -181,7 +191,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
                   new Object[] {this.customEndpointHostSpec.getUrl()}), ex);
 
           if (ex.isThrottlingException()) {
-            this.refreshRateNano *= 2; // Reduce the refresh rate.
+            slowdownRefreshRate();
             this.sleep(this.refreshRateNano);
           } else if (ex.statusCode() == HttpStatusCode.UNAUTHORIZED || ex.statusCode() == HttpStatusCode.FORBIDDEN) {
             // User has no permissions to get custom endpoint details.
@@ -213,6 +223,24 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
           Messages.get(
               "CustomEndpointMonitorImpl.stoppedMonitor",
               new Object[] {this.customEndpointHostSpec.getUrl()}));
+    }
+  }
+
+  protected void speedupRefreshRate() {
+    if (this.refreshRateNano > this.minRefreshRateNano) {
+      this.refreshRateNano /= this.refreshRateBackoffFactor; // Increase the refresh rate
+      if (this.refreshRateNano < this.minRefreshRateNano) {
+        this.refreshRateNano = this.minRefreshRateNano;
+      }
+    }
+  }
+
+  protected void slowdownRefreshRate() {
+    if (this.refreshRateNano < this.maxRefreshRateNano) {
+      this.refreshRateNano *= this.refreshRateBackoffFactor; // Reduce the refresh rate.
+      if (this.refreshRateNano > this.maxRefreshRateNano) {
+        this.refreshRateNano = this.maxRefreshRateNano;
+      }
     }
   }
 

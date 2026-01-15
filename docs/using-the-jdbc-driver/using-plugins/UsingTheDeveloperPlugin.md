@@ -10,6 +10,9 @@ The `dev` plugin code should be added to the connection plugins parameter in ord
 
 Verify plugin compatibility within your driver configuration using the [compatibility guide](../Compatibility.md).
 
+### Plugin Availability
+The plugin is available since version 2.2.3.
+
 ### Simulate an exception while opening a new connection
 
 The plugin introduces a new class `ExceptionSimulationManager` that will handle how a given exception will be passed to the connection to be tested.

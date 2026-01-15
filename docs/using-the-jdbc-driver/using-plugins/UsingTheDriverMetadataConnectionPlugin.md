@@ -8,6 +8,9 @@ The Driver Metadata Connection Plugin allows user application to override the wr
 
 Verify plugin compatibility within your driver configuration using the [compatibility guide](../Compatibility.md).
 
+## Plugin Availability
+The plugin is available since version 1.0.2.
+
 ## Enabling the Driver Metadata Connection Plugin
 
 To enable the Driver Metadata Connection Plugin, add the plugin code `driverMetaData` to the [`wrapperPlugins`](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters) value, or to the current [driver profile](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters).

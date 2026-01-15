@@ -47,11 +47,11 @@ public interface ConnectionProvider {
    * Indicates whether the selection strategy is supported by the connection provider.
    *
    * @param role     determines if the connection provider should return a reader host or a writer
-   *                 host
+   *                 host. Null value means no preferences on host role.
    * @param strategy the selection strategy to use
    * @return whether the strategy is supported
    */
-  boolean acceptsStrategy(@NonNull HostRole role, @NonNull String strategy);
+  boolean acceptsStrategy(@Nullable HostRole role, @NonNull String strategy);
 
   /**
    * Return a reader or a writer node using the specified strategy. This method should raise an
@@ -67,7 +67,7 @@ public interface ConnectionProvider {
    * @throws UnsupportedOperationException if the strategy is unsupported by the provider
    */
   HostSpec getHostSpecByStrategy(
-      @NonNull List<HostSpec> hosts, @NonNull HostRole role, @NonNull String strategy, @Nullable Properties props)
+      @NonNull List<HostSpec> hosts, @Nullable HostRole role, @NonNull String strategy, @Nullable Properties props)
       throws SQLException, UnsupportedOperationException;
 
   /**
