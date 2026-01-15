@@ -47,6 +47,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
   private static final String QUERY_HINT_START_PATTERN = "/*";
   private static final String QUERY_HINT_END_PATTERN = "*/";
   private static final String CACHE_PARAM_PATTERN = "CACHE_PARAM(";
+  private static final int MAX_TTL_SECONDS = 15552000; // 180 days (half a year)
   private static final String TELEMETRY_CACHE_LOOKUP = "jdbc-cache-lookup";
   private static final String TELEMETRY_DATABASE_QUERY = "jdbc-database-query";
   private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
@@ -232,6 +233,12 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
             // treat negative and 0 ttls as not cacheable
             if (ttlValue <= 0) {
               return null;
+            }
+            // Maximum TTL allowed is 180 days
+            if (ttlValue > MAX_TTL_SECONDS) {
+              LOGGER.warning(String.format("TTL value %d exceeds maximum allowed %d seconds. Using maximum TTL.",
+                  ttlValue, MAX_TTL_SECONDS));
+              ttlValue = MAX_TTL_SECONDS;
             }
           } catch (NumberFormatException e) {
             LOGGER.warning(String.format("Invalid TTL format of %s for query %s", value, queryHint));
