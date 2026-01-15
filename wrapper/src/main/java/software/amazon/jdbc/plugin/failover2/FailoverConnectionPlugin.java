@@ -516,7 +516,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         }
       } catch (SQLException ex) {
         LOGGER.fine(Messages.get("Failover.failedReaderConnection", new Object[]{originalWriter.getUrl()}));
-      } finally {
         if (candidateConn != null) {
           try {
             candidateConn.close();
