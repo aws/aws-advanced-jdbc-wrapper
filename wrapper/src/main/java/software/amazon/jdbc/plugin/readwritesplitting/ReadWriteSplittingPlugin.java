@@ -87,7 +87,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   private HostSpec readerHostSpec;
   private boolean isReaderConnFromInternalPool;
   private boolean isWriterConnFromInternalPool;
-  private CacheItem<Connection> readerConnection;
+  private CacheItem<Connection> readerCacheItem;
 
   public static final AwsWrapperProperty READER_HOST_SELECTOR_STRATEGY =
       new AwsWrapperProperty(
@@ -124,7 +124,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     this(pluginService, properties);
     this.hostListProviderService = hostListProviderService;
     this.writerConnection = writerConnection;
-    this.readerConnection = new CacheItem<>(readerConnection, CACHED_READER_KEEP_ALIVE_TIMEOUT.getLong(properties));
+    this.readerCacheItem = new CacheItem<>(readerConnection, CACHED_READER_KEEP_ALIVE_TIMEOUT.getLong(properties));
   }
 
   @Override
@@ -219,8 +219,8 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
         if (this.writerConnection != null && !this.writerConnection.isClosed()) {
           this.writerConnection.clearWarnings();
         }
-        if (this.readerConnection != null && isConnectionUsable(this.readerConnection.get())) {
-          this.readerConnection.get().clearWarnings();
+        if (this.readerCacheItem != null && isConnectionUsable(this.readerCacheItem.get())) {
+          this.readerCacheItem.get().clearWarnings();
         }
       } catch (final SQLException e) {
         throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
@@ -294,8 +294,8 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   }
 
   private void setReaderConnection(final Connection conn, final HostSpec host) {
-    closeReaderConnectionIfIdle(this.readerConnection);
-    this.readerConnection = new CacheItem<>(conn, this.getKeepAliveTimeout(this.isReaderConnFromInternalPool));
+    closeReaderConnectionIfIdle();
+    this.readerCacheItem = new CacheItem<>(conn, this.getKeepAliveTimeout(this.isReaderConnFromInternalPool));
     this.readerHostSpec = host;
     LOGGER.finest(
         () -> Messages.get(
@@ -400,7 +400,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     }
 
     if (this.isReaderConnFromInternalPool) {
-      this.closeReaderConnectionIfIdle(this.readerConnection);
+      this.closeReaderConnectionIfIdle();
     }
 
     LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.switchedFromReaderToWriter",
@@ -437,15 +437,15 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
           Messages.get(
               "ReadWriteSplittingPlugin.previousReaderNotAllowed",
               new Object[] {this.readerHostSpec, LogUtils.logTopology(hosts, "")}));
-      closeReaderConnectionIfIdle(this.readerConnection);
+      closeReaderConnectionIfIdle();
     }
 
     this.inReadWriteSplit = true;
-    if (this.readerConnection == null || !isConnectionUsable(this.readerConnection.get())) {
+    if (this.readerCacheItem == null || !isConnectionUsable(this.readerCacheItem.get())) {
       initializeReaderConnection(hosts);
     } else {
       try {
-        switchCurrentConnectionTo(this.readerConnection.get(), this.readerHostSpec);
+        switchCurrentConnectionTo(this.readerCacheItem.get(), this.readerHostSpec);
         LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.switchedFromWriterToReader",
             new Object[] {this.readerHostSpec.getHostAndPort()}));
       } catch (SQLException e) {
@@ -458,13 +458,13 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
               new Object[] {this.readerHostSpec.getHostAndPort()}));
         }
 
-        closeReaderConnectionIfIdle(this.readerConnection);
+        closeReaderConnectionIfIdle();
         initializeReaderConnection(hosts);
       }
     }
 
     if (this.isWriterConnFromInternalPool) {
-      this.closeWriterConnectionIfIdle(this.writerConnection);
+      this.closeWriterConnectionIfIdle();
     }
   }
 
@@ -527,7 +527,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
         () -> Messages.get("ReadWriteSplittingPlugin.successfullyConnectedToReader",
             new Object[] {finalReaderHost.getHostAndPort()}));
     setReaderConnection(conn, readerHost);
-    switchCurrentConnectionTo(this.readerConnection.get(), this.readerHostSpec);
+    switchCurrentConnectionTo(this.readerCacheItem.get(), this.readerHostSpec);
   }
 
   private boolean isConnectionUsable(final Connection connection) throws SQLException {
@@ -550,40 +550,44 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
 
   private void closeIdleConnections() {
     LOGGER.finest(() -> Messages.get("ReadWriteSplittingPlugin.closingInternalConnections"));
-    closeReaderConnectionIfIdle(this.readerConnection);
-    closeWriterConnectionIfIdle(this.writerConnection);
+    closeReaderConnectionIfIdle();
+    closeWriterConnectionIfIdle();
   }
 
-  void closeReaderConnectionIfIdle(CacheItem<Connection> readerCacheItem) {
-    if (readerCacheItem == null) {
+  void closeReaderConnectionIfIdle() {
+    if (this.readerCacheItem == null) {
       return;
     }
 
     final Connection currentConnection = this.pluginService.getCurrentConnection();
-    final Connection readerConnection = readerCacheItem.get(true);
+    final Connection readerConnection = this.readerCacheItem.get(true);
 
-    try {
-      if (isConnectionUsable(readerConnection) && readerConnection != currentConnection) {
-        // readerConnection is open but is not currently in use, so we close it.
-        readerConnection.close();
-        this.readerConnection = null;
-        this.readerHostSpec = null;
+    if (readerConnection != null && readerConnection != currentConnection) {
+      try {
+        if (!readerConnection.isClosed()) {
+          // readerConnection is open but is not currently in use, so we close it.
+          readerConnection.close();
+        }
+      } catch (SQLException e) {
+        // Do nothing.
       }
-    } catch (SQLException e) {
-      // Do nothing.
+      this.readerCacheItem = null;
+      this.readerHostSpec = null;
     }
   }
 
-  void closeWriterConnectionIfIdle(final Connection internalConnection) {
+  void closeWriterConnectionIfIdle() {
     final Connection currentConnection = this.pluginService.getCurrentConnection();
-    try {
-      if (isConnectionUsable(internalConnection)
-          && internalConnection != currentConnection) {
-        internalConnection.close();
-        writerConnection = null;
+    if (this.writerConnection != null && this.writerConnection != currentConnection) {
+      try {
+        if (!this.writerConnection.isClosed()) {
+          // writerConnection is open but is not currently in use, so we close it.
+          this.writerConnection.close();
+        }
+      } catch (SQLException e) {
+        // Do nothing.
       }
-    } catch (final SQLException e) {
-      // ignore
+      this.writerConnection = null;
     }
   }
 
@@ -595,6 +599,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   }
 
   Connection getReaderConnection() {
-    return this.readerConnection == null ? null : this.readerConnection.get();
+    return this.readerCacheItem == null ? null : this.readerCacheItem.get();
   }
 }
