@@ -82,15 +82,17 @@ class DataCacheConnectionPluginTest {
   void test_execute_withEmptyCache() throws SQLException {
     final String methodName = "Statement.executeQuery";
 
-    final DataCacheConnectionPlugin plugin = new DataCacheConnectionPlugin(mockPluginService, props);
+    final DataCacheConnectionPlugin plugin =
+        new DataCacheConnectionPlugin(mockPluginService, props);
 
-    final ResultSet rs = plugin.execute(
-        ResultSet.class,
-        SQLException.class,
-        mockStatement, methodName,
-        () -> mockResult1,
-        new String[]{"foo"}
-    );
+    final ResultSet rs =
+        plugin.execute(
+            ResultSet.class,
+            SQLException.class,
+            mockStatement,
+            methodName,
+            () -> mockResult1,
+            new String[] {"foo"});
 
     compareResults(mockResult1, rs);
   }
@@ -99,27 +101,30 @@ class DataCacheConnectionPluginTest {
   void test_execute_withCache() throws Exception {
     final String methodName = "Statement.executeQuery";
 
-    final DataCacheConnectionPlugin plugin = new DataCacheConnectionPlugin(mockPluginService, props);
+    final DataCacheConnectionPlugin plugin =
+        new DataCacheConnectionPlugin(mockPluginService, props);
 
     when(mockCallable.call()).thenReturn(mockResult1, mockResult2);
 
-    ResultSet rs = plugin.execute(
-        ResultSet.class,
-        SQLException.class,
-        mockStatement, methodName,
-        mockCallable,
-        new String[]{"foo"}
-    );
+    ResultSet rs =
+        plugin.execute(
+            ResultSet.class,
+            SQLException.class,
+            mockStatement,
+            methodName,
+            mockCallable,
+            new String[] {"foo"});
     compareResults(mockResult1, rs);
 
     // Execute the query again with a different result set.
-    rs = plugin.execute(
-        ResultSet.class,
-        SQLException.class,
-        mockStatement, methodName,
-        mockCallable,
-        new String[]{"foo"}
-    );
+    rs =
+        plugin.execute(
+            ResultSet.class,
+            SQLException.class,
+            mockStatement,
+            methodName,
+            mockCallable,
+            new String[] {"foo"});
 
     compareResults(mockResult1, rs);
     verify(mockCallable).call();

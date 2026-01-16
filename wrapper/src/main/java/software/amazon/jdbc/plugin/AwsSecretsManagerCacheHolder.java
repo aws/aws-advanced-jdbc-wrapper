@@ -22,14 +22,14 @@ import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin.Secret;
 import software.amazon.jdbc.util.Pair;
 
 /**
- * The main plugin code AwsSecretsManagerConnectionPlugin depends on AWS SDK.
- * In order to avoid unnecessary dependencies, the plugin cache has been extracted into this
- * AwsSecretsManagerCacheHolder class. This cache holder class doesn't depend on AWS SDK and
- * can be safely cleared if needed.
+ * The main plugin code AwsSecretsManagerConnectionPlugin depends on AWS SDK. In order to avoid
+ * unnecessary dependencies, the plugin cache has been extracted into this
+ * AwsSecretsManagerCacheHolder class. This cache holder class doesn't depend on AWS SDK and can be
+ * safely cleared if needed.
  */
 public class AwsSecretsManagerCacheHolder {
-  static final Map<Pair<String /* secretId */, String /* region */>, Secret> secretsCache
-      = new ConcurrentHashMap<>();
+  static final Map<Pair<String /* secretId */, String /* region */>, Secret> secretsCache =
+      new ConcurrentHashMap<>();
 
   public static void clearCache() {
     secretsCache.clear();

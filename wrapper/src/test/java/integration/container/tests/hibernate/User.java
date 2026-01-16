@@ -30,15 +30,15 @@ import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.NaturalId;
 
 @Entity
-@Table(name = "Users") // "user" is a reserved keyword in Postgresql so we replace it with a less conflicting "users".
+@Table(name = "Users") // "user" is a reserved keyword in Postgresql so we replace it with a less
+// conflicting "users".
 public class User {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private int id;
 
-  @NaturalId
-  private String email;
+  @NaturalId private String email;
 
   private String name;
 
@@ -48,8 +48,7 @@ public class User {
   @Fetch(FetchMode.SUBSELECT)
   private List<Skill> skills = new ArrayList<>();
 
-  @ManyToMany
-  private List<Tool> tools = new ArrayList<>();
+  @ManyToMany private List<Tool> tools = new ArrayList<>();
 
   public int getId() {
     return this.id;

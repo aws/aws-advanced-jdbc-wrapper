@@ -45,10 +45,10 @@ import java.util.logging.Logger;
 public class LazyCleanerImpl implements LazyCleaner {
   private static final Logger LOGGER = Logger.getLogger(LazyCleanerImpl.class.getName());
 
-  private static final LazyCleanerImpl instance = new LazyCleanerImpl(
-      "AWS-JDBC-Cleaner",
-      Duration.ofMillis(Long.getLong("aws.jdbc.config.cleanup.thread.ttl", 30000))
-  );
+  private static final LazyCleanerImpl instance =
+      new LazyCleanerImpl(
+          "AWS-JDBC-Cleaner",
+          Duration.ofMillis(Long.getLong("aws.jdbc.config.cleanup.thread.ttl", 30000)));
 
   private final ReferenceQueue<Object> queue = new ReferenceQueue<>();
   private final String threadName;
@@ -95,29 +95,32 @@ public class LazyCleanerImpl implements LazyCleaner {
   }
 
   private boolean startThread() {
-    ForkJoinPool.commonPool().execute(() -> {
-      Thread.currentThread().setContextClassLoader(null);
-      RefQueueBlocker<Object> blocker = new RefQueueBlocker<>(queue, threadName, threadTtl, this::checkEmpty);
-      while (!checkEmpty()) {
-        try {
-          ForkJoinPool.managedBlock(blocker);
-          @SuppressWarnings("unchecked")
-          Node<Object> ref = (Node<Object>) blocker.drainOne();
-          if (ref != null) {
-            ref.onClean(true);
-          }
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          if (!blocker.isReleasable()) {
-            LOGGER.log(Level.FINE, Messages.get("LazyCleanerImpl.interruptEmptyQueue"));
-            break;
-          }
-          LOGGER.log(Level.FINE, Messages.get("LazyCleanerImpl.interruptNotEmptyQueue"));
-        } catch (Throwable e) {
-          LOGGER.log(Level.WARNING, Messages.get("LazyCleanerImpl.unexpectedError"), e);
-        }
-      }
-    });
+    ForkJoinPool.commonPool()
+        .execute(
+            () -> {
+              Thread.currentThread().setContextClassLoader(null);
+              RefQueueBlocker<Object> blocker =
+                  new RefQueueBlocker<>(queue, threadName, threadTtl, this::checkEmpty);
+              while (!checkEmpty()) {
+                try {
+                  ForkJoinPool.managedBlock(blocker);
+                  @SuppressWarnings("unchecked")
+                  Node<Object> ref = (Node<Object>) blocker.drainOne();
+                  if (ref != null) {
+                    ref.onClean(true);
+                  }
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                  if (!blocker.isReleasable()) {
+                    LOGGER.log(Level.FINE, Messages.get("LazyCleanerImpl.interruptEmptyQueue"));
+                    break;
+                  }
+                  LOGGER.log(Level.FINE, Messages.get("LazyCleanerImpl.interruptNotEmptyQueue"));
+                } catch (Throwable e) {
+                  LOGGER.log(Level.WARNING, Messages.get("LazyCleanerImpl.unexpectedError"), e);
+                }
+              }
+            });
     return true;
   }
 

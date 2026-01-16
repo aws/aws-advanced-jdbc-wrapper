@@ -58,5 +58,4 @@ public enum BlueGreenRole {
     }
     throw new IllegalArgumentException(Messages.get("bgd.unknownVersion", new Object[] {version}));
   }
-
 }

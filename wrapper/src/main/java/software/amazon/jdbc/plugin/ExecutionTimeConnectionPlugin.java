@@ -53,9 +53,10 @@ public class ExecutionTimeConnectionPlugin extends AbstractConnectionPlugin {
 
     final long elapsedTimeNanos = System.nanoTime() - startTime;
     LOGGER.fine(
-        () -> Messages.get(
-            "ExecutionTimeConnectionPlugin.executionTime",
-            new Object[] {methodName, elapsedTimeNanos}));
+        () ->
+            Messages.get(
+                "ExecutionTimeConnectionPlugin.executionTime",
+                new Object[] {methodName, elapsedTimeNanos}));
     executionTime += elapsedTimeNanos;
 
     return result;

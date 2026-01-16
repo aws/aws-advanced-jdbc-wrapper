@@ -43,8 +43,13 @@ public class ConnectTimeConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   @Override
-  public Connection connect(String driverProtocol, HostSpec hostSpec, Properties props,
-      boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
+  public Connection connect(
+      String driverProtocol,
+      HostSpec hostSpec,
+      Properties props,
+      boolean isInitialConnection,
+      JdbcCallable<Connection, SQLException> connectFunc)
+      throws SQLException {
     final long startTime = System.nanoTime();
 
     final Connection result = connectFunc.call();
@@ -52,15 +57,19 @@ public class ConnectTimeConnectionPlugin extends AbstractConnectionPlugin {
     final long elapsedTimeNanos = System.nanoTime() - startTime;
     connectTime += elapsedTimeNanos;
     LOGGER.fine(
-        () -> Messages.get(
-            "ConnectTimeConnectionPlugin.connectTime",
-            new Object[] {elapsedTimeNanos}));
+        () ->
+            Messages.get(
+                "ConnectTimeConnectionPlugin.connectTime", new Object[] {elapsedTimeNanos}));
     return result;
   }
 
   @Override
-  public Connection forceConnect(String driverProtocol, HostSpec hostSpec, Properties props,
-      boolean isInitialConnection, JdbcCallable<Connection, SQLException> forceConnectFunc)
+  public Connection forceConnect(
+      String driverProtocol,
+      HostSpec hostSpec,
+      Properties props,
+      boolean isInitialConnection,
+      JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
     final long startTime = System.nanoTime();
 
@@ -68,9 +77,9 @@ public class ConnectTimeConnectionPlugin extends AbstractConnectionPlugin {
 
     final long elapsedTimeNanos = System.nanoTime() - startTime;
     LOGGER.fine(
-        () -> Messages.get(
-            "ConnectTimeConnectionPlugin.connectTime",
-            new Object[] {elapsedTimeNanos}));
+        () ->
+            Messages.get(
+                "ConnectTimeConnectionPlugin.connectTime", new Object[] {elapsedTimeNanos}));
     connectTime += elapsedTimeNanos;
 
     return result;

@@ -27,5 +27,4 @@ public interface TelemetryContext {
   String getName();
 
   void closeContext();
-
 }

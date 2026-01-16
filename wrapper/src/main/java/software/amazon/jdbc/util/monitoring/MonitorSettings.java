@@ -21,9 +21,7 @@ import java.util.Set;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * A class defining settings for a monitor or monitor type.
- */
+/** A class defining settings for a monitor or monitor type. */
 public class MonitorSettings {
   private final long expirationTimeoutNanos;
   private final long inactiveTimeoutNanos;
@@ -32,16 +30,18 @@ public class MonitorSettings {
   /**
    * Constructs a MonitorSettings instance.
    *
-   * @param expirationTimeoutNanos the amount of time that a monitor should sit in a cache before being considered
-   *                               expired.
-   * @param inactiveTimeoutNanos   a duration in nanoseconds defining the maximum amount of time that a monitor should
-   *                               take between updating its last-updated timestamp. If a monitor has not updated its
-   *                               last-updated timestamp within this duration it will be considered stuck.
-   * @param errorResponses         a {@link Set} defining actions to take if the monitor is in an error state. If null,
-   *                               no action will be performed.
+   * @param expirationTimeoutNanos the amount of time that a monitor should sit in a cache before
+   *     being considered expired.
+   * @param inactiveTimeoutNanos a duration in nanoseconds defining the maximum amount of time that
+   *     a monitor should take between updating its last-updated timestamp. If a monitor has not
+   *     updated its last-updated timestamp within this duration it will be considered stuck.
+   * @param errorResponses a {@link Set} defining actions to take if the monitor is in an error
+   *     state. If null, no action will be performed.
    */
   public MonitorSettings(
-      long expirationTimeoutNanos, long inactiveTimeoutNanos, @NonNull EnumSet<MonitorErrorResponse> errorResponses) {
+      long expirationTimeoutNanos,
+      long inactiveTimeoutNanos,
+      @NonNull EnumSet<MonitorErrorResponse> errorResponses) {
     this.expirationTimeoutNanos = expirationTimeoutNanos;
     this.inactiveTimeoutNanos = inactiveTimeoutNanos;
     this.errorResponses = errorResponses;

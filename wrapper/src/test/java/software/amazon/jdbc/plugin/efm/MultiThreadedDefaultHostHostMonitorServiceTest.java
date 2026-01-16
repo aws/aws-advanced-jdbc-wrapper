@@ -60,8 +60,8 @@ import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
- * Multithreaded tests for {@link MultiThreadedDefaultHostHostMonitorServiceTest}. Repeats each testcase
- * multiple times. Use a cyclic barrier to ensure threads start at the same time.
+ * Multithreaded tests for {@link MultiThreadedDefaultHostHostMonitorServiceTest}. Repeats each
+ * testcase multiple times. Use a cyclic barrier to ensure threads start at the same time.
  */
 class MultiThreadedDefaultHostHostMonitorServiceTest {
 
@@ -150,7 +150,8 @@ class MultiThreadedDefaultHostHostMonitorServiceTest {
       final List<HostMonitorConnectionContext> contexts =
           runStartMonitor(numConnections, services, nodeKeyList);
 
-      final List<HostMonitorConnectionContext> capturedContexts = startMonitoringCaptor.getAllValues();
+      final List<HostMonitorConnectionContext> capturedContexts =
+          startMonitoringCaptor.getAllValues();
 
       assertEquals(numConnections, services.get(0).getThreadContainer().getMonitorMap().size());
       assertTrue(
@@ -175,7 +176,8 @@ class MultiThreadedDefaultHostHostMonitorServiceTest {
       final List<HostMonitorConnectionContext> contexts =
           runStartMonitor(numConnections, services, nodeKeyList);
 
-      final List<HostMonitorConnectionContext> capturedContexts = startMonitoringCaptor.getAllValues();
+      final List<HostMonitorConnectionContext> capturedContexts =
+          startMonitoringCaptor.getAllValues();
 
       assertEquals(1, services.get(0).getThreadContainer().getMonitorMap().size());
       assertTrue(
@@ -200,7 +202,8 @@ class MultiThreadedDefaultHostHostMonitorServiceTest {
     try {
       runStopMonitor(numConnections, services, contexts);
 
-      final List<HostMonitorConnectionContext> capturedContexts = stopMonitoringCaptor.getAllValues();
+      final List<HostMonitorConnectionContext> capturedContexts =
+          stopMonitoringCaptor.getAllValues();
       assertTrue(
           (contexts.size() == capturedContexts.size())
               && contexts.containsAll(capturedContexts)
@@ -220,7 +223,8 @@ class MultiThreadedDefaultHostHostMonitorServiceTest {
     try {
       runStopMonitor(numConnections, services, contexts);
 
-      final List<HostMonitorConnectionContext> capturedContexts = stopMonitoringCaptor.getAllValues();
+      final List<HostMonitorConnectionContext> capturedContexts =
+          stopMonitoringCaptor.getAllValues();
       assertTrue(
           (contexts.size() == capturedContexts.size())
               && contexts.containsAll(capturedContexts)
@@ -231,9 +235,9 @@ class MultiThreadedDefaultHostHostMonitorServiceTest {
   }
 
   /**
-   * Run {@link HostMonitorServiceImpl#startMonitoring(Connection, Set, HostSpec, Properties, int, int,
-   * int)} concurrently in multiple threads. A {@link CountDownLatch} is used to ensure all threads
-   * start at the same time.
+   * Run {@link HostMonitorServiceImpl#startMonitoring(Connection, Set, HostSpec, Properties, int,
+   * int, int)} concurrently in multiple threads. A {@link CountDownLatch} is used to ensure all
+   * threads start at the same time.
    *
    * @param numThreads The number of threads to create.
    * @param services The services to run in each thread.
@@ -410,7 +414,9 @@ class MultiThreadedDefaultHostHostMonitorServiceTest {
   private List<HostMonitorServiceImpl> generateServices(final int numServices) {
     final List<HostMonitorServiceImpl> services = new ArrayList<>();
     for (int i = 0; i < numServices; i++) {
-      services.add(new HostMonitorServiceImpl(pluginService, monitorInitializer, executorServiceInitializer));
+      services.add(
+          new HostMonitorServiceImpl(
+              pluginService, monitorInitializer, executorServiceInitializer));
     }
     return services;
   }

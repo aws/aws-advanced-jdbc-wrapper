@@ -42,8 +42,10 @@ public final class Pair<T1, T2> {
 
     Pair other = (Pair) obj;
 
-    return (this.value1 == null && other.value1 == null || other.value1 != null && other.value1.equals(this.value1))
-        && (this.value2 == null && other.value2 == null || other.value2 != null && other.value2.equals(value2));
+    return (this.value1 == null && other.value1 == null
+            || other.value1 != null && other.value1.equals(this.value1))
+        && (this.value2 == null && other.value2 == null
+            || other.value2 != null && other.value2.equals(value2));
   }
 
   @Override

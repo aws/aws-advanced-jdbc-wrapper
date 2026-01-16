@@ -29,10 +29,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.Messages;
 
 /**
- * A cache with expiration functionality that does not automatically remove expired entries. The removal of expired
- * entries is instead handled by an external class. This class is similar to {@link ExpirationCache}, but allows users
- * to manually renew item expiration and provides more control over the conditions in which items are removed. Disposal
- * of removed items should be handled outside of this class.
+ * A cache with expiration functionality that does not automatically remove expired entries. The
+ * removal of expired entries is instead handled by an external class. This class is similar to
+ * {@link ExpirationCache}, but allows users to manually renew item expiration and provides more
+ * control over the conditions in which items are removed. Disposal of removed items should be
+ * handled outside of this class.
  *
  * @param <K> the type of the keys in the cache.
  * @param <V> the type of the values in the cache.
@@ -45,8 +46,8 @@ public class ExternallyManagedCache<K, V> {
   /**
    * Constructs an externally managed cache.
    *
-   * @param timeToLiveNanos the duration that the item should sit in the cache before being considered expired, in
-   *                        nanoseconds.
+   * @param timeToLiveNanos the duration that the item should sit in the cache before being
+   *     considered expired, in nanoseconds.
    */
   public ExternallyManagedCache(long timeToLiveNanos) {
     this.timeToLiveNanos = timeToLiveNanos;
@@ -55,12 +56,13 @@ public class ExternallyManagedCache<K, V> {
   /**
    * Stores the given value in the cache at the given key.
    *
-   * @param key   the key for the value.
+   * @param key the key for the value.
    * @param value the value to store.
    * @return the previous value stored at the key, or null if there was no value stored at the key.
    */
   public @Nullable V put(@NonNull K key, @NonNull V value) {
-    CacheItem<V> cacheItem = this.cache.put(key, new CacheItem<>(value, System.nanoTime() + timeToLiveNanos));
+    CacheItem<V> cacheItem =
+        this.cache.put(key, new CacheItem<>(value, System.nanoTime() + timeToLiveNanos));
     if (cacheItem == null) {
       return null;
     }
@@ -72,7 +74,8 @@ public class ExternallyManagedCache<K, V> {
    * Get the value stored at the given key. If the value is expired, null will be returned.
    *
    * @param key the key for the value.
-   * @return the value stored at the given key, or null if the key does not exist or the value is expired.
+   * @return the value stored at the given key, or null if the key does not exist or the value is
+   *     expired.
    */
   public @Nullable V get(@NonNull K key) {
     CacheItem<V> cacheItem = this.cache.get(key);
@@ -88,28 +91,28 @@ public class ExternallyManagedCache<K, V> {
   }
 
   /**
-   * If a value does not exist for the given key, stores the value returned by the given mapping function, unless the
-   * function returns null, in which case the key will be removed.
+   * If a value does not exist for the given key, stores the value returned by the given mapping
+   * function, unless the function returns null, in which case the key will be removed.
    *
-   * @param key             the key for the new or existing value.
+   * @param key the key for the new or existing value.
    * @param mappingFunction the function to call to compute a new value.
-   * @return the current (existing or computed) value associated with the specified key, or null if the computed value
-   *     is null.
+   * @return the current (existing or computed) value associated with the specified key, or null if
+   *     the computed value is null.
    */
   public @NonNull V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction) {
-    final CacheItem<V> cacheItem = cache.compute(
-        key,
-        (k, valueItem) -> {
-          if (valueItem == null) {
-            // The key is absent; compute and store the new value.
-            return new CacheItem<>(
-                mappingFunction.apply(k),
-                System.nanoTime() + this.timeToLiveNanos);
-          }
+    final CacheItem<V> cacheItem =
+        cache.compute(
+            key,
+            (k, valueItem) -> {
+              if (valueItem == null) {
+                // The key is absent; compute and store the new value.
+                return new CacheItem<>(
+                    mappingFunction.apply(k), System.nanoTime() + this.timeToLiveNanos);
+              }
 
-          valueItem.extendExpiration(this.timeToLiveNanos);
-          return valueItem;
-        });
+              valueItem.extendExpiration(this.timeToLiveNanos);
+              return valueItem;
+            });
 
     return cacheItem.item;
   }
@@ -124,7 +127,9 @@ public class ExternallyManagedCache<K, V> {
     if (cacheItem != null) {
       cacheItem.extendExpiration(this.timeToLiveNanos);
     } else {
-      LOGGER.finest(Messages.get("ExternallyManagedCache.extendExpirationOnNonExistingKey", new Object[] {key}));
+      LOGGER.finest(
+          Messages.get(
+              "ExternallyManagedCache.extendExpirationOnNonExistingKey", new Object[] {key}));
     }
   }
 
@@ -144,15 +149,17 @@ public class ExternallyManagedCache<K, V> {
   }
 
   /**
-   * Removes the value stored at the given key if the given predicate returns true for the value. Otherwise, does
-   * nothing.
+   * Removes the value stored at the given key if the given predicate returns true for the value.
+   * Otherwise, does nothing.
    *
-   * @param key       the key for the value to assess for removal.
-   * @param predicate a predicate lambda that defines the condition under which the value should be removed.
+   * @param key the key for the value to assess for removal.
+   * @param predicate a predicate lambda that defines the condition under which the value should be
+   *     removed.
    * @return the removed value, or null if no value was removed.
    */
   public @Nullable V removeIf(K key, Predicate<V> predicate) {
-    // The function only returns a value if it was removed. A list is used to store the removed item since lambdas
+    // The function only returns a value if it was removed. A list is used to store the removed item
+    // since lambdas
     // require references to outer variables to be final.
     final List<V> removedItemList = new ArrayList<>(1);
     cache.computeIfPresent(
@@ -174,16 +181,17 @@ public class ExternallyManagedCache<K, V> {
   }
 
   /**
-   * Removes the value stored at the given key if it is expired and the given predicate returns true for the value.
-   * Otherwise, does nothing.
+   * Removes the value stored at the given key if it is expired and the given predicate returns true
+   * for the value. Otherwise, does nothing.
    *
-   * @param key       the key for the value to assess for removal.
-   * @param predicate a predicate lambda that defines the condition under which the value should be removed if it is
-   *                  also expired.
+   * @param key the key for the value to assess for removal.
+   * @param predicate a predicate lambda that defines the condition under which the value should be
+   *     removed if it is also expired.
    * @return the removed value, or null if no value was removed.
    */
   public @Nullable V removeExpiredIf(K key, Predicate<V> predicate) {
-    // The function only returns a value if it was removed. A list is used to store the removed item since lambdas
+    // The function only returns a value if it was removed. A list is used to store the removed item
+    // since lambdas
     // require references to outer variables to be final.
     final List<V> removedItemList = new ArrayList<>(1);
     cache.computeIfPresent(

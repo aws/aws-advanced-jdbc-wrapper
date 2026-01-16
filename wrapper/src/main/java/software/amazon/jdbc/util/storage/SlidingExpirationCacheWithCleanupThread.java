@@ -38,8 +38,7 @@ public class SlidingExpirationCacheWithCleanupThread<K, V> extends SlidingExpira
   }
 
   public SlidingExpirationCacheWithCleanupThread(
-      final ShouldDisposeFunc<V> shouldDisposeFunc,
-      final ItemDisposalFunc<V> itemDisposalFunc) {
+      final ShouldDisposeFunc<V> shouldDisposeFunc, final ItemDisposalFunc<V> itemDisposalFunc) {
     super(shouldDisposeFunc, itemDisposalFunc);
     this.initCleanupThread();
   }
@@ -56,21 +55,23 @@ public class SlidingExpirationCacheWithCleanupThread<K, V> extends SlidingExpira
     if (!isInitialized) {
       try (ResourceLock ignored = initLock.obtain()) {
         if (!isInitialized) {
-          cleanupThreadPool.submit(() -> {
-            while (true) {
-              TimeUnit.NANOSECONDS.sleep(this.cleanupIntervalNanos);
+          cleanupThreadPool.submit(
+              () -> {
+                while (true) {
+                  TimeUnit.NANOSECONDS.sleep(this.cleanupIntervalNanos);
 
-              LOGGER.finest("Cleaning up...");
-              this.cleanupTimeNanos.set(System.nanoTime() + cleanupIntervalNanos);
-              cache.forEach((key, value) -> {
-                try {
-                  removeIfExpired(key);
-                } catch (Exception ex) {
-                  // ignore
+                  LOGGER.finest("Cleaning up...");
+                  this.cleanupTimeNanos.set(System.nanoTime() + cleanupIntervalNanos);
+                  cache.forEach(
+                      (key, value) -> {
+                        try {
+                          removeIfExpired(key);
+                        } catch (Exception ex) {
+                          // ignore
+                        }
+                      });
                 }
               });
-            }
-          });
           cleanupThreadPool.shutdown();
           isInitialized = true;
         }

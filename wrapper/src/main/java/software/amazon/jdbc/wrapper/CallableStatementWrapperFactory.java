@@ -27,6 +27,7 @@ public class CallableStatementWrapperFactory implements WrapperFactory {
       @NonNull Object targetObj,
       @NonNull ConnectionWrapper connectionWrapper,
       @NonNull ConnectionPluginManager pluginManager) {
-    return new CallableStatementWrapper((CallableStatement) targetObj, connectionWrapper, pluginManager);
+    return new CallableStatementWrapper(
+        (CallableStatement) targetObj, connectionWrapper, pluginManager);
   }
 }

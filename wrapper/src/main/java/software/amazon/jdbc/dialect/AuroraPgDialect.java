@@ -29,13 +29,15 @@ import software.amazon.jdbc.hostlistprovider.TopologyUtils;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.Messages;
 
-public class AuroraPgDialect extends PgDialect implements TopologyDialect, AuroraLimitlessDialect, BlueGreenDialect {
+public class AuroraPgDialect extends PgDialect
+    implements TopologyDialect, AuroraLimitlessDialect, BlueGreenDialect {
 
   protected static final String AURORA_UTILS_EXIST_QUERY =
       "SELECT (setting LIKE '%aurora_stat_utils%') AS aurora_stat_utils "
           + "FROM pg_catalog.pg_settings "
           + "WHERE name OPERATOR(pg_catalog.=) 'rds.extensions'";
-  protected static final String TOPOLOGY_EXISTS_QUERY = "SELECT 1 FROM pg_catalog.aurora_replica_status() LIMIT 1";
+  protected static final String TOPOLOGY_EXISTS_QUERY =
+      "SELECT 1 FROM pg_catalog.aurora_replica_status() LIMIT 1";
   protected static final String TOPOLOGY_QUERY =
       "SELECT SERVER_ID, CASE WHEN SESSION_ID OPERATOR(pg_catalog.=) 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
           + "CPU, COALESCE(REPLICA_LAG_IN_MSEC, 0), LAST_UPDATE_TIMESTAMP "
@@ -61,7 +63,9 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
       "SELECT 'pg_catalog.get_blue_green_fast_switchover_metadata'::regproc";
   protected static final String BG_STATUS_QUERY =
       "SELECT * FROM "
-          + "pg_catalog.get_blue_green_fast_switchover_metadata('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
+          + "pg_catalog.get_blue_green_fast_switchover_metadata('aws_jdbc_driver-"
+          + DriverInfo.DRIVER_VERSION
+          + "')";
 
   private static final Logger LOGGER = Logger.getLogger(AuroraPgDialect.class.getName());
 
@@ -73,7 +77,7 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
 
     boolean hasExtensions = false;
     try (Statement stmt = connection.createStatement();
-         ResultSet rs = stmt.executeQuery(AURORA_UTILS_EXIST_QUERY)) {
+        ResultSet rs = stmt.executeQuery(AURORA_UTILS_EXIST_QUERY)) {
       if (!rs.next()) {
         return false;
       }
@@ -96,9 +100,8 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
 
   @Override
   public List<String> getDialectUpdateCandidates() {
-    return Arrays.asList(DialectCodes.GLOBAL_AURORA_PG,
-        DialectCodes.RDS_MULTI_AZ_PG_CLUSTER,
-        DialectCodes.RDS_PG);
+    return Arrays.asList(
+        DialectCodes.GLOBAL_AURORA_PG, DialectCodes.RDS_MULTI_AZ_PG_CLUSTER, DialectCodes.RDS_PG);
   }
 
   @Override

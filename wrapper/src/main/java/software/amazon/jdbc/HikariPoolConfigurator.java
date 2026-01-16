@@ -30,9 +30,9 @@ public interface HikariPoolConfigurator {
    * method. If no extra configuration options are required, this method should simply return an
    * empty HikariConfig.
    *
-   * @param hostSpec      the details of the host for the internal connection pool
-   * @param originalProps the properties specified for the original connection through
-   *                      {@link java.sql.DriverManager#getConnection(String, Properties)}
+   * @param hostSpec the details of the host for the internal connection pool
+   * @param originalProps the properties specified for the original connection through {@link
+   *     java.sql.DriverManager#getConnection(String, Properties)}
    * @return a {@link HikariConfig} specifying any extra configuration options for an internal
    *     Hikari connection pool maintained by a {@link HikariPooledConnectionProvider}
    */

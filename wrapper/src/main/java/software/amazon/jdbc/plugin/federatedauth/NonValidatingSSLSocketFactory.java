@@ -44,7 +44,7 @@ public class NonValidatingSSLSocketFactory extends SSLSocketFactory {
   public NonValidatingSSLSocketFactory(final String arg) throws GeneralSecurityException {
     final SSLContext ctx = SSLContext.getInstance("TLS"); // or "SSL" ?
 
-    ctx.init(null, new TrustManager[]{new NonValidatingTrustManager()}, null);
+    ctx.init(null, new TrustManager[] {new NonValidatingTrustManager()}, null);
 
     factory = ctx.getSocketFactory();
   }
@@ -59,18 +59,23 @@ public class NonValidatingSSLSocketFactory extends SSLSocketFactory {
     return factory.createSocket(host, port);
   }
 
-  public Socket createSocket(final String host, final int port, final InetAddress localHost, final int localPort)
+  public Socket createSocket(
+      final String host, final int port, final InetAddress localHost, final int localPort)
       throws IOException {
     return factory.createSocket(host, port, localHost, localPort);
   }
 
-  public Socket createSocket(final InetAddress address, final int port, final InetAddress localAddress,
+  public Socket createSocket(
+      final InetAddress address,
+      final int port,
+      final InetAddress localAddress,
       final int localPort)
       throws IOException {
     return factory.createSocket(address, port, localAddress, localPort);
   }
 
-  public Socket createSocket(final Socket socket, final String host, final int port, final boolean autoClose)
+  public Socket createSocket(
+      final Socket socket, final String host, final int port, final boolean autoClose)
       throws IOException {
     return factory.createSocket(socket, host, port, autoClose);
   }
@@ -89,10 +94,8 @@ public class NonValidatingSSLSocketFactory extends SSLSocketFactory {
       return new X509Certificate[0];
     }
 
-    public void checkClientTrusted(final X509Certificate[] certs, final String authType) {
-    }
+    public void checkClientTrusted(final X509Certificate[] certs, final String authType) {}
 
-    public void checkServerTrusted(final X509Certificate[] certs, final String authType) {
-    }
+    public void checkServerTrusted(final X509Certificate[] certs, final String authType) {}
   }
 }

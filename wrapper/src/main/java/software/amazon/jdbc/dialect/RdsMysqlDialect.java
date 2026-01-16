@@ -33,15 +33,17 @@ public class RdsMysqlDialect extends MysqlDialect implements BlueGreenDialect {
 
   protected static final String BG_STATUS_QUERY = "SELECT * FROM mysql.rds_topology";
 
-  private static final List<String> dialectUpdateCandidates = Arrays.asList(
-      DialectCodes.AURORA_MYSQL,
-      DialectCodes.GLOBAL_AURORA_MYSQL,
-      DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER);
+  private static final List<String> dialectUpdateCandidates =
+      Arrays.asList(
+          DialectCodes.AURORA_MYSQL,
+          DialectCodes.GLOBAL_AURORA_MYSQL,
+          DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER);
 
   @Override
   public boolean isDialect(final Connection connection) {
     if (super.isDialect(connection)) {
-      // MysqlDialect and RdsMysqlDialect use the same server version query to determine the dialect.
+      // MysqlDialect and RdsMysqlDialect use the same server version query to determine the
+      // dialect.
       //
       // For community Mysql:
       // SHOW VARIABLES LIKE 'version_comment'

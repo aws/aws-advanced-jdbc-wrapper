@@ -21,9 +21,9 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.jdbc.HostSpec;
 
 /**
- * Interface for selecting an {@link AwsCredentialsProvider} based on the passed in parameters.
- * The AwsCredentialsProviderHandler should be passed to the {@link AwsCredentialsManager} via
- * {@link AwsCredentialsManager#setCustomHandler(AwsCredentialsProviderHandler)
+ * Interface for selecting an {@link AwsCredentialsProvider} based on the passed in parameters. The
+ * AwsCredentialsProviderHandler should be passed to the {@link AwsCredentialsManager} via {@link
+ * AwsCredentialsManager#setCustomHandler(AwsCredentialsProviderHandler)
  * AwsCredentialsManager.setCustomHandler}.
  */
 @FunctionalInterface

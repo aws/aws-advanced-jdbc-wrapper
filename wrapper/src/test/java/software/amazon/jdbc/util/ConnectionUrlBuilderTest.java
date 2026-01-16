@@ -40,17 +40,15 @@ class ConnectionUrlBuilderTest {
       final String port,
       final String db,
       final String expected,
-      final Properties props) throws SQLException {
+      final Properties props)
+      throws SQLException {
     Properties properties = new Properties();
     properties.putAll(props);
     properties.setProperty(server, server);
     properties.setProperty(port, "1234");
     properties.setProperty(db, db);
 
-    final String actual = ConnectionUrlBuilder.buildUrl(
-        jdbcProtocol,
-        host,
-        properties);
+    final String actual = ConnectionUrlBuilder.buildUrl(jdbcProtocol, host, properties);
     assertEquals(expected, actual);
   }
 
@@ -67,15 +65,13 @@ class ConnectionUrlBuilderTest {
     properties.setProperty(port, "1234");
     properties.setProperty(db, db);
 
-    assertThrows(SQLException.class, () -> ConnectionUrlBuilder.buildUrl(
-        jdbcProtocol,
-        host,
-        properties));
+    assertThrows(
+        SQLException.class, () -> ConnectionUrlBuilder.buildUrl(jdbcProtocol, host, properties));
   }
 
   static Stream<Arguments> urlArguments() {
-    final HostSpec hostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("fooUrl")
-        .build();
+    final HostSpec hostSpec =
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("fooUrl").build();
     final Properties properties = new Properties();
     properties.setProperty("bar", "baz");
     return Stream.of(
@@ -102,15 +98,12 @@ class ConnectionUrlBuilderTest {
             "port",
             "database",
             "protocol//fooUrl/database?port=1234&bar=baz&server=server",
-            properties)
-    );
+            properties));
   }
 
   static Stream<Arguments> invalidUrlArguments() {
-    final HostSpec hostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("fooUrl")
-        .build();
-    return Stream.of(
-        Arguments.of("", hostSpec, "server", "1234", "dbName")
-    );
+    final HostSpec hostSpec =
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("fooUrl").build();
+    return Stream.of(Arguments.of("", hostSpec, "server", "1234", "dbName"));
   }
 }

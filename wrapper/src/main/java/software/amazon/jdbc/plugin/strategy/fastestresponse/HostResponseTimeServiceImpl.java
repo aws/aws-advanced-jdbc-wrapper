@@ -55,7 +55,9 @@ public class HostResponseTimeServiceImpl implements HostResponseTimeService {
   @Override
   public int getResponseTime(HostSpec hostSpec) {
     final NodeResponseTimeMonitor monitor =
-        this.servicesContainer.getMonitorService().get(NodeResponseTimeMonitor.class, hostSpec.getUrl());
+        this.servicesContainer
+            .getMonitorService()
+            .get(NodeResponseTimeMonitor.class, hostSpec.getUrl());
     if (monitor == null) {
       return Integer.MAX_VALUE;
     }
@@ -72,19 +74,28 @@ public class HostResponseTimeServiceImpl implements HostResponseTimeService {
     this.hosts.stream()
         // hostSpec is not in the set of hosts that already being monitored
         .filter(hostSpec -> !oldHosts.contains(hostSpec.getUrl()))
-        .forEach(hostSpec -> {
-          try {
-            this.servicesContainer.getMonitorService().runIfAbsent(
-                NodeResponseTimeMonitor.class,
-                hostSpec.getUrl(),
-                servicesContainer,
-                this.props,
-                (servicesContainer) -> new NodeResponseTimeMonitor(
-                    servicesContainer.getPluginService(), hostSpec, this.props, this.intervalMs));
-          } catch (SQLException e) {
-            LOGGER.warning(
-                Messages.get("HostResponseTimeServiceImpl.errorStartingMonitor", new Object[] {hostSpec.getUrl(), e}));
-          }
-        });
+        .forEach(
+            hostSpec -> {
+              try {
+                this.servicesContainer
+                    .getMonitorService()
+                    .runIfAbsent(
+                        NodeResponseTimeMonitor.class,
+                        hostSpec.getUrl(),
+                        servicesContainer,
+                        this.props,
+                        (servicesContainer) ->
+                            new NodeResponseTimeMonitor(
+                                servicesContainer.getPluginService(),
+                                hostSpec,
+                                this.props,
+                                this.intervalMs));
+              } catch (SQLException e) {
+                LOGGER.warning(
+                    Messages.get(
+                        "HostResponseTimeServiceImpl.errorStartingMonitor",
+                        new Object[] {hostSpec.getUrl(), e}));
+              }
+            });
   }
 }

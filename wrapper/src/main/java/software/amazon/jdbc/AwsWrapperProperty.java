@@ -26,9 +26,7 @@ public class AwsWrapperProperty extends DriverPropertyInfo {
   public final @Nullable String defaultValue;
 
   public AwsWrapperProperty(
-      @NonNull final String name,
-      @Nullable final String defaultValue,
-      final String description) {
+      @NonNull final String name, @Nullable final String defaultValue, final String description) {
     this(name, defaultValue, description, false);
   }
 
@@ -45,7 +43,7 @@ public class AwsWrapperProperty extends DriverPropertyInfo {
       @Nullable final String defaultValue,
       final String description,
       final boolean required,
-      @Nullable final String [] choices) {
+      @Nullable final String[] choices) {
     super(name, null);
     this.defaultValue = defaultValue;
     this.required = required;

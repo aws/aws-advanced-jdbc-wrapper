@@ -63,7 +63,8 @@ import software.amazon.jdbc.util.StringUtils;
 public class TestEnvironment implements AutoCloseable {
 
   private static final Logger LOGGER = Logger.getLogger(TestEnvironment.class.getName());
-  private static final int NUM_OR_ENV_PRE_CREATE = 1; // create this number of environments in advance
+  private static final int NUM_OR_ENV_PRE_CREATE =
+      1; // create this number of environments in advance
 
   private static final ExecutorService envPreCreateExecutor = Executors.newCachedThreadPool();
 
@@ -84,7 +85,8 @@ public class TestEnvironment implements AutoCloseable {
   private final TestEnvironmentInfo info =
       new TestEnvironmentInfo(); // only this info is passed to test container
 
-  // The following variables are local to host portion of test environment. They are not shared with a
+  // The following variables are local to host portion of test environment. They are not shared with
+  // a
   // test container.
 
   private int numOfInstances;
@@ -113,7 +115,8 @@ public class TestEnvironment implements AutoCloseable {
     this.info.setRequest(request);
   }
 
-  public static TestEnvironment build(TestEnvironmentRequest request) throws IOException, URISyntaxException {
+  public static TestEnvironment build(TestEnvironmentRequest request)
+      throws IOException, URISyntaxException {
 
     LOGGER.finest("Building test env: " + request.getEnvPreCreateIndex());
     preCreateEnvironment(request.getEnvPreCreateIndex());
@@ -145,7 +148,6 @@ public class TestEnvironment implements AutoCloseable {
       case AURORA:
       case RDS_MULTI_AZ_CLUSTER:
       case RDS_MULTI_AZ_INSTANCE:
-
         env = createAuroraOrMultiAzEnvironment(request);
 
         if (request.getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)) {
@@ -168,7 +170,7 @@ public class TestEnvironment implements AutoCloseable {
     }
 
     if ((USE_OTLP_CONTAINER_FOR_TRACES
-        && request.getFeatures().contains(TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED))
+            && request.getFeatures().contains(TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED))
         || request.getFeatures().contains(TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED)) {
       createTelemetryOtlpContainer(env);
     }
@@ -184,11 +186,15 @@ public class TestEnvironment implements AutoCloseable {
         || deployment == DatabaseEngineDeployment.RDS
         || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE
         || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER) {
-      // These environment require creating external database cluster that should be publicly available.
+      // These environment require creating external database cluster that should be publicly
+      // available.
       // Corresponding AWS Security Groups should be configured and the test task runner IP address
       // should be whitelisted.
 
-      if (env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED)) {
+      if (env.info
+          .getRequest()
+          .getFeatures()
+          .contains(TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED)) {
         env.auroraUtil.testClustersCleanUp();
         env.auroraUtil.testInstancesCleanUp();
         env.auroraUtil.securityGroupRulesCleanUp();
@@ -202,11 +208,15 @@ public class TestEnvironment implements AutoCloseable {
         || deployment == DatabaseEngineDeployment.RDS
         || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE
         || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER) {
-      // These environment require creating external database cluster that should be publicly available.
+      // These environment require creating external database cluster that should be publicly
+      // available.
       // Corresponding AWS Security Groups should be configured and the test task runner IP address
       // should be whitelisted.
 
-      if (env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED)) {
+      if (env.info
+          .getRequest()
+          .getFeatures()
+          .contains(TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED)) {
         if (ipAddressUsageRefCount.incrementAndGet() == 1) {
           authorizeIP(env);
         } else {
@@ -233,8 +243,11 @@ public class TestEnvironment implements AutoCloseable {
         final long startTime = System.nanoTime();
         result = preCreateInfo.envPreCreateFuture.get();
         final long duration = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime);
-        LOGGER.finest(() ->
-            String.format("Additional wait time for test environment to be ready (pre-create): %d sec", duration));
+        LOGGER.finest(
+            () ->
+                String.format(
+                    "Additional wait time for test environment to be ready (pre-create): %d sec",
+                    duration));
       } catch (ExecutionException | InterruptedException ex) {
         throw new RuntimeException("Test environment create error.", ex);
       }
@@ -253,17 +266,24 @@ public class TestEnvironment implements AutoCloseable {
             resultTestEnvironment.info.getRequest().getDatabaseEngineDeployment();
         if (deployment == DatabaseEngineDeployment.AURORA
             || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER) {
-          LOGGER.finer(() -> String.format("Use pre-created DB cluster: %s.cluster-%s",
-              resultTestEnvironment.rdsDbName, resultTestEnvironment.rdsDbDomain));
+          LOGGER.finer(
+              () ->
+                  String.format(
+                      "Use pre-created DB cluster: %s.cluster-%s",
+                      resultTestEnvironment.rdsDbName, resultTestEnvironment.rdsDbDomain));
         } else {
-          LOGGER.finer(() -> String.format("Use pre-created DB : %s.%s",
-              resultTestEnvironment.rdsDbName, resultTestEnvironment.rdsDbDomain));
+          LOGGER.finer(
+              () ->
+                  String.format(
+                      "Use pre-created DB : %s.%s",
+                      resultTestEnvironment.rdsDbName, resultTestEnvironment.rdsDbDomain));
         }
 
         return resultTestEnvironment;
       }
       throw new RuntimeException(
-          "Test environment create error. Unrecognized result type: " + result.getClass().getName());
+          "Test environment create error. Unrecognized result type: "
+              + result.getClass().getName());
 
     } else {
       TestEnvironment env = new TestEnvironment(request);
@@ -292,7 +312,10 @@ public class TestEnvironment implements AutoCloseable {
           authorizeRunnerIpAddress(env);
 
           if (!env.reuseDb
-              && env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)) {
+              && env.info
+                  .getRequest()
+                  .getFeatures()
+                  .contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)) {
             createCustomClusterParameterGroup(env);
           }
           createDbCluster(env);
@@ -304,7 +327,6 @@ public class TestEnvironment implements AutoCloseable {
 
       return env;
     }
-
   }
 
   private static void createBlueGreenDeployment(TestEnvironment env) {
@@ -312,7 +334,8 @@ public class TestEnvironment implements AutoCloseable {
     if (env.info.getRequest().getDatabaseEngineDeployment() == DatabaseEngineDeployment.AURORA) {
       DBCluster clusterInfo = env.auroraUtil.getClusterInfo(env.rdsDbName);
       if (env.reuseDb) {
-        BlueGreenDeployment bgDeployment = env.auroraUtil.getBlueGreenDeploymentBySource(clusterInfo.dbClusterArn());
+        BlueGreenDeployment bgDeployment =
+            env.auroraUtil.getBlueGreenDeploymentBySource(clusterInfo.dbClusterArn());
         if (bgDeployment != null) {
           env.info.setBlueGreenDeploymentId(bgDeployment.blueGreenDeploymentIdentifier());
           waitForBlueGreenClustersHaveRightState(env, bgDeployment);
@@ -321,8 +344,8 @@ public class TestEnvironment implements AutoCloseable {
       }
 
       // otherwise, create a new BG deployment
-      final String blueGreenId = env.auroraUtil.createBlueGreenDeployment(
-          env.rdsDbName, clusterInfo.dbClusterArn());
+      final String blueGreenId =
+          env.auroraUtil.createBlueGreenDeployment(env.rdsDbName, clusterInfo.dbClusterArn());
       env.info.setBlueGreenDeploymentId(blueGreenId);
 
       BlueGreenDeployment bgDeployment = env.auroraUtil.getBlueGreenDeployment(blueGreenId);
@@ -330,10 +353,12 @@ public class TestEnvironment implements AutoCloseable {
         waitForBlueGreenClustersHaveRightState(env, bgDeployment);
       }
 
-    } else if (env.info.getRequest().getDatabaseEngineDeployment() == DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE) {
+    } else if (env.info.getRequest().getDatabaseEngineDeployment()
+        == DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE) {
       DBInstance instanceInfo = env.auroraUtil.getRdsInstanceInfo(env.rdsDbName);
       if (env.reuseDb) {
-        BlueGreenDeployment bgDeployment = env.auroraUtil.getBlueGreenDeploymentBySource(instanceInfo.dbInstanceArn());
+        BlueGreenDeployment bgDeployment =
+            env.auroraUtil.getBlueGreenDeploymentBySource(instanceInfo.dbInstanceArn());
         if (bgDeployment != null) {
           env.info.setBlueGreenDeploymentId(bgDeployment.blueGreenDeploymentIdentifier());
           waitForBlueGreenInstancesHaveRightState(env, bgDeployment);
@@ -342,8 +367,8 @@ public class TestEnvironment implements AutoCloseable {
       }
 
       // otherwise, create a new BG deployment
-      final String blueGreenId = env.auroraUtil.createBlueGreenDeployment(
-          env.rdsDbName, instanceInfo.dbInstanceArn());
+      final String blueGreenId =
+          env.auroraUtil.createBlueGreenDeployment(env.rdsDbName, instanceInfo.dbInstanceArn());
       env.info.setBlueGreenDeploymentId(blueGreenId);
 
       BlueGreenDeployment bgDeployment = env.auroraUtil.getBlueGreenDeployment(blueGreenId);
@@ -352,12 +377,14 @@ public class TestEnvironment implements AutoCloseable {
       }
 
     } else {
-      LOGGER.warning("BG Deployments are supported for RDS MultiAz Instances and Aurora clusters only."
-          + " Proceed without creating BG Deployment.");
+      LOGGER.warning(
+          "BG Deployments are supported for RDS MultiAz Instances and Aurora clusters only."
+              + " Proceed without creating BG Deployment.");
     }
   }
 
-  private static void waitForBlueGreenClustersHaveRightState(TestEnvironment env, BlueGreenDeployment bgDeployment) {
+  private static void waitForBlueGreenClustersHaveRightState(
+      TestEnvironment env, BlueGreenDeployment bgDeployment) {
 
     DBCluster blueClusterInfo = env.auroraUtil.getClusterByArn(bgDeployment.source());
     if (blueClusterInfo != null) {
@@ -380,7 +407,8 @@ public class TestEnvironment implements AutoCloseable {
     }
   }
 
-  private static void waitForBlueGreenInstancesHaveRightState(TestEnvironment env, BlueGreenDeployment bgDeployment) {
+  private static void waitForBlueGreenInstancesHaveRightState(
+      TestEnvironment env, BlueGreenDeployment bgDeployment) {
 
     DBInstance blueInstanceInfo = env.auroraUtil.getRdsInstanceInfoByArn(bgDeployment.source());
     if (blueInstanceInfo != null) {
@@ -425,7 +453,8 @@ public class TestEnvironment implements AutoCloseable {
         env.numOfInstances = env.info.getRequest().getNumOfInstances();
         if (env.numOfInstances < 1 || env.numOfInstances > 15) {
           LOGGER.warning(
-              env.numOfInstances + " instances were requested but the requested number must be "
+              env.numOfInstances
+                  + " instances were requested but the requested number must be "
                   + "between 1 and 15. 5 instances will be used as a default.");
           env.numOfInstances = 5;
         }
@@ -462,19 +491,22 @@ public class TestEnvironment implements AutoCloseable {
         for (int i = 1; i <= env.numOfInstances; i++) {
 
           GenericContainer<?> dbContainer =
-              env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY)
+              env.info
+                      .getRequest()
+                      .getFeatures()
+                      .contains(TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY)
                   ? containerHelper.createPostgisContainer(
-                        env.network,
-                        DATABASE_CONTAINER_NAME_PREFIX + i,
-                        env.info.getDatabaseInfo().getDefaultDbName(),
-                        env.info.getDatabaseInfo().getUsername(),
-                        env.info.getDatabaseInfo().getPassword())
+                      env.network,
+                      DATABASE_CONTAINER_NAME_PREFIX + i,
+                      env.info.getDatabaseInfo().getDefaultDbName(),
+                      env.info.getDatabaseInfo().getUsername(),
+                      env.info.getDatabaseInfo().getPassword())
                   : containerHelper.createPostgresContainer(
-                        env.network,
-                        DATABASE_CONTAINER_NAME_PREFIX + i,
-                        env.info.getDatabaseInfo().getDefaultDbName(),
-                        env.info.getDatabaseInfo().getUsername(),
-                        env.info.getDatabaseInfo().getPassword());
+                      env.network,
+                      DATABASE_CONTAINER_NAME_PREFIX + i,
+                      env.info.getDatabaseInfo().getDefaultDbName(),
+                      env.info.getDatabaseInfo().getUsername(),
+                      env.info.getDatabaseInfo().getPassword());
 
           env.databaseContainers.add(dbContainer);
           dbContainer.start();
@@ -530,18 +562,22 @@ public class TestEnvironment implements AutoCloseable {
         initAwsCredentials(env);
 
         env.numOfInstances = env.info.getRequest().getNumOfInstances();
-        if (env.info.getRequest().getDatabaseEngineDeployment() == DatabaseEngineDeployment.AURORA) {
+        if (env.info.getRequest().getDatabaseEngineDeployment()
+            == DatabaseEngineDeployment.AURORA) {
           if (env.numOfInstances < 1 || env.numOfInstances > 15) {
             LOGGER.warning(
-                env.numOfInstances + " instances were requested but the requested number must be "
+                env.numOfInstances
+                    + " instances were requested but the requested number must be "
                     + "between 1 and 15. 5 instances will be used as a default.");
             env.numOfInstances = 5;
           }
         }
-        if (env.info.getRequest().getDatabaseEngineDeployment() == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER) {
+        if (env.info.getRequest().getDatabaseEngineDeployment()
+            == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER) {
           if (env.numOfInstances != 3) {
             LOGGER.warning(
-                env.numOfInstances + " instances were requested but the requested number must be 3. "
+                env.numOfInstances
+                    + " instances were requested but the requested number must be 3. "
                     + "3 instances will be used as a default.");
             env.numOfInstances = 3;
           }
@@ -571,8 +607,7 @@ public class TestEnvironment implements AutoCloseable {
                 + ".cluster-"
                 + env.rdsDbDomain);
       }
-      LOGGER.finer(
-          "Reuse existing cluster " + env.rdsDbName + ".cluster-" + env.rdsDbDomain);
+      LOGGER.finer("Reuse existing cluster " + env.rdsDbName + ".cluster-" + env.rdsDbDomain);
 
       DBCluster clusterInfo = env.auroraUtil.getClusterInfo(env.rdsDbName);
 
@@ -635,22 +670,23 @@ public class TestEnvironment implements AutoCloseable {
 
         List<DBInstance> dbInstances = env.auroraUtil.getDBInstances(env.rdsDbName);
         if (dbInstances.isEmpty()) {
-          throw new RuntimeException("Failed to get instance information for cluster " + env.rdsDbName);
+          throw new RuntimeException(
+              "Failed to get instance information for cluster " + env.rdsDbName);
         }
 
         final String instanceEndpoint = dbInstances.get(0).endpoint().address();
         env.rdsDbDomain = instanceEndpoint.substring(instanceEndpoint.indexOf(".") + 1);
         env.info.setDatabaseEngine(engine);
         env.info.setDatabaseEngineVersion(engineVersion);
-        LOGGER.finer(
-            "Created a new cluster " + env.rdsDbName + ".cluster-" + env.rdsDbDomain);
+        LOGGER.finer("Created a new cluster " + env.rdsDbName + ".cluster-" + env.rdsDbDomain);
       } catch (Exception e) {
 
         LOGGER.finer("Error creating a cluster " + env.rdsDbName + ". " + e.getMessage());
 
         // remove cluster and instances
         LOGGER.finer("Deleting cluster " + env.rdsDbName);
-        env.auroraUtil.deleteCluster(env.rdsDbName, env.info.getRequest().getDatabaseEngineDeployment(), false);
+        env.auroraUtil.deleteCluster(
+            env.rdsDbName, env.info.getRequest().getDatabaseEngineDeployment(), false);
         LOGGER.finer("Deleted cluster " + env.rdsDbName);
 
         throw new RuntimeException(e);
@@ -666,8 +702,7 @@ public class TestEnvironment implements AutoCloseable {
         .setClusterEndpoint(env.rdsDbName + ".cluster-" + env.rdsDbDomain, port);
     env.info
         .getDatabaseInfo()
-        .setClusterReadOnlyEndpoint(
-            env.rdsDbName + ".cluster-ro-" + env.rdsDbDomain, port);
+        .setClusterReadOnlyEndpoint(env.rdsDbName + ".cluster-ro-" + env.rdsDbDomain, port);
     env.info.getDatabaseInfo().setInstanceEndpointSuffix(env.rdsDbDomain, port);
 
     List<TestInstanceInfo> instances = env.auroraUtil.getTestInstancesInfo(env.rdsDbName);
@@ -694,16 +729,15 @@ public class TestEnvironment implements AutoCloseable {
           Statement stmt = conn.createStatement()) {
         stmt.execute("CREATE EXTENSION IF NOT EXISTS rds_tools");
       } catch (SQLException e) {
-        throw new RuntimeException("An exception occurred while creating the rds_tools extension.", e);
+        throw new RuntimeException(
+            "An exception occurred while creating the rds_tools extension.", e);
       }
     }
   }
 
   private static void initEnv(TestEnvironment env) {
     env.info.setRegion(
-        !StringUtils.isNullOrEmpty(config.rdsDbRegion)
-            ? config.rdsDbRegion
-            : "us-east-2");
+        !StringUtils.isNullOrEmpty(config.rdsDbRegion) ? config.rdsDbRegion : "us-east-2");
 
     env.reuseDb = config.reuseRdsDb;
     env.rdsDbName = config.rdsDbName; // "cluster-mysql"
@@ -747,12 +781,12 @@ public class TestEnvironment implements AutoCloseable {
                 + "."
                 + env.rdsDbDomain);
       }
-      LOGGER.finer(
-          "Reuse existing RDS Instance " + env.rdsDbName + "." + env.rdsDbDomain);
+      LOGGER.finer("Reuse existing RDS Instance " + env.rdsDbName + "." + env.rdsDbDomain);
 
       DBInstance instanceInfo = env.auroraUtil.getRdsInstanceInfo(env.rdsDbName);
 
-      DatabaseEngine existingRdsInstanceDatabaseEngine = env.auroraUtil.getRdsInstanceEngine(instanceInfo);
+      DatabaseEngine existingRdsInstanceDatabaseEngine =
+          env.auroraUtil.getRdsInstanceEngine(instanceInfo);
       if (existingRdsInstanceDatabaseEngine != env.info.getRequest().getDatabaseEngine()) {
         throw new RuntimeException(
             "Existing RDS Instance is "
@@ -764,10 +798,11 @@ public class TestEnvironment implements AutoCloseable {
 
       env.info.setDatabaseEngine(instanceInfo.engine());
       env.info.setDatabaseEngineVersion(instanceInfo.engineVersion());
-      instances.add(new TestInstanceInfo(
-          instanceInfo.dbInstanceIdentifier(),
-          instanceInfo.endpoint().address(),
-          instanceInfo.endpoint().port()));
+      instances.add(
+          new TestInstanceInfo(
+              instanceInfo.dbInstanceIdentifier(),
+              instanceInfo.endpoint().address(),
+              instanceInfo.endpoint().port()));
 
     } else {
       if (StringUtils.isNullOrEmpty(env.rdsDbName)) {
@@ -799,8 +834,7 @@ public class TestEnvironment implements AutoCloseable {
 
         env.info.setDatabaseEngine(engine);
         env.info.setDatabaseEngineVersion(engineVersion);
-        LOGGER.finer(
-            "Created a new RDS Instance " + env.rdsDbName + "." + env.rdsDbDomain);
+        LOGGER.finer("Created a new RDS Instance " + env.rdsDbName + "." + env.rdsDbDomain);
       } catch (Exception e) {
 
         LOGGER.finer("Error creating a RDS Instance " + env.rdsDbName + ". " + e);
@@ -824,14 +858,16 @@ public class TestEnvironment implements AutoCloseable {
     final DatabaseEngine engine = env.info.getRequest().getDatabaseEngine();
 
     // Create 'rds_tools' extension for RDS Instance.
-    if (DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE.equals(deployment) && DatabaseEngine.PG.equals(engine)) {
+    if (DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE.equals(deployment)
+        && DatabaseEngine.PG.equals(engine)) {
       DriverHelper.registerDriver(engine);
 
       try (Connection conn = DriverHelper.getDriverConnection(env.info);
           Statement stmt = conn.createStatement()) {
         stmt.execute("CREATE EXTENSION IF NOT EXISTS rds_tools");
       } catch (SQLException e) {
-        throw new RuntimeException("An exception occurred while creating the rds_tools extension.", e);
+        throw new RuntimeException(
+            "An exception occurred while creating the rds_tools extension.", e);
       }
     }
   }
@@ -844,8 +880,10 @@ public class TestEnvironment implements AutoCloseable {
       throw new RuntimeException(e);
     }
     env.auroraUtil.ec2AuthorizeIP(env.runnerIP);
-    LOGGER.finest(String.format("Test runner IP %s authorized. Usage count: %d",
-        env.runnerIP, ipAddressUsageRefCount.get()));
+    LOGGER.finest(
+        String.format(
+            "Test runner IP %s authorized. Usage count: %d",
+            env.runnerIP, ipAddressUsageRefCount.get()));
   }
 
   private static void deAuthorizeIP(TestEnvironment env) {
@@ -860,11 +898,14 @@ public class TestEnvironment implements AutoCloseable {
 
       if (!env.reuseDb) {
         env.auroraUtil.ec2DeauthorizesIP(env.runnerIP);
-        LOGGER.finest(String.format("Test runner IP %s de-authorized. Usage count: %d",
-            env.runnerIP, ipAddressUsageRefCount.get()));
+        LOGGER.finest(
+            String.format(
+                "Test runner IP %s de-authorized. Usage count: %d",
+                env.runnerIP, ipAddressUsageRefCount.get()));
       } else {
-        LOGGER.finest("The IP address usage count hit 0, but the REUSE_RDS_DB was set to true, so IP "
-            + "de-authorization was skipped.");
+        LOGGER.finest(
+            "The IP address usage count hit 0, but the REUSE_RDS_DB was set to true, so IP "
+                + "de-authorization was skipped.");
       }
     } else {
       LOGGER.finest("IP usage count: " + ipAddressUsageRefCount.get());
@@ -956,9 +997,7 @@ public class TestEnvironment implements AutoCloseable {
   }
 
   private static String findEngineVersion(
-      TestEnvironment env,
-      String engineName,
-      String systemPropertyVersion) {
+      TestEnvironment env, String engineName, String systemPropertyVersion) {
 
     if (StringUtils.isNullOrEmpty(systemPropertyVersion)) {
       return env.auroraUtil.getDefaultVersion(engineName);
@@ -987,26 +1026,25 @@ public class TestEnvironment implements AutoCloseable {
 
   private static void initDatabaseParams(TestEnvironment env) {
     final boolean isHibernateOnly =
-        env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY);
+        env.info
+            .getRequest()
+            .getFeatures()
+            .contains(TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY);
     final String dbName =
         isHibernateOnly
             ? "hibernate_orm_test"
-            : (config.dbName == null
-              ? "test_database"
-              : config.dbName.trim());
+            : (config.dbName == null ? "test_database" : config.dbName.trim());
 
     final String dbUsername =
         isHibernateOnly
             ? "hibernate_orm_test"
-            : (!StringUtils.isNullOrEmpty(config.dbUsername)
-              ? config.dbUsername
-              : "test_user");
+            : (!StringUtils.isNullOrEmpty(config.dbUsername) ? config.dbUsername : "test_user");
     final String dbPassword =
         isHibernateOnly
             ? "hibernate_orm_test"
             : (!StringUtils.isNullOrEmpty(config.dbPassword)
-              ? config.dbPassword
-              : "secret_password");
+                ? config.dbPassword
+                : "secret_password");
 
     env.info.setDatabaseInfo(new TestDatabaseInfo());
     env.info.getDatabaseInfo().setUsername(dbUsername);
@@ -1057,14 +1095,10 @@ public class TestEnvironment implements AutoCloseable {
 
       container.start();
       env.proxyContainers.add(container);
-      final ToxiproxyClient toxiproxyClient = new ToxiproxyClient(
-          container.getHost(),
-          container.getMappedPort(PROXY_CONTROL_PORT));
+      final ToxiproxyClient toxiproxyClient =
+          new ToxiproxyClient(container.getHost(), container.getMappedPort(PROXY_CONTROL_PORT));
 
-      containerHelper.createProxy(
-          toxiproxyClient,
-          instance.getHost(),
-          instance.getPort());
+      containerHelper.createProxy(toxiproxyClient, instance.getHost(), instance.getPort());
     }
 
     if (!StringUtils.isNullOrEmpty(env.info.getDatabaseInfo().getClusterEndpoint())) {
@@ -1120,47 +1154,65 @@ public class TestEnvironment implements AutoCloseable {
   private static void createTestContainer(TestEnvironment env) {
     final ContainerHelper containerHelper = new ContainerHelper();
 
-    if (env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY)) {
+    if (env.info
+        .getRequest()
+        .getFeatures()
+        .contains(TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY)) {
       env.testContainer =
-          containerHelper.createTestContainer(
+          containerHelper
+              .createTestContainer(
                   "aws/rds-test-container",
                   getContainerBaseImageName(env.info.getRequest()),
-                  builder -> builder
-                      .run("apk", "add", "--no-cache", "--upgrade", "bash")
-                      .run("apk", "add", "git")
-                      .run("git", "clone", "--depth", "1", "--branch", HIBERNATE_VERSION,
-                          "https://github.com/hibernate/hibernate-orm.git", "/app/hibernate-orm")
-                      .run("rm -f /app/libs/*-bundle-*.jar")
-                      .run("rm -f /app/hibernate-orm/drivers/*-bundle-*.jar"))
-              .withCopyFileToContainer(MountableFile.forHostPath("./build/libs"),
-                  "app/hibernate-orm/drivers")
-              .withCopyFileToContainer(MountableFile.forHostPath(
+                  builder ->
+                      builder
+                          .run("apk", "add", "--no-cache", "--upgrade", "bash")
+                          .run("apk", "add", "git")
+                          .run(
+                              "git",
+                              "clone",
+                              "--depth",
+                              "1",
+                              "--branch",
+                              HIBERNATE_VERSION,
+                              "https://github.com/hibernate/hibernate-orm.git",
+                              "/app/hibernate-orm")
+                          .run("rm -f /app/libs/*-bundle-*.jar")
+                          .run("rm -f /app/hibernate-orm/drivers/*-bundle-*.jar"))
+              .withCopyFileToContainer(
+                  MountableFile.forHostPath("./build/libs"), "app/hibernate-orm/drivers")
+              .withCopyFileToContainer(
+                  MountableFile.forHostPath(
                       "src/test/resources/hibernate_files/local.databases.gradle"),
                   "app/hibernate-orm/local-build-plugins/src/main/groovy/local.databases.gradle")
-              .withCopyFileToContainer(MountableFile.forHostPath(
+              .withCopyFileToContainer(
+                  MountableFile.forHostPath(
                       "src/test/resources/hibernate_files/PostgreSQLCastingIntervalSecondJdbcType.java"),
                   "app/hibernate-orm/hibernate-core/src/main/java/org/hibernate/dialect/type/"
-                        + "PostgreSQLCastingIntervalSecondJdbcType.java")
-              .withCopyFileToContainer(MountableFile.forHostPath(
+                      + "PostgreSQLCastingIntervalSecondJdbcType.java")
+              .withCopyFileToContainer(
+                  MountableFile.forHostPath(
                       "src/test/resources/hibernate_files/DataSourceTest.java"),
                   "app/hibernate-orm/hibernate-core/src/test/java/org/hibernate/orm/test/datasource/"
                       + "DataSourceTest.java")
-              .withCopyFileToContainer(MountableFile.forHostPath(
+              .withCopyFileToContainer(
+                  MountableFile.forHostPath(
                       "src/test/resources/hibernate_files/StructEmbeddableArrayTest.java"),
                   "app/hibernate-orm/hibernate-core/src/test/java/org/hibernate/orm/test/mapping/embeddable/"
                       + "StructEmbeddableArrayTest.java")
-              .withCopyFileToContainer(MountableFile.forHostPath(
+              .withCopyFileToContainer(
+                  MountableFile.forHostPath(
                       "src/test/resources/hibernate_files/PostgresIntervalSecondTest.java"),
                   "app/hibernate-orm/hibernate-core/src/test/java/org/hibernate/orm/test/type/"
                       + "PostgresIntervalSecondTest.java")
-              .withCopyFileToContainer(MountableFile.forHostPath(
+              .withCopyFileToContainer(
+                  MountableFile.forHostPath(
                       "src/test/resources/hibernate_files/collect_test_results.sh"),
                   "app/collect_test_results.sh");
 
     } else {
-      env.testContainer = containerHelper.createTestContainer(
-          "aws/rds-test-container",
-          getContainerBaseImageName(env.info.getRequest()));
+      env.testContainer =
+          containerHelper.createTestContainer(
+              "aws/rds-test-container", getContainerBaseImageName(env.info.getRequest()));
     }
 
     env.testContainer
@@ -1191,10 +1243,9 @@ public class TestEnvironment implements AutoCloseable {
     LOGGER.finest("Creating XRay telemetry container");
     final ContainerHelper containerHelper = new ContainerHelper();
 
-    env.telemetryXRayContainer = containerHelper.createTelemetryXrayContainer(
-        xrayAwsRegion,
-        env.network,
-        TELEMETRY_XRAY_CONTAINER_NAME);
+    env.telemetryXRayContainer =
+        containerHelper.createTelemetryXrayContainer(
+            xrayAwsRegion, env.network, TELEMETRY_XRAY_CONTAINER_NAME);
 
     if (!env.info
         .getRequest()
@@ -1218,9 +1269,8 @@ public class TestEnvironment implements AutoCloseable {
     LOGGER.finest("Creating OTLP telemetry container");
     final ContainerHelper containerHelper = new ContainerHelper();
 
-    env.telemetryOtlpContainer = containerHelper.createTelemetryOtlpContainer(
-        env.network,
-        TELEMETRY_OTLP_CONTAINER_NAME);
+    env.telemetryOtlpContainer =
+        containerHelper.createTelemetryOtlpContainer(env.network, TELEMETRY_OTLP_CONTAINER_NAME);
 
     if (!env.info
         .getRequest()
@@ -1229,9 +1279,10 @@ public class TestEnvironment implements AutoCloseable {
       throw new RuntimeException("AWS_CREDENTIALS_ENABLED is required for OTLP telemetry.");
     }
 
-    String otlpRegion = !StringUtils.isNullOrEmpty(System.getenv("OTLP_AWS_REGION"))
-        ? System.getenv("OTLP_AWS_REGION")
-        : "us-east-2";
+    String otlpRegion =
+        !StringUtils.isNullOrEmpty(System.getenv("OTLP_AWS_REGION"))
+            ? System.getenv("OTLP_AWS_REGION")
+            : "us-east-2";
 
     env.telemetryOtlpContainer
         .withEnv("AWS_ACCESS_KEY_ID", env.awsAccessKeyId)
@@ -1274,9 +1325,7 @@ public class TestEnvironment implements AutoCloseable {
     final DatabaseEngineDeployment deployment = env.info.getRequest().getDatabaseEngineDeployment();
 
     env.info.setIamUsername(
-        !StringUtils.isNullOrEmpty(config.iamUser)
-            ? config.iamUser
-            : "jane_doe");
+        !StringUtils.isNullOrEmpty(config.iamUser) ? config.iamUser : "jane_doe");
 
     if (!env.reuseDb) {
       try {
@@ -1292,30 +1341,36 @@ public class TestEnvironment implements AutoCloseable {
       switch (deployment) {
         case AURORA:
         case RDS_MULTI_AZ_CLUSTER:
-          url = String.format(
-              "%s%s:%d/%s",
-              DriverHelper.getDriverProtocol(env.info.getRequest().getDatabaseEngine()),
-              env.info.getDatabaseInfo().getClusterEndpoint(),
-              env.info.getDatabaseInfo().getClusterEndpointPort(),
-              env.info.getDatabaseInfo().getDefaultDbName());
+          url =
+              String.format(
+                  "%s%s:%d/%s",
+                  DriverHelper.getDriverProtocol(env.info.getRequest().getDatabaseEngine()),
+                  env.info.getDatabaseInfo().getClusterEndpoint(),
+                  env.info.getDatabaseInfo().getClusterEndpointPort(),
+                  env.info.getDatabaseInfo().getDefaultDbName());
           break;
         case RDS_MULTI_AZ_INSTANCE:
-          url = String.format(
-              "%s%s:%d/%s",
-              DriverHelper.getDriverProtocol(env.info.getRequest().getDatabaseEngine()),
-              env.info.getDatabaseInfo().getInstances().get(0).getHost(),
-              env.info.getDatabaseInfo().getInstances().get(0).getPort(),
-              env.info.getDatabaseInfo().getDefaultDbName());
+          url =
+              String.format(
+                  "%s%s:%d/%s",
+                  DriverHelper.getDriverProtocol(env.info.getRequest().getDatabaseEngine()),
+                  env.info.getDatabaseInfo().getInstances().get(0).getHost(),
+                  env.info.getDatabaseInfo().getInstances().get(0).getPort(),
+                  env.info.getDatabaseInfo().getDefaultDbName());
           break;
         default:
           throw new UnsupportedOperationException(deployment.toString());
       }
 
       try {
-        final boolean useRdsTools = env.info.getRequest().getFeatures()
-              .contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)
-            && env.info.getRequest().getDatabaseEngine() == DatabaseEngine.PG
-            && env.info.getRequest().getDatabaseEngineDeployment() == DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE;
+        final boolean useRdsTools =
+            env.info
+                    .getRequest()
+                    .getFeatures()
+                    .contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)
+                && env.info.getRequest().getDatabaseEngine() == DatabaseEngine.PG
+                && env.info.getRequest().getDatabaseEngineDeployment()
+                    == DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE;
         env.auroraUtil.addAuroraAwsIamUser(
             env.info.getRequest().getDatabaseEngine(),
             url,
@@ -1343,11 +1398,13 @@ public class TestEnvironment implements AutoCloseable {
   public void runTests(String taskName) throws IOException, InterruptedException {
     final ContainerHelper containerHelper = new ContainerHelper();
 
-    if (this.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY)) {
-      final Long exitCode = containerHelper.runCmdInDirectory(
-          this.testContainer,
-          "/app/hibernate-orm",
-          buildHibernateCommands(false));
+    if (this.info
+        .getRequest()
+        .getFeatures()
+        .contains(TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY)) {
+      final Long exitCode =
+          containerHelper.runCmdInDirectory(
+              this.testContainer, "/app/hibernate-orm", buildHibernateCommands(false));
       containerHelper.runCmd(this.testContainer, "bash", "./collect_test_results.sh");
       assertEquals(0, exitCode, "Hibernate ORM tests failed");
     } else {
@@ -1359,35 +1416,42 @@ public class TestEnvironment implements AutoCloseable {
   public void debugTests(String taskName) throws IOException, InterruptedException {
     final ContainerHelper containerHelper = new ContainerHelper();
 
-    if (this.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY)) {
-      final Long exitCode = containerHelper.runCmdInDirectory(
-          this.testContainer,
-          "/app/hibernate-orm",
-          buildHibernateCommands(true));
+    if (this.info
+        .getRequest()
+        .getFeatures()
+        .contains(TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY)) {
+      final Long exitCode =
+          containerHelper.runCmdInDirectory(
+              this.testContainer, "/app/hibernate-orm", buildHibernateCommands(true));
       containerHelper.runCmd(this.testContainer, "bash", "./collect_test_results.sh");
       assertEquals(0, exitCode, "Hibernate ORM tests failed");
     } else {
       TestEnvironmentConfiguration config = new TestEnvironmentConfiguration();
-      containerHelper.debugTest(this.testContainer, taskName, config.includeTags, config.excludeTags);
+      containerHelper.debugTest(
+          this.testContainer, taskName, config.includeTags, config.excludeTags);
     }
   }
 
   private String[] buildHibernateCommands(boolean debugMode) {
     final TestDatabaseInfo dbInfo = this.info.getDatabaseInfo();
-    final List<String> command = new ArrayList<>(Arrays.asList(
-        "./gradlew", "test",
-        "-DdbHost=" + DATABASE_CONTAINER_NAME_PREFIX + "1", // Hibernate ORM tests only support 1 database instance
-        "-DdbUser=" + dbInfo.getUsername(),
-        "-DdbPass=" + dbInfo.getPassword(),
-        "-DdbName=" + dbInfo.getDefaultDbName(),
-        "--no-parallel",
-        "--no-daemon",
-        "--no-build-cache",
-        "-Duser.language=en",
-        "-Duser.country=US",
-        "-Duser.timezone=UTC",
-        "-Dfile.encoding=UTF-8"
-    ));
+    final List<String> command =
+        new ArrayList<>(
+            Arrays.asList(
+                "./gradlew",
+                "test",
+                "-DdbHost="
+                    + DATABASE_CONTAINER_NAME_PREFIX
+                    + "1", // Hibernate ORM tests only support 1 database instance
+                "-DdbUser=" + dbInfo.getUsername(),
+                "-DdbPass=" + dbInfo.getPassword(),
+                "-DdbName=" + dbInfo.getDefaultDbName(),
+                "--no-parallel",
+                "--no-daemon",
+                "--no-build-cache",
+                "-Duser.language=en",
+                "-Duser.country=US",
+                "-Duser.timezone=UTC",
+                "-Dfile.encoding=UTF-8"));
 
     if (debugMode) {
       command.add("--debug-jvm");
@@ -1440,7 +1504,10 @@ public class TestEnvironment implements AutoCloseable {
 
     switch (this.info.getRequest().getDatabaseEngineDeployment()) {
       case AURORA:
-        if (this.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)
+        if (this.info
+                .getRequest()
+                .getFeatures()
+                .contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)
             && !StringUtils.isNullOrEmpty(this.info.getBlueGreenDeploymentId())) {
           deleteBlueGreenDeployment();
           deleteDbCluster(true);
@@ -1455,7 +1522,10 @@ public class TestEnvironment implements AutoCloseable {
         deAuthorizeIP(this);
         break;
       case RDS_MULTI_AZ_INSTANCE:
-        if (this.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)
+        if (this.info
+                .getRequest()
+                .getFeatures()
+                .contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)
             && !StringUtils.isNullOrEmpty(this.info.getBlueGreenDeploymentId())) {
           deleteBlueGreenDeployment();
         }
@@ -1470,7 +1540,8 @@ public class TestEnvironment implements AutoCloseable {
         // do nothing
         break;
       default:
-        throw new NotImplementedException(this.info.getRequest().getDatabaseEngineDeployment().toString());
+        throw new NotImplementedException(
+            this.info.getRequest().getDatabaseEngineDeployment().toString());
     }
   }
 
@@ -1501,7 +1572,8 @@ public class TestEnvironment implements AutoCloseable {
           break;
         }
 
-        blueGreenDeployment = auroraUtil.getBlueGreenDeployment(this.info.getBlueGreenDeploymentId());
+        blueGreenDeployment =
+            auroraUtil.getBlueGreenDeployment(this.info.getBlueGreenDeploymentId());
 
         if (blueGreenDeployment == null) {
           return;
@@ -1520,7 +1592,8 @@ public class TestEnvironment implements AutoCloseable {
           // Delete old1 cluster
           DBCluster old1ClusterInfo = auroraUtil.getClusterByArn(blueGreenDeployment.source());
           if (old1ClusterInfo != null) {
-            auroraUtil.waitUntilClusterHasRightState(old1ClusterInfo.dbClusterIdentifier(), "available");
+            auroraUtil.waitUntilClusterHasRightState(
+                old1ClusterInfo.dbClusterIdentifier(), "available");
             LOGGER.finest("Deleting Aurora cluster " + old1ClusterInfo.dbClusterIdentifier());
             auroraUtil.deleteCluster(
                 old1ClusterInfo.dbClusterIdentifier(),
@@ -1547,7 +1620,8 @@ public class TestEnvironment implements AutoCloseable {
           break;
         }
 
-        blueGreenDeployment = auroraUtil.getBlueGreenDeployment(this.info.getBlueGreenDeploymentId());
+        blueGreenDeployment =
+            auroraUtil.getBlueGreenDeployment(this.info.getBlueGreenDeploymentId());
 
         if (blueGreenDeployment == null) {
           return;
@@ -1562,7 +1636,8 @@ public class TestEnvironment implements AutoCloseable {
 
         if ("SWITCHOVER_COMPLETED".equals(blueGreenDeployment.status())) {
           // Delete old1 cluster
-          DBInstance old1InstanceInfo = auroraUtil.getRdsInstanceInfoByArn(blueGreenDeployment.source());
+          DBInstance old1InstanceInfo =
+              auroraUtil.getRdsInstanceInfoByArn(blueGreenDeployment.source());
           if (old1InstanceInfo != null) {
             LOGGER.finest("Deleting MultiAz Instance " + old1InstanceInfo.dbInstanceIdentifier());
             auroraUtil.deleteMultiAzInstance(old1InstanceInfo.dbInstanceIdentifier(), true);
@@ -1570,7 +1645,8 @@ public class TestEnvironment implements AutoCloseable {
           }
         } else {
           // Delete green cluster
-          DBInstance greenInstanceInfo = auroraUtil.getRdsInstanceInfoByArn(blueGreenDeployment.target());
+          DBInstance greenInstanceInfo =
+              auroraUtil.getRdsInstanceInfoByArn(blueGreenDeployment.target());
           if (greenInstanceInfo != null) {
             auroraUtil.promoteInstanceToStandalone(blueGreenDeployment.target());
             LOGGER.finest("Deleting MultiAz Instance " + greenInstanceInfo.dbInstanceIdentifier());
@@ -1580,7 +1656,8 @@ public class TestEnvironment implements AutoCloseable {
         }
         break;
       default:
-        throw new RuntimeException("Unsupported " + this.info.getRequest().getDatabaseEngineDeployment());
+        throw new RuntimeException(
+            "Unsupported " + this.info.getRequest().getDatabaseEngineDeployment());
     }
   }
 
@@ -1589,7 +1666,8 @@ public class TestEnvironment implements AutoCloseable {
       try {
         this.auroraUtil.deleteCustomClusterParameterGroup(groupName);
       } catch (Exception ex) {
-        LOGGER.finest(String.format("Error deleting cluster parameter group %s. %s", groupName, ex));
+        LOGGER.finest(
+            String.format("Error deleting cluster parameter group %s. %s", groupName, ex));
       }
     }
   }
@@ -1606,62 +1684,73 @@ public class TestEnvironment implements AutoCloseable {
 
       if (preCreateInfo.envPreCreateFuture == null
           && (preCreateInfo.request.getDatabaseEngineDeployment() == DatabaseEngineDeployment.AURORA
-            || preCreateInfo.request.getDatabaseEngineDeployment() == DatabaseEngineDeployment.RDS
-            || preCreateInfo.request.getDatabaseEngineDeployment() == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER)) {
+              || preCreateInfo.request.getDatabaseEngineDeployment() == DatabaseEngineDeployment.RDS
+              || preCreateInfo.request.getDatabaseEngineDeployment()
+                  == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER)) {
 
         // run environment creation in advance
         int finalIndex = index;
-        LOGGER.finest(() -> String.format("Pre-create environment for [%d] - %s",
-            finalIndex, preCreateInfo.request.getDisplayName()));
+        LOGGER.finest(
+            () ->
+                String.format(
+                    "Pre-create environment for [%d] - %s",
+                    finalIndex, preCreateInfo.request.getDisplayName()));
 
         final TestEnvironment env = new TestEnvironment(preCreateInfo.request);
 
-        preCreateInfo.envPreCreateFuture = envPreCreateExecutor.submit(() -> {
-          final long startTime = System.nanoTime();
-          try {
-            initRandomBase(env);
-            initDatabaseParams(env);
-            initAwsCredentials(env);
+        preCreateInfo.envPreCreateFuture =
+            envPreCreateExecutor.submit(
+                () -> {
+                  final long startTime = System.nanoTime();
+                  try {
+                    initRandomBase(env);
+                    initDatabaseParams(env);
+                    initAwsCredentials(env);
 
-            switch (env.info.getRequest().getDatabaseEngineDeployment()) {
-              case RDS_MULTI_AZ_INSTANCE:
-                initEnv(env);
-                authorizeRunnerIpAddress(env);
-                createMultiAzInstance(env);
-                configureIamAccess(env);
-                break;
-              case RDS_MULTI_AZ_CLUSTER:
-                initEnv(env);
-                authorizeRunnerIpAddress(env);
-                createDbCluster(env);
-                configureIamAccess(env);
-                break;
-              case AURORA:
-                initEnv(env);
-                authorizeRunnerIpAddress(env);
+                    switch (env.info.getRequest().getDatabaseEngineDeployment()) {
+                      case RDS_MULTI_AZ_INSTANCE:
+                        initEnv(env);
+                        authorizeRunnerIpAddress(env);
+                        createMultiAzInstance(env);
+                        configureIamAccess(env);
+                        break;
+                      case RDS_MULTI_AZ_CLUSTER:
+                        initEnv(env);
+                        authorizeRunnerIpAddress(env);
+                        createDbCluster(env);
+                        configureIamAccess(env);
+                        break;
+                      case AURORA:
+                        initEnv(env);
+                        authorizeRunnerIpAddress(env);
 
-                if (env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)) {
-                  createCustomClusterParameterGroup(env);
-                }
-                createDbCluster(env);
-                configureIamAccess(env);
-                break;
-              default:
-                throw new NotImplementedException(env.info.getRequest().getDatabaseEngineDeployment().toString());
-            }
-            return env;
+                        if (env.info
+                            .getRequest()
+                            .getFeatures()
+                            .contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)) {
+                          createCustomClusterParameterGroup(env);
+                        }
+                        createDbCluster(env);
+                        configureIamAccess(env);
+                        break;
+                      default:
+                        throw new NotImplementedException(
+                            env.info.getRequest().getDatabaseEngineDeployment().toString());
+                    }
+                    return env;
 
-          } catch (Exception ex) {
-            return ex;
-          } finally {
-            final long duration = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime);
-            LOGGER.finest(() -> String.format(
-                "Pre-create environment task [%d] run in background for %d sec.",
-                finalIndex,
-                duration));
-          }
-        });
-
+                  } catch (Exception ex) {
+                    return ex;
+                  } finally {
+                    final long duration =
+                        TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime);
+                    LOGGER.finest(
+                        () ->
+                            String.format(
+                                "Pre-create environment task [%d] run in background for %d sec.",
+                                finalIndex, duration));
+                  }
+                });
       }
       index++;
     }

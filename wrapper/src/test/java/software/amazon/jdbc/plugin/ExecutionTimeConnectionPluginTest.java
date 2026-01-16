@@ -54,10 +54,12 @@ class ExecutionTimeConnectionPluginTest {
 
   @Test
   void test_executeTime() throws SQLException, UnsupportedEncodingException {
-    when(mockCallable.call()).thenAnswer(i -> {
-      TimeUnit.MILLISECONDS.sleep(10);
-      return null;
-    });
+    when(mockCallable.call())
+        .thenAnswer(
+            i -> {
+              TimeUnit.MILLISECONDS.sleep(10);
+              return null;
+            });
     final Logger logger = Logger.getLogger(""); // get root logger
     final ByteArrayOutputStream os = new ByteArrayOutputStream();
     final StreamHandler handler = new StreamHandler(os, new SimpleFormatter());

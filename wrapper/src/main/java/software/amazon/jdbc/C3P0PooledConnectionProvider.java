@@ -40,7 +40,8 @@ import software.amazon.jdbc.util.storage.SlidingExpirationCache;
 
 public class C3P0PooledConnectionProvider implements PooledConnectionProvider, CanReleaseResources {
 
-  private static final Logger LOGGER = Logger.getLogger(C3P0PooledConnectionProvider.class.getName());
+  private static final Logger LOGGER =
+      Logger.getLogger(C3P0PooledConnectionProvider.class.getName());
 
   private static final String CONNECTION_POOL_PROPERTY_PREFIX = "cp-";
 
@@ -48,22 +49,27 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
       new SlidingExpirationCache<>(null, ComboPooledDataSource::close);
 
   protected static final Map<String, HostSelector> acceptedStrategies =
-      Collections.unmodifiableMap(new HashMap<String, HostSelector>() {
-        {
-          put(HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT, new HighestWeightHostSelector());
-          put(RandomHostSelector.STRATEGY_RANDOM, new RandomHostSelector());
-          put(RoundRobinHostSelector.STRATEGY_ROUND_ROBIN, new RoundRobinHostSelector());
-          put(WeightedRandomHostSelector.STRATEGY_WEIGHTED_RANDOM, new WeightedRandomHostSelector());
-        }
-      });
+      Collections.unmodifiableMap(
+          new HashMap<String, HostSelector>() {
+            {
+              put(
+                  HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT,
+                  new HighestWeightHostSelector());
+              put(RandomHostSelector.STRATEGY_RANDOM, new RandomHostSelector());
+              put(RoundRobinHostSelector.STRATEGY_ROUND_ROBIN, new RoundRobinHostSelector());
+              put(
+                  WeightedRandomHostSelector.STRATEGY_WEIGHTED_RANDOM,
+                  new WeightedRandomHostSelector());
+            }
+          });
   protected static final long poolExpirationCheckNanos = TimeUnit.MINUTES.toNanos(30);
   protected static final RdsUtils rdsUtils = new RdsUtils();
 
-  public C3P0PooledConnectionProvider() {
-  }
+  public C3P0PooledConnectionProvider() {}
 
   @Override
-  public boolean acceptsUrl(@NonNull String protocol, @NonNull HostSpec hostSpec, @NonNull Properties props) {
+  public boolean acceptsUrl(
+      @NonNull String protocol, @NonNull HostSpec hostSpec, @NonNull Properties props) {
     final RdsUrlType urlType = rdsUtils.identifyRdsType(hostSpec.getHost());
     return RdsUrlType.RDS_INSTANCE.equals(urlType);
   }
@@ -75,7 +81,10 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
 
   @Override
   public HostSpec getHostSpecByStrategy(
-      @NonNull List<HostSpec> hosts, @Nullable HostRole role, @NonNull String strategy, @Nullable Properties props)
+      @NonNull List<HostSpec> hosts,
+      @Nullable HostRole role,
+      @NonNull String strategy,
+      @Nullable Properties props)
       throws SQLException, UnsupportedOperationException {
     if (!acceptsStrategy(role, strategy)) {
       throw new UnsupportedOperationException(
@@ -88,17 +97,21 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
   }
 
   @Override
-  public @NonNull ConnectionInfo connect(@NonNull String protocol, @NonNull Dialect dialect,
-      @NonNull TargetDriverDialect targetDriverDialect, @NonNull HostSpec hostSpec,
-      @NonNull Properties props) throws SQLException {
+  public @NonNull ConnectionInfo connect(
+      @NonNull String protocol,
+      @NonNull Dialect dialect,
+      @NonNull TargetDriverDialect targetDriverDialect,
+      @NonNull HostSpec hostSpec,
+      @NonNull Properties props)
+      throws SQLException {
     final Properties copy = PropertyUtils.copyProperties(props);
     dialect.prepareConnectProperties(copy, protocol, hostSpec);
 
-    final ComboPooledDataSource ds = databasePools.computeIfAbsent(
-        hostSpec.getUrl(),
-        (key) -> createDataSource(protocol, hostSpec, copy, targetDriverDialect),
-        poolExpirationCheckNanos
-    );
+    final ComboPooledDataSource ds =
+        databasePools.computeIfAbsent(
+            hostSpec.getUrl(),
+            (key) -> createDataSource(protocol, hostSpec, copy, targetDriverDialect),
+            poolExpirationCheckNanos);
 
     ds.setPassword(copy.getProperty(PropertyDefinition.PASSWORD.name));
 
@@ -118,8 +131,7 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
         .forEach(
             p -> {
               poolProperties.put(
-                  p.substring(CONNECTION_POOL_PROPERTY_PREFIX.length()),
-                  props.getProperty(p));
+                  p.substring(CONNECTION_POOL_PROPERTY_PREFIX.length()), props.getProperty(p));
               copy.remove(p);
             });
 
@@ -133,11 +145,13 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
     final StringBuilder urlBuilder = new StringBuilder(connectInfo.url);
 
     final StringJoiner propsJoiner = new StringJoiner("&");
-    connectInfo.props.forEach((k, v) -> {
-      if (!PropertyDefinition.PASSWORD.name.equals(k) && !PropertyDefinition.USER.name.equals(k)) {
-        propsJoiner.add(k + "=" + v);
-      }
-    });
+    connectInfo.props.forEach(
+        (k, v) -> {
+          if (!PropertyDefinition.PASSWORD.name.equals(k)
+              && !PropertyDefinition.USER.name.equals(k)) {
+            propsJoiner.add(k + "=" + v);
+          }
+        });
 
     urlBuilder.append(connectInfo.url.contains("?") ? "&" : "?").append(propsJoiner);
 
@@ -154,8 +168,11 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
       ds.setPassword(password);
     }
 
-    LOGGER.finest(() -> PropertyUtils.logProperties(PropertyUtils.maskProperties(poolProperties),
-        "ComboPooledDataSource properties: \n"));
+    LOGGER.finest(
+        () ->
+            PropertyUtils.logProperties(
+                PropertyUtils.maskProperties(poolProperties),
+                "ComboPooledDataSource properties: \n"));
 
     if (!poolProperties.isEmpty()) {
       PropertyUtils.applyProperties(ds, poolProperties);
@@ -176,24 +193,29 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
   }
 
   public void logConnections() {
-    LOGGER.finest(() -> {
-      final StringBuilder builder = new StringBuilder();
-      databasePools.getEntries().forEach((key, dataSource) -> {
-        builder.append("\t[ ");
-        builder.append(key).append(":");
-        builder.append("\n\t {");
-        builder.append("\n\t\t").append(dataSource);
-        try {
-          builder.append(String.format(" %d/%d",
-              dataSource.getNumBusyConnections(), dataSource.getNumConnections()));
-        } catch (SQLException e) {
-          // ignore
-        }
-        builder.append("\n\t }\n");
-        builder.append("\t");
-      });
-      return String.format("c3p0 Pooled Connection: \n[\n%s\n]", builder);
-    });
+    LOGGER.finest(
+        () -> {
+          final StringBuilder builder = new StringBuilder();
+          databasePools
+              .getEntries()
+              .forEach(
+                  (key, dataSource) -> {
+                    builder.append("\t[ ");
+                    builder.append(key).append(":");
+                    builder.append("\n\t {");
+                    builder.append("\n\t\t").append(dataSource);
+                    try {
+                      builder.append(
+                          String.format(
+                              " %d/%d",
+                              dataSource.getNumBusyConnections(), dataSource.getNumConnections()));
+                    } catch (SQLException e) {
+                      // ignore
+                    }
+                    builder.append("\n\t }\n");
+                    builder.append("\t");
+                  });
+          return String.format("c3p0 Pooled Connection: \n[\n%s\n]", builder);
+        });
   }
-
 }

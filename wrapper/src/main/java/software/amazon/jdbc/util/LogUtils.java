@@ -28,8 +28,7 @@ public class LogUtils {
   }
 
   public static String logTopology(
-      final @Nullable List<HostSpec> hosts,
-      final @Nullable String messagePrefix) {
+      final @Nullable List<HostSpec> hosts, final @Nullable String messagePrefix) {
 
     final StringBuilder msg = new StringBuilder();
     if (hosts == null) {
@@ -43,7 +42,8 @@ public class LogUtils {
       }
     }
 
-    return Messages.get("Utils.topology",
+    return Messages.get(
+        "Utils.topology",
         new Object[] {messagePrefix == null ? "Topology:" : messagePrefix, msg.toString()});
   }
 

@@ -41,14 +41,14 @@ import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.monitoring.MonitorErrorResponse;
 
 public class LimitlessRouterServiceImpl implements LimitlessRouterService {
-  private static final Logger LOGGER =
-      Logger.getLogger(LimitlessRouterServiceImpl.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(LimitlessRouterServiceImpl.class.getName());
   public static final AwsWrapperProperty MONITOR_DISPOSAL_TIME_MS =
       new AwsWrapperProperty(
           "limitlessTransactionRouterMonitorDisposalTimeMs",
           "600000", // 10min
           "Interval in milliseconds for an Limitless router monitor to be considered inactive and to be disposed.");
-  protected static final Map<String, ResourceLock> forceGetLimitlessRoutersLockMap = new ConcurrentHashMap<>();
+  protected static final Map<String, ResourceLock> forceGetLimitlessRoutersLockMap =
+      new ConcurrentHashMap<>();
   protected static final EnumSet<MonitorErrorResponse> monitorErrorResponses =
       EnumSet.of(MonitorErrorResponse.RECREATE);
   protected final FullServicesContainer servicesContainer;
@@ -60,8 +60,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
   }
 
   public LimitlessRouterServiceImpl(
-      final @NonNull FullServicesContainer servicesContainer,
-      final @NonNull Properties props) {
+      final @NonNull FullServicesContainer servicesContainer, final @NonNull Properties props) {
     this(servicesContainer, new LimitlessQueryHelper(servicesContainer.getPluginService()), props);
   }
 
@@ -73,30 +72,34 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
     this.pluginService = servicesContainer.getPluginService();
     this.queryHelper = queryHelper;
 
-    this.servicesContainer.getStorageService().registerItemClassIfAbsent(
-        LimitlessRouters.class,
-        true,
-        TimeUnit.MILLISECONDS.toNanos(MONITOR_DISPOSAL_TIME_MS.getLong(props)),
-        null,
-        null
-    );
+    this.servicesContainer
+        .getStorageService()
+        .registerItemClassIfAbsent(
+            LimitlessRouters.class,
+            true,
+            TimeUnit.MILLISECONDS.toNanos(MONITOR_DISPOSAL_TIME_MS.getLong(props)),
+            null,
+            null);
 
-    this.servicesContainer.getMonitorService().registerMonitorTypeIfAbsent(
-        LimitlessRouterMonitor.class,
-        TimeUnit.MILLISECONDS.toNanos(MONITOR_DISPOSAL_TIME_MS.getLong(props)),
-        TimeUnit.MINUTES.toNanos(3),
-        monitorErrorResponses,
-        LimitlessRouters.class
-    );
+    this.servicesContainer
+        .getMonitorService()
+        .registerMonitorTypeIfAbsent(
+            LimitlessRouterMonitor.class,
+            TimeUnit.MILLISECONDS.toNanos(MONITOR_DISPOSAL_TIME_MS.getLong(props)),
+            TimeUnit.MINUTES.toNanos(3),
+            monitorErrorResponses,
+            LimitlessRouters.class);
   }
 
   @Override
   public void establishConnection(final LimitlessConnectionContext context) throws SQLException {
-    context.setLimitlessRouters(getLimitlessRouters(this.pluginService.getHostListProvider().getClusterId()));
+    context.setLimitlessRouters(
+        getLimitlessRouters(this.pluginService.getHostListProvider().getClusterId()));
 
     if (Utils.isNullOrEmpty(context.getLimitlessRouters())) {
       LOGGER.finest(Messages.get("LimitlessRouterServiceImpl.limitlessRouterCacheEmpty"));
-      final boolean waitForRouterInfo = LimitlessConnectionPlugin.WAIT_FOR_ROUTER_INFO.getBoolean(context.getProps());
+      final boolean waitForRouterInfo =
+          LimitlessConnectionPlugin.WAIT_FOR_ROUTER_INFO.getBoolean(context.getProps());
       if (waitForRouterInfo) {
         synchronouslyGetLimitlessRoutersWithRetry(context);
       } else {
@@ -108,11 +111,13 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       }
     }
 
-    if (Utils.containsHostAndPort(context.getLimitlessRouters(), context.getHostSpec().getHostAndPort())) {
-      LOGGER.finest(Messages.get(
-          "LimitlessRouterServiceImpl.connectWithHost",
-          new Object[] {context.getHostSpec().getHost()}));
-      if (context.getConnection() == null  || context.getConnection().isClosed()) {
+    if (Utils.containsHostAndPort(
+        context.getLimitlessRouters(), context.getHostSpec().getHostAndPort())) {
+      LOGGER.finest(
+          Messages.get(
+              "LimitlessRouterServiceImpl.connectWithHost",
+              new Object[] {context.getHostSpec().getHost()}));
+      if (context.getConnection() == null || context.getConnection().isClosed()) {
         try {
           context.setConnection(context.getConnectFunc().call());
         } catch (final SQLException e) {
@@ -125,18 +130,21 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       return;
     }
 
-    HostSelectorUtils.setHostWeightPairsProperty(WeightedRandomHostSelector.WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS,
+    HostSelectorUtils.setHostWeightPairsProperty(
+        WeightedRandomHostSelector.WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS,
         context.getProps(),
         context.getLimitlessRouters());
     HostSpec selectedHostSpec;
     try {
-      selectedHostSpec = this.pluginService.getHostSpecByStrategy(
-          context.getLimitlessRouters(),
-          HostRole.WRITER,
-          WeightedRandomHostSelector.STRATEGY_WEIGHTED_RANDOM);
-      LOGGER.fine(Messages.get(
-          "LimitlessRouterServiceImpl.selectedHost",
-          new Object[] {selectedHostSpec != null ? selectedHostSpec.getHost() : "null"}));
+      selectedHostSpec =
+          this.pluginService.getHostSpecByStrategy(
+              context.getLimitlessRouters(),
+              HostRole.WRITER,
+              WeightedRandomHostSelector.STRATEGY_WEIGHTED_RANDOM);
+      LOGGER.fine(
+          Messages.get(
+              "LimitlessRouterServiceImpl.selectedHost",
+              new Object[] {selectedHostSpec != null ? selectedHostSpec.getHost() : "null"}));
     } catch (SQLException e) {
       if (this.isLoginException(e)) {
         throw e;
@@ -151,15 +159,17 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
     }
 
     try {
-      context.setConnection(this.pluginService.connect(selectedHostSpec, context.getProps(), context.getPlugin()));
+      context.setConnection(
+          this.pluginService.connect(selectedHostSpec, context.getProps(), context.getPlugin()));
     } catch (SQLException e) {
       if (this.isLoginException(e)) {
         throw e;
       }
       if (selectedHostSpec != null) {
-        LOGGER.fine(Messages.get(
-            "LimitlessRouterServiceImpl.failedToConnectToHost",
-            new Object[] {selectedHostSpec.getHost()}));
+        LOGGER.fine(
+            Messages.get(
+                "LimitlessRouterServiceImpl.failedToConnectToHost",
+                new Object[] {selectedHostSpec.getHost()}));
         selectedHostSpec.setAvailability(HostAvailability.NOT_AVAILABLE);
       }
       // Retry connect prioritising the healthiest router for best chance of
@@ -169,27 +179,26 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
   }
 
   protected List<HostSpec> getLimitlessRouters(final String clusterId) {
-    LimitlessRouters routers = this.servicesContainer.getStorageService().get(LimitlessRouters.class, clusterId);
+    LimitlessRouters routers =
+        this.servicesContainer.getStorageService().get(LimitlessRouters.class, clusterId);
     return routers == null ? null : routers.getHosts();
   }
 
-  private void retryConnectWithLeastLoadedRouters(
-      final LimitlessConnectionContext context) throws SQLException {
+  private void retryConnectWithLeastLoadedRouters(final LimitlessConnectionContext context)
+      throws SQLException {
 
     int retryCount = 0;
     final int maxRetries = LimitlessConnectionPlugin.MAX_RETRIES.getInteger(context.getProps());
 
     while (retryCount++ < maxRetries) {
       if (Utils.isNullOrEmpty(context.getLimitlessRouters())
-          || context.getLimitlessRouters()
-          .stream()
-          .noneMatch(h -> h.getAvailability().equals(HostAvailability.AVAILABLE))) {
+          || context.getLimitlessRouters().stream()
+              .noneMatch(h -> h.getAvailability().equals(HostAvailability.AVAILABLE))) {
         synchronouslyGetLimitlessRoutersWithRetry(context);
 
         if (Utils.isNullOrEmpty(context.getLimitlessRouters())
-            || context.getLimitlessRouters()
-              .stream()
-              .noneMatch(h -> h.getAvailability().equals(HostAvailability.AVAILABLE))) {
+            || context.getLimitlessRouters().stream()
+                .noneMatch(h -> h.getAvailability().equals(HostAvailability.AVAILABLE))) {
           LOGGER.warning(Messages.get("LimitlessRouterServiceImpl.noRoutersAvailableForRetry"));
           if (context.getConnection() != null && !context.getConnection().isClosed()) {
             return;
@@ -201,9 +210,11 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
               if (this.isLoginException(e)) {
                 throw e;
               }
-              throw new SQLException(Messages.get(
-                  "LimitlessRouterServiceImpl.unableToConnectNoRoutersAvailable",
-                  new Object[] {context.getHostSpec().getHost()}), e);
+              throw new SQLException(
+                  Messages.get(
+                      "LimitlessRouterServiceImpl.unableToConnectNoRoutersAvailable",
+                      new Object[] {context.getHostSpec().getHost()}),
+                  e);
             }
           }
         }
@@ -211,12 +222,17 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
 
       final HostSpec selectedHostSpec;
       try {
-        // Select healthiest router for best chance of connection over load-balancing with round-robin
-        selectedHostSpec = this.pluginService.getHostSpecByStrategy(context.getLimitlessRouters(),
-            HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
-        LOGGER.finest(Messages.get(
-            "LimitlessRouterServiceImpl.selectedHostForRetry",
-            new Object[] {selectedHostSpec != null ? selectedHostSpec.getHost() : "null"}));
+        // Select healthiest router for best chance of connection over load-balancing with
+        // round-robin
+        selectedHostSpec =
+            this.pluginService.getHostSpecByStrategy(
+                context.getLimitlessRouters(),
+                HostRole.WRITER,
+                HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
+        LOGGER.finest(
+            Messages.get(
+                "LimitlessRouterServiceImpl.selectedHostForRetry",
+                new Object[] {selectedHostSpec != null ? selectedHostSpec.getHost() : "null"}));
         if (selectedHostSpec == null) {
           continue;
         }
@@ -229,7 +245,8 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       }
 
       try {
-        context.setConnection(pluginService.connect(selectedHostSpec, context.getProps(), context.getPlugin()));
+        context.setConnection(
+            pluginService.connect(selectedHostSpec, context.getProps(), context.getPlugin()));
         if (context.getConnection() != null) {
           return;
         }
@@ -238,9 +255,10 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
           throw e;
         }
         selectedHostSpec.setAvailability(HostAvailability.NOT_AVAILABLE);
-        LOGGER.finest(Messages.get(
-            "LimitlessRouterServiceImpl.failedToConnectToHost",
-            new Object[] {selectedHostSpec.getHost()}));
+        LOGGER.finest(
+            Messages.get(
+                "LimitlessRouterServiceImpl.failedToConnectToHost",
+                new Object[] {selectedHostSpec.getHost()}));
       }
     }
     throw new SQLException(Messages.get("LimitlessRouterServiceImpl.maxRetriesExceeded"));
@@ -250,8 +268,10 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       throws SQLException {
     LOGGER.finest(Messages.get("LimitlessRouterServiceImpl.synchronouslyGetLimitlessRouters"));
     int retryCount = -1; // start at -1 since the first try is not a retry.
-    int maxRetries = LimitlessConnectionPlugin.GET_ROUTER_MAX_RETRIES.getInteger(context.getProps());
-    int retryIntervalMs = LimitlessConnectionPlugin.GET_ROUTER_RETRY_INTERVAL_MILLIS.getInteger(context.getProps());
+    int maxRetries =
+        LimitlessConnectionPlugin.GET_ROUTER_MAX_RETRIES.getInteger(context.getProps());
+    int retryIntervalMs =
+        LimitlessConnectionPlugin.GET_ROUTER_RETRY_INTERVAL_MILLIS.getInteger(context.getProps());
     do {
       try {
         synchronouslyGetLimitlessRouters(context);
@@ -263,10 +283,13 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
         if (this.isLoginException(e)) {
           throw e;
         }
-        LOGGER.finest(Messages.get("LimitlessRouterServiceImpl.getLimitlessRoutersException", new Object[] {e}));
+        LOGGER.finest(
+            Messages.get(
+                "LimitlessRouterServiceImpl.getLimitlessRoutersException", new Object[] {e}));
       } catch (final InterruptedException e) {
         Thread.currentThread().interrupt();
-        throw new SQLException(Messages.get("LimitlessRouterServiceImpl.interruptedSynchronousGetRouter"), e);
+        throw new SQLException(
+            Messages.get("LimitlessRouterServiceImpl.interruptedSynchronousGetRouter"), e);
       } finally {
         retryCount++;
       }
@@ -276,10 +299,9 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
 
   protected void synchronouslyGetLimitlessRouters(final LimitlessConnectionContext context)
       throws SQLException {
-    final ResourceLock lock = forceGetLimitlessRoutersLockMap.computeIfAbsent(
-        this.pluginService.getHostListProvider().getClusterId(),
-        key -> new ResourceLock()
-    );
+    final ResourceLock lock =
+        forceGetLimitlessRoutersLockMap.computeIfAbsent(
+            this.pluginService.getHostListProvider().getClusterId(), key -> new ResourceLock());
     try (ResourceLock ignored = lock.obtain()) {
       final List<HostSpec> limitlessRouters =
           getLimitlessRouters(this.pluginService.getHostListProvider().getClusterId());
@@ -292,14 +314,15 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
         context.setConnection(context.getConnectFunc().call());
       }
       final List<HostSpec> newRouterList =
-          this.queryHelper.queryForLimitlessRouters(context.getConnection(), context.getHostSpec().getPort());
+          this.queryHelper.queryForLimitlessRouters(
+              context.getConnection(), context.getHostSpec().getPort());
 
       if (!Utils.isNullOrEmpty(newRouterList)) {
         context.setLimitlessRouters(newRouterList);
         LimitlessRouters newRouters = new LimitlessRouters(newRouterList);
-        this.servicesContainer.getStorageService().set(
-            this.pluginService.getHostListProvider().getClusterId(),
-            newRouters);
+        this.servicesContainer
+            .getStorageService()
+            .set(this.pluginService.getHostListProvider().getClusterId(), newRouters);
       } else {
         throw new SQLException(Messages.get("LimitlessRouterServiceImpl.fetchedEmptyRouterList"));
       }
@@ -307,29 +330,29 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
   }
 
   protected boolean isLoginException(Throwable throwable) {
-    return this.pluginService.isLoginException(throwable, this.pluginService.getTargetDriverDialect());
+    return this.pluginService.isLoginException(
+        throwable, this.pluginService.getTargetDriverDialect());
   }
 
   @Override
-  public void startMonitoring(final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props,
-      final int intervalMs) {
+  public void startMonitoring(
+      final @NonNull HostSpec hostSpec, final @NonNull Properties props, final int intervalMs) {
 
     try {
       final String limitlessRouterMonitorKey = pluginService.getHostListProvider().getClusterId();
-      this.servicesContainer.getMonitorService().runIfAbsent(
-          LimitlessRouterMonitor.class,
-          limitlessRouterMonitorKey,
-          this.servicesContainer,
-          props,
-          (servicesContainer) -> new LimitlessRouterMonitor(
-                  servicesContainer,
-                  hostSpec,
-                  limitlessRouterMonitorKey,
-                  props,
-                  intervalMs));
+      this.servicesContainer
+          .getMonitorService()
+          .runIfAbsent(
+              LimitlessRouterMonitor.class,
+              limitlessRouterMonitorKey,
+              this.servicesContainer,
+              props,
+              (servicesContainer) ->
+                  new LimitlessRouterMonitor(
+                      servicesContainer, hostSpec, limitlessRouterMonitorKey, props, intervalMs));
     } catch (SQLException e) {
-      LOGGER.warning(Messages.get("LimitlessRouterServiceImpl.errorStartingMonitor", new Object[]{e}));
+      LOGGER.warning(
+          Messages.get("LimitlessRouterServiceImpl.errorStartingMonitor", new Object[] {e}));
       throw new RuntimeException(e);
     }
   }

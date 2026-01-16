@@ -23,12 +23,12 @@ import software.amazon.jdbc.HostSpec;
 public interface HostResponseTimeService {
 
   /**
-   * Return a response time in milliseconds to the host.
-   * Return Integer.MAX_VALUE if response time is not available.
+   * Return a response time in milliseconds to the host. Return Integer.MAX_VALUE if response time
+   * is not available.
    *
    * @param hostSpec the host details
    * @return response time in milliseconds for a desired host. It should return Integer.MAX_VALUE if
-   *            response time couldn't be measured.
+   *     response time couldn't be measured.
    */
   int getResponseTime(final HostSpec hostSpec);
 

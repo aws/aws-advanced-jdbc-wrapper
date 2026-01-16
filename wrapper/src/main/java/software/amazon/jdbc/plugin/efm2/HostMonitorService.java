@@ -28,9 +28,7 @@ import software.amazon.jdbc.HostSpec;
 public interface HostMonitorService {
 
   HostMonitorConnectionContext startMonitoring(
-      Connection connectionToAbort,
-      HostSpec hostSpec,
-      Properties properties) throws SQLException;
+      Connection connectionToAbort, HostSpec hostSpec, Properties properties) throws SQLException;
 
   /**
    * Stop monitoring for a connection represented by the given {@link HostMonitorConnectionContext}.

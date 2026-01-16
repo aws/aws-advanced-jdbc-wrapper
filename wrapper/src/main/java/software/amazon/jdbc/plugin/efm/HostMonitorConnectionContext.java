@@ -28,13 +28,14 @@ import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 
 /**
  * Monitoring context for each connection. This contains each connection's criteria for whether a
- * server should be considered unhealthy. The context is shared between the main thread and the monitor thread.
+ * server should be considered unhealthy. The context is shared between the main thread and the
+ * monitor thread.
  */
 public class HostMonitorConnectionContext {
 
-  private static final Logger LOGGER = Logger.getLogger(HostMonitorConnectionContext.class.getName());
-  private static final Executor ABORT_EXECUTOR =
-      ExecutorFactory.newSingleThreadExecutor("abort");
+  private static final Logger LOGGER =
+      Logger.getLogger(HostMonitorConnectionContext.class.getName());
+  private static final Executor ABORT_EXECUTOR = ExecutorFactory.newSingleThreadExecutor("abort");
 
   private final TelemetryCounter abortedConnectionsCounter;
 
@@ -56,13 +57,13 @@ public class HostMonitorConnectionContext {
   /**
    * Constructor.
    *
-   * @param monitor                        A reference to a monitor object.
-   * @param connectionToAbort              A reference to the connection associated with this context that will
-   *                                       be aborted in case of server failure.
-   * @param failureDetectionTimeMillis     Grace period after which node monitoring starts.
+   * @param monitor A reference to a monitor object.
+   * @param connectionToAbort A reference to the connection associated with this context that will
+   *     be aborted in case of server failure.
+   * @param failureDetectionTimeMillis Grace period after which node monitoring starts.
    * @param failureDetectionIntervalMillis Interval between each failed connection check.
-   * @param failureDetectionCount          Number of failed connection checks before considering database
-   *                                       node as unhealthy.
+   * @param failureDetectionCount Number of failed connection checks before considering database
+   *     node as unhealthy.
    * @param abortedConnectionsCounter Aborted connection telemetry counter.
    */
   public HostMonitorConnectionContext(
@@ -82,8 +83,8 @@ public class HostMonitorConnectionContext {
 
   void setStartMonitorTimeNano(final long startMonitorTimeNano) {
     this.startMonitorTimeNano = startMonitorTimeNano;
-    this.expectedActiveMonitoringStartTimeNano = startMonitorTimeNano
-        + TimeUnit.MILLISECONDS.toNanos(this.failureDetectionTimeMillis);
+    this.expectedActiveMonitoringStartTimeNano =
+        startMonitorTimeNano + TimeUnit.MILLISECONDS.toNanos(this.failureDetectionTimeMillis);
   }
 
   public long getFailureDetectionIntervalMillis() {
@@ -156,9 +157,10 @@ public class HostMonitorConnectionContext {
     } catch (final SQLException sqlEx) {
       // ignore
       LOGGER.finest(
-          () -> Messages.get(
-              "HostMonitorConnectionContext.exceptionAbortingConnection",
-              new Object[] {sqlEx.getMessage()}));
+          () ->
+              Messages.get(
+                  "HostMonitorConnectionContext.exceptionAbortingConnection",
+                  new Object[] {sqlEx.getMessage()}));
     }
   }
 
@@ -166,10 +168,10 @@ public class HostMonitorConnectionContext {
    * Update whether the connection is still valid if the total elapsed time has passed the grace
    * period.
    *
-   * @param hostName                 A node name for logging purposes.
+   * @param hostName A node name for logging purposes.
    * @param statusCheckStartTimeNano The time when connection status check started in nanos.
-   * @param statusCheckEndTimeNano   The time when connection status check ended in nanos.
-   * @param isValid                  Whether the connection is valid.
+   * @param statusCheckEndTimeNano The time when connection status check ended in nanos.
+   * @param isValid Whether the connection is valid.
    */
   public void updateConnectionStatus(
       final String hostName,
@@ -200,10 +202,10 @@ public class HostMonitorConnectionContext {
    *   <li>{@code failureDetectionCount}
    * </ul>
    *
-   * @param hostName             A node name for logging purposes.
-   * @param connectionValid      Boolean indicating whether the server is still responsive.
+   * @param hostName A node name for logging purposes.
+   * @param connectionValid Boolean indicating whether the server is still responsive.
    * @param statusCheckStartNano The time when connection status check started in nanos.
-   * @param statusCheckEndNano   The time when connection status check ended in nanos.
+   * @param statusCheckEndNano The time when connection status check ended in nanos.
    */
   void setConnectionValid(
       final String hostName,
@@ -220,20 +222,21 @@ public class HostMonitorConnectionContext {
 
       final long invalidNodeDurationNano = statusCheckEndNano - this.getInvalidNodeStartTimeNano();
       final long maxInvalidNodeDurationMillis =
-          this.getFailureDetectionIntervalMillis()
-              * Math.max(0, this.getFailureDetectionCount());
+          this.getFailureDetectionIntervalMillis() * Math.max(0, this.getFailureDetectionCount());
 
       if (invalidNodeDurationNano >= TimeUnit.MILLISECONDS.toNanos(maxInvalidNodeDurationMillis)) {
-        LOGGER.fine(() -> Messages.get("HostMonitorConnectionContext.hostDead", new Object[] {hostName}));
+        LOGGER.fine(
+            () -> Messages.get("HostMonitorConnectionContext.hostDead", new Object[] {hostName}));
         this.setNodeUnhealthy(true);
         this.abortConnection();
         return;
       }
 
       LOGGER.finest(
-          () -> Messages.get(
-              "HostMonitorConnectionContext.hostNotResponding",
-              new Object[] {hostName, this.getFailureCount()}));
+          () ->
+              Messages.get(
+                  "HostMonitorConnectionContext.hostNotResponding",
+                  new Object[] {hostName, this.getFailureCount()}));
       return;
     }
 
@@ -242,8 +245,7 @@ public class HostMonitorConnectionContext {
     this.setNodeUnhealthy(false);
 
     LOGGER.finest(
-        () -> Messages.get("HostMonitorConnectionContext.hostAlive",
-            new Object[] {hostName}));
+        () -> Messages.get("HostMonitorConnectionContext.hostAlive", new Object[] {hostName}));
   }
 
   public ResourceLock getLock() {

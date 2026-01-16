@@ -24,7 +24,8 @@ import software.amazon.jdbc.util.FullServicesContainer;
 public class AuroraStaleDnsPluginFactory implements ConnectionPluginFactory {
 
   @Override
-  public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
+  public ConnectionPlugin getInstance(
+      final FullServicesContainer servicesContainer, final Properties props) {
     return new AuroraStaleDnsPlugin(servicesContainer.getPluginService(), props);
   }
 }

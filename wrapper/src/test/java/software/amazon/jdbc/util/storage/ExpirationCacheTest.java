@@ -30,11 +30,9 @@ class ExpirationCacheTest {
 
   @Test
   public void testComputeIfAbsent() throws InterruptedException {
-    ExpirationCache<String, DummyItem> cache = new ExpirationCache<>(
-        false,
-        TimeUnit.MILLISECONDS.toNanos(100),
-        (item) -> true,
-        DummyItem::close);
+    ExpirationCache<String, DummyItem> cache =
+        new ExpirationCache<>(
+            false, TimeUnit.MILLISECONDS.toNanos(100), (item) -> true, DummyItem::close);
     String key = "key";
     DummyItem itemSpy = Mockito.spy(new DummyItem());
     DummyItem newDummyItem = new DummyItem();
@@ -52,11 +50,9 @@ class ExpirationCacheTest {
 
   @Test
   public void testRenewableExpiration() throws InterruptedException {
-    ExpirationCache<String, DummyItem> cache = new ExpirationCache<>(
-        true,
-        TimeUnit.MILLISECONDS.toNanos(100),
-        (item) -> true,
-        DummyItem::close);
+    ExpirationCache<String, DummyItem> cache =
+        new ExpirationCache<>(
+            true, TimeUnit.MILLISECONDS.toNanos(100), (item) -> true, DummyItem::close);
     String key = "key";
     DummyItem item = new DummyItem();
     cache.put(key, item);
@@ -70,11 +66,9 @@ class ExpirationCacheTest {
 
   @Test
   public void testNonRenewableExpiration() throws InterruptedException {
-    ExpirationCache<String, DummyItem> cache = new ExpirationCache<>(
-        false,
-        TimeUnit.MILLISECONDS.toNanos(100),
-        (item) -> true,
-        DummyItem::close);
+    ExpirationCache<String, DummyItem> cache =
+        new ExpirationCache<>(
+            false, TimeUnit.MILLISECONDS.toNanos(100), (item) -> true, DummyItem::close);
     String key = "key";
     DummyItem itemSpy = Mockito.spy(new DummyItem());
     cache.put(key, itemSpy);
@@ -92,11 +86,9 @@ class ExpirationCacheTest {
 
   @Test
   public void testRemove() {
-    ExpirationCache<String, DummyItem> cache = new ExpirationCache<>(
-        true,
-        TimeUnit.MILLISECONDS.toNanos(100),
-        (item) -> true,
-        DummyItem::close);
+    ExpirationCache<String, DummyItem> cache =
+        new ExpirationCache<>(
+            true, TimeUnit.MILLISECONDS.toNanos(100), (item) -> true, DummyItem::close);
     String key = "key";
     DummyItem itemSpy = Mockito.spy(new DummyItem());
     cache.put(key, itemSpy);

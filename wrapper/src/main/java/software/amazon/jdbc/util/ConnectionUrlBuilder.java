@@ -31,7 +31,8 @@ public class ConnectionUrlBuilder {
       final @NonNull String jdbcProtocol,
       final @NonNull String serverName,
       final int port,
-      final @Nullable String databaseName) throws SQLException {
+      final @Nullable String databaseName)
+      throws SQLException {
 
     if (StringUtils.isNullOrEmpty(jdbcProtocol) || StringUtils.isNullOrEmpty(serverName)) {
       throw new SQLException(Messages.get("ConnectionUrlBuilder.missingJdbcProtocol"));
@@ -60,9 +61,9 @@ public class ConnectionUrlBuilder {
   }
 
   // Builds a connection URL of the generic format: "protocol//[hosts][/database][?properties]"
-  public static String buildUrl(final String jdbcProtocol,
-      final HostSpec hostSpec,
-      final Properties props) throws SQLException {
+  public static String buildUrl(
+      final String jdbcProtocol, final HostSpec hostSpec, final Properties props)
+      throws SQLException {
 
     if (StringUtils.isNullOrEmpty(jdbcProtocol) || hostSpec == null) {
       throw new SQLException(Messages.get("ConnectionUrlBuilder.missingJdbcProtocol"));
@@ -92,10 +93,7 @@ public class ConnectionUrlBuilder {
           queryBuilder.append("&");
         }
         final String propertyValue = copy.getProperty(propertyName);
-        queryBuilder
-            .append(propertyName)
-            .append("=")
-            .append(propertyValue);
+        queryBuilder.append(propertyName).append("=").append(propertyValue);
       }
     }
 
