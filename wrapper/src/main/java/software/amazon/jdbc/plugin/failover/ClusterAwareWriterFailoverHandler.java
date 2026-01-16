@@ -52,7 +52,8 @@ import software.amazon.jdbc.util.Utils;
  * same writer host, 2) try to update cluster topology and connect to a newly elected writer.
  */
 public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler {
-  private static final Logger LOGGER = Logger.getLogger(ClusterAwareWriterFailoverHandler.class.getName());
+  private static final Logger LOGGER =
+      Logger.getLogger(ClusterAwareWriterFailoverHandler.class.getName());
   protected static final WriterFailoverResult DEFAULT_RESULT =
       new WriterFailoverResult(false, false, null, null, "None");
 
@@ -82,10 +83,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
       final int failoverTimeoutMs,
       final int readTopologyIntervalMs,
       final int reconnectWriterIntervalMs) {
-    this(
-        servicesContainer,
-        readerFailoverHandler,
-        initialConnectionProps);
+    this(servicesContainer, readerFailoverHandler, initialConnectionProps);
     this.maxFailoverTimeoutMs = failoverTimeoutMs;
     this.readTopologyIntervalMs = readTopologyIntervalMs;
     this.reconnectWriterIntervalMs = reconnectWriterIntervalMs;
@@ -99,21 +97,27 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
   @Override
   public WriterFailoverResult failover(final List<HostSpec> currentTopology) throws SQLException {
     if (Utils.isNullOrEmpty(currentTopology)) {
-      LOGGER.severe(() -> Messages.get("ClusterAwareWriterFailoverHandler.failoverCalledWithInvalidTopology"));
+      LOGGER.severe(
+          () ->
+              Messages.get("ClusterAwareWriterFailoverHandler.failoverCalledWithInvalidTopology"));
       return DEFAULT_RESULT;
     }
 
     final boolean singleTask =
-        this.pluginService.getDialect().getFailoverRestrictions().contains(FailoverRestriction.DISABLE_TASK_A);
+        this.pluginService
+            .getDialect()
+            .getFailoverRestrictions()
+            .contains(FailoverRestriction.DISABLE_TASK_A);
 
-    final ExecutorService executorService =
-        ExecutorFactory.newFixedThreadPool(2, "failover");
-    final CompletionService<WriterFailoverResult> completionService = new ExecutorCompletionService<>(executorService);
+    final ExecutorService executorService = ExecutorFactory.newFixedThreadPool(2, "failover");
+    final CompletionService<WriterFailoverResult> completionService =
+        new ExecutorCompletionService<>(executorService);
     submitTasks(currentTopology, executorService, completionService, singleTask);
 
     try {
       final long startTimeNano = System.nanoTime();
-      WriterFailoverResult result = getNextResult(executorService, completionService, this.maxFailoverTimeoutMs);
+      WriterFailoverResult result =
+          getNextResult(executorService, completionService, this.maxFailoverTimeoutMs);
       if (result.isConnected() || result.getException() != null || singleTask) {
         return result;
       }
@@ -129,7 +133,8 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
         }
       }
 
-      LOGGER.fine(() -> Messages.get("ClusterAwareWriterFailoverHandler.failedToConnectToWriterInstance"));
+      LOGGER.fine(
+          () -> Messages.get("ClusterAwareWriterFailoverHandler.failedToConnectToWriterInstance"));
       return DEFAULT_RESULT;
     } finally {
       if (!executorService.isTerminated()) {
@@ -142,9 +147,11 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
       final List<HostSpec> currentTopology,
       final ExecutorService executorService,
       final CompletionService<WriterFailoverResult> completionService,
-      final boolean singleTask) throws SQLException {
+      final boolean singleTask)
+      throws SQLException {
     final HostSpec writerHost = Utils.getWriter(currentTopology);
-    // Each task should get its own service container since they execute concurrently and PluginService was not
+    // Each task should get its own service container since they execute concurrently and
+    // PluginService was not
     // designed to be thread-safe
     if (!singleTask) {
       completionService.submit(
@@ -170,20 +177,23 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
   }
 
   protected FullServicesContainer newServicesContainer() throws SQLException {
-    FullServicesContainer fullServicesContainer = ServiceUtility.getInstance().createMinimalServiceContainer(
-        this.servicesContainer, this.initialConnectionProps);
-    fullServicesContainer.getHostListProviderService().setInitialConnectionHostSpec(
-        this.pluginService.getInitialConnectionHostSpec());
+    FullServicesContainer fullServicesContainer =
+        ServiceUtility.getInstance()
+            .createMinimalServiceContainer(this.servicesContainer, this.initialConnectionProps);
+    fullServicesContainer
+        .getHostListProviderService()
+        .setInitialConnectionHostSpec(this.pluginService.getInitialConnectionHostSpec());
     return fullServicesContainer;
   }
 
   private WriterFailoverResult getNextResult(
       final ExecutorService executorService,
       final CompletionService<WriterFailoverResult> completionService,
-      final long timeoutMs) throws SQLException {
+      final long timeoutMs)
+      throws SQLException {
     try {
-      final Future<WriterFailoverResult> firstCompleted = completionService.poll(
-          timeoutMs, TimeUnit.MILLISECONDS);
+      final Future<WriterFailoverResult> firstCompleted =
+          completionService.poll(timeoutMs, TimeUnit.MILLISECONDS);
       if (firstCompleted == null) {
         // The task was unsuccessful and we have timed out
         return DEFAULT_RESULT;
@@ -213,9 +223,10 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     if (Utils.isNullOrEmpty(topology)) {
       final String taskName = result.getTaskName() == null ? "None" : result.getTaskName();
       LOGGER.severe(
-          () -> Messages.get(
-              "ClusterAwareWriterFailoverHandler.successfulConnectionInvalidTopology",
-              new Object[] {taskName}));
+          () ->
+              Messages.get(
+                  "ClusterAwareWriterFailoverHandler.successfulConnectionInvalidTopology",
+                  new Object[] {taskName}));
       return;
     }
 
@@ -227,28 +238,26 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     final String newWriterHost = writerHost == null ? null : writerHost.getUrl();
     if (result.isNewHost()) {
       LOGGER.fine(
-          () -> Messages.get(
-              "ClusterAwareWriterFailoverHandler.successfullyConnectedToNewWriterInstance",
-              new Object[] {newWriterHost}));
+          () ->
+              Messages.get(
+                  "ClusterAwareWriterFailoverHandler.successfullyConnectedToNewWriterInstance",
+                  new Object[] {newWriterHost}));
     } else {
       LOGGER.fine(
-          () -> Messages.get(
-              "ClusterAwareWriterFailoverHandler.successfullyReconnectedToWriterInstance",
-              new Object[] {newWriterHost}));
+          () ->
+              Messages.get(
+                  "ClusterAwareWriterFailoverHandler.successfullyReconnectedToWriterInstance",
+                  new Object[] {newWriterHost}));
     }
   }
 
   private SQLException createInterruptedException(final InterruptedException e) {
     // "Thread was interrupted"
     return new SQLException(
-        Messages.get("ClusterAwareWriterFailoverHandler.interruptedThread"),
-        "70100",
-        e);
+        Messages.get("ClusterAwareWriterFailoverHandler.interruptedThread"), "70100", e);
   }
 
-  /**
-   * Internal class responsible for re-connecting to the current writer (aka TaskA).
-   */
+  /** Internal class responsible for re-connecting to the current writer (aka TaskA). */
   private static class ReconnectToWriterHandler implements Callable<WriterFailoverResult> {
     private final PluginService taskAPluginService;
     private final Map<String, HostAvailability> availabilityMap;
@@ -271,9 +280,12 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
 
     public WriterFailoverResult call() {
       LOGGER.fine(
-          () -> Messages.get(
-              "ClusterAwareWriterFailoverHandler.taskAAttemptReconnectToWriterInstance",
-              new Object[] {this.originalWriterHost.getUrl(), PropertyUtils.maskProperties(this.props)}));
+          () ->
+              Messages.get(
+                  "ClusterAwareWriterFailoverHandler.taskAAttemptReconnectToWriterInstance",
+                  new Object[] {
+                    this.originalWriterHost.getUrl(), PropertyUtils.maskProperties(this.props)
+                  }));
 
       Connection conn = null;
       List<HostSpec> latestTopology = null;
@@ -288,14 +300,19 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
 
             conn = this.taskAPluginService.forceConnect(this.originalWriterHost, this.props);
             HostSpec initialHostSpec = this.taskAPluginService.getInitialConnectionHostSpec();
-            latestTopology = this.taskAPluginService.getHostListProvider().getCurrentTopology(conn, initialHostSpec);
+            latestTopology =
+                this.taskAPluginService
+                    .getHostListProvider()
+                    .getCurrentTopology(conn, initialHostSpec);
           } catch (final SQLException exception) {
             // Propagate exceptions that are not caused by network errors.
-            if (!taskAPluginService.isNetworkException(exception, taskAPluginService.getTargetDriverDialect())) {
+            if (!taskAPluginService.isNetworkException(
+                exception, taskAPluginService.getTargetDriverDialect())) {
               LOGGER.finer(
-                  () -> Messages.get(
-                      "ClusterAwareWriterFailoverHandler.taskAEncounteredException",
-                      new Object[] {exception}));
+                  () ->
+                      Messages.get(
+                          "ClusterAwareWriterFailoverHandler.taskAEncounteredException",
+                          new Object[] {exception}));
               return new WriterFailoverResult(false, false, null, null, "TaskA", exception);
             }
           }
@@ -313,7 +330,8 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
         success = isCurrentHostWriter(latestTopology);
         LOGGER.finest("[TaskA] success: " + success);
         this.availabilityMap.put(this.originalWriterHost.getHost(), HostAvailability.AVAILABLE);
-        return new WriterFailoverResult(success, false, latestTopology, success ? conn : null, "TaskA");
+        return new WriterFailoverResult(
+            success, false, latestTopology, success ? conn : null, "TaskA");
       } catch (final Exception ex) {
         LOGGER.severe(ex::getMessage);
         return new WriterFailoverResult(false, false, null, null, "TaskA");
@@ -378,9 +396,10 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
 
     public WriterFailoverResult call() {
       LOGGER.finer(
-          () -> Messages.get(
-              "ClusterAwareWriterFailoverHandler.taskBAttemptConnectionToNewWriterInstance",
-              new Object[] {PropertyUtils.maskProperties(this.props)}));
+          () ->
+              Messages.get(
+                  "ClusterAwareWriterFailoverHandler.taskBAttemptConnectionToNewWriterInstance",
+                  new Object[] {PropertyUtils.maskProperties(this.props)}));
 
       try {
         boolean success = false;
@@ -392,19 +411,16 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
           }
         }
         return new WriterFailoverResult(
-            true,
-            true,
-            this.currentTopology,
-            this.currentConnection,
-            "TaskB");
+            true, true, this.currentTopology, this.currentConnection, "TaskB");
       } catch (final InterruptedException exception) {
         Thread.currentThread().interrupt();
         return new WriterFailoverResult(false, false, null, null, "TaskB");
       } catch (final Exception ex) {
         LOGGER.severe(
-            () -> Messages.get(
-                "ClusterAwareWriterFailoverHandler.taskBEncounteredException",
-                new Object[] {ex.getMessage()}));
+            () ->
+                Messages.get(
+                    "ClusterAwareWriterFailoverHandler.taskBEncounteredException",
+                    new Object[] {ex.getMessage()}));
         throw ex;
       } finally {
         performFinalCleanup();
@@ -421,15 +437,18 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
             this.currentReaderConnection = connResult.getConnection();
             this.currentReaderHost = connResult.getHost();
             LOGGER.fine(
-                () -> Messages.get(
-                    "ClusterAwareWriterFailoverHandler.taskBConnectedToReader",
-                    new Object[] {this.currentReaderHost.getUrl()}));
+                () ->
+                    Messages.get(
+                        "ClusterAwareWriterFailoverHandler.taskBConnectedToReader",
+                        new Object[] {this.currentReaderHost.getUrl()}));
             break;
           }
         } catch (final SQLException e) {
           // ignore
         }
-        LOGGER.fine(() -> Messages.get("ClusterAwareWriterFailoverHandler.taskBFailedToConnectToAnyReader"));
+        LOGGER.fine(
+            () ->
+                Messages.get("ClusterAwareWriterFailoverHandler.taskBFailedToConnectToAnyReader"));
         TimeUnit.SECONDS.sleep(1);
       }
     }
@@ -444,15 +463,19 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
      * @return Returns true if successful.
      */
     private boolean refreshTopologyAndConnectToNewWriter() throws InterruptedException {
-      boolean allowOldWriter = this.taskBPluginService.getDialect()
-          .getFailoverRestrictions()
-          .contains(FailoverRestriction.ENABLE_WRITER_IN_TASK_B);
+      boolean allowOldWriter =
+          this.taskBPluginService
+              .getDialect()
+              .getFailoverRestrictions()
+              .contains(FailoverRestriction.ENABLE_WRITER_IN_TASK_B);
 
       while (true) {
         try {
           HostSpec initialHostSpec = this.taskBPluginService.getInitialConnectionHostSpec();
-          final List<HostSpec> topology = this.taskBPluginService.getHostListProvider()
-              .getCurrentTopology(this.currentReaderConnection, initialHostSpec);
+          final List<HostSpec> topology =
+              this.taskBPluginService
+                  .getHostListProvider()
+                  .getCurrentTopology(this.currentReaderConnection, initialHostSpec);
           if (!Utils.isNullOrEmpty(topology)) {
             if (topology.size() == 1) {
               // The currently connected reader is in a middle of failover. It's not yet connected
@@ -461,8 +484,11 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
               // cluster topology.
 
               // do nothing
-              LOGGER.finest(() -> Messages.get("ClusterAwareWriterFailoverHandler.standaloneNode",
-                  new Object[]{this.currentReaderHost.getUrl()}));
+              LOGGER.finest(
+                  () ->
+                      Messages.get(
+                          "ClusterAwareWriterFailoverHandler.standaloneNode",
+                          new Object[] {this.currentReaderHost.getUrl()}));
 
             } else {
               this.currentTopology = topology;
@@ -470,7 +496,8 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
 
               if (allowOldWriter || !isSame(writerCandidate, this.originalWriterHost)) {
                 // new writer is available, and it's different from the previous writer
-                LOGGER.finest(() -> LogUtils.logTopology(this.currentTopology, "[TaskB] Topology:"));
+                LOGGER.finest(
+                    () -> LogUtils.logTopology(this.currentTopology, "[TaskB] Topology:"));
                 if (connectToWriter(writerCandidate)) {
                   return true;
                 }
@@ -479,9 +506,10 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
           }
         } catch (final SQLException e) {
           LOGGER.finer(
-              () -> Messages.get(
-                  "ClusterAwareWriterFailoverHandler.taskBEncounteredException",
-                  new Object[] {e}));
+              () ->
+                  Messages.get(
+                      "ClusterAwareWriterFailoverHandler.taskBEncounteredException",
+                      new Object[] {e}));
           return false;
         }
 
@@ -504,12 +532,14 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
         return true;
       } else {
         LOGGER.fine(
-            () -> Messages.get(
-                "ClusterAwareWriterFailoverHandler.taskBAttemptConnectionToNewWriter",
-                new Object[] {writerCandidate.getUrl()}));
+            () ->
+                Messages.get(
+                    "ClusterAwareWriterFailoverHandler.taskBAttemptConnectionToNewWriter",
+                    new Object[] {writerCandidate.getUrl()}));
         try {
           // connect to the new writer
-          this.currentConnection = this.taskBPluginService.forceConnect(writerCandidate, this.props);
+          this.currentConnection =
+              this.taskBPluginService.forceConnect(writerCandidate, this.props);
           this.availabilityMap.put(writerCandidate.getHost(), HostAvailability.AVAILABLE);
           return true;
         } catch (final SQLException exception) {
@@ -519,9 +549,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
       }
     }
 
-    /**
-     * Close the reader connection if not done so already, and mark the relevant fields as null.
-     */
+    /** Close the reader connection if not done so already, and mark the relevant fields as null. */
     private void closeReaderConnection() {
       try {
         if (this.currentReaderConnection != null && !this.currentReaderConnection.isClosed()) {

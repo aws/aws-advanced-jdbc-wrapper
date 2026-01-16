@@ -42,8 +42,8 @@ import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 // Suspend new connection opening till a corresponding node is found or till BG is completed.
 public class SuspendUntilCorrespondingNodeFoundConnectRouting extends BaseConnectRouting {
 
-  private static final Logger LOGGER = Logger.getLogger(
-      SuspendUntilCorrespondingNodeFoundConnectRouting.class.getName());
+  private static final Logger LOGGER =
+      Logger.getLogger(SuspendUntilCorrespondingNodeFoundConnectRouting.class.getName());
 
   private static final String TELEMETRY_SWITCHOVER = "Blue/Green switchover";
   private static final long SLEEP_TIME_MS = 100L;
@@ -65,18 +65,20 @@ public class SuspendUntilCorrespondingNodeFoundConnectRouting extends BaseConnec
       boolean useForceConnect,
       JdbcCallable<Connection, SQLException> connectFunc,
       StorageService storageService,
-      PluginService pluginService) throws SQLException {
+      PluginService pluginService)
+      throws SQLException {
 
-    LOGGER.finest(() -> Messages.get("bgd.waitConnectUntilCorrespondingNodeFound",
-        new Object[] {hostSpec.getHost()}));
+    LOGGER.finest(
+        () ->
+            Messages.get(
+                "bgd.waitConnectUntilCorrespondingNodeFound", new Object[] {hostSpec.getHost()}));
     TelemetryFactory telemetryFactory = pluginService.getTelemetryFactory();
-    TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(TELEMETRY_SWITCHOVER,
-        TelemetryTraceLevel.NESTED);
+    TelemetryContext telemetryContext =
+        telemetryFactory.openTelemetryContext(TELEMETRY_SWITCHOVER, TelemetryTraceLevel.NESTED);
 
     BlueGreenStatus bgStatus = storageService.get(BlueGreenStatus.class, this.bgdId);
-    Pair<HostSpec, HostSpec> correspondingPair = bgStatus == null
-        ? null
-        : bgStatus.getCorrespondingNodes().get(hostSpec.getHost());
+    Pair<HostSpec, HostSpec> correspondingPair =
+        bgStatus == null ? null : bgStatus.getCorrespondingNodes().get(hostSpec.getHost());
 
     long timeoutNano = TimeUnit.MILLISECONDS.toNanos(BG_CONNECT_TIMEOUT.getLong(props));
     long holdStartTime = this.getNanoTime();
@@ -97,26 +99,31 @@ public class SuspendUntilCorrespondingNodeFoundConnectRouting extends BaseConnec
         }
 
         bgStatus = storageService.get(BlueGreenStatus.class, this.bgdId);
-        correspondingPair = bgStatus == null
-            ? null
-            : bgStatus.getCorrespondingNodes().get(hostSpec.getHost());
+        correspondingPair =
+            bgStatus == null ? null : bgStatus.getCorrespondingNodes().get(hostSpec.getHost());
       }
 
       if (bgStatus == null || bgStatus.getCurrentPhase() == BlueGreenPhase.COMPLETED) {
-        LOGGER.finest(Messages.get("bgd.completedContinueWithConnect",
-            new Object[]{TimeUnit.NANOSECONDS.toMillis(this.getNanoTime() - holdStartTime)}));
+        LOGGER.finest(
+            Messages.get(
+                "bgd.completedContinueWithConnect",
+                new Object[] {TimeUnit.NANOSECONDS.toMillis(this.getNanoTime() - holdStartTime)}));
         return null;
 
       } else if (this.getNanoTime() > endTime) {
         throw new SQLTimeoutException(
-            Messages.get("bgd.correspondingNodeNotFoundTryConnectLater",
+            Messages.get(
+                "bgd.correspondingNodeNotFoundTryConnectLater",
                 new Object[] {hostSpec.getHost(), BG_CONNECT_TIMEOUT.getLong(props)}));
       }
 
-      LOGGER.finest(Messages.get("bgd.correspondingNodeFoundContinueWithConnect",
-          new Object[]{
-              hostSpec.getHost(),
-              TimeUnit.NANOSECONDS.toMillis(this.getNanoTime() - holdStartTime)}));
+      LOGGER.finest(
+          Messages.get(
+              "bgd.correspondingNodeFoundContinueWithConnect",
+              new Object[] {
+                hostSpec.getHost(),
+                TimeUnit.NANOSECONDS.toMillis(this.getNanoTime() - holdStartTime)
+              }));
 
     } finally {
       if (telemetryContext != null) {

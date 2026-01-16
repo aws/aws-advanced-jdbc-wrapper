@@ -18,19 +18,15 @@ package software.amazon.jdbc.util.telemetry;
 
 public class NullTelemetryCounter implements TelemetryCounter {
 
-  public NullTelemetryCounter() {
-  }
+  public NullTelemetryCounter() {}
 
   @Override
-  public void add(long value) {
-  }
+  public void add(long value) {}
 
   @Override
-  public void inc() {
-  }
+  public void inc() {}
 
   public String getName() {
     return "null";
   }
-
 }

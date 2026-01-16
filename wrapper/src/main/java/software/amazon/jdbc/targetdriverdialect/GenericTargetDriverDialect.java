@@ -38,142 +38,140 @@ import software.amazon.jdbc.util.PropertyUtils;
 
 public class GenericTargetDriverDialect implements TargetDriverDialect {
 
-  private static final Logger LOGGER =
-      Logger.getLogger(GenericTargetDriverDialect.class.getName());
-  public static final Set<String> ALLOWED_ON_CLOSED_METHODS = Collections.unmodifiableSet(
-      new HashSet<>(
-          Arrays.asList(
-              JdbcMethod.CONNECTION_ISCLOSED.methodName,
-              JdbcMethod.STATEMENT_GETCONNECTION.methodName,
-              JdbcMethod.STATEMENT_GETFETCHDIRECTION.methodName,
-              JdbcMethod.STATEMENT_GETRESULTSETHOLDABILITY.methodName,
-              JdbcMethod.STATEMENT_ISCLOSED.methodName,
-              JdbcMethod.STATEMENT_GETMAXROWS.methodName
-          )
-      )
-  );
+  private static final Logger LOGGER = Logger.getLogger(GenericTargetDriverDialect.class.getName());
+  public static final Set<String> ALLOWED_ON_CLOSED_METHODS =
+      Collections.unmodifiableSet(
+          new HashSet<>(
+              Arrays.asList(
+                  JdbcMethod.CONNECTION_ISCLOSED.methodName,
+                  JdbcMethod.STATEMENT_GETCONNECTION.methodName,
+                  JdbcMethod.STATEMENT_GETFETCHDIRECTION.methodName,
+                  JdbcMethod.STATEMENT_GETRESULTSETHOLDABILITY.methodName,
+                  JdbcMethod.STATEMENT_ISCLOSED.methodName,
+                  JdbcMethod.STATEMENT_GETMAXROWS.methodName)));
 
-  private static final Set<String> NETWORK_BOUND_METHODS = Collections.unmodifiableSet(
-      new HashSet<>(Arrays.asList(
-          JdbcMethod.CONNECTION_COMMIT.methodName,
-          JdbcMethod.CONNECT.methodName,
-          JdbcMethod.FORCECONNECT.methodName,
-          JdbcMethod.CONNECTION_ISVALID.methodName,
-          JdbcMethod.CONNECTION_ROLLBACK.methodName,
-          JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName,
-          JdbcMethod.CONNECTION_SETREADONLY.methodName,
-          JdbcMethod.STATEMENT_CANCEL.methodName,
-          JdbcMethod.STATEMENT_EXECUTE.methodName,
-          JdbcMethod.STATEMENT_EXECUTEBATCH.methodName,
-          JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
-          JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName,
-          JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName,
-          JdbcMethod.PREPAREDSTATEMENT_EXECUTEBATCH.methodName,
-          JdbcMethod.PREPAREDSTATEMENT_EXECUTELARGEUPDATE.methodName,
-          JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName,
-          JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName,
-          JdbcMethod.PREPAREDSTATEMENT_GETPARAMETERMETADATA.methodName,
-          JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
-          JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE.methodName,
-          JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName,
-          JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName,
+  private static final Set<String> NETWORK_BOUND_METHODS =
+      Collections.unmodifiableSet(
+          new HashSet<>(
+              Arrays.asList(
+                  JdbcMethod.CONNECTION_COMMIT.methodName,
+                  JdbcMethod.CONNECT.methodName,
+                  JdbcMethod.FORCECONNECT.methodName,
+                  JdbcMethod.CONNECTION_ISVALID.methodName,
+                  JdbcMethod.CONNECTION_ROLLBACK.methodName,
+                  JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName,
+                  JdbcMethod.CONNECTION_SETREADONLY.methodName,
+                  JdbcMethod.STATEMENT_CANCEL.methodName,
+                  JdbcMethod.STATEMENT_EXECUTE.methodName,
+                  JdbcMethod.STATEMENT_EXECUTEBATCH.methodName,
+                  JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
+                  JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName,
+                  JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName,
+                  JdbcMethod.PREPAREDSTATEMENT_EXECUTEBATCH.methodName,
+                  JdbcMethod.PREPAREDSTATEMENT_EXECUTELARGEUPDATE.methodName,
+                  JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName,
+                  JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName,
+                  JdbcMethod.PREPAREDSTATEMENT_GETPARAMETERMETADATA.methodName,
+                  JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
+                  JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE.methodName,
+                  JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName,
+                  JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName,
 
-          // may require fetch another chunk of data
-          JdbcMethod.CALLABLESTATEMENT_GETMORERESULTS.methodName,
-          JdbcMethod.RESULTSET_NEXT.methodName,
-          JdbcMethod.RESULTSET_ABSOLUTE.methodName,
-          JdbcMethod.RESULTSET_AFTERLAST.methodName,
-          JdbcMethod.RESULTSET_BEFOREFIRST.methodName,
-          JdbcMethod.RESULTSET_FIRST.methodName,
-          JdbcMethod.RESULTSET_LAST.methodName,
-          JdbcMethod.RESULTSET_MOVETOCURRENTROW.methodName,
-          JdbcMethod.RESULTSET_MOVETOINSERTROW.methodName,
-          JdbcMethod.RESULTSET_PREVIOUS.methodName,
-          JdbcMethod.RESULTSET_RELATIVE.methodName,
+                  // may require fetch another chunk of data
+                  JdbcMethod.CALLABLESTATEMENT_GETMORERESULTS.methodName,
+                  JdbcMethod.RESULTSET_NEXT.methodName,
+                  JdbcMethod.RESULTSET_ABSOLUTE.methodName,
+                  JdbcMethod.RESULTSET_AFTERLAST.methodName,
+                  JdbcMethod.RESULTSET_BEFOREFIRST.methodName,
+                  JdbcMethod.RESULTSET_FIRST.methodName,
+                  JdbcMethod.RESULTSET_LAST.methodName,
+                  JdbcMethod.RESULTSET_MOVETOCURRENTROW.methodName,
+                  JdbcMethod.RESULTSET_MOVETOINSERTROW.methodName,
+                  JdbcMethod.RESULTSET_PREVIOUS.methodName,
+                  JdbcMethod.RESULTSET_RELATIVE.methodName,
 
-          // big data methods
-          JdbcMethod.RESULTSET_GETASCIISTREAM.methodName,
-          JdbcMethod.RESULTSET_GETBINARYSTREAM.methodName,
-          JdbcMethod.RESULTSET_GETBLOB.methodName,
-          JdbcMethod.RESULTSET_GETCHARACTERSTREAM.methodName,
-          JdbcMethod.RESULTSET_GETCLOB.methodName,
-          JdbcMethod.RESULTSET_GETNCHARACTERSTREAM.methodName,
-          JdbcMethod.RESULTSET_GETNCLOB.methodName,
-          JdbcMethod.RESULTSET_GETSQLXML.methodName,
-          JdbcMethod.RESULTSET_GETUNICODESTREAM.methodName,
-          JdbcMethod.RESULTSET_GETBYTES.methodName,
+                  // big data methods
+                  JdbcMethod.RESULTSET_GETASCIISTREAM.methodName,
+                  JdbcMethod.RESULTSET_GETBINARYSTREAM.methodName,
+                  JdbcMethod.RESULTSET_GETBLOB.methodName,
+                  JdbcMethod.RESULTSET_GETCHARACTERSTREAM.methodName,
+                  JdbcMethod.RESULTSET_GETCLOB.methodName,
+                  JdbcMethod.RESULTSET_GETNCHARACTERSTREAM.methodName,
+                  JdbcMethod.RESULTSET_GETNCLOB.methodName,
+                  JdbcMethod.RESULTSET_GETSQLXML.methodName,
+                  JdbcMethod.RESULTSET_GETUNICODESTREAM.methodName,
+                  JdbcMethod.RESULTSET_GETBYTES.methodName,
 
-          // data updates
-          JdbcMethod.RESULTSET_DELETEROW.methodName,
-          JdbcMethod.RESULTSET_INSERTROW.methodName,
-          JdbcMethod.RESULTSET_REFRESHROW.methodName,
-          JdbcMethod.RESULTSET_UPDATEROW.methodName,
+                  // data updates
+                  JdbcMethod.RESULTSET_DELETEROW.methodName,
+                  JdbcMethod.RESULTSET_INSERTROW.methodName,
+                  JdbcMethod.RESULTSET_REFRESHROW.methodName,
+                  JdbcMethod.RESULTSET_UPDATEROW.methodName,
 
-          // TODO: verify if these calls need network
-          JdbcMethod.RESULTSET_UPDATEASCIISTREAM.methodName,
-          JdbcMethod.RESULTSET_UPDATEBINARYSTREAM.methodName,
-          JdbcMethod.RESULTSET_UPDATEBLOB.methodName,
-          JdbcMethod.RESULTSET_UPDATECHARACTERSTREAM.methodName,
-          JdbcMethod.RESULTSET_UPDATECLOB.methodName,
-          JdbcMethod.RESULTSET_UPDATENCHARACTERSTREAM.methodName,
-          JdbcMethod.RESULTSET_UPDATENCLOB.methodName,
-          JdbcMethod.RESULTSET_UPDATESQLXML.methodName,
-          JdbcMethod.RESULTSET_UPDATEBYTE.methodName
-      )));
+                  // TODO: verify if these calls need network
+                  JdbcMethod.RESULTSET_UPDATEASCIISTREAM.methodName,
+                  JdbcMethod.RESULTSET_UPDATEBINARYSTREAM.methodName,
+                  JdbcMethod.RESULTSET_UPDATEBLOB.methodName,
+                  JdbcMethod.RESULTSET_UPDATECHARACTERSTREAM.methodName,
+                  JdbcMethod.RESULTSET_UPDATECLOB.methodName,
+                  JdbcMethod.RESULTSET_UPDATENCHARACTERSTREAM.methodName,
+                  JdbcMethod.RESULTSET_UPDATENCLOB.methodName,
+                  JdbcMethod.RESULTSET_UPDATESQLXML.methodName,
+                  JdbcMethod.RESULTSET_UPDATEBYTE.methodName)));
 
-  public static final Set<String> NETWORK_BOUND_METHODS_FOR_ENTIRE_RESULTSET = Collections.unmodifiableSet(
-      new HashSet<>(Arrays.asList(
-          JdbcMethod.CONNECTION_COMMIT.methodName,
-          JdbcMethod.CONNECT.methodName,
-          JdbcMethod.FORCECONNECT.methodName,
-          JdbcMethod.CONNECTION_ISVALID.methodName,
-          JdbcMethod.CONNECTION_ROLLBACK.methodName,
-          JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName,
-          JdbcMethod.CONNECTION_SETREADONLY.methodName,
-          JdbcMethod.STATEMENT_CANCEL.methodName,
-          JdbcMethod.STATEMENT_EXECUTE.methodName,
-          JdbcMethod.STATEMENT_EXECUTEBATCH.methodName,
-          JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
-          JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName,
-          JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName,
-          JdbcMethod.PREPAREDSTATEMENT_EXECUTEBATCH.methodName,
-          JdbcMethod.PREPAREDSTATEMENT_EXECUTELARGEUPDATE.methodName,
-          JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName,
-          JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName,
-          JdbcMethod.PREPAREDSTATEMENT_GETPARAMETERMETADATA.methodName,
-          JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
-          JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE.methodName,
-          JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName,
-          JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName,
+  public static final Set<String> NETWORK_BOUND_METHODS_FOR_ENTIRE_RESULTSET =
+      Collections.unmodifiableSet(
+          new HashSet<>(
+              Arrays.asList(
+                  JdbcMethod.CONNECTION_COMMIT.methodName,
+                  JdbcMethod.CONNECT.methodName,
+                  JdbcMethod.FORCECONNECT.methodName,
+                  JdbcMethod.CONNECTION_ISVALID.methodName,
+                  JdbcMethod.CONNECTION_ROLLBACK.methodName,
+                  JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName,
+                  JdbcMethod.CONNECTION_SETREADONLY.methodName,
+                  JdbcMethod.STATEMENT_CANCEL.methodName,
+                  JdbcMethod.STATEMENT_EXECUTE.methodName,
+                  JdbcMethod.STATEMENT_EXECUTEBATCH.methodName,
+                  JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
+                  JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName,
+                  JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName,
+                  JdbcMethod.PREPAREDSTATEMENT_EXECUTEBATCH.methodName,
+                  JdbcMethod.PREPAREDSTATEMENT_EXECUTELARGEUPDATE.methodName,
+                  JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName,
+                  JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName,
+                  JdbcMethod.PREPAREDSTATEMENT_GETPARAMETERMETADATA.methodName,
+                  JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
+                  JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE.methodName,
+                  JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName,
+                  JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName,
 
-          // big data methods
-          JdbcMethod.RESULTSET_GETASCIISTREAM.methodName,
-          JdbcMethod.RESULTSET_GETBINARYSTREAM.methodName,
-          JdbcMethod.RESULTSET_GETBLOB.methodName,
-          JdbcMethod.RESULTSET_GETCHARACTERSTREAM.methodName,
-          JdbcMethod.RESULTSET_GETCLOB.methodName,
-          JdbcMethod.RESULTSET_GETNCHARACTERSTREAM.methodName,
-          JdbcMethod.RESULTSET_GETNCLOB.methodName,
-          JdbcMethod.RESULTSET_GETSQLXML.methodName,
-          JdbcMethod.RESULTSET_GETUNICODESTREAM.methodName,
-          JdbcMethod.RESULTSET_GETBYTES.methodName,
+                  // big data methods
+                  JdbcMethod.RESULTSET_GETASCIISTREAM.methodName,
+                  JdbcMethod.RESULTSET_GETBINARYSTREAM.methodName,
+                  JdbcMethod.RESULTSET_GETBLOB.methodName,
+                  JdbcMethod.RESULTSET_GETCHARACTERSTREAM.methodName,
+                  JdbcMethod.RESULTSET_GETCLOB.methodName,
+                  JdbcMethod.RESULTSET_GETNCHARACTERSTREAM.methodName,
+                  JdbcMethod.RESULTSET_GETNCLOB.methodName,
+                  JdbcMethod.RESULTSET_GETSQLXML.methodName,
+                  JdbcMethod.RESULTSET_GETUNICODESTREAM.methodName,
+                  JdbcMethod.RESULTSET_GETBYTES.methodName,
 
-          // data updates
-          JdbcMethod.RESULTSET_DELETEROW.methodName,
-          JdbcMethod.RESULTSET_INSERTROW.methodName,
-          JdbcMethod.RESULTSET_REFRESHROW.methodName,
-          JdbcMethod.RESULTSET_UPDATEROW.methodName,
-
-          JdbcMethod.RESULTSET_UPDATEASCIISTREAM.methodName,
-          JdbcMethod.RESULTSET_UPDATEBINARYSTREAM.methodName,
-          JdbcMethod.RESULTSET_UPDATEBLOB.methodName,
-          JdbcMethod.RESULTSET_UPDATECHARACTERSTREAM.methodName,
-          JdbcMethod.RESULTSET_UPDATECLOB.methodName,
-          JdbcMethod.RESULTSET_UPDATENCHARACTERSTREAM.methodName,
-          JdbcMethod.RESULTSET_UPDATENCLOB.methodName,
-          JdbcMethod.RESULTSET_UPDATESQLXML.methodName,
-          JdbcMethod.RESULTSET_UPDATEBYTE.methodName
-      )));
+                  // data updates
+                  JdbcMethod.RESULTSET_DELETEROW.methodName,
+                  JdbcMethod.RESULTSET_INSERTROW.methodName,
+                  JdbcMethod.RESULTSET_REFRESHROW.methodName,
+                  JdbcMethod.RESULTSET_UPDATEROW.methodName,
+                  JdbcMethod.RESULTSET_UPDATEASCIISTREAM.methodName,
+                  JdbcMethod.RESULTSET_UPDATEBINARYSTREAM.methodName,
+                  JdbcMethod.RESULTSET_UPDATEBLOB.methodName,
+                  JdbcMethod.RESULTSET_UPDATECHARACTERSTREAM.methodName,
+                  JdbcMethod.RESULTSET_UPDATECLOB.methodName,
+                  JdbcMethod.RESULTSET_UPDATENCHARACTERSTREAM.methodName,
+                  JdbcMethod.RESULTSET_UPDATENCLOB.methodName,
+                  JdbcMethod.RESULTSET_UPDATESQLXML.methodName,
+                  JdbcMethod.RESULTSET_UPDATEBYTE.methodName)));
 
   @Override
   public boolean isDialect(Driver driver) {
@@ -186,9 +184,11 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
   }
 
   @Override
-  public ConnectInfo prepareConnectInfo(final @NonNull String protocol,
+  public ConnectInfo prepareConnectInfo(
+      final @NonNull String protocol,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props) throws SQLException {
+      final @NonNull Properties props)
+      throws SQLException {
 
     final String databaseName =
         PropertyDefinition.DATABASE.getString(props) != null
@@ -208,20 +208,24 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
       final @NonNull DataSource dataSource,
       final @NonNull String protocol,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props) throws SQLException {
+      final @NonNull Properties props)
+      throws SQLException {
 
-    String finalUrl = buildUrl(
-        protocol,
-        hostSpec.getHost(),
-        hostSpec.getPort(),
-        PropertyDefinition.DATABASE.getString(props));
+    String finalUrl =
+        buildUrl(
+            protocol,
+            hostSpec.getHost(),
+            hostSpec.getPort(),
+            PropertyDefinition.DATABASE.getString(props));
 
     LOGGER.finest(() -> "Connecting to " + finalUrl);
     props.setProperty("url", finalUrl);
 
     PropertyDefinition.removeAllExceptCredentials(props);
-    LOGGER.finest(() -> PropertyUtils.logProperties(PropertyUtils.maskProperties(props),
-        "Connecting with properties: \n"));
+    LOGGER.finest(
+        () ->
+            PropertyUtils.logProperties(
+                PropertyUtils.maskProperties(props), "Connecting with properties: \n"));
 
     if (!props.isEmpty()) {
       PropertyUtils.applyProperties(dataSource, props);
@@ -257,7 +261,8 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
 
   @Override
   public Set<String> getNetworkBoundMethodNames(final @Nullable Properties properties) {
-    return properties != null && PropertyDefinition.ASSUME_FETCH_ENTIRE_RESULT_SET.getBoolean(properties)
+    return properties != null
+            && PropertyDefinition.ASSUME_FETCH_ENTIRE_RESULT_SET.getBoolean(properties)
         ? NETWORK_BOUND_METHODS_FOR_ENTIRE_RESULTSET
         : NETWORK_BOUND_METHODS;
   }

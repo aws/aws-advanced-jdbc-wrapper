@@ -40,8 +40,7 @@ public class DriverConfigurationProfiles {
 
   private static final Map<String, ConfigurationProfile> presets;
 
-  private static final Map<String, ConfigurationProfile> activeProfiles =
-      new ConcurrentHashMap<>();
+  private static final Map<String, ConfigurationProfile> activeProfiles = new ConcurrentHashMap<>();
 
   private static final String MONITORING_CONNECTION_PREFIX = "monitoring-";
 
@@ -54,8 +53,7 @@ public class DriverConfigurationProfiles {
   }
 
   public static void addOrReplaceProfile(
-      @NonNull final String profileName,
-      @NonNull final ConfigurationProfile configurationProfile) {
+      @NonNull final String profileName, @NonNull final ConfigurationProfile configurationProfile) {
     activeProfiles.put(profileName, configurationProfile);
   }
 
@@ -79,7 +77,8 @@ public class DriverConfigurationProfiles {
   private static Map<String, ConfigurationProfile> getConfigurationProfilePresets() {
     Map<String, ConfigurationProfile> presets = new ConcurrentHashMap<>();
 
-    presets.put(ConfigurationProfilePresetCodes.A0,
+    presets.put(
+        ConfigurationProfilePresetCodes.A0,
         new ConfigurationProfile(
             ConfigurationProfilePresetCodes.A0,
             Collections.emptyList(), // empty list is important here! it shouldn't be a null.
@@ -94,7 +93,8 @@ public class DriverConfigurationProfiles {
             null,
             null));
 
-    presets.put(ConfigurationProfilePresetCodes.A1,
+    presets.put(
+        ConfigurationProfilePresetCodes.A1,
         new ConfigurationProfile(
             ConfigurationProfilePresetCodes.A1,
             Collections.emptyList(), // empty list is important here! it shouldn't be a null.
@@ -109,7 +109,8 @@ public class DriverConfigurationProfiles {
             null,
             null));
 
-    presets.put(ConfigurationProfilePresetCodes.A2,
+    presets.put(
+        ConfigurationProfilePresetCodes.A2,
         new ConfigurationProfile(
             ConfigurationProfilePresetCodes.A2,
             Collections.emptyList(), // empty list is important here! it shouldn't be a null.
@@ -124,7 +125,8 @@ public class DriverConfigurationProfiles {
             null,
             null));
 
-    presets.put(ConfigurationProfilePresetCodes.B,
+    presets.put(
+        ConfigurationProfilePresetCodes.B,
         new ConfigurationProfile(
             ConfigurationProfilePresetCodes.B,
             Collections.emptyList(), // empty list is important here! it shouldn't be a null.
@@ -139,49 +141,72 @@ public class DriverConfigurationProfiles {
             null,
             null));
 
-    presets.put(ConfigurationProfilePresetCodes.C0,
+    presets.put(
+        ConfigurationProfilePresetCodes.C0,
         new ConfigurationProfile(
             ConfigurationProfilePresetCodes.C0,
             Collections.singletonList(HostMonitoringConnectionPluginFactory.class),
             getProperties(
-                HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "60000",
-                HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "5",
-                HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "15000",
-                MONITORING_CONNECTION_PREFIX + PropertyDefinition.CONNECT_TIMEOUT.name, "10000",
-                MONITORING_CONNECTION_PREFIX + PropertyDefinition.SOCKET_TIMEOUT.name, "5000",
-                MONITORING_CONNECTION_PREFIX + PropertyDefinition.LOGIN_TIMEOUT.name, "10000",
-                PropertyDefinition.CONNECT_TIMEOUT.name, "10000",
-                PropertyDefinition.SOCKET_TIMEOUT.name, "0",
-                PropertyDefinition.LOGIN_TIMEOUT.name, "10000",
-                PropertyDefinition.TCP_KEEP_ALIVE.name, "false"),
+                HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name,
+                "60000",
+                HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name,
+                "5",
+                HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name,
+                "15000",
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.CONNECT_TIMEOUT.name,
+                "10000",
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.SOCKET_TIMEOUT.name,
+                "5000",
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.LOGIN_TIMEOUT.name,
+                "10000",
+                PropertyDefinition.CONNECT_TIMEOUT.name,
+                "10000",
+                PropertyDefinition.SOCKET_TIMEOUT.name,
+                "0",
+                PropertyDefinition.LOGIN_TIMEOUT.name,
+                "10000",
+                PropertyDefinition.TCP_KEEP_ALIVE.name,
+                "false"),
             (Dialect) null,
             null,
             null,
             null,
             null));
 
-    presets.put(ConfigurationProfilePresetCodes.C1,
+    presets.put(
+        ConfigurationProfilePresetCodes.C1,
         new ConfigurationProfile(
             ConfigurationProfilePresetCodes.C1,
             Collections.singletonList(HostMonitoringConnectionPluginFactory.class),
             getProperties(
-                HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "30000",
-                HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "3",
-                HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "5000",
-                MONITORING_CONNECTION_PREFIX + PropertyDefinition.CONNECT_TIMEOUT.name, "3000",
-                MONITORING_CONNECTION_PREFIX + PropertyDefinition.SOCKET_TIMEOUT.name, "3000",
-                MONITORING_CONNECTION_PREFIX + PropertyDefinition.LOGIN_TIMEOUT.name, "3000",
-                PropertyDefinition.CONNECT_TIMEOUT.name, "10000",
-                PropertyDefinition.SOCKET_TIMEOUT.name, "0",
-                PropertyDefinition.LOGIN_TIMEOUT.name, "10000",
-                PropertyDefinition.TCP_KEEP_ALIVE.name, "false"),
+                HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name,
+                "30000",
+                HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name,
+                "3",
+                HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name,
+                "5000",
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.CONNECT_TIMEOUT.name,
+                "3000",
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.SOCKET_TIMEOUT.name,
+                "3000",
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.LOGIN_TIMEOUT.name,
+                "3000",
+                PropertyDefinition.CONNECT_TIMEOUT.name,
+                "10000",
+                PropertyDefinition.SOCKET_TIMEOUT.name,
+                "0",
+                PropertyDefinition.LOGIN_TIMEOUT.name,
+                "10000",
+                PropertyDefinition.TCP_KEEP_ALIVE.name,
+                "false"),
             (Dialect) null,
             null,
             null,
             null,
             null));
 
-    presets.put(ConfigurationProfilePresetCodes.D0,
+    presets.put(
+        ConfigurationProfilePresetCodes.D0,
         new ConfigurationProfile(
             ConfigurationProfilePresetCodes.D0,
             Arrays.asList(
@@ -197,29 +222,33 @@ public class DriverConfigurationProfiles {
             null,
             null,
             null,
-            () -> new HikariPooledConnectionProvider(
-                (HostSpec hostSpec, Properties originalProps) -> {
-                  final HikariConfig config = new HikariConfig();
-                  config.setMaximumPoolSize(30);
-                  // holds few extra connections in case of sudden traffic peak
-                  config.setMinimumIdle(2);
-                  // close idle connection in 15min; helps to get back to normal pool size after load peak
-                  config.setIdleTimeout(TimeUnit.MINUTES.toMillis(15));
-                  // verify pool configuration and creates no connections during initialization phase
-                  config.setInitializationFailTimeout(-1);
-                  config.setConnectionTimeout(TimeUnit.SECONDS.toMillis(10));
-                  // validate idle connections at least every 3 min
-                  config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(3));
-                  // allows to quickly validate connection in the pool and move on to another connection if needed
-                  config.setValidationTimeout(TimeUnit.SECONDS.toMillis(1));
-                  config.setMaxLifetime(TimeUnit.DAYS.toMillis(1));
-                  return config;
-                },
-                null
-            ),
+            () ->
+                new HikariPooledConnectionProvider(
+                    (HostSpec hostSpec, Properties originalProps) -> {
+                      final HikariConfig config = new HikariConfig();
+                      config.setMaximumPoolSize(30);
+                      // holds few extra connections in case of sudden traffic peak
+                      config.setMinimumIdle(2);
+                      // close idle connection in 15min; helps to get back to normal pool size after
+                      // load peak
+                      config.setIdleTimeout(TimeUnit.MINUTES.toMillis(15));
+                      // verify pool configuration and creates no connections during initialization
+                      // phase
+                      config.setInitializationFailTimeout(-1);
+                      config.setConnectionTimeout(TimeUnit.SECONDS.toMillis(10));
+                      // validate idle connections at least every 3 min
+                      config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(3));
+                      // allows to quickly validate connection in the pool and move on to another
+                      // connection if needed
+                      config.setValidationTimeout(TimeUnit.SECONDS.toMillis(1));
+                      config.setMaxLifetime(TimeUnit.DAYS.toMillis(1));
+                      return config;
+                    },
+                    null),
             null));
 
-    presets.put(ConfigurationProfilePresetCodes.D1,
+    presets.put(
+        ConfigurationProfilePresetCodes.D1,
         new ConfigurationProfile(
             ConfigurationProfilePresetCodes.D1,
             Arrays.asList(
@@ -235,29 +264,33 @@ public class DriverConfigurationProfiles {
             null,
             null,
             null,
-            () -> new HikariPooledConnectionProvider(
-                (HostSpec hostSpec, Properties originalProps) -> {
-                  final HikariConfig config = new HikariConfig();
-                  config.setMaximumPoolSize(30);
-                  // holds few extra connections in case of sudden traffic peak
-                  config.setMinimumIdle(2);
-                  // close idle connection in 15min; helps to get back to normal pool size after load peak
-                  config.setIdleTimeout(TimeUnit.MINUTES.toMillis(15));
-                  // verify pool configuration and creates no connections during initialization phase
-                  config.setInitializationFailTimeout(-1);
-                  config.setConnectionTimeout(TimeUnit.SECONDS.toMillis(10));
-                  // validate idle connections at least every 3 min
-                  config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(3));
-                  // allows to quickly validate connection in the pool and move on to another connection if needed
-                  config.setValidationTimeout(TimeUnit.SECONDS.toMillis(1));
-                  config.setMaxLifetime(TimeUnit.DAYS.toMillis(1));
-                  return config;
-                },
-                null
-            ),
+            () ->
+                new HikariPooledConnectionProvider(
+                    (HostSpec hostSpec, Properties originalProps) -> {
+                      final HikariConfig config = new HikariConfig();
+                      config.setMaximumPoolSize(30);
+                      // holds few extra connections in case of sudden traffic peak
+                      config.setMinimumIdle(2);
+                      // close idle connection in 15min; helps to get back to normal pool size after
+                      // load peak
+                      config.setIdleTimeout(TimeUnit.MINUTES.toMillis(15));
+                      // verify pool configuration and creates no connections during initialization
+                      // phase
+                      config.setInitializationFailTimeout(-1);
+                      config.setConnectionTimeout(TimeUnit.SECONDS.toMillis(10));
+                      // validate idle connections at least every 3 min
+                      config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(3));
+                      // allows to quickly validate connection in the pool and move on to another
+                      // connection if needed
+                      config.setValidationTimeout(TimeUnit.SECONDS.toMillis(1));
+                      config.setMaxLifetime(TimeUnit.DAYS.toMillis(1));
+                      return config;
+                    },
+                    null),
             null));
 
-    presets.put(ConfigurationProfilePresetCodes.E,
+    presets.put(
+        ConfigurationProfilePresetCodes.E,
         new ConfigurationProfile(
             ConfigurationProfilePresetCodes.E,
             Arrays.asList(
@@ -273,29 +306,33 @@ public class DriverConfigurationProfiles {
             null,
             null,
             null,
-            () -> new HikariPooledConnectionProvider(
-                (HostSpec hostSpec, Properties originalProps) -> {
-                  final HikariConfig config = new HikariConfig();
-                  config.setMaximumPoolSize(30);
-                  // holds few extra connections in case of sudden traffic peak
-                  config.setMinimumIdle(2);
-                  // close idle connection in 15min; helps to get back to normal pool size after load peak
-                  config.setIdleTimeout(TimeUnit.MINUTES.toMillis(15));
-                  // verify pool configuration and creates no connections during initialization phase
-                  config.setInitializationFailTimeout(-1);
-                  config.setConnectionTimeout(TimeUnit.SECONDS.toMillis(10));
-                  // validate idle connections at least every 3 min
-                  config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(3));
-                  // allows to quickly validate connection in the pool and move on to another connection if needed
-                  config.setValidationTimeout(TimeUnit.SECONDS.toMillis(1));
-                  config.setMaxLifetime(TimeUnit.DAYS.toMillis(1));
-                  return config;
-                },
-                null
-            ),
+            () ->
+                new HikariPooledConnectionProvider(
+                    (HostSpec hostSpec, Properties originalProps) -> {
+                      final HikariConfig config = new HikariConfig();
+                      config.setMaximumPoolSize(30);
+                      // holds few extra connections in case of sudden traffic peak
+                      config.setMinimumIdle(2);
+                      // close idle connection in 15min; helps to get back to normal pool size after
+                      // load peak
+                      config.setIdleTimeout(TimeUnit.MINUTES.toMillis(15));
+                      // verify pool configuration and creates no connections during initialization
+                      // phase
+                      config.setInitializationFailTimeout(-1);
+                      config.setConnectionTimeout(TimeUnit.SECONDS.toMillis(10));
+                      // validate idle connections at least every 3 min
+                      config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(3));
+                      // allows to quickly validate connection in the pool and move on to another
+                      // connection if needed
+                      config.setValidationTimeout(TimeUnit.SECONDS.toMillis(1));
+                      config.setMaxLifetime(TimeUnit.DAYS.toMillis(1));
+                      return config;
+                    },
+                    null),
             null));
 
-    presets.put(ConfigurationProfilePresetCodes.F0,
+    presets.put(
+        ConfigurationProfilePresetCodes.F0,
         new ConfigurationProfile(
             ConfigurationProfilePresetCodes.F0,
             Arrays.asList(
@@ -305,42 +342,56 @@ public class DriverConfigurationProfiles {
                 FailoverConnectionPluginFactory.class,
                 HostMonitoringConnectionPluginFactory.class),
             getProperties(
-                HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "60000",
-                HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "5",
-                HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "15000",
-                MONITORING_CONNECTION_PREFIX + PropertyDefinition.CONNECT_TIMEOUT.name, "10000",
-                MONITORING_CONNECTION_PREFIX + PropertyDefinition.SOCKET_TIMEOUT.name, "5000",
-                MONITORING_CONNECTION_PREFIX + PropertyDefinition.LOGIN_TIMEOUT.name, "10000",
-                PropertyDefinition.CONNECT_TIMEOUT.name, "10000",
-                PropertyDefinition.SOCKET_TIMEOUT.name, "0",
-                PropertyDefinition.LOGIN_TIMEOUT.name, "10000",
-                PropertyDefinition.TCP_KEEP_ALIVE.name, "false"),
+                HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name,
+                "60000",
+                HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name,
+                "5",
+                HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name,
+                "15000",
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.CONNECT_TIMEOUT.name,
+                "10000",
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.SOCKET_TIMEOUT.name,
+                "5000",
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.LOGIN_TIMEOUT.name,
+                "10000",
+                PropertyDefinition.CONNECT_TIMEOUT.name,
+                "10000",
+                PropertyDefinition.SOCKET_TIMEOUT.name,
+                "0",
+                PropertyDefinition.LOGIN_TIMEOUT.name,
+                "10000",
+                PropertyDefinition.TCP_KEEP_ALIVE.name,
+                "false"),
             null,
             null,
             null,
-            () -> new HikariPooledConnectionProvider(
-                (HostSpec hostSpec, Properties originalProps) -> {
-                  final HikariConfig config = new HikariConfig();
-                  config.setMaximumPoolSize(30);
-                  // holds few extra connections in case of sudden traffic peak
-                  config.setMinimumIdle(2);
-                  // close idle connection in 15min; helps to get back to normal pool size after load peak
-                  config.setIdleTimeout(TimeUnit.MINUTES.toMillis(15));
-                  // verify pool configuration and creates no connections during initialization phase
-                  config.setInitializationFailTimeout(-1);
-                  config.setConnectionTimeout(TimeUnit.SECONDS.toMillis(10));
-                  // validate idle connections at least every 3 min
-                  config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(3));
-                  // allows to quickly validate connection in the pool and move on to another connection if needed
-                  config.setValidationTimeout(TimeUnit.SECONDS.toMillis(1));
-                  config.setMaxLifetime(TimeUnit.DAYS.toMillis(1));
-                  return config;
-                },
-                null
-            ),
+            () ->
+                new HikariPooledConnectionProvider(
+                    (HostSpec hostSpec, Properties originalProps) -> {
+                      final HikariConfig config = new HikariConfig();
+                      config.setMaximumPoolSize(30);
+                      // holds few extra connections in case of sudden traffic peak
+                      config.setMinimumIdle(2);
+                      // close idle connection in 15min; helps to get back to normal pool size after
+                      // load peak
+                      config.setIdleTimeout(TimeUnit.MINUTES.toMillis(15));
+                      // verify pool configuration and creates no connections during initialization
+                      // phase
+                      config.setInitializationFailTimeout(-1);
+                      config.setConnectionTimeout(TimeUnit.SECONDS.toMillis(10));
+                      // validate idle connections at least every 3 min
+                      config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(3));
+                      // allows to quickly validate connection in the pool and move on to another
+                      // connection if needed
+                      config.setValidationTimeout(TimeUnit.SECONDS.toMillis(1));
+                      config.setMaxLifetime(TimeUnit.DAYS.toMillis(1));
+                      return config;
+                    },
+                    null),
             null));
 
-    presets.put(ConfigurationProfilePresetCodes.F1,
+    presets.put(
+        ConfigurationProfilePresetCodes.F1,
         new ConfigurationProfile(
             ConfigurationProfilePresetCodes.F1,
             Arrays.asList(
@@ -350,42 +401,56 @@ public class DriverConfigurationProfiles {
                 FailoverConnectionPluginFactory.class,
                 HostMonitoringConnectionPluginFactory.class),
             getProperties(
-                HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "30000",
-                HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "3",
-                HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "5000",
-                MONITORING_CONNECTION_PREFIX + PropertyDefinition.CONNECT_TIMEOUT.name, "3000",
-                MONITORING_CONNECTION_PREFIX + PropertyDefinition.SOCKET_TIMEOUT.name, "3000",
-                MONITORING_CONNECTION_PREFIX + PropertyDefinition.LOGIN_TIMEOUT.name, "3000",
-                PropertyDefinition.CONNECT_TIMEOUT.name, "10000",
-                PropertyDefinition.SOCKET_TIMEOUT.name, "0",
-                PropertyDefinition.LOGIN_TIMEOUT.name, "10000",
-                PropertyDefinition.TCP_KEEP_ALIVE.name, "false"),
+                HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name,
+                "30000",
+                HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name,
+                "3",
+                HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name,
+                "5000",
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.CONNECT_TIMEOUT.name,
+                "3000",
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.SOCKET_TIMEOUT.name,
+                "3000",
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.LOGIN_TIMEOUT.name,
+                "3000",
+                PropertyDefinition.CONNECT_TIMEOUT.name,
+                "10000",
+                PropertyDefinition.SOCKET_TIMEOUT.name,
+                "0",
+                PropertyDefinition.LOGIN_TIMEOUT.name,
+                "10000",
+                PropertyDefinition.TCP_KEEP_ALIVE.name,
+                "false"),
             null,
             null,
             null,
-            () -> new HikariPooledConnectionProvider(
-                (HostSpec hostSpec, Properties originalProps) -> {
-                  final HikariConfig config = new HikariConfig();
-                  config.setMaximumPoolSize(30);
-                  // holds few extra connections in case of sudden traffic peak
-                  config.setMinimumIdle(2);
-                  // close idle connection in 15min; helps to get back to normal pool size after load peak
-                  config.setIdleTimeout(TimeUnit.MINUTES.toMillis(15));
-                  // verify pool configuration and creates no connections during initialization phase
-                  config.setInitializationFailTimeout(-1);
-                  config.setConnectionTimeout(TimeUnit.SECONDS.toMillis(10));
-                  // validate idle connections at least every 3 min
-                  config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(3));
-                  // allows to quickly validate connection in the pool and move on to another connection if needed
-                  config.setValidationTimeout(TimeUnit.SECONDS.toMillis(1));
-                  config.setMaxLifetime(TimeUnit.DAYS.toMillis(1));
-                  return config;
-                },
-                null
-            ),
+            () ->
+                new HikariPooledConnectionProvider(
+                    (HostSpec hostSpec, Properties originalProps) -> {
+                      final HikariConfig config = new HikariConfig();
+                      config.setMaximumPoolSize(30);
+                      // holds few extra connections in case of sudden traffic peak
+                      config.setMinimumIdle(2);
+                      // close idle connection in 15min; helps to get back to normal pool size after
+                      // load peak
+                      config.setIdleTimeout(TimeUnit.MINUTES.toMillis(15));
+                      // verify pool configuration and creates no connections during initialization
+                      // phase
+                      config.setInitializationFailTimeout(-1);
+                      config.setConnectionTimeout(TimeUnit.SECONDS.toMillis(10));
+                      // validate idle connections at least every 3 min
+                      config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(3));
+                      // allows to quickly validate connection in the pool and move on to another
+                      // connection if needed
+                      config.setValidationTimeout(TimeUnit.SECONDS.toMillis(1));
+                      config.setMaxLifetime(TimeUnit.DAYS.toMillis(1));
+                      return config;
+                    },
+                    null),
             null));
 
-    presets.put(ConfigurationProfilePresetCodes.G0,
+    presets.put(
+        ConfigurationProfilePresetCodes.G0,
         new ConfigurationProfile(
             ConfigurationProfilePresetCodes.G0,
             Arrays.asList(
@@ -403,7 +468,8 @@ public class DriverConfigurationProfiles {
             null,
             null));
 
-    presets.put(ConfigurationProfilePresetCodes.G1,
+    presets.put(
+        ConfigurationProfilePresetCodes.G1,
         new ConfigurationProfile(
             ConfigurationProfilePresetCodes.G1,
             Arrays.asList(
@@ -421,7 +487,8 @@ public class DriverConfigurationProfiles {
             null,
             null));
 
-    presets.put(ConfigurationProfilePresetCodes.H,
+    presets.put(
+        ConfigurationProfilePresetCodes.H,
         new ConfigurationProfile(
             ConfigurationProfilePresetCodes.H,
             Arrays.asList(
@@ -439,7 +506,8 @@ public class DriverConfigurationProfiles {
             null,
             null));
 
-    presets.put(ConfigurationProfilePresetCodes.I0,
+    presets.put(
+        ConfigurationProfilePresetCodes.I0,
         new ConfigurationProfile(
             ConfigurationProfilePresetCodes.I0,
             Arrays.asList(
@@ -448,23 +516,34 @@ public class DriverConfigurationProfiles {
                 FailoverConnectionPluginFactory.class,
                 HostMonitoringConnectionPluginFactory.class),
             getProperties(
-                HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "60000",
-                HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "5",
-                HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "15000",
-                MONITORING_CONNECTION_PREFIX + PropertyDefinition.CONNECT_TIMEOUT.name, "10000",
-                MONITORING_CONNECTION_PREFIX + PropertyDefinition.SOCKET_TIMEOUT.name, "5000",
-                MONITORING_CONNECTION_PREFIX + PropertyDefinition.LOGIN_TIMEOUT.name, "10000",
-                PropertyDefinition.CONNECT_TIMEOUT.name, "10000",
-                PropertyDefinition.SOCKET_TIMEOUT.name, "0",
-                PropertyDefinition.LOGIN_TIMEOUT.name, "10000",
-                PropertyDefinition.TCP_KEEP_ALIVE.name, "false"),
+                HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name,
+                "60000",
+                HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name,
+                "5",
+                HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name,
+                "15000",
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.CONNECT_TIMEOUT.name,
+                "10000",
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.SOCKET_TIMEOUT.name,
+                "5000",
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.LOGIN_TIMEOUT.name,
+                "10000",
+                PropertyDefinition.CONNECT_TIMEOUT.name,
+                "10000",
+                PropertyDefinition.SOCKET_TIMEOUT.name,
+                "0",
+                PropertyDefinition.LOGIN_TIMEOUT.name,
+                "10000",
+                PropertyDefinition.TCP_KEEP_ALIVE.name,
+                "false"),
             (Dialect) null,
             null,
             null,
             null,
             null));
 
-    presets.put(ConfigurationProfilePresetCodes.I1,
+    presets.put(
+        ConfigurationProfilePresetCodes.I1,
         new ConfigurationProfile(
             ConfigurationProfilePresetCodes.I1,
             Arrays.asList(
@@ -473,16 +552,26 @@ public class DriverConfigurationProfiles {
                 FailoverConnectionPluginFactory.class,
                 HostMonitoringConnectionPluginFactory.class),
             getProperties(
-                HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "30000",
-                HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "3",
-                HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "5000",
-                MONITORING_CONNECTION_PREFIX + PropertyDefinition.CONNECT_TIMEOUT.name, "3000",
-                MONITORING_CONNECTION_PREFIX + PropertyDefinition.SOCKET_TIMEOUT.name, "3000",
-                MONITORING_CONNECTION_PREFIX + PropertyDefinition.LOGIN_TIMEOUT.name, "3000",
-                PropertyDefinition.CONNECT_TIMEOUT.name, "10000",
-                PropertyDefinition.SOCKET_TIMEOUT.name, "0",
-                PropertyDefinition.LOGIN_TIMEOUT.name, "10000",
-                PropertyDefinition.TCP_KEEP_ALIVE.name, "false"),
+                HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name,
+                "30000",
+                HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name,
+                "3",
+                HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name,
+                "5000",
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.CONNECT_TIMEOUT.name,
+                "3000",
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.SOCKET_TIMEOUT.name,
+                "3000",
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.LOGIN_TIMEOUT.name,
+                "3000",
+                PropertyDefinition.CONNECT_TIMEOUT.name,
+                "10000",
+                PropertyDefinition.SOCKET_TIMEOUT.name,
+                "0",
+                PropertyDefinition.LOGIN_TIMEOUT.name,
+                "10000",
+                PropertyDefinition.TCP_KEEP_ALIVE.name,
+                "false"),
             (Dialect) null,
             null,
             null,
@@ -491,7 +580,8 @@ public class DriverConfigurationProfiles {
 
     // Spring Framework / Spring Boot optimized presets
 
-    presets.put(ConfigurationProfilePresetCodes.SF_D0,
+    presets.put(
+        ConfigurationProfilePresetCodes.SF_D0,
         new ConfigurationProfile(
             ConfigurationProfilePresetCodes.SF_D0,
             Arrays.asList(
@@ -506,29 +596,33 @@ public class DriverConfigurationProfiles {
             null,
             null,
             null,
-            () -> new HikariPooledConnectionProvider(
-                (HostSpec hostSpec, Properties originalProps) -> {
-                  final HikariConfig config = new HikariConfig();
-                  config.setMaximumPoolSize(30);
-                  // holds few extra connections in case of sudden traffic peak
-                  config.setMinimumIdle(2);
-                  // close idle connection in 15min; helps to get back to normal pool size after load peak
-                  config.setIdleTimeout(TimeUnit.MINUTES.toMillis(15));
-                  // verify pool configuration and creates no connections during initialization phase
-                  config.setInitializationFailTimeout(-1);
-                  config.setConnectionTimeout(TimeUnit.SECONDS.toMillis(10));
-                  // validate idle connections at least every 3 min
-                  config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(3));
-                  // allows to quickly validate connection in the pool and move on to another connection if needed
-                  config.setValidationTimeout(TimeUnit.SECONDS.toMillis(1));
-                  config.setMaxLifetime(TimeUnit.DAYS.toMillis(1));
-                  return config;
-                },
-                null
-            ),
+            () ->
+                new HikariPooledConnectionProvider(
+                    (HostSpec hostSpec, Properties originalProps) -> {
+                      final HikariConfig config = new HikariConfig();
+                      config.setMaximumPoolSize(30);
+                      // holds few extra connections in case of sudden traffic peak
+                      config.setMinimumIdle(2);
+                      // close idle connection in 15min; helps to get back to normal pool size after
+                      // load peak
+                      config.setIdleTimeout(TimeUnit.MINUTES.toMillis(15));
+                      // verify pool configuration and creates no connections during initialization
+                      // phase
+                      config.setInitializationFailTimeout(-1);
+                      config.setConnectionTimeout(TimeUnit.SECONDS.toMillis(10));
+                      // validate idle connections at least every 3 min
+                      config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(3));
+                      // allows to quickly validate connection in the pool and move on to another
+                      // connection if needed
+                      config.setValidationTimeout(TimeUnit.SECONDS.toMillis(1));
+                      config.setMaxLifetime(TimeUnit.DAYS.toMillis(1));
+                      return config;
+                    },
+                    null),
             null));
 
-    presets.put(ConfigurationProfilePresetCodes.SF_D1,
+    presets.put(
+        ConfigurationProfilePresetCodes.SF_D1,
         new ConfigurationProfile(
             ConfigurationProfilePresetCodes.SF_D1,
             Arrays.asList(
@@ -543,29 +637,33 @@ public class DriverConfigurationProfiles {
             null,
             null,
             null,
-            () -> new HikariPooledConnectionProvider(
-                (HostSpec hostSpec, Properties originalProps) -> {
-                  final HikariConfig config = new HikariConfig();
-                  config.setMaximumPoolSize(30);
-                  // holds few extra connections in case of sudden traffic peak
-                  config.setMinimumIdle(2);
-                  // close idle connection in 15min; helps to get back to normal pool size after load peak
-                  config.setIdleTimeout(TimeUnit.MINUTES.toMillis(15));
-                  // verify pool configuration and creates no connections during initialization phase
-                  config.setInitializationFailTimeout(-1);
-                  config.setConnectionTimeout(TimeUnit.SECONDS.toMillis(10));
-                  // validate idle connections at least every 3 min
-                  config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(3));
-                  // allows to quickly validate connection in the pool and move on to another connection if needed
-                  config.setValidationTimeout(TimeUnit.SECONDS.toMillis(1));
-                  config.setMaxLifetime(TimeUnit.DAYS.toMillis(1));
-                  return config;
-                },
-                null
-            ),
+            () ->
+                new HikariPooledConnectionProvider(
+                    (HostSpec hostSpec, Properties originalProps) -> {
+                      final HikariConfig config = new HikariConfig();
+                      config.setMaximumPoolSize(30);
+                      // holds few extra connections in case of sudden traffic peak
+                      config.setMinimumIdle(2);
+                      // close idle connection in 15min; helps to get back to normal pool size after
+                      // load peak
+                      config.setIdleTimeout(TimeUnit.MINUTES.toMillis(15));
+                      // verify pool configuration and creates no connections during initialization
+                      // phase
+                      config.setInitializationFailTimeout(-1);
+                      config.setConnectionTimeout(TimeUnit.SECONDS.toMillis(10));
+                      // validate idle connections at least every 3 min
+                      config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(3));
+                      // allows to quickly validate connection in the pool and move on to another
+                      // connection if needed
+                      config.setValidationTimeout(TimeUnit.SECONDS.toMillis(1));
+                      config.setMaxLifetime(TimeUnit.DAYS.toMillis(1));
+                      return config;
+                    },
+                    null),
             null));
 
-    presets.put(ConfigurationProfilePresetCodes.SF_E,
+    presets.put(
+        ConfigurationProfilePresetCodes.SF_E,
         new ConfigurationProfile(
             ConfigurationProfilePresetCodes.SF_E,
             Arrays.asList(
@@ -580,29 +678,33 @@ public class DriverConfigurationProfiles {
             null,
             null,
             null,
-            () -> new HikariPooledConnectionProvider(
-                (HostSpec hostSpec, Properties originalProps) -> {
-                  final HikariConfig config = new HikariConfig();
-                  config.setMaximumPoolSize(30);
-                  // holds few extra connections in case of sudden traffic peak
-                  config.setMinimumIdle(2);
-                  // close idle connection in 15min; helps to get back to normal pool size after load peak
-                  config.setIdleTimeout(TimeUnit.MINUTES.toMillis(15));
-                  // verify pool configuration and creates no connections during initialization phase
-                  config.setInitializationFailTimeout(-1);
-                  config.setConnectionTimeout(TimeUnit.SECONDS.toMillis(10));
-                  // validate idle connections at least every 3 min
-                  config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(3));
-                  // allows to quickly validate connection in the pool and move on to another connection if needed
-                  config.setValidationTimeout(TimeUnit.SECONDS.toMillis(1));
-                  config.setMaxLifetime(TimeUnit.DAYS.toMillis(1));
-                  return config;
-                },
-                null
-            ),
+            () ->
+                new HikariPooledConnectionProvider(
+                    (HostSpec hostSpec, Properties originalProps) -> {
+                      final HikariConfig config = new HikariConfig();
+                      config.setMaximumPoolSize(30);
+                      // holds few extra connections in case of sudden traffic peak
+                      config.setMinimumIdle(2);
+                      // close idle connection in 15min; helps to get back to normal pool size after
+                      // load peak
+                      config.setIdleTimeout(TimeUnit.MINUTES.toMillis(15));
+                      // verify pool configuration and creates no connections during initialization
+                      // phase
+                      config.setInitializationFailTimeout(-1);
+                      config.setConnectionTimeout(TimeUnit.SECONDS.toMillis(10));
+                      // validate idle connections at least every 3 min
+                      config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(3));
+                      // allows to quickly validate connection in the pool and move on to another
+                      // connection if needed
+                      config.setValidationTimeout(TimeUnit.SECONDS.toMillis(1));
+                      config.setMaxLifetime(TimeUnit.DAYS.toMillis(1));
+                      return config;
+                    },
+                    null),
             null));
 
-    presets.put(ConfigurationProfilePresetCodes.SF_F0,
+    presets.put(
+        ConfigurationProfilePresetCodes.SF_F0,
         new ConfigurationProfile(
             ConfigurationProfilePresetCodes.SF_F0,
             Arrays.asList(
@@ -611,42 +713,56 @@ public class DriverConfigurationProfiles {
                 FailoverConnectionPluginFactory.class,
                 HostMonitoringConnectionPluginFactory.class),
             getProperties(
-                HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "60000",
-                HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "5",
-                HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "15000",
-                MONITORING_CONNECTION_PREFIX + PropertyDefinition.CONNECT_TIMEOUT.name, "10000",
-                MONITORING_CONNECTION_PREFIX + PropertyDefinition.SOCKET_TIMEOUT.name, "5000",
-                MONITORING_CONNECTION_PREFIX + PropertyDefinition.LOGIN_TIMEOUT.name, "10000",
-                PropertyDefinition.CONNECT_TIMEOUT.name, "10000",
-                PropertyDefinition.SOCKET_TIMEOUT.name, "0",
-                PropertyDefinition.LOGIN_TIMEOUT.name, "10000",
-                PropertyDefinition.TCP_KEEP_ALIVE.name, "false"),
+                HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name,
+                "60000",
+                HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name,
+                "5",
+                HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name,
+                "15000",
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.CONNECT_TIMEOUT.name,
+                "10000",
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.SOCKET_TIMEOUT.name,
+                "5000",
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.LOGIN_TIMEOUT.name,
+                "10000",
+                PropertyDefinition.CONNECT_TIMEOUT.name,
+                "10000",
+                PropertyDefinition.SOCKET_TIMEOUT.name,
+                "0",
+                PropertyDefinition.LOGIN_TIMEOUT.name,
+                "10000",
+                PropertyDefinition.TCP_KEEP_ALIVE.name,
+                "false"),
             null,
             null,
             null,
-            () -> new HikariPooledConnectionProvider(
-                (HostSpec hostSpec, Properties originalProps) -> {
-                  final HikariConfig config = new HikariConfig();
-                  config.setMaximumPoolSize(30);
-                  // holds few extra connections in case of sudden traffic peak
-                  config.setMinimumIdle(2);
-                  // close idle connection in 15min; helps to get back to normal pool size after load peak
-                  config.setIdleTimeout(TimeUnit.MINUTES.toMillis(15));
-                  // verify pool configuration and creates no connections during initialization phase
-                  config.setInitializationFailTimeout(-1);
-                  config.setConnectionTimeout(TimeUnit.SECONDS.toMillis(10));
-                  // validate idle connections at least every 3 min
-                  config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(3));
-                  // allows to quickly validate connection in the pool and move on to another connection if needed
-                  config.setValidationTimeout(TimeUnit.SECONDS.toMillis(1));
-                  config.setMaxLifetime(TimeUnit.DAYS.toMillis(1));
-                  return config;
-                },
-                null
-            ),
+            () ->
+                new HikariPooledConnectionProvider(
+                    (HostSpec hostSpec, Properties originalProps) -> {
+                      final HikariConfig config = new HikariConfig();
+                      config.setMaximumPoolSize(30);
+                      // holds few extra connections in case of sudden traffic peak
+                      config.setMinimumIdle(2);
+                      // close idle connection in 15min; helps to get back to normal pool size after
+                      // load peak
+                      config.setIdleTimeout(TimeUnit.MINUTES.toMillis(15));
+                      // verify pool configuration and creates no connections during initialization
+                      // phase
+                      config.setInitializationFailTimeout(-1);
+                      config.setConnectionTimeout(TimeUnit.SECONDS.toMillis(10));
+                      // validate idle connections at least every 3 min
+                      config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(3));
+                      // allows to quickly validate connection in the pool and move on to another
+                      // connection if needed
+                      config.setValidationTimeout(TimeUnit.SECONDS.toMillis(1));
+                      config.setMaxLifetime(TimeUnit.DAYS.toMillis(1));
+                      return config;
+                    },
+                    null),
             null));
 
-    presets.put(ConfigurationProfilePresetCodes.SF_F1,
+    presets.put(
+        ConfigurationProfilePresetCodes.SF_F1,
         new ConfigurationProfile(
             ConfigurationProfilePresetCodes.SF_F1,
             Arrays.asList(
@@ -655,39 +771,52 @@ public class DriverConfigurationProfiles {
                 FailoverConnectionPluginFactory.class,
                 HostMonitoringConnectionPluginFactory.class),
             getProperties(
-                HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "30000",
-                HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "3",
-                HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "5000",
-                MONITORING_CONNECTION_PREFIX + PropertyDefinition.CONNECT_TIMEOUT.name, "3000",
-                MONITORING_CONNECTION_PREFIX + PropertyDefinition.SOCKET_TIMEOUT.name, "3000",
-                MONITORING_CONNECTION_PREFIX + PropertyDefinition.LOGIN_TIMEOUT.name, "3000",
-                PropertyDefinition.CONNECT_TIMEOUT.name, "10000",
-                PropertyDefinition.SOCKET_TIMEOUT.name, "0",
-                PropertyDefinition.LOGIN_TIMEOUT.name, "10000",
-                PropertyDefinition.TCP_KEEP_ALIVE.name, "false"),
+                HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name,
+                "30000",
+                HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name,
+                "3",
+                HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name,
+                "5000",
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.CONNECT_TIMEOUT.name,
+                "3000",
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.SOCKET_TIMEOUT.name,
+                "3000",
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.LOGIN_TIMEOUT.name,
+                "3000",
+                PropertyDefinition.CONNECT_TIMEOUT.name,
+                "10000",
+                PropertyDefinition.SOCKET_TIMEOUT.name,
+                "0",
+                PropertyDefinition.LOGIN_TIMEOUT.name,
+                "10000",
+                PropertyDefinition.TCP_KEEP_ALIVE.name,
+                "false"),
             null,
             null,
             null,
-            () -> new HikariPooledConnectionProvider(
-                (HostSpec hostSpec, Properties originalProps) -> {
-                  final HikariConfig config = new HikariConfig();
-                  config.setMaximumPoolSize(30);
-                  // holds few extra connections in case of sudden traffic peak
-                  config.setMinimumIdle(2);
-                  // close idle connection in 15min; helps to get back to normal pool size after load peak
-                  config.setIdleTimeout(TimeUnit.MINUTES.toMillis(15));
-                  // verify pool configuration and creates no connections during initialization phase
-                  config.setInitializationFailTimeout(-1);
-                  config.setConnectionTimeout(TimeUnit.SECONDS.toMillis(10));
-                  // validate idle connections at least every 3 min
-                  config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(3));
-                  // allows to quickly validate connection in the pool and move on to another connection if needed
-                  config.setValidationTimeout(TimeUnit.SECONDS.toMillis(1));
-                  config.setMaxLifetime(TimeUnit.DAYS.toMillis(1));
-                  return config;
-                },
-                null
-            ),
+            () ->
+                new HikariPooledConnectionProvider(
+                    (HostSpec hostSpec, Properties originalProps) -> {
+                      final HikariConfig config = new HikariConfig();
+                      config.setMaximumPoolSize(30);
+                      // holds few extra connections in case of sudden traffic peak
+                      config.setMinimumIdle(2);
+                      // close idle connection in 15min; helps to get back to normal pool size after
+                      // load peak
+                      config.setIdleTimeout(TimeUnit.MINUTES.toMillis(15));
+                      // verify pool configuration and creates no connections during initialization
+                      // phase
+                      config.setInitializationFailTimeout(-1);
+                      config.setConnectionTimeout(TimeUnit.SECONDS.toMillis(10));
+                      // validate idle connections at least every 3 min
+                      config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(3));
+                      // allows to quickly validate connection in the pool and move on to another
+                      // connection if needed
+                      config.setValidationTimeout(TimeUnit.SECONDS.toMillis(1));
+                      config.setMaxLifetime(TimeUnit.DAYS.toMillis(1));
+                      return config;
+                    },
+                    null),
             null));
 
     return presets;
@@ -699,7 +828,8 @@ public class DriverConfigurationProfiles {
     }
 
     if (args.length % 2 != 0) {
-      throw new IllegalArgumentException("Properties should be passed by pairs: property name and property value.");
+      throw new IllegalArgumentException(
+          "Properties should be passed by pairs: property name and property value.");
     }
 
     final Properties props = new Properties();

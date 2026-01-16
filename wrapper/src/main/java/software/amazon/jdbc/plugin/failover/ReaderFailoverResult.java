@@ -20,10 +20,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import software.amazon.jdbc.HostSpec;
 
-/**
- * This class holds results of Reader Failover Process.
- */
-
+/** This class holds results of Reader Failover Process. */
 public class ReaderFailoverResult {
 
   private final Connection newConnection;
@@ -32,9 +29,7 @@ public class ReaderFailoverResult {
   private final HostSpec newHost;
 
   public ReaderFailoverResult(
-      final Connection newConnection,
-      final HostSpec newHost,
-      final boolean isConnected) {
+      final Connection newConnection, final HostSpec newHost, final boolean isConnected) {
     this(newConnection, newHost, isConnected, null);
   }
 
@@ -52,7 +47,8 @@ public class ReaderFailoverResult {
   /**
    * Get new connection to a host.
    *
-   * @return {@link Connection} New connection to a host. Returns null if no connection is established.
+   * @return {@link Connection} New connection to a host. Returns null if no connection is
+   *     established.
    */
   public Connection getConnection() {
     return newConnection;

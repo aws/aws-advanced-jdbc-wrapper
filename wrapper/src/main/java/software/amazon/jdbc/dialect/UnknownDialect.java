@@ -30,23 +30,24 @@ import software.amazon.jdbc.plugin.failover.FailoverRestriction;
 
 public class UnknownDialect implements Dialect {
 
-  private static final List<String> dialectUpdateCandidates = Arrays.asList(
-      DialectCodes.GLOBAL_AURORA_PG,
-      DialectCodes.GLOBAL_AURORA_MYSQL,
-      DialectCodes.AURORA_PG,
-      DialectCodes.AURORA_MYSQL,
-      DialectCodes.RDS_MULTI_AZ_PG_CLUSTER,
-      DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER,
-      DialectCodes.RDS_PG,
-      DialectCodes.RDS_MYSQL,
-      DialectCodes.PG,
-      DialectCodes.MYSQL,
-      DialectCodes.MARIADB
-  );
+  private static final List<String> dialectUpdateCandidates =
+      Arrays.asList(
+          DialectCodes.GLOBAL_AURORA_PG,
+          DialectCodes.GLOBAL_AURORA_MYSQL,
+          DialectCodes.AURORA_PG,
+          DialectCodes.AURORA_MYSQL,
+          DialectCodes.RDS_MULTI_AZ_PG_CLUSTER,
+          DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER,
+          DialectCodes.RDS_PG,
+          DialectCodes.RDS_MYSQL,
+          DialectCodes.PG,
+          DialectCodes.MYSQL,
+          DialectCodes.MARIADB);
 
   private static GenericExceptionHandler genericExceptionHandler;
 
-  private static final EnumSet<FailoverRestriction> NO_RESTRICTIONS = EnumSet.noneOf(FailoverRestriction.class);
+  private static final EnumSet<FailoverRestriction> NO_RESTRICTIONS =
+      EnumSet.noneOf(FailoverRestriction.class);
 
   @Override
   public int getDefaultPort() {
@@ -84,12 +85,15 @@ public class UnknownDialect implements Dialect {
   @Override
   public HostListProviderSupplier getHostListProviderSupplier() {
     return (properties, initialUrl, servicesContainer) ->
-        new ConnectionStringHostListProvider(properties, initialUrl, servicesContainer.getHostListProviderService());
+        new ConnectionStringHostListProvider(
+            properties, initialUrl, servicesContainer.getHostListProviderService());
   }
 
   @Override
   public void prepareConnectProperties(
-      final @NonNull Properties connectProperties, final @NonNull String protocol, final @NonNull HostSpec hostSpec) {
+      final @NonNull Properties connectProperties,
+      final @NonNull String protocol,
+      final @NonNull HostSpec hostSpec) {
     // do nothing
   }
 

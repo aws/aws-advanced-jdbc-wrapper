@@ -24,7 +24,8 @@ import software.amazon.jdbc.util.FullServicesContainer;
 public class AwsSecretsManagerConnectionPluginFactory implements ConnectionPluginFactory {
 
   @Override
-  public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
+  public ConnectionPlugin getInstance(
+      final FullServicesContainer servicesContainer, final Properties props) {
     return new AwsSecretsManagerConnectionPlugin(servicesContainer.getPluginService(), props);
   }
 }

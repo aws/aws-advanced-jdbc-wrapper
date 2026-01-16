@@ -38,8 +38,8 @@ import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.storage.StorageService;
 
 /**
- * Open a new connection to a provided substitute host.
- * In case of IAM auth and connecting with IP address, (possible) IAM host(s) should be added to HostSpec aliases.
+ * Open a new connection to a provided substitute host. In case of IAM auth and connecting with IP
+ * address, (possible) IAM host(s) should be added to HostSpec aliases.
  */
 public class SubstituteConnectRouting extends BaseConnectRouting {
 
@@ -50,8 +50,11 @@ public class SubstituteConnectRouting extends BaseConnectRouting {
   protected final List<HostSpec> iamHosts;
   protected final IamSuccessfulConnectFunc iamSuccessfulConnectNotify;
 
-  public SubstituteConnectRouting(@Nullable String hostAndPort, @Nullable BlueGreenRole role,
-      @NonNull final HostSpec substituteHostSpec, @Nullable final List<HostSpec> iamHosts,
+  public SubstituteConnectRouting(
+      @Nullable String hostAndPort,
+      @Nullable BlueGreenRole role,
+      @NonNull final HostSpec substituteHostSpec,
+      @Nullable final List<HostSpec> iamHosts,
       @Nullable IamSuccessfulConnectFunc iamSuccessfulConnectNotify) {
     super(hostAndPort, role);
     this.substituteHostSpec = substituteHostSpec;
@@ -60,9 +63,15 @@ public class SubstituteConnectRouting extends BaseConnectRouting {
   }
 
   @Override
-  public Connection apply(ConnectionPlugin plugin, HostSpec hostSpec, Properties props, boolean isInitialConnection,
-      boolean useForceConnect, JdbcCallable<Connection, SQLException> connectFunc,
-      StorageService storageService, PluginService pluginService)
+  public Connection apply(
+      ConnectionPlugin plugin,
+      HostSpec hostSpec,
+      Properties props,
+      boolean isInitialConnection,
+      boolean useForceConnect,
+      JdbcCallable<Connection, SQLException> connectFunc,
+      StorageService storageService,
+      PluginService pluginService)
       throws SQLException {
 
     if (!RDS_UTILS.isIP(this.substituteHostSpec.getHost())) {
@@ -88,17 +97,20 @@ public class SubstituteConnectRouting extends BaseConnectRouting {
     }
 
     for (HostSpec iamHost : this.iamHosts) {
-      HostSpec reroutedHostSpec = pluginService.getHostSpecBuilder()
-          .copyFrom(this.substituteHostSpec)
-          .hostId(iamHost.getHostId())
-          .availability(HostAvailability.AVAILABLE)
-          .build();
+      HostSpec reroutedHostSpec =
+          pluginService
+              .getHostSpecBuilder()
+              .copyFrom(this.substituteHostSpec)
+              .hostId(iamHost.getHostId())
+              .availability(HostAvailability.AVAILABLE)
+              .build();
       reroutedHostSpec.addAlias(iamHost.getHost());
 
       final Properties rerouteProperties = PropertyUtils.copyProperties(props);
       IamAuthConnectionPlugin.IAM_HOST.set(rerouteProperties, iamHost.getHost());
       if (iamHost.isPortSpecified()) {
-        IamAuthConnectionPlugin.IAM_DEFAULT_PORT.set(rerouteProperties, String.valueOf(iamHost.getPort()));
+        IamAuthConnectionPlugin.IAM_DEFAULT_PORT.set(
+            rerouteProperties, String.valueOf(iamHost.getPort()));
       }
 
       try {
@@ -128,20 +140,25 @@ public class SubstituteConnectRouting extends BaseConnectRouting {
       }
     }
 
-    throw new SQLException(Messages.get("bgd.inProgressCantOpenConnection",
-        new Object[] {this.substituteHostSpec.getHostAndPort()}));
+    throw new SQLException(
+        Messages.get(
+            "bgd.inProgressCantOpenConnection",
+            new Object[] {this.substituteHostSpec.getHostAndPort()}));
   }
 
   @Override
   public String toString() {
-    return String.format("%s [%s, %s, substitute: %s, iamHosts: %s]",
+    return String.format(
+        "%s [%s, %s, substitute: %s, iamHosts: %s]",
         this.getClass().getName() + "@" + Integer.toHexString(this.hashCode()),
         this.hostAndPort == null ? "<null>" : this.hostAndPort,
         this.role == null ? "<null>" : this.role.toString(),
         this.substituteHostSpec == null ? "<null>" : this.substituteHostSpec.getHostAndPort(),
         this.iamHosts == null
             ? "<null>"
-            : this.iamHosts.stream().map(HostSpec::getHostAndPort).collect(Collectors.joining(", ")));
+            : this.iamHosts.stream()
+                .map(HostSpec::getHostAndPort)
+                .collect(Collectors.joining(", ")));
   }
 
   public interface IamSuccessfulConnectFunc {

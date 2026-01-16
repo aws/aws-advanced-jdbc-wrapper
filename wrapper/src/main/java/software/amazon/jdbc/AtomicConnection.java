@@ -41,9 +41,12 @@ public class AtomicConnection {
 
   public AtomicConnection(final Object referent, boolean logUnclosedConnections) {
     this.logUnclosedConnections = logUnclosedConnections;
-    this.cleanable = LazyCleanerImpl.getInstance().register(
-        referent,
-        this.cleanupAction = new ConnectionCleanupAction(this.atomicReference, this.logUnclosedConnections));
+    this.cleanable =
+        LazyCleanerImpl.getInstance()
+            .register(
+                referent,
+                this.cleanupAction =
+                    new ConnectionCleanupAction(this.atomicReference, this.logUnclosedConnections));
   }
 
   public void clean() {
@@ -126,8 +129,7 @@ public class AtomicConnection {
     private volatile boolean cleaned = false;
 
     ConnectionCleanupAction(
-        final AtomicReference<Connection> atomicReference,
-        boolean logUnclosedConnections) {
+        final AtomicReference<Connection> atomicReference, boolean logUnclosedConnections) {
       this.atomicReference = atomicReference;
       this.logUnclosedConnections = logUnclosedConnections;
       this.threadName = Thread.currentThread().getName();
@@ -157,7 +159,10 @@ public class AtomicConnection {
         LOGGER.log(
             Level.WARNING,
             this.openConnectionStacktrace,
-            () -> Messages.get("AtomicConnection.finalizingUnclosedConnection", new Object[] {this.threadName}));
+            () ->
+                Messages.get(
+                    "AtomicConnection.finalizingUnclosedConnection",
+                    new Object[] {this.threadName}));
       }
 
       try {

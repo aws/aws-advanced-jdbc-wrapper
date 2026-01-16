@@ -24,15 +24,12 @@ import software.amazon.jdbc.plugin.failover.FailoverMode;
 public class FailoverResult implements Serializable {
   private static final long serialVersionUID = 1L;
 
-  @JsonIgnore
-  public final String nodeId;
+  @JsonIgnore public final String nodeId;
   public final FailoverMode failoverMode;
   public final Instant timestamp;
-  @JsonIgnore
-  public final long timestampNano;
+  @JsonIgnore public final long timestampNano;
   public final boolean success;
-  @JsonIgnore
-  public final String connectedHostId;
+  @JsonIgnore public final String connectedHostId;
   public final String error;
 
   private long offsetTimeMs;
@@ -105,7 +102,7 @@ public class FailoverResult implements Serializable {
     return super.toString()
         + String.format(
             " [nodeId=%s, failoverMode=%s, timestamp=%s, time=%d, offsetTime=%d, success=%s,"
-            + " connectedHost=%s, mappedConnectedHost=%d]",
+                + " connectedHost=%s, mappedConnectedHost=%d]",
             this.nodeId == null ? "<null>" : this.nodeId,
             this.failoverMode == null ? "<null>" : this.failoverMode.toString(),
             this.timestamp == null ? "<null>" : this.timestamp.toString(),

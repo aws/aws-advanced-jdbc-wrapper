@@ -25,33 +25,36 @@ import java.util.Objects;
 import java.util.Set;
 import software.amazon.awssdk.services.rds.model.DBClusterEndpoint;
 
-/**
- * Represents custom endpoint information for a given custom endpoint.
- */
+/** Represents custom endpoint information for a given custom endpoint. */
 public class CustomEndpointInfo {
   private final String endpointIdentifier; // ID portion of the custom endpoint URL.
   private final String clusterIdentifier; // ID of the cluster that the custom endpoint belongs to.
   private final String url;
   private final CustomEndpointRoleType roleType;
 
-  // A given custom endpoint will either specify a static list or an exclusion list, as indicated by `memberListType`.
-  // If the list is a static list, 'members' specifies instances included in the custom endpoint, and new cluster
-  // instances will not be automatically added to the custom endpoint. If it is an exclusion list, 'members' specifies
-  // instances excluded by the custom endpoint, and new cluster instances will be added to the custom endpoint.
+  // A given custom endpoint will either specify a static list or an exclusion list, as indicated by
+  // `memberListType`.
+  // If the list is a static list, 'members' specifies instances included in the custom endpoint,
+  // and new cluster
+  // instances will not be automatically added to the custom endpoint. If it is an exclusion list,
+  // 'members' specifies
+  // instances excluded by the custom endpoint, and new cluster instances will be added to the
+  // custom endpoint.
   private final MemberListType memberListType;
   private final Set<String> members;
 
   /**
    * Constructs a new CustomEndpointInfo instance with the specified details.
    *
-   * @param endpointIdentifier The endpoint identifier for the custom endpoint. For example, if the custom endpoint URL
-   *                           is "my-custom-endpoint.cluster-custom-XYZ.us-east-1.rds.amazonaws.com", the endpoint
-   *                           identifier is "my-custom-endpoint".
-   * @param clusterIdentifier  The cluster identifier for the cluster that the custom endpoint belongs to.
-   * @param url                The URL for the custom endpoint.
-   * @param roleType           The role type of the custom endpoint.
-   * @param members            The instance IDs for the hosts in the custom endpoint.
-   * @param memberListType     The list type for {@code members}.
+   * @param endpointIdentifier The endpoint identifier for the custom endpoint. For example, if the
+   *     custom endpoint URL is "my-custom-endpoint.cluster-custom-XYZ.us-east-1.rds.amazonaws.com",
+   *     the endpoint identifier is "my-custom-endpoint".
+   * @param clusterIdentifier The cluster identifier for the cluster that the custom endpoint
+   *     belongs to.
+   * @param url The URL for the custom endpoint.
+   * @param roleType The role type of the custom endpoint.
+   * @param members The instance IDs for the hosts in the custom endpoint.
+   * @param memberListType The list type for {@code members}.
    */
   public CustomEndpointInfo(
       String endpointIdentifier,
@@ -69,16 +72,19 @@ public class CustomEndpointInfo {
   }
 
   /**
-   * Constructs a CustomEndpointInfo object from a DBClusterEndpoint instance as returned by the RDS API.
+   * Constructs a CustomEndpointInfo object from a DBClusterEndpoint instance as returned by the RDS
+   * API.
    *
    * @param responseEndpointInfo The endpoint info returned by the RDS API.
-   * @return a CustomEndPointInfo object representing the information in the given DBClusterEndpoint.
+   * @return a CustomEndPointInfo object representing the information in the given
+   *     DBClusterEndpoint.
    */
   public static CustomEndpointInfo fromDBClusterEndpoint(DBClusterEndpoint responseEndpointInfo) {
     final List<String> members;
     final MemberListType memberListType;
 
-    if (responseEndpointInfo.hasStaticMembers() && !responseEndpointInfo.staticMembers().isEmpty()) {
+    if (responseEndpointInfo.hasStaticMembers()
+        && !responseEndpointInfo.staticMembers().isEmpty()) {
       members = responseEndpointInfo.staticMembers();
       memberListType = MemberListType.STATIC_LIST;
     } else {
@@ -92,14 +98,13 @@ public class CustomEndpointInfo {
         responseEndpointInfo.endpoint(),
         CustomEndpointRoleType.valueOf(responseEndpointInfo.customEndpointType()),
         new HashSet<>(members),
-        memberListType
-    );
+        memberListType);
   }
 
   /**
-   * Gets the endpoint identifier for the custom endpoint. For example, if the custom endpoint URL is
-   * "my-custom-endpoint.cluster-custom-XYZ.us-east-1.rds.amazonaws.com", the endpoint identifier is
-   * "my-custom-endpoint".
+   * Gets the endpoint identifier for the custom endpoint. For example, if the custom endpoint URL
+   * is "my-custom-endpoint.cluster-custom-XYZ.us-east-1.rds.amazonaws.com", the endpoint identifier
+   * is "my-custom-endpoint".
    *
    * @return the endpoint identifier for the custom endpoint.
    */
@@ -144,22 +149,22 @@ public class CustomEndpointInfo {
   }
 
   /**
-   * Gets the static members of the custom endpoint. If the custom endpoint member list type is an exclusion list,
-   * returns null.
+   * Gets the static members of the custom endpoint. If the custom endpoint member list type is an
+   * exclusion list, returns null.
    *
-   * @return the static members of the custom endpoint, or null if the custom endpoint member list type is an exclusion
-   *     list.
+   * @return the static members of the custom endpoint, or null if the custom endpoint member list
+   *     type is an exclusion list.
    */
   public Set<String> getStaticMembers() {
     return STATIC_LIST.equals(this.memberListType) ? this.members : null;
   }
 
   /**
-   * Gets the excluded members of the custom endpoint. If the custom endpoint member list type is a static list,
-   * returns null.
+   * Gets the excluded members of the custom endpoint. If the custom endpoint member list type is a
+   * static list, returns null.
    *
-   * @return the excluded members of the custom endpoint, or null if the custom endpoint member list type is a static
-   *     list.
+   * @return the excluded members of the custom endpoint, or null if the custom endpoint member list
+   *     type is a static list.
    */
   public Set<String> getExcludedMembers() {
     return EXCLUSION_LIST.equals(this.memberListType) ? this.members : null;
@@ -192,8 +197,11 @@ public class CustomEndpointInfo {
   public int hashCode() {
     final int prime = 31;
     int result = 1;
-    result = prime * result + ((this.endpointIdentifier == null) ? 0 : this.endpointIdentifier.hashCode());
-    result = prime * result + ((this.clusterIdentifier == null) ? 0 : this.clusterIdentifier.hashCode());
+    result =
+        prime * result
+            + ((this.endpointIdentifier == null) ? 0 : this.endpointIdentifier.hashCode());
+    result =
+        prime * result + ((this.clusterIdentifier == null) ? 0 : this.clusterIdentifier.hashCode());
     result = prime * result + ((this.url == null) ? 0 : this.url.hashCode());
     result = prime * result + ((this.roleType == null) ? 0 : this.roleType.hashCode());
     result = prime * result + ((this.memberListType == null) ? 0 : this.memberListType.hashCode());

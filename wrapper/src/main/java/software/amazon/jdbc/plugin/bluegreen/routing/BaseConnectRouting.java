@@ -32,7 +32,8 @@ public abstract class BaseConnectRouting extends BaseRouting implements ConnectR
 
   private static final Logger LOGGER = Logger.getLogger(BaseConnectRouting.class.getName());
 
-  protected final String hostAndPort; // if value is provided then host is mandatory and port is optional.
+  protected final String
+      hostAndPort; // if value is provided then host is mandatory and port is optional.
   protected final BlueGreenRole role;
 
   public BaseConnectRouting(@Nullable String hostAndPort, @Nullable BlueGreenRole role) {
@@ -42,7 +43,8 @@ public abstract class BaseConnectRouting extends BaseRouting implements ConnectR
 
   @Override
   public boolean isMatch(HostSpec hostSpec, BlueGreenRole hostRole) {
-    return (this.hostAndPort == null || this.hostAndPort.equals(
+    return (this.hostAndPort == null
+            || this.hostAndPort.equals(
                 hostSpec == null ? null : hostSpec.getHostAndPort().toLowerCase()))
         && (this.role == null || this.role.equals(hostRole));
   }
@@ -61,7 +63,8 @@ public abstract class BaseConnectRouting extends BaseRouting implements ConnectR
 
   @Override
   public String toString() {
-    return String.format("%s [%s, %s]",
+    return String.format(
+        "%s [%s, %s]",
         super.toString(),
         this.hostAndPort == null ? "<null>" : this.hostAndPort,
         this.role == null ? "<null>" : this.role.toString());

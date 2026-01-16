@@ -31,7 +31,8 @@ public abstract class AbstractPgExceptionHandler implements ExceptionHandler {
   public abstract List<String> getAccessErrors();
 
   @Override
-  public boolean isNetworkException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
+  public boolean isNetworkException(
+      final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     Throwable exception = throwable;
 
     while (exception != null) {
@@ -66,7 +67,8 @@ public abstract class AbstractPgExceptionHandler implements ExceptionHandler {
   }
 
   @Override
-  public boolean isLoginException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
+  public boolean isLoginException(
+      final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     Throwable exception = throwable;
 
     while (exception != null) {

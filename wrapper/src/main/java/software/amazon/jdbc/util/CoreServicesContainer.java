@@ -24,11 +24,12 @@ import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.StorageServiceImpl;
 
 /**
- * A singleton container object used to instantiate and access core universal services. This class should be used
- * instead of directly instantiating core services so that only one instance of each service is instantiated.
+ * A singleton container object used to instantiate and access core universal services. This class
+ * should be used instead of directly instantiating core services so that only one instance of each
+ * service is instantiated.
  *
- * @see FullServicesContainer for a container that holds both connection-specific services and core universal
- *     services.
+ * @see FullServicesContainer for a container that holds both connection-specific services and core
+ *     universal services.
  */
 public class CoreServicesContainer {
   private static final CoreServicesContainer INSTANCE = new CoreServicesContainer();

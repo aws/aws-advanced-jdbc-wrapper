@@ -17,14 +17,14 @@
 package software.amazon.jdbc.util;
 
 public interface LazyCleaner {
-  
+
   interface Cleanable {
     void clean() throws Exception;
   }
-  
+
   interface CleaningAction {
     void onClean(boolean leak) throws Exception;
   }
-  
+
   Cleanable register(Object obj, CleaningAction action);
 }

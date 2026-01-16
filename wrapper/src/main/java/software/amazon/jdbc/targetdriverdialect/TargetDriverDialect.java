@@ -31,25 +31,27 @@ public interface TargetDriverDialect {
 
   boolean isDialect(final String dataSourceClass);
 
-  ConnectInfo prepareConnectInfo(final @NonNull String protocol,
+  ConnectInfo prepareConnectInfo(
+      final @NonNull String protocol,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props) throws SQLException;
+      final @NonNull Properties props)
+      throws SQLException;
 
   void prepareDataSource(
       final @NonNull DataSource dataSource,
       final @NonNull String protocol,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props) throws SQLException;
+      final @NonNull Properties props)
+      throws SQLException;
 
   boolean isDriverRegistered() throws SQLException;
 
   void registerDriver() throws SQLException;
 
   /**
-   * Attempts to communicate to a database node in order to measure network latency.
-   * Some database protocols may not support the simplest "ping" packet. In this case,
-   * it's recommended to execute a simple connection validation, or the simplest SQL
-   * query like "SELECT 1".
+   * Attempts to communicate to a database node in order to measure network latency. Some database
+   * protocols may not support the simplest "ping" packet. In this case, it's recommended to execute
+   * a simple connection validation, or the simplest SQL query like "SELECT 1".
    *
    * @param connection The database connection to a node to ping.
    * @return True, if operation is succeeded. False, otherwise.

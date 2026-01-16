@@ -117,13 +117,15 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
   }
 
   @Override
-  public Connection getConnection(final String username, final String password) throws SQLException {
+  public Connection getConnection(final String username, final String password)
+      throws SQLException {
     this.user = username;
     this.password = password;
 
     final Properties props = PropertyUtils.copyProperties(this.targetDataSourceProperties);
 
-    final String registerPackageNames = PropertyDefinition.SKIP_WRAPPING_FOR_PACKAGES.getString(props);
+    final String registerPackageNames =
+        PropertyDefinition.SKIP_WRAPPING_FOR_PACKAGES.getString(props);
     if (!StringUtils.isNullOrEmpty(registerPackageNames)) {
       final String[] packages = registerPackageNames.split(",");
       for (String packageName : packages) {
@@ -138,22 +140,23 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
       if (configurationProfile != null) {
         PropertyUtils.addProperties(props, configurationProfile.getProperties());
         if (configurationProfile.getAwsCredentialsProviderHandler() != null) {
-          AwsCredentialsManager.setCustomHandler(configurationProfile.getAwsCredentialsProviderHandler());
+          AwsCredentialsManager.setCustomHandler(
+              configurationProfile.getAwsCredentialsProviderHandler());
         }
       } else {
         throw new SQLException(
             Messages.get(
-                "AwsWrapperDataSource.configurationProfileNotFound",
-                new Object[] {profileName}));
+                "AwsWrapperDataSource.configurationProfileNotFound", new Object[] {profileName}));
       }
     }
 
     String finalUrl;
 
     final TelemetryFactory telemetryFactory = new DefaultTelemetryFactory(props);
-    final TelemetryContext context = telemetryFactory.openTelemetryContext(
-        "software.amazon.jdbc.ds.AwsWrapperDataSource.getConnection",
-        TelemetryTraceLevel.TOP_LEVEL);
+    final TelemetryContext context =
+        telemetryFactory.openTelemetryContext(
+            "software.amazon.jdbc.ds.AwsWrapperDataSource.getConnection",
+            TelemetryTraceLevel.TOP_LEVEL);
 
     try {
       // Identify the URL for connection.
@@ -172,15 +175,18 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
         }
 
       } else {
-        final String serverName = !StringUtils.isNullOrEmpty(this.serverName)
-            ? this.serverName
-            : props.getProperty(SERVER_NAME);
-        final String serverPort = !StringUtils.isNullOrEmpty(this.serverPort)
-            ? this.serverPort
-            : props.getProperty(SERVER_PORT);
-        final String databaseName = !StringUtils.isNullOrEmpty(this.database)
-            ? this.database
-            : PropertyDefinition.DATABASE.getString(props);
+        final String serverName =
+            !StringUtils.isNullOrEmpty(this.serverName)
+                ? this.serverName
+                : props.getProperty(SERVER_NAME);
+        final String serverPort =
+            !StringUtils.isNullOrEmpty(this.serverPort)
+                ? this.serverPort
+                : props.getProperty(SERVER_PORT);
+        final String databaseName =
+            !StringUtils.isNullOrEmpty(this.database)
+                ? this.database
+                : PropertyDefinition.DATABASE.getString(props);
 
         if (StringUtils.isNullOrEmpty(serverName)) {
           throw new SQLException(Messages.get("AwsWrapperDataSource.missingTarget"));
@@ -205,9 +211,8 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
         }
       }
 
-      TargetDriverDialect targetDriverDialect = configurationProfile == null
-          ? null
-          : configurationProfile.getTargetDriverDialect();
+      TargetDriverDialect targetDriverDialect =
+          configurationProfile == null ? null : configurationProfile.getTargetDriverDialect();
 
       ConnectionProvider effectiveConnectionProvider = null;
       if (configurationProfile != null) {
@@ -226,15 +231,20 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
               () ->
                   Messages.get(
                       "DataSource.failedToSetProperty",
-                      new Object[] {"loginTimeout", targetDataSource.getClass(), ex.getCause().getMessage()}));
+                      new Object[] {
+                        "loginTimeout", targetDataSource.getClass(), ex.getCause().getMessage()
+                      }));
         }
 
         if (targetDriverDialect == null) {
-          final TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
-          targetDriverDialect = targetDriverDialectManager.getDialect(this.targetDataSourceClassName, props);
+          final TargetDriverDialectManager targetDriverDialectManager =
+              new TargetDriverDialectManager();
+          targetDriverDialect =
+              targetDriverDialectManager.getDialect(this.targetDataSourceClassName, props);
         }
 
-        ConnectionProvider defaultConnectionProvider = new DataSourceConnectionProvider(targetDataSource);
+        ConnectionProvider defaultConnectionProvider =
+            new DataSourceConnectionProvider(targetDataSource);
 
         return createConnectionWrapper(
             props,
@@ -249,7 +259,8 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
         final java.sql.Driver targetDriver = helper.getTargetDriver(finalUrl, props);
 
         if (targetDriverDialect == null) {
-          final TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
+          final TargetDriverDialectManager targetDriverDialectManager =
+              new TargetDriverDialectManager();
           targetDriverDialect = targetDriverDialectManager.getDialect(targetDriver, props);
         }
 
@@ -284,28 +295,26 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
       final @Nullable ConnectionProvider effectiveProvider,
       final @NonNull TargetDriverDialect targetDriverDialect,
       final @Nullable ConfigurationProfile configurationProfile,
-      final TelemetryFactory telemetryFactory) throws SQLException {
+      final TelemetryFactory telemetryFactory)
+      throws SQLException {
     String targetProtocol = this.urlParser.getProtocol(url);
-    FullServicesContainer servicesContainer = ServiceUtility.getInstance().createStandardServiceContainer(
-        this.storageService,
-        this.monitorService,
-        this.eventPublisher,
-        defaultProvider,
-        effectiveProvider,
-        telemetryFactory,
-        url,
-        targetProtocol,
-        targetDriverDialect,
-        props,
-        configurationProfile
-    );
+    FullServicesContainer servicesContainer =
+        ServiceUtility.getInstance()
+            .createStandardServiceContainer(
+                this.storageService,
+                this.monitorService,
+                this.eventPublisher,
+                defaultProvider,
+                effectiveProvider,
+                telemetryFactory,
+                url,
+                targetProtocol,
+                targetDriverDialect,
+                props,
+                configurationProfile);
 
     return new ConnectionWrapper(
-        servicesContainer,
-        props,
-        url,
-        targetProtocol,
-        configurationProfile);
+        servicesContainer, props, url, targetProtocol, configurationProfile);
   }
 
   public void setTargetDataSourceClassName(@Nullable final String dataSourceClassName) {

@@ -39,8 +39,9 @@ public abstract class BaseExecuteRouting extends BaseRouting implements ExecuteR
 
   @Override
   public boolean isMatch(HostSpec hostSpec, BlueGreenRole hostRole) {
-    return (this.hostAndPort == null || this.hostAndPort.equals(
-              hostSpec == null ? null : hostSpec.getHostAndPort().toLowerCase()))
+    return (this.hostAndPort == null
+            || this.hostAndPort.equals(
+                hostSpec == null ? null : hostSpec.getHostAndPort().toLowerCase()))
         && (this.role == null || this.role.equals(hostRole));
   }
 
@@ -55,11 +56,13 @@ public abstract class BaseExecuteRouting extends BaseRouting implements ExecuteR
       final Object[] jdbcMethodArgs,
       final StorageService storageService,
       final PluginService pluginService,
-      final Properties props) throws E;
+      final Properties props)
+      throws E;
 
   @Override
   public String toString() {
-    return String.format("%s [%s, %s]",
+    return String.format(
+        "%s [%s, %s]",
         super.toString(),
         this.hostAndPort == null ? "<null>" : this.hostAndPort,
         this.role == null ? "<null>" : this.role.toString());

@@ -40,10 +40,8 @@ public class SessionStateServiceImpl implements SessionStateService {
   protected final PluginService pluginService;
   protected final Properties props;
 
-
   public SessionStateServiceImpl(
-      final @NonNull PluginService pluginService,
-      final @NonNull Properties props) {
+      final @NonNull PluginService pluginService, final @NonNull Properties props) {
 
     this.sessionState = new SessionState();
     this.copySessionState = null;
@@ -82,7 +80,8 @@ public class SessionStateServiceImpl implements SessionStateService {
     if (this.sessionState.autoCommit.getPristineValue().isPresent()) {
       return;
     }
-    this.sessionState.autoCommit.setPristineValue(this.pluginService.getCurrentConnection().getAutoCommit());
+    this.sessionState.autoCommit.setPristineValue(
+        this.pluginService.getCurrentConnection().getAutoCommit());
     this.logCurrentState();
   }
 
@@ -121,7 +120,8 @@ public class SessionStateServiceImpl implements SessionStateService {
     if (this.sessionState.readOnly.getPristineValue().isPresent()) {
       return;
     }
-    this.sessionState.readOnly.setPristineValue(this.pluginService.getCurrentConnection().isReadOnly());
+    this.sessionState.readOnly.setPristineValue(
+        this.pluginService.getCurrentConnection().isReadOnly());
     this.logCurrentState();
   }
 
@@ -159,7 +159,8 @@ public class SessionStateServiceImpl implements SessionStateService {
     if (this.sessionState.catalog.getPristineValue().isPresent()) {
       return;
     }
-    this.sessionState.catalog.setPristineValue(this.pluginService.getCurrentConnection().getCatalog());
+    this.sessionState.catalog.setPristineValue(
+        this.pluginService.getCurrentConnection().getCatalog());
     this.logCurrentState();
   }
 
@@ -197,7 +198,8 @@ public class SessionStateServiceImpl implements SessionStateService {
     if (this.sessionState.holdability.getPristineValue().isPresent()) {
       return;
     }
-    this.sessionState.holdability.setPristineValue(this.pluginService.getCurrentConnection().getHoldability());
+    this.sessionState.holdability.setPristineValue(
+        this.pluginService.getCurrentConnection().getHoldability());
     this.logCurrentState();
   }
 
@@ -235,7 +237,8 @@ public class SessionStateServiceImpl implements SessionStateService {
     if (this.sessionState.networkTimeout.getPristineValue().isPresent()) {
       return;
     }
-    this.sessionState.networkTimeout.setPristineValue(this.pluginService.getCurrentConnection().getNetworkTimeout());
+    this.sessionState.networkTimeout.setPristineValue(
+        this.pluginService.getCurrentConnection().getNetworkTimeout());
     this.logCurrentState();
   }
 
@@ -273,7 +276,8 @@ public class SessionStateServiceImpl implements SessionStateService {
     if (this.sessionState.schema.getPristineValue().isPresent()) {
       return;
     }
-    this.sessionState.schema.setPristineValue(this.pluginService.getCurrentConnection().getSchema());
+    this.sessionState.schema.setPristineValue(
+        this.pluginService.getCurrentConnection().getSchema());
     this.logCurrentState();
   }
 
@@ -350,7 +354,8 @@ public class SessionStateServiceImpl implements SessionStateService {
     if (this.sessionState.typeMap.getPristineValue().isPresent()) {
       return;
     }
-    this.sessionState.typeMap.setPristineValue(this.pluginService.getCurrentConnection().getTypeMap());
+    this.sessionState.typeMap.setPristineValue(
+        this.pluginService.getCurrentConnection().getTypeMap());
     this.logCurrentState();
   }
 
@@ -404,7 +409,8 @@ public class SessionStateServiceImpl implements SessionStateService {
       return;
     }
 
-    TransferSessionStateOnSwitchCallable callableCopy = Driver.getTransferSessionStateOnSwitchFunc();
+    TransferSessionStateOnSwitchCallable callableCopy =
+        Driver.getTransferSessionStateOnSwitchFunc();
     if (callableCopy != null) {
       final boolean isHandled = callableCopy.apply(sessionState, newConnection);
       if (isHandled) {
@@ -450,15 +456,16 @@ public class SessionStateServiceImpl implements SessionStateService {
       this.sessionState.transactionIsolation.resetPristineValue();
       this.setupPristineTransactionIsolation();
       //noinspection MagicConstant
-      newConnection.setTransactionIsolation(this.sessionState.transactionIsolation.getValue().get());
+      newConnection.setTransactionIsolation(
+          this.sessionState.transactionIsolation.getValue().get());
     }
 
     if (this.sessionState.networkTimeout.getValue().isPresent()) {
       this.sessionState.networkTimeout.resetPristineValue();
       this.setupPristineNetworkTimeout();
-      final ExecutorService executorService =
-          ExecutorFactory.newSingleThreadExecutor("session");
-      newConnection.setNetworkTimeout(executorService, this.sessionState.networkTimeout.getValue().get());
+      final ExecutorService executorService = ExecutorFactory.newSingleThreadExecutor("session");
+      newConnection.setNetworkTimeout(
+          executorService, this.sessionState.networkTimeout.getValue().get());
       executorService.shutdown();
     }
 
@@ -544,11 +551,10 @@ public class SessionStateServiceImpl implements SessionStateService {
 
     if (this.copySessionState.networkTimeout.canRestorePristine()) {
       try {
-        final ExecutorService executorService =
-            ExecutorFactory.newSingleThreadExecutor("session");
+        final ExecutorService executorService = ExecutorFactory.newSingleThreadExecutor("session");
         //noinspection OptionalGetWithoutIsPresent
-        connection.setNetworkTimeout(executorService,
-            this.copySessionState.networkTimeout.getPristineValue().get());
+        connection.setNetworkTimeout(
+            executorService, this.copySessionState.networkTimeout.getPristineValue().get());
         executorService.shutdown();
       } catch (final SQLException e) {
         // Ignore any exception

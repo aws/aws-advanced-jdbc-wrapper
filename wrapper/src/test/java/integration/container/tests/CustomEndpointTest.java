@@ -70,11 +70,12 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingSQLExcep
 @ExtendWith(TestDriverProvider.class)
 @EnableOnDatabaseEngineDeployment({DatabaseEngineDeployment.AURORA})
 @DisableOnTestFeature({
-    TestEnvironmentFeatures.PERFORMANCE,
-    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
-    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
-    TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
-    TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
+  TestEnvironmentFeatures.PERFORMANCE,
+  TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
+  TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
+  TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
+  TestEnvironmentFeatures.RUN_DB_METRICS_ONLY
+})
 @EnableOnNumOfInstances(min = 3)
 @MakeSureFirstInstanceWriter
 @Order(16)
@@ -106,13 +107,17 @@ public class CustomEndpointTest {
     }
   }
 
-  private static void createEndpoint(RdsClient client, String clusterId, List<TestInstanceInfo> instances) {
-    List<String> instanceIDs = instances.stream().map(TestInstanceInfo::getInstanceId).collect(Collectors.toList());
-    client.createDBClusterEndpoint((builder) ->
-        builder.dbClusterEndpointIdentifier(CustomEndpointTest.endpointId)
-            .dbClusterIdentifier(clusterId)
-            .endpointType("ANY")
-            .staticMembers(instanceIDs));
+  private static void createEndpoint(
+      RdsClient client, String clusterId, List<TestInstanceInfo> instances) {
+    List<String> instanceIDs =
+        instances.stream().map(TestInstanceInfo::getInstanceId).collect(Collectors.toList());
+    client.createDBClusterEndpoint(
+        (builder) ->
+            builder
+                .dbClusterEndpointIdentifier(CustomEndpointTest.endpointId)
+                .dbClusterIdentifier(clusterId)
+                .endpointType("ANY")
+                .staticMembers(instanceIDs));
   }
 
   public static void waitUntilEndpointAvailable(RdsClient client) {
@@ -122,9 +127,10 @@ public class CustomEndpointTest {
     while (System.nanoTime() < timeoutEndNano) {
       Filter customEndpointFilter =
           Filter.builder().name("db-cluster-endpoint-type").values("custom").build();
-      DescribeDbClusterEndpointsResponse endpointsResponse = client.describeDBClusterEndpoints(
-          (builder) ->
-              builder.dbClusterEndpointIdentifier(endpointId).filters(customEndpointFilter));
+      DescribeDbClusterEndpointsResponse endpointsResponse =
+          client.describeDBClusterEndpoints(
+              (builder) ->
+                  builder.dbClusterEndpointIdentifier(endpointId).filters(customEndpointFilter));
       List<DBClusterEndpoint> responseEndpoints = endpointsResponse.dbClusterEndpoints();
       if (responseEndpoints.size() != 1) {
         try {
@@ -152,11 +158,13 @@ public class CustomEndpointTest {
     if (!available) {
       throw new RuntimeException(
           "The test setup step timed out while waiting for the custom endpoint to become available: '"
-              + endpointId + "'.");
+              + endpointId
+              + "'.");
     }
   }
 
-  public static void waitUntilEndpointHasMembers(RdsClient client, String endpointId, List<String> membersList) {
+  public static void waitUntilEndpointHasMembers(
+      RdsClient client, String endpointId, List<String> membersList) {
     long start = System.nanoTime();
 
     // Convert to set for later comparison.
@@ -164,12 +172,15 @@ public class CustomEndpointTest {
     long timeoutEndNano = System.nanoTime() + TimeUnit.MINUTES.toNanos(20);
     boolean hasCorrectState = false;
     while (System.nanoTime() < timeoutEndNano) {
-      DescribeDbClusterEndpointsResponse response = client.describeDBClusterEndpoints(
-          (builder) ->
-              builder.dbClusterEndpointIdentifier(endpointId));
+      DescribeDbClusterEndpointsResponse response =
+          client.describeDBClusterEndpoints(
+              (builder) -> builder.dbClusterEndpointIdentifier(endpointId));
       if (response.dbClusterEndpoints().size() != 1) {
-        fail("Unexpected number of endpoints returned while waiting for custom endpoint to have the specified list of "
-            + "members. Expected 1, got " + response.dbClusterEndpoints().size() + ".");
+        fail(
+            "Unexpected number of endpoints returned while waiting for custom endpoint to have the specified list of "
+                + "members. Expected 1, got "
+                + response.dbClusterEndpoints().size()
+                + ".");
       }
 
       DBClusterEndpoint endpoint = response.dbClusterEndpoints().get(0);
@@ -191,14 +202,20 @@ public class CustomEndpointTest {
       fail("Timed out while waiting for the custom endpoint to stabilize: '" + endpointId + "'.");
     }
 
-    LOGGER.fine("waitUntilEndpointHasCorrectState took "
-        + TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - start) + " seconds");
+    LOGGER.fine(
+        "waitUntilEndpointHasCorrectState took "
+            + TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - start)
+            + " seconds");
   }
 
   @BeforeEach
   public void identifyWriter() {
     this.currentWriter =
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0)
+        TestEnvironment.getCurrent()
+            .getInfo()
+            .getDatabaseInfo()
+            .getInstances()
+            .get(0)
             .getInstanceId();
   }
 
@@ -224,7 +241,8 @@ public class CustomEndpointTest {
 
   protected Properties initDefaultProps() {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
-    props.setProperty(PropertyDefinition.PLUGINS.name, "customEndpoint,readWriteSplitting,failover");
+    props.setProperty(
+        PropertyDefinition.PLUGINS.name, "customEndpoint,readWriteSplitting,failover");
     PropertyDefinition.CONNECT_TIMEOUT.set(props, "10000");
     PropertyDefinition.SOCKET_TIMEOUT.set(props, "10000");
     return props;
@@ -237,9 +255,11 @@ public class CustomEndpointTest {
     final Properties props = initDefaultProps();
     props.setProperty("failoverMode", "reader-or-writer");
 
-    try (final Connection conn = DriverManager.getConnection(
-        ConnectionStringHelper.getWrapperUrl(endpointInfo.endpoint(), port, dbInfo.getDefaultDbName()),
-        props)) {
+    try (final Connection conn =
+        DriverManager.getConnection(
+            ConnectionStringHelper.getWrapperUrl(
+                endpointInfo.endpoint(), port, dbInfo.getDefaultDbName()),
+            props)) {
       List<String> endpointMembers = endpointInfo.staticMembers();
       String instanceId = auroraUtil.queryInstanceId(conn);
       assertTrue(endpointMembers.contains(instanceId));
@@ -248,7 +268,8 @@ public class CustomEndpointTest {
       if (instanceId.equals(this.currentWriter)) {
         auroraUtil.failoverClusterAndWaitUntilWriterChanged();
       } else {
-        auroraUtil.failoverClusterToATargetAndWaitUntilWriterChanged(this.currentWriter, instanceId);
+        auroraUtil.failoverClusterToATargetAndWaitUntilWriterChanged(
+            this.currentWriter, instanceId);
       }
 
       assertThrows(FailoverSuccessSQLException.class, () -> auroraUtil.queryInstanceId(conn));
@@ -264,33 +285,41 @@ public class CustomEndpointTest {
     final TestDatabaseInfo dbInfo = envInfo.getDatabaseInfo();
     final int port = dbInfo.getClusterEndpointPort();
     final Properties props = initDefaultProps();
-    // This setting is not required for the test, but it allows us to also test re-creation of expired monitors since it
+    // This setting is not required for the test, but it allows us to also test re-creation of
+    // expired monitors since it
     // takes more than 30 seconds to modify the cluster endpoint (usually around 140s).
     props.setProperty("customEndpointMonitorExpirationMs", "30000");
 
     try (final Connection conn =
-             DriverManager.getConnection(
-                 ConnectionStringHelper.getWrapperUrl(endpointInfo.endpoint(), port, dbInfo.getDefaultDbName()),
-                  props);
-         final RdsClient client = RdsClient.builder().region(Region.of(envInfo.getRegion())).build()) {
+            DriverManager.getConnection(
+                ConnectionStringHelper.getWrapperUrl(
+                    endpointInfo.endpoint(), port, dbInfo.getDefaultDbName()),
+                props);
+        final RdsClient client =
+            RdsClient.builder().region(Region.of(envInfo.getRegion())).build()) {
       List<String> endpointMembers = endpointInfo.staticMembers();
       String instanceId1 = auroraUtil.queryInstanceId(conn);
       assertTrue(endpointMembers.contains(instanceId1));
 
-      // Attempt to switch to an instance of the opposite role. This should fail since the custom endpoint consists only
+      // Attempt to switch to an instance of the opposite role. This should fail since the custom
+      // endpoint consists only
       // of the current host.
       boolean newReadOnlyValue = currentWriter.equals(instanceId1);
       if (newReadOnlyValue) {
-        // We are connected to the writer. Attempting to switch to the reader will not work but will intentionally not
-        // throw an exception. In this scenario we log a warning and purposefully stick with the writer.
+        // We are connected to the writer. Attempting to switch to the reader will not work but will
+        // intentionally not
+        // throw an exception. In this scenario we log a warning and purposefully stick with the
+        // writer.
         LOGGER.fine("Initial connection is to the writer. Attempting to switch to reader...");
         conn.setReadOnly(newReadOnlyValue);
         String newInstanceId = auroraUtil.queryInstanceId(conn);
         assertEquals(instanceId1, newInstanceId);
       } else {
-        // We are connected to the reader. Attempting to switch to the writer will throw an exception.
+        // We are connected to the reader. Attempting to switch to the writer will throw an
+        // exception.
         LOGGER.fine("Initial connection is to a reader. Attempting to switch to writer...");
-        assertThrows(ReadWriteSplittingSQLException.class, () -> conn.setReadOnly(newReadOnlyValue));
+        assertThrows(
+            ReadWriteSplittingSQLException.class, () -> conn.setReadOnly(newReadOnlyValue));
       }
 
       String newMember;
@@ -302,7 +331,9 @@ public class CustomEndpointTest {
 
       client.modifyDBClusterEndpoint(
           builder ->
-              builder.dbClusterEndpointIdentifier(endpointId).staticMembers(instanceId1, newMember));
+              builder
+                  .dbClusterEndpointIdentifier(endpointId)
+                  .staticMembers(instanceId1, newMember));
 
       try {
         waitUntilEndpointHasMembers(client, endpointId, Arrays.asList(instanceId1, newMember));
@@ -316,21 +347,25 @@ public class CustomEndpointTest {
         conn.setReadOnly(!newReadOnlyValue);
       } finally {
         client.modifyDBClusterEndpoint(
-            builder ->
-                builder.dbClusterEndpointIdentifier(endpointId).staticMembers(instanceId1));
+            builder -> builder.dbClusterEndpointIdentifier(endpointId).staticMembers(instanceId1));
         waitUntilEndpointHasMembers(client, endpointId, Collections.singletonList(instanceId1));
       }
 
-      // We should not be able to switch again because newMember was removed from the custom endpoint.
+      // We should not be able to switch again because newMember was removed from the custom
+      // endpoint.
       if (newReadOnlyValue) {
-        // We are connected to the writer. Attempting to switch to the reader will not work but will intentionally not
-        // throw an exception. In this scenario we log a warning and purposefully stick with the writer.
+        // We are connected to the writer. Attempting to switch to the reader will not work but will
+        // intentionally not
+        // throw an exception. In this scenario we log a warning and purposefully stick with the
+        // writer.
         conn.setReadOnly(newReadOnlyValue);
         String newInstanceId = auroraUtil.queryInstanceId(conn);
         assertEquals(instanceId1, newInstanceId);
       } else {
-        // We are connected to the reader. Attempting to switch to the writer will throw an exception.
-        assertThrows(ReadWriteSplittingSQLException.class, () -> conn.setReadOnly(newReadOnlyValue));
+        // We are connected to the reader. Attempting to switch to the writer will throw an
+        // exception.
+        assertThrows(
+            ReadWriteSplittingSQLException.class, () -> conn.setReadOnly(newReadOnlyValue));
       }
     }
   }

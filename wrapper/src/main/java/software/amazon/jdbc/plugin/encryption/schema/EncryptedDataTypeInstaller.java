@@ -29,43 +29,44 @@ import java.util.stream.Collectors;
 
 public class EncryptedDataTypeInstaller {
 
-    private static final Logger LOGGER = Logger.getLogger(EncryptedDataTypeInstaller.class.getName());
-    private static final String SQL_RESOURCE_PATH = "/sql/encrypted_data_type.sql";
+  private static final Logger LOGGER = Logger.getLogger(EncryptedDataTypeInstaller.class.getName());
+  private static final String SQL_RESOURCE_PATH = "/sql/encrypted_data_type.sql";
 
-    public static void installEncryptedDataType(Connection connection) throws SQLException {
-        LOGGER.info("Installing encrypted_data custom type");
+  public static void installEncryptedDataType(Connection connection) throws SQLException {
+    LOGGER.info("Installing encrypted_data custom type");
 
-        try (Statement stmt = connection.createStatement()) {
-            stmt.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto");
-            LOGGER.fine("pgcrypto extension enabled");
+    try (Statement stmt = connection.createStatement()) {
+      stmt.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto");
+      LOGGER.fine("pgcrypto extension enabled");
 
-            // Use DOMAIN-based implementation
-            String sql = loadSqlScript();
-            stmt.execute(sql);
+      // Use DOMAIN-based implementation
+      String sql = loadSqlScript();
+      stmt.execute(sql);
 
-            LOGGER.info("encrypted_data type installed successfully (DOMAIN approach)");
-        }
+      LOGGER.info("encrypted_data type installed successfully (DOMAIN approach)");
     }
+  }
 
-    public static boolean isEncryptedDataTypeInstalled(Connection connection) throws SQLException {
-        String checkSql = "SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'encrypted_data')";
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(checkSql)) {
-            return rs.next() && rs.getBoolean(1);
-        }
+  public static boolean isEncryptedDataTypeInstalled(Connection connection) throws SQLException {
+    String checkSql = "SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'encrypted_data')";
+    try (Statement stmt = connection.createStatement();
+        ResultSet rs = stmt.executeQuery(checkSql)) {
+      return rs.next() && rs.getBoolean(1);
     }
+  }
 
-    private static String loadSqlScript() {
-        try (InputStream is = EncryptedDataTypeInstaller.class.getResourceAsStream(SQL_RESOURCE_PATH)) {
-            if (is == null) {
-                throw new IllegalStateException("SQL script not found: " + SQL_RESOURCE_PATH);
-            }
+  private static String loadSqlScript() {
+    try (InputStream is = EncryptedDataTypeInstaller.class.getResourceAsStream(SQL_RESOURCE_PATH)) {
+      if (is == null) {
+        throw new IllegalStateException("SQL script not found: " + SQL_RESOURCE_PATH);
+      }
 
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
-                return reader.lines().collect(Collectors.joining("\n"));
-            }
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to load SQL script: " + SQL_RESOURCE_PATH, e);
-        }
+      try (BufferedReader reader =
+          new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+        return reader.lines().collect(Collectors.joining("\n"));
+      }
+    } catch (Exception e) {
+      throw new IllegalStateException("Failed to load SQL script: " + SQL_RESOURCE_PATH, e);
     }
+  }
 }

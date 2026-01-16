@@ -27,7 +27,8 @@ public class TestPluginTwo extends TestPluginOne {
     super();
     this.calls = calls;
 
-    this.subscribedMethods = new HashSet<>(
-        Arrays.asList(JdbcMethod.BLOB_LENGTH.methodName, JdbcMethod.BLOB_POSITION.methodName));
+    this.subscribedMethods =
+        new HashSet<>(
+            Arrays.asList(JdbcMethod.BLOB_LENGTH.methodName, JdbcMethod.BLOB_POSITION.methodName));
   }
 }

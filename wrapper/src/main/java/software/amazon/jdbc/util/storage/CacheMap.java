@@ -27,21 +27,25 @@ public class CacheMap<K, V> {
 
   protected final Map<K, CacheItem<V>> cache = new ConcurrentHashMap<>();
   protected final long cleanupIntervalNanos = TimeUnit.MINUTES.toNanos(10);
-  protected final AtomicLong cleanupTimeNanos = new AtomicLong(System.nanoTime() + cleanupIntervalNanos);
+  protected final AtomicLong cleanupTimeNanos =
+      new AtomicLong(System.nanoTime() + cleanupIntervalNanos);
 
-  public CacheMap() {
-  }
+  public CacheMap() {}
 
   public @Nullable V get(final K key) {
-    final CacheItem<V> cacheItem = cache.computeIfPresent(key, (kk, vv) -> vv.isExpired() ? null : vv);
+    final CacheItem<V> cacheItem =
+        cache.computeIfPresent(key, (kk, vv) -> vv.isExpired() ? null : vv);
     return cacheItem == null ? null : cacheItem.item;
   }
 
   public V get(final K key, final V defaultItemValue, final long itemExpirationNano) {
-    final CacheItem<V> cacheItem = cache.compute(key,
-        (kk, vv) -> (vv == null || vv.isExpired())
-            ? new CacheItem<>(defaultItemValue, System.nanoTime() + itemExpirationNano)
-            : vv);
+    final CacheItem<V> cacheItem =
+        cache.compute(
+            key,
+            (kk, vv) ->
+                (vv == null || vv.isExpired())
+                    ? new CacheItem<>(defaultItemValue, System.nanoTime() + itemExpirationNano)
+                    : vv);
     return cacheItem.item;
   }
 
@@ -79,18 +83,19 @@ public class CacheMap<K, V> {
   protected void cleanUp() {
     if (this.cleanupTimeNanos.get() < System.nanoTime()) {
       this.cleanupTimeNanos.set(System.nanoTime() + cleanupIntervalNanos);
-      cache.forEach((key, value) -> {
-        if (value == null || value.isExpired()) {
-          cache.remove(key);
-          if (value != null && value.item instanceof AutoCloseable) {
-            try {
-              ((AutoCloseable) value.item).close();
-            } catch (Exception e) {
-              // ignore
+      cache.forEach(
+          (key, value) -> {
+            if (value == null || value.isExpired()) {
+              cache.remove(key);
+              if (value != null && value.item instanceof AutoCloseable) {
+                try {
+                  ((AutoCloseable) value.item).close();
+                } catch (Exception e) {
+                  // ignore
+                }
+              }
             }
-          }
-        }
-      });
+          });
     }
   }
 }

@@ -65,7 +65,6 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.provider.Arguments;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.plugin.efm.HostMonitorThreadContainer;
 import software.amazon.jdbc.plugin.efm2.HostMonitorServiceImpl;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
@@ -190,7 +189,7 @@ public class AdvancedPerformanceTest {
       doWritePerfDataToFile(
           String.format(
               "./build/reports/tests/AdvancedPerformanceResults_"
-              + "Db_%s_Driver_%s_Instances_%d.xlsx",
+                  + "Db_%s_Driver_%s_Instances_%d.xlsx",
               TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
               TestEnvironment.getCurrent().getCurrentDriver(),
               TestEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances()),
@@ -402,10 +401,12 @@ public class AdvancedPerformanceTest {
             props.setProperty(
                 MONITORING_CONNECTION_PREFIX + PropertyDefinition.SOCKET_TIMEOUT.name,
                 String.valueOf(TimeUnit.SECONDS.toMillis(TIMEOUT_SEC)));
-            CONNECT_TIMEOUT.set(props, String.valueOf(TimeUnit.SECONDS.toMillis(CONNECT_TIMEOUT_SEC)));
+            CONNECT_TIMEOUT.set(
+                props, String.valueOf(TimeUnit.SECONDS.toMillis(CONNECT_TIMEOUT_SEC)));
 
             FAILURE_DETECTION_TIME.set(props, Integer.toString(EFM_FAILURE_DETECTION_TIME_MS));
-            FAILURE_DETECTION_INTERVAL.set(props, Integer.toString(EFM_FAILURE_DETECTION_INTERVAL_MS));
+            FAILURE_DETECTION_INTERVAL.set(
+                props, Integer.toString(EFM_FAILURE_DETECTION_INTERVAL_MS));
             FAILURE_DETECTION_COUNT.set(props, Integer.toString(EFM_FAILURE_DETECTION_COUNT));
             PLUGINS.set(props, "efm");
 
@@ -485,7 +486,8 @@ public class AdvancedPerformanceTest {
             props.setProperty(
                 MONITORING_CONNECTION_PREFIX + PropertyDefinition.SOCKET_TIMEOUT.name,
                 String.valueOf(TimeUnit.SECONDS.toMillis(TIMEOUT_SEC)));
-            CONNECT_TIMEOUT.set(props, String.valueOf(TimeUnit.SECONDS.toMillis(CONNECT_TIMEOUT_SEC)));
+            CONNECT_TIMEOUT.set(
+                props, String.valueOf(TimeUnit.SECONDS.toMillis(CONNECT_TIMEOUT_SEC)));
 
             FAILURE_DETECTION_TIME.set(props, Integer.toString(EFM_FAILURE_DETECTION_TIME_MS));
             FAILURE_DETECTION_INTERVAL.set(props, Integer.toString(EFM_FAILURE_DETECTION_TIME_MS));
@@ -653,8 +655,7 @@ public class AdvancedPerformanceTest {
 
   private void ensureClusterHealthy() throws InterruptedException {
 
-    auroraUtil.waitUntilClusterHasRightState(
-        TestEnvironment.getCurrent().getInfo().getRdsDbName());
+    auroraUtil.waitUntilClusterHasRightState(TestEnvironment.getCurrent().getInfo().getRdsDbName());
 
     // Always get the latest topology info with writer as first
     List<String> latestTopology = new ArrayList<>();
@@ -755,7 +756,8 @@ public class AdvancedPerformanceTest {
 
     @Override
     public String toString() {
-      return String.format("%s [\nparamDriverName=%s,\nparamFailoverDelayMillis=%d,\n"
+      return String.format(
+          "%s [\nparamDriverName=%s,\nparamFailoverDelayMillis=%d,\n"
               + "failureDetectionTimeMillis=%d,\nreconnectTimeMillis=%d,\ndnsUpdateTimeMillis=%d ]",
           super.toString(),
           this.paramDriverName,

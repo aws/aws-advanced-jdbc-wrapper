@@ -69,8 +69,11 @@ class LimitlessRouterServiceImplTest {
   @Mock private LimitlessQueryHelper mockQueryHelper;
   @Mock JdbcCallable<Connection, SQLException> mockConnectFuncLambda;
   @Mock private Connection mockConnection;
-  private static final HostSpec hostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-      .host("some-instance").role(HostRole.WRITER).build();
+  private static final HostSpec hostSpec =
+      new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+          .host("some-instance")
+          .role(HostRole.WRITER)
+          .build();
   private static Properties props;
   private FullServicesContainer servicesContainer;
   private StorageService storageService;
@@ -86,8 +89,13 @@ class LimitlessRouterServiceImplTest {
     when(mockHostListProvider.getClusterId()).thenReturn(CLUSTER_ID);
 
     this.storageService = new StorageServiceImpl(mockEventPublisher);
-    servicesContainer = new FullServicesContainerImpl(
-        this.storageService, mockMonitorService, mockEventPublisher, mockConnectionProvider, mockTelemetryFactory);
+    servicesContainer =
+        new FullServicesContainerImpl(
+            this.storageService,
+            mockMonitorService,
+            mockEventPublisher,
+            mockConnectionProvider,
+            mockTelemetryFactory);
     servicesContainer.setPluginService(mockPluginService);
   }
 
@@ -98,36 +106,28 @@ class LimitlessRouterServiceImplTest {
   }
 
   @Test
-  void testEstablishConnection_GivenGetEmptyRouterListAndWaitForRouterInfo_ThenThrow() throws SQLException {
-    when(mockQueryHelper.queryForLimitlessRouters(any(Connection.class), anyInt())).thenReturn(Collections.emptyList());
+  void testEstablishConnection_GivenGetEmptyRouterListAndWaitForRouterInfo_ThenThrow()
+      throws SQLException {
+    when(mockQueryHelper.queryForLimitlessRouters(any(Connection.class), anyInt()))
+        .thenReturn(Collections.emptyList());
 
-    final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
-        hostSpec,
-        props,
-        null,
-        mockConnectFuncLambda,
-        null,
-        null
-    );
-    final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        this.servicesContainer, mockQueryHelper, props);
+    final LimitlessConnectionContext inputContext =
+        new LimitlessConnectionContext(hostSpec, props, null, mockConnectFuncLambda, null, null);
+    final LimitlessRouterService limitlessRouterService =
+        new LimitlessRouterServiceImpl(this.servicesContainer, mockQueryHelper, props);
 
-    assertThrows(SQLException.class, () -> limitlessRouterService.establishConnection(inputContext));
+    assertThrows(
+        SQLException.class, () -> limitlessRouterService.establishConnection(inputContext));
   }
 
   @Test
-  void testEstablishConnection_GivenGetEmptyRouterListAndNoWaitForRouterInfo_ThenCallConnectFunc() throws SQLException {
+  void testEstablishConnection_GivenGetEmptyRouterListAndNoWaitForRouterInfo_ThenCallConnectFunc()
+      throws SQLException {
     props.setProperty(LimitlessConnectionPlugin.WAIT_FOR_ROUTER_INFO.name, "false");
-    final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
-        hostSpec,
-        props,
-        null,
-        mockConnectFuncLambda,
-        null,
-        null
-    );
-    final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        this.servicesContainer, mockQueryHelper, props);
+    final LimitlessConnectionContext inputContext =
+        new LimitlessConnectionContext(hostSpec, props, null, mockConnectFuncLambda, null, null);
+    final LimitlessRouterService limitlessRouterService =
+        new LimitlessRouterServiceImpl(this.servicesContainer, mockQueryHelper, props);
 
     limitlessRouterService.establishConnection(inputContext);
 
@@ -136,27 +136,33 @@ class LimitlessRouterServiceImplTest {
   }
 
   @Test
-  void testEstablishConnection_GivenHostSpecInRouterCache_ThenCallConnectFunc() throws SQLException {
-    final List<HostSpec> routerList = Arrays.asList(
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-1").role(HostRole.WRITER).weight(-100)
-            .build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-2").role(HostRole.WRITER).weight(0)
-            .build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3").role(HostRole.WRITER).weight(100)
-            .build());
+  void testEstablishConnection_GivenHostSpecInRouterCache_ThenCallConnectFunc()
+      throws SQLException {
+    final List<HostSpec> routerList =
+        Arrays.asList(
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("instance-1")
+                .role(HostRole.WRITER)
+                .weight(-100)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("instance-2")
+                .role(HostRole.WRITER)
+                .weight(0)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("instance-3")
+                .role(HostRole.WRITER)
+                .weight(100)
+                .build());
     final LimitlessRouters routers = new LimitlessRouters(routerList);
-    final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        this.servicesContainer, mockQueryHelper, props);
+    final LimitlessRouterService limitlessRouterService =
+        new LimitlessRouterServiceImpl(this.servicesContainer, mockQueryHelper, props);
     this.storageService.set(CLUSTER_ID, routers);
 
-    final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
-        routerList.get(1),
-        props,
-        null,
-        mockConnectFuncLambda,
-        null,
-        null
-    );
+    final LimitlessConnectionContext inputContext =
+        new LimitlessConnectionContext(
+            routerList.get(1), props, null, mockConnectFuncLambda, null, null);
 
     limitlessRouterService.establishConnection(inputContext);
 
@@ -167,26 +173,29 @@ class LimitlessRouterServiceImplTest {
   @Test
   void testEstablishConnection_GivenFetchRouterListAndHostSpecInRouterList_ThenCallConnectFunc()
       throws SQLException {
-    final List<HostSpec> routerList = Arrays.asList(
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("some-instance-1").role(HostRole.WRITER)
-            .build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("some-instance-2").role(HostRole.WRITER)
-            .build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("some-instance-3").role(HostRole.WRITER)
-            .build());
+    final List<HostSpec> routerList =
+        Arrays.asList(
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("some-instance-1")
+                .role(HostRole.WRITER)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("some-instance-2")
+                .role(HostRole.WRITER)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("some-instance-3")
+                .role(HostRole.WRITER)
+                .build());
 
-    when(mockQueryHelper.queryForLimitlessRouters(any(Connection.class), anyInt())).thenReturn(routerList);
+    when(mockQueryHelper.queryForLimitlessRouters(any(Connection.class), anyInt()))
+        .thenReturn(routerList);
 
-    final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
-        routerList.get(1),
-        props,
-        null,
-        mockConnectFuncLambda,
-        null,
-        null
-    );
-    final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        this.servicesContainer, mockQueryHelper, props);
+    final LimitlessConnectionContext inputContext =
+        new LimitlessConnectionContext(
+            routerList.get(1), props, null, mockConnectFuncLambda, null, null);
+    final LimitlessRouterService limitlessRouterService =
+        new LimitlessRouterServiceImpl(this.servicesContainer, mockQueryHelper, props);
 
     limitlessRouterService.establishConnection(inputContext);
 
@@ -194,70 +203,78 @@ class LimitlessRouterServiceImplTest {
     final LimitlessRouters routers = new LimitlessRouters(routerList);
     assertEquals(routers, this.storageService.get(LimitlessRouters.class, CLUSTER_ID));
     verify(mockQueryHelper, times(1))
-        .queryForLimitlessRouters(inputContext.getConnection(), inputContext.getHostSpec().getPort());
+        .queryForLimitlessRouters(
+            inputContext.getConnection(), inputContext.getHostSpec().getPort());
     verify(mockConnectFuncLambda, times(1)).call();
   }
 
   @Test
   void testEstablishConnection_GivenRouterCache_ThenSelectsHost() throws SQLException {
-    final List<HostSpec> routerList = Arrays.asList(
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-1").role(HostRole.WRITER).weight(-100)
-            .build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-2").role(HostRole.WRITER).weight(0)
-            .build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3").role(HostRole.WRITER).weight(100)
-            .build());
+    final List<HostSpec> routerList =
+        Arrays.asList(
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("instance-1")
+                .role(HostRole.WRITER)
+                .weight(-100)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("instance-2")
+                .role(HostRole.WRITER)
+                .weight(0)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("instance-3")
+                .role(HostRole.WRITER)
+                .weight(100)
+                .build());
     final HostSpec selectedRouter = routerList.get(2);
     final LimitlessRouters routers = new LimitlessRouters(routerList);
-    final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        this.servicesContainer, mockQueryHelper, props);
+    final LimitlessRouterService limitlessRouterService =
+        new LimitlessRouterServiceImpl(this.servicesContainer, mockQueryHelper, props);
     this.storageService.set(CLUSTER_ID, routers);
 
     when(mockPluginService.getHostSpecByStrategy(any(), any(), any())).thenReturn(selectedRouter);
     when(mockPluginService.connect(any(), any(), any())).thenReturn(mockConnection);
 
-    final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
-        hostSpec,
-        props,
-        null,
-        mockConnectFuncLambda,
-        null,
-        null
-    );
+    final LimitlessConnectionContext inputContext =
+        new LimitlessConnectionContext(hostSpec, props, null, mockConnectFuncLambda, null, null);
 
     limitlessRouterService.establishConnection(inputContext);
 
     assertEquals(mockConnection, inputContext.getConnection());
     verify(mockPluginService, times(1))
-        .getHostSpecByStrategy(routerList, HostRole.WRITER, WeightedRandomHostSelector.STRATEGY_WEIGHTED_RANDOM);
+        .getHostSpecByStrategy(
+            routerList, HostRole.WRITER, WeightedRandomHostSelector.STRATEGY_WEIGHTED_RANDOM);
     verify(mockPluginService, times(1)).connect(selectedRouter, inputContext.getProps(), null);
     verify(mockConnectFuncLambda, times(0)).call();
   }
 
   @Test
   void testEstablishConnection_GivenFetchRouterList_ThenSelectsHost() throws SQLException {
-    final List<HostSpec> routerList = Arrays.asList(
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("some-instance-1").role(HostRole.WRITER)
-            .build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("some-instance-2").role(HostRole.WRITER)
-            .build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("some-instance-3").role(HostRole.WRITER)
-            .build());
+    final List<HostSpec> routerList =
+        Arrays.asList(
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("some-instance-1")
+                .role(HostRole.WRITER)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("some-instance-2")
+                .role(HostRole.WRITER)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("some-instance-3")
+                .role(HostRole.WRITER)
+                .build());
     final HostSpec selectedRouter = routerList.get(2);
-    when(mockQueryHelper.queryForLimitlessRouters(any(Connection.class), anyInt())).thenReturn(routerList);
+    when(mockQueryHelper.queryForLimitlessRouters(any(Connection.class), anyInt()))
+        .thenReturn(routerList);
     when(mockPluginService.getHostSpecByStrategy(any(), any(), any())).thenReturn(selectedRouter);
     when(mockPluginService.connect(any(), any(), any())).thenReturn(mockConnection);
 
-    final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
-        hostSpec,
-        props,
-        null,
-        mockConnectFuncLambda,
-        null,
-        null
-    );
-    final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        this.servicesContainer, mockQueryHelper, props);
+    final LimitlessConnectionContext inputContext =
+        new LimitlessConnectionContext(hostSpec, props, null, mockConnectFuncLambda, null, null);
+    final LimitlessRouterService limitlessRouterService =
+        new LimitlessRouterServiceImpl(this.servicesContainer, mockQueryHelper, props);
 
     limitlessRouterService.establishConnection(inputContext);
 
@@ -265,33 +282,44 @@ class LimitlessRouterServiceImplTest {
     final LimitlessRouters routers = new LimitlessRouters(routerList);
     assertEquals(routers, this.storageService.get(LimitlessRouters.class, CLUSTER_ID));
     verify(mockQueryHelper, times(1))
-        .queryForLimitlessRouters(inputContext.getConnection(), inputContext.getHostSpec().getPort());
+        .queryForLimitlessRouters(
+            inputContext.getConnection(), inputContext.getHostSpec().getPort());
     verify(mockConnectFuncLambda, times(1)).call();
-    verify(mockPluginService, times(1)).connect(eq(selectedRouter), eq(inputContext.getProps()), eq(null));
+    verify(mockPluginService, times(1))
+        .connect(eq(selectedRouter), eq(inputContext.getProps()), eq(null));
   }
 
   @Test
-  void testEstablishConnection_GivenHostSpecInRouterCacheAndCallConnectFuncThrows_ThenRetry() throws SQLException {
-    final List<HostSpec> routerList = Arrays.asList(
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-1").role(HostRole.WRITER).weight(-100)
-            .availability(HostAvailability.AVAILABLE).build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-2").role(HostRole.WRITER).weight(0)
-            .availability(HostAvailability.AVAILABLE).build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3").role(HostRole.WRITER).weight(100)
-            .availability(HostAvailability.AVAILABLE).build());
+  void testEstablishConnection_GivenHostSpecInRouterCacheAndCallConnectFuncThrows_ThenRetry()
+      throws SQLException {
+    final List<HostSpec> routerList =
+        Arrays.asList(
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("instance-1")
+                .role(HostRole.WRITER)
+                .weight(-100)
+                .availability(HostAvailability.AVAILABLE)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("instance-2")
+                .role(HostRole.WRITER)
+                .weight(0)
+                .availability(HostAvailability.AVAILABLE)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("instance-3")
+                .role(HostRole.WRITER)
+                .weight(100)
+                .availability(HostAvailability.AVAILABLE)
+                .build());
     final LimitlessRouters routers = new LimitlessRouters(routerList);
-    final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        this.servicesContainer, mockQueryHelper, props);
+    final LimitlessRouterService limitlessRouterService =
+        new LimitlessRouterServiceImpl(this.servicesContainer, mockQueryHelper, props);
     this.storageService.set(CLUSTER_ID, routers);
     final HostSpec selectedRouter = routerList.get(2);
-    final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
-        routerList.get(1),
-        props,
-        null,
-        mockConnectFuncLambda,
-        null,
-        null
-    );
+    final LimitlessConnectionContext inputContext =
+        new LimitlessConnectionContext(
+            routerList.get(1), props, null, mockConnectFuncLambda, null, null);
 
     when(mockConnectFuncLambda.call()).thenThrow(new SQLException());
     when(mockPluginService.getHostSpecByStrategy(any(), any(), any())).thenReturn(selectedRouter);
@@ -302,7 +330,8 @@ class LimitlessRouterServiceImplTest {
     assertEquals(mockConnection, inputContext.getConnection());
     assertEquals(routers, this.storageService.get(LimitlessRouters.class, CLUSTER_ID));
     verify(mockPluginService, times(1))
-        .getHostSpecByStrategy(routerList, HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
+        .getHostSpecByStrategy(
+            routerList, HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
     verify(mockPluginService, times(1)).connect(selectedRouter, inputContext.getProps(), null);
     verify(mockConnectFuncLambda, times(1)).call();
   }
@@ -310,13 +339,20 @@ class LimitlessRouterServiceImplTest {
   @Disabled
   @Test
   void testEstablishConnection_GivenSelectsHostThrows_ThenRetry() throws SQLException {
-    final List<HostSpec> routerList = Arrays.asList(
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("some-instance-1").role(HostRole.WRITER)
-            .build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("some-instance-2").role(HostRole.WRITER)
-            .build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("some-instance-3").role(HostRole.WRITER)
-            .build());
+    final List<HostSpec> routerList =
+        Arrays.asList(
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("some-instance-1")
+                .role(HostRole.WRITER)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("some-instance-2")
+                .role(HostRole.WRITER)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("some-instance-3")
+                .role(HostRole.WRITER)
+                .build());
     final HostSpec selectedRouter = routerList.get(2);
     final LimitlessRouters routers = new LimitlessRouters(routerList);
     this.storageService.set(CLUSTER_ID, routers);
@@ -325,16 +361,10 @@ class LimitlessRouterServiceImplTest {
         .thenReturn(selectedRouter);
     when(mockPluginService.connect(any(), any(), any())).thenReturn(mockConnection);
 
-    final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
-        hostSpec,
-        props,
-        null,
-        mockConnectFuncLambda,
-        null,
-        null
-    );
-    final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        this.servicesContainer, mockQueryHelper, props);
+    final LimitlessConnectionContext inputContext =
+        new LimitlessConnectionContext(hostSpec, props, null, mockConnectFuncLambda, null, null);
+    final LimitlessRouterService limitlessRouterService =
+        new LimitlessRouterServiceImpl(this.servicesContainer, mockQueryHelper, props);
 
     limitlessRouterService.establishConnection(inputContext);
 
@@ -342,37 +372,41 @@ class LimitlessRouterServiceImplTest {
     assertEquals(routers, this.storageService.get(LimitlessRouters.class, CLUSTER_ID));
     verify(mockPluginService, times(2)).getHostSpecByStrategy(any(), any(), any());
     verify(mockPluginService, times(1))
-        .getHostSpecByStrategy(routerList, HostRole.WRITER, WeightedRandomHostSelector.STRATEGY_WEIGHTED_RANDOM);
+        .getHostSpecByStrategy(
+            routerList, HostRole.WRITER, WeightedRandomHostSelector.STRATEGY_WEIGHTED_RANDOM);
     verify(mockPluginService, times(1))
-        .getHostSpecByStrategy(routerList, HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
+        .getHostSpecByStrategy(
+            routerList, HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
     verify(mockPluginService, times(1)).connect(selectedRouter, inputContext.getProps(), null);
   }
 
   @Test
   void testEstablishConnection_GivenSelectsHostNull_ThenRetry() throws SQLException {
-    final List<HostSpec> routerList = Arrays.asList(
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("some-instance-1").role(HostRole.WRITER)
-            .build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("some-instance-2").role(HostRole.WRITER)
-            .build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("some-instance-3").role(HostRole.WRITER)
-            .build());
+    final List<HostSpec> routerList =
+        Arrays.asList(
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("some-instance-1")
+                .role(HostRole.WRITER)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("some-instance-2")
+                .role(HostRole.WRITER)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("some-instance-3")
+                .role(HostRole.WRITER)
+                .build());
     final LimitlessRouters routers = new LimitlessRouters(routerList);
-    final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        this.servicesContainer, mockQueryHelper, props);
+    final LimitlessRouterService limitlessRouterService =
+        new LimitlessRouterServiceImpl(this.servicesContainer, mockQueryHelper, props);
     this.storageService.set(CLUSTER_ID, routers);
     final HostSpec selectedRouter = routerList.get(2);
-    when(mockPluginService.getHostSpecByStrategy(any(), any(), any())).thenReturn(null, selectedRouter);
+    when(mockPluginService.getHostSpecByStrategy(any(), any(), any()))
+        .thenReturn(null, selectedRouter);
     when(mockPluginService.connect(any(), any(), any())).thenReturn(mockConnection);
 
-    final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
-        hostSpec,
-        props,
-        null,
-        mockConnectFuncLambda,
-        null,
-        null
-    );
+    final LimitlessConnectionContext inputContext =
+        new LimitlessConnectionContext(hostSpec, props, null, mockConnectFuncLambda, null, null);
 
     limitlessRouterService.establishConnection(inputContext);
 
@@ -380,24 +414,33 @@ class LimitlessRouterServiceImplTest {
     assertEquals(routers, this.storageService.get(LimitlessRouters.class, CLUSTER_ID));
     verify(mockPluginService, times(2)).getHostSpecByStrategy(any(), any(), any());
     verify(mockPluginService, times(1))
-        .getHostSpecByStrategy(routerList, HostRole.WRITER, WeightedRandomHostSelector.STRATEGY_WEIGHTED_RANDOM);
+        .getHostSpecByStrategy(
+            routerList, HostRole.WRITER, WeightedRandomHostSelector.STRATEGY_WEIGHTED_RANDOM);
     verify(mockPluginService, times(1))
-        .getHostSpecByStrategy(routerList, HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
+        .getHostSpecByStrategy(
+            routerList, HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
     verify(mockPluginService, times(1)).connect(selectedRouter, inputContext.getProps(), null);
   }
 
   @Test
   void testEstablishConnection_GivenPluginServiceConnectThrows_ThenRetry() throws SQLException {
-    final List<HostSpec> routerList = Arrays.asList(
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("some-instance-1").role(HostRole.WRITER)
-            .build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("some-instance-2").role(HostRole.WRITER)
-            .build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("some-instance-3").role(HostRole.WRITER)
-            .build());
+    final List<HostSpec> routerList =
+        Arrays.asList(
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("some-instance-1")
+                .role(HostRole.WRITER)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("some-instance-2")
+                .role(HostRole.WRITER)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("some-instance-3")
+                .role(HostRole.WRITER)
+                .build());
     final LimitlessRouters routers = new LimitlessRouters(routerList);
-    final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        this.servicesContainer, mockQueryHelper, props);
+    final LimitlessRouterService limitlessRouterService =
+        new LimitlessRouterServiceImpl(this.servicesContainer, mockQueryHelper, props);
     this.storageService.set(CLUSTER_ID, routers);
     final HostSpec selectedRouter = routerList.get(1);
     final HostSpec selectedRouterForRetry = routerList.get(2);
@@ -407,14 +450,8 @@ class LimitlessRouterServiceImplTest {
         .thenThrow(new SQLException())
         .thenReturn(mockConnection);
 
-    final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
-        hostSpec,
-        props,
-        null,
-        mockConnectFuncLambda,
-        null,
-        null
-    );
+    final LimitlessConnectionContext inputContext =
+        new LimitlessConnectionContext(hostSpec, props, null, mockConnectFuncLambda, null, null);
 
     limitlessRouterService.establishConnection(inputContext);
 
@@ -422,42 +459,55 @@ class LimitlessRouterServiceImplTest {
     assertEquals(routers, this.storageService.get(LimitlessRouters.class, CLUSTER_ID));
     verify(mockPluginService, times(2)).getHostSpecByStrategy(any(), any(), any());
     verify(mockPluginService, times(1))
-        .getHostSpecByStrategy(routerList, HostRole.WRITER, WeightedRandomHostSelector.STRATEGY_WEIGHTED_RANDOM);
+        .getHostSpecByStrategy(
+            routerList, HostRole.WRITER, WeightedRandomHostSelector.STRATEGY_WEIGHTED_RANDOM);
     verify(mockPluginService, times(1))
-        .getHostSpecByStrategy(routerList, HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
+        .getHostSpecByStrategy(
+            routerList, HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
     verify(mockPluginService, times(2)).connect(any(), any(), any());
     verify(mockPluginService).connect(selectedRouter, inputContext.getProps(), null);
     verify(mockPluginService).connect(selectedRouterForRetry, inputContext.getProps(), null);
   }
 
   @Test
-  void testEstablishConnection_GivenRetryAndMaxRetriesExceeded_thenThrowSqlException() throws SQLException {
-    final List<HostSpec> routerList = Arrays.asList(
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-1").role(HostRole.WRITER).weight(-100)
-            .availability(HostAvailability.AVAILABLE).build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-2").role(HostRole.WRITER).weight(0)
-            .availability(HostAvailability.AVAILABLE).build(),
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3").role(HostRole.WRITER).weight(100)
-            .availability(HostAvailability.AVAILABLE).build());
+  void testEstablishConnection_GivenRetryAndMaxRetriesExceeded_thenThrowSqlException()
+      throws SQLException {
+    final List<HostSpec> routerList =
+        Arrays.asList(
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("instance-1")
+                .role(HostRole.WRITER)
+                .weight(-100)
+                .availability(HostAvailability.AVAILABLE)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("instance-2")
+                .role(HostRole.WRITER)
+                .weight(0)
+                .availability(HostAvailability.AVAILABLE)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("instance-3")
+                .role(HostRole.WRITER)
+                .weight(100)
+                .availability(HostAvailability.AVAILABLE)
+                .build());
     final LimitlessRouters routers = new LimitlessRouters(routerList);
-    final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
-        this.servicesContainer, mockQueryHelper, props);
+    final LimitlessRouterService limitlessRouterService =
+        new LimitlessRouterServiceImpl(this.servicesContainer, mockQueryHelper, props);
     this.storageService.set(CLUSTER_ID, routers);
 
-    final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
-        routerList.get(0),
-        props,
-        null,
-        mockConnectFuncLambda,
-        null,
-        null
-    );
+    final LimitlessConnectionContext inputContext =
+        new LimitlessConnectionContext(
+            routerList.get(0), props, null, mockConnectFuncLambda, null, null);
 
     when(mockConnectFuncLambda.call()).thenThrow(new SQLException());
-    when(mockPluginService.getHostSpecByStrategy(any(), any(), any())).thenReturn(routerList.get(0));
+    when(mockPluginService.getHostSpecByStrategy(any(), any(), any()))
+        .thenReturn(routerList.get(0));
     when(mockPluginService.connect(any(), any(), any())).thenThrow(new SQLException());
 
-    assertThrows(SQLException.class, () -> limitlessRouterService.establishConnection(inputContext));
+    assertThrows(
+        SQLException.class, () -> limitlessRouterService.establishConnection(inputContext));
 
     verify(mockPluginService, times(LimitlessConnectionPlugin.MAX_RETRIES.getInteger(props)))
         .connect(any(), any(), any());

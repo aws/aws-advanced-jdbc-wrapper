@@ -35,8 +35,7 @@ public class LazyCleanerImplTest {
 
   @Test
   void phantomCleaner() throws Exception {
-    List<Object> list = new ArrayList<>(Arrays.asList(
-        new Object(), new Object(), new Object()));
+    List<Object> list = new ArrayList<>(Arrays.asList(new Object(), new Object(), new Object()));
 
     LazyCleanerImpl t = new LazyCleanerImpl("Cleaner", ofSeconds(5));
     String[] collected = new String[list.size()];
@@ -51,15 +50,13 @@ public class LazyCleanerImplTest {
                 collected[ii] = leak ? "LEAK" : "NO LEAK";
                 if (ii == 0) {
                   throw new RuntimeException(
-                      "Exception from cleanup action to verify if the cleaner thread would survive"
-                  );
+                      "Exception from cleanup action to verify if the cleaner thread would survive");
                 }
-              }
-          )
-      );
+              }));
     }
 
-    assertTrue(t.isThreadRunning(), "cleanup thread should be running, and it should wait for the leaks");
+    assertTrue(
+        t.isThreadRunning(), "cleanup thread should be running, and it should wait for the leaks");
 
     cleaners.get(1).clean();
     list.set(0, null);
@@ -72,14 +69,12 @@ public class LazyCleanerImplTest {
     until(
         "The cleanup thread should detect leaks and terminate within 5-10 seconds after GC",
         ofSeconds(10),
-        () -> !t.isThreadRunning()
-    );
+        () -> !t.isThreadRunning());
 
     assertEquals(
         Arrays.asList("LEAK", "NO LEAK", "LEAK").toString(),
         Arrays.asList(collected).toString(),
-        "Second object has been released properly, so it should be reported as NO LEAK"
-    );
+        "Second object has been released properly, so it should be reported as NO LEAK");
   }
 
   @Test
@@ -90,12 +85,10 @@ public class LazyCleanerImplTest {
     List<Object> list = new ArrayList<>();
     list.add(new Object());
 
-    LazyCleaner.Cleanable cleanable = t.register(
-        list.get(0),
-        leak -> cleaned.set(true)
-    );
+    LazyCleaner.Cleanable cleanable = t.register(list.get(0), leak -> cleaned.set(true));
 
-    assertTrue(t.isThreadRunning(), "cleanup thread should be running when there are objects to monitor");
+    assertTrue(
+        t.isThreadRunning(), "cleanup thread should be running when there are objects to monitor");
 
     cleanable.clean();
     assertTrue(cleaned.get(), "Object should be cleaned after manual clean");
@@ -107,8 +100,7 @@ public class LazyCleanerImplTest {
     until(
         "Cleanup thread should stop when no objects remain",
         ofSeconds(10),
-        () -> !t.isThreadRunning()
-    );
+        () -> !t.isThreadRunning());
   }
 
   @Test
@@ -123,17 +115,14 @@ public class LazyCleanerImplTest {
         leak -> {
           cleanupCount.incrementAndGet();
           throw new IllegalStateException("test exception from CleaningAction");
-        }
-    );
+        });
 
     list.add(new Object());
     AtomicBoolean secondCleaned = new AtomicBoolean(false);
-    t.register(
-        list.get(1),
-        leak -> secondCleaned.set(true)
-    );
+    t.register(list.get(1), leak -> secondCleaned.set(true));
 
-    assertTrue(t.isThreadRunning(), "cleanup thread should be running when there are objects to monitor");
+    assertTrue(
+        t.isThreadRunning(), "cleanup thread should be running when there are objects to monitor");
 
     list.clear();
     System.gc();
@@ -142,14 +131,12 @@ public class LazyCleanerImplTest {
     until(
         "Both cleanups should complete despite exception",
         ofSeconds(10),
-        () -> cleanupCount.get() == 1 && secondCleaned.get()
-    );
+        () -> cleanupCount.get() == 1 && secondCleaned.get());
 
     until(
         "Cleanup thread should stop after all objects are cleaned",
         ofSeconds(10),
-        () -> !t.isThreadRunning()
-    );
+        () -> !t.isThreadRunning());
   }
 
   @Test
@@ -158,15 +145,19 @@ public class LazyCleanerImplTest {
     Object obj = new Object();
     RuntimeException expectedException = new RuntimeException("test exception");
 
-    LazyCleaner.Cleanable cleanable = t.register(obj, leak -> {
-      throw expectedException;
-    });
+    LazyCleaner.Cleanable cleanable =
+        t.register(
+            obj,
+            leak -> {
+              throw expectedException;
+            });
 
     RuntimeException thrownException = assertThrows(RuntimeException.class, cleanable::clean);
     assertSame(expectedException, thrownException, "Expected same exception instance to be thrown");
   }
 
-  private static void until(String message, Duration timeout, Condition condition) throws InterruptedException {
+  private static void until(String message, Duration timeout, Condition condition)
+      throws InterruptedException {
     long deadline = System.currentTimeMillis() + timeout.toMillis();
     while (!condition.get()) {
       if (System.currentTimeMillis() > deadline) {

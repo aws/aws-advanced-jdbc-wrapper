@@ -34,29 +34,29 @@ import software.amazon.jdbc.util.PropertyUtils;
 public class AwsWrapperDataSourceFactory implements ObjectFactory {
   @Override
   public Object getObjectInstance(
-      final Object obj,
-      final Name name,
-      final Context nameCtx,
-      final Hashtable<?, ?> environment)
+      final Object obj, final Name name, final Context nameCtx, final Hashtable<?, ?> environment)
       throws Exception {
-    final List<String> dataSourcePropertyNames = Arrays.asList(
-        "user",
-        "password",
-        "jdbcUrl",
-        "targetDataSourceClassName",
-        "jdbcProtocol",
-        "serverName",
-        "serverPort",
-        "database");
+    final List<String> dataSourcePropertyNames =
+        Arrays.asList(
+            "user",
+            "password",
+            "jdbcUrl",
+            "targetDataSourceClassName",
+            "jdbcProtocol",
+            "serverName",
+            "serverPort",
+            "database");
 
     final Reference reference = (Reference) obj;
 
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     final List<Method> dsMethods = Arrays.asList(AwsWrapperDataSource.class.getMethods());
     for (final String dataSourceProperty : dataSourcePropertyNames) {
-      final String referencePropertyContent = (String) reference.get(dataSourceProperty).getContent();
+      final String referencePropertyContent =
+          (String) reference.get(dataSourceProperty).getContent();
       if (!isNullOrEmpty(referencePropertyContent)) {
-        PropertyUtils.setPropertyOnTarget(ds, dataSourceProperty, referencePropertyContent, dsMethods);
+        PropertyUtils.setPropertyOnTarget(
+            ds, dataSourceProperty, referencePropertyContent, dsMethods);
       }
     }
 

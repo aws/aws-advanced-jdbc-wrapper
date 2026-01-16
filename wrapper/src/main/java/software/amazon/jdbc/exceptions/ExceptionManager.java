@@ -24,7 +24,9 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 public class ExceptionManager {
 
   public boolean isLoginException(
-      final Dialect dialect, final Throwable throwable, final TargetDriverDialect targetDriverDialect) {
+      final Dialect dialect,
+      final Throwable throwable,
+      final TargetDriverDialect targetDriverDialect) {
     final ExceptionHandler handler = getHandler(dialect);
     return handler.isLoginException(throwable, targetDriverDialect);
   }
@@ -35,7 +37,9 @@ public class ExceptionManager {
   }
 
   public boolean isNetworkException(
-      final Dialect dialect, final Throwable throwable, final TargetDriverDialect targetDriverDialect) {
+      final Dialect dialect,
+      final Throwable throwable,
+      final TargetDriverDialect targetDriverDialect) {
     final ExceptionHandler handler = getHandler(dialect);
     return handler.isNetworkException(throwable, targetDriverDialect);
   }
@@ -46,7 +50,9 @@ public class ExceptionManager {
   }
 
   public boolean isReadOnlyConnectionException(
-      final Dialect dialect, final Throwable throwable, final TargetDriverDialect targetDriverDialect) {
+      final Dialect dialect,
+      final Throwable throwable,
+      final TargetDriverDialect targetDriverDialect) {
     final ExceptionHandler handler = getHandler(dialect);
     return handler.isReadOnlyConnectionException(throwable, targetDriverDialect);
   }

@@ -49,14 +49,16 @@ class BatchingEventPublisherTest {
 
   @Test
   public void testPublication() {
-    BatchingEventPublisher publisher = new BatchingEventPublisher() {
-      @Override
-      protected void initPublishingThread(long messageIntervalNanos) {
-        // Do nothing
-      }
-    };
+    BatchingEventPublisher publisher =
+        new BatchingEventPublisher() {
+          @Override
+          protected void initPublishingThread(long messageIntervalNanos) {
+            // Do nothing
+          }
+        };
 
-    Set<Class<? extends Event>> eventSubscriptions = new HashSet<>(Collections.singletonList(DataAccessEvent.class));
+    Set<Class<? extends Event>> eventSubscriptions =
+        new HashSet<>(Collections.singletonList(DataAccessEvent.class));
     publisher.subscribe(subscriber, eventSubscriptions);
     publisher.subscribe(subscriber, eventSubscriptions);
     assertEquals(1, publisher.subscribersMap.size());

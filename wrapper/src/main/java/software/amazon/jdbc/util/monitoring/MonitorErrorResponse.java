@@ -17,7 +17,8 @@
 package software.amazon.jdbc.util.monitoring;
 
 /**
- * An enum defining which action to perform if a {@link Monitor} enters an error state or is discovered to be stuck.
+ * An enum defining which action to perform if a {@link Monitor} enters an error state or is
+ * discovered to be stuck.
  */
 public enum MonitorErrorResponse {
   NO_ACTION,

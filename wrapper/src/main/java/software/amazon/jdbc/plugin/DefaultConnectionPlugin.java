@@ -57,9 +57,9 @@ import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
  */
 public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
-  private static final Logger LOGGER =  Logger.getLogger(DefaultConnectionPlugin.class.getName());
-  private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
-      Collections.singletonList("*")));
+  private static final Logger LOGGER = Logger.getLogger(DefaultConnectionPlugin.class.getName());
+  private static final Set<String> subscribedMethods =
+      Collections.unmodifiableSet(new HashSet<>(Collections.singletonList("*")));
   private static final SqlMethodAnalyzer sqlMethodAnalyzer = new SqlMethodAnalyzer();
 
   private final @NonNull ConnectionProvider defaultConnProvider;
@@ -73,7 +73,8 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       final ConnectionProvider defaultConnProvider,
       final @Nullable ConnectionProvider effectiveConnProvider,
       final PluginManagerService pluginManagerService) {
-    this(pluginService,
+    this(
+        pluginService,
         defaultConnProvider,
         pluginManagerService,
         new ConnectionProviderManager(defaultConnProvider, effectiveConnProvider));
@@ -119,12 +120,14 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
         () -> Messages.get("DefaultConnectionPlugin.executingMethod", new Object[] {methodName}));
 
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
-    TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
-        this.pluginService.getTargetName(), TelemetryTraceLevel.NESTED);
+    TelemetryContext telemetryContext =
+        telemetryFactory.openTelemetryContext(
+            this.pluginService.getTargetName(), TelemetryTraceLevel.NESTED);
 
     // Check previous autocommit value before calling jdbcMethodFunc.
-    final boolean doesSwitchAutoCommitFalseTrue = sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(
-        this.pluginService.getCurrentConnection(), methodName, jdbcMethodArgs);
+    final boolean doesSwitchAutoCommitFalseTrue =
+        sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(
+            this.pluginService.getCurrentConnection(), methodName, jdbcMethodArgs);
 
     T result;
     try {
@@ -138,22 +141,25 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     final Connection currentConn = this.pluginService.getCurrentConnection();
     final Connection boundConnection = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
     if (boundConnection != null && boundConnection != currentConn) {
-      // The method being invoked is using an old connection, so transaction/autocommit analysis should be skipped.
-      // ConnectionPluginManager#execute blocks all methods invoked using old connections except for close/abort.
+      // The method being invoked is using an old connection, so transaction/autocommit analysis
+      // should be skipped.
+      // ConnectionPluginManager#execute blocks all methods invoked using old connections except for
+      // close/abort.
       return result;
     }
 
     if (sqlMethodAnalyzer.doesOpenTransaction(currentConn, methodName, jdbcMethodArgs)) {
       this.pluginManagerService.setInTransaction(true);
-    } else if (
-        sqlMethodAnalyzer.doesCloseTransaction(currentConn, methodName, jdbcMethodArgs)
-            // According to the JDBC spec, transactions are committed if autocommit is switched from false to true.
-            || doesSwitchAutoCommitFalseTrue) {
+    } else if (sqlMethodAnalyzer.doesCloseTransaction(currentConn, methodName, jdbcMethodArgs)
+        // According to the JDBC spec, transactions are committed if autocommit is switched from
+        // false to true.
+        || doesSwitchAutoCommitFalseTrue) {
       this.pluginManagerService.setInTransaction(false);
     }
 
     if (sqlMethodAnalyzer.isStatementSettingAutoCommit(methodName, jdbcMethodArgs)) {
-      final Boolean autocommit = sqlMethodAnalyzer.getAutoCommitValueFromSqlStatement(jdbcMethodArgs);
+      final Boolean autocommit =
+          sqlMethodAnalyzer.getAutoCommitValueFromSqlStatement(jdbcMethodArgs);
       if (autocommit != null) {
         try {
           currentConn.setAutoCommit(autocommit);
@@ -175,7 +181,8 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
-    ConnectionProvider connProvider = this.connProviderManager.getConnectionProvider(driverProtocol, hostSpec, props);
+    ConnectionProvider connProvider =
+        this.connProviderManager.getConnectionProvider(driverProtocol, hostSpec, props);
 
     // It's guaranteed that this plugin is always the last in plugin chain so connectFunc can be
     // ignored.
@@ -191,17 +198,19 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       throws SQLException {
 
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
-    TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
-        connProvider.getTargetName(), TelemetryTraceLevel.NESTED);
+    TelemetryContext telemetryContext =
+        telemetryFactory.openTelemetryContext(
+            connProvider.getTargetName(), TelemetryTraceLevel.NESTED);
 
     ConnectionInfo connectionInfo;
     try {
-      connectionInfo = connProvider.connect(
-          driverProtocol,
-          this.pluginService.getDialect(),
-          this.pluginService.getTargetDriverDialect(),
-          hostSpec,
-          props);
+      connectionInfo =
+          connProvider.connect(
+              driverProtocol,
+              this.pluginService.getDialect(),
+              this.pluginService.getTargetDriverDialect(),
+              hostSpec,
+              props);
     } finally {
       if (telemetryContext != null) {
         telemetryContext.closeContext();
@@ -209,7 +218,8 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     }
 
     this.pluginManagerService.setIsPooledConnection(connectionInfo.isPooled());
-    this.connProviderManager.initConnection(connectionInfo.getConnection(), driverProtocol, hostSpec, props);
+    this.connProviderManager.initConnection(
+        connectionInfo.getConnection(), driverProtocol, hostSpec, props);
 
     if (connectionInfo.getConnection() != null) {
       this.pluginService.setAvailability(hostSpec.asAliases(), HostAvailability.AVAILABLE);
@@ -230,9 +240,11 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       final JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
 
-    // It's guaranteed that this plugin is always the last in plugin chain so forceConnectFunc can be
+    // It's guaranteed that this plugin is always the last in plugin chain so forceConnectFunc can
+    // be
     // ignored.
-    return connectInternal(driverProtocol, hostSpec, props, this.defaultConnProvider, isInitialConnection);
+    return connectInternal(
+        driverProtocol, hostSpec, props, this.defaultConnProvider, isInitialConnection);
   }
 
   @Override
@@ -266,7 +278,8 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       throw new SQLException(Messages.get("DefaultConnectionPlugin.noHostsAvailable"));
     }
 
-    return this.connProviderManager.getHostSpecByStrategy(hosts, role, strategy, this.pluginService.getProperties());
+    return this.connProviderManager.getHostSpecByStrategy(
+        hosts, role, strategy, this.pluginService.getProperties());
   }
 
   @Override

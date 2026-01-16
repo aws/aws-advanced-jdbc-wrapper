@@ -33,9 +33,7 @@ import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
-/**
- * Interface for retrieving the current active {@link Connection} and its {@link HostSpec}.
- */
+/** Interface for retrieving the current active {@link Connection} and its {@link HostSpec}. */
 public interface PluginService extends ExceptionHandler, Wrapper {
 
   Connection getCurrentConnection();
@@ -46,16 +44,16 @@ public interface PluginService extends ExceptionHandler, Wrapper {
       throws SQLException;
 
   /**
-   * Set a new internal connection. While setting a new connection, a notification may be sent to all plugins.
-   * See {@link ConnectionPlugin#notifyConnectionChanged(EnumSet)} for more details. A plugin mentioned
-   * in parameter skipNotificationForThisPlugin won't be receiving such notification.
+   * Set a new internal connection. While setting a new connection, a notification may be sent to
+   * all plugins. See {@link ConnectionPlugin#notifyConnectionChanged(EnumSet)} for more details. A
+   * plugin mentioned in parameter skipNotificationForThisPlugin won't be receiving such
+   * notification.
    *
    * @param connection the new internal connection.
-   * @param hostSpec  the host details for a new internal connection.
-   * @param skipNotificationForThisPlugin A reference to a plugin that doesn't need to receive notification
-   *                                      about connection change. Usually, a plugin that initiates connection change
-   *                                      doesn't need to receive such notification and uses a pointer to
-   *                                      itself as a call parameter.
+   * @param hostSpec the host details for a new internal connection.
+   * @param skipNotificationForThisPlugin A reference to a plugin that doesn't need to receive
+   *     notification about connection change. Usually, a plugin that initiates connection change
+   *     doesn't need to receive such notification and uses a pointer to itself as a call parameter.
    * @return a set of notification options about this connection switch.
    * @throws SQLException if there's an error setting a current connection.
    */
@@ -73,9 +71,9 @@ public interface PluginService extends ExceptionHandler, Wrapper {
   List<HostSpec> getAllHosts();
 
   /**
-   * Get host information for allowed hosts in the cluster. Certain hosts in the cluster may be disallowed, and these
-   * hosts will not be returned by this function. For example, if a custom endpoint is being used, hosts outside the
-   * custom endpoint will not be returned.
+   * Get host information for allowed hosts in the cluster. Certain hosts in the cluster may be
+   * disallowed, and these hosts will not be returned by this function. For example, if a custom
+   * endpoint is being used, hosts outside the custom endpoint will not be returned.
    *
    * @return host information for allowed hosts in the cluster.
    */
@@ -86,58 +84,54 @@ public interface PluginService extends ExceptionHandler, Wrapper {
   String getOriginalUrl();
 
   /**
-   * Returns a boolean indicating if the available {@link ConnectionProvider} or
-   * {@link ConnectionPlugin} instances support the selection of a host with the requested role and
+   * Returns a boolean indicating if the available {@link ConnectionProvider} or {@link
+   * ConnectionPlugin} instances support the selection of a host with the requested role and
    * strategy via {@link #getHostSpecByStrategy}.
    *
-   * @param role     the desired host role
+   * @param role the desired host role
    * @param strategy the strategy that should be used to pick a host (eg "random")
    * @return true if the available {@link ConnectionProvider} or {@link ConnectionPlugin} instances
-   *     support the selection of a host with the requested role and strategy via
-   *     {@link #getHostSpecByStrategy}. Otherwise, return false.
+   *     support the selection of a host with the requested role and strategy via {@link
+   *     #getHostSpecByStrategy}. Otherwise, return false.
    * @throws SQLException if there's an error processing this method.
    */
   boolean acceptsStrategy(HostRole role, String strategy) throws SQLException;
 
   /**
    * Selects a {@link HostSpec} with the requested role from available hosts using the requested
-   * strategy. {@link #acceptsStrategy} should be called first to evaluate if the available
-   * {@link ConnectionProvider} or {@link ConnectionPlugin} instances support the selection of a
-   * host with the requested role and strategy.
+   * strategy. {@link #acceptsStrategy} should be called first to evaluate if the available {@link
+   * ConnectionProvider} or {@link ConnectionPlugin} instances support the selection of a host with
+   * the requested role and strategy.
    *
-   * @param role     the desired role of the host - either a writer or a reader
+   * @param role the desired role of the host - either a writer or a reader
    * @param strategy the strategy that should be used to select a {@link HostSpec} from the
-   *                 available hosts (eg "random")
+   *     available hosts (eg "random")
    * @return a {@link HostSpec} with the requested role
-   * @throws SQLException                  if the available {@link ConnectionProvider} or
-   *                                       {@link ConnectionPlugin} instances do not cannot find a
-   *                                       host matching the requested role or an error occurs while
-   *                                       selecting a host
-   * @throws UnsupportedOperationException if the available {@link ConnectionProvider} or
-   *                                       {@link ConnectionPlugin} instances do not support the
-   *                                       requested strategy
+   * @throws SQLException if the available {@link ConnectionProvider} or {@link ConnectionPlugin}
+   *     instances do not cannot find a host matching the requested role or an error occurs while
+   *     selecting a host
+   * @throws UnsupportedOperationException if the available {@link ConnectionProvider} or {@link
+   *     ConnectionPlugin} instances do not support the requested strategy
    */
   HostSpec getHostSpecByStrategy(HostRole role, String strategy)
       throws SQLException, UnsupportedOperationException;
 
   /**
    * Selects a {@link HostSpec} with the requested role from available hosts using the requested
-   * strategy. {@link #acceptsStrategy} should be called first to evaluate if the available
-   * {@link ConnectionProvider} or {@link ConnectionPlugin} instances support the selection of a
-   * host with the requested role and strategy.
+   * strategy. {@link #acceptsStrategy} should be called first to evaluate if the available {@link
+   * ConnectionProvider} or {@link ConnectionPlugin} instances support the selection of a host with
+   * the requested role and strategy.
    *
-   * @param hosts    the list of {@link HostSpec} from which a {@link HostSpec} will be selected from
-   * @param role     the desired role of the host - either a writer or a reader
+   * @param hosts the list of {@link HostSpec} from which a {@link HostSpec} will be selected from
+   * @param role the desired role of the host - either a writer or a reader
    * @param strategy the strategy that should be used to select a {@link HostSpec} from the
-   *                 available hosts (eg "random")
+   *     available hosts (eg "random")
    * @return a {@link HostSpec} with the requested role
-   * @throws SQLException                  if the available {@link ConnectionProvider} or
-   *                                       {@link ConnectionPlugin} instances do not cannot find a
-   *                                       host matching the requested role or an error occurs while
-   *                                       selecting a host
-   * @throws UnsupportedOperationException if the available {@link ConnectionProvider} or
-   *                                       {@link ConnectionPlugin} instances do not support the
-   *                                       requested strategy
+   * @throws SQLException if the available {@link ConnectionProvider} or {@link ConnectionPlugin}
+   *     instances do not cannot find a host matching the requested role or an error occurs while
+   *     selecting a host
+   * @throws UnsupportedOperationException if the available {@link ConnectionProvider} or {@link
+   *     ConnectionPlugin} instances do not support the requested strategy
    */
   HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy)
       throws SQLException, UnsupportedOperationException;
@@ -148,7 +142,7 @@ public interface PluginService extends ExceptionHandler, Wrapper {
    * @param conn a connection to the database instance whose role should be determined
    * @return the role of the given connection - either a writer or a reader
    * @throws SQLException if there is a problem executing or processing the SQL query used to
-   *                      determine the host role
+   *     determine the host role
    */
   HostRole getHostRole(Connection conn) throws SQLException;
 
@@ -167,56 +161,60 @@ public interface PluginService extends ExceptionHandler, Wrapper {
   /**
    * Initiates a topology update.
    *
-   * @param shouldVerifyWriter true, if a caller expects to get topology with the latest confirmed writer
-   * @param timeoutMs timeout in msec to wait until topology gets refreshed and a new (or existing) writer is
-   *                  confirmed (if shouldVerifyWriter has a value of <code>true</code>).
+   * @param shouldVerifyWriter true, if a caller expects to get topology with the latest confirmed
+   *     writer
+   * @param timeoutMs timeout in msec to wait until topology gets refreshed and a new (or existing)
+   *     writer is confirmed (if shouldVerifyWriter has a value of <code>true</code>).
    * @return true, if successful. False, if operation is unsuccessful or timeout is reached
    * @throws SQLException if there was an error establishing a connection or fetching a topology
    */
-  boolean forceRefreshHostList(final boolean shouldVerifyWriter, final long timeoutMs) throws SQLException;
+  boolean forceRefreshHostList(final boolean shouldVerifyWriter, final long timeoutMs)
+      throws SQLException;
 
-  Connection connect(HostSpec hostSpec, Properties props, final @Nullable ConnectionPlugin pluginToSkip)
+  Connection connect(
+      HostSpec hostSpec, Properties props, final @Nullable ConnectionPlugin pluginToSkip)
       throws SQLException;
 
   /**
-   * Establishes a connection to the given host using the given properties. If a non-default
-   * {@link ConnectionProvider} has been set with
-   * {@link Driver#setCustomConnectionProvider(ConnectionProvider)} and
-   * {@link ConnectionProvider#acceptsUrl(String, HostSpec, Properties)} returns true for the
-   * desired protocol, host, and properties, the connection will be created by the non-default
+   * Establishes a connection to the given host using the given properties. If a non-default {@link
+   * ConnectionProvider} has been set with {@link
+   * Driver#setCustomConnectionProvider(ConnectionProvider)} and {@link
+   * ConnectionProvider#acceptsUrl(String, HostSpec, Properties)} returns true for the desired
+   * protocol, host, and properties, the connection will be created by the non-default
    * ConnectionProvider. Otherwise, the connection will be created by the default
    * ConnectionProvider. The default ConnectionProvider will be {@link DriverConnectionProvider} for
-   * connections requested via the {@link java.sql.DriverManager} and
-   * {@link DataSourceConnectionProvider} for connections requested via an
-   * {@link software.amazon.jdbc.ds.AwsWrapperDataSource}.
+   * connections requested via the {@link java.sql.DriverManager} and {@link
+   * DataSourceConnectionProvider} for connections requested via an {@link
+   * software.amazon.jdbc.ds.AwsWrapperDataSource}.
    *
    * @param hostSpec the host details for the desired connection
-   * @param props    the connection properties
+   * @param props the connection properties
    * @return a {@link Connection} to the requested host
    * @throws SQLException if there was an error establishing a {@link Connection} to the requested
-   *                      host
+   *     host
    */
   Connection connect(HostSpec hostSpec, Properties props) throws SQLException;
 
   /**
    * Establishes a connection to the given host using the given properties. This call differs from
    * {@link ConnectionPlugin#connect} in that the default {@link ConnectionProvider} will be used to
-   * establish the connection even if a non-default ConnectionProvider has been set via
-   * {@link Driver#setCustomConnectionProvider(ConnectionProvider)}. The default ConnectionProvider will be
-   * {@link DriverConnectionProvider} for connections requested via the
-   * {@link java.sql.DriverManager} and {@link DataSourceConnectionProvider} for connections
-   * requested via an {@link software.amazon.jdbc.ds.AwsWrapperDataSource}.
+   * establish the connection even if a non-default ConnectionProvider has been set via {@link
+   * Driver#setCustomConnectionProvider(ConnectionProvider)}. The default ConnectionProvider will be
+   * {@link DriverConnectionProvider} for connections requested via the {@link
+   * java.sql.DriverManager} and {@link DataSourceConnectionProvider} for connections requested via
+   * an {@link software.amazon.jdbc.ds.AwsWrapperDataSource}.
    *
    * @param hostSpec the host details for the desired connection
-   * @param props    the connection properties
+   * @param props the connection properties
    * @return a {@link Connection} to the requested host
    * @throws SQLException if there was an error establishing a {@link Connection} to the requested
-   *                      host
+   *     host
    */
   Connection forceConnect(HostSpec hostSpec, Properties props) throws SQLException;
 
   Connection forceConnect(
-      HostSpec hostSpec, Properties props, final @Nullable ConnectionPlugin pluginToSkip) throws SQLException;
+      HostSpec hostSpec, Properties props, final @Nullable ConnectionPlugin pluginToSkip)
+      throws SQLException;
 
   Dialect getDialect();
 
@@ -224,7 +222,8 @@ public interface PluginService extends ExceptionHandler, Wrapper {
 
   void updateDialect(final @NonNull Connection connection) throws SQLException;
 
-  @Nullable HostSpec identifyConnection(final Connection connection) throws SQLException;
+  @Nullable
+  HostSpec identifyConnection(final Connection connection) throws SQLException;
 
   void fillAliases(final Connection connection, final HostSpec hostSpec) throws SQLException;
 
@@ -243,7 +242,8 @@ public interface PluginService extends ExceptionHandler, Wrapper {
 
   String getTargetName();
 
-  @NonNull SessionStateService getSessionStateService();
+  @NonNull
+  SessionStateService getSessionStateService();
 
   <T> T getPlugin(final Class<T> pluginClazz);
 
@@ -252,15 +252,14 @@ public interface PluginService extends ExceptionHandler, Wrapper {
   // JDBC call context functions
 
   /**
-  * Retrieves details about the most recent {@link PluginService#connect} or
-  * {@link PluginService#forceConnect} calls. Specifically indicates whether the
-  * returned connection was obtained from a connection pool or newly created.
-  *
-  * <p>Note: The {@link ConnectionPlugin} must process or store this information during
-  * the current JDBC call, as these details will be reset before the next JDBC call
-  * is processed, or another {@link PluginService#connect} or {@link PluginService#forceConnect}
-  * is made.
-  *
-  */
-  @Nullable Boolean isPooledConnection();
+   * Retrieves details about the most recent {@link PluginService#connect} or {@link
+   * PluginService#forceConnect} calls. Specifically indicates whether the returned connection was
+   * obtained from a connection pool or newly created.
+   *
+   * <p>Note: The {@link ConnectionPlugin} must process or store this information during the current
+   * JDBC call, as these details will be reset before the next JDBC call is processed, or another
+   * {@link PluginService#connect} or {@link PluginService#forceConnect} is made.
+   */
+  @Nullable
+  Boolean isPooledConnection();
 }

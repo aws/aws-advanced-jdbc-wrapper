@@ -24,7 +24,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.logging.Logger;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
@@ -36,17 +35,18 @@ import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 /**
  * Deprecated. Use 'initialConnection' plugin instead.
  *
- * <p>After Aurora DB cluster fail over is completed and a cluster has elected a new writer node, the corresponding
- * cluster (writer) endpoint contains stale data and points to an old writer node. That old writer node plays
- * a reader role after fail over and connecting with the cluster endpoint connects to it. In such case a user
- * application expects a writer connection but practically gets connected to a reader. Any DML statements fail
- * on the connection since the reader node allows just read-only statements.
+ * <p>After Aurora DB cluster fail over is completed and a cluster has elected a new writer node,
+ * the corresponding cluster (writer) endpoint contains stale data and points to an old writer node.
+ * That old writer node plays a reader role after fail over and connecting with the cluster endpoint
+ * connects to it. In such case a user application expects a writer connection but practically gets
+ * connected to a reader. Any DML statements fail on the connection since the reader node allows
+ * just read-only statements.
  *
- * <p>Such stale DNS data usually lasts 20-40s, up to a minute. Update time is not predictable and depends on cluster
- * control plane.
+ * <p>Such stale DNS data usually lasts 20-40s, up to a minute. Update time is not predictable and
+ * depends on cluster control plane.
  *
- * <p>This plugin tries to recognize such a wrong connection to a reader when a writer connection is expected, and to
- * mitigate it by reconnecting a proper new writer.
+ * <p>This plugin tries to recognize such a wrong connection to a reader when a writer connection is
+ * expected, and to mitigate it by reconnecting a proper new writer.
  */
 public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
 
@@ -63,7 +63,8 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
     methods.add(JdbcMethod.INITHOSTPROVIDER.methodName);
     methods.add(JdbcMethod.CONNECT.methodName);
     methods.add(JdbcMethod.NOTIFYNODELISTCHANGED.methodName);
-    methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(properties));
+    methods.addAll(
+        this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(properties));
     this.subscribedMethods = Collections.unmodifiableSet(methods);
   }
 
@@ -90,7 +91,8 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
       final String initialUrl,
       final Properties props,
       final HostListProviderService hostListProviderService,
-      final JdbcCallable<Void, SQLException> initHostProviderFunc) throws SQLException {
+      final JdbcCallable<Void, SQLException> initHostProviderFunc)
+      throws SQLException {
     this.hostListProviderService = hostListProviderService;
     initHostProviderFunc.call();
   }

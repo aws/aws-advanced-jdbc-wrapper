@@ -49,12 +49,15 @@ public class MultiThreadedHostMonitorThreadContainerTest {
     HostMonitorThreadContainer.releaseInstance();
   }
 
-  @RepeatedTest(value = 10, name = "MonitorThreadContainer ThreadPoolExecutor is not closed prematurely")
+  @RepeatedTest(
+      value = 10,
+      name = "MonitorThreadContainer ThreadPoolExecutor is not closed prematurely")
   void testThreadPoolExecutorNotClosedPrematurely() throws InterruptedException {
     HostMonitorThreadContainer.getInstance(mockExecutorServiceInitializer);
 
     ExecutorService executorService = Executors.newCachedThreadPool();
-    executorService.execute(() -> HostMonitorThreadContainer.getInstance(mockExecutorServiceInitializer));
+    executorService.execute(
+        () -> HostMonitorThreadContainer.getInstance(mockExecutorServiceInitializer));
     Thread.sleep(3);
     executorService.execute(HostMonitorThreadContainer::releaseInstance);
     executorService.shutdown();

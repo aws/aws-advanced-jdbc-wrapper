@@ -14,28 +14,27 @@
  * limitations under the License.
  */
 
-
 package software.amazon.jdbc.plugin.encryption;
 
+import java.util.Properties;
 import java.util.logging.Logger;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionPluginFactory;
-import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.FullServicesContainer;
 
-import java.util.Properties;
-
 /**
- * Factory for creating KmsEncryptionConnectionPlugin instances.
- * This factory is used by the AWS JDBC Wrapper to create plugin instances.
+ * Factory for creating KmsEncryptionConnectionPlugin instances. This factory is used by the AWS
+ * JDBC Wrapper to create plugin instances.
  */
 public class KmsEncryptionConnectionPluginFactory implements ConnectionPluginFactory {
 
-    private static final Logger LOGGER = Logger.getLogger(KmsEncryptionConnectionPluginFactory.class.getName());
+  private static final Logger LOGGER =
+      Logger.getLogger(KmsEncryptionConnectionPluginFactory.class.getName());
 
-    @Override
-    public ConnectionPlugin getInstance( final FullServicesContainer servicesContainer, final Properties properties) {
-        LOGGER.info(()->"Creating KmsEncryptionConnectionPlugin instance");
-        return new KmsEncryptionConnectionPlugin(servicesContainer.getPluginService(), properties);
-    }
+  @Override
+  public ConnectionPlugin getInstance(
+      final FullServicesContainer servicesContainer, final Properties properties) {
+    LOGGER.info(() -> "Creating KmsEncryptionConnectionPlugin instance");
+    return new KmsEncryptionConnectionPlugin(servicesContainer.getPluginService(), properties);
+  }
 }

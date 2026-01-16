@@ -32,19 +32,19 @@ public class MySQLExceptionHandlerTest {
 
     // Create the nested exception structure as described in requirements
     // Inner cause: Authentication exception with SQL state "28000"
-    CJException authException = new CJException(
-        "Access denied for user 'db_user'@'172.18.0.1' (using password: YES)"
-    );
+    CJException authException =
+        new CJException("Access denied for user 'db_user'@'172.18.0.1' (using password: YES)");
     authException.setSQLState("28000");
 
     // Outer exception: Connection exception with SQL state "08001"
-    SQLNonTransientConnectionException connectionException = new SQLNonTransientConnectionException(
-        "Could not create connection to database server. Attempted reconnect 3 times. Giving up.",
-        "08001",
-        authException
-    );
+    SQLNonTransientConnectionException connectionException =
+        new SQLNonTransientConnectionException(
+            "Could not create connection to database server. Attempted reconnect 3 times. Giving up.",
+            "08001",
+            authException);
 
-    assertTrue(handler.isLoginException(connectionException, new MysqlConnectorJTargetDriverDialect()),
+    assertTrue(
+        handler.isLoginException(connectionException, new MysqlConnectorJTargetDriverDialect()),
         "Should detect nested authentication exception with dialect");
   }
 }

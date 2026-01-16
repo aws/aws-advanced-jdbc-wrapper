@@ -34,7 +34,8 @@ public class HostAvailabilityStrategyFactoryTests {
   public void testCreateDefaultAvailabilityStrategyGivenOverrideProperty() {
 
     Properties props = new Properties();
-    props.setProperty(HostAvailabilityStrategyFactory.DEFAULT_HOST_AVAILABILITY_STRATEGY.name,
+    props.setProperty(
+        HostAvailabilityStrategyFactory.DEFAULT_HOST_AVAILABILITY_STRATEGY.name,
         ExponentialBackoffHostAvailabilityStrategy.NAME);
 
     HostAvailabilityStrategyFactory factory = new HostAvailabilityStrategyFactory();

@@ -117,8 +117,8 @@ public class SessionStateServiceImplTests {
 
   @ParameterizedTest
   @MethodSource("getStringArguments")
-  public void test_ResetConnection_Catalog(
-      String pristineValue, String value, boolean shouldReset) throws SQLException {
+  public void test_ResetConnection_Catalog(String pristineValue, String value, boolean shouldReset)
+      throws SQLException {
 
     when(mockConnection.getCatalog()).thenReturn(pristineValue);
     assertEquals(Optional.empty(), sessionStateService.getCatalog());
@@ -138,8 +138,8 @@ public class SessionStateServiceImplTests {
 
   @ParameterizedTest
   @MethodSource("getStringArguments")
-  public void test_ResetConnection_Schema(
-      String pristineValue, String value, boolean shouldReset) throws SQLException {
+  public void test_ResetConnection_Schema(String pristineValue, String value, boolean shouldReset)
+      throws SQLException {
 
     when(mockConnection.getSchema()).thenReturn(pristineValue);
     assertEquals(Optional.empty(), sessionStateService.getSchema());
@@ -159,8 +159,8 @@ public class SessionStateServiceImplTests {
 
   @ParameterizedTest
   @MethodSource("getIntegerArguments")
-  public void test_ResetConnection_Holdability(
-      int pristineValue, int value, boolean shouldReset) throws SQLException {
+  public void test_ResetConnection_Holdability(int pristineValue, int value, boolean shouldReset)
+      throws SQLException {
 
     when(mockConnection.getHoldability()).thenReturn(pristineValue);
     assertEquals(Optional.empty(), sessionStateService.getHoldability());
@@ -172,7 +172,8 @@ public class SessionStateServiceImplTests {
     sessionStateService.applyPristineSessionState(mockNewConnection);
     sessionStateService.complete();
 
-    verify(mockNewConnection, times(shouldReset ? 1 : 0)).setHoldability(captorHoldability.capture());
+    verify(mockNewConnection, times(shouldReset ? 1 : 0))
+        .setHoldability(captorHoldability.capture());
     if (shouldReset) {
       assertEquals(pristineValue, captorHoldability.getValue());
     }
@@ -180,8 +181,8 @@ public class SessionStateServiceImplTests {
 
   @ParameterizedTest
   @MethodSource("getIntegerArguments")
-  public void test_ResetConnection_NetworkTimeout(
-      int pristineValue, int value, boolean shouldReset) throws SQLException {
+  public void test_ResetConnection_NetworkTimeout(int pristineValue, int value, boolean shouldReset)
+      throws SQLException {
 
     when(mockConnection.getNetworkTimeout()).thenReturn(pristineValue);
     assertEquals(Optional.empty(), sessionStateService.getNetworkTimeout());
@@ -193,7 +194,8 @@ public class SessionStateServiceImplTests {
     sessionStateService.applyPristineSessionState(mockNewConnection);
     sessionStateService.complete();
 
-    verify(mockNewConnection, times(shouldReset ? 1 : 0)).setNetworkTimeout(any(), captorNetworkTimeout.capture());
+    verify(mockNewConnection, times(shouldReset ? 1 : 0))
+        .setNetworkTimeout(any(), captorNetworkTimeout.capture());
     if (shouldReset) {
       assertEquals(pristineValue, captorNetworkTimeout.getValue());
     }
@@ -224,7 +226,8 @@ public class SessionStateServiceImplTests {
   @ParameterizedTest
   @MethodSource("getTypeMapArguments")
   public void test_ResetConnection_TypeMap(
-      Map<String, Class<?>> pristineValue, Map<String, Class<?>> value, boolean shouldReset) throws SQLException {
+      Map<String, Class<?>> pristineValue, Map<String, Class<?>> value, boolean shouldReset)
+      throws SQLException {
 
     when(mockConnection.getTypeMap()).thenReturn(pristineValue);
     assertEquals(Optional.empty(), sessionStateService.getTypeMap());
@@ -244,7 +247,8 @@ public class SessionStateServiceImplTests {
 
   @ParameterizedTest
   @MethodSource("getBoolArguments")
-  public void test_TransferToNewConnection_ReadOnly(boolean pristineValue, boolean value) throws SQLException {
+  public void test_TransferToNewConnection_ReadOnly(boolean pristineValue, boolean value)
+      throws SQLException {
     when(mockConnection.isReadOnly()).thenReturn(pristineValue);
     when(mockNewConnection.isReadOnly()).thenReturn(pristineValue);
     sessionStateService.setReadOnly(value);
@@ -260,7 +264,8 @@ public class SessionStateServiceImplTests {
 
   @ParameterizedTest
   @MethodSource("getBoolArguments")
-  public void test_TransferToNewConnection_AutoCommit(boolean pristineValue, boolean value) throws SQLException {
+  public void test_TransferToNewConnection_AutoCommit(boolean pristineValue, boolean value)
+      throws SQLException {
     when(mockConnection.getAutoCommit()).thenReturn(pristineValue);
     when(mockNewConnection.getAutoCommit()).thenReturn(pristineValue);
     sessionStateService.setAutoCommit(value);
@@ -276,7 +281,8 @@ public class SessionStateServiceImplTests {
 
   @ParameterizedTest
   @MethodSource("getStringArguments")
-  public void test_TransferToNewConnection_Catalog(String pristineValue, String value) throws SQLException {
+  public void test_TransferToNewConnection_Catalog(String pristineValue, String value)
+      throws SQLException {
     when(mockConnection.getCatalog()).thenReturn(pristineValue);
     when(mockNewConnection.getCatalog()).thenReturn(pristineValue);
     sessionStateService.setCatalog(value);
@@ -292,7 +298,8 @@ public class SessionStateServiceImplTests {
 
   @ParameterizedTest
   @MethodSource("getStringArguments")
-  public void test_TransferToNewConnection_Schema(String pristineValue, String value) throws SQLException {
+  public void test_TransferToNewConnection_Schema(String pristineValue, String value)
+      throws SQLException {
     when(mockConnection.getSchema()).thenReturn(pristineValue);
     when(mockNewConnection.getSchema()).thenReturn(pristineValue);
     sessionStateService.setSchema(value);
@@ -308,7 +315,8 @@ public class SessionStateServiceImplTests {
 
   @ParameterizedTest
   @MethodSource("getIntegerArguments")
-  public void test_TransferToNewConnection_Holdability(int pristineValue, int value) throws SQLException {
+  public void test_TransferToNewConnection_Holdability(int pristineValue, int value)
+      throws SQLException {
     when(mockConnection.getHoldability()).thenReturn(pristineValue);
     when(mockNewConnection.getHoldability()).thenReturn(pristineValue);
     sessionStateService.setHoldability(value);
@@ -324,7 +332,8 @@ public class SessionStateServiceImplTests {
 
   @ParameterizedTest
   @MethodSource("getIntegerArguments")
-  public void test_TransferToNewConnection_NetworkTimeout(int pristineValue, int value) throws SQLException {
+  public void test_TransferToNewConnection_NetworkTimeout(int pristineValue, int value)
+      throws SQLException {
     when(mockConnection.getNetworkTimeout()).thenReturn(pristineValue);
     when(mockNewConnection.getNetworkTimeout()).thenReturn(pristineValue);
     sessionStateService.setNetworkTimeout(value);
@@ -340,7 +349,8 @@ public class SessionStateServiceImplTests {
 
   @ParameterizedTest
   @MethodSource("getIntegerArguments")
-  public void test_TransferToNewConnection_TransactionIsolation(int pristineValue, int value) throws SQLException {
+  public void test_TransferToNewConnection_TransactionIsolation(int pristineValue, int value)
+      throws SQLException {
     when(mockConnection.getTransactionIsolation()).thenReturn(pristineValue);
     when(mockNewConnection.getTransactionIsolation()).thenReturn(pristineValue);
     sessionStateService.setTransactionIsolation(value);
@@ -378,8 +388,7 @@ public class SessionStateServiceImplTests {
         Arguments.of(false, false, false),
         Arguments.of(true, false, true),
         Arguments.of(false, true, true),
-        Arguments.of(true, true, false)
-    );
+        Arguments.of(true, true, false));
   }
 
   static Stream<Arguments> getStringArguments() {
@@ -387,8 +396,7 @@ public class SessionStateServiceImplTests {
         Arguments.of("a", "a", false),
         Arguments.of("b", "a", true),
         Arguments.of("a", "b", true),
-        Arguments.of("b", "b", false)
-    );
+        Arguments.of("b", "b", false));
   }
 
   static Stream<Arguments> getIntegerArguments() {

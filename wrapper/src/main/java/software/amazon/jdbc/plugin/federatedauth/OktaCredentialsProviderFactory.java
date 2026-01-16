@@ -48,7 +48,8 @@ public class OktaCredentialsProviderFactory extends SamlCredentialsProviderFacto
   private static final String OKTA_AWS_APP_NAME = "amazon_aws";
   private static final String SESSION_TOKEN = "sessionToken";
   private static final String ONE_TIME_TOKEN = "onetimetoken";
-  private static final Logger LOGGER = Logger.getLogger(AdfsCredentialsProviderFactory.class.getName());
+  private static final Logger LOGGER =
+      Logger.getLogger(AdfsCredentialsProviderFactory.class.getName());
   private final PluginService pluginService;
   private final TelemetryFactory telemetryFactory;
   private final Supplier<CloseableHttpClient> httpClientSupplier;
@@ -56,8 +57,8 @@ public class OktaCredentialsProviderFactory extends SamlCredentialsProviderFacto
 
   protected static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-  public OktaCredentialsProviderFactory(final PluginService pluginService,
-      final Supplier<CloseableHttpClient> httpClientSupplier) {
+  public OktaCredentialsProviderFactory(
+      final PluginService pluginService, final Supplier<CloseableHttpClient> httpClientSupplier) {
     this.pluginService = pluginService;
     this.telemetryFactory = this.pluginService.getTelemetryFactory();
     this.httpClientSupplier = httpClientSupplier;
@@ -65,45 +66,48 @@ public class OktaCredentialsProviderFactory extends SamlCredentialsProviderFacto
 
   @Override
   String getSamlAssertion(@NonNull Properties props) throws SQLException {
-    this.telemetryContext = this.telemetryFactory.openTelemetryContext(
-        TELEMETRY_FETCH_SAML, TelemetryTraceLevel.NESTED);
+    this.telemetryContext =
+        this.telemetryFactory.openTelemetryContext(
+            TELEMETRY_FETCH_SAML, TelemetryTraceLevel.NESTED);
 
     try (final CloseableHttpClient httpClient = httpClientSupplier.get()) {
       final String sessionToken = getSessionToken(props);
       final String baseUri = getSamlUrl(props);
-      final HttpUriRequest samlRequest = RequestBuilder
-          .get()
-          .setUri(baseUri)
-          .addParameter(ONE_TIME_TOKEN, sessionToken)
-          .build();
+      final HttpUriRequest samlRequest =
+          RequestBuilder.get().setUri(baseUri).addParameter(ONE_TIME_TOKEN, sessionToken).build();
 
       try (final CloseableHttpResponse resp = httpClient.execute(samlRequest)) {
         final StatusLine statusLine = resp.getStatusLine();
         // Check HTTP Status Code is 2xx Success
         if (statusLine.getStatusCode() / 100 != 2) {
-          throw new IOException(Messages.get("OktaCredentialsProviderFactory.samlRequestFailed",
-              new Object[] {
-                  statusLine.getStatusCode(),
-                  statusLine.getReasonPhrase(),
-                  EntityUtils.toString(resp.getEntity())}));
+          throw new IOException(
+              Messages.get(
+                  "OktaCredentialsProviderFactory.samlRequestFailed",
+                  new Object[] {
+                    statusLine.getStatusCode(),
+                    statusLine.getReasonPhrase(),
+                    EntityUtils.toString(resp.getEntity())
+                  }));
         }
 
         final HttpEntity responseEntity = resp.getEntity();
         final String responseHTMLAsString = EntityUtils.toString(responseEntity, "UTF-8");
 
         final Document document = Jsoup.parse(responseHTMLAsString);
-        final Optional<String> samlResponseValue = Optional
-            .ofNullable(document.selectFirst("[name=SAMLResponse]"))
-            .map(field -> field.attr("value"));
+        final Optional<String> samlResponseValue =
+            Optional.ofNullable(document.selectFirst("[name=SAMLResponse]"))
+                .map(field -> field.attr("value"));
         if (!samlResponseValue.isPresent()) {
-          throw new SQLException(Messages.get("OktaCredentialsProviderFactory.invalidSamlResponse"));
+          throw new SQLException(
+              Messages.get("OktaCredentialsProviderFactory.invalidSamlResponse"));
         }
 
         return samlResponseValue.get();
       }
 
     } catch (final IOException e) {
-      LOGGER.severe(Messages.get("SAMLCredentialsProviderFactory.getSamlAssertionFailed", new Object[] {e}));
+      LOGGER.severe(
+          Messages.get("SAMLCredentialsProviderFactory.getSamlAssertionFailed", new Object[] {e}));
       if (this.telemetryContext != null) {
         this.telemetryContext.setSuccess(false);
         this.telemetryContext.setException(e);
@@ -130,29 +134,32 @@ public class OktaCredentialsProviderFactory extends SamlCredentialsProviderFacto
     final String sessionTokenEndpoint = "https://" + idpHost + "/api/v1/authn";
 
     try {
-      final StringEntity requestBodyEntity = new StringEntity(
-          "{\"username\":\"" + idpUser + "\",\"password\":\"" + idpPassword + "\"}", "UTF-8");
+      final StringEntity requestBodyEntity =
+          new StringEntity(
+              "{\"username\":\"" + idpUser + "\",\"password\":\"" + idpPassword + "\"}", "UTF-8");
 
-      final HttpUriRequest sessionTokenRequest = RequestBuilder
-          .post()
-          .setUri(sessionTokenEndpoint)
-          .addHeader("Accept", "application/json")
-          .addHeader("Content-Type", "application/json")
-          .setEntity(requestBodyEntity)
-          .build();
+      final HttpUriRequest sessionTokenRequest =
+          RequestBuilder.post()
+              .setUri(sessionTokenEndpoint)
+              .addHeader("Accept", "application/json")
+              .addHeader("Content-Type", "application/json")
+              .setEntity(requestBodyEntity)
+              .build();
 
       try (final CloseableHttpClient httpClient = httpClientSupplier.get();
           CloseableHttpResponse response = httpClient.execute(sessionTokenRequest)) {
         final StatusLine statusLine = response.getStatusLine();
         if (statusLine.getStatusCode() / 100 != 2) {
-          throw new SQLException(Messages.get("OktaCredentialsProviderFactory.sessionTokenRequestFailed"));
+          throw new SQLException(
+              Messages.get("OktaCredentialsProviderFactory.sessionTokenRequestFailed"));
         }
 
         final HttpEntity responseEntity = response.getEntity();
         final String responseString = EntityUtils.toString(responseEntity, "UTF-8");
         final JsonNode jsonNode = OBJECT_MAPPER.readTree(responseString).get(SESSION_TOKEN);
         if (jsonNode == null) {
-          throw new SQLException(Messages.get("OktaCredentialsProviderFactory.invalidSessionToken"));
+          throw new SQLException(
+              Messages.get("OktaCredentialsProviderFactory.invalidSessionToken"));
         }
         return jsonNode.asText();
       }
@@ -164,7 +171,8 @@ public class OktaCredentialsProviderFactory extends SamlCredentialsProviderFacto
   private String getSamlUrl(final Properties props) throws IOException {
     final String idpHost = OktaAuthPlugin.IDP_ENDPOINT.getString(props);
     final String appId = OktaAuthPlugin.APP_ID.getString(props);
-    final String baseUri = "https://" + idpHost + "/app/" + OKTA_AWS_APP_NAME + "/" + appId + "/sso/saml";
+    final String baseUri =
+        "https://" + idpHost + "/app/" + OKTA_AWS_APP_NAME + "/" + appId + "/sso/saml";
     SamlUtils.validateUrl(baseUri);
     return baseUri;
   }

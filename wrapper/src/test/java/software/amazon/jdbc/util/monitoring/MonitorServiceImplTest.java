@@ -65,11 +65,13 @@ class MonitorServiceImplTest {
     doNothing().when(spyMonitorService).initCleanupThread(anyInt());
 
     try {
-      doReturn(mockContainer).when(spyMonitorService)
+      doReturn(mockContainer)
+          .when(spyMonitorService)
           .newServicesContainer(any(), any(), any(), any(), any(), any(), any(), any(), any());
     } catch (SQLException e) {
       Assertions.fail(
-          "Encountered exception while stubbing MonitorServiceImpl#getConnectionService: " + e.getMessage());
+          "Encountered exception while stubbing MonitorServiceImpl#getConnectionService: "
+              + e.getMessage());
     }
   }
 
@@ -86,23 +88,22 @@ class MonitorServiceImplTest {
         TimeUnit.MINUTES.toNanos(1),
         TimeUnit.MINUTES.toNanos(1),
         EnumSet.of(MonitorErrorResponse.RECREATE),
-        null
-    );
+        null);
     String key = "testMonitor";
-    NoOpMonitor monitor = spyMonitorService.runIfAbsent(
-        NoOpMonitor.class,
-        key,
-        mockStorageService,
-        mockEventPublisher,
-        mockTelemetryFactory,
-        mockConnectionProvider,
-        "jdbc:postgresql://somehost/somedb",
-        "someProtocol",
-        mockTargetDriverDialect,
-        mockDbDialect,
-        new Properties(),
-        (serviceContainer) -> new NoOpMonitor(30)
-    );
+    NoOpMonitor monitor =
+        spyMonitorService.runIfAbsent(
+            NoOpMonitor.class,
+            key,
+            mockStorageService,
+            mockEventPublisher,
+            mockTelemetryFactory,
+            mockConnectionProvider,
+            "jdbc:postgresql://somehost/somedb",
+            "someProtocol",
+            mockTargetDriverDialect,
+            mockDbDialect,
+            new Properties(),
+            (serviceContainer) -> new NoOpMonitor(30));
 
     Monitor storedMonitor = spyMonitorService.get(NoOpMonitor.class, key);
     assertNotNull(storedMonitor);
@@ -131,23 +132,22 @@ class MonitorServiceImplTest {
         TimeUnit.MINUTES.toNanos(1),
         1, // heartbeat times out immediately
         EnumSet.of(MonitorErrorResponse.RECREATE),
-        null
-    );
+        null);
     String key = "testMonitor";
-    NoOpMonitor monitor = spyMonitorService.runIfAbsent(
-        NoOpMonitor.class,
-        key,
-        mockStorageService,
-        mockEventPublisher,
-        mockTelemetryFactory,
-        mockConnectionProvider,
-        "jdbc:postgresql://somehost/somedb",
-        "someProtocol",
-        mockTargetDriverDialect,
-        mockDbDialect,
-        new Properties(),
-        (serviceContainer) -> new NoOpMonitor(30)
-    );
+    NoOpMonitor monitor =
+        spyMonitorService.runIfAbsent(
+            NoOpMonitor.class,
+            key,
+            mockStorageService,
+            mockEventPublisher,
+            mockTelemetryFactory,
+            mockConnectionProvider,
+            "jdbc:postgresql://somehost/somedb",
+            "someProtocol",
+            mockTargetDriverDialect,
+            mockDbDialect,
+            new Properties(),
+            (serviceContainer) -> new NoOpMonitor(30));
 
     Monitor storedMonitor = spyMonitorService.get(NoOpMonitor.class, key);
     assertNotNull(storedMonitor);
@@ -156,7 +156,8 @@ class MonitorServiceImplTest {
     TimeUnit.MILLISECONDS.sleep(250);
     assertEquals(MonitorState.RUNNING, monitor.getState());
 
-    // checkMonitors() should detect the heartbeat/inactivity timeout, stop the monitor, and re-create a new one.
+    // checkMonitors() should detect the heartbeat/inactivity timeout, stop the monitor, and
+    // re-create a new one.
     spyMonitorService.checkMonitors();
 
     assertEquals(MonitorState.STOPPED, monitor.getState());
@@ -175,26 +176,26 @@ class MonitorServiceImplTest {
         NoOpMonitor.class,
         TimeUnit.MILLISECONDS.toNanos(200), // monitor expires after 200ms
         TimeUnit.MINUTES.toNanos(1),
-        // even though we pass a re-create policy, we should not re-create it if the monitor is expired since this
+        // even though we pass a re-create policy, we should not re-create it if the monitor is
+        // expired since this
         // indicates it is not being used.
         EnumSet.of(MonitorErrorResponse.RECREATE),
-        null
-    );
+        null);
     String key = "testMonitor";
-    NoOpMonitor monitor = spyMonitorService.runIfAbsent(
-        NoOpMonitor.class,
-        key,
-        mockStorageService,
-        mockEventPublisher,
-        mockTelemetryFactory,
-        mockConnectionProvider,
-        "jdbc:postgresql://somehost/somedb",
-        "someProtocol",
-        mockTargetDriverDialect,
-        mockDbDialect,
-        new Properties(),
-        (serviceContainer) -> new NoOpMonitor(30)
-    );
+    NoOpMonitor monitor =
+        spyMonitorService.runIfAbsent(
+            NoOpMonitor.class,
+            key,
+            mockStorageService,
+            mockEventPublisher,
+            mockTelemetryFactory,
+            mockConnectionProvider,
+            "jdbc:postgresql://somehost/somedb",
+            "someProtocol",
+            mockTargetDriverDialect,
+            mockDbDialect,
+            new Properties(),
+            (serviceContainer) -> new NoOpMonitor(30));
 
     Monitor storedMonitor = spyMonitorService.get(NoOpMonitor.class, key);
     assertNotNull(storedMonitor);
@@ -215,22 +216,25 @@ class MonitorServiceImplTest {
 
   @Test
   public void testMonitorMismatch() {
-    assertThrows(IllegalStateException.class, () -> spyMonitorService.runIfAbsent(
-        CustomEndpointMonitorImpl.class,
-        "testMonitor",
-        mockStorageService,
-        mockEventPublisher,
-        mockTelemetryFactory,
-        mockConnectionProvider,
-        "jdbc:postgresql://somehost/somedb",
-        "someProtocol",
-        mockTargetDriverDialect,
-        mockDbDialect,
-        new Properties(),
-        // indicated monitor class is CustomEndpointMonitorImpl, but actual monitor is NoOpMonitor. The monitor
-        // service should detect this and throw an exception.
-        (serviceContainer) -> new NoOpMonitor(30)
-    ));
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            spyMonitorService.runIfAbsent(
+                CustomEndpointMonitorImpl.class,
+                "testMonitor",
+                mockStorageService,
+                mockEventPublisher,
+                mockTelemetryFactory,
+                mockConnectionProvider,
+                "jdbc:postgresql://somehost/somedb",
+                "someProtocol",
+                mockTargetDriverDialect,
+                mockDbDialect,
+                new Properties(),
+                // indicated monitor class is CustomEndpointMonitorImpl, but actual monitor is
+                // NoOpMonitor. The monitor
+                // service should detect this and throw an exception.
+                (serviceContainer) -> new NoOpMonitor(30)));
   }
 
   @Test
@@ -239,27 +243,27 @@ class MonitorServiceImplTest {
         NoOpMonitor.class,
         TimeUnit.MINUTES.toNanos(1),
         TimeUnit.MINUTES.toNanos(1),
-        // even though we pass a re-create policy, we should not re-create it if the monitor is expired since this
+        // even though we pass a re-create policy, we should not re-create it if the monitor is
+        // expired since this
         // indicates it is not being used.
         EnumSet.of(MonitorErrorResponse.RECREATE),
-        null
-    );
+        null);
 
     String key = "testMonitor";
-    NoOpMonitor monitor = spyMonitorService.runIfAbsent(
-        NoOpMonitor.class,
-        key,
-        mockStorageService,
-        mockEventPublisher,
-        mockTelemetryFactory,
-        mockConnectionProvider,
-        "jdbc:postgresql://somehost/somedb",
-        "someProtocol",
-        mockTargetDriverDialect,
-        mockDbDialect,
-        new Properties(),
-        (serviceContainer) -> new NoOpMonitor(30)
-    );
+    NoOpMonitor monitor =
+        spyMonitorService.runIfAbsent(
+            NoOpMonitor.class,
+            key,
+            mockStorageService,
+            mockEventPublisher,
+            mockTelemetryFactory,
+            mockConnectionProvider,
+            "jdbc:postgresql://somehost/somedb",
+            "someProtocol",
+            mockTargetDriverDialect,
+            mockDbDialect,
+            new Properties(),
+            (serviceContainer) -> new NoOpMonitor(30));
     assertNotNull(monitor);
 
     // need to wait to give time for the monitor executor to start the monitor thread.
@@ -275,27 +279,27 @@ class MonitorServiceImplTest {
         NoOpMonitor.class,
         TimeUnit.MINUTES.toNanos(1),
         TimeUnit.MINUTES.toNanos(1),
-        // even though we pass a re-create policy, we should not re-create it if the monitor is expired since this
+        // even though we pass a re-create policy, we should not re-create it if the monitor is
+        // expired since this
         // indicates it is not being used.
         EnumSet.of(MonitorErrorResponse.RECREATE),
-        null
-    );
+        null);
 
     String key = "testMonitor";
-    NoOpMonitor monitor = spyMonitorService.runIfAbsent(
-        NoOpMonitor.class,
-        key,
-        mockStorageService,
-        mockEventPublisher,
-        mockTelemetryFactory,
-        mockConnectionProvider,
-        "jdbc:postgresql://somehost/somedb",
-        "someProtocol",
-        mockTargetDriverDialect,
-        mockDbDialect,
-        new Properties(),
-        (serviceContainer) -> new NoOpMonitor(30)
-    );
+    NoOpMonitor monitor =
+        spyMonitorService.runIfAbsent(
+            NoOpMonitor.class,
+            key,
+            mockStorageService,
+            mockEventPublisher,
+            mockTelemetryFactory,
+            mockConnectionProvider,
+            "jdbc:postgresql://somehost/somedb",
+            "someProtocol",
+            mockTargetDriverDialect,
+            mockDbDialect,
+            new Properties(),
+            (serviceContainer) -> new NoOpMonitor(30));
     assertNotNull(monitor);
 
     // need to wait to give time for the monitor executor to start the monitor thread.
@@ -306,8 +310,7 @@ class MonitorServiceImplTest {
   }
 
   static class NoOpMonitor extends AbstractMonitor {
-    protected NoOpMonitor(
-        long terminationTimeoutSec) {
+    protected NoOpMonitor(long terminationTimeoutSec) {
       super(terminationTimeoutSec);
     }
 

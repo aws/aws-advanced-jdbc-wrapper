@@ -15,17 +15,16 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.CreateKeyRequest;
 import software.amazon.awssdk.services.kms.model.CreateKeyResponse;
-import software.amazon.awssdk.services.kms.model.KeyUsageType;
 import software.amazon.awssdk.services.kms.model.KeySpec;
+import software.amazon.awssdk.services.kms.model.KeyUsageType;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 
-/**
- * Integration test for KeyManagementUtility functionality.
- */
+/** Integration test for KeyManagementUtility functionality. */
 public class KeyManagementUtilityIntegrationTest {
 
-  private static final Logger logger = LoggerFactory.getLogger(KeyManagementUtilityIntegrationTest.class);
+  private static final Logger logger =
+      LoggerFactory.getLogger(KeyManagementUtilityIntegrationTest.class);
   private static final String KMS_KEY_ARN_ENV = "AWS_KMS_KEY_ARN";
   private static final String TEST_TABLE = "users";
   private static final String TEST_COLUMN = "ssn";
@@ -50,7 +49,8 @@ public class KeyManagementUtilityIntegrationTest {
       kmsClient = KmsClient.builder().build();
     }
 
-    assumeTrue(masterKeyArn != null && !masterKeyArn.isEmpty(),
+    assumeTrue(
+        masterKeyArn != null && !masterKeyArn.isEmpty(),
         "KMS Key ARN must be provided via " + KMS_KEY_ARN_ENV + " environment variable");
 
     Properties props = ConnectionStringHelper.getDefaultProperties();
@@ -58,10 +58,12 @@ public class KeyManagementUtilityIntegrationTest {
     props.setProperty(EncryptionConfig.KMS_MASTER_KEY_ARN.name, masterKeyArn);
     props.setProperty(EncryptionConfig.KMS_REGION.name, "us-east-1");
 
-    String url = String.format("jdbc:aws-wrapper:postgresql://%s:%d/%s",
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpointPort(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+    String url =
+        String.format(
+            "jdbc:aws-wrapper:postgresql://%s:%d/%s",
+            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint(),
+            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpointPort(),
+            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
 
     connection = DriverManager.getConnection(url, props);
 
@@ -77,7 +79,8 @@ public class KeyManagementUtilityIntegrationTest {
       try (Statement stmt = connection.createStatement()) {
         // Clean up test data
         stmt.execute("DROP TABLE IF EXISTS " + TEST_TABLE);
-        stmt.execute("DELETE FROM encrypt.encryption_metadata WHERE table_name = '" + TEST_TABLE + "'");
+        stmt.execute(
+            "DELETE FROM encrypt.encryption_metadata WHERE table_name = '" + TEST_TABLE + "'");
         stmt.execute("DELETE FROM encrypt.key_storage WHERE key_id LIKE 'test-%'");
       }
       connection.close();
@@ -90,17 +93,21 @@ public class KeyManagementUtilityIntegrationTest {
 
   @Test
   void testCreateDataKeyAndPopulateMetadata() throws Exception {
-    logger.info("Testing data key creation and metadata population for {}.{}", TEST_TABLE, TEST_COLUMN);
+    logger.info(
+        "Testing data key creation and metadata population for {}.{}", TEST_TABLE, TEST_COLUMN);
 
     // For this test, we'll use the KeyManagementUtility concept by directly calling
     // the same methods it would use, demonstrating the key management workflow
 
-    // Step 1: Generate a data key using KMS (what KeyManagementUtility.generateAndStoreDataKey would do)
+    // Step 1: Generate a data key using KMS (what KeyManagementUtility.generateAndStoreDataKey
+    // would do)
     String keyId = "test-key-" + System.currentTimeMillis();
 
-    // Step 2: Store the encryption metadata (what KeyManagementUtility.initializeEncryptionForColumn would do)
-    try (PreparedStatement stmt = connection.prepareStatement(
-        "INSERT INTO encrypt.encryption_metadata (table_name, column_name, encryption_algorithm, key_id) VALUES (?, ?, ?, ?)")) {
+    // Step 2: Store the encryption metadata (what
+    // KeyManagementUtility.initializeEncryptionForColumn would do)
+    try (PreparedStatement stmt =
+        connection.prepareStatement(
+            "INSERT INTO encrypt.encryption_metadata (table_name, column_name, encryption_algorithm, key_id) VALUES (?, ?, ?, ?)")) {
       stmt.setString(1, TEST_TABLE);
       stmt.setString(2, TEST_COLUMN);
       stmt.setString(3, TEST_ALGORITHM);
@@ -110,8 +117,9 @@ public class KeyManagementUtilityIntegrationTest {
     }
 
     // Step 3: Verify the metadata was created correctly
-    try (PreparedStatement checkStmt = connection.prepareStatement(
-        "SELECT table_name, column_name, encryption_algorithm, key_id FROM encrypt.encryption_metadata WHERE table_name = ? AND column_name = ?")) {
+    try (PreparedStatement checkStmt =
+        connection.prepareStatement(
+            "SELECT table_name, column_name, encryption_algorithm, key_id FROM encrypt.encryption_metadata WHERE table_name = ? AND column_name = ?")) {
       checkStmt.setString(1, TEST_TABLE);
       checkStmt.setString(2, TEST_COLUMN);
       ResultSet rs = checkStmt.executeQuery();
@@ -139,7 +147,7 @@ public class KeyManagementUtilityIntegrationTest {
     try (PreparedStatement pstmt = connection.prepareStatement(selectSql)) {
       pstmt.setString(1, "Test User");
       ResultSet rs = pstmt.executeQuery();
-      
+
       assertTrue(rs.next(), "Should find inserted row");
       assertEquals("Test User", rs.getString("name"));
       assertEquals("123-45-6789", rs.getString(TEST_COLUMN));
@@ -159,8 +167,9 @@ public class KeyManagementUtilityIntegrationTest {
     String keyId = "test-key-multi-" + System.currentTimeMillis();
 
     // Setup encryption metadata using KeyManagementUtility approach
-    try (PreparedStatement stmt = connection.prepareStatement(
-        "INSERT INTO encrypt.encryption_metadata (table_name, column_name, encryption_algorithm, key_id) VALUES (?, ?, ?, ?)")) {
+    try (PreparedStatement stmt =
+        connection.prepareStatement(
+            "INSERT INTO encrypt.encryption_metadata (table_name, column_name, encryption_algorithm, key_id) VALUES (?, ?, ?, ?)")) {
       stmt.setString(1, TEST_TABLE);
       stmt.setString(2, TEST_COLUMN);
       stmt.setString(3, TEST_ALGORITHM);
@@ -188,12 +197,12 @@ public class KeyManagementUtilityIntegrationTest {
     String selectSql = "SELECT name, " + TEST_COLUMN + " FROM " + TEST_TABLE + " ORDER BY name";
     try (PreparedStatement pstmt = connection.prepareStatement(selectSql)) {
       ResultSet rs = pstmt.executeQuery();
-      
+
       int count = 0;
       while (rs.next()) {
         String name = rs.getString("name");
         String ssn = rs.getString(TEST_COLUMN);
-        
+
         // Find matching test data
         for (int i = 0; i < testNames.length; i++) {
           if (testNames[i].equals(name)) {
@@ -204,7 +213,7 @@ public class KeyManagementUtilityIntegrationTest {
           }
         }
       }
-      
+
       assertEquals(testSSNs.length, count, "Should retrieve all inserted records");
       logger.info("Successfully verified {} encrypted records using key management", count);
     }
@@ -212,12 +221,13 @@ public class KeyManagementUtilityIntegrationTest {
 
   private String createTestMasterKey() throws Exception {
     logger.info("Creating test master key");
-    
-    CreateKeyRequest request = CreateKeyRequest.builder()
-        .description("Test master key for KeyManagementUtility integration test")
-        .keyUsage(KeyUsageType.ENCRYPT_DECRYPT)
-        .keySpec(KeySpec.SYMMETRIC_DEFAULT)
-        .build();
+
+    CreateKeyRequest request =
+        CreateKeyRequest.builder()
+            .description("Test master key for KeyManagementUtility integration test")
+            .keyUsage(KeyUsageType.ENCRYPT_DECRYPT)
+            .keySpec(KeySpec.SYMMETRIC_DEFAULT)
+            .build();
 
     CreateKeyResponse response = kmsClient.createKey(request);
     String keyArn = response.keyMetadata().arn();
@@ -233,35 +243,40 @@ public class KeyManagementUtilityIntegrationTest {
       stmt.execute("DROP TABLE IF EXISTS " + TEST_TABLE + " CASCADE");
 
       // Create key storage table first (due to foreign key)
-      stmt.execute("CREATE TABLE encrypt.key_storage (" +
-          "id SERIAL PRIMARY KEY, " +
-          "name VARCHAR(255) NOT NULL, " +
-          "master_key_arn VARCHAR(512) NOT NULL, " +
-          "encrypted_data_key TEXT NOT NULL, " +
-          "key_spec VARCHAR(50) NOT NULL, " +
-          "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, " +
-          "last_used_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP" +
-          ")");
+      stmt.execute(
+          "CREATE TABLE encrypt.key_storage ("
+              + "id SERIAL PRIMARY KEY, "
+              + "name VARCHAR(255) NOT NULL, "
+              + "master_key_arn VARCHAR(512) NOT NULL, "
+              + "encrypted_data_key TEXT NOT NULL, "
+              + "key_spec VARCHAR(50) NOT NULL, "
+              + "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
+              + "last_used_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP"
+              + ")");
 
       // Create encryption metadata table
-      stmt.execute("CREATE TABLE encrypt.encryption_metadata (" +
-          "table_name VARCHAR(255) NOT NULL, " +
-          "column_name VARCHAR(255) NOT NULL, " +
-          "encryption_algorithm VARCHAR(50) NOT NULL, " +
-          "key_id INTEGER NOT NULL, " +
-          "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, " +
-          "updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, " +
-          "PRIMARY KEY (table_name, column_name), " +
-          "FOREIGN KEY (key_id) REFERENCES encrypt.key_storage(id)" +
-          ")");
+      stmt.execute(
+          "CREATE TABLE encrypt.encryption_metadata ("
+              + "table_name VARCHAR(255) NOT NULL, "
+              + "column_name VARCHAR(255) NOT NULL, "
+              + "encryption_algorithm VARCHAR(50) NOT NULL, "
+              + "key_id INTEGER NOT NULL, "
+              + "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
+              + "updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
+              + "PRIMARY KEY (table_name, column_name), "
+              + "FOREIGN KEY (key_id) REFERENCES encrypt.key_storage(id)"
+              + ")");
 
       // Create test users table
-      stmt.execute("CREATE TABLE " + TEST_TABLE + " (" +
-          "id SERIAL PRIMARY KEY, " +
-          "name VARCHAR(100), " +
-          "ssn TEXT, " +
-          "email VARCHAR(100)" +
-          ")");
+      stmt.execute(
+          "CREATE TABLE "
+              + TEST_TABLE
+              + " ("
+              + "id SERIAL PRIMARY KEY, "
+              + "name VARCHAR(100), "
+              + "ssn TEXT, "
+              + "email VARCHAR(100)"
+              + ")");
 
       logger.info("Test database schema setup complete");
     }

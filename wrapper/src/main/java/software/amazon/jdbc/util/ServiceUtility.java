@@ -53,38 +53,46 @@ public class ServiceUtility {
       String targetDriverProtocol,
       TargetDriverDialect driverDialect,
       Properties props,
-      @Nullable ConfigurationProfile configurationProfile) throws SQLException {
+      @Nullable ConfigurationProfile configurationProfile)
+      throws SQLException {
 
     FullServicesContainer servicesContainer =
         new FullServicesContainerImpl(
-            storageService, monitorService, eventPublisher, defaultConnectionProvider, telemetryFactory);
+            storageService,
+            monitorService,
+            eventPublisher,
+            defaultConnectionProvider,
+            telemetryFactory);
 
     ConnectionPluginManager pluginManager =
-        new ConnectionPluginManager(props, telemetryFactory, defaultConnectionProvider, effectiveConnectionProvider);
+        new ConnectionPluginManager(
+            props, telemetryFactory, defaultConnectionProvider, effectiveConnectionProvider);
     servicesContainer.setConnectionPluginManager(pluginManager);
 
-    PluginServiceImpl pluginService = new PluginServiceImpl(
-        servicesContainer,
-        props,
-        originalUrl,
-        targetDriverProtocol,
-        driverDialect,
-        configurationProfile
-    );
+    PluginServiceImpl pluginService =
+        new PluginServiceImpl(
+            servicesContainer,
+            props,
+            originalUrl,
+            targetDriverProtocol,
+            driverDialect,
+            configurationProfile);
 
     servicesContainer.setHostListProviderService(pluginService);
     servicesContainer.setPluginService(pluginService);
     servicesContainer.setPluginManagerService(pluginService);
 
     pluginManager.initPlugins(servicesContainer, configurationProfile);
-    final HostListProviderSupplier supplier = pluginService.getDialect().getHostListProviderSupplier();
+    final HostListProviderSupplier supplier =
+        pluginService.getDialect().getHostListProviderSupplier();
     if (supplier != null) {
       final HostListProvider provider = supplier.getProvider(props, originalUrl, servicesContainer);
       pluginService.setHostListProvider(provider);
     }
 
     pluginManager.initHostProvider(targetDriverProtocol, originalUrl, props, pluginService);
-    // This call initializes pluginService.allHosts with the stored topology if it exists or with the initial host spec
+    // This call initializes pluginService.allHosts with the stored topology if it exists or with
+    // the initial host spec
     // if it doesn't exist. Plugins may require this information even before connecting.
     pluginService.refreshHostList();
     return servicesContainer;
@@ -100,7 +108,8 @@ public class ServiceUtility {
       String targetDriverProtocol,
       TargetDriverDialect driverDialect,
       Dialect dbDialect,
-      Properties props) throws SQLException {
+      Properties props)
+      throws SQLException {
     FullServicesContainer serviceContainer =
         new FullServicesContainerImpl(
             storageService, monitorService, eventPublisher, connectionProvider, telemetryFactory);
@@ -108,14 +117,9 @@ public class ServiceUtility {
         new ConnectionPluginManager(props, telemetryFactory, connectionProvider, null);
     serviceContainer.setConnectionPluginManager(pluginManager);
 
-    PartialPluginService pluginService = new PartialPluginService(
-        serviceContainer,
-        props,
-        originalUrl,
-        targetDriverProtocol,
-        driverDialect,
-        dbDialect
-    );
+    PartialPluginService pluginService =
+        new PartialPluginService(
+            serviceContainer, props, originalUrl, targetDriverProtocol, driverDialect, dbDialect);
 
     serviceContainer.setHostListProviderService(pluginService);
     serviceContainer.setPluginService(pluginService);
@@ -125,8 +129,8 @@ public class ServiceUtility {
     return serviceContainer;
   }
 
-  public FullServicesContainer createMinimalServiceContainer(FullServicesContainer servicesContainer, Properties props)
-      throws SQLException {
+  public FullServicesContainer createMinimalServiceContainer(
+      FullServicesContainer servicesContainer, Properties props) throws SQLException {
     return createMinimalServiceContainer(
         servicesContainer.getStorageService(),
         servicesContainer.getMonitorService(),
@@ -137,7 +141,6 @@ public class ServiceUtility {
         servicesContainer.getPluginService().getDriverProtocol(),
         servicesContainer.getPluginService().getTargetDriverDialect(),
         servicesContainer.getPluginService().getDialect(),
-        props
-    );
+        props);
   }
 }

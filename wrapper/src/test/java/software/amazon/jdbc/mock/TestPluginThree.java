@@ -34,8 +34,12 @@ public class TestPluginThree extends TestPluginOne {
     super();
     this.calls = calls;
 
-    this.subscribedMethods = new HashSet<>(Arrays.asList(
-        JdbcMethod.BLOB_LENGTH.methodName, JdbcMethod.CONNECT.methodName, JdbcMethod.FORCECONNECT.methodName));
+    this.subscribedMethods =
+        new HashSet<>(
+            Arrays.asList(
+                JdbcMethod.BLOB_LENGTH.methodName,
+                JdbcMethod.CONNECT.methodName,
+                JdbcMethod.FORCECONNECT.methodName));
   }
 
   public TestPluginThree(ArrayList<String> calls, Connection connection) {
