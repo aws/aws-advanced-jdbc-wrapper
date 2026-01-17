@@ -34,6 +34,8 @@ public class LogUtils {
     final StringBuilder msg = new StringBuilder();
     if (hosts == null) {
       msg.append("<null>");
+    } else if (hosts.isEmpty()) {
+      msg.append("<empty>");
     } else {
       for (final HostSpec host : hosts) {
         if (msg.length() > 0) {
