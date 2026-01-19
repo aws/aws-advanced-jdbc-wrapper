@@ -475,7 +475,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           HostRole role = this.pluginService.getHostRole(candidateConn);
           if (role == HostRole.READER || this.failoverMode != STRICT_READER) {
             HostSpec updatedHostSpec = new HostSpec(readerCandidate, role);
-            return new ReaderFailoverResult(candidateConn, updatedHostSpec);
+            ReaderFailoverResult result = new ReaderFailoverResult(candidateConn, updatedHostSpec);
+            candidateConn = null; // Reset candidateConn so that the new connection is not closed in the finally block.
+            return result;
           }
 
           // The role is WRITER or UNKNOWN, and we are in STRICT_READER mode, so the connection is
@@ -498,6 +500,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           }
         } catch (SQLException ex) {
           remainingReaders.remove(readerCandidate);
+        } finally {
           if (candidateConn != null) {
             try {
               candidateConn.close();
@@ -529,7 +532,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         HostRole role = this.pluginService.getHostRole(candidateConn);
         if (role == HostRole.READER || this.failoverMode != STRICT_READER) {
           HostSpec updatedHostSpec = new HostSpec(originalWriter, role);
-          return new ReaderFailoverResult(candidateConn, updatedHostSpec);
+          ReaderFailoverResult result = new ReaderFailoverResult(candidateConn, updatedHostSpec);
+          candidateConn = null; // Reset candidateConn so that the new connection is not closed in the finally block.
+          return result;
         }
 
         // The role is WRITER or UNKNOWN, and we are in STRICT_READER mode, so the connection is not
