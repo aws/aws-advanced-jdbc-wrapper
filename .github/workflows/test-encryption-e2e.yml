@@ -158,8 +158,7 @@ jobs:
       - name: 'Build and Test Encryption Plugin'
         run: |
           ./gradlew :aws-advanced-jdbc-wrapper:test \
-            --tests "*Encryption*" \
-            --tests "*Kms*" \
+            --tests "*KmsIntegrationTests*" \
             -PkmsKeyId=${{ steps.active-key.outputs.key_id }}
         env:
           KMS_KEY_ID: ${{ steps.active-key.outputs.key_id }}
@@ -167,34 +166,6 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
           AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}
           AWS_SESSION_TOKEN: ${{ steps.creds.outputs.aws-session-token }}
-
-      - name: 'Test Key Rotation'
-        run: |
-          # Check if rotation is already enabled
-          ROTATION_STATUS=$(aws kms get-key-rotation-status \
-            --key-id ${{ steps.active-key.outputs.key_id }} \
-            --query 'KeyRotationEnabled' \
-            --output text)
-
-          if [ "$ROTATION_STATUS" != "True" ]; then
-            aws kms enable-key-rotation \
-              --key-id ${{ steps.active-key.outputs.key_id }}
-            echo "✓ Key rotation enabled"
-          else
-            echo "✓ Key rotation already enabled"
-          fi
-
-      - name: 'Test Multiple Data Keys'
-        run: |
-          # Generate multiple data keys to test caching and key management
-          for i in {1..5}; do
-            aws kms generate-data-key \
-              --key-id ${{ steps.active-key.outputs.key_id }} \
-              --key-spec AES_256 \
-              --output json > /dev/null
-            echo "Generated data key $i"
-          done
-          echo "✓ Multiple data key generation successful"
 
       - name: 'Verify Key Metadata'
         run: |

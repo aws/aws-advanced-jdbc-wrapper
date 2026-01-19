@@ -388,4 +388,13 @@ public class KmsEncryptionIntegrationTest {
       }
     }
   }
+
+  @Test
+  public void testPlainTextFails() {
+    // make sure we cannot insert plain text into the ssn column
+    assertThrows(SQLException.class,() -> {
+      Statement stmt = connection.createStatement();
+      stmt.execute("INSERT INTO users (name, ssn, email) VALUES ('Dave', '111', 'XXXXXXXXXXXXX')");
+    });
+  }
 }
