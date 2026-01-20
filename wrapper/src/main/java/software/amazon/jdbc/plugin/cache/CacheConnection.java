@@ -270,6 +270,10 @@ public class CacheConnection {
       throw new IllegalArgumentException(
           "Cannot specify both IAM authentication (cacheIamRegion) and traditional authentication (cachePassword). Choose one authentication method.");
     }
+    // Warn if no authentication is configured
+    if (!this.iamAuthEnabled && !hasTraditionalAuth) {
+      LOGGER.warning("Cache connection configured without authentication. For better security, please use user/password based auth or IAM auth.");
+    }
     if (this.cacheRwServerAddr == null) {
       throw new IllegalArgumentException("Cache endpoint address is required");
     }
