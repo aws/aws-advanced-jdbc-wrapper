@@ -267,13 +267,8 @@ public class KmsEncryptionPlugin {
     LOGGER.fine(() -> String.format("Wrapping PreparedStatement for SQL: %s", sql));
 
     // Analyze SQL to determine if encryption is needed
-    SqlAnalysisService.SqlAnalysisResult analysisResult;
-    if (sqlAnalysisService != null) {
-      analysisResult = sqlAnalysisService.analyzeSql(sql);
-      LOGGER.fine(() -> String.format("SQL analysis result: %s", analysisResult));
-    } else {
-      analysisResult = null;
-    }
+    SqlAnalysisService.SqlAnalysisResult analysisResult = SqlAnalysisService.analyzeSql(sql);
+    LOGGER.fine(() -> String.format("SQL analysis result: %s", analysisResult));
 
     return new EncryptingPreparedStatement(
         statement, metadataManager, encryptionService, keyManager, sqlAnalysisService, sql);

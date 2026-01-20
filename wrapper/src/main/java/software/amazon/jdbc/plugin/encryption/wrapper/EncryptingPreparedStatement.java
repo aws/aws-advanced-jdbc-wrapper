@@ -44,6 +44,7 @@ import java.util.logging.Logger;
 import software.amazon.jdbc.plugin.encryption.key.KeyManager;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
+import software.amazon.jdbc.plugin.encryption.parser.EncryptionAnnotationParser;
 import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
 import software.amazon.jdbc.plugin.encryption.sql.SqlAnalysisService;
 
@@ -62,6 +63,7 @@ public class EncryptingPreparedStatement implements PreparedStatement {
   private final KeyManager keyManager;
   private final SqlAnalysisService sqlAnalysisService;
   private final String sql;
+  private final String cleanSql;
 
   // Cache for parameter index to column name mapping
   private final Map<Integer, String> parameterColumnMapping = new ConcurrentHashMap<>();
@@ -76,24 +78,33 @@ public class EncryptingPreparedStatement implements PreparedStatement {
       SqlAnalysisService sqlAnalysisService,
       String sql) {
     LOGGER.finest(() -> String.format("EncryptingPreparedStatement created for SQL: %s", sql));
+
+    // Parse annotations from original SQL, then strip them
+    Map<Integer, String> annotations = EncryptionAnnotationParser.parseAnnotations(sql);
+    this.cleanSql = EncryptionAnnotationParser.stripAnnotations(sql);
+
     this.delegate = delegate;
     this.metadataManager = metadataManager;
     this.encryptionService = encryptionService;
     this.keyManager = keyManager;
     this.sqlAnalysisService = sqlAnalysisService;
-    this.sql = sql;
+    this.sql = cleanSql;
 
-    // Initialize parameter mapping
-    initializeParameterMapping();
+    // Initialize parameter mapping from SQL analysis first
+    parseSqlForEncryptedColumns();
+
+    // Override with explicit annotations (highest priority)
+    parameterColumnMapping.putAll(annotations);
+
     LOGGER.finest(() -> String.format("Parameter mapping initialized: %s", parameterColumnMapping));
   }
 
   /** Initializes parameter mapping using SQL analysis service. */
-  private void initializeParameterMapping() {
+  private void parseSqlForEncryptedColumns() {
     LOGGER.finest(() -> String.format("initializeParameterMapping called for SQL: %s", sql));
     try {
       // Use SqlAnalysisService to analyze SQL and extract table information
-      SqlAnalysisService.SqlAnalysisResult analysisResult = sqlAnalysisService.analyzeSql(sql);
+      SqlAnalysisService.SqlAnalysisResult analysisResult = SqlAnalysisService.analyzeSql(sql);
       LOGGER.finest(
           () -> String.format("Analysis result tables: %s", analysisResult.getAffectedTables()));
 
@@ -120,51 +131,6 @@ public class EncryptingPreparedStatement implements PreparedStatement {
           () -> String.format("Failed to initialize parameter mapping: %s", e.getMessage()));
       LOGGER.finest(() -> String.format("Exception details %s", e));
       mappingInitialized = false;
-    }
-  }
-
-  /** Maps parameters for INSERT statements by parsing column names. */
-  private void mapInsertParameters() {
-    // This is a simplified implementation
-    // In a production system, you might want to use a proper SQL parser
-
-    int columnsStart = sql.indexOf("(");
-    int columnsEnd = sql.indexOf(")", columnsStart);
-
-    if (columnsStart != -1 && columnsEnd != -1) {
-      String columnsPart = sql.substring(columnsStart + 1, columnsEnd);
-      String[] columns = columnsPart.split(",");
-
-      for (int i = 0; i < columns.length; i++) {
-        String columnName = columns[i].trim();
-        parameterColumnMapping.put(i + 1, columnName);
-      }
-    }
-  }
-
-  /** Maps parameters for UPDATE statements by parsing SET clause. */
-  private void mapUpdateParameters() {
-    // This is a simplified implementation
-    // In a production system, you might want to use a proper SQL parser
-
-    String upperSql = sql.toUpperCase();
-    int setIndex = upperSql.indexOf("SET");
-    int whereIndex = upperSql.indexOf("WHERE");
-
-    if (setIndex != -1) {
-      int endIndex = whereIndex != -1 ? whereIndex : sql.length();
-      String setPart = sql.substring(setIndex + 3, endIndex);
-
-      String[] assignments = setPart.split(",");
-      int parameterIndex = 1;
-
-      for (String assignment : assignments) {
-        int equalsIndex = assignment.indexOf("=");
-        if (equalsIndex != -1) {
-          String columnName = assignment.substring(0, equalsIndex).trim();
-          parameterColumnMapping.put(parameterIndex++, columnName);
-        }
-      }
     }
   }
 

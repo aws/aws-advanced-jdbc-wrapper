@@ -36,11 +36,9 @@ public class SqlAnalysisService {
   private static final Logger LOGGER = Logger.getLogger(SqlAnalysisService.class.getName());
 
   private final MetadataManager metadataManager;
-  private final SQLAnalyzer analyzer;
 
   public SqlAnalysisService(PluginService pluginService, MetadataManager metadataManager) {
     this.metadataManager = metadataManager;
-    this.analyzer = new SQLAnalyzer();
   }
 
   /**
@@ -49,13 +47,13 @@ public class SqlAnalysisService {
    * @param sql The SQL statement to analyze
    * @return Analysis result containing affected columns and their encryption configs
    */
-  public SqlAnalysisResult analyzeSql(String sql) {
+  public static SqlAnalysisResult analyzeSql(String sql) {
     if (sql == null || sql.trim().isEmpty()) {
       return new SqlAnalysisResult(Collections.emptySet(), Collections.emptyMap(), "UNKNOWN");
     }
 
     try {
-      SQLAnalyzer.QueryAnalysis queryAnalysis = analyzer.analyze(sql);
+      SQLAnalyzer.QueryAnalysis queryAnalysis = SQLAnalyzer.analyze(sql);
       if (queryAnalysis != null) {
         Set<String> tables = extractTablesFromAnalysis(queryAnalysis);
         String queryType = extractQueryTypeFromAnalysis(queryAnalysis);
@@ -70,7 +68,7 @@ public class SqlAnalysisService {
   }
 
   /** Extracts table names from SQLAnalyzer QueryAnalysis result. */
-  private Set<String> extractTablesFromAnalysis(SQLAnalyzer.QueryAnalysis queryAnalysis) {
+  private static Set<String> extractTablesFromAnalysis(SQLAnalyzer.QueryAnalysis queryAnalysis) {
     Set<String> tables = new HashSet<>();
     if (queryAnalysis != null) {
       tables.addAll(queryAnalysis.tables);
@@ -79,7 +77,7 @@ public class SqlAnalysisService {
   }
 
   /** Extracts query type from SQLAnalyzer QueryAnalysis result. */
-  private String extractQueryTypeFromAnalysis(SQLAnalyzer.QueryAnalysis queryAnalysis) {
+  private static String extractQueryTypeFromAnalysis(SQLAnalyzer.QueryAnalysis queryAnalysis) {
     if (queryAnalysis != null) {
       return queryAnalysis.queryType != null ? queryAnalysis.queryType : "UNKNOWN";
     }
@@ -87,7 +85,7 @@ public class SqlAnalysisService {
   }
 
   /** Analyzes SQL using the extracted table names from parser. */
-  private SqlAnalysisResult analyzeFromTables(Set<String> tables, String queryType) {
+  private static SqlAnalysisResult analyzeFromTables(Set<String> tables, String queryType) {
     Map<String, ColumnEncryptionConfig> encryptedColumns = new HashMap<>();
 
     LOGGER.finest(() -> String.format("Parser analysis found %s tables", tables.size()));
@@ -147,7 +145,7 @@ public class SqlAnalysisService {
     Map<Integer, String> mapping = new HashMap<>();
 
     try {
-      SQLAnalyzer.QueryAnalysis queryAnalysis = analyzer.analyze(sql);
+      SQLAnalyzer.QueryAnalysis queryAnalysis = SQLAnalyzer.analyze(sql);
       if (queryAnalysis != null) {
         // For SELECT statements, map parameters to WHERE clause columns (where ? placeholders are)
         if ("SELECT".equals(queryAnalysis.queryType)) {

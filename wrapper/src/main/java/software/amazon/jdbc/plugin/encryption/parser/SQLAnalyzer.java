@@ -38,9 +38,11 @@ import software.amazon.jdbc.plugin.encryption.parser.ast.SubqueryExpression;
 import software.amazon.jdbc.plugin.encryption.parser.ast.TableReference;
 import software.amazon.jdbc.plugin.encryption.parser.ast.UpdateStatement;
 
-public class SQLAnalyzer {
+public final class SQLAnalyzer {
 
-  private final PostgreSqlParser parser = new PostgreSqlParser();
+  private SQLAnalyzer() {
+    // Utility class
+  }
 
   public static class ColumnInfo {
     public String tableName;
@@ -72,7 +74,7 @@ public class SQLAnalyzer {
     }
   }
 
-  private boolean containsParameters(Expression expression) {
+  private static boolean containsParameters(Expression expression) {
     if (expression == null) {
       return false;
     }
@@ -86,7 +88,7 @@ public class SQLAnalyzer {
     return false;
   }
 
-  private boolean statementHasParameters(Statement statement) {
+  private static boolean statementHasParameters(Statement statement) {
     if (statement instanceof SelectStatement) {
       SelectStatement select = (SelectStatement) statement;
       return select.getWhereClause() != null && containsParameters(select.getWhereClause());
@@ -102,10 +104,11 @@ public class SQLAnalyzer {
     return false;
   }
 
-  public QueryAnalysis analyze(String sql) {
+  public static QueryAnalysis analyze(String sql) {
     QueryAnalysis analysis = new QueryAnalysis();
 
     try {
+      PostgreSqlParser parser = new PostgreSqlParser();
       Statement statement = parser.parse(sql);
       analysis.hasParameters = statementHasParameters(statement);
 
@@ -151,14 +154,14 @@ public class SQLAnalyzer {
     return analysis;
   }
 
-  private String extractTableName(String fullName) {
+  private static String extractTableName(String fullName) {
     if (fullName.contains(".")) {
       return fullName.substring(fullName.lastIndexOf(".") + 1);
     }
     return fullName;
   }
 
-  private void extractFromSelect(SelectStatement select, QueryAnalysis analysis) {
+  private static void extractFromSelect(SelectStatement select, QueryAnalysis analysis) {
     // Extract tables and build alias map
     Map<String, String> aliasToTable = new HashMap<>();
     if (select.getFromList() != null) {
@@ -206,7 +209,7 @@ public class SQLAnalyzer {
     }
   }
 
-  private void extractColumnsFromExpression(Expression expression, QueryAnalysis analysis) {
+  private static void extractColumnsFromExpression(Expression expression, QueryAnalysis analysis) {
     if (expression instanceof Identifier) {
       Identifier column = (Identifier) expression;
       String tableName = analysis.tables.isEmpty() ? "unknown" : analysis.tables.iterator().next();
@@ -222,7 +225,7 @@ public class SQLAnalyzer {
     }
   }
 
-  private void extractWhereColumnsFromExpression(
+  private static void extractWhereColumnsFromExpression(
       Expression expression, QueryAnalysis analysis, Map<String, String> aliasToTable) {
     if (expression instanceof Identifier) {
       Identifier column = (Identifier) expression;
@@ -254,7 +257,7 @@ public class SQLAnalyzer {
     }
   }
 
-  private void extractFromInsert(InsertStatement insert, QueryAnalysis analysis) {
+  private static void extractFromInsert(InsertStatement insert, QueryAnalysis analysis) {
     // Extract table (handle schema.table format)
     String tableName = extractTableName(insert.getTable().getTableName().getName());
     analysis.tables.add(tableName);
@@ -267,7 +270,7 @@ public class SQLAnalyzer {
     }
   }
 
-  private void extractFromUpdate(UpdateStatement update, QueryAnalysis analysis) {
+  private static void extractFromUpdate(UpdateStatement update, QueryAnalysis analysis) {
     // Extract table
     String tableName = extractTableName(update.getTable().getTableName().getName());
     analysis.tables.add(tableName);
@@ -283,7 +286,7 @@ public class SQLAnalyzer {
     }
   }
 
-  private void extractFromDelete(DeleteStatement delete, QueryAnalysis analysis) {
+  private static void extractFromDelete(DeleteStatement delete, QueryAnalysis analysis) {
     // Extract table
     String tableName = extractTableName(delete.getTable().getTableName().getName());
     analysis.tables.add(tableName);
@@ -294,7 +297,7 @@ public class SQLAnalyzer {
     }
   }
 
-  private void extractFromCreateTable(CreateTableStatement create, QueryAnalysis analysis) {
+  private static void extractFromCreateTable(CreateTableStatement create, QueryAnalysis analysis) {
     // Extract table
     String tableName = extractTableName(create.getTableName().getName());
     analysis.tables.add(tableName);
