@@ -25,7 +25,8 @@ import java.util.logging.Logger;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
-import software.amazon.jdbc.plugin.encryption.parser.SQLAnalyzer;
+import software.amazon.jdbc.plugin.encryption.parser.DialectDetector;
+import software.amazon.jdbc.plugin.encryption.parser.JSQLParserAnalyzer;
 
 /**
  * Service that analyzes SQL statements to identify columns that need encryption/decryption. Uses
@@ -48,15 +49,32 @@ public class SqlAnalysisService {
    * @return Analysis result containing affected columns and their encryption configs
    */
   public static SqlAnalysisResult analyzeSql(String sql) {
+    return analyzeSql(sql, null);
+  }
+
+  /**
+   * Analyzes a SQL statement with dialect detection.
+   *
+   * @param sql The SQL statement to analyze
+   * @param jdbcUrl JDBC URL for dialect detection (optional)
+   * @return Analysis result containing affected columns and their encryption configs
+   */
+  public static SqlAnalysisResult analyzeSql(String sql, String jdbcUrl) {
     if (sql == null || sql.trim().isEmpty()) {
       return new SqlAnalysisResult(Collections.emptySet(), Collections.emptyMap(), "UNKNOWN");
     }
 
     try {
-      SQLAnalyzer.QueryAnalysis queryAnalysis = SQLAnalyzer.analyze(sql);
+      // Detect dialect from JDBC URL
+      JSQLParserAnalyzer.Dialect dialect = DialectDetector.detectFromUrl(jdbcUrl);
+      
+      // Use JSQLParser for analysis
+      JSQLParserAnalyzer.QueryAnalysis queryAnalysis = 
+          JSQLParserAnalyzer.analyze(sql, dialect);
+      
       if (queryAnalysis != null) {
-        Set<String> tables = extractTablesFromAnalysis(queryAnalysis);
-        String queryType = extractQueryTypeFromAnalysis(queryAnalysis);
+        Set<String> tables = extractTablesFromJSQLAnalysis(queryAnalysis);
+        String queryType = extractQueryTypeFromJSQLAnalysis(queryAnalysis);
         return analyzeFromTables(tables, queryType);
       }
     } catch (Exception e) {
@@ -67,17 +85,22 @@ public class SqlAnalysisService {
     return new SqlAnalysisResult(Collections.emptySet(), Collections.emptyMap(), "UNKNOWN");
   }
 
-  /** Extracts table names from SQLAnalyzer QueryAnalysis result. */
-  private static Set<String> extractTablesFromAnalysis(SQLAnalyzer.QueryAnalysis queryAnalysis) {
+  /** Extracts table names from JSQLParserAnalyzer QueryAnalysis result. */
+  private static Set<String> extractTablesFromJSQLAnalysis(
+      JSQLParserAnalyzer.QueryAnalysis queryAnalysis) {
     Set<String> tables = new HashSet<>();
     if (queryAnalysis != null) {
-      tables.addAll(queryAnalysis.tables);
+      // Remove backticks from MySQL table names
+      for (String table : queryAnalysis.tables) {
+        tables.add(table.replace("`", ""));
+      }
     }
     return tables;
   }
 
-  /** Extracts query type from SQLAnalyzer QueryAnalysis result. */
-  private static String extractQueryTypeFromAnalysis(SQLAnalyzer.QueryAnalysis queryAnalysis) {
+  /** Extracts query type from JSQLParserAnalyzer QueryAnalysis result. */
+  private static String extractQueryTypeFromJSQLAnalysis(
+      JSQLParserAnalyzer.QueryAnalysis queryAnalysis) {
     if (queryAnalysis != null) {
       return queryAnalysis.queryType != null ? queryAnalysis.queryType : "UNKNOWN";
     }
@@ -142,23 +165,33 @@ public class SqlAnalysisService {
 
   /** Gets column-to-parameter mapping for prepared statement parameters. */
   public Map<Integer, String> getColumnParameterMapping(String sql) {
+    return getColumnParameterMapping(sql, null);
+  }
+
+  /** Gets column-to-parameter mapping with dialect detection. */
+  public Map<Integer, String> getColumnParameterMapping(String sql, String jdbcUrl) {
     Map<Integer, String> mapping = new HashMap<>();
 
     try {
-      SQLAnalyzer.QueryAnalysis queryAnalysis = SQLAnalyzer.analyze(sql);
+      // Detect dialect from JDBC URL
+      JSQLParserAnalyzer.Dialect dialect = DialectDetector.detectFromUrl(jdbcUrl);
+      
+      // Use JSQLParser for analysis
+      JSQLParserAnalyzer.QueryAnalysis queryAnalysis = 
+          JSQLParserAnalyzer.analyze(sql, dialect);
+      
       if (queryAnalysis != null) {
-        // For SELECT statements, map parameters to WHERE clause columns (where ? placeholders are)
+        // For SELECT statements, map parameters to WHERE clause columns
         if ("SELECT".equals(queryAnalysis.queryType)) {
-          // Map parameters to WHERE clause columns
           for (int i = 0; i < queryAnalysis.whereColumns.size(); i++) {
-            SQLAnalyzer.ColumnInfo column = queryAnalysis.whereColumns.get(i);
-            mapping.put(i + 1, column.columnName);
+            JSQLParserAnalyzer.ColumnInfo column = queryAnalysis.whereColumns.get(i);
+            mapping.put(i + 1, column.columnName.replace("`", ""));
           }
         } else if (!queryAnalysis.columns.isEmpty()) {
           // For INSERT/UPDATE, map parameters to main columns in order
           int parameterIndex = 1;
-          for (SQLAnalyzer.ColumnInfo column : queryAnalysis.columns) {
-            mapping.put(parameterIndex++, column.columnName);
+          for (JSQLParserAnalyzer.ColumnInfo column : queryAnalysis.columns) {
+            mapping.put(parameterIndex++, column.columnName.replace("`", ""));
           }
         }
       }
