@@ -34,12 +34,11 @@ if (useJacoco) {
 
 dependencies {
 
-    optionalImplementation("software.amazon.awssdk:rds:2.33.5")
-    optionalImplementation("software.amazon.awssdk:auth:2.33.5") // Required for IAM (light implementation)
-    optionalImplementation("software.amazon.awssdk:http-client-spi:2.33.5") // Required for IAM (light implementation)
-    optionalImplementation("software.amazon.awssdk:sts:2.33.5")
-    optionalImplementation("software.amazon.awssdk:secretsmanager:2.33.5")
-    optionalImplementation("software.amazon.awssdk:kms:2.33.5")
+    optionalImplementation("software.amazon.awssdk:rds:2.41.10")
+    optionalImplementation("software.amazon.awssdk:auth:2.41.10") // Required for IAM (light implementation)
+    optionalImplementation("software.amazon.awssdk:http-client-spi:2.41.10") // Required for IAM (light implementation)
+    optionalImplementation("software.amazon.awssdk:sts:2.41.10")
+    optionalImplementation("software.amazon.awssdk:secretsmanager:2.41.10")
     optionalImplementation("com.fasterxml.jackson.core:jackson-databind:2.19.0")
     optionalImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     optionalImplementation("com.mchange:c3p0:0.11.0")
@@ -61,8 +60,8 @@ dependencies {
 
     // The following dependency will be included in federated-auth bundle jar.
     federatedAuthBundleImplementation("org.apache.httpcomponents:httpclient:4.5.14")
-    federatedAuthBundleImplementation("software.amazon.awssdk:rds:2.33.5")
-    federatedAuthBundleImplementation("software.amazon.awssdk:sts:2.33.5")
+    federatedAuthBundleImplementation("software.amazon.awssdk:rds:2.41.10")
+    federatedAuthBundleImplementation("software.amazon.awssdk:sts:2.41.10")
     federatedAuthBundleImplementation("org.jsoup:jsoup:1.21.1")
 
     testImplementation("org.checkerframework:checker-qual:3.49.5")
@@ -82,12 +81,12 @@ dependencies {
     testImplementation("com.mchange:c3p0:0.11.0")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
-    testImplementation("software.amazon.awssdk:rds:2.33.5", )
-    testImplementation("software.amazon.awssdk:auth:2.33.5") // Required for IAM (light implementation)
-    testImplementation("software.amazon.awssdk:http-client-spi:2.33.5") // Required for IAM (light implementation)
-    testImplementation("software.amazon.awssdk:ec2:2.33.5")
-    testImplementation("software.amazon.awssdk:secretsmanager:2.33.5")
-    testImplementation("software.amazon.awssdk:sts:2.33.5")
+    testImplementation("software.amazon.awssdk:rds:2.41.10", )
+    testImplementation("software.amazon.awssdk:auth:2.41.10") // Required for IAM (light implementation)
+    testImplementation("software.amazon.awssdk:http-client-spi:2.41.10") // Required for IAM (light implementation)
+    testImplementation("software.amazon.awssdk:ec2:2.41.10")
+    testImplementation("software.amazon.awssdk:secretsmanager:2.41.10")
+    testImplementation("software.amazon.awssdk:sts:2.41.10")
     // Note: all org.testcontainers dependencies should have the same version
     testImplementation("org.testcontainers:testcontainers:1.21.2")
     testImplementation("org.testcontainers:mysql:1.21.2")
@@ -96,7 +95,7 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter:1.21.2")
     testImplementation("org.testcontainers:toxiproxy:1.21.2")
     testImplementation("eu.rekawek.toxiproxy:toxiproxy-java:2.1.7")
-    testImplementation("org.apache.poi:poi-ooxml:5.4.1")
+    testImplementation("org.apache.poi:poi-ooxml:5.5.1")
     testImplementation("org.slf4j:slf4j-simple:2.0.17")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.19.0")
     testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
