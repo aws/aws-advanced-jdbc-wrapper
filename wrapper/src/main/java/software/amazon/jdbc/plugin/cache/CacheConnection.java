@@ -22,14 +22,21 @@ import io.lettuce.core.RedisCredentialsProvider;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.RedisCommandExecutionException;
 import io.lettuce.core.SetArgs;
+import io.lettuce.core.SocketOptions;
+import io.lettuce.core.ReadFrom;
 import io.lettuce.core.api.StatefulConnection;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.async.RedisAsyncCommands;
+import io.lettuce.core.cluster.ClusterClientOptions;
+import io.lettuce.core.cluster.ClusterTopologyRefreshOptions;
+import io.lettuce.core.cluster.models.partitions.RedisClusterNode;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.resource.ClientResources;
 import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 import io.lettuce.core.cluster.api.async.RedisAdvancedClusterAsyncCommands;
+import io.lettuce.core.resource.Delay;
+import io.lettuce.core.resource.DirContextDnsResolver;
 import reactor.core.publisher.Mono;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -464,13 +471,57 @@ public class CacheConnection {
   private static StatefulConnection<byte[], byte[]> createRedisConnection(
       boolean isReadOnly, RedisURI redisUri, boolean isClusterMode) {
 
-    ClientResources resources = ClientResources.builder().build();
+    ClientResources resources = ClientResources.builder()
+      .dnsResolver(new DirContextDnsResolver())
+      .reconnectDelay(
+        Delay.fullJitter(
+          Duration.ofMillis(100),      // minimum 100ms delay
+          Duration.ofSeconds(10),       // maximum 10s delay
+          100, TimeUnit.MILLISECONDS))  // 100ms base
+      .build();
+
     StatefulConnection<byte[], byte[]> conn;
 
     if (isClusterMode) {
       // Multi-shard cluster mode: use RedisClusterClient
       RedisClusterClient client = RedisClusterClient.create(resources, redisUri);
-      conn = client.connect(new ByteArrayCodec());
+
+      // Configure cluster topology refresh per AWS best practices
+      ClusterTopologyRefreshOptions topologyRefreshOptions =
+          ClusterTopologyRefreshOptions.builder()
+          .enableAllAdaptiveRefreshTriggers()
+          .enablePeriodicRefresh()
+          .closeStaleConnections(true)
+          .build();
+
+      // Configure cluster client options per AWS best practices
+      ClusterClientOptions clusterClientOptions = ClusterClientOptions.builder()
+          .topologyRefreshOptions(topologyRefreshOptions)
+          .nodeFilter(node ->
+            !(node.is(RedisClusterNode.NodeFlag.FAIL)
+              || node.is(RedisClusterNode.NodeFlag.EVENTUAL_FAIL)
+              || node.is(RedisClusterNode.NodeFlag.HANDSHAKE)
+              || node.is(RedisClusterNode.NodeFlag.NOADDR)))
+          .validateClusterNodeMembership(false)
+          .autoReconnect(true)
+          .socketOptions(SocketOptions.builder()
+              .keepAlive(true)
+              .build())
+          .build();
+
+      client.setOptions(clusterClientOptions);
+
+      // Connect and configure ReadFrom for replica reads
+      StatefulRedisClusterConnection<byte[], byte[]> clusterConn = client.connect(new ByteArrayCodec());
+
+      // Configure read preference: replicas for RO connections, master for RW
+      if (isReadOnly) {
+        clusterConn.setReadFrom(ReadFrom.REPLICA_PREFERRED);
+      } else {
+        clusterConn.setReadFrom(ReadFrom.MASTER);
+      }
+
+      conn = clusterConn;
     } else {
       // Single-shard standalone mode: use RedisClient
       RedisClient client = RedisClient.create(resources, redisUri);
@@ -714,16 +765,19 @@ public class CacheConnection {
   private void returnConnectionBackToPool(StatefulConnection<byte[], byte[]> connection, boolean isConnectionBroken, boolean isRead) {
     GenericObjectPool<StatefulConnection<byte[], byte[]>> pool = isRead ? this.readConnectionPool : this.writeConnectionPool;
     if (isConnectionBroken) {
-      try {
-        pool.invalidateObject(connection);
-      } catch (Exception e) {
-        throw new RuntimeException("Could not invalidate connection for the pool", e);
+      if (!connection.isOpen()) {
+        try {
+          pool.invalidateObject(connection);
+          return;
+        } catch (Exception e) {
+          throw new RuntimeException("Could not invalidate connection for the pool", e);
+        }
+      } else {
+        LOGGER.fine("Cache connection encountered error but is still open. Returning to pool for internal recovery.");
       }
-    } else {
-      pool.returnObject(connection);
     }
+    pool.returnObject(connection);
   }
-
 
   protected RedisURI buildRedisURI(String hostname, int port) {
     // Delegate to the static helper
@@ -741,7 +795,10 @@ public class CacheConnection {
   }
 
   protected void reportErrorToCacheMonitor(boolean isWrite, Throwable error, String operation) {
-    CacheMonitor.reportError(this.cacheRwServerAddr, this.cacheRoServerAddr, isWrite, error, operation);
+    // When using single endpoint (roEndpoint is null), treat all operations as RW
+    // This ensures health state tracking matches the actual endpoint being used
+    boolean isRwEndpoint = isWrite || (this.cacheRoServerAddr == null);
+    CacheMonitor.reportError(this.cacheRwServerAddr, this.cacheRoServerAddr, isRwEndpoint, error, operation);
   }
 
   protected void incrementInFlightSize(long writeSize) {
