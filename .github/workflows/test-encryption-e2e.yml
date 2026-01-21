@@ -2,17 +2,6 @@ name: End-to-End Encryption Tests
 
 on:
   workflow_dispatch:
-    inputs:
-      force_new_key:
-        description: 'Force creation of new KMS key (ignore cache)'
-        required: false
-        type: boolean
-        default: false
-      aws_region:
-        description: 'AWS region to use (overrides secret)'
-        required: false
-        type: string
-        default: ''
   push:
     branches:
       - main
