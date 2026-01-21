@@ -34,6 +34,7 @@ if (useJacoco) {
 
 dependencies {
 
+    optionalImplementation("software.amazon.awssdk:kms:2.33.5")
     optionalImplementation("software.amazon.awssdk:rds:2.41.10")
     optionalImplementation("software.amazon.awssdk:auth:2.41.10") // Required for IAM (light implementation)
     optionalImplementation("software.amazon.awssdk:http-client-spi:2.41.10") // Required for IAM (light implementation)
@@ -107,7 +108,6 @@ dependencies {
     testImplementation("de.vandermeer:asciitable:0.3.2")
     testImplementation("org.hibernate:hibernate-core:5.6.15.Final") // the latest version compatible with Java 8
     testImplementation("jakarta.persistence:jakarta.persistence-api:2.2.3")
-    testImplementation("software.amazon.awssdk:kms:2.33.5")
     testImplementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.19.2")
 }
 
