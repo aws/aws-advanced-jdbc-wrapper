@@ -146,8 +146,7 @@ jobs:
 
       - name: 'Build and Test Encryption Plugin'
         run: |
-          ./gradlew :aws-advanced-jdbc-wrapper:test \
-            --tests "*KmsIntegrationTests*" \
+          ./gradlew :aws-advanced-jdbc-wrapper:test-kms-encryption-integration
             -PkmsKeyId=${{ steps.active-key.outputs.key_id }}
         env:
           KMS_KEY_ID: ${{ steps.active-key.outputs.key_id }}
