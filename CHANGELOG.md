@@ -3,6 +3,34 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [3.1.0] - 2026-01-20
+
+### :bug: Fixed
+- Fix custom endpoint plugin incorrectly failing over to excluded members ([Issue #1662](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1662)).
+- Keep reader failover connection open if failover succeeded ([PR #1674](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1674)).
+- Fix connection failure error message with the initial connection plugin ([PR #1675](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1675)).
+- Limit refresh rate backoff in Custom Endpoint Plugin, and speedup after successful calls ([PR #1650](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1650)).
+
+### :crab: Changed
+- Use try-with-resources ResourceLock to lock ([PR #1659](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1659)).
+- Improve connection garbage collecting by using LazyCleaner (Java 11+ and Java 8) ([PR #1661](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1661)).
+- Improve connection management in RW Splitting Plugin ([PR #1673](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1673)). 
+- Documentation:
+  - Clarify driver support for Global Databases and update maven search ([PR #1653](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1653)).
+  - Fix gradle snapshot example ([PR #1651](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1651)).
+  - Various improvements ([PR #1654](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1654)).
+  - Improve `srw` plugin documentation when using non-RDS clusters ([PR #1657](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1657)).
+  - Remove incorrect `cluster-` prefix from global instance endpoints in examples ([PR #1664](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1664) and [PR #1672](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1672)). 
+
+### :magic_wand: Added
+- Add ability to configure internal connection pool with configuration parameters ([PR #1658](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1658)).
+- Add connection parameters to configure client-sided secrets expiration time and allow custom Secret Value parsing in Secrets Manager Plugin ([PR #1663](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1663) and [PR #1671](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1671)).
+- Configurable instance substitution and role verification in AuroraInitialConnectionStrategyPlugin (`initialConnection` plugin) ([PR #1655](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1655)).
+- Documentation:
+    - Added plugin version availability ([PR #1656](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1656)).
+    - Added explicit instructions for global databases ([PR #1660](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1660)).
+    - Document how the custom annotations work ([PR #1564](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1564)).
+
 ## [3.0.0] - 2025-12-18
 
 ### :crab: Breaking Changes
@@ -647,6 +675,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[3.1.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/3.0.0...3.1.0
 [3.0.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.8...3.0.0
 [2.6.8]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.7...2.6.8
 [2.6.7]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.6...2.6.7
