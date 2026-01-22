@@ -13,6 +13,7 @@ import java.util.Base64;
 import java.util.Properties;
 import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngineDeployment;
+import integration.container.condition.MakeSureFirstInstanceWriter;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
@@ -26,7 +27,16 @@ import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
 
 /** Integration test for KMS encryption functionality with JSqlParser. */
 
-
+@TestMethodOrder(MethodOrderer.MethodName.class)
+@ExtendWith(TestDriverProvider.class)
+@DisableOnTestFeature({
+    TestEnvironmentFeatures.PERFORMANCE,
+    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
+    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
+    TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
+    TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
+@MakeSureFirstInstanceWriter
+@Order(17)
 public class KmsEncryptionIntegrationTest {
 
   private static final Logger logger = LoggerFactory.getLogger(KmsEncryptionIntegrationTest.class);
@@ -51,18 +61,12 @@ public class KmsEncryptionIntegrationTest {
     Properties props = ConnectionStringHelper.getDefaultProperties();
     props.setProperty(PropertyDefinition.PLUGINS.name, "kmsEncryption");
     props.setProperty(EncryptionConfig.KMS_MASTER_KEY_ARN.name, kmsKeyArn);
-    props.setProperty(EncryptionConfig.KMS_REGION.name, "us-east-1");
+    props.setProperty(EncryptionConfig.KMS_REGION.name, TestEnvironment.getCurrent().getInfo().getRegion());
 
     // Get the metadata schema from config (defaults to "encrypt")
     String metadataSchema = EncryptionConfig.ENCRYPTION_METADATA_SCHEMA.defaultValue;
 
-    String url =
-        String.format(
-            "jdbc:aws-wrapper:postgresql://%s:%d/%s",
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint(),
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpointPort(),
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
-
+    String url = ConnectionStringHelper.getWrapperUrl();
     // use a direct connection so that we setup all of the metadata before instantiating the
     // encrypted connection
     String directUrl =
@@ -234,7 +238,7 @@ public class KmsEncryptionIntegrationTest {
     }
   }
 
-  @Test
+  @TestTemplate
   void testBasicEncryption() throws Exception {
     String insertSql = "INSERT INTO users (name, ssn, email) VALUES (?, ?, ?)";
     try (PreparedStatement pstmt = connection.prepareStatement(insertSql)) {
@@ -275,7 +279,7 @@ public class KmsEncryptionIntegrationTest {
     }
   }
 
-  @Test
+  @TestTemplate
   void testUpdateEncryption() throws Exception {
     String insertSql = "INSERT INTO users (name, ssn,email) VALUES (?, ?, ?)";
     logger.trace("testUpdateEncryption: INSERT SQL: {}", insertSql);
@@ -325,7 +329,7 @@ public class KmsEncryptionIntegrationTest {
     }
   }
 
-  @Test
+  @TestTemplate
   void testEncryptionMetadataSetup() throws Exception {
     // Verify encryption metadata was created with master key ARN
     String metadataSql =
@@ -358,7 +362,7 @@ public class KmsEncryptionIntegrationTest {
     assertTrue(kmsKeyArn.startsWith("arn:aws:kms:"));
   }
 
-  @Test
+  @TestTemplate
   void testEncryptedDataTypeHmacVerification() throws Exception {
     // Insert test data
     String insertSql = "INSERT INTO users (name, ssn, email) VALUES (?, ?, ?)";
