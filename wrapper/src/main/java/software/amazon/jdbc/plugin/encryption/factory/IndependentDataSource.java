@@ -24,7 +24,6 @@ import java.util.Properties;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
-import org.slf4j.MDC;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.encryption.logging.ErrorContext;
@@ -87,8 +86,6 @@ public class IndependentDataSource implements DataSource {
   public Connection getConnection() throws SQLException {
     long requestId = connectionRequestCount.incrementAndGet();
 
-    MDC.put("operation", "GET_INDEPENDENT_CONNECTION");
-    MDC.put("requestId", String.valueOf(requestId));
 
     try {
       LOGGER.finest(
@@ -98,8 +95,6 @@ public class IndependentDataSource implements DataSource {
                   requestId));
       return createNewConnection();
     } finally {
-      MDC.remove("operation");
-      MDC.remove("requestId");
     }
   }
 
@@ -107,8 +102,6 @@ public class IndependentDataSource implements DataSource {
   public Connection getConnection(String username, String password) throws SQLException {
     long requestId = connectionRequestCount.incrementAndGet();
 
-    MDC.put("operation", "GET_INDEPENDENT_CONNECTION_WITH_CREDENTIALS");
-    MDC.put("requestId", String.valueOf(requestId));
 
     try {
       LOGGER.finest(
@@ -124,8 +117,6 @@ public class IndependentDataSource implements DataSource {
 
       return createNewConnection(modifiedProps);
     } finally {
-      MDC.remove("operation");
-      MDC.remove("requestId");
     }
   }
 

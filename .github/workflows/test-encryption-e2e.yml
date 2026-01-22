@@ -146,7 +146,7 @@ jobs:
 
       - name: 'Build and Test Encryption Plugin'
         run: |
-          ./gradlew :aws-advanced-jdbc-wrapper:test-kms-encryption-integration \
+          ./gradlew :aws-advanced-jdbc-wrapper:test-all-pg-aurora \
             -PkmsKeyId=${{ steps.active-key.outputs.key_id }}
         env:
           KMS_KEY_ID: ${{ steps.active-key.outputs.key_id }}
@@ -184,3 +184,13 @@ jobs:
             wrapper/build/reports/tests/
             wrapper/build/test-results/
           retention-days: 7
+
+      - name: Get Github Action IP
+        if: always()
+        id: ip
+        uses: haythem/public-ip@v1.3
+
+      - name: Remove Github Action IP
+        if: always()
+        run: |
+          aws ec2 revoke-security-group-ingress --group-name default --protocol all --port 0-65535 --cidr ${{ steps.ip.outputs.ipv4 }}/32

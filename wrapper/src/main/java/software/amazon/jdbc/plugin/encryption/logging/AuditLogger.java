@@ -20,7 +20,6 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
-import org.slf4j.MDC;
 
 /**
  * Audit LOGGER for KMS operations and encryption activities. Provides structured logging without
@@ -48,13 +47,11 @@ public class AuditLogger {
    */
   public static void setContext(String key, String value) {
     auditContext.get().put(key, value);
-    MDC.put(key, value);
   }
 
   /** Clears audit context for the current thread. */
   public static void clearContext() {
     auditContext.get().clear();
-    MDC.clear();
   }
 
   /**
