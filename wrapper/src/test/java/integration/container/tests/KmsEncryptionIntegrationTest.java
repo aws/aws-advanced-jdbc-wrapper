@@ -3,15 +3,18 @@ package integration.container.tests;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import integration.DatabaseEngineDeployment;
+import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
+import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import java.sql.*;
 import java.util.Base64;
 import java.util.Properties;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import integration.container.condition.DisableOnTestFeature;
+import integration.container.condition.EnableOnDatabaseEngineDeployment;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.kms.KmsClient;
@@ -22,6 +25,17 @@ import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
 
 /** Integration test for KMS encryption functionality with JSqlParser. */
+
+@ExtendWith(TestDriverProvider.class)
+@DisableOnTestFeature({
+    TestEnvironmentFeatures.PERFORMANCE,
+    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
+    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
+    TestEnvironmentFeatures.RUN_DB_METRICS_ONLY
+})
+@EnableOnDatabaseEngineDeployment({
+    DatabaseEngineDeployment.AURORA,
+})
 public class KmsEncryptionIntegrationTest {
 
   private static final Logger logger = LoggerFactory.getLogger(KmsEncryptionIntegrationTest.class);
@@ -37,6 +51,7 @@ public class KmsEncryptionIntegrationTest {
   private static String kmsKeyArn;
 
   @BeforeAll
+  @TestTemplate
   static void setUp() throws Exception {
     kmsKeyArn = System.getenv(KMS_KEY_ARN_ENV);
     assumeTrue(
@@ -50,6 +65,8 @@ public class KmsEncryptionIntegrationTest {
 
     // Get the metadata schema from config (defaults to "encrypt")
     String metadataSchema = EncryptionConfig.ENCRYPTION_METADATA_SCHEMA.defaultValue;
+
+    DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
 
     String url =
         String.format(
@@ -229,7 +246,7 @@ public class KmsEncryptionIntegrationTest {
     }
   }
 
-  @Test
+  @TestTemplate
   void testBasicEncryption() throws Exception {
     String insertSql = "INSERT INTO users (name, ssn, email) VALUES (?, ?, ?)";
     try (PreparedStatement pstmt = connection.prepareStatement(insertSql)) {
@@ -270,7 +287,7 @@ public class KmsEncryptionIntegrationTest {
     }
   }
 
-  @Test
+  @TestTemplate
   void testUpdateEncryption() throws Exception {
     String insertSql = "INSERT INTO users (name, ssn,email) VALUES (?, ?, ?)";
     logger.trace("testUpdateEncryption: INSERT SQL: {}", insertSql);
@@ -320,7 +337,7 @@ public class KmsEncryptionIntegrationTest {
     }
   }
 
-  @Test
+  @TestTemplate
   void testEncryptionMetadataSetup() throws Exception {
     // Verify encryption metadata was created with master key ARN
     String metadataSql =
@@ -353,7 +370,7 @@ public class KmsEncryptionIntegrationTest {
     assertTrue(kmsKeyArn.startsWith("arn:aws:kms:"));
   }
 
-  @Test
+  @TestTemplate
   void testEncryptedDataTypeHmacVerification() throws Exception {
     // Insert test data
     String insertSql = "INSERT INTO users (name, ssn, email) VALUES (?, ?, ?)";
@@ -389,7 +406,7 @@ public class KmsEncryptionIntegrationTest {
     }
   }
 
-  @Test
+  @TestTemplate
   public void testPlainTextFails() {
     // make sure we cannot insert plain text into the ssn column
     assertThrows(SQLException.class,() -> {
