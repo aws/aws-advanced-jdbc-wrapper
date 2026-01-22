@@ -50,8 +50,7 @@ public class HostMonitorThreadContainer {
     return getInstance(Executors::newCachedThreadPool);
   }
 
-  static HostMonitorThreadContainer getInstance(
-      final ExecutorServiceInitializer executorServiceInitializer) {
+  static HostMonitorThreadContainer getInstance(final ExecutorServiceInitializer executorServiceInitializer) {
     HostMonitorThreadContainer singletonToReturn = singleton;
 
     if (singletonToReturn != null) {
@@ -108,8 +107,7 @@ public class HostMonitorThreadContainer {
     return monitorMap.get(node);
   }
 
-  HostMonitor getOrCreateMonitor(
-      final Set<String> nodeKeys, final Supplier<HostMonitor> monitorSupplier) {
+  HostMonitor getOrCreateMonitor(final Set<String> nodeKeys, final Supplier<HostMonitor> monitorSupplier) {
     if (nodeKeys.isEmpty()) {
       throw new IllegalArgumentException(Messages.get("HostMonitorThreadContainer.emptyNodeKeys"));
     }
@@ -127,17 +125,17 @@ public class HostMonitorThreadContainer {
       }
 
       if (monitor == null) {
-        monitor =
-            monitorMap.computeIfAbsent(
-                anyNodeKey,
-                k -> {
-                  final HostMonitor newMonitor = monitorSupplier.get();
-                  addTask(newMonitor);
-                  return newMonitor;
-                });
+        monitor = monitorMap.computeIfAbsent(
+            anyNodeKey,
+            k -> {
+              final HostMonitor newMonitor = monitorSupplier.get();
+              addTask(newMonitor);
+              return newMonitor;
+            });
       }
       populateMonitorMap(nodeKeys, monitor);
       return monitor;
+
     }
   }
 
@@ -152,8 +150,8 @@ public class HostMonitorThreadContainer {
   }
 
   /**
-   * Remove references to the given {@link HostMonitorImpl} object and stop the background
-   * monitoring thread.
+   * Remove references to the given {@link HostMonitorImpl} object and stop the background monitoring
+   * thread.
    *
    * @param monitor The {@link HostMonitorImpl} representing a monitoring thread.
    */

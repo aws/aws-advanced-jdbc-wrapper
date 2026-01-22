@@ -58,9 +58,7 @@ public class MultiAzTopologyUtils extends TopologyUtils {
         HostSpec host = createHost(rs, initialHostSpec, instanceTemplate, writerId);
         hostsMap.put(host.getHost(), host);
       } catch (Exception e) {
-        LOGGER.finest(
-            Messages.get(
-                "TopologyUtils.errorProcessingQueryResults", new Object[] {e.getMessage()}));
+        LOGGER.finest(Messages.get("TopologyUtils.errorProcessingQueryResults", new Object[]{e.getMessage()}));
         return null;
       }
     }
@@ -90,8 +88,7 @@ public class MultiAzTopologyUtils extends TopologyUtils {
         }
       }
 
-      // The writer ID is only returned when connected to a reader, so if the query does not return
-      // a value, it
+      // The writer ID is only returned when connected to a reader, so if the query does not return a value, it
       // means we are connected to a writer
       try (final ResultSet rs = stmt.executeQuery(this.dialect.getInstanceIdQuery())) {
         if (rs.next()) {
@@ -107,8 +104,7 @@ public class MultiAzTopologyUtils extends TopologyUtils {
       final ResultSet rs,
       final HostSpec initialHostSpec,
       final HostSpec instanceTemplate,
-      final @Nullable String writerId)
-      throws SQLException {
+      final @Nullable String writerId) throws SQLException {
 
     String endpoint = rs.getString("endpoint"); // "instance-name.XYZ.us-west-2.rds.amazonaws.com"
     String instanceName = endpoint.substring(0, endpoint.indexOf(".")); // "instance-name"
@@ -116,12 +112,6 @@ public class MultiAzTopologyUtils extends TopologyUtils {
     final boolean isWriter = hostId.equals(writerId);
 
     return createHost(
-        hostId,
-        instanceName,
-        isWriter,
-        0,
-        Timestamp.from(Instant.now()),
-        initialHostSpec,
-        instanceTemplate);
+        hostId, instanceName, isWriter, 0, Timestamp.from(Instant.now()), initialHostSpec, instanceTemplate);
   }
 }

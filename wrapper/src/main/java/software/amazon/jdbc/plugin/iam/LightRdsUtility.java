@@ -38,8 +38,7 @@ public class LightRdsUtility implements IamTokenUtility {
 
   private static final Logger LOGGER = Logger.getLogger(LightRdsUtility.class.getName());
 
-  // The time the IAM token is good for.
-  // https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.html
+  // The time the IAM token is good for. https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.html
   private static final Duration EXPIRATION_DURATION = Duration.ofMinutes(15);
 
   private final Clock clock;
@@ -67,31 +66,28 @@ public class LightRdsUtility implements IamTokenUtility {
 
     final Aws4Signer signer = Aws4Signer.create();
 
-    final SdkHttpFullRequest httpRequest =
-        SdkHttpFullRequest.builder()
-            .method(SdkHttpMethod.GET)
-            .protocol("https")
-            .host(hostname)
-            .port(port)
-            .encodedPath("/")
-            .putRawQueryParameter("DBUser", username)
-            .putRawQueryParameter("Action", "connect")
-            .build();
+    final SdkHttpFullRequest httpRequest = SdkHttpFullRequest.builder()
+        .method(SdkHttpMethod.GET)
+        .protocol("https")
+        .host(hostname)
+        .port(port)
+        .encodedPath("/")
+        .putRawQueryParameter("DBUser", username)
+        .putRawQueryParameter("Action", "connect")
+        .build();
 
     final Instant expirationTime = Instant.now(this.clock).plus(EXPIRATION_DURATION);
 
-    final AwsCredentials credentials =
-        CredentialUtils.toCredentials(
-            CompletableFutureUtils.joinLikeSync(credentialsProvider.resolveIdentity()));
+    final AwsCredentials credentials = CredentialUtils.toCredentials(
+        CompletableFutureUtils.joinLikeSync(credentialsProvider.resolveIdentity()));
 
-    final Aws4PresignerParams presignRequest =
-        Aws4PresignerParams.builder()
-            .signingClockOverride(this.clock)
-            .expirationTime(expirationTime)
-            .awsCredentials(credentials)
-            .signingName("rds-db")
-            .signingRegion(region)
-            .build();
+    final Aws4PresignerParams presignRequest = Aws4PresignerParams.builder()
+        .signingClockOverride(this.clock)
+        .expirationTime(expirationTime)
+        .awsCredentials(credentials)
+        .signingName("rds-db")
+        .signingRegion(region)
+        .build();
 
     final SdkHttpFullRequest fullRequest = signer.presign(httpRequest, presignRequest);
     final String signedUrl = fullRequest.getUri().toString();

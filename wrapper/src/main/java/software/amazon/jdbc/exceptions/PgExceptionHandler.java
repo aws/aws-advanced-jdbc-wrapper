@@ -22,23 +22,21 @@ import java.util.List;
 public class PgExceptionHandler extends AbstractPgExceptionHandler {
 
   // The following SQL States for Postgresql are considered as "communication" errors
-  private static final List<String> NETWORK_ERRORS =
-      Arrays.asList(
-          "57P01", // admin shutdown
-          "57P02", // crash shutdown
-          "57P03", // cannot connect now
-          "58", // system error (backend)
-          "08", // connection error
-          "99", // unexpected error
-          "F0" // configuration file error (backend)
-          );
+  private static final List<String> NETWORK_ERRORS = Arrays.asList(
+      "57P01", // admin shutdown
+      "57P02", // crash shutdown
+      "57P03", // cannot connect now
+      "58", // system error (backend)
+      "08", // connection error
+      "99", // unexpected error
+      "F0" // configuration file error (backend)
+  );
 
-  private static final List<String> ACCESS_ERRORS =
-      Arrays.asList(
-          "08004", // The server requested SCRAM-based authentication, but no password was provided.
-          "28P01",
-          "28000" // PAM authentication errors
-          );
+  private static final List<String> ACCESS_ERRORS = Arrays.asList(
+      "08004", // The server requested SCRAM-based authentication, but no password was provided.
+      "28P01",
+      "28000" // PAM authentication errors
+  );
 
   @Override
   public List<String> getNetworkErrors() {

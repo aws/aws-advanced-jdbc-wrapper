@@ -74,6 +74,7 @@ public class AuroraConnectionTrackerPluginTest {
 
   private AutoCloseable closeable;
 
+
   @BeforeEach
   void setUp() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
@@ -97,19 +98,25 @@ public class AuroraConnectionTrackerPluginTest {
   @ParameterizedTest
   @MethodSource("trackNewConnectionsParameters")
   public void testTrackNewInstanceConnections(
-      final String protocol, final boolean isInitialConnection) throws SQLException {
-    final HostSpec hostSpec =
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance1").build();
+      final String protocol,
+      final boolean isInitialConnection) throws SQLException {
+    final HostSpec hostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance1")
+        .build();
     when(mockPluginService.getCurrentHostSpec()).thenReturn(hostSpec);
     when(mockRdsUtils.isRdsInstance("instance1")).thenReturn(true);
 
-    final AuroraConnectionTrackerPlugin plugin =
-        new AuroraConnectionTrackerPlugin(
-            mockPluginService, EMPTY_PROPERTIES, mockRdsUtils, mockTracker);
+    final AuroraConnectionTrackerPlugin plugin = new AuroraConnectionTrackerPlugin(
+        mockPluginService,
+        EMPTY_PROPERTIES,
+        mockRdsUtils,
+        mockTracker);
 
-    final Connection actualConnection =
-        plugin.connect(
-            protocol, hostSpec, EMPTY_PROPERTIES, isInitialConnection, mockConnectionFunction);
+    final Connection actualConnection = plugin.connect(
+        protocol,
+        hostSpec,
+        EMPTY_PROPERTIES,
+        isInitialConnection,
+        mockConnectionFunction);
 
     assertEquals(mockConnection, actualConnection);
     verify(mockTracker).populateOpenedConnectionQueue(eq(hostSpec), eq(mockConnection));
@@ -120,36 +127,33 @@ public class AuroraConnectionTrackerPluginTest {
   @Test
   public void testInvalidateOpenedConnectionsWhenWriterHostNotChange() throws SQLException {
     final FailoverSQLException expectedException = new FailoverSQLException("reason", "sqlstate");
-    final HostSpec originalHost =
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-            .host("host")
-            .role(HostRole.WRITER)
-            .build();
-    final HostSpec newHost =
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-            .host("new-host")
-            .role(HostRole.WRITER)
-            .build();
+    final HostSpec originalHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("host")
+        .role(HostRole.WRITER)
+        .build();
+    final HostSpec newHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("new-host")
+        .role(HostRole.WRITER)
+        .build();
 
     // Host list changes during simulated failover
     when(mockPluginService.getAllHosts()).thenReturn(Collections.singletonList(originalHost));
     doThrow(expectedException).when(mockSqlFunction).call();
 
-    final AuroraConnectionTrackerPlugin plugin =
-        new AuroraConnectionTrackerPlugin(
-            mockPluginService, EMPTY_PROPERTIES, mockRdsUtils, mockTracker);
+    final AuroraConnectionTrackerPlugin plugin = new AuroraConnectionTrackerPlugin(
+        mockPluginService,
+        EMPTY_PROPERTIES,
+        mockRdsUtils,
+        mockTracker);
 
-    final SQLException exception =
-        assertThrows(
-            FailoverSQLException.class,
-            () ->
-                plugin.execute(
-                    ResultSet.class,
-                    SQLException.class,
-                    Statement.class,
-                    "Statement.executeQuery",
-                    mockSqlFunction,
-                    SQL_ARGS));
+    final SQLException exception = assertThrows(FailoverSQLException.class, () -> plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        Statement.class,
+        "Statement.executeQuery",
+        mockSqlFunction,
+        SQL_ARGS
+    ));
 
     assertEquals(expectedException, exception);
     verify(mockTracker, never()).removeConnectionTracking(eq(originalHost), eq(mockConnection));
@@ -159,18 +163,22 @@ public class AuroraConnectionTrackerPluginTest {
   @Test
   public void testInvalidateOpenedConnectionsWhenWriterHostChanged() throws SQLException {
     final FailoverSQLException expectedException = new FailoverSQLException("reason", "sqlstate");
-    final HostSpec originalHost =
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host").build();
-    final HostSpec failoverTargetHost =
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host2").build();
+    final HostSpec originalHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host")
+        .build();
+    final HostSpec failoverTargetHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host2")
+        .build();
     when(mockPluginService.getAllHosts())
         .thenReturn(Collections.singletonList(originalHost))
         .thenReturn(Collections.singletonList(failoverTargetHost));
-    when(mockSqlFunction.call()).thenReturn(mockResultSet).thenThrow(expectedException);
+    when(mockSqlFunction.call())
+        .thenReturn(mockResultSet)
+        .thenThrow(expectedException);
 
-    final AuroraConnectionTrackerPlugin plugin =
-        new AuroraConnectionTrackerPlugin(
-            mockPluginService, EMPTY_PROPERTIES, mockRdsUtils, mockTracker);
+    final AuroraConnectionTrackerPlugin plugin = new AuroraConnectionTrackerPlugin(
+        mockPluginService,
+        EMPTY_PROPERTIES,
+        mockRdsUtils,
+        mockTracker);
 
     plugin.execute(
         ResultSet.class,
@@ -178,19 +186,17 @@ public class AuroraConnectionTrackerPluginTest {
         Statement.class,
         "Statement.executeQuery",
         mockSqlFunction,
-        SQL_ARGS);
+        SQL_ARGS
+    );
 
-    final SQLException exception =
-        assertThrows(
-            FailoverSQLException.class,
-            () ->
-                plugin.execute(
-                    ResultSet.class,
-                    SQLException.class,
-                    Statement.class,
-                    "Statement.executeQuery",
-                    mockSqlFunction,
-                    SQL_ARGS));
+    final SQLException exception = assertThrows(FailoverSQLException.class, () -> plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        Statement.class,
+        "Statement.executeQuery",
+        mockSqlFunction,
+        SQL_ARGS
+    ));
     assertEquals(expectedException, exception);
     verify(mockTracker, never()).removeConnectionTracking(eq(originalHost), eq(mockConnection));
     verify(mockTracker).invalidateAllConnections(originalHost);
@@ -199,13 +205,15 @@ public class AuroraConnectionTrackerPluginTest {
   @ParameterizedTest
   @MethodSource("testInvalidateConnectionsOnCloseOrAbortArgs")
   public void testInvalidateConnectionsOnCloseOrAbort(final String method) throws SQLException {
-    final HostSpec originalHost =
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host").build();
+    final HostSpec originalHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host")
+        .build();
     when(mockPluginService.getCurrentHostSpec()).thenReturn(originalHost);
 
-    final AuroraConnectionTrackerPlugin plugin =
-        new AuroraConnectionTrackerPlugin(
-            mockPluginService, EMPTY_PROPERTIES, mockRdsUtils, mockTracker);
+    final AuroraConnectionTrackerPlugin plugin = new AuroraConnectionTrackerPlugin(
+        mockPluginService,
+        EMPTY_PROPERTIES,
+        mockRdsUtils,
+        mockTracker);
 
     plugin.execute(
         Void.class,
@@ -213,7 +221,8 @@ public class AuroraConnectionTrackerPluginTest {
         Connection.class,
         method,
         mockCloseOrAbortFunction,
-        SQL_ARGS);
+        SQL_ARGS
+    );
 
     verify(mockTracker).removeConnectionTracking(eq(originalHost), eq(mockConnection));
   }
@@ -221,7 +230,8 @@ public class AuroraConnectionTrackerPluginTest {
   static Stream<Arguments> testInvalidateConnectionsOnCloseOrAbortArgs() {
     return Stream.of(
         Arguments.of(JdbcMethod.CONNECTION_ABORT.methodName),
-        Arguments.of(JdbcMethod.CONNECTION_CLOSE.methodName));
+        Arguments.of(JdbcMethod.CONNECTION_CLOSE.methodName)
+    );
   }
 
   private static Stream<Arguments> trackNewConnectionsParameters() {
@@ -229,6 +239,7 @@ public class AuroraConnectionTrackerPluginTest {
         Arguments.of("postgresql", true),
         Arguments.of("postgresql", false),
         Arguments.of("otherProtocol", true),
-        Arguments.of("otherProtocol", false));
+        Arguments.of("otherProtocol", false)
+    );
   }
 }

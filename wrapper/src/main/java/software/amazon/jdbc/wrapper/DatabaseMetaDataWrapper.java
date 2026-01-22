@@ -241,9 +241,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     joiner
         .add(DriverInfo.DRIVER_NAME)
         .add(DriverInfo.DRIVER_VERSION)
-        .add("( Revision:")
-        .add(DriverInfo.REVISION_VERSION)
-        .add(")");
+        .add("( Revision:").add(DriverInfo.REVISION_VERSION).add(")");
     return joiner.toString();
   }
 
@@ -291,8 +289,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsMixedCaseIdentifiers() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSMIXEDCASEIDENTIFIERS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSMIXEDCASEIDENTIFIERS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -308,8 +305,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean storesUpperCaseIdentifiers() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_STORESUPPERCASEIDENTIFIERS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_STORESUPPERCASEIDENTIFIERS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -325,8 +321,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean storesLowerCaseIdentifiers() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_STORESLOWERCASEIDENTIFIERS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_STORESLOWERCASEIDENTIFIERS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -342,8 +337,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean storesMixedCaseIdentifiers() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_STORESMIXEDCASEIDENTIFIERS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_STORESMIXEDCASEIDENTIFIERS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -359,8 +353,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsMixedCaseQuotedIdentifiers() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSMIXEDCASEQUOTEDIDENTIFIERS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSMIXEDCASEQUOTEDIDENTIFIERS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -376,8 +369,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean storesUpperCaseQuotedIdentifiers() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_STORESUPPERCASEQUOTEDIDENTIFIERS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_STORESUPPERCASEQUOTEDIDENTIFIERS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -393,8 +385,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean storesLowerCaseQuotedIdentifiers() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_STORESLOWERCASEQUOTEDIDENTIFIERS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_STORESLOWERCASEQUOTEDIDENTIFIERS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -410,8 +401,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean storesMixedCaseQuotedIdentifiers() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_STORESMIXEDCASEQUOTEDIDENTIFIERS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_STORESMIXEDCASEQUOTEDIDENTIFIERS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -555,8 +545,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsAlterTableWithAddColumn() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSALTERTABLEWITHADDCOLUMN)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSALTERTABLEWITHADDCOLUMN)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -572,8 +561,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsAlterTableWithDropColumn() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSALTERTABLEWITHDROPCOLUMN)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSALTERTABLEWITHDROPCOLUMN)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -655,8 +643,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsTableCorrelationNames() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSTABLECORRELATIONNAMES)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSTABLECORRELATIONNAMES)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -672,8 +659,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsDifferentTableCorrelationNames() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSDIFFERENTTABLECORRELATIONNAMES)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSDIFFERENTTABLECORRELATIONNAMES)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -689,8 +675,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsExpressionsInOrderBy() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSEXPRESSIONSINORDERBY)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSEXPRESSIONSINORDERBY)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -754,8 +739,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsGroupByBeyondSelect() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSGROUPBYBEYONDSELECT)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSGROUPBYBEYONDSELECT)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -787,8 +771,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsMultipleResultSets() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSMULTIPLERESULTSETS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSMULTIPLERESULTSETS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -804,8 +787,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsMultipleTransactions() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSMULTIPLETRANSACTIONS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSMULTIPLETRANSACTIONS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -821,8 +803,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsNonNullableColumns() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSNONNULLABLECOLUMNS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSNONNULLABLECOLUMNS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -870,8 +851,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsExtendedSQLGrammar() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSEXTENDEDSQLGRAMMAR)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSEXTENDEDSQLGRAMMAR)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -887,8 +867,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsANSI92EntryLevelSQL() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSANSI92ENTRYLEVELSQL)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSANSI92ENTRYLEVELSQL)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -904,8 +883,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsANSI92IntermediateSQL() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSANSI92INTERMEDIATESQL)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSANSI92INTERMEDIATESQL)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -937,8 +915,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsIntegrityEnhancementFacility() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSINTEGRITYENHANCEMENTFACILITY)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSINTEGRITYENHANCEMENTFACILITY)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -1082,8 +1059,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsSchemasInDataManipulation() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSSCHEMASINDATAMANIPULATION)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSSCHEMASINDATAMANIPULATION)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -1099,8 +1075,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsSchemasInProcedureCalls() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSSCHEMASINPROCEDURECALLS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSSCHEMASINPROCEDURECALLS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -1116,8 +1091,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsSchemasInTableDefinitions() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSSCHEMASINTABLEDEFINITIONS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSSCHEMASINTABLEDEFINITIONS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -1133,8 +1107,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsSchemasInIndexDefinitions() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSSCHEMASININDEXDEFINITIONS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSSCHEMASININDEXDEFINITIONS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -1150,8 +1123,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsSchemasInPrivilegeDefinitions() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSSCHEMASINPRIVILEGEDEFINITIONS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSSCHEMASINPRIVILEGEDEFINITIONS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -1167,8 +1139,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsCatalogsInDataManipulation() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSCATALOGSINDATAMANIPULATION)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSCATALOGSINDATAMANIPULATION)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -1184,8 +1155,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsCatalogsInProcedureCalls() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSCATALOGSINPROCEDURECALLS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSCATALOGSINPROCEDURECALLS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -1201,8 +1171,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsCatalogsInTableDefinitions() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSCATALOGSINTABLEDEFINITIONS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSCATALOGSINTABLEDEFINITIONS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -1218,8 +1187,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsCatalogsInIndexDefinitions() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSCATALOGSININDEXDEFINITIONS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSCATALOGSININDEXDEFINITIONS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -1235,8 +1203,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsCatalogsInPrivilegeDefinitions() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSCATALOGSINPRIVILEGEDEFINITIONS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSCATALOGSINPRIVILEGEDEFINITIONS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -1316,8 +1283,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsSubqueriesInComparisons() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSSUBQUERIESINCOMPARISONS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSSUBQUERIESINCOMPARISONS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -1333,8 +1299,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsSubqueriesInExists() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSSUBQUERIESINEXISTS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSSUBQUERIESINEXISTS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -1366,8 +1331,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsSubqueriesInQuantifieds() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSSUBQUERIESINQUANTIFIEDS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSSUBQUERIESINQUANTIFIEDS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -1383,8 +1347,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsCorrelatedSubqueries() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSCORRELATEDSUBQUERIES)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSCORRELATEDSUBQUERIES)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -1432,8 +1395,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsOpenCursorsAcrossCommit() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSOPENCURSORSACROSSCOMMIT)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSOPENCURSORSACROSSCOMMIT)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -1449,8 +1411,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsOpenCursorsAcrossRollback() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSOPENCURSORSACROSSROLLBACK)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSOPENCURSORSACROSSROLLBACK)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -1466,8 +1427,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsOpenStatementsAcrossCommit() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSOPENSTATEMENTSACROSSCOMMIT)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSOPENSTATEMENTSACROSSCOMMIT)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -1483,8 +1443,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsOpenStatementsAcrossRollback() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSOPENSTATEMENTSACROSSROLLBACK)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSOPENSTATEMENTSACROSSROLLBACK)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -1740,8 +1699,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean doesMaxRowSizeIncludeBlobs() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_DOESMAXROWSIZEINCLUDEBLOBS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_DOESMAXROWSIZEINCLUDEBLOBS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -1837,8 +1795,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public int getDefaultTransactionIsolation() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_GETDEFAULTTRANSACTIONISOLATION)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_GETDEFAULTTRANSACTIONISOLATION)) {
       return WrapperUtils.executeWithPlugins(
           int.class,
           SQLException.class,
@@ -1870,8 +1827,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsTransactionIsolationLevel(int level) throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSTRANSACTIONISOLATIONLEVEL)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSTRANSACTIONISOLATIONLEVEL)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -1905,8 +1861,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsDataManipulationTransactionsOnly() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSDATAMANIPULATIONTRANSACTIONSONLY)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSDATAMANIPULATIONTRANSACTIONSONLY)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -1922,8 +1877,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean dataDefinitionCausesTransactionCommit() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_DATADEFINITIONCAUSESTRANSACTIONCOMMIT)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_DATADEFINITIONCAUSESTRANSACTIONCOMMIT)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -1939,8 +1893,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean dataDefinitionIgnoredInTransactions() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_DATADEFINITIONIGNOREDINTRANSACTIONS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_DATADEFINITIONIGNOREDINTRANSACTIONS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -1961,7 +1914,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETPROCEDURES,
         () -> this.databaseMetaData.getProcedures(catalog, schemaPattern, procedureNamePattern),
@@ -1978,7 +1931,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETPROCEDURECOLUMNS,
         () ->
@@ -1998,7 +1951,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETTABLES,
         () -> this.databaseMetaData.getTables(catalog, schemaPattern, tableNamePattern, types),
@@ -2014,7 +1967,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETSCHEMAS,
         this.databaseMetaData::getSchemas);
@@ -2026,7 +1979,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETSCHEMAS,
         () -> this.databaseMetaData.getSchemas(catalog, schemaPattern),
@@ -2040,7 +1993,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETCATALOGS,
         this.databaseMetaData::getCatalogs);
@@ -2052,7 +2005,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETTABLETYPES,
         this.databaseMetaData::getTableTypes);
@@ -2066,7 +2019,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETCOLUMNS,
         () ->
@@ -2085,7 +2038,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETCOLUMNPRIVILEGES,
         () -> this.databaseMetaData.getColumnPrivileges(catalog, schema, table, columnNamePattern),
@@ -2102,7 +2055,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETTABLEPRIVILEGES,
         () -> this.databaseMetaData.getTablePrivileges(catalog, schemaPattern, tableNamePattern),
@@ -2119,7 +2072,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETBESTROWIDENTIFIER,
         () -> this.databaseMetaData.getBestRowIdentifier(catalog, schema, table, scope, nullable),
@@ -2137,7 +2090,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETVERSIONCOLUMNS,
         () -> this.databaseMetaData.getVersionColumns(catalog, schema, table),
@@ -2152,7 +2105,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETPRIMARYKEYS,
         () -> this.databaseMetaData.getPrimaryKeys(catalog, schema, table),
@@ -2168,7 +2121,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETIMPORTEDKEYS,
         () -> this.databaseMetaData.getImportedKeys(catalog, schema, table),
@@ -2184,7 +2137,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETEXPORTEDKEYS,
         () -> this.databaseMetaData.getExportedKeys(catalog, schema, table),
@@ -2206,7 +2159,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETCROSSREFERENCE,
         () ->
@@ -2231,7 +2184,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETTYPEINFO,
         this.databaseMetaData::getTypeInfo);
@@ -2245,7 +2198,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETINDEXINFO,
         () -> this.databaseMetaData.getIndexInfo(catalog, schema, table, unique, approximate),
@@ -2275,8 +2228,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsResultSetConcurrency(int type, int concurrency) throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSRESULTSETCONCURRENCY)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSRESULTSETCONCURRENCY)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -2469,7 +2421,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETUDTS,
         () -> this.databaseMetaData.getUDTs(catalog, schemaPattern, typeNamePattern, types),
@@ -2485,7 +2437,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         Connection.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETCONNECTION,
         () -> this.connectionWrapper);
@@ -2525,8 +2477,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsMultipleOpenResults() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSMULTIPLEOPENRESULTS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSMULTIPLEOPENRESULTS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -2563,7 +2514,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETSUPERTYPES,
         () -> this.databaseMetaData.getSuperTypes(catalog, schemaPattern, typeNamePattern),
@@ -2579,7 +2530,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETSUPERTABLES,
         () -> this.databaseMetaData.getSuperTables(catalog, schemaPattern, tableNamePattern),
@@ -2596,7 +2547,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETATTRIBUTES,
         () ->
@@ -2610,8 +2561,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsResultSetHoldability(int holdability) throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSRESULTSETHOLDABILITY)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSRESULTSETHOLDABILITY)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -2773,8 +2723,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean supportsStoredFunctionsUsingCallSyntax() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_SUPPORTSSTOREDFUNCTIONSUSINGCALLSYNTAX)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_SUPPORTSSTOREDFUNCTIONSUSINGCALLSYNTAX)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -2790,8 +2739,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean autoCommitFailureClosesAllResultSets() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_AUTOCOMMITFAILURECLOSESALLRESULTSETS)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_AUTOCOMMITFAILURECLOSESALLRESULTSETS)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,
@@ -2811,7 +2759,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETCLIENTINFOPROPERTIES,
         this.databaseMetaData::getClientInfoProperties);
@@ -2824,7 +2772,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETFUNCTIONS,
         () -> this.databaseMetaData.getFunctions(catalog, schemaPattern, functionNamePattern),
@@ -2841,7 +2789,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETFUNCTIONCOLUMNS,
         () ->
@@ -2861,7 +2809,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.databaseMetaData,
         JdbcMethod.DATABASEMETADATA_GETPSEUDOCOLUMNS,
         () ->
@@ -2875,8 +2823,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public boolean generatedKeyAlwaysReturned() throws SQLException {
-    if (this.pluginManager.mustUsePipeline(
-        JdbcMethod.DATABASEMETADATA_GENERATEDKEYALWAYSRETURNED)) {
+    if (this.pluginManager.mustUsePipeline(JdbcMethod.DATABASEMETADATA_GENERATEDKEYALWAYSRETURNED)) {
       return WrapperUtils.executeWithPlugins(
           boolean.class,
           SQLException.class,

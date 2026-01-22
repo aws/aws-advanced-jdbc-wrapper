@@ -74,8 +74,7 @@ class HostMonitorImplTest {
   @Mock ResourceLock mockResourceLock;
 
   private static final long SHORT_INTERVAL_MILLIS = 30;
-  private static final long SHORT_INTERVAL_SECONDS =
-      TimeUnit.MILLISECONDS.toSeconds(SHORT_INTERVAL_MILLIS);
+  private static final long SHORT_INTERVAL_SECONDS = TimeUnit.MILLISECONDS.toSeconds(SHORT_INTERVAL_MILLIS);
   private static final long LONG_INTERVAL_MILLIS = 300;
 
   private AutoCloseable closeable;
@@ -90,11 +89,11 @@ class HostMonitorImplTest {
         .thenReturn(SHORT_INTERVAL_MILLIS);
     when(contextWithLongInterval.getFailureDetectionIntervalMillis())
         .thenReturn(LONG_INTERVAL_MILLIS);
-    when(contextWithShortInterval.getLock()).thenReturn(mockResourceLock);
+    when(contextWithShortInterval.getLock())
+        .thenReturn(mockResourceLock);
     when(booleanProperty.getStringValue()).thenReturn(Boolean.TRUE.toString());
     when(longProperty.getValue()).thenReturn(SHORT_INTERVAL_MILLIS);
-    when(pluginService.forceConnect(any(HostSpec.class), any(Properties.class)))
-        .thenReturn(connection);
+    when(pluginService.forceConnect(any(HostSpec.class), any(Properties.class))).thenReturn(connection);
     when(pluginService.getTelemetryFactory()).thenReturn(telemetryFactory);
     when(telemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(telemetryContext);
     when(telemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(telemetryContext);
@@ -124,8 +123,7 @@ class HostMonitorImplTest {
 
   @Test
   void test_6_isConnectionHealthyWithExistingConnection() throws SQLException {
-    when(connection.isValid(eq((int) SHORT_INTERVAL_SECONDS)))
-        .thenReturn(Boolean.TRUE, Boolean.FALSE);
+    when(connection.isValid(eq((int) SHORT_INTERVAL_SECONDS))).thenReturn(Boolean.TRUE, Boolean.FALSE);
     when(connection.isClosed()).thenReturn(Boolean.FALSE);
 
     // Start up a monitoring connection.
@@ -222,8 +220,7 @@ class HostMonitorImplTest {
   @Test
   void test_10_ensureStoppedMonitorIsRemovedFromMap() throws InterruptedException {
     when(contextWithShortInterval.isActiveContext()).thenReturn(true);
-    when(contextWithShortInterval.getExpectedActiveMonitoringStartTimeNano())
-        .thenReturn(999999999999999L);
+    when(contextWithShortInterval.getExpectedActiveMonitoringStartTimeNano()).thenReturn(999999999999999L);
     doThrow(new InterruptedException("Test")).when(monitor).sleep(anyLong());
     monitor.activeContexts.add(contextWithShortInterval);
     final Map<String, HostMonitor> monitorMap = threadContainer.getMonitorMap();

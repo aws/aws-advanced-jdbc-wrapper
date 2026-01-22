@@ -26,21 +26,20 @@ import software.amazon.jdbc.util.StringUtils;
 public class GenericExceptionHandler implements ExceptionHandler {
 
   static final List<String> ACCESS_ERRORS = Arrays.asList("28000", "28P01");
-  static final List<String> NETWORK_ERRORS =
-      Arrays.asList(
-          "53", // insufficient resources
-          "57P01", // admin shutdown
-          "57P02", // crash shutdown
-          "57P03", // cannot connect now
-          "58", // system error (backend)
-          "99", // unexpected error
-          "F0", // configuration file error (backend)
-          "XX", // internal error (backend)
-          "08");
+  static final List<String> NETWORK_ERRORS = Arrays.asList(
+      "53", // insufficient resources
+      "57P01", // admin shutdown
+      "57P02", // crash shutdown
+      "57P03", // cannot connect now
+      "58", // system error (backend)
+      "99", // unexpected error
+      "F0", // configuration file error (backend)
+      "XX", // internal error (backend)
+      "08"
+  );
 
   @Override
-  public boolean isNetworkException(
-      final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
+  public boolean isNetworkException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     Throwable exception = throwable;
 
     while (exception != null) {
@@ -75,8 +74,7 @@ public class GenericExceptionHandler implements ExceptionHandler {
   }
 
   @Override
-  public boolean isLoginException(
-      final Throwable throwable, TargetDriverDialect targetDriverDialect) {
+  public boolean isLoginException(final Throwable throwable, TargetDriverDialect targetDriverDialect) {
     Throwable exception = throwable;
 
     while (exception != null) {
@@ -107,8 +105,7 @@ public class GenericExceptionHandler implements ExceptionHandler {
   }
 
   @Override
-  public boolean isReadOnlyConnectionException(
-      @Nullable String sqlState, @Nullable Integer errorCode) {
+  public boolean isReadOnlyConnectionException(@Nullable String sqlState, @Nullable Integer errorCode) {
     return false;
   }
 

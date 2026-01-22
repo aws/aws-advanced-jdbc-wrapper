@@ -61,22 +61,19 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
 
   private static final Logger LOGGER = Logger.getLogger(DataCacheConnectionPlugin.class.getName());
 
-  private static final Set<String> subscribedMethods =
-      Collections.unmodifiableSet(
-          new HashSet<>(
-              Arrays.asList(
-                  JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
-                  JdbcMethod.STATEMENT_EXECUTE.methodName,
-                  JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName,
-                  JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName,
-                  JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
-                  JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName)));
+  private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
+      Arrays.asList(
+          JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
+          JdbcMethod.STATEMENT_EXECUTE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName
+      )));
 
-  public static final AwsWrapperProperty DATA_CACHE_TRIGGER_CONDITION =
-      new AwsWrapperProperty(
-          "dataCacheTriggerCondition",
-          "false",
-          "A regular expression that, if it's matched, allows the plugin to cache SQL results.");
+  public static final AwsWrapperProperty DATA_CACHE_TRIGGER_CONDITION = new AwsWrapperProperty(
+      "dataCacheTriggerCondition", "false",
+      "A regular expression that, if it's matched, allows the plugin to cache SQL results.");
 
   protected static final Map<String, ResultSet> dataCache = new ConcurrentHashMap<>();
 
@@ -99,8 +96,7 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
     this.hitCounter = telemetryFactory.createCounter("dataCache.cache.hit");
     this.missCounter = telemetryFactory.createCounter("dataCache.cache.miss");
     this.totalCallsCounter = telemetryFactory.createCounter("dataCache.cache.totalCalls");
-    this.cacheSizeGauge =
-        telemetryFactory.createGauge("dataCache.cache.size", () -> (long) dataCache.size());
+    this.cacheSizeGauge = telemetryFactory.createGauge("dataCache.cache.size", () -> (long) dataCache.size());
   }
 
   public static void clearCache() {
@@ -122,8 +118,7 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
       final Object[] jdbcMethodArgs)
       throws E {
 
-    if (StringUtils.isNullOrEmpty(this.dataCacheTriggerCondition)
-        || resultClass != ResultSet.class) {
+    if (StringUtils.isNullOrEmpty(this.dataCacheTriggerCondition) || resultClass != ResultSet.class) {
       return jdbcMethodFunc.call();
     }
 
@@ -143,10 +138,9 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
           this.missCounter.inc();
         }
         LOGGER.finest(
-            () ->
-                Messages.get(
-                    "DataCacheConnectionPlugin.queryResultsCached",
-                    new Object[] {methodName, sql}));
+            () -> Messages.get(
+                "DataCacheConnectionPlugin.queryResultsCached",
+                new Object[]{methodName, sql}));
       } else {
         if (this.hitCounter != null) {
           this.hitCounter.inc();
@@ -668,26 +662,22 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     @Override
-    public void updateAsciiStream(final int columnIndex, final InputStream x, final int length)
-        throws SQLException {
+    public void updateAsciiStream(final int columnIndex, final InputStream x, final int length) throws SQLException {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public void updateBinaryStream(final int columnIndex, final InputStream x, final int length)
-        throws SQLException {
+    public void updateBinaryStream(final int columnIndex, final InputStream x, final int length) throws SQLException {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public void updateCharacterStream(final int columnIndex, final Reader x, final int length)
-        throws SQLException {
+    public void updateCharacterStream(final int columnIndex, final Reader x, final int length) throws SQLException {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public void updateObject(final int columnIndex, final Object x, final int scaleOrLength)
-        throws SQLException {
+    public void updateObject(final int columnIndex, final Object x, final int scaleOrLength) throws SQLException {
       throw new UnsupportedOperationException();
     }
 
@@ -779,8 +769,8 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     @Override
-    public void updateCharacterStream(
-        final String columnLabel, final Reader reader, final int length) throws SQLException {
+    public void updateCharacterStream(final String columnLabel, final Reader reader, final int length)
+        throws SQLException {
       throw new UnsupportedOperationException();
     }
 
@@ -913,8 +903,7 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     @Override
-    public Timestamp getTimestamp(final String columnLabel, final Calendar cal)
-        throws SQLException {
+    public Timestamp getTimestamp(final String columnLabel, final Calendar cal) throws SQLException {
       throw new UnsupportedOperationException();
     }
 
@@ -1080,8 +1069,8 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     @Override
-    public void updateNCharacterStream(
-        final String columnLabel, final Reader reader, final long length) throws SQLException {
+    public void updateNCharacterStream(final String columnLabel, final Reader reader, final long length)
+        throws SQLException {
       throw new UnsupportedOperationException();
     }
 
@@ -1116,8 +1105,8 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     @Override
-    public void updateCharacterStream(
-        final String columnLabel, final Reader reader, final long length) throws SQLException {
+    public void updateCharacterStream(final String columnLabel, final Reader reader, final long length)
+        throws SQLException {
       throw new UnsupportedOperationException();
     }
 
@@ -1128,8 +1117,7 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     @Override
-    public void updateBlob(
-        final String columnLabel, final InputStream inputStream, final long length)
+    public void updateBlob(final String columnLabel, final InputStream inputStream, final long length)
         throws SQLException {
       throw new UnsupportedOperationException();
     }
@@ -1164,8 +1152,7 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     @Override
-    public void updateNCharacterStream(final String columnLabel, final Reader reader)
-        throws SQLException {
+    public void updateNCharacterStream(final String columnLabel, final Reader reader) throws SQLException {
       throw new UnsupportedOperationException();
     }
 
@@ -1185,32 +1172,27 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     @Override
-    public void updateAsciiStream(final String columnLabel, final InputStream x)
-        throws SQLException {
+    public void updateAsciiStream(final String columnLabel, final InputStream x) throws SQLException {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public void updateBinaryStream(final String columnLabel, final InputStream x)
-        throws SQLException {
+    public void updateBinaryStream(final String columnLabel, final InputStream x) throws SQLException {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public void updateCharacterStream(final String columnLabel, final Reader reader)
-        throws SQLException {
+    public void updateCharacterStream(final String columnLabel, final Reader reader) throws SQLException {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public void updateBlob(final int columnIndex, final InputStream inputStream)
-        throws SQLException {
+    public void updateBlob(final int columnIndex, final InputStream inputStream) throws SQLException {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public void updateBlob(final String columnLabel, final InputStream inputStream)
-        throws SQLException {
+    public void updateBlob(final String columnLabel, final InputStream inputStream) throws SQLException {
       throw new UnsupportedOperationException();
     }
 

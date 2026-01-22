@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -44,7 +45,8 @@ import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
 public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSubscriber {
 
-  private static final Logger LOGGER = Logger.getLogger(NodeResponseTimeMonitor.class.getName());
+  private static final Logger LOGGER =
+      Logger.getLogger(NodeResponseTimeMonitor.class.getName());
 
   private static final String MONITORING_PROPERTY_PREFIX = "frt-";
   private static final int TERMINATION_TIMEOUT_SEC = 5;
@@ -77,21 +79,18 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
     this.props = props;
     this.intervalMs = intervalMs;
     this.telemetryFactory = this.pluginService.getTelemetryFactory();
-    this.monitoringConn =
-        new AtomicConnection(this, PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(props));
+    this.monitoringConn = new AtomicConnection(
+        this, PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(props));
 
-    final String nodeId =
-        StringUtils.isNullOrEmpty(this.hostSpec.getHostId())
-            ? this.hostSpec.getHost()
-            : this.hostSpec.getHostId();
+    final String nodeId = StringUtils.isNullOrEmpty(this.hostSpec.getHostId())
+        ? this.hostSpec.getHost()
+        : this.hostSpec.getHostId();
 
     // Report current response time (in milliseconds) to telemetry engine.
     // Report -1 if response time couldn't be measured.
-    this.responseTimeMsGauge =
-        telemetryFactory.createGauge(
-            String.format("frt.response.time.%s", nodeId),
-            () ->
-                this.responseTime.get() == Integer.MAX_VALUE ? -1 : (long) this.responseTime.get());
+    this.responseTimeMsGauge = telemetryFactory.createGauge(
+        String.format("frt.response.time.%s", nodeId),
+        () -> this.responseTime.get() == Integer.MAX_VALUE ? -1 : (long) this.responseTime.get());
   }
 
   // Return node response time in milliseconds.
@@ -111,9 +110,8 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
 
   @Override
   public void monitor() {
-    TelemetryContext telemetryContext =
-        telemetryFactory.openTelemetryContext(
-            "node response time thread", TelemetryTraceLevel.TOP_LEVEL);
+    TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
+        "node response time thread", TelemetryTraceLevel.TOP_LEVEL);
     if (telemetryContext != null) {
       telemetryContext.setAttribute("url", hostSpec.getUrl());
     }
@@ -147,11 +145,9 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
           }
           this.checkTimestamp.set(this.getCurrentTime());
 
-          LOGGER.finest(
-              () ->
-                  Messages.get(
-                      "NodeResponseTimeMonitor.responseTime",
-                      new Object[] {this.hostSpec.getHost(), this.responseTime.get()}));
+          LOGGER.finest(() -> Messages.get(
+              "NodeResponseTimeMonitor.responseTime",
+              new Object[] {this.hostSpec.getHost(), this.responseTime.get()}));
         }
 
         TimeUnit.MILLISECONDS.sleep(this.intervalMs);
@@ -159,10 +155,9 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
     } catch (final InterruptedException intEx) {
       // exit thread
       LOGGER.finest(
-          () ->
-              Messages.get(
-                  "NodeResponseTimeMonitor.interruptedExceptionDuringMonitoring",
-                  new Object[] {this.hostSpec.getHost()}));
+          () -> Messages.get(
+              "NodeResponseTimeMonitor.interruptedExceptionDuringMonitoring",
+              new Object[] {this.hostSpec.getHost()}));
     } catch (final Exception ex) {
       // this should not be reached; log and exit thread
       if (LOGGER.isLoggable(Level.FINEST)) {
@@ -170,7 +165,7 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
             Level.FINEST,
             Messages.get(
                 "NodeResponseTimeMonitor.exceptionDuringMonitoringStop",
-                new Object[] {this.hostSpec.getHost()}),
+                new Object[]{this.hostSpec.getHost()}),
             ex); // We want to print full trace stack of the exception.
       }
     } finally {
@@ -194,22 +189,18 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
             .forEach(
                 p -> {
                   monitoringConnProperties.put(
-                      p.substring(MONITORING_PROPERTY_PREFIX.length()), this.props.getProperty(p));
+                      p.substring(MONITORING_PROPERTY_PREFIX.length()),
+                      this.props.getProperty(p));
                   monitoringConnProperties.remove(p);
                 });
 
-        LOGGER.finest(
-            () ->
-                Messages.get(
-                    "NodeResponseTimeMonitor.openingConnection",
-                    new Object[] {this.hostSpec.getUrl()}));
-        this.monitoringConn.set(
-            this.pluginService.forceConnect(this.hostSpec, monitoringConnProperties));
-        LOGGER.finest(
-            () ->
-                Messages.get(
-                    "NodeResponseTimeMonitor.openedConnection",
-                    new Object[] {this.monitoringConn.get()}));
+        LOGGER.finest(() -> Messages.get(
+                "NodeResponseTimeMonitor.openingConnection",
+                new Object[] {this.hostSpec.getUrl()}));
+        this.monitoringConn.set(this.pluginService.forceConnect(this.hostSpec, monitoringConnProperties));
+        LOGGER.finest(() -> Messages.get(
+            "NodeResponseTimeMonitor.openedConnection",
+            new Object[] {this.monitoringConn.get()}));
       }
     } catch (SQLException ex) {
       this.monitoringConn.set(null);

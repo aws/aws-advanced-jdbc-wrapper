@@ -69,10 +69,8 @@ public class ConnectionPluginChainBuilderTests {
     when(mockServicesContainer.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockServicesContainer.getPluginManagerService()).thenReturn(mockPluginManagerService);
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
-    when(mockTelemetryFactory.openTelemetryContext(anyString(), any()))
-        .thenReturn(mockTelemetryContext);
-    when(mockTelemetryFactory.openTelemetryContext(eq(null), any()))
-        .thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
     when(mockPluginService.getTargetDriverDialect()).thenReturn(mockTargetDriverDialect);
     when(mockTargetDriverDialect.getNetworkBoundMethodNames(any())).thenReturn(new HashSet<>());
   }
@@ -83,8 +81,12 @@ public class ConnectionPluginChainBuilderTests {
     Properties props = new Properties();
     props.put(PropertyDefinition.PLUGINS.name, "iam,efm2,failover");
 
-    List<ConnectionPlugin> result =
-        builder.getPlugins(mockServicesContainer, mockConnectionProvider, null, props, null);
+    List<ConnectionPlugin> result = builder.getPlugins(
+        mockServicesContainer,
+        mockConnectionProvider,
+        null,
+        props,
+        null);
 
     assertNotNull(result);
     assertEquals(4, result.size());
@@ -101,8 +103,12 @@ public class ConnectionPluginChainBuilderTests {
     props.put(PropertyDefinition.PLUGINS.name, "iam,efm2,failover");
     props.put(PropertyDefinition.AUTO_SORT_PLUGIN_ORDER.name, "false");
 
-    List<ConnectionPlugin> result =
-        builder.getPlugins(mockServicesContainer, mockConnectionProvider, null, props, null);
+    List<ConnectionPlugin> result = builder.getPlugins(
+        mockServicesContainer,
+        mockConnectionProvider,
+        null,
+        props,
+        null);
 
     assertNotNull(result);
     assertEquals(4, result.size());
@@ -118,8 +124,12 @@ public class ConnectionPluginChainBuilderTests {
     Properties props = new Properties();
     props.put(PropertyDefinition.PLUGINS.name, "dev,iam,executionTime,connectTime,efm2,failover");
 
-    List<ConnectionPlugin> result =
-        builder.getPlugins(mockServicesContainer, mockConnectionProvider, null, props, null);
+    List<ConnectionPlugin> result = builder.getPlugins(
+        mockServicesContainer,
+        mockConnectionProvider,
+        null,
+        props,
+        null);
 
     assertNotNull(result);
     assertEquals(7, result.size());

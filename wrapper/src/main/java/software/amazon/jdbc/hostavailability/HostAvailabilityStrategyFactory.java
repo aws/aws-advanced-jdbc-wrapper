@@ -23,34 +23,27 @@ import software.amazon.jdbc.util.StringUtils;
 
 public class HostAvailabilityStrategyFactory {
 
-  public static final AwsWrapperProperty DEFAULT_HOST_AVAILABILITY_STRATEGY =
-      new AwsWrapperProperty(
-          "defaultHostAvailabilityStrategy",
-          "",
-          "An override for specifying the default host availability change strategy.");
+  public static final AwsWrapperProperty DEFAULT_HOST_AVAILABILITY_STRATEGY = new AwsWrapperProperty(
+      "defaultHostAvailabilityStrategy", "",
+      "An override for specifying the default host availability change strategy.");
 
-  public static final AwsWrapperProperty HOST_AVAILABILITY_STRATEGY_MAX_RETRIES =
-      new AwsWrapperProperty(
-          "hostAvailabilityStrategyMaxRetries",
-          "5",
-          "Max number of retries for checking a host's availability.");
+  public static final AwsWrapperProperty HOST_AVAILABILITY_STRATEGY_MAX_RETRIES = new AwsWrapperProperty(
+      "hostAvailabilityStrategyMaxRetries", "5",
+      "Max number of retries for checking a host's availability.");
 
-  public static final AwsWrapperProperty HOST_AVAILABILITY_STRATEGY_INITIAL_BACKOFF_TIME =
-      new AwsWrapperProperty(
-          "hostAvailabilityStrategyInitialBackoffTime",
-          "30",
-          "The initial backoff time in seconds.");
+  public static final AwsWrapperProperty HOST_AVAILABILITY_STRATEGY_INITIAL_BACKOFF_TIME = new AwsWrapperProperty(
+      "hostAvailabilityStrategyInitialBackoffTime", "30",
+      "The initial backoff time in seconds.");
 
   static {
     PropertyDefinition.registerPluginProperties(HostAvailabilityStrategyFactory.class);
   }
 
   public HostAvailabilityStrategy create(Properties props) {
-    if (props == null
-        || StringUtils.isNullOrEmpty(DEFAULT_HOST_AVAILABILITY_STRATEGY.getString(props))) {
+    if (props == null || StringUtils.isNullOrEmpty(DEFAULT_HOST_AVAILABILITY_STRATEGY.getString(props))) {
       return new SimpleHostAvailabilityStrategy();
-    } else if (ExponentialBackoffHostAvailabilityStrategy.NAME.equalsIgnoreCase(
-        DEFAULT_HOST_AVAILABILITY_STRATEGY.getString(props))) {
+    } else if (ExponentialBackoffHostAvailabilityStrategy.NAME
+        .equalsIgnoreCase(DEFAULT_HOST_AVAILABILITY_STRATEGY.getString(props))) {
       return new ExponentialBackoffHostAvailabilityStrategy(props);
     }
     return new SimpleHostAvailabilityStrategy();

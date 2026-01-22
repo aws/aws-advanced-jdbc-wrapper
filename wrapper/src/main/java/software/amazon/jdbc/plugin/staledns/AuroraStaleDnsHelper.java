@@ -65,12 +65,12 @@ public class AuroraStaleDnsHelper {
       final HostListProviderService hostListProviderService,
       final HostSpec hostSpec,
       final Properties props,
-      final JdbcCallable<Connection, SQLException> connectFunc)
-      throws SQLException {
+      final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
 
     final RdsUrlType type = this.rdsUtils.identifyRdsType(hostSpec.getHost());
 
-    if (type != RdsUrlType.RDS_WRITER_CLUSTER && type != RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER) {
+    if (type != RdsUrlType.RDS_WRITER_CLUSTER
+        && type != RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER) {
       // It's not a writer cluster endpoint. Continue with a normal workflow.
       return connectFunc.call();
     }
@@ -85,10 +85,8 @@ public class AuroraStaleDnsHelper {
     }
 
     final String hostInetAddress = clusterInetAddress;
-    LOGGER.finest(
-        () ->
-            Messages.get(
-                "AuroraStaleDnsHelper.clusterEndpointDns", new Object[] {hostInetAddress}));
+    LOGGER.finest(() -> Messages.get("AuroraStaleDnsHelper.clusterEndpointDns",
+        new Object[]{hostInetAddress}));
 
     if (clusterInetAddress == null) {
       return conn;
@@ -113,10 +111,8 @@ public class AuroraStaleDnsHelper {
       this.writerHostSpec = writerCandidate;
     }
 
-    LOGGER.finest(
-        () ->
-            Messages.get(
-                "AuroraStaleDnsHelper.writerHostSpec", new Object[] {this.writerHostSpec}));
+    LOGGER.finest(() -> Messages.get("AuroraStaleDnsHelper.writerHostSpec",
+        new Object[]{this.writerHostSpec}));
 
     if (this.writerHostSpec == null) {
       return conn;
@@ -124,17 +120,14 @@ public class AuroraStaleDnsHelper {
 
     if (this.writerHostAddress == null) {
       try {
-        this.writerHostAddress =
-            InetAddress.getByName(this.writerHostSpec.getHost()).getHostAddress();
+        this.writerHostAddress = InetAddress.getByName(this.writerHostSpec.getHost()).getHostAddress();
       } catch (UnknownHostException e) {
         // ignore
       }
     }
 
-    LOGGER.finest(
-        () ->
-            Messages.get(
-                "AuroraStaleDnsHelper.writerInetAddress", new Object[] {this.writerHostAddress}));
+    LOGGER.finest(() -> Messages.get("AuroraStaleDnsHelper.writerInetAddress",
+        new Object[]{this.writerHostAddress}));
 
     if (this.writerHostAddress == null) {
       return conn;
@@ -144,10 +137,8 @@ public class AuroraStaleDnsHelper {
       // DNS resolves a cluster endpoint to a wrong writer
       // opens a connection to a proper writer node
 
-      LOGGER.fine(
-          () ->
-              Messages.get(
-                  "AuroraStaleDnsHelper.staleDnsDetected", new Object[] {this.writerHostSpec}));
+      LOGGER.fine(() -> Messages.get("AuroraStaleDnsHelper.staleDnsDetected",
+          new Object[]{this.writerHostSpec}));
       if (this.staleDNSDetectedCounter != null) {
         staleDNSDetectedCounter.inc();
       }
@@ -155,12 +146,11 @@ public class AuroraStaleDnsHelper {
       final List<HostSpec> allowedHosts = this.pluginService.getHosts();
       if (!Utils.containsHostAndPort(allowedHosts, this.writerHostSpec.getHostAndPort())) {
         throw new SQLException(
-            Messages.get(
-                "AuroraStaleDnsHelper.currentWriterNotAllowed",
+            Messages.get("AuroraStaleDnsHelper.currentWriterNotAllowed",
                 new Object[] {
-                  this.writerHostSpec == null ? "<null>" : this.writerHostSpec.getHostAndPort(),
-                  LogUtils.logTopology(allowedHosts, "")
-                }));
+                    this.writerHostSpec == null ? "<null>" : this.writerHostSpec.getHostAndPort(),
+                    LogUtils.logTopology(allowedHosts, "")})
+        );
       }
 
       final Connection writerConn = this.pluginService.connect(this.writerHostSpec, props);

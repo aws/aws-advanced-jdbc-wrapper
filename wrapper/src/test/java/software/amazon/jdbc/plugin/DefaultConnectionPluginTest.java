@@ -74,6 +74,7 @@ class DefaultConnectionPluginTest {
   @Mock ConnectionProviderManager mockConnectionProviderManager;
   @Mock HostSpec mockHostSpec;
 
+
   private AutoCloseable closeable;
 
   @BeforeEach
@@ -81,22 +82,18 @@ class DefaultConnectionPluginTest {
     closeable = MockitoAnnotations.openMocks(this);
 
     when(pluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
-    when(mockTelemetryFactory.openTelemetryContext(anyString(), any()))
-        .thenReturn(mockTelemetryContext);
-    when(mockTelemetryFactory.openTelemetryContext(eq(null), any()))
-        .thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
     when(mockTelemetryFactory.createCounter(anyString())).thenReturn(mockTelemetryCounter);
     // noinspection unchecked
-    when(mockTelemetryFactory.createGauge(anyString(), any(GaugeCallable.class)))
-        .thenReturn(mockTelemetryGauge);
+    when(mockTelemetryFactory.createGauge(anyString(), any(GaugeCallable.class))).thenReturn(mockTelemetryGauge);
     when(mockConnectionProviderManager.getConnectionProvider(anyString(), any(), any()))
         .thenReturn(connectionProvider);
     when(connectionProvider.connect(anyString(), any(), any(), any(), any()))
         .thenReturn(new ConnectionInfo(conn, false));
 
-    plugin =
-        new DefaultConnectionPlugin(
-            pluginService, connectionProvider, pluginManagerService, mockConnectionProviderManager);
+    plugin = new DefaultConnectionPlugin(
+        pluginService, connectionProvider, pluginManagerService, mockConnectionProviderManager);
   }
 
   @AfterEach
@@ -114,21 +111,14 @@ class DefaultConnectionPluginTest {
   @Test
   void testExecute_closeCurrentConnection() throws SQLException {
     when(this.pluginService.getCurrentConnection()).thenReturn(conn);
-    plugin.execute(
-        Void.class, SQLException.class, conn, "Connection.close", mockSqlFunction, new Object[] {});
+    plugin.execute(Void.class, SQLException.class, conn, "Connection.close", mockSqlFunction, new Object[]{});
     verify(pluginManagerService, times(1)).setInTransaction(false);
   }
 
   @Test
   void testExecute_closeOldConnection() throws SQLException {
     when(this.pluginService.getCurrentConnection()).thenReturn(conn);
-    plugin.execute(
-        Void.class,
-        SQLException.class,
-        oldConn,
-        "Connection.close",
-        mockSqlFunction,
-        new Object[] {});
+    plugin.execute(Void.class, SQLException.class, oldConn, "Connection.close", mockSqlFunction, new Object[]{});
     verify(pluginManagerService, never()).setInTransaction(anyBoolean());
   }
 
@@ -136,8 +126,7 @@ class DefaultConnectionPluginTest {
   void testConnect() throws SQLException {
     plugin.connect("anyProtocol", mockHostSpec, new Properties(), true, mockConnectFunction);
     verify(connectionProvider, atLeastOnce()).connect(anyString(), any(), any(), any(), any());
-    verify(mockConnectionProviderManager, atLeastOnce())
-        .initConnection(any(), anyString(), any(), any());
+    verify(mockConnectionProviderManager, atLeastOnce()).initConnection(any(), anyString(), any(), any());
   }
 
   private static Stream<Arguments> multiStatementQueries() {
@@ -146,6 +135,7 @@ class DefaultConnectionPluginTest {
         Arguments.of(null, new ArrayList<String>()),
         Arguments.of("  ", new ArrayList<String>()),
         Arguments.of("some  \t  \r  \n   query;", Collections.singletonList("some query")),
-        Arguments.of("some\t\t\r\n query;query2", Arrays.asList("some query", "query2")));
+        Arguments.of("some\t\t\r\n query;query2", Arrays.asList("some query", "query2"))
+    );
   }
 }

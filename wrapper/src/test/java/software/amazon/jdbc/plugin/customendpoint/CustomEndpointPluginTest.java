@@ -58,8 +58,7 @@ public class CustomEndpointPluginTest {
 
   private AutoCloseable closeable;
   private final Properties props = new Properties();
-  private final HostAvailabilityStrategy availabilityStrategy =
-      new SimpleHostAvailabilityStrategy();
+  private final HostAvailabilityStrategy availabilityStrategy = new SimpleHostAvailabilityStrategy();
   private final HostSpecBuilder hostSpecBuilder = new HostSpecBuilder(availabilityStrategy);
   private final HostSpec writerClusterHost = hostSpecBuilder.host(writerClusterUrl).build();
   private final HostSpec host = hostSpecBuilder.host(customEndpointUrl).build();
@@ -75,6 +74,7 @@ public class CustomEndpointPluginTest {
   @Mock private Connection mockConnection;
   @Mock private CustomEndpointMonitor mockMonitor;
   @Mock TargetDriverDialect mockTargetDriverDialect;
+
 
   @BeforeEach
   public void init() throws SQLException {
@@ -96,8 +96,7 @@ public class CustomEndpointPluginTest {
   }
 
   private CustomEndpointPlugin getSpyPlugin() throws SQLException {
-    CustomEndpointPlugin plugin =
-        new CustomEndpointPlugin(mockServicesContainer, props, mockRdsClientFunc);
+    CustomEndpointPlugin plugin = new CustomEndpointPlugin(mockServicesContainer, props, mockRdsClientFunc);
     CustomEndpointPlugin spyPlugin = spy(plugin);
     doReturn(mockMonitor).when(spyPlugin).createMonitorIfAbsent(any(Properties.class));
     return spyPlugin;
@@ -129,8 +128,7 @@ public class CustomEndpointPluginTest {
     CustomEndpointPlugin spyPlugin = getSpyPlugin();
     when(mockMonitor.hasCustomEndpointInfo()).thenReturn(false);
 
-    assertThrows(
-        SQLException.class, () -> spyPlugin.connect("", host, props, true, mockConnectFunc));
+    assertThrows(SQLException.class, () -> spyPlugin.connect("", host, props, true, mockConnectFunc));
 
     verify(spyPlugin, times(1)).createMonitorIfAbsent(eq(props));
     verify(mockConnectFunc, never()).call();
@@ -141,12 +139,7 @@ public class CustomEndpointPluginTest {
     CustomEndpointPlugin spyPlugin = getSpyPlugin();
 
     spyPlugin.execute(
-        Statement.class,
-        SQLException.class,
-        mockConnection,
-        "Connection.createStatement",
-        mockJdbcMethodFunc,
-        null);
+        Statement.class, SQLException.class, mockConnection, "Connection.createStatement", mockJdbcMethodFunc, null);
 
     verify(mockJdbcMethodFunc, times(1)).call();
     verify(spyPlugin, never()).createMonitorIfAbsent(any(Properties.class));
@@ -158,12 +151,7 @@ public class CustomEndpointPluginTest {
     spyPlugin.customEndpointHostSpec = host;
 
     spyPlugin.execute(
-        Statement.class,
-        SQLException.class,
-        mockConnection,
-        "Connection.createStatement",
-        mockJdbcMethodFunc,
-        null);
+        Statement.class, SQLException.class, mockConnection, "Connection.createStatement", mockJdbcMethodFunc, null);
 
     verify(spyPlugin, times(1)).createMonitorIfAbsent(eq(props));
     verify(mockJdbcMethodFunc, times(1)).call();

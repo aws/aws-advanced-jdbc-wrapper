@@ -142,8 +142,8 @@ class HostMonitoringConnectionPluginTest {
     when(pluginService.getCurrentHostSpec()).thenReturn(hostSpec);
     when(pluginService.getDialect()).thenReturn(mockDialect);
     when(pluginService.getTargetDriverDialect()).thenReturn(targetDriverDialect);
-    when(targetDriverDialect.getNetworkBoundMethodNames(any()))
-        .thenReturn(new HashSet<>(Collections.singletonList(MONITOR_METHOD_NAME)));
+    when(targetDriverDialect.getNetworkBoundMethodNames(any())).thenReturn(
+        new HashSet<>(Collections.singletonList(MONITOR_METHOD_NAME)));
     when(mockDialect.getHostAliasQuery()).thenReturn("any");
     when(hostSpec.getHost()).thenReturn("host");
     when(hostSpec.getHost()).thenReturn("port");
@@ -227,8 +227,7 @@ class HostMonitoringConnectionPluginTest {
   }
 
   /**
-   * Tests exception being thrown in the finally block when checking connection status in the
-   * execute method.
+   * Tests exception being thrown in the finally block when checking connection status in the execute method.
    */
   @Test
   void test_executeCleanUp_whenCheckingConnectionStatus_throwsException() throws SQLException {
@@ -237,46 +236,39 @@ class HostMonitoringConnectionPluginTest {
     final SQLException expectedException = new SQLException("exception thrown during isClosed");
     when(context.isNodeUnhealthy()).thenReturn(true);
     doThrow(expectedException).when(connection).isClosed();
-    final SQLException actualException =
-        assertThrows(
-            SQLException.class,
-            () ->
-                plugin.execute(
-                    ResultSet.class,
-                    SQLException.class,
-                    MONITOR_METHOD_INVOKE_ON,
-                    MONITOR_METHOD_NAME,
-                    sqlFunction,
-                    EMPTY_ARGS));
+    final SQLException actualException = assertThrows(SQLException.class, () -> plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        MONITOR_METHOD_INVOKE_ON,
+        MONITOR_METHOD_NAME,
+        sqlFunction,
+        EMPTY_ARGS));
 
     assertEquals(expectedException, actualException);
   }
 
   /**
-   * Tests exception being thrown in the finally block when an open connection object is detected
-   * for an unavailable node in the execute method.
+   * Tests exception being thrown in the finally block
+   * when an open connection object is detected for an unavailable node in the execute method.
    */
   @Test
   void test_executeCleanUp_whenAbortConnection_throwsException() throws SQLException {
     initializePlugin();
 
-    final String errorMessage =
-        Messages.get("HostMonitoringConnectionPlugin.unavailableNode", new Object[] {"alias"});
+    final String errorMessage = Messages.get(
+        "HostMonitoringConnectionPlugin.unavailableNode",
+        new Object[] {"alias"});
 
     when(hostSpec.asAlias()).thenReturn("alias");
     when(connection.isClosed()).thenReturn(false);
     when(context.isNodeUnhealthy()).thenReturn(true);
-    final SQLException actualException =
-        assertThrows(
-            SQLException.class,
-            () ->
-                plugin.execute(
-                    ResultSet.class,
-                    SQLException.class,
-                    MONITOR_METHOD_INVOKE_ON,
-                    MONITOR_METHOD_NAME,
-                    sqlFunction,
-                    EMPTY_ARGS));
+    final SQLException actualException = assertThrows(SQLException.class, () -> plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        MONITOR_METHOD_INVOKE_ON,
+        MONITOR_METHOD_NAME,
+        sqlFunction,
+        EMPTY_ARGS));
 
     assertEquals(errorMessage, actualException.getMessage());
     verify(pluginService).setAvailability(any(), eq(HostAvailability.NOT_AVAILABLE));
@@ -290,15 +282,13 @@ class HostMonitoringConnectionPluginTest {
     doThrow(new SQLException()).when(connection).createStatement();
 
     // Ensure SQLException raised in `generateHostAliases` are ignored.
-    final Connection conn =
-        plugin.connect("protocol", hostSpec, properties, true, () -> connection);
+    final Connection conn = plugin.connect("protocol", hostSpec, properties, true, () -> connection);
     assertNotNull(conn);
   }
 
   @ParameterizedTest
   @MethodSource("nodeChangeOptions")
-  void test_notifyConnectionChanged_nodeWentDown(final NodeChangeOptions option)
-      throws SQLException {
+  void test_notifyConnectionChanged_nodeWentDown(final NodeChangeOptions option) throws SQLException {
     initializePlugin();
     plugin.execute(
         ResultSet.class,
@@ -314,16 +304,12 @@ class HostMonitoringConnectionPluginTest {
     when(hostSpec2.asAliases()).thenReturn(aliases2);
     when(pluginService.getCurrentHostSpec()).thenReturn(hostSpec);
 
-    assertEquals(
-        OldConnectionSuggestedAction.NO_OPINION,
-        plugin.notifyConnectionChanged(EnumSet.of(option)));
+    assertEquals(OldConnectionSuggestedAction.NO_OPINION, plugin.notifyConnectionChanged(EnumSet.of(option)));
     // NodeKeys should contain {"alias1", "alias2"}
     verify(monitorService).stopMonitoringForAllConnections(aliases1);
 
     when(pluginService.getCurrentHostSpec()).thenReturn(hostSpec2);
-    assertEquals(
-        OldConnectionSuggestedAction.NO_OPINION,
-        plugin.notifyConnectionChanged(EnumSet.of(option)));
+    assertEquals(OldConnectionSuggestedAction.NO_OPINION, plugin.notifyConnectionChanged(EnumSet.of(option)));
     // NotifyConnectionChanged should reset the monitoringHostSpec.
     // NodeKeys should contain {"alias3", "alias4"}
     verify(monitorService).stopMonitoringForAllConnections(aliases2);
@@ -351,6 +337,8 @@ class HostMonitoringConnectionPluginTest {
 
   static Stream<Arguments> nodeChangeOptions() {
     return Stream.of(
-        Arguments.of(NodeChangeOptions.WENT_DOWN), Arguments.of(NodeChangeOptions.NODE_DELETED));
+        Arguments.of(NodeChangeOptions.WENT_DOWN),
+        Arguments.of(NodeChangeOptions.NODE_DELETED)
+    );
   }
 }

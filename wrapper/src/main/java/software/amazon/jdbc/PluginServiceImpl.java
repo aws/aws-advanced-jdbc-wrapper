@@ -61,20 +61,14 @@ import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.storage.CacheMap;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
-public class PluginServiceImpl
-    implements PluginService,
-        CanReleaseResources,
-        HostListProviderService,
-        PluginManagerService,
-        Wrapper {
+public class PluginServiceImpl implements PluginService, CanReleaseResources,
+    HostListProviderService, PluginManagerService, Wrapper {
 
   private static final Logger LOGGER = Logger.getLogger(PluginServiceImpl.class.getName());
-  protected static final long DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO =
-      TimeUnit.MINUTES.toNanos(5);
+  protected static final long DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(5);
   protected static final int DEFAULT_TOPOLOGY_QUERY_TIMEOUT_MS = 5000;
 
-  protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache =
-      new CacheMap<>();
+  protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache = new CacheMap<>();
   protected final FullServicesContainer servicesContainer;
 
   protected final ConnectionPluginManager pluginManager;
@@ -129,8 +123,7 @@ public class PluginServiceImpl
       @NonNull final String originalUrl,
       @NonNull final String targetDriverProtocol,
       @NonNull final TargetDriverDialect targetDriverDialect,
-      @Nullable final ConfigurationProfile configurationProfile)
-      throws SQLException {
+      @Nullable final ConfigurationProfile configurationProfile) throws SQLException {
     this(
         servicesContainer,
         new ExceptionManager(),
@@ -152,8 +145,7 @@ public class PluginServiceImpl
       @Nullable final DialectProvider dialectProvider,
       @NonNull final TargetDriverDialect targetDriverDialect,
       @Nullable final ConfigurationProfile configurationProfile,
-      @Nullable final SessionStateService sessionStateService)
-      throws SQLException {
+      @Nullable final SessionStateService sessionStateService) throws SQLException {
     this.servicesContainer = servicesContainer;
     this.pluginManager = servicesContainer.getConnectionPluginManager();
     this.props = props;
@@ -163,25 +155,21 @@ public class PluginServiceImpl
     this.exceptionManager = exceptionManager;
     this.dialectProvider = dialectProvider != null ? dialectProvider : new DialectManager(this);
     this.targetDriverDialect = targetDriverDialect;
-    this.connectionProviderManager =
-        new ConnectionProviderManager(
-            this.pluginManager.getDefaultConnProvider(),
-            this.pluginManager.getEffectiveConnProvider());
+    this.connectionProviderManager = new ConnectionProviderManager(
+        this.pluginManager.getDefaultConnProvider(),
+        this.pluginManager.getEffectiveConnProvider());
 
-    this.sessionStateService =
-        sessionStateService != null
-            ? sessionStateService
-            : new SessionStateServiceImpl(this, this.props);
+    this.sessionStateService = sessionStateService != null
+        ? sessionStateService
+        : new SessionStateServiceImpl(this, this.props);
 
-    this.exceptionHandler =
-        this.configurationProfile != null && this.configurationProfile.getExceptionHandler() != null
-            ? this.configurationProfile.getExceptionHandler()
-            : null;
+    this.exceptionHandler = this.configurationProfile != null && this.configurationProfile.getExceptionHandler() != null
+        ? this.configurationProfile.getExceptionHandler()
+        : null;
 
-    this.dialect =
-        this.configurationProfile != null && this.configurationProfile.getDialect() != null
-            ? this.configurationProfile.getDialect()
-            : this.dialectProvider.getDialect(this.driverProtocol, this.originalUrl, this.props);
+    this.dialect = this.configurationProfile != null && this.configurationProfile.getDialect() != null
+        ? this.configurationProfile.getDialect()
+        : this.dialectProvider.getDialect(this.driverProtocol, this.originalUrl, this.props);
   }
 
   @Override
@@ -203,12 +191,11 @@ public class PluginServiceImpl
         final List<HostSpec> allowedHosts = this.getHosts();
         if (!Utils.containsHostAndPort(allowedHosts, this.currentHostSpec.getHostAndPort())) {
           throw new RuntimeException(
-              Messages.get(
-                  "PluginServiceImpl.currentHostNotAllowed",
+              Messages.get("PluginServiceImpl.currentHostNotAllowed",
                   new Object[] {
-                    currentHostSpec == null ? "<null>" : currentHostSpec.getHostAndPort(),
-                    LogUtils.logTopology(allowedHosts, "")
-                  }));
+                      currentHostSpec == null ? "<null>" : currentHostSpec.getHostAndPort(),
+                      LogUtils.logTopology(allowedHosts, "")})
+          );
         }
 
         if (this.currentHostSpec == null) {
@@ -248,8 +235,7 @@ public class PluginServiceImpl
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy)
-      throws SQLException {
+  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy) throws SQLException {
     return this.pluginManager.getHostSpecByStrategy(hosts, role, strategy);
   }
 
@@ -306,8 +292,8 @@ public class PluginServiceImpl
       } else {
         // update an existing connection
 
-        final EnumSet<NodeChangeOptions> changes =
-            compare(this.currentConnection, this.currentHostSpec, connection, hostSpec);
+        final EnumSet<NodeChangeOptions> changes = compare(this.currentConnection, this.currentHostSpec,
+            connection, hostSpec);
 
         if (!changes.isEmpty()) {
 
@@ -330,8 +316,8 @@ public class PluginServiceImpl
               }
             }
 
-            final EnumSet<OldConnectionSuggestedAction> pluginOpinions =
-                this.pluginManager.notifyConnectionChanged(changes, skipNotificationForThisPlugin);
+            final EnumSet<OldConnectionSuggestedAction> pluginOpinions = this.pluginManager.notifyConnectionChanged(
+                changes, skipNotificationForThisPlugin);
 
             final boolean shouldCloseConnection =
                 changes.contains(NodeChangeOptions.CONNECTION_OBJECT_CHANGED)
@@ -377,7 +363,8 @@ public class PluginServiceImpl
   }
 
   protected EnumSet<NodeChangeOptions> compare(
-      final @NonNull HostSpec hostSpecA, final @NonNull HostSpec hostSpecB) {
+      final @NonNull HostSpec hostSpecA,
+      final @NonNull HostSpec hostSpecB) {
 
     final EnumSet<NodeChangeOptions> changes = EnumSet.noneOf(NodeChangeOptions.class);
 
@@ -416,10 +403,8 @@ public class PluginServiceImpl
 
   @Override
   public List<HostSpec> getHosts() {
-    AllowedAndBlockedHosts hostPermissions =
-        this.servicesContainer
-            .getStorageService()
-            .get(AllowedAndBlockedHosts.class, this.initialConnectionHostSpec.getUrl());
+    AllowedAndBlockedHosts hostPermissions = this.servicesContainer.getStorageService()
+        .get(AllowedAndBlockedHosts.class, this.initialConnectionHostSpec.getUrl());
     if (hostPermissions == null) {
       return this.allHosts;
     }
@@ -429,38 +414,32 @@ public class PluginServiceImpl
     Set<String> blockedHostIds = hostPermissions.getBlockedHostIds();
 
     if (!Utils.isNullOrEmpty(allowedHostIds)) {
-      hosts =
-          hosts.stream()
-              .filter((hostSpec -> allowedHostIds.contains(hostSpec.getHostId())))
-              .collect(Collectors.toList());
+      hosts = hosts.stream()
+          .filter((hostSpec -> allowedHostIds.contains(hostSpec.getHostId())))
+          .collect(Collectors.toList());
     }
 
     if (!Utils.isNullOrEmpty(blockedHostIds)) {
-      hosts =
-          hosts.stream()
-              .filter((hostSpec -> !blockedHostIds.contains(hostSpec.getHostId())))
-              .collect(Collectors.toList());
+      hosts = hosts.stream()
+          .filter((hostSpec -> !blockedHostIds.contains(hostSpec.getHostId())))
+          .collect(Collectors.toList());
     }
 
     return hosts;
   }
 
   @Override
-  public void setAvailability(
-      final @NonNull Set<String> hostAliases, final @NonNull HostAvailability availability) {
+  public void setAvailability(final @NonNull Set<String> hostAliases, final @NonNull HostAvailability availability) {
 
     if (hostAliases.isEmpty()) {
       return;
     }
 
-    final List<HostSpec> hostsToChange =
-        this.getAllHosts().stream()
-            .filter(
-                (host) ->
-                    hostAliases.contains(host.asAlias())
-                        || host.getAliases().stream().anyMatch(hostAliases::contains))
-            .distinct()
-            .collect(Collectors.toList());
+    final List<HostSpec> hostsToChange = this.getAllHosts().stream()
+        .filter((host) -> hostAliases.contains(host.asAlias())
+            || host.getAliases().stream().anyMatch(hostAliases::contains))
+        .distinct()
+        .collect(Collectors.toList());
 
     if (hostsToChange.isEmpty()) {
       LOGGER.finest(() -> Messages.get("PluginServiceImpl.hostsChangelistEmpty"));
@@ -471,8 +450,8 @@ public class PluginServiceImpl
     for (final HostSpec host : hostsToChange) {
       final HostAvailability currentAvailability = host.getAvailability();
       host.setAvailability(availability);
-      hostAvailabilityExpiringCache.put(
-          host.getUrl(), availability, DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO);
+      hostAvailabilityExpiringCache.put(host.getUrl(), availability,
+          DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO);
       if (currentAvailability != availability) {
         final EnumSet<NodeChangeOptions> hostChanges;
         if (availability == HostAvailability.AVAILABLE) {
@@ -529,8 +508,7 @@ public class PluginServiceImpl
 
     final HostListProvider hostListProvider = this.getHostListProvider();
     try {
-      final List<HostSpec> updatedHostList =
-          hostListProvider.forceRefresh(shouldVerifyWriter, timeoutMs);
+      final List<HostSpec> updatedHostList = hostListProvider.forceRefresh(shouldVerifyWriter, timeoutMs);
       if (updatedHostList != null) {
         updateHostAvailability(updatedHostList);
         setNodeList(this.allHosts, updatedHostList);
@@ -538,24 +516,21 @@ public class PluginServiceImpl
       }
     } catch (TimeoutException ex) {
       // do nothing.
-      LOGGER.finest(
-          Messages.get("PluginServiceImpl.forceRefreshTimeout", new Object[] {timeoutMs}));
+      LOGGER.finest(Messages.get("PluginServiceImpl.forceRefreshTimeout", new Object[] {timeoutMs}));
     }
     return false;
   }
 
-  void setNodeList(
-      @Nullable final List<HostSpec> oldHosts, @Nullable final List<HostSpec> newHosts) {
+  void setNodeList(@Nullable final List<HostSpec> oldHosts,
+      @Nullable final List<HostSpec> newHosts) {
 
-    final Map<String, HostSpec> oldHostMap =
-        oldHosts == null
-            ? new HashMap<>()
-            : oldHosts.stream().collect(Collectors.toMap(HostSpec::getUrl, (value) -> value));
+    final Map<String, HostSpec> oldHostMap = oldHosts == null
+        ? new HashMap<>()
+        : oldHosts.stream().collect(Collectors.toMap(HostSpec::getUrl, (value) -> value));
 
-    final Map<String, HostSpec> newHostMap =
-        newHosts == null
-            ? new HashMap<>()
-            : newHosts.stream().collect(Collectors.toMap(HostSpec::getUrl, (value) -> value));
+    final Map<String, HostSpec> newHostMap = newHosts == null
+        ? new HashMap<>()
+        : newHosts.stream().collect(Collectors.toMap(HostSpec::getUrl, (value) -> value));
 
     final Map<String, EnumSet<NodeChangeOptions>> changes = new HashMap<>();
 
@@ -566,8 +541,7 @@ public class PluginServiceImpl
         changes.put(entry.getKey(), EnumSet.of(NodeChangeOptions.NODE_DELETED));
       } else {
         // host maybe changed
-        final EnumSet<NodeChangeOptions> hostChanges =
-            compare(entry.getValue(), correspondingNewHost);
+        final EnumSet<NodeChangeOptions> hostChanges = compare(entry.getValue(), correspondingNewHost);
         if (!hostChanges.isEmpty()) {
           changes.put(entry.getKey(), hostChanges);
         }
@@ -613,7 +587,9 @@ public class PluginServiceImpl
   }
 
   @Override
-  public Connection forceConnect(final HostSpec hostSpec, final Properties props)
+  public Connection forceConnect(
+      final HostSpec hostSpec,
+      final Properties props)
       throws SQLException {
     return this.forceConnect(hostSpec, props, null);
   }
@@ -650,15 +626,13 @@ public class PluginServiceImpl
     }
 
     if (this.hostListProvider != null && this.hostListProvider instanceof CanReleaseResources) {
-      final CanReleaseResources canReleaseResourcesObject =
-          (CanReleaseResources) this.hostListProvider;
+      final CanReleaseResources canReleaseResourcesObject = (CanReleaseResources) this.hostListProvider;
       canReleaseResourcesObject.releaseResources();
     }
   }
 
   @Override
-  public boolean isNetworkException(
-      final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
+  public boolean isNetworkException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     if (this.exceptionHandler != null) {
       return this.exceptionHandler.isNetworkException(throwable, targetDriverDialect);
     }
@@ -674,8 +648,7 @@ public class PluginServiceImpl
   }
 
   @Override
-  public boolean isLoginException(
-      final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
+  public boolean isLoginException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     if (this.exceptionHandler != null) {
       return this.exceptionHandler.isLoginException(throwable, targetDriverDialect);
     }
@@ -691,8 +664,7 @@ public class PluginServiceImpl
   }
 
   @Override
-  public boolean isReadOnlyConnectionException(
-      @Nullable String sqlState, @Nullable Integer errorCode) {
+  public boolean isReadOnlyConnectionException(@Nullable String sqlState, @Nullable Integer errorCode) {
     if (this.exceptionHandler != null) {
       return this.exceptionHandler.isReadOnlyConnectionException(sqlState, errorCode);
     }
@@ -700,13 +672,11 @@ public class PluginServiceImpl
   }
 
   @Override
-  public boolean isReadOnlyConnectionException(
-      Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
+  public boolean isReadOnlyConnectionException(Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     if (this.exceptionHandler != null) {
       return this.exceptionHandler.isReadOnlyConnectionException(throwable, targetDriverDialect);
     }
-    return this.exceptionManager.isReadOnlyConnectionException(
-        this.dialect, throwable, targetDriverDialect);
+    return this.exceptionManager.isReadOnlyConnectionException(this.dialect, throwable, targetDriverDialect);
   }
 
   @Override
@@ -721,9 +691,10 @@ public class PluginServiceImpl
 
   public void updateDialect(final @NonNull Connection connection) throws SQLException {
     final Dialect originalDialect = this.dialect;
-    this.dialect =
-        this.dialectProvider.getDialect(
-            this.originalUrl, this.initialConnectionHostSpec, connection);
+    this.dialect = this.dialectProvider.getDialect(
+        this.originalUrl,
+        this.initialConnectionHostSpec,
+        connection);
     this.isDialectConfirmed = true;
     if (originalDialect == this.dialect) {
       return;
@@ -734,8 +705,7 @@ public class PluginServiceImpl
 
   protected void updateHostListProvider() throws SQLException {
     final HostListProviderSupplier supplier = this.dialect.getHostListProviderSupplier();
-    this.setHostListProvider(
-        supplier.getProvider(this.props, this.originalUrl, this.servicesContainer));
+    this.setHostListProvider(supplier.getProvider(this.props, this.originalUrl, this.servicesContainer));
     this.refreshHostList();
   }
 
@@ -751,10 +721,7 @@ public class PluginServiceImpl
     }
 
     if (!hostSpec.getAliases().isEmpty()) {
-      LOGGER.finest(
-          () ->
-              Messages.get(
-                  "PluginServiceImpl.nonEmptyAliases", new Object[] {hostSpec.getAliases()}));
+      LOGGER.finest(() -> Messages.get("PluginServiceImpl.nonEmptyAliases", new Object[]{hostSpec.getAliases()}));
       return;
     }
 
@@ -769,17 +736,13 @@ public class PluginServiceImpl
       }
     } catch (final SQLException sqlException) {
       // log and ignore
-      LOGGER.log(
-          Level.FINEST,
-          sqlException,
-          () -> Messages.get("PluginServiceImpl.failedToRetrieveHostPort"));
+      LOGGER.log(Level.FINEST, sqlException, () -> Messages.get("PluginServiceImpl.failedToRetrieveHostPort"));
     }
 
-    // Add the instance endpoint if the current connection is associated with a topology aware
-    // database cluster.
+    // Add the instance endpoint if the current connection is associated with a topology aware database cluster.
     final HostSpec host = this.identifyConnection(connection);
     if (host != null) {
-      hostSpec.addAlias(host.asAliases().toArray(new String[] {}));
+      hostSpec.addAlias(host.asAliases().toArray(new String[]{}));
     }
   }
 

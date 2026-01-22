@@ -30,38 +30,28 @@ public class MySQLExceptionHandler implements ExceptionHandler {
   public static final String SET_NETWORK_TIMEOUT_ON_CLOSED_CONNECTION =
       "setNetworkTimeout cannot be called on a closed connection";
 
-  private static final Set<Integer> SQLSTATE_READ_ONLY_CONNECTION =
-      new HashSet<>(
-          Arrays.asList(
-              1290, // The MySQL server is running with the --read-only option, so it cannot execute
-              // this statement
-              1836 // Running in read-only mode
-              ));
+  private static final Set<Integer> SQLSTATE_READ_ONLY_CONNECTION = new HashSet<>(Arrays.asList(
+      1290, // The MySQL server is running with the --read-only option, so it cannot execute this statement
+      1836 // Running in read-only mode
+  ));
 
   @Override
-  public boolean isNetworkException(
-      final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
+  public boolean isNetworkException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     Throwable exception = throwable;
 
     while (exception != null) {
       if (exception instanceof SQLException) {
         SQLException sqlException = (SQLException) exception;
 
-        // Hikari throws a network exception with SQL state 42000 if all the following points are
-        // true:
-        // - HikariDataSource#getConnection is called and the cached connection that was grabbed is
-        // broken due to server
+        // Hikari throws a network exception with SQL state 42000 if all the following points are true:
+        // - HikariDataSource#getConnection is called and the cached connection that was grabbed is broken due to server
         // failover.
-        // - the MariaDB driver is being used (the underlying driver determines the SQL state of the
-        // Hikari exception).
+        // - the MariaDB driver is being used (the underlying driver determines the SQL state of the Hikari exception).
         //
-        // The check for the Hikari MariaDB exception is added here because the exception handler is
-        // determined by the
-        // database dialect. Consequently, this exception handler is used when using the MariaDB
-        // driver against a MySQL
+        // The check for the Hikari MariaDB exception is added here because the exception handler is determined by the
+        // database dialect. Consequently, this exception handler is used when using the MariaDB driver against a MySQL
         // database engine.
-        if (isNetworkException(sqlException.getSQLState())
-            || isHikariMariaDbNetworkException(sqlException)) {
+        if (isNetworkException(sqlException.getSQLState()) || isHikariMariaDbNetworkException(sqlException)) {
           return true;
         }
       } else if (targetDriverDialect != null) {
@@ -88,8 +78,7 @@ public class MySQLExceptionHandler implements ExceptionHandler {
   }
 
   @Override
-  public boolean isLoginException(
-      final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
+  public boolean isLoginException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     Throwable exception = throwable;
 
     while (exception != null) {
@@ -127,9 +116,7 @@ public class MySQLExceptionHandler implements ExceptionHandler {
   public boolean isReadOnlyConnectionException(
       final @Nullable String sqlState, final @Nullable Integer errorCode) {
     // HY000 - generic SQL state; use error code for more specific information
-    return "HY000".equals(sqlState)
-        && errorCode != null
-        && (SQLSTATE_READ_ONLY_CONNECTION.contains(errorCode));
+    return "HY000".equals(sqlState) && errorCode != null && (SQLSTATE_READ_ONLY_CONNECTION.contains(errorCode));
   }
 
   @Override

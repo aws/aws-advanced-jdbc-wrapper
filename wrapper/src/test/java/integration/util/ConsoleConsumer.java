@@ -54,7 +54,9 @@ public class ConsoleConsumer
         break;
       default:
         throw new IllegalArgumentException(
-            Messages.get("ConsoleConsumer.unexpectedOutputType", new Object[] {outputType}));
+            Messages.get(
+                "ConsoleConsumer.unexpectedOutputType",
+                new Object[] {outputType}));
     }
   }
 }

@@ -27,9 +27,9 @@ import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
- * A container object used to hold and access the various services required by the driver. This
- * class provides access to both connection-specific services required by plugins and monitors as
- * well as core universal services such as {@link MonitorService} and {@link StorageService}.
+ * A container object used to hold and access the various services required by the driver. This class provides access to
+ * both connection-specific services required by plugins and monitors as well as core universal services such
+ * as {@link MonitorService} and {@link StorageService}.
  *
  * @see CoreServicesContainer
  */

@@ -50,8 +50,8 @@ public class SlidingExpirationCacheTest {
 
   @Test
   public void testComputeIfAbsent() throws InterruptedException {
-    final SlidingExpirationCache<Integer, String> map =
-        new SlidingExpirationCache<>(mockShouldDisposeFunc, mockDisposalFunc);
+    final SlidingExpirationCache<Integer, String>
+        map = new SlidingExpirationCache<>(mockShouldDisposeFunc, mockDisposalFunc);
     final long timeoutNanos = TimeUnit.SECONDS.toNanos(1);
     map.setCleanupIntervalNanos(timeoutNanos * 2);
     when(mockShouldDisposeFunc.shouldDispose(any())).thenReturn(true);
@@ -70,8 +70,8 @@ public class SlidingExpirationCacheTest {
 
   @Test
   public void testRemove() {
-    final SlidingExpirationCache<Integer, String> map =
-        new SlidingExpirationCache<>(mockShouldDisposeFunc, mockDisposalFunc);
+    final SlidingExpirationCache<Integer, String>
+        map = new SlidingExpirationCache<>(mockShouldDisposeFunc, mockDisposalFunc);
     final long timeoutNanos = TimeUnit.SECONDS.toNanos(1);
     map.computeIfAbsent(1, (key) -> "a", timeoutNanos);
 
@@ -82,8 +82,8 @@ public class SlidingExpirationCacheTest {
 
   @Test
   public void testClear() {
-    final SlidingExpirationCache<Integer, String> map =
-        new SlidingExpirationCache<>(mockShouldDisposeFunc, mockDisposalFunc);
+    final SlidingExpirationCache<Integer, String>
+        map = new SlidingExpirationCache<>(mockShouldDisposeFunc, mockDisposalFunc);
     final long timeoutNanos = TimeUnit.SECONDS.toNanos(1);
     map.computeIfAbsent(1, (key) -> "a", timeoutNanos);
     map.computeIfAbsent(2, (key) -> "b", timeoutNanos);
@@ -96,8 +96,8 @@ public class SlidingExpirationCacheTest {
 
   @Test
   public void testGetEntries() throws InterruptedException {
-    final SlidingExpirationCache<Integer, String> map =
-        new SlidingExpirationCache<>(mockShouldDisposeFunc, mockDisposalFunc);
+    final SlidingExpirationCache<Integer, String>
+        map = new SlidingExpirationCache<>(mockShouldDisposeFunc, mockDisposalFunc);
     final long timeoutNanos = TimeUnit.SECONDS.toNanos(1);
     Map<Integer, String> expectedEntries = new HashMap<>();
     expectedEntries.put(1, "a");
@@ -112,8 +112,8 @@ public class SlidingExpirationCacheTest {
 
   @Test
   public void testCleanup() throws InterruptedException {
-    final SlidingExpirationCache<Integer, String> map =
-        new SlidingExpirationCache<>(mockShouldDisposeFunc, mockDisposalFunc);
+    final SlidingExpirationCache<Integer, String>
+        map = new SlidingExpirationCache<>(mockShouldDisposeFunc, mockDisposalFunc);
     final long timeoutNanos = TimeUnit.SECONDS.toNanos(1);
     map.setCleanupIntervalNanos(timeoutNanos * 2);
     when(mockShouldDisposeFunc.shouldDispose(any())).thenReturn(true);

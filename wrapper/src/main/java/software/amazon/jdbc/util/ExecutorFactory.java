@@ -24,8 +24,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class ExecutorFactory {
-  private static final ConcurrentHashMap<String, ThreadFactory> THREAD_FACTORY_MAP =
-      new ConcurrentHashMap<>();
+  private static final ConcurrentHashMap<String, ThreadFactory> THREAD_FACTORY_MAP = new ConcurrentHashMap<>();
 
   public static ExecutorService newSingleThreadExecutor(String threadName) {
     return Executors.newSingleThreadExecutor(getThreadFactory(threadName));
@@ -50,9 +49,8 @@ public class ExecutorFactory {
   private static ThreadFactory createThreadFactory(String threadName) {
     AtomicLong threadCounter = new AtomicLong();
     return runnable -> {
-      String formattedThreadName =
-          String.format(
-              "%s %s-%d", "AWS Advanced JDBC Wrapper", threadName, threadCounter.incrementAndGet());
+      String formattedThreadName = String.format("%s %s-%d", "AWS Advanced JDBC Wrapper",
+          threadName, threadCounter.incrementAndGet());
       Thread thread = new Thread(runnable, formattedThreadName);
       thread.setDaemon(true);
       return thread;

@@ -44,8 +44,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
 public class OpenedConnectionTracker {
 
-  static final Map<String, Queue<WeakReference<Connection>>> openedConnections =
-      new ConcurrentHashMap<>();
+  static final Map<String, Queue<WeakReference<Connection>>> openedConnections = new ConcurrentHashMap<>();
   private static final String TELEMETRY_INVALIDATE_CONNECTIONS = "invalidate connections";
   private static final ExecutorService pruneConnectionsExecutorService =
       ExecutorFactory.newSingleThreadExecutor("pruneConnection");
@@ -56,32 +55,29 @@ public class OpenedConnectionTracker {
   private static final Logger LOGGER = Logger.getLogger(OpenedConnectionTracker.class.getName());
   private static final RdsUtils rdsUtils = new RdsUtils();
 
-  private static final Set<String> safeToCheckClosedClasses =
-      new HashSet<>(
-          Arrays.asList(
-              "HikariProxyConnection",
-              "org.postgresql.jdbc.PgConnection",
-              "com.mysql.cj.jdbc.ConnectionImpl",
-              "org.mariadb.jdbc.Connection"));
+  private static final Set<String> safeToCheckClosedClasses = new HashSet<>(Arrays.asList(
+      "HikariProxyConnection",
+      "org.postgresql.jdbc.PgConnection",
+      "com.mysql.cj.jdbc.ConnectionImpl",
+      "org.mariadb.jdbc.Connection"));
 
   private final PluginService pluginService;
 
   static {
-    pruneConnectionsExecutorService.submit(
-        () -> {
-          while (!Thread.currentThread().isInterrupted()) {
-            try {
-              pruneConnections();
-              TimeUnit.SECONDS.sleep(30);
+    pruneConnectionsExecutorService.submit(() -> {
+      while (!Thread.currentThread().isInterrupted()) {
+        try {
+          pruneConnections();
+          TimeUnit.SECONDS.sleep(30);
 
-            } catch (InterruptedException ex) {
-              Thread.currentThread().interrupt();
-              return;
-            } catch (Exception ex) {
-              // do nothing
-            }
-          }
-        });
+        } catch (InterruptedException ex) {
+          Thread.currentThread().interrupt();
+          return;
+        } catch (Exception ex) {
+          // do nothing
+        }
+      }
+    });
     pruneConnectionsExecutorService.shutdown();
   }
 
@@ -99,11 +95,10 @@ public class OpenedConnectionTracker {
       return;
     }
 
-    final String instanceEndpoint =
-        aliases.stream()
-            .filter(x -> rdsUtils.isRdsInstance(rdsUtils.removePort(x)))
-            .max(String::compareToIgnoreCase)
-            .orElse(null);
+    final String instanceEndpoint = aliases.stream()
+        .filter(x -> rdsUtils.isRdsInstance(rdsUtils.removePort(x)))
+        .max(String::compareToIgnoreCase)
+        .orElse(null);
 
     if (instanceEndpoint != null) {
       trackConnection(instanceEndpoint, conn);
@@ -111,8 +106,7 @@ public class OpenedConnectionTracker {
       return;
     }
 
-    // It seems there's no RDS instance host found. It might be a custom domain name. Let's track by
-    // all aliases
+    // It seems there's no RDS instance host found. It might be a custom domain name. Let's track by all aliases
     for (String alias : aliases) {
       trackConnection(alias, conn);
     }
@@ -131,9 +125,8 @@ public class OpenedConnectionTracker {
 
   public void invalidateAllConnections(final String... keys) {
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
-    TelemetryContext telemetryContext =
-        telemetryFactory.openTelemetryContext(
-            TELEMETRY_INVALIDATE_CONNECTIONS, TelemetryTraceLevel.NESTED);
+    TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
+        TELEMETRY_INVALIDATE_CONNECTIONS, TelemetryTraceLevel.NESTED);
 
     try {
       for (String key : keys) {
@@ -153,13 +146,12 @@ public class OpenedConnectionTracker {
   }
 
   public void removeConnectionTracking(final HostSpec hostSpec, final Connection connection) {
-    final String host =
-        rdsUtils.isRdsInstance(hostSpec.getHost())
-            ? hostSpec.asAlias()
-            : hostSpec.getAliases().stream()
-                .filter(x -> rdsUtils.isRdsInstance(rdsUtils.removePort(x)))
-                .findFirst()
-                .orElse(null);
+    final String host = rdsUtils.isRdsInstance(hostSpec.getHost())
+        ? hostSpec.asAlias()
+        : hostSpec.getAliases().stream()
+            .filter(x -> rdsUtils.isRdsInstance(rdsUtils.removePort(x)))
+            .findFirst()
+            .orElse(null);
 
     if (StringUtils.isNullOrEmpty(host)) {
       return;
@@ -174,7 +166,9 @@ public class OpenedConnectionTracker {
 
   private void trackConnection(final String instanceEndpoint, final Connection connection) {
     final Queue<WeakReference<Connection>> connectionQueue =
-        openedConnections.computeIfAbsent(instanceEndpoint, (k) -> new ConcurrentLinkedQueue<>());
+        openedConnections.computeIfAbsent(
+            instanceEndpoint,
+            (k) -> new ConcurrentLinkedQueue<>());
     connectionQueue.add(new WeakReference<>(connection));
   }
 
@@ -182,42 +176,39 @@ public class OpenedConnectionTracker {
     if (connectionQueue == null || connectionQueue.isEmpty()) {
       return;
     }
-    invalidateConnectionsExecutorService.submit(
-        () -> {
-          WeakReference<Connection> connReference;
-          while ((connReference = connectionQueue.poll()) != null) {
-            final Connection conn = connReference.get();
-            if (conn == null) {
-              continue;
-            }
+    invalidateConnectionsExecutorService.submit(() -> {
+      WeakReference<Connection> connReference;
+      while ((connReference = connectionQueue.poll()) != null) {
+        final Connection conn = connReference.get();
+        if (conn == null) {
+          continue;
+        }
 
-            try {
-              conn.abort(abortConnectionExecutor);
-            } catch (final SQLException e) {
-              // swallow this exception, current connection should be useless anyway.
-            }
-          }
-        });
+        try {
+          conn.abort(abortConnectionExecutor);
+        } catch (final SQLException e) {
+          // swallow this exception, current connection should be useless anyway.
+        }
+      }
+    });
   }
 
   public void logOpenedConnections() {
-    LOGGER.finest(
-        () -> {
-          final StringBuilder builder = new StringBuilder();
-          openedConnections.forEach(
-              (key, queue) -> {
-                if (!queue.isEmpty()) {
-                  builder.append("\t");
-                  builder.append(key).append(" :");
-                  builder.append("\n\t{");
-                  for (final WeakReference<Connection> connection : queue) {
-                    builder.append("\n\t\t").append(connection.get());
-                  }
-                  builder.append("\n\t}\n");
-                }
-              });
-          return String.format("Opened Connections Tracked: \n[\n%s\n]", builder);
-        });
+    LOGGER.finest(() -> {
+      final StringBuilder builder = new StringBuilder();
+      openedConnections.forEach((key, queue) -> {
+        if (!queue.isEmpty()) {
+          builder.append("\t");
+          builder.append(key).append(" :");
+          builder.append("\n\t{");
+          for (final WeakReference<Connection> connection : queue) {
+            builder.append("\n\t\t").append(connection.get());
+          }
+          builder.append("\n\t}\n");
+        }
+      });
+      return String.format("Opened Connections Tracked: \n[\n%s\n]", builder);
+    });
   }
 
   private void logConnectionQueue(final String host, final Queue<WeakReference<Connection>> queue) {
@@ -231,9 +222,7 @@ public class OpenedConnectionTracker {
       builder.append("\n\t").append(connection.get());
     }
     builder.append("\n]");
-    LOGGER.finest(
-        Messages.get(
-            "OpenedConnectionTracker.invalidatingConnections", new Object[] {builder.toString()}));
+    LOGGER.finest(Messages.get("OpenedConnectionTracker.invalidatingConnections", new Object[] {builder.toString()}));
   }
 
   public void pruneNullConnections() {
@@ -241,27 +230,25 @@ public class OpenedConnectionTracker {
   }
 
   protected static void pruneConnections() {
-    openedConnections.forEach(
-        (key, queue) -> {
-          queue.removeIf(
-              connectionWeakReference -> {
-                final Connection conn = connectionWeakReference.get();
-                if (conn == null) {
-                  return true;
-                }
-                // The following classes do not check connection validity by calling a DB server
-                // so it's safe to check whether connection is already closed.
-                if (safeToCheckClosedClasses.contains(conn.getClass().getSimpleName())
-                    || safeToCheckClosedClasses.contains(conn.getClass().getName())) {
-                  try {
-                    return conn.isClosed();
-                  } catch (SQLException ex) {
-                    return false;
-                  }
-                }
-                return false;
-              });
-        });
+    openedConnections.forEach((key, queue) -> {
+      queue.removeIf(connectionWeakReference -> {
+        final Connection conn = connectionWeakReference.get();
+        if (conn == null) {
+          return true;
+        }
+        // The following classes do not check connection validity by calling a DB server
+        // so it's safe to check whether connection is already closed.
+        if (safeToCheckClosedClasses.contains(conn.getClass().getSimpleName())
+            || safeToCheckClosedClasses.contains(conn.getClass().getName())) {
+          try {
+            return conn.isClosed();
+          } catch (SQLException ex) {
+            return false;
+          }
+        }
+        return false;
+      });
+    });
   }
 
   public static void clearCache() {

@@ -24,8 +24,7 @@ import software.amazon.jdbc.util.FullServicesContainer;
 public class FailoverConnectionPluginFactory implements ConnectionPluginFactory {
 
   @Override
-  public ConnectionPlugin getInstance(
-      final FullServicesContainer servicesContainer, final Properties props) {
+  public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
     return new FailoverConnectionPlugin(servicesContainer, props);
   }
 }

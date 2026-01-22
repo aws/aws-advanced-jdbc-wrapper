@@ -67,6 +67,7 @@ class LogQueryConnectionPluginTest {
         Arguments.of(Collections.emptyList(), null),
         Arguments.of(Collections.singletonList(null), null),
         Arguments.of(Collections.singletonList("foo"), "foo"),
-        Arguments.of(Arrays.asList("foo", "bar"), "foo"));
+        Arguments.of(Arrays.asList("foo", "bar"), "foo")
+    );
   }
 }

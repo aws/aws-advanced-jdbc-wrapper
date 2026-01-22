@@ -142,7 +142,7 @@ public class PerformanceTest {
   }
 
   public void test_FailureDetectionTime_EnhancedMonitoringEnabled(final String efmPlugin)
-      throws IOException {
+        throws IOException {
 
     OpenedConnectionTracker.clearCache();
     HostMonitorThreadContainer.releaseInstance();
@@ -169,7 +169,7 @@ public class PerformanceTest {
       doWritePerfDataToFile(
           String.format(
               "./build/reports/tests/EnhancedMonitoringOnly_"
-                  + "Db_%s_Driver_%s_Instances_%d_Plugin_%s.xlsx",
+                + "Db_%s_Driver_%s_Instances_%d_Plugin_%s.xlsx",
               TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
               TestEnvironment.getCurrent().getCurrentDriver(),
               TestEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances(),
@@ -249,7 +249,7 @@ public class PerformanceTest {
       doWritePerfDataToFile(
           String.format(
               "./build/reports/tests/FailoverWithEnhancedMonitoring_"
-                  + "Db_%s_Driver_%s_Instances_%d_Plugin_%s.xlsx",
+              + "Db_%s_Driver_%s_Instances_%d_Plugin_%s.xlsx",
               TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
               TestEnvironment.getCurrent().getCurrentDriver(),
               TestEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances(),
@@ -334,7 +334,7 @@ public class PerformanceTest {
       doWritePerfDataToFile(
           String.format(
               "./build/reports/tests/FailoverWithSocketTimeout_"
-                  + "Db_%s_Driver_%s_Instances_%d_Plugins_%s.xlsx",
+              + "Db_%s_Driver_%s_Instances_%d_Plugins_%s.xlsx",
               TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
               TestEnvironment.getCurrent().getCurrentDriver(),
               TestEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances(),
@@ -344,8 +344,8 @@ public class PerformanceTest {
     }
   }
 
-  private void execute_FailoverTime_SocketTimeout(
-      final String plugins, int socketTimeout, int sleepDelayMillis) throws SQLException {
+  private void execute_FailoverTime_SocketTimeout(final String plugins, int socketTimeout, int sleepDelayMillis)
+      throws SQLException {
 
     final Properties props = ConnectionStringHelper.getDefaultProperties();
     // this performance test measures how socket timeout changes the overall failover time
@@ -372,7 +372,10 @@ public class PerformanceTest {
   }
 
   private void doMeasurePerformance(
-      int sleepDelayMillis, int repeatTimes, Properties props, PerfStatBase data)
+      int sleepDelayMillis,
+      int repeatTimes,
+      Properties props,
+      PerfStatBase data)
       throws SQLException {
 
     ProxyHelper.enableAllConnectivity();
@@ -384,8 +387,7 @@ public class PerformanceTest {
 
       try {
         LOGGER.finest("Resting 15s...");
-        TimeUnit.SECONDS.sleep(
-            15); // let monitoring threads to recover from previous network outage
+        TimeUnit.SECONDS.sleep(15); // let monitoring threads to recover from previous network outage
       } catch (InterruptedException ex) {
         // do nothing
       }
@@ -431,8 +433,7 @@ public class PerformanceTest {
             LOGGER.warning("Network outages start time is undefined!");
             elapsedTimeMillis.add(0L);
           } else {
-            final long failureTimeMillis =
-                TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - downtime);
+            final long failureTimeMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - downtime);
             elapsedTimeMillis.add(failureTimeMillis);
             LOGGER.finest("Elapsed: " + failureTimeMillis);
           }
@@ -449,8 +450,7 @@ public class PerformanceTest {
       }
     }
 
-    final LongSummaryStatistics stats =
-        elapsedTimeMillis.stream().mapToLong(a -> a).summaryStatistics();
+    final LongSummaryStatistics stats = elapsedTimeMillis.stream().mapToLong(a -> a).summaryStatistics();
 
     data.paramNetworkOutageDelayMillis = sleepDelayMillis;
     data.minFailureDetectionTimeMillis = stats.getMin();
@@ -523,7 +523,8 @@ public class PerformanceTest {
         Arguments.of(6000, 1000, 1, 6000),
         Arguments.of(6000, 1000, 1, 7000),
         Arguments.of(6000, 1000, 1, 8000),
-        Arguments.of(6000, 1000, 1, 9000));
+        Arguments.of(6000, 1000, 1, 9000)
+    );
   }
 
   private Stream<Arguments> generateFailoverSocketTimeoutTimeParams() {
@@ -591,9 +592,8 @@ public class PerformanceTest {
 
     @Override
     public String toString() {
-      return String.format(
-          "%s [\nparamDetectionTime=%d,\nparamDetectionInterval=%d,\nparamDetectionCount=%d,\n"
-              + "paramNetworkOutageDelayMillis=%d,\nmin=%d,\nmax=%d,\navg=%d ]",
+      return String.format("%s [\nparamDetectionTime=%d,\nparamDetectionInterval=%d,\nparamDetectionCount=%d,\n"
+          + "paramNetworkOutageDelayMillis=%d,\nmin=%d,\nmax=%d,\navg=%d ]",
           super.toString(),
           this.paramDetectionTime,
           this.paramDetectionInterval,
@@ -639,8 +639,7 @@ public class PerformanceTest {
 
     @Override
     public String toString() {
-      return String.format(
-          "%s [\nparamSocketTimeout=%d,\nparamNetworkOutageDelayMillis=%d,\n"
+      return String.format("%s [\nparamSocketTimeout=%d,\nparamNetworkOutageDelayMillis=%d,\n"
               + "min=%d,\nmax=%d,\navg=%d ]",
           super.toString(),
           this.paramSocketTimeout,

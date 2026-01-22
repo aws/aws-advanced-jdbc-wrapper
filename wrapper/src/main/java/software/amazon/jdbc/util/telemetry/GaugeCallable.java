@@ -19,4 +19,5 @@ package software.amazon.jdbc.util.telemetry;
 public interface GaugeCallable<T> {
 
   T call();
+
 }

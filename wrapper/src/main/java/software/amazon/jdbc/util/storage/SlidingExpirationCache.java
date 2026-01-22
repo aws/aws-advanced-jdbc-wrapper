@@ -30,10 +30,8 @@ public class SlidingExpirationCache<K, V> {
 
   protected final Map<K, CacheItem<V>> cache = new ConcurrentHashMap<>();
   protected long cleanupIntervalNanos = TimeUnit.MINUTES.toNanos(10);
-  protected final AtomicLong cleanupTimeNanos =
-      new AtomicLong(System.nanoTime() + cleanupIntervalNanos);
-  protected final AtomicReference<ShouldDisposeFunc<V>> shouldDisposeFunc =
-      new AtomicReference<>(null);
+  protected final AtomicLong cleanupTimeNanos = new AtomicLong(System.nanoTime() + cleanupIntervalNanos);
+  protected final AtomicReference<ShouldDisposeFunc<V>> shouldDisposeFunc = new AtomicReference<>(null);
   protected final ItemDisposalFunc<V> itemDisposalFunc;
 
   /**
@@ -50,13 +48,15 @@ public class SlidingExpirationCache<K, V> {
    * as not-expired and renews its expiration time.
    *
    * @param shouldDisposeFunc a function defining the conditions under which an expired entry should
-   *     be cleaned up when we hit the cleanup time
-   * @param itemDisposalFunc a function that will be called on any item that meets the cleanup
-   *     criteria at cleanup time. The criteria for cleanup is that the item is both expired and
-   *     marked for cleanup via a call to shouldDisposeFunc.
+   *                          be cleaned up when we hit the cleanup time
+   * @param itemDisposalFunc  a function that will be called on any item that meets the cleanup
+   *                          criteria at cleanup time. The criteria for cleanup is that the item
+   *                          is both expired and marked for cleanup via a call to
+   *                          shouldDisposeFunc.
    */
   public SlidingExpirationCache(
-      final ShouldDisposeFunc<V> shouldDisposeFunc, final ItemDisposalFunc<V> itemDisposalFunc) {
+      final ShouldDisposeFunc<V> shouldDisposeFunc,
+      final ItemDisposalFunc<V> itemDisposalFunc) {
     this.shouldDisposeFunc.set(shouldDisposeFunc);
     this.itemDisposalFunc = itemDisposalFunc;
   }
@@ -80,8 +80,8 @@ public class SlidingExpirationCache<K, V> {
    * cleanup time or {@link ShouldDisposeFunc} indicated the entry should not be closed, the entry
    * will be marked as non-expired.
    *
-   * @param key the key with which the specified value is to be associated
-   * @param mappingFunction the function to compute a value
+   * @param key                the key with which the specified value is to be associated
+   * @param mappingFunction    the function to compute a value
    * @param itemExpirationNano the expiration time of the new or renewed entry
    * @return the current (existing or computed) value associated with the specified key, or null if
    *     the computed value is null
@@ -92,22 +92,23 @@ public class SlidingExpirationCache<K, V> {
       final long itemExpirationNano) {
 
     cleanUp();
-    final CacheItem<V> cacheItem =
-        cache.computeIfAbsent(
-            key,
-            k ->
-                new CacheItem<>(
-                    mappingFunction.apply(k),
-                    System.nanoTime() + itemExpirationNano,
-                    this.shouldDisposeFunc.get()));
+    final CacheItem<V> cacheItem = cache.computeIfAbsent(
+        key,
+        k -> new CacheItem<>(
+            mappingFunction.apply(k),
+            System.nanoTime() + itemExpirationNano,
+            this.shouldDisposeFunc.get()));
     cacheItem.extendExpiration(itemExpirationNano);
     return cacheItem.item;
   }
 
-  public V put(final K key, final V value, final long itemExpirationNano) {
+  public V put(
+      final K key,
+      final V value,
+      final long itemExpirationNano) {
     cleanUp();
-    final CacheItem<V> cacheItem =
-        cache.put(key, new CacheItem<>(value, System.nanoTime() + itemExpirationNano));
+    final CacheItem<V> cacheItem = cache.put(
+        key, new CacheItem<>(value, System.nanoTime() + itemExpirationNano));
     if (cacheItem == null) {
       return null;
     }
@@ -146,23 +147,19 @@ public class SlidingExpirationCache<K, V> {
   }
 
   protected void removeIfExpired(K key) {
-    // A list is used to store the cached item for later disposal since lambdas require references
-    // to outer variables
-    // to be final. This allows us to dispose of the item after it has been removed and the cache
-    // has been unlocked,
+    // A list is used to store the cached item for later disposal since lambdas require references to outer variables
+    // to be final. This allows us to dispose of the item after it has been removed and the cache has been unlocked,
     // which is important because the disposal function may be long-running.
     final List<V> itemList = new ArrayList<>(1);
-    cache.computeIfPresent(
-        key,
-        (k, cacheItem) -> {
-          if (cacheItem.shouldCleanup()) {
-            itemList.add(cacheItem.item);
-            // Removes the item from the cache map.
-            return null;
-          }
+    cache.computeIfPresent(key, (k, cacheItem) -> {
+      if (cacheItem.shouldCleanup()) {
+        itemList.add(cacheItem.item);
+        // Removes the item from the cache map.
+        return null;
+      }
 
-          return cacheItem;
-        });
+      return cacheItem;
+    });
 
     if (itemList.isEmpty()) {
       return;
@@ -174,7 +171,9 @@ public class SlidingExpirationCache<K, V> {
     }
   }
 
-  /** Remove and dispose of all entries in the cache. */
+  /**
+   * Remove and dispose of all entries in the cache.
+   */
   public void clear() {
     for (K key : cache.keySet()) {
       removeAndDispose(key);
@@ -217,8 +216,8 @@ public class SlidingExpirationCache<K, V> {
    * Set the cleanup interval for the cache. At cleanup time, expired entries marked for cleanup via
    * {@link ShouldDisposeFunc} (if defined) are disposed.
    *
-   * @param cleanupIntervalNanos the time interval defining when we should clean up expired entries
-   *     marked for cleanup, in nanoseconds
+   * @param cleanupIntervalNanos the time interval defining when we should clean up expired
+   *                             entries marked for cleanup, in nanoseconds
    */
   public void setCleanupIntervalNanos(long cleanupIntervalNanos) {
     this.cleanupIntervalNanos = cleanupIntervalNanos;

@@ -39,8 +39,7 @@ import software.amazon.jdbc.util.Utils;
 
 public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
 
-  private static final Logger LOGGER =
-      Logger.getLogger(AuroraConnectionTrackerPlugin.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(AuroraConnectionTrackerPlugin.class.getName());
 
   // Check topology changes 3 min after last failover
   private static final long TOPOLOGY_CHANGES_EXPECTED_TIME_NANO = TimeUnit.MINUTES.toNanos(3);
@@ -68,9 +67,8 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
     this.rdsHelper = rdsUtils;
     this.tracker = tracker;
 
-    final HashSet<String> methods =
-        new HashSet<>(
-            this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(props));
+    final HashSet<String> methods = new HashSet<>(
+        this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(props));
     methods.add(JdbcMethod.CONNECTION_CLOSE.methodName);
     methods.add(JdbcMethod.CONNECTION_ABORT.methodName);
     methods.add(JdbcMethod.CONNECT.methodName);
@@ -84,13 +82,8 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
   }
 
   @Override
-  public Connection connect(
-      final String driverProtocol,
-      final HostSpec hostSpec,
-      final Properties props,
-      final boolean isInitialConnection,
-      final JdbcCallable<Connection, SQLException> connectFunc)
-      throws SQLException {
+  public Connection connect(final String driverProtocol, final HostSpec hostSpec, final Properties props,
+      final boolean isInitialConnection, final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
 
     final Connection conn = connectFunc.call();
 
@@ -107,14 +100,9 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
   }
 
   @Override
-  public <T, E extends Exception> T execute(
-      final Class<T> resultClass,
-      final Class<E> exceptionClass,
-      final Object methodInvokeOn,
-      final String methodName,
-      final JdbcCallable<T, E> jdbcMethodFunc,
-      final Object[] jdbcMethodArgs)
-      throws E {
+  public <T, E extends Exception> T execute(final Class<T> resultClass, final Class<E> exceptionClass,
+      final Object methodInvokeOn, final String methodName, final JdbcCallable<T, E> jdbcMethodFunc,
+      final Object[] jdbcMethodArgs) throws E {
 
     final HostSpec currentHostSpec = this.pluginService.getCurrentHostSpec();
     this.rememberWriter();
@@ -130,10 +118,8 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
             // Need to continue to refresh host list.
             needRefreshHostLists = true;
           } else {
-            // The time specified in hostListRefreshThresholdTimeNano is reached, and we can stop
-            // further refreshes
-            // of host list. If hostListRefreshThresholdTimeNano has changed while this thread
-            // processes the code,
+            // The time specified in hostListRefreshThresholdTimeNano is reached, and we can stop further refreshes
+            // of host list. If hostListRefreshThresholdTimeNano has changed while this thread processes the code,
             // we can't override a new value in hostListRefreshThresholdTimeNano.
             hostListRefreshEndTimeNano.compareAndSet(localHostListRefreshEndTimeNano, 0);
           }
@@ -146,8 +132,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
       final T result = jdbcMethodFunc.call();
       if ((methodName.equals(JdbcMethod.CONNECTION_CLOSE.methodName)
           || methodName.equals(JdbcMethod.CONNECTION_ABORT.methodName))) {
-        tracker.removeConnectionTracking(
-            currentHostSpec, this.pluginService.getCurrentConnection());
+        tracker.removeConnectionTracking(currentHostSpec, this.pluginService.getCurrentConnection());
       }
       return result;
 
@@ -178,9 +163,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
     if (this.currentWriter == null) {
       this.currentWriter = hostSpecAfterFailover;
       this.needUpdateCurrentWriter = false;
-    } else if (!this.currentWriter
-        .getHostAndPort()
-        .equals(hostSpecAfterFailover.getHostAndPort())) {
+    } else if (!this.currentWriter.getHostAndPort().equals(hostSpecAfterFailover.getHostAndPort())) {
       // the writer's changed
       tracker.invalidateAllConnections(this.currentWriter);
       tracker.logOpenedConnections();

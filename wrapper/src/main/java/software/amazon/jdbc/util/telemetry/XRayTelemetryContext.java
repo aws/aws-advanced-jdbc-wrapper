@@ -45,14 +45,10 @@ public class XRayTelemetryContext implements TelemetryContext {
       case TOP_LEVEL:
         this.traceEntity = AWSXRay.beginSegment(name);
         if (parentEntity != null) {
-          this.setAttribute(
-              TelemetryConst.PARENT_TRACE_ANNOTATION, parentEntity.getTraceId().toString());
+          this.setAttribute(TelemetryConst.PARENT_TRACE_ANNOTATION, parentEntity.getTraceId().toString());
         }
         this.setAttribute(TelemetryConst.TRACE_NAME_ANNOTATION, name);
-        LOGGER.finest(
-            () ->
-                String.format(
-                    "[XRay] Telemetry '%s' trace ID: %s", name, this.traceEntity.getTraceId()));
+        LOGGER.finest(() -> String.format("[XRay] Telemetry '%s' trace ID: %s", name, this.traceEntity.getTraceId()));
         break;
 
       case NESTED:
@@ -70,7 +66,8 @@ public class XRayTelemetryContext implements TelemetryContext {
   }
 
   public static void postCopy(
-      final XRayTelemetryContext telemetryContext, final TelemetryTraceLevel traceLevel) {
+      final XRayTelemetryContext telemetryContext,
+      final TelemetryTraceLevel traceLevel) {
 
     if (traceLevel == TelemetryTraceLevel.NO_TRACE) {
       return;
@@ -79,14 +76,11 @@ public class XRayTelemetryContext implements TelemetryContext {
     if (traceLevel == TelemetryTraceLevel.FORCE_TOP_LEVEL
         || traceLevel == TelemetryTraceLevel.TOP_LEVEL) {
 
-      // post a copy context in a separate lambda/thread, so it's not connected to a current
-      // context.
-      CompletableFuture<Void> future =
-          CompletableFuture.runAsync(
-              () -> {
-                XRayTelemetryContext copy = clone(telemetryContext, traceLevel);
-                copy.closeContext();
-              });
+      // post a copy context in a separate lambda/thread, so it's not connected to a current context.
+      CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+        XRayTelemetryContext copy = clone(telemetryContext, traceLevel);
+        copy.closeContext();
+      });
 
       try {
         future.get();
@@ -103,19 +97,18 @@ public class XRayTelemetryContext implements TelemetryContext {
   }
 
   private static XRayTelemetryContext clone(
-      final XRayTelemetryContext telemetryContext, final TelemetryTraceLevel traceLevel) {
+      final XRayTelemetryContext telemetryContext,
+      final TelemetryTraceLevel traceLevel) {
 
-    XRayTelemetryContext copy =
-        new XRayTelemetryContext(
-            TelemetryConst.COPY_TRACE_NAME_PREFIX + telemetryContext.getName(), traceLevel);
+    XRayTelemetryContext copy = new XRayTelemetryContext(
+        TelemetryConst.COPY_TRACE_NAME_PREFIX + telemetryContext.getName(), traceLevel);
 
     copy.traceEntity.setStartTime(telemetryContext.traceEntity.getStartTime());
     copy.traceEntity.setEndTime(telemetryContext.traceEntity.getEndTime());
 
     Map<String, Object> annotations = telemetryContext.traceEntity.getAnnotations();
     for (Map.Entry<String, Object> entry : annotations.entrySet()) {
-      if (entry.getValue() != null
-          && !TelemetryConst.TRACE_NAME_ANNOTATION.equals(entry.getKey())) {
+      if (entry.getValue() != null && !TelemetryConst.TRACE_NAME_ANNOTATION.equals(entry.getKey())) {
         copy.setAttribute(entry.getKey(), entry.getValue().toString());
       }
     }
@@ -183,4 +176,5 @@ public class XRayTelemetryContext implements TelemetryContext {
       // Ignore
     }
   }
+
 }

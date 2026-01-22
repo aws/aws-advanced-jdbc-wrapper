@@ -51,16 +51,15 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
   public static final String FASTEST_RESPONSE_STRATEGY_NAME = "fastestResponse";
 
   private static final Set<String> subscribedMethods =
-      Collections.unmodifiableSet(
-          new HashSet<String>() {
-            {
-              add("connect");
-              add("forceConnect");
-              add("notifyNodeListChanged");
-              add("acceptsStrategy");
-              add("getHostSpecByStrategy");
-            }
-          });
+      Collections.unmodifiableSet(new HashSet<String>() {
+        {
+          add("connect");
+          add("forceConnect");
+          add("notifyNodeListChanged");
+          add("acceptsStrategy");
+          add("getHostSpecByStrategy");
+        }
+      });
 
   public static final AwsWrapperProperty RESPONSE_MEASUREMENT_INTERVAL_MILLIS =
       new AwsWrapperProperty(
@@ -68,8 +67,7 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
           "30000",
           "Interval in millis between measuring response time to a database node.");
 
-  protected static final CacheMap<String, HostSpec> cachedFastestResponseHostByRole =
-      new CacheMap<>();
+  protected static final CacheMap<String, HostSpec> cachedFastestResponseHostByRole = new CacheMap<>();
   protected static final RandomHostSelector randomHostSelector = new RandomHostSelector();
 
   protected final @NonNull PluginService pluginService;
@@ -85,9 +83,9 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
   }
 
   public FastestResponseStrategyPlugin(
-      final FullServicesContainer servicesContainer, final @NonNull Properties properties) {
-    this(
-        servicesContainer.getPluginService(),
+      final FullServicesContainer servicesContainer,
+      final @NonNull Properties properties) {
+    this(servicesContainer.getPluginService(),
         properties,
         new HostResponseTimeServiceImpl(
             servicesContainer,
@@ -103,9 +101,8 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
     this.pluginService = pluginService;
     this.properties = properties;
     this.hostResponseTimeService = hostResponseTimeService;
-    this.cacheExpirationNano =
-        TimeUnit.MILLISECONDS.toNanos(
-            RESPONSE_MEASUREMENT_INTERVAL_MILLIS.getInteger(this.properties));
+    this.cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(
+        RESPONSE_MEASUREMENT_INTERVAL_MILLIS.getInteger(this.properties));
   }
 
   @Override
@@ -145,17 +142,15 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
     final String roleName = role == null ? "<null>" : role.name();
 
     // The cache holds a host with the fastest response time.
-    // If cache doesn't have a host for a role, it's necessary to find the fastest node in the
-    // topology.
+    // If cache doesn't have a host for a role, it's necessary to find the fastest node in the topology.
     final HostSpec fastestResponseHost = cachedFastestResponseHostByRole.get(roleName);
 
     if (fastestResponseHost != null) {
       // Found a fastest host. Let find it in the latest topology.
-      HostSpec foundHostSpec =
-          this.pluginService.getHosts().stream()
-              .filter(x -> x.getHostAndPort().equals(fastestResponseHost.getHostAndPort()))
-              .findAny()
-              .orElse(null);
+      HostSpec foundHostSpec = this.pluginService.getHosts().stream()
+          .filter(x -> x.getHostAndPort().equals(fastestResponseHost.getHostAndPort()))
+          .findAny()
+          .orElse(null);
 
       if (foundHostSpec != null) {
         // Found a host in the topology.
@@ -168,14 +163,13 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
 
     // Cached result isn't available. Need to find the fastest response time host.
 
-    final HostSpec calculatedFastestResponseHost =
-        this.pluginService.getHosts().stream()
-            .filter(x -> role == null || role.equals(x.getRole()))
-            .map(x -> new ResponseTimeTuple(x, this.hostResponseTimeService.getResponseTime(x)))
-            .sorted(Comparator.comparingInt(x -> x.responseTime))
-            .map(x -> x.hostSpec)
-            .findFirst()
-            .orElse(null);
+    final HostSpec calculatedFastestResponseHost = this.pluginService.getHosts().stream()
+        .filter(x -> role == null || role.equals(x.getRole()))
+        .map(x -> new ResponseTimeTuple(x, this.hostResponseTimeService.getResponseTime(x)))
+        .sorted(Comparator.comparingInt(x -> x.responseTime))
+        .map(x -> x.hostSpec)
+        .findFirst()
+        .orElse(null);
 
     if (calculatedFastestResponseHost == null) {
       // Unable to identify the fastest response host.
@@ -183,8 +177,7 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
       return randomHostSelector.getHost(this.hosts, role, properties);
     }
 
-    cachedFastestResponseHostByRole.put(
-        roleName, calculatedFastestResponseHost, this.cacheExpirationNano);
+    cachedFastestResponseHostByRole.put(roleName, calculatedFastestResponseHost, this.cacheExpirationNano);
 
     return calculatedFastestResponseHost;
   }

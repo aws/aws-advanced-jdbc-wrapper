@@ -30,9 +30,9 @@ public class TestDefaultRdsUtilities {
       final @NonNull AwsCredentialsProvider credentialsProvider,
       final @NonNull Region region,
       Instant fixedInstant) {
-    final DefaultBuilder builder =
-        (DefaultBuilder)
-            new DefaultBuilder().credentialsProvider(credentialsProvider).region(region);
+    final DefaultBuilder builder = (DefaultBuilder) new DefaultBuilder()
+        .credentialsProvider(credentialsProvider)
+        .region(region);
     return new DefaultRdsUtilities(builder, Clock.fixed(fixedInstant, ZoneId.of("UTC")));
   }
 }

@@ -24,7 +24,8 @@ import java.util.EnumSet;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class TestEnvironmentRequest {
 
-  @JsonIgnore private int envPreCreateIndex;
+  @JsonIgnore
+  private int envPreCreateIndex;
 
   @JsonProperty("engine")
   private DatabaseEngine engine;
@@ -39,8 +40,7 @@ public class TestEnvironmentRequest {
   private TargetJvm targetJvm;
 
   @JsonProperty("features")
-  private final EnumSet<TestEnvironmentFeatures> features =
-      EnumSet.noneOf(TestEnvironmentFeatures.class);
+  private final EnumSet<TestEnvironmentFeatures> features = EnumSet.noneOf(TestEnvironmentFeatures.class);
 
   @JsonProperty("numOfInstances")
   private int numOfInstances = 1;

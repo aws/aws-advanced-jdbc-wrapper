@@ -99,43 +99,26 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
             new BeforeEachCallback() {
               @Override
               public void beforeEach(ExtensionContext context) throws Exception {
-                boolean tracesEnabled =
-                    TestEnvironment.getCurrent()
-                        .getInfo()
-                        .getRequest()
-                        .getFeatures()
-                        .contains(TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED);
+                boolean tracesEnabled = TestEnvironment.getCurrent()
+                    .getInfo()
+                    .getRequest()
+                    .getFeatures()
+                    .contains(TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED);
 
                 if (tracesEnabled) {
                   String testName = null;
-                  if (context.getElement().isPresent()
-                      && context.getElement().get() instanceof Method) {
+                  if (context.getElement().isPresent() && context.getElement().get() instanceof Method) {
                     Method method = (Method) context.getElement().get();
                     testName = method.getDeclaringClass().getSimpleName() + "." + method.getName();
                   }
 
                   Segment segment = AWSXRay.beginSegment("test: setup");
-                  segment.putAnnotation(
-                      "engine",
-                      TestEnvironment.getCurrent()
-                          .getInfo()
-                          .getRequest()
-                          .getDatabaseEngine()
-                          .toString());
-                  segment.putAnnotation(
-                      "deployment",
-                      TestEnvironment.getCurrent()
-                          .getInfo()
-                          .getRequest()
-                          .getDatabaseEngineDeployment()
-                          .toString());
-                  segment.putAnnotation(
-                      "targetJVM",
-                      TestEnvironment.getCurrent()
-                          .getInfo()
-                          .getRequest()
-                          .getTargetJvm()
-                          .toString());
+                  segment.putAnnotation("engine",
+                      TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine().toString());
+                  segment.putAnnotation("deployment",
+                      TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment().toString());
+                  segment.putAnnotation("targetJVM",
+                      TestEnvironment.getCurrent().getInfo().getRequest().getTargetJvm().toString());
                   if (testName != null) {
                     segment.putAnnotation("testName", testName);
                   }
@@ -144,10 +127,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
 
                 registerDrivers(testDriver);
 
-                if (TestEnvironment.getCurrent()
-                    .getInfo()
-                    .getRequest()
-                    .getFeatures()
+                if (TestEnvironment.getCurrent().getInfo().getRequest().getFeatures()
                     .contains(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)) {
                   // Enable all proxies
                   ProxyHelper.enableAllConnectivity();
@@ -155,15 +135,11 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                 }
 
                 boolean makeSureFirstInstanceWriter =
-                    AnnotationUtils.isAnnotated(
-                            context.getElement(), MakeSureFirstInstanceWriter.class)
+                    AnnotationUtils.isAnnotated(context.getElement(), MakeSureFirstInstanceWriter.class)
                         || isAnnotated(context.getTestClass(), MakeSureFirstInstanceWriter.class);
 
                 final DatabaseEngineDeployment deployment =
-                    TestEnvironment.getCurrent()
-                        .getInfo()
-                        .getRequest()
-                        .getDatabaseEngineDeployment();
+                    TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment();
                 if (deployment == DatabaseEngineDeployment.AURORA
                     || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER) {
 
@@ -175,8 +151,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                       checkClusterHealth(makeSureFirstInstanceWriter);
                       success = true;
                     } catch (Exception ex) {
-                      // Nothing we can do other than to reboot a cluster and hope it gets back in a
-                      // better shape.
+                      // Nothing we can do other than to reboot a cluster and hope it gets back in a better shape.
                       switch (deployment) {
                         case AURORA:
                           rebootAllClusterInstances();
@@ -191,21 +166,19 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                     }
                   }
                   if (!success) {
-                    fail(
-                        "Cluster "
-                            + TestEnvironment.getCurrent().getInfo().getRdsDbName()
-                            + " is not healthy.");
+                    fail("Cluster "
+                        + TestEnvironment.getCurrent().getInfo().getRdsDbName()
+                        + " is not healthy.");
                   }
-                  LOGGER.finest(
-                      "Cluster "
-                          + TestEnvironment.getCurrent().getInfo().getRdsDbName()
-                          + " is healthy.");
+                  LOGGER.finest("Cluster "
+                      + TestEnvironment.getCurrent().getInfo().getRdsDbName()
+                      + " is healthy.");
                 }
 
                 clearCaches();
 
                 if (tracesEnabled) {
-                  AWSXRay.endSegment();
+                    AWSXRay.endSegment();
                 }
                 LOGGER.finest("Completed.");
               }
@@ -214,14 +187,15 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
               @Override
               public void afterEach(ExtensionContext context) throws Exception {
 
-                EnumSet<TestEnvironmentFeatures> features =
-                    TestEnvironment.getCurrent().getInfo().getRequest().getFeatures();
+                EnumSet<TestEnvironmentFeatures> features = TestEnvironment.getCurrent()
+                    .getInfo()
+                    .getRequest()
+                    .getFeatures();
 
                 if (features.contains(TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED)
                     || features.contains(TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED)) {
 
-                  TimeUnit.SECONDS.sleep(
-                      3); // let OTLP container to send all collected metrics and traces
+                  TimeUnit.SECONDS.sleep(3); // let OTLP container to send all collected metrics and traces
                 }
 
                 LOGGER.finest("Completed.");
@@ -264,8 +238,8 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
       // Wait up to 10min
       long startTimeNano = System.nanoTime();
       while ((instanceIDs.size() != testRequest.getNumOfInstances()
-              || instanceIDs.isEmpty()
-              || !auroraUtil.isDBInstanceWriter(instanceIDs.get(0)))
+          || instanceIDs.isEmpty()
+          || !auroraUtil.isDBInstanceWriter(instanceIDs.get(0)))
           && TimeUnit.NANOSECONDS.toMinutes(System.nanoTime() - startTimeNano) < 10) {
 
         Thread.sleep(5000);
@@ -281,7 +255,10 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
         }
       }
       assertTrue(instanceIDs.size() > 0);
-      assertTrue(auroraUtil.isDBInstanceWriter(testInfo.getRdsDbName(), instanceIDs.get(0)));
+      assertTrue(
+          auroraUtil.isDBInstanceWriter(
+              testInfo.getRdsDbName(),
+              instanceIDs.get(0)));
       String currentWriter = instanceIDs.get(0);
 
       // Adjust database info to reflect a current writer and to move corresponding
@@ -291,24 +268,22 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
       testInfo.getProxyDatabaseInfo().moveInstanceFirst(currentWriter);
 
       // Wait for cluster endpoint to resolve to the writer
-      final boolean dnsOk =
-          auroraUtil.waitDnsEqual(
-              dbInfo.getClusterEndpoint(),
-              dbInfo.getInstances().get(0).getHost(),
-              TimeUnit.MINUTES.toSeconds(5),
-              false);
+      final boolean dnsOk = auroraUtil.waitDnsEqual(
+          dbInfo.getClusterEndpoint(),
+          dbInfo.getInstances().get(0).getHost(),
+          TimeUnit.MINUTES.toSeconds(5),
+          false);
       if (!dnsOk) {
         throw new RuntimeException("Cluster endpoint isn't updated.");
       }
 
       if (instanceIDs.size() > 1) {
         // Wait for cluster RO endpoint to resolve NOT to the writer
-        final boolean dnsROOk =
-            auroraUtil.waitDnsNotEqual(
-                dbInfo.getClusterReadOnlyEndpoint(),
-                dbInfo.getInstances().get(0).getHost(),
-                TimeUnit.MINUTES.toSeconds(5),
-                false);
+        final boolean dnsROOk = auroraUtil.waitDnsNotEqual(
+            dbInfo.getClusterReadOnlyEndpoint(),
+            dbInfo.getInstances().get(0).getHost(),
+            TimeUnit.MINUTES.toSeconds(5),
+            false);
         if (!dnsROOk) {
           throw new RuntimeException("Cluster RO endpoint isn't updated.");
         }
@@ -321,22 +296,17 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
     final TestEnvironmentInfo testInfo = TestEnvironment.getCurrent().getInfo();
     final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility(testInfo);
 
-    List<String> instanceIDs =
-        testInfo.getDatabaseInfo().getInstances().stream()
-            .map(TestInstanceInfo::getInstanceId)
-            .collect(Collectors.toList());
+    List<String> instanceIDs = testInfo.getDatabaseInfo().getInstances().stream()
+        .map(TestInstanceInfo::getInstanceId)
+        .collect(Collectors.toList());
 
     auroraUtil.waitUntilClusterHasRightState(testInfo.getRdsDbName());
 
     // Instances should have one of the following statuses to allow reboot a cluster.
     for (String instanceId : instanceIDs) {
-      auroraUtil.waitUntilInstanceHasRightState(
-          instanceId,
-          "available",
-          "storage-optimization",
-          "incompatible-credentials",
-          "incompatible-parameters",
-          "unavailable");
+      auroraUtil.waitUntilInstanceHasRightState(instanceId,
+          "available", "storage-optimization",
+          "incompatible-credentials", "incompatible-parameters", "unavailable");
     }
     auroraUtil.rebootCluster(testInfo.getRdsDbName());
     auroraUtil.waitUntilClusterHasRightState(testInfo.getRdsDbName(), "rebooting");
@@ -349,10 +319,9 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
     final TestEnvironmentInfo testInfo = TestEnvironment.getCurrent().getInfo();
     final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility(testInfo);
 
-    List<String> instanceIDs =
-        testInfo.getDatabaseInfo().getInstances().stream()
-            .map(TestInstanceInfo::getInstanceId)
-            .collect(Collectors.toList());
+    List<String> instanceIDs = testInfo.getDatabaseInfo().getInstances().stream()
+        .map(TestInstanceInfo::getInstanceId)
+        .collect(Collectors.toList());
 
     auroraUtil.waitUntilClusterHasRightState(testInfo.getRdsDbName());
 

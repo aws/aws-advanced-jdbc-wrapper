@@ -30,9 +30,11 @@ import software.amazon.jdbc.util.PropertyUtils;
 
 public class PgDriverHelper {
 
-  private static final Logger LOGGER = Logger.getLogger(PgDriverHelper.class.getName());
+  private static final Logger LOGGER =
+      Logger.getLogger(PgDriverHelper.class.getName());
 
-  private static final String DS_CLASS_NAME = org.postgresql.ds.PGSimpleDataSource.class.getName();
+  private static final String DS_CLASS_NAME =
+      org.postgresql.ds.PGSimpleDataSource.class.getName();
 
   private static final String DS_POOLED_CLASS_NAME =
       org.postgresql.ds.PGConnectionPoolDataSource.class.getName();
@@ -40,16 +42,12 @@ public class PgDriverHelper {
   public void prepareDataSource(
       final @NonNull DataSource dataSource,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props)
-      throws SQLException {
+      final @NonNull Properties props) throws SQLException {
 
     if (!(dataSource instanceof BaseDataSource)) {
-      throw new SQLException(
-          Messages.get(
-              "TargetDriverDialectManager.unexpectedClass",
-              new Object[] {
-                DS_CLASS_NAME + ", " + DS_POOLED_CLASS_NAME, dataSource.getClass().getName()
-              }));
+      throw new SQLException(Messages.get(
+          "TargetDriverDialectManager.unexpectedClass",
+          new Object[] {DS_CLASS_NAME + ", " + DS_POOLED_CLASS_NAME, dataSource.getClass().getName() }));
     }
 
     final BaseDataSource baseDataSource = (BaseDataSource) dataSource;
@@ -57,32 +55,28 @@ public class PgDriverHelper {
     baseDataSource.setDatabaseName(PropertyDefinition.DATABASE.getString(props));
     baseDataSource.setUser(PropertyDefinition.USER.getString(props));
     baseDataSource.setPassword(PropertyDefinition.PASSWORD.getString(props));
-    baseDataSource.setServerNames(new String[] {hostSpec.getHost()});
+    baseDataSource.setServerNames(new String[] { hostSpec.getHost() });
 
     if (hostSpec.isPortSpecified()) {
-      baseDataSource.setPortNumbers(new int[] {hostSpec.getPort()});
+      baseDataSource.setPortNumbers(new int[] { hostSpec.getPort() });
     }
 
-    final Boolean tcpKeepAlive =
-        PropertyUtils.getBooleanPropertyValue(props, PropertyDefinition.TCP_KEEP_ALIVE);
+    final Boolean tcpKeepAlive = PropertyUtils.getBooleanPropertyValue(props, PropertyDefinition.TCP_KEEP_ALIVE);
     if (tcpKeepAlive != null) {
       baseDataSource.setTcpKeepAlive(tcpKeepAlive);
     }
 
-    final Integer loginTimeout =
-        PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.LOGIN_TIMEOUT);
+    final Integer loginTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.LOGIN_TIMEOUT);
     if (loginTimeout != null) {
       baseDataSource.setLoginTimeout((int) TimeUnit.MILLISECONDS.toSeconds(loginTimeout));
     }
 
-    final Integer connectTimeout =
-        PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.CONNECT_TIMEOUT);
+    final Integer connectTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.CONNECT_TIMEOUT);
     if (connectTimeout != null) {
       baseDataSource.setConnectTimeout((int) TimeUnit.MILLISECONDS.toSeconds(connectTimeout));
     }
 
-    final Integer socketTimeout =
-        PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.SOCKET_TIMEOUT);
+    final Integer socketTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.SOCKET_TIMEOUT);
     if (socketTimeout != null) {
       baseDataSource.setSocketTimeout((int) TimeUnit.MILLISECONDS.toSeconds(socketTimeout));
     }

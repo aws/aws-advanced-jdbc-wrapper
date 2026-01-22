@@ -32,11 +32,10 @@ public class JdbcMethodTests {
   public void testUniqueIds() {
     Map<Integer, List<JdbcMethod>> groupedJdbcMethods =
         Arrays.stream(JdbcMethod.values()).collect(groupingBy(x -> x.id, toList()));
-    List<Integer> duplicateIds =
-        groupedJdbcMethods.entrySet().stream()
-            .filter(x -> x.getValue().size() > 1)
-            .map(Entry::getKey)
-            .collect(toList());
+    List<Integer> duplicateIds = groupedJdbcMethods.entrySet().stream()
+        .filter(x -> x.getValue().size() > 1)
+        .map(Entry::getKey)
+        .collect(toList());
     assertTrue(duplicateIds.isEmpty());
   }
 
@@ -44,11 +43,10 @@ public class JdbcMethodTests {
   public void testUniqueMethodNames() {
     Map<String, List<JdbcMethod>> groupedJdbcMethods =
         Arrays.stream(JdbcMethod.values()).collect(groupingBy(x -> x.methodName, toList()));
-    List<String> duplicateNames =
-        groupedJdbcMethods.entrySet().stream()
-            .filter(x -> x.getValue().size() > 1)
-            .map(Entry::getKey)
-            .collect(toList());
+    List<String> duplicateNames = groupedJdbcMethods.entrySet().stream()
+        .filter(x -> x.getValue().size() > 1)
+        .map(Entry::getKey)
+        .collect(toList());
     assertTrue(duplicateNames.isEmpty());
   }
 }

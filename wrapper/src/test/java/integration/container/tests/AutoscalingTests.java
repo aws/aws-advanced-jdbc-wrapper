@@ -104,8 +104,8 @@ public class AutoscalingTests {
     final Properties props = getProps();
     final long topologyRefreshRateMs = 5000;
     ReadWriteSplittingPlugin.READER_HOST_SELECTOR_STRATEGY.set(props, "leastConnections");
-    RdsHostListProvider.CLUSTER_TOPOLOGY_REFRESH_RATE_MS.set(
-        props, Long.toString(topologyRefreshRateMs));
+    RdsHostListProvider.CLUSTER_TOPOLOGY_REFRESH_RATE_MS.set(props,
+        Long.toString(topologyRefreshRateMs));
 
     final TestEnvironmentInfo testInfo = TestEnvironment.getCurrent().getInfo();
     final List<TestInstanceInfo> instances = testInfo.getDatabaseInfo().getInstances();
@@ -143,8 +143,8 @@ public class AutoscalingTests {
 
         assertEquals(newInstance.getInstanceId(), readerId);
         // Verify that there is a pool for the new instance
-        assertTrue(
-            provider.getHosts().stream().anyMatch((url) -> url.equals(newInstance.getUrl())));
+        assertTrue(provider.getHosts().stream()
+            .anyMatch((url) -> url.equals(newInstance.getUrl())));
         newInstanceConn.setReadOnly(false);
       } finally {
         auroraUtil.deleteInstance(newInstance);
@@ -167,7 +167,8 @@ public class AutoscalingTests {
       String instanceId = auroraUtil.queryInstanceId(newInstanceConn);
       assertNotEquals(instances.get(0).getInstanceId(), instanceId);
       assertNotEquals(newInstance.getInstanceId(), instanceId);
-      assertFalse(provider.getHosts().stream().anyMatch((url) -> url.equals(newInstance.getUrl())));
+      assertFalse(provider.getHosts().stream()
+          .anyMatch((url) -> url.equals(newInstance.getUrl())));
       assertEquals(instances.size(), provider.getHosts().size());
     } finally {
       for (Connection connection : connections) {
@@ -185,8 +186,8 @@ public class AutoscalingTests {
     final Properties props = getPropsWithFailover();
     final long topologyRefreshRateMs = 5000;
     ReadWriteSplittingPlugin.READER_HOST_SELECTOR_STRATEGY.set(props, "leastConnections");
-    RdsHostListProvider.CLUSTER_TOPOLOGY_REFRESH_RATE_MS.set(
-        props, Long.toString(topologyRefreshRateMs));
+    RdsHostListProvider.CLUSTER_TOPOLOGY_REFRESH_RATE_MS.set(props,
+        Long.toString(topologyRefreshRateMs));
 
     final TestEnvironmentInfo testInfo = TestEnvironment.getCurrent().getInfo();
     final List<TestInstanceInfo> instances = testInfo.getDatabaseInfo().getInstances();
@@ -217,8 +218,8 @@ public class AutoscalingTests {
         final String readerId = auroraUtil.queryInstanceId(newInstanceConn);
         assertEquals(newInstance.getInstanceId(), readerId);
         // Verify that there is a pool for the new instance
-        assertTrue(
-            provider.getHosts().stream().anyMatch((url) -> url.equals(newInstance.getUrl())));
+        assertTrue(provider.getHosts().stream()
+            .anyMatch((url) -> url.equals(newInstance.getUrl())));
       } finally {
         auroraUtil.deleteInstance(newInstance);
         instances.remove(newInstance);

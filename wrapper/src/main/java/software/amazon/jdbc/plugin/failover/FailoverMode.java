@@ -24,14 +24,13 @@ public enum FailoverMode {
   STRICT_READER,
   READER_OR_WRITER;
 
-  private static final Map<String, FailoverMode> nameToValue =
-      new HashMap<String, FailoverMode>() {
-        {
-          put("strict-writer", STRICT_WRITER);
-          put("strict-reader", STRICT_READER);
-          put("reader-or-writer", READER_OR_WRITER);
-        }
-      };
+  private static final Map<String, FailoverMode> nameToValue = new HashMap<String, FailoverMode>() {
+    {
+      put("strict-writer", STRICT_WRITER);
+      put("strict-reader", STRICT_READER);
+      put("reader-or-writer", READER_OR_WRITER);
+    }
+  };
 
   public static FailoverMode fromValue(String value) {
     if (value == null) {

@@ -26,16 +26,7 @@ import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
 
 /** Integration test for KMS encryption functionality with JSqlParser. */
 
-@ExtendWith(TestDriverProvider.class)
-@DisableOnTestFeature({
-    TestEnvironmentFeatures.PERFORMANCE,
-    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
-    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
-    TestEnvironmentFeatures.RUN_DB_METRICS_ONLY
-})
-@EnableOnDatabaseEngineDeployment({
-    DatabaseEngineDeployment.AURORA,
-})
+
 public class KmsEncryptionIntegrationTest {
 
   private static final Logger logger = LoggerFactory.getLogger(KmsEncryptionIntegrationTest.class);
@@ -64,8 +55,6 @@ public class KmsEncryptionIntegrationTest {
 
     // Get the metadata schema from config (defaults to "encrypt")
     String metadataSchema = EncryptionConfig.ENCRYPTION_METADATA_SCHEMA.defaultValue;
-
-    DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
 
     String url =
         String.format(
@@ -245,7 +234,7 @@ public class KmsEncryptionIntegrationTest {
     }
   }
 
-  @TestTemplate
+  @Test
   void testBasicEncryption() throws Exception {
     String insertSql = "INSERT INTO users (name, ssn, email) VALUES (?, ?, ?)";
     try (PreparedStatement pstmt = connection.prepareStatement(insertSql)) {
@@ -286,7 +275,7 @@ public class KmsEncryptionIntegrationTest {
     }
   }
 
-  @TestTemplate
+  @Test
   void testUpdateEncryption() throws Exception {
     String insertSql = "INSERT INTO users (name, ssn,email) VALUES (?, ?, ?)";
     logger.trace("testUpdateEncryption: INSERT SQL: {}", insertSql);
@@ -336,7 +325,7 @@ public class KmsEncryptionIntegrationTest {
     }
   }
 
-  @TestTemplate
+  @Test
   void testEncryptionMetadataSetup() throws Exception {
     // Verify encryption metadata was created with master key ARN
     String metadataSql =
@@ -369,7 +358,7 @@ public class KmsEncryptionIntegrationTest {
     assertTrue(kmsKeyArn.startsWith("arn:aws:kms:"));
   }
 
-  @TestTemplate
+  @Test
   void testEncryptedDataTypeHmacVerification() throws Exception {
     // Insert test data
     String insertSql = "INSERT INTO users (name, ssn, email) VALUES (?, ?, ?)";
@@ -405,7 +394,7 @@ public class KmsEncryptionIntegrationTest {
     }
   }
 
-  @TestTemplate
+  @Test
   public void testPlainTextFails() {
     // make sure we cannot insert plain text into the ssn column
     assertThrows(SQLException.class,() -> {

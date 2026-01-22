@@ -28,8 +28,7 @@ public class ConfigurationProfilePresetCodes {
   // Presets family D, E ,F - internal connection pool
   // Presets family G, H, I - external connection pool
 
-  // Presets family SF_D, SF_E ,SF_F - internal connection pool; optimized for Spring Framework /
-  // Spring Boot
+  // Presets family SF_D, SF_E ,SF_F - internal connection pool; optimized for Spring Framework / Spring Boot
 
   public static final String A0 = "A0"; // Normal
   public static final String A1 = "A1"; // Easy

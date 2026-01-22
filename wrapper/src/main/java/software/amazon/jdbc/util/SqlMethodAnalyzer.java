@@ -25,110 +25,49 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-import net.sf.jsqlparser.JSQLParserException;
-import net.sf.jsqlparser.parser.CCJSqlParserUtil;
-import net.sf.jsqlparser.statement.Statement;
 import software.amazon.jdbc.JdbcMethod;
-import software.amazon.jdbc.PluginService;
 
 public class SqlMethodAnalyzer {
 
-  private static final Set<String> CLOSING_METHOD_NAMES =
-      Collections.unmodifiableSet(
-          new HashSet<>(
-              Arrays.asList(
-                  JdbcMethod.CONNECTION_CLOSE.methodName,
-                  JdbcMethod.CONNECTION_ABORT.methodName,
-                  JdbcMethod.STATEMENT_CLOSE.methodName,
-                  JdbcMethod.CALLABLESTATEMENT_CLOSE.methodName,
-                  JdbcMethod.PREPAREDSTATEMENT_CLOSE.methodName,
-                  JdbcMethod.RESULTSET_CLOSE.methodName)));
+  private static final Set<String> CLOSING_METHOD_NAMES = Collections.unmodifiableSet(
+      new HashSet<>(Arrays.asList(
+          JdbcMethod.CONNECTION_CLOSE.methodName,
+          JdbcMethod.CONNECTION_ABORT.methodName,
+          JdbcMethod.STATEMENT_CLOSE.methodName,
+          JdbcMethod.CALLABLESTATEMENT_CLOSE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_CLOSE.methodName,
+          JdbcMethod.RESULTSET_CLOSE.methodName
+      )));
 
-  private String getQueryTypeFromParseTree(String sql, PluginService pluginService) {
-    try {
-      Statement statement = CCJSqlParserUtil.parse(sql);
-      String className = statement.getClass().getSimpleName();
+  private static final Set<String> EXECUTE_SQL_METHOD_NAMES = Collections.unmodifiableSet(
+      new HashSet<>(Arrays.asList(
+          JdbcMethod.STATEMENT_EXECUTE.methodName,
+          JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
+          JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName
+      )));
 
-      if (className.contains("Select")) {
-        return "SELECT";
-      } else if (className.contains("Insert")) {
-        return "INSERT";
-      } else if (className.contains("Update")) {
-        return "UPDATE";
-      } else if (className.contains("Delete")) {
-        return "DELETE";
-      } else if (className.contains("Create")) {
-        return "CREATE";
-      } else if (className.contains("Drop")) {
-        return "DROP";
-      } else if (className.contains("Set")) {
-        return "SET";
-      }
-    } catch (JSQLParserException e) {
-      // Fallback to string parsing
-    }
+  private static final Set<String> CLOSE_TRANSACTION_METHOD_NAMES = Collections.unmodifiableSet(
+      new HashSet<>(Arrays.asList(
+          JdbcMethod.CONNECTION_COMMIT.methodName,
+          JdbcMethod.CONNECTION_ROLLBACK.methodName,
+          JdbcMethod.CONNECTION_CLOSE.methodName,
+          JdbcMethod.CONNECTION_ABORT.methodName
+      )));
 
-    // Fallback string parsing
-    String trimmed = sql.trim().toUpperCase();
-    if (trimmed.startsWith("SELECT")) {
-      return "SELECT";
-    }
-    if (trimmed.startsWith("INSERT")) {
-      return "INSERT";
-    }
-    if (trimmed.startsWith("UPDATE")) {
-      return "UPDATE";
-    }
-    if (trimmed.startsWith("DELETE")) {
-      return "DELETE";
-    }
-    if (trimmed.startsWith("CREATE")) {
-      return "CREATE";
-    }
-    if (trimmed.startsWith("DROP")) {
-      return "DROP";
-    }
-    if (trimmed.startsWith("SET")) {
-      return "SET";
-    }
-
-    return "UNKNOWN";
-  }
-
-  private static final Set<String> EXECUTE_SQL_METHOD_NAMES =
-      Collections.unmodifiableSet(
-          new HashSet<>(
-              Arrays.asList(
-                  JdbcMethod.STATEMENT_EXECUTE.methodName,
-                  JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
-                  JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName,
-                  JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
-                  JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName,
-                  JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName,
-                  JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName,
-                  JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName,
-                  JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName)));
-
-  private static final Set<String> CLOSE_TRANSACTION_METHOD_NAMES =
-      Collections.unmodifiableSet(
-          new HashSet<>(
-              Arrays.asList(
-                  JdbcMethod.CONNECTION_COMMIT.methodName,
-                  JdbcMethod.CONNECTION_ROLLBACK.methodName,
-                  JdbcMethod.CONNECTION_CLOSE.methodName,
-                  JdbcMethod.CONNECTION_ABORT.methodName)));
-
-  public boolean doesOpenTransaction(
-      final Connection conn,
-      final String methodName,
-      final Object[] args,
-      PluginService pluginService) {
+  public boolean doesOpenTransaction(final Connection conn, final String methodName,
+      final Object[] args) {
     if (!(EXECUTE_SQL_METHOD_NAMES.contains(methodName) && args != null && args.length >= 1)) {
       return false;
     }
 
     final String statement = getFirstSqlStatement(String.valueOf(args[0]));
-    if (isStatementStartingTransaction(statement, pluginService)) {
+    if (isStatementStartingTransaction(statement)) {
       return true;
     }
 
@@ -139,12 +78,7 @@ public class SqlMethodAnalyzer {
       return false;
     }
 
-    return !autocommit && isStatementDml(statement, pluginService);
-  }
-
-  public boolean doesOpenTransaction(
-      final Connection conn, final String methodName, final Object[] args) {
-    return doesOpenTransaction(conn, methodName, args, null);
+    return !autocommit && isStatementDml(statement);
   }
 
   private String getFirstSqlStatement(final String sql) {
@@ -173,16 +107,13 @@ public class SqlMethodAnalyzer {
     return Arrays.stream(query.split(";")).collect(Collectors.toList());
   }
 
-  public boolean doesCloseTransaction(
-      final Connection conn,
-      final String methodName,
-      final Object[] args,
-      PluginService pluginService) {
+  public boolean doesCloseTransaction(final Connection conn, final String methodName,
+      final Object[] args) {
     if (CLOSE_TRANSACTION_METHOD_NAMES.contains(methodName)) {
       return true;
     }
 
-    if (doesSwitchAutoCommitFalseTrue(conn, methodName, args, pluginService)) {
+    if (doesSwitchAutoCommitFalseTrue(conn, methodName, args)) {
       return true;
     }
 
@@ -191,86 +122,29 @@ public class SqlMethodAnalyzer {
     }
 
     final String statement = getFirstSqlStatement(String.valueOf(args[0]));
-    return isStatementClosingTransaction(statement, pluginService);
+    return isStatementClosingTransaction(statement);
   }
 
-  public boolean doesCloseTransaction(
-      final Connection conn, final String methodName, final Object[] args) {
-    return doesCloseTransaction(conn, methodName, args, null);
+  public boolean isStatementDml(final String statement) {
+    return !isStatementStartingTransaction(statement)
+        && !isStatementClosingTransaction(statement)
+        && !statement.startsWith("SET ")
+        && !statement.startsWith("USE ")
+        && !statement.startsWith("SHOW ");
   }
 
-  private String getQueryTypeFromString(final String sql) {
-    final String trimmed = sql.trim().toUpperCase();
-    if (trimmed.startsWith("SELECT")) {
-      return "SELECT";
-    }
-    if (trimmed.startsWith("INSERT")) {
-      return "INSERT";
-    }
-    if (trimmed.startsWith("UPDATE")) {
-      return "UPDATE";
-    }
-    if (trimmed.startsWith("DELETE")) {
-      return "DELETE";
-    }
-    if (trimmed.startsWith("CREATE")) {
-      return "CREATE";
-    }
-    if (trimmed.startsWith("DROP")) {
-      return "DROP";
-    }
-    if (trimmed.startsWith("ALTER")) {
-      return "ALTER";
-    }
-    if (trimmed.startsWith("BEGIN") || trimmed.startsWith("START TRANSACTION")) {
-      return "BEGIN";
-    }
-    if (trimmed.startsWith("COMMIT")) {
-      return "COMMIT";
-    }
-    if (trimmed.startsWith("ROLLBACK")) {
-      return "ROLLBACK";
-    }
-    if (trimmed.startsWith("END")) {
-      return "COMMIT"; // END is equivalent to COMMIT
-    }
-    if (trimmed.startsWith("ABORT")) {
-      return "ROLLBACK"; // ABORT is equivalent to ROLLBACK
-    }
-    if (trimmed.startsWith("SET")) {
-      return "SET";
-    }
-    if (trimmed.startsWith("USE")) {
-      return "USE";
-    }
-    if (trimmed.startsWith("SHOW")) {
-      return "SHOW";
-    }
-    return "UNKNOWN";
+  public boolean isStatementStartingTransaction(final String statement) {
+    return statement.startsWith("BEGIN") || statement.startsWith("START TRANSACTION");
   }
 
-  public boolean isStatementDml(final String statement, PluginService pluginService) {
-    final String queryType = getQueryTypeFromParseTree(statement, pluginService);
-    return "SELECT".equals(queryType)
-        || "INSERT".equals(queryType)
-        || "UPDATE".equals(queryType)
-        || "DELETE".equals(queryType);
+  public boolean isStatementClosingTransaction(final String statement) {
+    return statement.startsWith("COMMIT")
+        || statement.startsWith("ROLLBACK")
+        || statement.startsWith("END")
+        || statement.startsWith("ABORT");
   }
 
-  public boolean isStatementStartingTransaction(
-      final String statement, PluginService pluginService) {
-    final String queryType = getQueryTypeFromParseTree(statement, pluginService);
-    return "BEGIN".equals(queryType);
-  }
-
-  public boolean isStatementClosingTransaction(
-      final String statement, PluginService pluginService) {
-    final String queryType = getQueryTypeFromParseTree(statement, pluginService);
-    return "COMMIT".equals(queryType) || "ROLLBACK".equals(queryType);
-  }
-
-  public boolean isStatementSettingAutoCommit(
-      final String methodName, final Object[] args, PluginService pluginService) {
+  public boolean isStatementSettingAutoCommit(final String methodName, final Object[] args) {
     if (args == null || args.length < 1) {
       return false;
     }
@@ -280,31 +154,14 @@ public class SqlMethodAnalyzer {
     }
 
     final String statement = getFirstSqlStatement(String.valueOf(args[0]));
-    final String queryType = getQueryTypeFromParseTree(statement, pluginService);
-
-    // Check if it's a SET statement and contains AUTOCOMMIT
-    if ("SET".equals(queryType)) {
-      return statement.toUpperCase().contains("AUTOCOMMIT");
-    }
-
-    // Fallback: check if the statement starts with SET AUTOCOMMIT directly
-    final String trimmed = statement.trim().toUpperCase();
-    return trimmed.startsWith("SET") && trimmed.contains("AUTOCOMMIT");
+    return statement.startsWith("SET AUTOCOMMIT");
   }
 
-  public boolean isStatementSettingAutoCommit(final String methodName, final Object[] args) {
-    return isStatementSettingAutoCommit(methodName, args, null);
-  }
-
-  public boolean doesSwitchAutoCommitFalseTrue(
-      final Connection conn,
-      final String methodName,
-      final Object[] jdbcMethodArgs,
-      PluginService pluginService) {
-    final boolean isStatementSettingAutoCommit =
-        isStatementSettingAutoCommit(methodName, jdbcMethodArgs, pluginService);
-    if (!isStatementSettingAutoCommit
-        && !JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName.equals(methodName)) {
+  public boolean doesSwitchAutoCommitFalseTrue(final Connection conn, final String methodName,
+      final Object[] jdbcMethodArgs) {
+    final boolean isStatementSettingAutoCommit = isStatementSettingAutoCommit(
+        methodName, jdbcMethodArgs);
+    if (!isStatementSettingAutoCommit && !JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName.equals(methodName)) {
       return false;
     }
 
@@ -316,19 +173,13 @@ public class SqlMethodAnalyzer {
       return false;
     }
 
-    if (JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName.equals(methodName)
-        && jdbcMethodArgs.length > 0) {
+    if (JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName.equals(methodName) && jdbcMethodArgs.length > 0) {
       newAutoCommitVal = (Boolean) jdbcMethodArgs[0];
     } else if (isStatementSettingAutoCommit) {
       newAutoCommitVal = getAutoCommitValueFromSqlStatement(jdbcMethodArgs);
     }
 
     return !oldAutoCommitVal && Boolean.TRUE.equals(newAutoCommitVal);
-  }
-
-  public boolean doesSwitchAutoCommitFalseTrue(
-      final Connection conn, final String methodName, final Object[] jdbcMethodArgs) {
-    return doesSwitchAutoCommitFalseTrue(conn, methodName, jdbcMethodArgs, null);
   }
 
   public Boolean getAutoCommitValueFromSqlStatement(final Object[] args) {

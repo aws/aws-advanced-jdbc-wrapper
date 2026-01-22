@@ -31,8 +31,18 @@ public class ConnectionStringHelper {
   public static String getUrl() {
     return getUrl(
         TestEnvironment.getCurrent().getCurrentDriver(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0).getHost(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0).getPort(),
+        TestEnvironment.getCurrent()
+            .getInfo()
+            .getDatabaseInfo()
+            .getInstances()
+            .get(0)
+            .getHost(),
+        TestEnvironment.getCurrent()
+            .getInfo()
+            .getDatabaseInfo()
+            .getInstances()
+            .get(0)
+            .getPort(),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
   }
 
@@ -40,27 +50,29 @@ public class ConnectionStringHelper {
     return getUrl(TestEnvironment.getCurrent().getCurrentDriver(), host, port, databaseName);
   }
 
-  public static String getUrl(TestDriver testDriver, String host, int port, String databaseName) {
-    final DatabaseEngine databaseEngine =
-        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
-    final String requiredParameters =
-        DriverHelper.getDriverRequiredParameters(databaseEngine, testDriver);
-    final String url =
-        DriverHelper.getDriverProtocol(databaseEngine, testDriver)
-            + host
-            + ":"
-            + port
-            + "/"
-            + databaseName
-            + requiredParameters;
+  public static String getUrl(
+      TestDriver testDriver,
+      String host,
+      int port,
+      String databaseName) {
+    final DatabaseEngine databaseEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
+    final String requiredParameters = DriverHelper.getDriverRequiredParameters(databaseEngine, testDriver);
+    final String url = DriverHelper.getDriverProtocol(databaseEngine, testDriver)
+        + host
+        + ":"
+        + port
+        + "/"
+        + databaseName
+        + requiredParameters;
     return url;
   }
 
-  public static String getWrapperUrlWithPlugins(
-      String host, int port, String databaseName, String wrapperPlugins) {
-    final String url =
-        getWrapperUrl(TestEnvironment.getCurrent().getCurrentDriver(), host, port, databaseName);
-    return url + (url.contains("?") ? "&" : "?") + "wrapperPlugins=" + wrapperPlugins;
+  public static String getWrapperUrlWithPlugins(String host, int port, String databaseName, String wrapperPlugins) {
+    final String url = getWrapperUrl(TestEnvironment.getCurrent().getCurrentDriver(), host, port, databaseName);
+    return url
+        + (url.contains("?") ? "&" : "?")
+        + "wrapperPlugins="
+        + wrapperPlugins;
   }
 
   /**
@@ -71,8 +83,18 @@ public class ConnectionStringHelper {
   public static String getWrapperUrl() {
     return getWrapperUrl(
         TestEnvironment.getCurrent().getCurrentDriver(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0).getHost(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0).getPort(),
+        TestEnvironment.getCurrent()
+            .getInfo()
+            .getDatabaseInfo()
+            .getInstances()
+            .get(0)
+            .getHost(),
+        TestEnvironment.getCurrent()
+            .getInfo()
+            .getDatabaseInfo()
+            .getInstances()
+            .get(0)
+            .getPort(),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
   }
 
@@ -88,7 +110,12 @@ public class ConnectionStringHelper {
     return getWrapperUrl(
         TestEnvironment.getCurrent().getCurrentDriver(),
         host,
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0).getPort(),
+        TestEnvironment.getCurrent()
+            .getInfo()
+            .getDatabaseInfo()
+            .getInstances()
+            .get(0)
+            .getPort(),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
   }
 
@@ -99,21 +126,27 @@ public class ConnectionStringHelper {
   public static String getWrapperUrl(
       TestDriver testDriver, String host, int port, String databaseName) {
     return DriverHelper.getWrapperDriverProtocol(
-            TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), testDriver)
+        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), testDriver)
         + host
         + ":"
         + port
         + "/"
         + databaseName
         + DriverHelper.getDriverRequiredParameters(
-            TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), testDriver);
+        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), testDriver);
   }
 
   public static String getWrapperReaderClusterUrl() {
     return ConnectionStringHelper.getWrapperUrl(
         TestEnvironment.getCurrent().getCurrentDriver(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterReadOnlyEndpoint(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterReadOnlyEndpointPort(),
+        TestEnvironment.getCurrent()
+            .getInfo()
+            .getDatabaseInfo()
+            .getClusterReadOnlyEndpoint(),
+        TestEnvironment.getCurrent()
+            .getInfo()
+            .getDatabaseInfo()
+            .getClusterReadOnlyEndpointPort(),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
   }
 
@@ -154,14 +187,19 @@ public class ConnectionStringHelper {
   }
 
   public static String getWrapperClusterEndpointUrl() {
-    if (StringUtils.isNullOrEmpty(
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint())) {
+    if (StringUtils.isNullOrEmpty(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint())) {
       throw new RuntimeException("Cluster Endpoint is not available in this test environment.");
     }
     return getWrapperUrl(
         TestEnvironment.getCurrent().getCurrentDriver(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpointPort(),
+        TestEnvironment.getCurrent()
+            .getInfo()
+            .getDatabaseInfo()
+            .getClusterEndpoint(),
+        TestEnvironment.getCurrent()
+            .getInfo()
+            .getDatabaseInfo()
+            .getClusterEndpointPort(),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
   }
 
@@ -184,12 +222,9 @@ public class ConnectionStringHelper {
     props.setProperty(PropertyDefinition.TCP_KEEP_ALIVE.name, "false");
 
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB) {
-      // This property is sometimes required when using the mariadb driver against multi-az mysql
-      // version 8.4, or you
-      // will get the error "RSA public key is not available client side" when connecting. The
-      // mariadb driver may not
-      // fully support mysql 8.4's SSL mechanisms, which is why this property is only required for
-      // newer mysql versions.
+      // This property is sometimes required when using the mariadb driver against multi-az mysql version 8.4, or you
+      // will get the error "RSA public key is not available client side" when connecting. The mariadb driver may not
+      // fully support mysql 8.4's SSL mechanisms, which is why this property is only required for newer mysql versions.
       props.setProperty("allowPublicKeyRetrieval", "true");
     }
 

@@ -55,7 +55,8 @@ public class LogQueryConnectionPlugin extends AbstractConnectionPlugin {
                   JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
                   JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName,
                   JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName,
-                  JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE.methodName)));
+                  JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE.methodName
+              )));
 
   private static final Set<String> methodWithQueryArg =
       new HashSet<>(
@@ -68,7 +69,8 @@ public class LogQueryConnectionPlugin extends AbstractConnectionPlugin {
               JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName,
               JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
               JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName,
-              JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName));
+              JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName
+          ));
 
   private static final Set<String> methodWithNoArg =
       new HashSet<>(
@@ -80,7 +82,8 @@ public class LogQueryConnectionPlugin extends AbstractConnectionPlugin {
               JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
               JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName,
               JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName,
-              JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE.methodName));
+              JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE.methodName
+          ));
 
   private final Map<String, String> queryAccessorByClassName =
       new HashMap<String, String>() {
@@ -128,16 +131,15 @@ public class LogQueryConnectionPlugin extends AbstractConnectionPlugin {
 
     if (!StringUtils.isNullOrEmpty(sql)) {
       LOGGER.fine(
-          () ->
-              Messages.get(
-                  "LogQueryConnectionPlugin.executingQuery", new Object[] {methodName, sql}));
+          () -> Messages.get(
+              "LogQueryConnectionPlugin.executingQuery",
+              new Object[] {methodName, sql}));
     }
 
     return jdbcMethodFunc.call();
   }
 
-  protected <T> String getQuery(
-      final Object methodInvokeOn, final String methodName, final Object[] jdbcMethodArgs) {
+  protected <T> String getQuery(final Object methodInvokeOn, final String methodName, final Object[] jdbcMethodArgs) {
 
     // Get query from method argument
     if (methodWithQueryArg.contains(methodName)

@@ -82,29 +82,21 @@ class AdfsCredentialsProviderFactoryTest {
     when(mockStatusLine.getStatusCode()).thenReturn(200);
     when(mockHttpGetSignInPageResponse.getEntity()).thenReturn(mockSignInPageHttpEntity);
 
-    final String signinPageHtml =
-        IOUtils.toString(
-            this.getClass()
-                .getClassLoader()
-                .getResourceAsStream("federated_auth/adfs-sign-in-page.html"),
-            "UTF-8");
-    final InputStream signInPageHtmlInputStream =
-        new ByteArrayInputStream(signinPageHtml.getBytes());
+    final String signinPageHtml = IOUtils.toString(
+        this.getClass().getClassLoader().getResourceAsStream("federated_auth/adfs-sign-in-page.html"), "UTF-8");
+    final InputStream signInPageHtmlInputStream = new ByteArrayInputStream(signinPageHtml.getBytes());
     when(mockSignInPageHttpEntity.getContent()).thenReturn(signInPageHtmlInputStream);
 
     when(mockHttpClient.execute(any(HttpPost.class))).thenReturn(mockHttpPostSignInResponse);
     when(mockHttpPostSignInResponse.getStatusLine()).thenReturn(mockStatusLine);
     when(mockHttpPostSignInResponse.getEntity()).thenReturn(mockSamlHttpEntity);
 
-    final String adfsSamlHtml =
-        IOUtils.toString(
-            this.getClass().getClassLoader().getResourceAsStream("federated_auth/adfs-saml.html"),
-            "UTF-8");
+    final String adfsSamlHtml = IOUtils.toString(
+        this.getClass().getClassLoader().getResourceAsStream("federated_auth/adfs-saml.html"), "UTF-8");
     final InputStream samlHtmlInputStream = new ByteArrayInputStream(adfsSamlHtml.getBytes());
     when(mockSamlHttpEntity.getContent()).thenReturn(samlHtmlInputStream);
 
-    this.adfsCredentialsProviderFactory =
-        new AdfsCredentialsProviderFactory(mockPluginService, mockHttpClientSupplier);
+    this.adfsCredentialsProviderFactory = new AdfsCredentialsProviderFactory(mockPluginService, mockHttpClientSupplier);
   }
 
   @AfterEach
@@ -114,25 +106,21 @@ class AdfsCredentialsProviderFactoryTest {
 
   @Test
   void test() throws IOException, SQLException {
-    when(mockHttpClient.execute(any(HttpUriRequest.class)))
-        .thenReturn(mockHttpGetSignInPageResponse, mockHttpPostSignInResponse);
-    final String correctSamlAssertion =
-        IOUtils.toString(
-                Objects.requireNonNull(
-                    this.getClass()
-                        .getClassLoader()
-                        .getResourceAsStream("federated_auth/saml-assertion.txt")),
-                "UTF-8")
-            .replace("\n", "")
-            .replace("\r", "");
+    when(mockHttpClient.execute(any(HttpUriRequest.class))).thenReturn(
+        mockHttpGetSignInPageResponse,
+        mockHttpPostSignInResponse);
+    final String correctSamlAssertion = IOUtils.toString(
+            Objects.requireNonNull(
+                this.getClass().getClassLoader().getResourceAsStream("federated_auth/saml-assertion.txt")),
+            "UTF-8")
+        .replace("\n", "")
+        .replace("\r", "");
     final String samlAssertion = this.adfsCredentialsProviderFactory.getSamlAssertion(props);
     assertEquals(correctSamlAssertion, samlAssertion);
 
-    final ArgumentCaptor<HttpUriRequest> httpPostArgumentCaptor =
-        ArgumentCaptor.forClass(HttpUriRequest.class);
+    final ArgumentCaptor<HttpUriRequest> httpPostArgumentCaptor = ArgumentCaptor.forClass(HttpUriRequest.class);
     verify(mockHttpClient, times(2)).execute(httpPostArgumentCaptor.capture());
-    final HttpEntityEnclosingRequest actualHttpPost =
-        (HttpEntityEnclosingRequest) httpPostArgumentCaptor.getValue();
+    final HttpEntityEnclosingRequest actualHttpPost = (HttpEntityEnclosingRequest) httpPostArgumentCaptor.getValue();
     final String content = EntityUtils.toString(actualHttpPost.getEntity());
     final String[] params = content.split("&");
     assertEquals("UserName=" + USERNAME.replace("@", "%40"), params[0]);

@@ -22,7 +22,5 @@ public interface ExceptionSimulator {
 
   void raiseExceptionOnNextCall(final String methodName, final Throwable throwable);
 
-  void setCallback(
-      final ExceptionSimulatorExecuteJdbcMethodCallback
-          exceptionSimulatorExecuteJdbcMethodCallback);
+  void setCallback(final ExceptionSimulatorExecuteJdbcMethodCallback exceptionSimulatorExecuteJdbcMethodCallback);
 }

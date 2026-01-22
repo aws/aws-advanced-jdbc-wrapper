@@ -27,7 +27,8 @@ public class TestInstanceInfo {
   private int port;
 
   // This constructor should NOT be used in the code. It's required for serialization.
-  public TestInstanceInfo() {}
+  public TestInstanceInfo() {
+  }
 
   public TestInstanceInfo(String instanceId, String host, int port) {
     this.instanceId = instanceId;

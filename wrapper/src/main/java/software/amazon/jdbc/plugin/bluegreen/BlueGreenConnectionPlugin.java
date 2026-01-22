@@ -49,37 +49,31 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
   private static final Logger LOGGER = Logger.getLogger(BlueGreenConnectionPlugin.class.getName());
 
-  public static final AwsWrapperProperty BG_CONNECT_TIMEOUT =
-      new AwsWrapperProperty(
-          "bgConnectTimeoutMs",
-          "30000",
-          "Connect timeout (in msec) during Blue/Green Deployment switchover.");
+  public static final AwsWrapperProperty BG_CONNECT_TIMEOUT = new AwsWrapperProperty(
+      "bgConnectTimeoutMs", "30000",
+      "Connect timeout (in msec) during Blue/Green Deployment switchover.");
 
-  public static final AwsWrapperProperty BGD_ID =
-      new AwsWrapperProperty(
-          "bgdId",
-          "1",
-          "Blue/Green Deployment identifier that helps the driver to distinguish different deployments.");
+  public static final AwsWrapperProperty BGD_ID = new AwsWrapperProperty(
+      "bgdId", "1",
+      "Blue/Green Deployment identifier that helps the driver to distinguish different deployments.");
 
   protected static Map<String, BlueGreenStatusProvider> provider = new ConcurrentHashMap<>();
 
-  private static final Set<String> CLOSING_METHOD_NAMES =
-      Collections.unmodifiableSet(
-          new HashSet<>(
-              Arrays.asList(
-                  JdbcMethod.CONNECTION_CLOSE.methodName,
-                  JdbcMethod.CONNECTION_ABORT.methodName,
-                  JdbcMethod.STATEMENT_CLOSE.methodName,
-                  JdbcMethod.CALLABLESTATEMENT_CLOSE.methodName,
-                  JdbcMethod.PREPAREDSTATEMENT_CLOSE.methodName,
-                  JdbcMethod.RESULTSET_CLOSE.methodName)));
+  private static final Set<String> CLOSING_METHOD_NAMES = Collections.unmodifiableSet(
+      new HashSet<>(Arrays.asList(
+          JdbcMethod.CONNECTION_CLOSE.methodName,
+          JdbcMethod.CONNECTION_ABORT.methodName,
+          JdbcMethod.STATEMENT_CLOSE.methodName,
+          JdbcMethod.CALLABLESTATEMENT_CLOSE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_CLOSE.methodName,
+          JdbcMethod.RESULTSET_CLOSE.methodName
+      )));
 
   static {
     PropertyDefinition.registerPluginProperties(BlueGreenConnectionPlugin.class);
   }
 
-  protected static final String BG_SKIP_ROUTING_IN_FORCE_CONNECT =
-      "3a864d24-568f-4b55-a227-6f649ae3021a";
+  protected static final String BG_SKIP_ROUTING_IN_FORCE_CONNECT = "3a864d24-568f-4b55-a227-6f649ae3021a";
 
   protected final FullServicesContainer servicesContainer;
   protected final StorageService storageService;
@@ -102,7 +96,8 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
   protected final Set<String> subscribedMethods;
 
   public BlueGreenConnectionPlugin(
-      final @NonNull FullServicesContainer servicesContainer, final @NonNull Properties props) {
+      final @NonNull FullServicesContainer servicesContainer,
+      final @NonNull Properties props) {
     this(servicesContainer, props, BlueGreenStatusProvider::new);
   }
 
@@ -124,8 +119,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
     // BG monitoring, and we don't want to intercept/block those monitoring connections.
     methods.add(JdbcMethod.CONNECT.methodName);
     methods.add(JdbcMethod.FORCECONNECT.methodName);
-    methods.addAll(
-        this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.props));
+    methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.props));
     this.subscribedMethods = Collections.unmodifiableSet(methods);
   }
 
@@ -147,7 +141,8 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
       return connectFunc.call();
     }
 
-    return this.connectInternal(hostSpec, props, isInitialConnection, true, connectFunc);
+    return this.connectInternal(
+        hostSpec, props, isInitialConnection, true, connectFunc);
   }
 
   @Override
@@ -158,7 +153,8 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
-    return this.connectInternal(hostSpec, props, isInitialConnection, false, connectFunc);
+    return this.connectInternal(
+        hostSpec, props, isInitialConnection, false, connectFunc);
   }
 
   protected Connection connectInternal(
@@ -191,11 +187,10 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
       }
 
       Connection conn = null;
-      ConnectRouting routing =
-          this.bgStatus.getConnectRouting().stream()
-              .filter(r -> r.isMatch(hostSpec, hostRole))
-              .findFirst()
-              .orElse(null);
+      ConnectRouting routing = this.bgStatus.getConnectRouting().stream()
+          .filter(r -> r.isMatch(hostSpec, hostRole))
+          .findFirst()
+          .orElse(null);
 
       if (routing == null) {
         return regularOpenConnection(connectFunc, isInitialConnection, useForceConnect);
@@ -204,16 +199,15 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
       this.startTimeNano.set(this.getNanoTime());
 
       while (routing != null && conn == null) {
-        conn =
-            routing.apply(
-                this,
-                hostSpec,
-                props,
-                isInitialConnection,
-                useForceConnect,
-                connectFunc,
-                this.storageService,
-                this.pluginService);
+        conn = routing.apply(
+            this,
+            hostSpec,
+            props,
+            isInitialConnection,
+            useForceConnect,
+            connectFunc,
+            this.storageService,
+            this.pluginService);
         if (conn == null) {
 
           this.bgStatus = this.storageService.get(BlueGreenStatus.class, this.bgdId);
@@ -222,11 +216,10 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
             return regularOpenConnection(connectFunc, isInitialConnection, useForceConnect);
           }
 
-          routing =
-              this.bgStatus.getConnectRouting().stream()
-                  .filter(r -> r.isMatch(hostSpec, hostRole))
-                  .findFirst()
-                  .orElse(null);
+          routing = this.bgStatus.getConnectRouting().stream()
+              .filter(r -> r.isMatch(hostSpec, hostRole))
+              .findFirst()
+              .orElse(null);
         }
       }
 
@@ -237,8 +230,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
       }
 
       if (isInitialConnection && !useForceConnect) {
-        // Provider should be initialized after connection is open and a dialect is properly
-        // identified.
+        // Provider should be initialized after connection is open and a dialect is properly identified.
         this.initProvider();
       }
 
@@ -253,15 +245,12 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
   protected Connection regularOpenConnection(
       final JdbcCallable<Connection, SQLException> connectFunc,
-      final boolean isInitialConnection,
-      final boolean useForceConnect)
-      throws SQLException {
+      final boolean isInitialConnection, final boolean useForceConnect) throws SQLException {
 
     Connection conn = connectFunc.call();
 
     if (isInitialConnection && !useForceConnect) {
-      // Provider should be initialized after connection is open and a dialect is properly
-      // identified.
+      // Provider should be initialized after connection is open and a dialect is properly identified.
       this.initProvider();
     }
 
@@ -302,11 +291,10 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
       }
 
       Optional<T> result = Optional.empty();
-      ExecuteRouting routing =
-          this.bgStatus.getExecuteRouting().stream()
-              .filter(r -> r.isMatch(currentHostSpec, hostRole))
-              .findFirst()
-              .orElse(null);
+      ExecuteRouting routing = this.bgStatus.getExecuteRouting().stream()
+          .filter(r -> r.isMatch(currentHostSpec, hostRole))
+          .findFirst()
+          .orElse(null);
 
       if (routing == null) {
         return jdbcMethodFunc.call();
@@ -315,18 +303,17 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
       this.startTimeNano.set(this.getNanoTime());
 
       while (routing != null && !result.isPresent()) {
-        result =
-            routing.apply(
-                this,
-                resultClass,
-                exceptionClass,
-                methodInvokeOn,
-                methodName,
-                jdbcMethodFunc,
-                jdbcMethodArgs,
-                this.storageService,
-                this.pluginService,
-                this.props);
+        result = routing.apply(
+            this,
+            resultClass,
+            exceptionClass,
+            methodInvokeOn,
+            methodName,
+            jdbcMethodFunc,
+            jdbcMethodArgs,
+            this.storageService,
+            this.pluginService,
+            this.props);
 
         if (!result.isPresent()) {
 
@@ -336,11 +323,10 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
             return jdbcMethodFunc.call();
           }
 
-          routing =
-              this.bgStatus.getExecuteRouting().stream()
-                  .filter(r -> r.isMatch(currentHostSpec, hostRole))
-                  .findFirst()
-                  .orElse(null);
+          routing = this.bgStatus.getExecuteRouting().stream()
+              .filter(r -> r.isMatch(currentHostSpec, hostRole))
+              .findFirst()
+              .orElse(null);
         }
       }
 
@@ -366,11 +352,8 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
       throw new RuntimeException(ex);
     }
 
-    provider.computeIfAbsent(
-        this.bgdId,
-        (key) ->
-            this.providerSupplier.create(
-                this.servicesContainer, this.props, this.bgdId, this.clusterId));
+    provider.computeIfAbsent(this.bgdId,
+        (key) -> this.providerSupplier.create(this.servicesContainer, this.props, this.bgdId, this.clusterId));
   }
 
   // For testing purposes

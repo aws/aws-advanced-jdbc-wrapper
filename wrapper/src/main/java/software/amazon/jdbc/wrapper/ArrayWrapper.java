@@ -147,8 +147,8 @@ public class ArrayWrapper implements Array {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.connectionWrapper,
-        this.pluginManager,
+         this.connectionWrapper,
+          this.pluginManager,
         this.array,
         JdbcMethod.ARRAY_GETRESULTSET,
         this.array::getResultSet);
@@ -159,8 +159,8 @@ public class ArrayWrapper implements Array {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.connectionWrapper,
-        this.pluginManager,
+         this.connectionWrapper,
+          this.pluginManager,
         this.array,
         JdbcMethod.ARRAY_GETRESULTSET,
         () -> this.array.getResultSet(map),
@@ -172,8 +172,8 @@ public class ArrayWrapper implements Array {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.connectionWrapper,
-        this.pluginManager,
+         this.connectionWrapper,
+          this.pluginManager,
         this.array,
         JdbcMethod.ARRAY_GETRESULTSET,
         () -> this.array.getResultSet(index, count),
@@ -187,8 +187,8 @@ public class ArrayWrapper implements Array {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.connectionWrapper,
-        this.pluginManager,
+         this.connectionWrapper,
+          this.pluginManager,
         this.array,
         JdbcMethod.ARRAY_GETRESULTSET,
         () -> this.array.getResultSet(index, count, map),

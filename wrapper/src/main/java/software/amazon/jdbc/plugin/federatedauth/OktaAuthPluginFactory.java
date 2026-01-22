@@ -32,17 +32,16 @@ public class OktaAuthPluginFactory implements ConnectionPluginFactory {
     return new OktaAuthPlugin(pluginService, getCredentialsProviderFactory(pluginService, props));
   }
 
-  private CredentialsProviderFactory getCredentialsProviderFactory(
-      final PluginService pluginService, final Properties props) {
+  private CredentialsProviderFactory getCredentialsProviderFactory(final PluginService pluginService,
+      final Properties props) {
     return new OktaCredentialsProviderFactory(
         pluginService,
         () -> {
           try {
-            return new HttpClientFactory()
-                .getCloseableHttpClient(
-                    OktaAuthPlugin.HTTP_CLIENT_SOCKET_TIMEOUT.getInteger(props),
-                    OktaAuthPlugin.HTTP_CLIENT_CONNECT_TIMEOUT.getInteger(props),
-                    OktaAuthPlugin.SSL_INSECURE.getBoolean(props));
+            return new HttpClientFactory().getCloseableHttpClient(
+                OktaAuthPlugin.HTTP_CLIENT_SOCKET_TIMEOUT.getInteger(props),
+                OktaAuthPlugin.HTTP_CLIENT_CONNECT_TIMEOUT.getInteger(props),
+                OktaAuthPlugin.SSL_INSECURE.getBoolean(props));
           } catch (GeneralSecurityException e) {
             throw new RuntimeException(
                 Messages.get("CredentialsProviderFactory.failedToInitializeHttpClient"), e);

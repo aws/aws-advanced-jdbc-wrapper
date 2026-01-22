@@ -91,10 +91,7 @@ import software.amazon.jdbc.util.RdsUtils;
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @EnableOnTestFeature(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)
 @DisableOnTestFeature(TestEnvironmentFeatures.RUN_DB_METRICS_ONLY)
-@EnableOnDatabaseEngineDeployment({
-  DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE,
-  DatabaseEngineDeployment.AURORA
-})
+@EnableOnDatabaseEngineDeployment({DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE, DatabaseEngineDeployment.AURORA})
 @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
 @Order(20)
 public class BlueGreenDeploymentTests {
@@ -107,11 +104,11 @@ public class BlueGreenDeploymentTests {
 
   private static final String MYSQL_BG_STATUS_QUERY =
       "SELECT id, SUBSTRING_INDEX(endpoint, '.', 1) as hostId, endpoint, port, role, status, version"
-          + " FROM mysql.rds_topology";
+      + " FROM mysql.rds_topology";
 
   private static final String PG_AURORA_BG_STATUS_QUERY =
       "SELECT id, SPLIT_PART(endpoint, '.', 1) as hostId, endpoint, port, role, status, version"
-          + " FROM pg_catalog.get_blue_green_fast_switchover_metadata('aws_jdbc_driver')";
+      + " FROM pg_catalog.get_blue_green_fast_switchover_metadata('aws_jdbc_driver')";
 
   private static final String PG_RDS_BG_STATUS_QUERY =
       "SELECT * FROM rds_tools.show_topology('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
@@ -163,12 +160,9 @@ public class BlueGreenDeploymentTests {
     public final AtomicLong greenNodeChangeNameTime = new AtomicLong();
     public final ConcurrentHashMap<String, Long> blueStatusTime = new ConcurrentHashMap<>();
     public final ConcurrentHashMap<String, Long> greenStatusTime = new ConcurrentHashMap<>();
-    public final ConcurrentLinkedDeque<TimeHolder> blueWrapperConnectTimes =
-        new ConcurrentLinkedDeque<>();
-    public final ConcurrentLinkedDeque<TimeHolder> blueWrapperExecuteTimes =
-        new ConcurrentLinkedDeque<>();
-    public final ConcurrentLinkedDeque<TimeHolder> greenWrapperExecuteTimes =
-        new ConcurrentLinkedDeque<>();
+    public final ConcurrentLinkedDeque<TimeHolder> blueWrapperConnectTimes = new ConcurrentLinkedDeque<>();
+    public final ConcurrentLinkedDeque<TimeHolder> blueWrapperExecuteTimes = new ConcurrentLinkedDeque<>();
+    public final ConcurrentLinkedDeque<TimeHolder> greenWrapperExecuteTimes = new ConcurrentLinkedDeque<>();
     public final ConcurrentLinkedDeque<TimeHolder> greenDirectIamIpWithBlueNodeConnectTimes =
         new ConcurrentLinkedDeque<>();
     public final ConcurrentLinkedDeque<TimeHolder> greenDirectIamIpWithGreenNodeConnectTimes =
@@ -176,20 +170,26 @@ public class BlueGreenDeploymentTests {
   }
 
   private final ConcurrentHashMap<String, BlueGreenResults> results = new ConcurrentHashMap<>();
-  private final ConcurrentLinkedDeque<Throwable> unhandledExceptions =
-      new ConcurrentLinkedDeque<>();
+  private final ConcurrentLinkedDeque<Throwable> unhandledExceptions = new ConcurrentLinkedDeque<>();
 
   /**
-   * NOTE: this test requires manual verification to fully verify proper B/G behavior. PASS
-   * criteria: - automatic check: test passes - manual check: test logs contain the switchover final
-   * summary table with the following events and similar time offset values:
-   * ---------------------------------------------------------------------------- timestamp time
-   * offset (ms) event ----------------------------------------------------------------------------
-   * 2025-04-10T01:30:08.865783Z -41746 ms NOT_CREATED 2025-04-10T01:30:09.101513Z -41510 ms CREATED
-   * 2025-04-10T01:30:49.779680Z -829 ms PREPARATION 2025-04-10T01:30:50.609146Z 0 ms IN_PROGRESS
-   * 2025-04-10T01:30:52.440775Z 1831 ms POST 2025-04-10T01:31:03.373311Z 12764 ms Blue DNS updated
-   * 2025-04-10T01:32:07.738613Z 77131 ms Green DNS removed 2025-04-10T01:32:19.221286Z 88616 ms
-   * COMPLETED ----------------------------------------------------------------------------
+   * NOTE: this test requires manual verification to fully verify proper B/G behavior.
+   * PASS criteria:
+   * - automatic check: test passes
+   * - manual check: test logs contain the switchover final summary table with the following events and similar time
+   * offset values:
+   * ----------------------------------------------------------------------------
+   * timestamp                         time offset (ms)                     event
+   * ----------------------------------------------------------------------------
+   *  2025-04-10T01:30:08.865783Z             -41746 ms               NOT_CREATED
+   *  2025-04-10T01:30:09.101513Z             -41510 ms                   CREATED
+   *  2025-04-10T01:30:49.779680Z               -829 ms               PREPARATION
+   *  2025-04-10T01:30:50.609146Z                  0 ms               IN_PROGRESS
+   *  2025-04-10T01:30:52.440775Z               1831 ms                      POST
+   *  2025-04-10T01:31:03.373311Z              12764 ms          Blue DNS updated
+   *  2025-04-10T01:32:07.738613Z              77131 ms         Green DNS removed
+   *  2025-04-10T01:32:19.221286Z              88616 ms                 COMPLETED
+   * ----------------------------------------------------------------------------
    */
   @TestTemplate
   @ExtendWith(TestDriverProvider.class)
@@ -199,11 +199,7 @@ public class BlueGreenDeploymentTests {
     this.unhandledExceptions.clear();
 
     boolean iamEnabled =
-        TestEnvironment.getCurrent()
-            .getInfo()
-            .getRequest()
-            .getFeatures()
-            .contains(TestEnvironmentFeatures.IAM);
+        TestEnvironment.getCurrent().getInfo().getRequest().getFeatures().contains(TestEnvironmentFeatures.IAM);
 
     final long startTimeNano = System.nanoTime();
 
@@ -219,8 +215,7 @@ public class BlueGreenDeploymentTests {
     final TestInstanceInfo testInstance = info.getDatabaseInfo().getInstances().get(0);
     final String dbName = info.getDatabaseInfo().getDefaultDbName();
 
-    final List<String> topologyInstances =
-        this.getBlueGreenEndpoints(info.getBlueGreenDeploymentId());
+    final List<String> topologyInstances = this.getBlueGreenEndpoints(info.getBlueGreenDeploymentId());
     LOGGER.finest("topologyInstances: \n" + String.join("\n", topologyInstances));
 
     for (String host : topologyInstances) {
@@ -230,167 +225,92 @@ public class BlueGreenDeploymentTests {
       this.results.put(hostId, new BlueGreenResults());
 
       if (rdsUtil.isNotGreenAndOldPrefixInstance(host)) {
-        threads.add(
-            getDirectTopologyMonitoringThread(
-                hostId,
-                host,
-                testInstance.getPort(),
-                dbName,
-                startLatchAtomic,
-                stop,
-                finishLatchAtomic,
-                results.get(hostId)));
+        threads.add(getDirectTopologyMonitoringThread(
+            hostId, host, testInstance.getPort(), dbName, startLatchAtomic, stop, finishLatchAtomic,
+            results.get(hostId)));
         threadCount++;
         threadFinishCount++;
 
-        threads.add(
-            getDirectBlueConnectivityMonitoringThread(
-                hostId,
-                host,
-                testInstance.getPort(),
-                dbName,
-                startLatchAtomic,
-                stop,
-                finishLatchAtomic,
-                results.get(hostId)));
+        threads.add(getDirectBlueConnectivityMonitoringThread(
+            hostId, host, testInstance.getPort(), dbName, startLatchAtomic, stop, finishLatchAtomic,
+            results.get(hostId)));
         threadCount++;
         threadFinishCount++;
 
-        threads.add(
-            getDirectBlueIdleConnectivityMonitoringThread(
-                hostId,
-                host,
-                testInstance.getPort(),
-                dbName,
-                startLatchAtomic,
-                stop,
-                finishLatchAtomic,
-                results.get(hostId)));
+        threads.add(getDirectBlueIdleConnectivityMonitoringThread(
+            hostId, host, testInstance.getPort(), dbName, startLatchAtomic, stop, finishLatchAtomic,
+            results.get(hostId)));
         threadCount++;
         threadFinishCount++;
 
-        threads.add(
-            getWrapperBlueIdleConnectivityMonitoringThread(
-                hostId,
-                host,
-                testInstance.getPort(),
-                dbName,
-                startLatchAtomic,
-                stop,
-                finishLatchAtomic,
-                results.get(hostId)));
+        threads.add(getWrapperBlueIdleConnectivityMonitoringThread(
+            hostId, host, testInstance.getPort(), dbName, startLatchAtomic, stop, finishLatchAtomic,
+            results.get(hostId)));
         threadCount++;
         threadFinishCount++;
 
-        threads.add(
-            getWrapperBlueExecutingConnectivityMonitoringThread(
-                hostId,
-                host,
-                testInstance.getPort(),
-                dbName,
-                startLatchAtomic,
-                stop,
-                finishLatchAtomic,
-                results.get(hostId)));
+        threads.add(getWrapperBlueExecutingConnectivityMonitoringThread(
+            hostId, host, testInstance.getPort(), dbName, startLatchAtomic, stop, finishLatchAtomic,
+            results.get(hostId)));
         threadCount++;
         threadFinishCount++;
 
-        threads.add(
-            getWrapperBlueNewConnectionMonitoringThread(
-                hostId,
-                host,
-                testInstance.getPort(),
-                dbName,
-                startLatchAtomic,
-                stop,
-                finishLatchAtomic,
-                results.get(hostId)));
+        threads.add(getWrapperBlueNewConnectionMonitoringThread(
+            hostId, host, testInstance.getPort(), dbName, startLatchAtomic, stop, finishLatchAtomic,
+            results.get(hostId)));
         threadCount++;
         threadFinishCount++;
 
-        threads.add(
-            getBlueDnsMonitoringThread(
-                hostId, host, startLatchAtomic, stop, finishLatchAtomic, results.get(hostId)));
+        threads.add(getBlueDnsMonitoringThread(
+            hostId, host, startLatchAtomic, stop, finishLatchAtomic, results.get(hostId)));
         threadCount++;
         threadFinishCount++;
       }
 
       if (rdsUtil.isGreenInstance(host)) {
-        threads.add(
-            getDirectTopologyMonitoringThread(
-                hostId,
-                host,
-                testInstance.getPort(),
-                dbName,
-                startLatchAtomic,
-                stop,
-                finishLatchAtomic,
-                results.get(hostId)));
+        threads.add(getDirectTopologyMonitoringThread(
+            hostId, host, testInstance.getPort(), dbName, startLatchAtomic, stop, finishLatchAtomic,
+            results.get(hostId)));
         threadCount++;
         threadFinishCount++;
 
-        threads.add(
-            getWrapperGreenConnectivityMonitoringThread(
-                hostId,
-                host,
-                testInstance.getPort(),
-                dbName,
-                startLatchAtomic,
-                stop,
-                finishLatchAtomic,
-                results.get(hostId)));
+        threads.add(getWrapperGreenConnectivityMonitoringThread(
+            hostId, host, testInstance.getPort(), dbName, startLatchAtomic, stop, finishLatchAtomic,
+            results.get(hostId)));
         threadCount++;
         threadFinishCount++;
 
-        threads.add(
-            getGreenDnsMonitoringThread(
-                hostId, host, startLatchAtomic, stop, finishLatchAtomic, results.get(hostId)));
+        threads.add(getGreenDnsMonitoringThread(
+            hostId, host, startLatchAtomic, stop, finishLatchAtomic, results.get(hostId)));
         threadCount++;
         threadFinishCount++;
 
         if (iamEnabled) {
-          threads.add(
-              getGreenIamConnectivityMonitoringThread(
-                  hostId,
-                  "BlueHostToken",
-                  rdsUtil.removeGreenInstancePrefix(host),
-                  host,
-                  testInstance.getPort(),
-                  dbName,
-                  startLatchAtomic,
-                  stop,
-                  finishLatchAtomic,
-                  results.get(hostId),
-                  results.get(hostId).greenDirectIamIpWithBlueNodeConnectTimes,
-                  false,
-                  true));
+          threads.add(getGreenIamConnectivityMonitoringThread(
+              hostId,
+              "BlueHostToken", rdsUtil.removeGreenInstancePrefix(host), host,
+              testInstance.getPort(), dbName, startLatchAtomic, stop, finishLatchAtomic,
+              results.get(hostId),
+              results.get(hostId).greenDirectIamIpWithBlueNodeConnectTimes,
+              false, true));
           threadCount++;
           threadFinishCount++;
 
-          threads.add(
-              getGreenIamConnectivityMonitoringThread(
-                  hostId,
-                  "GreenHostToken",
-                  host,
-                  host,
-                  testInstance.getPort(),
-                  dbName,
-                  startLatchAtomic,
-                  stop,
-                  finishLatchAtomic,
-                  results.get(hostId),
-                  results.get(hostId).greenDirectIamIpWithGreenNodeConnectTimes,
-                  true,
-                  false));
+          threads.add(getGreenIamConnectivityMonitoringThread(
+              hostId,
+              "GreenHostToken", host, host,
+              testInstance.getPort(), dbName, startLatchAtomic, stop, finishLatchAtomic,
+              results.get(hostId),
+              results.get(hostId).greenDirectIamIpWithGreenNodeConnectTimes,
+              true, false));
           threadCount++;
           threadFinishCount++;
         }
       }
     }
 
-    threads.add(
-        getBlueGreenSwitchoverTriggerThread(
-            info.getBlueGreenDeploymentId(), startLatchAtomic, finishLatchAtomic, results));
+    threads.add(getBlueGreenSwitchoverTriggerThread(
+        info.getBlueGreenDeploymentId(), startLatchAtomic, finishLatchAtomic, results));
     threadCount++;
     threadFinishCount++;
 
@@ -444,62 +364,53 @@ public class BlueGreenDeploymentTests {
       final AtomicBoolean stop,
       final AtomicReference<CountDownLatch> finishLatch,
       final BlueGreenResults results) {
-    return new Thread(
-        () -> {
-          Connection conn = null;
-          try {
-            final Properties props = ConnectionStringHelper.getDefaultProperties();
-            conn =
-                openConnectionWithRetry(ConnectionStringHelper.getUrl(host, port, dbName), props);
-            LOGGER.finest(
-                String.format("[DirectBlueIdleConnectivity @ %s] connection is open.", hostId));
+    return new Thread(() -> {
 
-            Thread.sleep(1000);
+      Connection conn = null;
+      try {
+        final Properties props = ConnectionStringHelper.getDefaultProperties();
+        conn = openConnectionWithRetry(
+            ConnectionStringHelper.getUrl(host, port, dbName),
+            props);
+        LOGGER.finest(String.format("[DirectBlueIdleConnectivity @ %s] connection is open.", hostId));
 
-            // notify that this thread is ready for work
-            startLatch.get().countDown();
+        Thread.sleep(1000);
 
-            // wait for another threads to be ready to start the test
-            startLatch.get().await(5, TimeUnit.MINUTES);
+        // notify that this thread is ready for work
+        startLatch.get().countDown();
 
-            LOGGER.finest(
-                String.format(
-                    "[DirectBlueIdleConnectivity @ %s] Starting connectivity monitoring.", hostId));
+        // wait for another threads to be ready to start the test
+        startLatch.get().await(5, TimeUnit.MINUTES);
 
-            while (!stop.get()) {
-              try {
-                if (conn.isClosed()) {
-                  results.directBlueIdleLostConnectionTime.set(System.nanoTime());
-                  break;
-                }
-                TimeUnit.SECONDS.sleep(1);
-              } catch (SQLException throwable) {
-                LOGGER.finest(
-                    String.format(
-                        "[DirectBlueIdleConnectivity @ %s] thread exception: %s",
-                        hostId, throwable));
-                results.directBlueIdleLostConnectionTime.set(System.nanoTime());
-                break;
-              }
+        LOGGER.finest(String.format("[DirectBlueIdleConnectivity @ %s] Starting connectivity monitoring.", hostId));
+
+        while (!stop.get()) {
+          try  {
+            if (conn.isClosed()) {
+              results.directBlueIdleLostConnectionTime.set(System.nanoTime());
+              break;
             }
-
-          } catch (InterruptedException interruptedException) {
-            // Ignore, stop the thread
-            Thread.currentThread().interrupt();
-          } catch (Exception exception) {
-            LOGGER.log(
-                Level.FINEST,
-                String.format(
-                    "[DirectBlueIdleConnectivity @ %s] thread unhandled exception: ", hostId),
-                exception);
-            this.unhandledExceptions.add(exception);
-          } finally {
-            this.closeConnection(conn);
-            finishLatch.get().countDown();
-            LOGGER.finest(
-                String.format("[DirectBlueIdleConnectivity @ %s] thread is completed.", hostId));
+            TimeUnit.SECONDS.sleep(1);
+          } catch (SQLException throwable) {
+            LOGGER.finest(String.format("[DirectBlueIdleConnectivity @ %s] thread exception: %s", hostId, throwable));
+            results.directBlueIdleLostConnectionTime.set(System.nanoTime());
+            break;
           }
-        });
+        }
+
+      } catch (InterruptedException interruptedException) {
+        // Ignore, stop the thread
+        Thread.currentThread().interrupt();
+      } catch (Exception exception) {
+        LOGGER.log(Level.FINEST,
+            String.format("[DirectBlueIdleConnectivity @ %s] thread unhandled exception: ", hostId), exception);
+        this.unhandledExceptions.add(exception);
+      } finally {
+        this.closeConnection(conn);
+        finishLatch.get().countDown();
+        LOGGER.finest(String.format("[DirectBlueIdleConnectivity @ %s] thread is completed.", hostId));
+      }
+    });
   }
 
   // Blue node
@@ -514,58 +425,51 @@ public class BlueGreenDeploymentTests {
       final AtomicBoolean stop,
       final AtomicReference<CountDownLatch> finishLatch,
       final BlueGreenResults results) {
-    return new Thread(
-        () -> {
-          Connection conn = null;
-          try {
-            final Properties props = ConnectionStringHelper.getDefaultProperties();
-            conn =
-                openConnectionWithRetry(ConnectionStringHelper.getUrl(host, port, dbName), props);
-            LOGGER.finest(
-                String.format("[DirectBlueConnectivity @ %s] connection is open.", hostId));
+    return new Thread(() -> {
 
-            Thread.sleep(1000);
+      Connection conn = null;
+      try {
+        final Properties props = ConnectionStringHelper.getDefaultProperties();
+        conn = openConnectionWithRetry(
+            ConnectionStringHelper.getUrl(host, port, dbName),
+            props);
+        LOGGER.finest(String.format("[DirectBlueConnectivity @ %s] connection is open.", hostId));
 
-            // notify that this thread is ready for work
-            startLatch.get().countDown();
+        Thread.sleep(1000);
 
-            // wait for another threads to be ready to start the test
-            startLatch.get().await(5, TimeUnit.MINUTES);
+        // notify that this thread is ready for work
+        startLatch.get().countDown();
 
-            LOGGER.finest(
-                String.format(
-                    "[DirectBlueConnectivity @ %s] Starting connectivity monitoring.", hostId));
+        // wait for another threads to be ready to start the test
+        startLatch.get().await(5, TimeUnit.MINUTES);
 
-            while (!stop.get()) {
-              try {
-                final Statement statement = conn.createStatement();
-                final ResultSet result = statement.executeQuery("SELECT 1");
-                TimeUnit.SECONDS.sleep(1);
-              } catch (SQLException throwable) {
-                LOGGER.finest(
-                    String.format(
-                        "[DirectBlueConnectivity @ %s] thread exception: %s", hostId, throwable));
-                results.directBlueLostConnectionTime.set(System.nanoTime());
-                break;
-              }
-            }
+        LOGGER.finest(String.format("[DirectBlueConnectivity @ %s] Starting connectivity monitoring.", hostId));
 
-          } catch (InterruptedException interruptedException) {
-            // Ignore, stop the thread
-            Thread.currentThread().interrupt();
-          } catch (Exception exception) {
-            LOGGER.log(
-                Level.FINEST,
-                String.format("[DirectBlueConnectivity @ %s] thread unhandled exception: ", hostId),
-                exception);
-            this.unhandledExceptions.add(exception);
-          } finally {
-            this.closeConnection(conn);
-            finishLatch.get().countDown();
-            LOGGER.finest(
-                String.format("[DirectBlueConnectivity @ %s] thread is completed.", hostId));
+        while (!stop.get()) {
+          try  {
+            final Statement statement = conn.createStatement();
+            final ResultSet result = statement.executeQuery("SELECT 1");
+            TimeUnit.SECONDS.sleep(1);
+          } catch (SQLException throwable) {
+            LOGGER.finest(String.format("[DirectBlueConnectivity @ %s] thread exception: %s", hostId, throwable));
+            results.directBlueLostConnectionTime.set(System.nanoTime());
+            break;
           }
-        });
+        }
+
+      } catch (InterruptedException interruptedException) {
+        // Ignore, stop the thread
+        Thread.currentThread().interrupt();
+      } catch (Exception exception) {
+        LOGGER.log(Level.FINEST,
+            String.format("[DirectBlueConnectivity @ %s] thread unhandled exception: ", hostId), exception);
+        this.unhandledExceptions.add(exception);
+      } finally {
+        this.closeConnection(conn);
+        finishLatch.get().countDown();
+        LOGGER.finest(String.format("[DirectBlueConnectivity @ %s] thread is completed.", hostId));
+      }
+    });
   }
 
   // Blue node
@@ -581,60 +485,53 @@ public class BlueGreenDeploymentTests {
       final AtomicReference<CountDownLatch> finishLatch,
       final BlueGreenResults results) {
 
-    return new Thread(
-        () -> {
-          Connection conn = null;
-          try {
-            final Properties props = this.getWrapperConnectionProperties();
-            conn =
-                openConnectionWithRetry(
-                    ConnectionStringHelper.getWrapperUrlWithPlugins(
-                        host, port, dbName, this.getWrapperConnectionPlugins()),
-                    props);
-            LOGGER.finest(String.format("[WrapperBlueIdle @ %s] connection is open.", hostId));
+    return new Thread(() -> {
 
-            Thread.sleep(1000);
+      Connection conn = null;
+      try {
+        final Properties props = this.getWrapperConnectionProperties();
+        conn = openConnectionWithRetry(
+            ConnectionStringHelper.getWrapperUrlWithPlugins(host, port, dbName, this.getWrapperConnectionPlugins()),
+            props);
+        LOGGER.finest(String.format("[WrapperBlueIdle @ %s] connection is open.", hostId));
 
-            // notify that this thread is ready for work
-            startLatch.get().countDown();
+        Thread.sleep(1000);
 
-            // wait for another threads to be ready to start the test
-            startLatch.get().await(5, TimeUnit.MINUTES);
+        // notify that this thread is ready for work
+        startLatch.get().countDown();
 
-            LOGGER.finest(
-                String.format("[WrapperBlueIdle @ %s] Starting connectivity monitoring.", hostId));
+        // wait for another threads to be ready to start the test
+        startLatch.get().await(5, TimeUnit.MINUTES);
 
-            while (!stop.get()) {
-              try {
-                if (conn.isClosed()) {
-                  results.wrapperBlueIdleLostConnectionTime.set(System.nanoTime());
-                  break;
-                }
-                TimeUnit.SECONDS.sleep(1);
-              } catch (SQLException throwable) {
-                LOGGER.finest(
-                    String.format(
-                        "[WrapperBlueIdle @ %s] thread exception: %s", hostId, throwable));
-                results.wrapperBlueIdleLostConnectionTime.set(System.nanoTime());
-                break;
-              }
+        LOGGER.finest(String.format("[WrapperBlueIdle @ %s] Starting connectivity monitoring.", hostId));
+
+        while (!stop.get()) {
+          try  {
+            if (conn.isClosed()) {
+              results.wrapperBlueIdleLostConnectionTime.set(System.nanoTime());
+              break;
             }
-
-          } catch (InterruptedException interruptedException) {
-            // Ignore, stop the thread
-            Thread.currentThread().interrupt();
-          } catch (Exception exception) {
-            LOGGER.log(
-                Level.FINEST,
-                String.format("[WrapperBlueIdle @ %s] thread unhandled exception: ", hostId),
-                exception);
-            this.unhandledExceptions.add(exception);
-          } finally {
-            this.closeConnection(conn);
-            finishLatch.get().countDown();
-            LOGGER.finest(String.format("[WrapperBlueIdle @ %s] thread is completed.", hostId));
+            TimeUnit.SECONDS.sleep(1);
+          } catch (SQLException throwable) {
+            LOGGER.finest(String.format("[WrapperBlueIdle @ %s] thread exception: %s", hostId, throwable));
+            results.wrapperBlueIdleLostConnectionTime.set(System.nanoTime());
+            break;
           }
-        });
+        }
+
+      } catch (InterruptedException interruptedException) {
+        // Ignore, stop the thread
+        Thread.currentThread().interrupt();
+      } catch (Exception exception) {
+        LOGGER.log(Level.FINEST,
+            String.format("[WrapperBlueIdle @ %s] thread unhandled exception: ", hostId), exception);
+        this.unhandledExceptions.add(exception);
+      } finally {
+        this.closeConnection(conn);
+        finishLatch.get().countDown();
+        LOGGER.finest(String.format("[WrapperBlueIdle @ %s] thread is completed.", hostId));
+      }
+    });
   }
 
   // Blue node
@@ -651,89 +548,78 @@ public class BlueGreenDeploymentTests {
       final AtomicReference<CountDownLatch> finishLatch,
       final BlueGreenResults results) {
 
-    return new Thread(
-        () -> {
-          Connection conn = null;
+    return new Thread(() -> {
 
-          String query;
-          switch (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine()) {
-            case MYSQL:
-              query = "SELECT sleep(5)";
+      Connection conn = null;
+
+      String query;
+      switch (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine()) {
+        case MYSQL:
+          query = "SELECT sleep(5)";
+          break;
+        case PG:
+          query = "SELECT pg_catalog.pg_sleep(5)";
+          break;
+        default:
+          throw new UnsupportedOperationException(
+              TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine().toString());
+      }
+
+      try {
+        final Properties props = this.getWrapperConnectionProperties();
+        conn = DriverManager.getConnection(
+            ConnectionStringHelper.getWrapperUrlWithPlugins(host, port, dbName, this.getWrapperConnectionPlugins()),
+            props);
+
+        BlueGreenConnectionPlugin bgPlugin = conn.unwrap(BlueGreenConnectionPlugin.class);
+        assertNotNull(bgPlugin);
+
+        Statement statement = conn.createStatement();
+        LOGGER.finest(String.format("[WrapperBlueExecute @ %s] connection is open.", hostId));
+
+        Thread.sleep(1000);
+
+        // notify that this thread is ready for work
+        startLatch.get().countDown();
+
+        // wait for another threads to be ready to start the test
+        startLatch.get().await(5, TimeUnit.MINUTES);
+
+        LOGGER.finest(String.format("[WrapperBlueExecute @ %s] Starting connectivity monitoring.", hostId));
+
+        while (!stop.get()) {
+          long startTime = System.nanoTime();
+          long endTime;
+          try  {
+            ResultSet rs = statement.executeQuery(query);
+            endTime = System.nanoTime();
+            results.blueWrapperExecuteTimes.add(
+                new TimeHolder(startTime, endTime, bgPlugin.getHoldTimeNano()));
+          } catch (SQLException throwable) {
+            endTime = System.nanoTime();
+            results.blueWrapperExecuteTimes.add(
+                new TimeHolder(startTime, endTime, bgPlugin.getHoldTimeNano(), throwable.getMessage()));
+            if (conn.isClosed()) {
               break;
-            case PG:
-              query = "SELECT pg_catalog.pg_sleep(5)";
-              break;
-            default:
-              throw new UnsupportedOperationException(
-                  TestEnvironment.getCurrent()
-                      .getInfo()
-                      .getRequest()
-                      .getDatabaseEngine()
-                      .toString());
-          }
-
-          try {
-            final Properties props = this.getWrapperConnectionProperties();
-            conn =
-                DriverManager.getConnection(
-                    ConnectionStringHelper.getWrapperUrlWithPlugins(
-                        host, port, dbName, this.getWrapperConnectionPlugins()),
-                    props);
-
-            BlueGreenConnectionPlugin bgPlugin = conn.unwrap(BlueGreenConnectionPlugin.class);
-            assertNotNull(bgPlugin);
-
-            Statement statement = conn.createStatement();
-            LOGGER.finest(String.format("[WrapperBlueExecute @ %s] connection is open.", hostId));
-
-            Thread.sleep(1000);
-
-            // notify that this thread is ready for work
-            startLatch.get().countDown();
-
-            // wait for another threads to be ready to start the test
-            startLatch.get().await(5, TimeUnit.MINUTES);
-
-            LOGGER.finest(
-                String.format(
-                    "[WrapperBlueExecute @ %s] Starting connectivity monitoring.", hostId));
-
-            while (!stop.get()) {
-              long startTime = System.nanoTime();
-              long endTime;
-              try {
-                ResultSet rs = statement.executeQuery(query);
-                endTime = System.nanoTime();
-                results.blueWrapperExecuteTimes.add(
-                    new TimeHolder(startTime, endTime, bgPlugin.getHoldTimeNano()));
-              } catch (SQLException throwable) {
-                endTime = System.nanoTime();
-                results.blueWrapperExecuteTimes.add(
-                    new TimeHolder(
-                        startTime, endTime, bgPlugin.getHoldTimeNano(), throwable.getMessage()));
-                if (conn.isClosed()) {
-                  break;
-                }
-              }
-
-              TimeUnit.MILLISECONDS.sleep(1000);
             }
-
-          } catch (InterruptedException interruptedException) {
-            // Ignore, stop the thread
-            Thread.currentThread().interrupt();
-          } catch (Exception exception) {
-            LOGGER.log(
-                Level.FINEST,
-                String.format("[WrapperBlueExecute @ %s] thread unhandled exception: ", hostId),
-                exception);
-            this.unhandledExceptions.add(exception);
-          } finally {
-            this.closeConnection(conn);
-            finishLatch.get().countDown();
-            LOGGER.finest(String.format("[WrapperBlueExecute @ %s] thread is completed.", hostId));
           }
-        });
+
+          TimeUnit.MILLISECONDS.sleep(1000);
+        }
+
+      } catch (InterruptedException interruptedException) {
+        // Ignore, stop the thread
+        Thread.currentThread().interrupt();
+      } catch (Exception exception) {
+        LOGGER.log(Level.FINEST,
+            String.format("[WrapperBlueExecute @ %s] thread unhandled exception: ", hostId), exception);
+        this.unhandledExceptions.add(exception);
+      } finally {
+        this.closeConnection(conn);
+        finishLatch.get().countDown();
+        LOGGER.finest(String.format("[WrapperBlueExecute @ %s] thread is completed.", hostId));
+      }
+    });
   }
 
   // Blue node
@@ -750,100 +636,85 @@ public class BlueGreenDeploymentTests {
       final AtomicReference<CountDownLatch> finishLatch,
       final BlueGreenResults results) {
 
-    return new Thread(
-        () -> {
-          Connection conn = null;
-          BlueGreenConnectionPlugin bgPlugin = null;
-          try {
-            final Properties props = this.getWrapperConnectionProperties();
+    return new Thread(() -> {
 
-            Thread.sleep(1000);
+      Connection conn = null;
+      BlueGreenConnectionPlugin bgPlugin = null;
+      try {
+        final Properties props = this.getWrapperConnectionProperties();
 
-            // notify that this thread is ready for work
-            startLatch.get().countDown();
+        Thread.sleep(1000);
 
-            // wait for another threads to be ready to start the test
-            startLatch.get().await(5, TimeUnit.MINUTES);
+        // notify that this thread is ready for work
+        startLatch.get().countDown();
 
-            LOGGER.finest(
-                String.format(
-                    "[WrapperBlueNewConnection @ %s] Starting connectivity monitoring.", hostId));
+        // wait for another threads to be ready to start the test
+        startLatch.get().await(5, TimeUnit.MINUTES);
 
-            while (!stop.get()) {
-              long startTime = System.nanoTime();
-              long endTime;
-              try {
-                conn =
-                    DriverManager.getConnection(
-                        ConnectionStringHelper.getWrapperUrlWithPlugins(
-                            host, port, dbName, this.getWrapperConnectionPlugins()),
-                        props);
-                endTime = System.nanoTime();
+        LOGGER.finest(String.format("[WrapperBlueNewConnection @ %s] Starting connectivity monitoring.", hostId));
 
-                bgPlugin = conn.unwrap(BlueGreenConnectionPlugin.class);
-                assertNotNull(bgPlugin);
+        while (!stop.get()) {
+          long startTime = System.nanoTime();
+          long endTime;
+          try  {
+            conn = DriverManager.getConnection(
+                ConnectionStringHelper.getWrapperUrlWithPlugins(host, port, dbName, this.getWrapperConnectionPlugins()),
+                props);
+            endTime = System.nanoTime();
 
-                results.blueWrapperConnectTimes.add(
-                    new TimeHolder(startTime, endTime, bgPlugin.getHoldTimeNano()));
+            bgPlugin = conn.unwrap(BlueGreenConnectionPlugin.class);
+            assertNotNull(bgPlugin);
 
-              } catch (SQLTimeoutException sqlTimeoutException) {
-                LOGGER.finest(
-                    String.format(
-                        "[WrapperBlueNewConnection @ %s] (SQLTimeoutException) thread exception: %s",
-                        hostId, sqlTimeoutException));
-                endTime = System.nanoTime();
-                if (conn != null) {
-                  bgPlugin = conn.unwrap(BlueGreenConnectionPlugin.class);
-                  assertNotNull(bgPlugin);
-                  results.blueWrapperConnectTimes.add(
-                      new TimeHolder(
-                          startTime,
-                          endTime,
-                          bgPlugin.getHoldTimeNano(),
-                          sqlTimeoutException.getMessage()));
-                } else {
-                  results.blueWrapperConnectTimes.add(
-                      new TimeHolder(startTime, endTime, sqlTimeoutException.getMessage()));
-                }
-              } catch (SQLException throwable) {
-                LOGGER.finest(
-                    String.format(
-                        "[WrapperBlueNewConnection @ %s] thread exception: %s", hostId, throwable));
-                endTime = System.nanoTime();
-                if (conn != null) {
-                  bgPlugin = conn.unwrap(BlueGreenConnectionPlugin.class);
-                  assertNotNull(bgPlugin);
-                  results.blueWrapperConnectTimes.add(
-                      new TimeHolder(
-                          startTime, endTime, bgPlugin.getHoldTimeNano(), throwable.getMessage()));
-                } else {
-                  results.blueWrapperConnectTimes.add(
-                      new TimeHolder(startTime, endTime, throwable.getMessage()));
-                }
-              }
+            results.blueWrapperConnectTimes.add(new TimeHolder(startTime, endTime, bgPlugin.getHoldTimeNano()));
 
-              this.closeConnection(conn);
-              conn = null;
-              TimeUnit.MILLISECONDS.sleep(1000);
+          } catch (SQLTimeoutException sqlTimeoutException) {
+            LOGGER.finest(String.format(
+                "[WrapperBlueNewConnection @ %s] (SQLTimeoutException) thread exception: %s",
+                hostId,
+                sqlTimeoutException));
+            endTime = System.nanoTime();
+            if (conn != null) {
+              bgPlugin = conn.unwrap(BlueGreenConnectionPlugin.class);
+              assertNotNull(bgPlugin);
+              results.blueWrapperConnectTimes.add(
+                  new TimeHolder(startTime, endTime, bgPlugin.getHoldTimeNano(), sqlTimeoutException.getMessage()));
+            } else {
+              results.blueWrapperConnectTimes.add(
+                  new TimeHolder(startTime, endTime, sqlTimeoutException.getMessage()));
             }
-
-          } catch (InterruptedException interruptedException) {
-            // Ignore, stop the thread
-            Thread.currentThread().interrupt();
-          } catch (Exception exception) {
-            LOGGER.log(
-                Level.FINEST,
-                String.format(
-                    "[WrapperBlueNewConnection @ %s] thread unhandled exception: ", hostId),
-                exception);
-            this.unhandledExceptions.add(exception);
-          } finally {
-            this.closeConnection(conn);
-            finishLatch.get().countDown();
-            LOGGER.finest(
-                String.format("[WrapperBlueNewConnection @ %s] thread is completed.", hostId));
+          } catch (SQLException throwable) {
+            LOGGER.finest(String.format(
+                "[WrapperBlueNewConnection @ %s] thread exception: %s", hostId, throwable));
+            endTime = System.nanoTime();
+            if (conn != null) {
+              bgPlugin = conn.unwrap(BlueGreenConnectionPlugin.class);
+              assertNotNull(bgPlugin);
+              results.blueWrapperConnectTimes.add(
+                  new TimeHolder(startTime, endTime, bgPlugin.getHoldTimeNano(), throwable.getMessage()));
+            } else {
+              results.blueWrapperConnectTimes.add(
+                  new TimeHolder(startTime, endTime, throwable.getMessage()));
+            }
           }
-        });
+
+          this.closeConnection(conn);
+          conn = null;
+          TimeUnit.MILLISECONDS.sleep(1000);
+        }
+
+      } catch (InterruptedException interruptedException) {
+        // Ignore, stop the thread
+        Thread.currentThread().interrupt();
+      } catch (Exception exception) {
+        LOGGER.log(Level.FINEST,
+            String.format("[WrapperBlueNewConnection @ %s] thread unhandled exception: ", hostId), exception);
+        this.unhandledExceptions.add(exception);
+      } finally {
+        this.closeConnection(conn);
+        finishLatch.get().countDown();
+        LOGGER.finest(String.format("[WrapperBlueNewConnection @ %s] thread is completed.", hostId));
+      }
+    });
   }
 
   // Green node
@@ -858,41 +729,37 @@ public class BlueGreenDeploymentTests {
       final AtomicReference<CountDownLatch> finishLatch,
       final BlueGreenResults results) {
 
-    return new Thread(
-        () -> {
+    return new Thread(() -> {
+      try {
+        startLatch.get().countDown();
+
+        // wait for another threads to be ready to start the test
+        startLatch.get().await(5, TimeUnit.MINUTES);
+
+        final String ip = InetAddress.getByName(host).getHostAddress();
+        LOGGER.finest(() -> String.format("[GreenDNS @ %s] %s -> %s", hostId, host, ip));
+
+        while (!stop.get()) {
+          TimeUnit.SECONDS.sleep(1);
           try {
-            startLatch.get().countDown();
-
-            // wait for another threads to be ready to start the test
-            startLatch.get().await(5, TimeUnit.MINUTES);
-
-            final String ip = InetAddress.getByName(host).getHostAddress();
-            LOGGER.finest(() -> String.format("[GreenDNS @ %s] %s -> %s", hostId, host, ip));
-
-            while (!stop.get()) {
-              TimeUnit.SECONDS.sleep(1);
-              try {
-                String tmp = InetAddress.getByName(host).getHostAddress();
-              } catch (UnknownHostException unknownHostException) {
-                results.dnsGreenRemovedTime.set(System.nanoTime());
-                break;
-              }
-            }
-
-          } catch (InterruptedException e) {
-            // do nothing
-            Thread.currentThread().interrupt();
-          } catch (Exception e) {
-            LOGGER.log(
-                Level.FINEST,
-                String.format("[GreenDNS @ %s] thread unhandled exception: ", hostId),
-                e);
-            this.unhandledExceptions.add(e);
-          } finally {
-            finishLatch.get().countDown();
-            LOGGER.finest(String.format("[GreenDNS @ %s] thread is completed.", hostId));
+            String tmp = InetAddress.getByName(host).getHostAddress();
+          } catch (UnknownHostException unknownHostException) {
+            results.dnsGreenRemovedTime.set(System.nanoTime());
+            break;
           }
-        });
+        }
+
+      } catch (InterruptedException e) {
+        // do nothing
+        Thread.currentThread().interrupt();
+      } catch (Exception e) {
+        LOGGER.log(Level.FINEST, String.format("[GreenDNS @ %s] thread unhandled exception: ", hostId), e);
+        this.unhandledExceptions.add(e);
+      } finally {
+        finishLatch.get().countDown();
+        LOGGER.finest(String.format("[GreenDNS @ %s] thread is completed.", hostId));
+      }
+    });
   }
 
   // Blue DNS
@@ -906,50 +773,44 @@ public class BlueGreenDeploymentTests {
       final AtomicReference<CountDownLatch> finishLatch,
       final BlueGreenResults results) {
 
-    return new Thread(
-        () -> {
+    return new Thread(() -> {
+      try {
+        startLatch.get().countDown();
+
+        // wait for another threads to be ready to start the test
+        startLatch.get().await(5, TimeUnit.MINUTES);
+
+        final String originalIp = InetAddress.getByName(host).getHostAddress();
+        LOGGER.finest(() -> String.format("[BlueDNS @ %s] %s -> %s", hostId, host, originalIp));
+
+        while (!stop.get()) {
+          TimeUnit.SECONDS.sleep(1);
           try {
-            startLatch.get().countDown();
-
-            // wait for another threads to be ready to start the test
-            startLatch.get().await(5, TimeUnit.MINUTES);
-
-            final String originalIp = InetAddress.getByName(host).getHostAddress();
-            LOGGER.finest(() -> String.format("[BlueDNS @ %s] %s -> %s", hostId, host, originalIp));
-
-            while (!stop.get()) {
-              TimeUnit.SECONDS.sleep(1);
-              try {
-                String currentIp = InetAddress.getByName(host).getHostAddress();
-                if (!currentIp.equals(originalIp)) {
-                  results.dnsBlueChangedTime.set(System.nanoTime());
-                  LOGGER.finest(
-                      () -> String.format("[BlueDNS @ %s] %s -> %s", hostId, host, currentIp));
-                  break;
-                }
-              } catch (UnknownHostException unknownHostException) {
-                LOGGER.finest(
-                    () -> String.format("[BlueDNS @ %s] Error: %s", hostId, unknownHostException));
-                results.dnsBlueError = unknownHostException.getMessage();
-                results.dnsBlueChangedTime.set(System.nanoTime());
-                break;
-              }
+            String currentIp = InetAddress.getByName(host).getHostAddress();
+            if (!currentIp.equals(originalIp)) {
+              results.dnsBlueChangedTime.set(System.nanoTime());
+              LOGGER.finest(() -> String.format("[BlueDNS @ %s] %s -> %s", hostId, host, currentIp));
+              break;
             }
-
-          } catch (InterruptedException e) {
-            // do nothing
-            Thread.currentThread().interrupt();
-          } catch (Exception e) {
-            LOGGER.log(
-                Level.FINEST,
-                String.format("[BlueDNS @ %s] thread unhandled exception: ", hostId),
-                e);
-            this.unhandledExceptions.add(e);
-          } finally {
-            finishLatch.get().countDown();
-            LOGGER.finest(String.format("[BlueDNS @ %s] thread is completed.", hostId));
+          } catch (UnknownHostException unknownHostException) {
+            LOGGER.finest(() -> String.format("[BlueDNS @ %s] Error: %s", hostId, unknownHostException));
+            results.dnsBlueError = unknownHostException.getMessage();
+            results.dnsBlueChangedTime.set(System.nanoTime());
+            break;
           }
-        });
+        }
+
+      } catch (InterruptedException e) {
+        // do nothing
+        Thread.currentThread().interrupt();
+      } catch (Exception e) {
+        LOGGER.log(Level.FINEST, String.format("[BlueDNS @ %s] thread unhandled exception: ", hostId), e);
+        this.unhandledExceptions.add(e);
+      } finally {
+        finishLatch.get().countDown();
+        LOGGER.finest(String.format("[BlueDNS @ %s] thread is completed.", hostId));
+      }
+    });
   }
 
   // Monitor BG status changes
@@ -964,131 +825,109 @@ public class BlueGreenDeploymentTests {
       final AtomicReference<CountDownLatch> finishLatch,
       final BlueGreenResults results) {
 
-    return new Thread(
-        () -> {
-          Connection conn = null;
+    return new Thread(() -> {
 
-          String query;
-          switch (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine()) {
-            case MYSQL:
-              query = MYSQL_BG_STATUS_QUERY;
+      Connection conn = null;
+
+      String query;
+      switch (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine()) {
+        case MYSQL:
+          query = MYSQL_BG_STATUS_QUERY;
+          break;
+        case PG:
+          switch (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()) {
+            case AURORA:
+              query = PG_AURORA_BG_STATUS_QUERY;
               break;
-            case PG:
-              switch (TestEnvironment.getCurrent()
-                  .getInfo()
-                  .getRequest()
-                  .getDatabaseEngineDeployment()) {
-                case AURORA:
-                  query = PG_AURORA_BG_STATUS_QUERY;
-                  break;
-                case RDS_MULTI_AZ_INSTANCE:
-                  query = PG_RDS_BG_STATUS_QUERY;
-                  break;
-                default:
-                  throw new UnsupportedOperationException(
-                      TestEnvironment.getCurrent()
-                          .getInfo()
-                          .getRequest()
-                          .getDatabaseEngineDeployment()
-                          .toString());
-              }
+            case RDS_MULTI_AZ_INSTANCE:
+              query = PG_RDS_BG_STATUS_QUERY;
               break;
             default:
               throw new UnsupportedOperationException(
-                  TestEnvironment.getCurrent()
-                      .getInfo()
-                      .getRequest()
-                      .getDatabaseEngine()
-                      .toString());
+                  TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment().toString());
+          }
+          break;
+        default:
+          throw new UnsupportedOperationException(
+              TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine().toString());
+      }
+
+      try {
+        final Properties props = ConnectionStringHelper.getDefaultProperties();
+        conn = openConnectionWithRetry(
+            ConnectionStringHelper.getUrl(url, port, dbName),
+            props);
+        LOGGER.finest(String.format("[DirectTopology @ %s] connection opened", hostId));
+
+        Thread.sleep(1000);
+
+        // notify that this thread is ready for work
+        startLatch.get().countDown();
+
+        // wait for another threads to be ready to start the test
+        startLatch.get().await(5, TimeUnit.MINUTES);
+
+        LOGGER.finest(String.format("[DirectTopology @ %s] Starting BG statuses monitoring.", hostId));
+
+        long endTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(15);
+
+        while (!stop.get() && System.nanoTime() < endTime) {
+          if (conn == null) {
+            conn = openConnectionWithRetry(
+                ConnectionStringHelper.getUrl(url, port, dbName),
+                props);
+            LOGGER.finest(String.format("[DirectTopology @ %s] connection re-opened", hostId));
           }
 
           try {
-            final Properties props = ConnectionStringHelper.getDefaultProperties();
-            conn = openConnectionWithRetry(ConnectionStringHelper.getUrl(url, port, dbName), props);
-            LOGGER.finest(String.format("[DirectTopology @ %s] connection opened", hostId));
+            final Statement statement = conn.createStatement();
+            final ResultSet rs = statement.executeQuery(query);
+            while (rs.next()) {
+              String queryRole = rs.getString("role");
+              String queryVersion = rs.getString("version");
+              String queryNewStatus = rs.getString("status");
+              boolean isGreen = BlueGreenRole.parseRole(queryRole, queryVersion) == BlueGreenRole.TARGET;
 
-            Thread.sleep(1000);
-
-            // notify that this thread is ready for work
-            startLatch.get().countDown();
-
-            // wait for another threads to be ready to start the test
-            startLatch.get().await(5, TimeUnit.MINUTES);
-
-            LOGGER.finest(
-                String.format("[DirectTopology @ %s] Starting BG statuses monitoring.", hostId));
-
-            long endTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(15);
-
-            while (!stop.get() && System.nanoTime() < endTime) {
-              if (conn == null) {
-                conn =
-                    openConnectionWithRetry(
-                        ConnectionStringHelper.getUrl(url, port, dbName), props);
-                LOGGER.finest(String.format("[DirectTopology @ %s] connection re-opened", hostId));
-              }
-
-              try {
-                final Statement statement = conn.createStatement();
-                final ResultSet rs = statement.executeQuery(query);
-                while (rs.next()) {
-                  String queryRole = rs.getString("role");
-                  String queryVersion = rs.getString("version");
-                  String queryNewStatus = rs.getString("status");
-                  boolean isGreen =
-                      BlueGreenRole.parseRole(queryRole, queryVersion) == BlueGreenRole.TARGET;
-
-                  if (isGreen) {
-                    results.greenStatusTime.computeIfAbsent(
-                        queryNewStatus,
-                        (key) -> {
-                          LOGGER.finest(
-                              () ->
-                                  String.format(
-                                      "[DirectTopology @ %s] status changed to: %s",
-                                      hostId, queryNewStatus));
-                          return System.nanoTime();
-                        });
-                  } else {
-                    results.blueStatusTime.computeIfAbsent(
-                        queryNewStatus,
-                        (key) -> {
-                          LOGGER.finest(
-                              () ->
-                                  String.format(
-                                      "[DirectTopology @ %s] status changed to: %s",
-                                      hostId, queryNewStatus));
-                          return System.nanoTime();
-                        });
-                  }
-                }
-                TimeUnit.MILLISECONDS.sleep(100);
-
-              } catch (SQLException throwable) {
-                LOGGER.log(
-                    Level.FINEST,
-                    String.format("[DirectTopology @ %s] thread exception: %s", hostId, throwable),
-                    throwable);
-                this.closeConnection(conn);
-                conn = null;
+              if (isGreen) {
+                results.greenStatusTime.computeIfAbsent(queryNewStatus, (key) -> {
+                  LOGGER.finest(() -> String.format(
+                      "[DirectTopology @ %s] status changed to: %s", hostId, queryNewStatus));
+                  return System.nanoTime();
+                });
+              } else {
+                results.blueStatusTime.computeIfAbsent(queryNewStatus, (key) -> {
+                  LOGGER.finest(() -> String.format(
+                      "[DirectTopology @ %s] status changed to: %s", hostId, queryNewStatus));
+                  return System.nanoTime();
+                });
               }
             }
+            TimeUnit.MILLISECONDS.sleep(100);
 
-          } catch (InterruptedException interruptedException) {
-            // Ignore, stop the thread
-            Thread.currentThread().interrupt();
-          } catch (Exception exception) {
+          } catch (SQLException throwable) {
             LOGGER.log(
                 Level.FINEST,
-                String.format("[DirectTopology @ %s] thread unhandled exception: ", hostId),
-                exception);
-            this.unhandledExceptions.add(exception);
-          } finally {
+                String.format("[DirectTopology @ %s] thread exception: %s", hostId, throwable),
+                throwable);
             this.closeConnection(conn);
-            finishLatch.get().countDown();
-            LOGGER.finest(String.format("[DirectTopology @ %s] thread is completed.", hostId));
+            conn = null;
           }
-        });
+        }
+
+      } catch (InterruptedException interruptedException) {
+        // Ignore, stop the thread
+        Thread.currentThread().interrupt();
+      } catch (Exception exception) {
+        LOGGER.log(Level.FINEST,
+            String.format("[DirectTopology @ %s] thread unhandled exception: ", hostId),
+            exception);
+        this.unhandledExceptions.add(exception);
+      } finally {
+        this.closeConnection(conn);
+        finishLatch.get().countDown();
+        LOGGER.finest(String.format("[DirectTopology @ %s] thread is completed.", hostId));
+      }
+    });
   }
 
   // Green node
@@ -1105,85 +944,73 @@ public class BlueGreenDeploymentTests {
       final AtomicReference<CountDownLatch> finishLatch,
       final BlueGreenResults results) {
 
-    return new Thread(
-        () -> {
-          Connection conn = null;
-          try {
-            final Properties props = this.getWrapperConnectionProperties();
-            conn =
-                openConnectionWithRetry(
-                    ConnectionStringHelper.getWrapperUrlWithPlugins(
-                        host, port, dbName, this.getWrapperConnectionPlugins()),
-                    props);
-            LOGGER.finest(
-                String.format("[WrapperGreenConnectivity @ %s] connection is open.", hostId));
+    return new Thread(() -> {
 
-            BlueGreenConnectionPlugin bgPlugin = conn.unwrap(BlueGreenConnectionPlugin.class);
-            assertNotNull(bgPlugin);
+      Connection conn = null;
+      try {
+        final Properties props = this.getWrapperConnectionProperties();
+        conn = openConnectionWithRetry(
+            ConnectionStringHelper.getWrapperUrlWithPlugins(host, port, dbName, this.getWrapperConnectionPlugins()),
+            props);
+        LOGGER.finest(String.format("[WrapperGreenConnectivity @ %s] connection is open.", hostId));
 
-            Thread.sleep(1000);
+        BlueGreenConnectionPlugin bgPlugin = conn.unwrap(BlueGreenConnectionPlugin.class);
+        assertNotNull(bgPlugin);
 
-            // notify that this thread is ready for work
-            startLatch.get().countDown();
+        Thread.sleep(1000);
 
-            // wait for another threads to be ready to start the test
-            startLatch.get().await(5, TimeUnit.MINUTES);
+        // notify that this thread is ready for work
+        startLatch.get().countDown();
 
-            LOGGER.finest(
-                String.format(
-                    "[WrapperGreenConnectivity @ %s] Starting connectivity monitoring.", hostId));
+        // wait for another threads to be ready to start the test
+        startLatch.get().await(5, TimeUnit.MINUTES);
 
-            long startTime = System.nanoTime();
-            while (!stop.get()) {
-              try {
-                final Statement statement = conn.createStatement();
-                startTime = System.nanoTime();
-                final ResultSet result = statement.executeQuery("SELECT 1");
-                long endTime = System.nanoTime();
-                results.greenWrapperExecuteTimes.add(
-                    new TimeHolder(startTime, endTime, bgPlugin.getHoldTimeNano()));
-                TimeUnit.SECONDS.sleep(1);
-              } catch (SQLTimeoutException sqlTimeoutException) {
-                LOGGER.finest(
-                    String.format(
-                        "[WrapperGreenConnectivity @ %s] (SQLTimeoutException) thread exception: %s",
-                        hostId, sqlTimeoutException));
-                results.greenWrapperExecuteTimes.add(
-                    new TimeHolder(
-                        startTime,
-                        System.nanoTime(),
-                        bgPlugin.getHoldTimeNano(),
-                        sqlTimeoutException.getMessage()));
-                if (conn.isClosed()) {
-                  results.wrapperGreenLostConnectionTime.set(System.nanoTime());
-                  break;
-                }
-              } catch (SQLException throwable) {
-                LOGGER.finest(
-                    String.format(
-                        "[WrapperGreenConnectivity @ %s] thread exception: %s", hostId, throwable));
-                results.wrapperGreenLostConnectionTime.set(System.nanoTime());
-                break;
-              }
+        LOGGER.finest(String.format("[WrapperGreenConnectivity @ %s] Starting connectivity monitoring.", hostId));
+
+        long startTime = System.nanoTime();
+        while (!stop.get()) {
+          try  {
+            final Statement statement = conn.createStatement();
+            startTime = System.nanoTime();
+            final ResultSet result = statement.executeQuery("SELECT 1");
+            long endTime = System.nanoTime();
+            results.greenWrapperExecuteTimes.add(new TimeHolder(startTime, endTime, bgPlugin.getHoldTimeNano()));
+            TimeUnit.SECONDS.sleep(1);
+          } catch (SQLTimeoutException sqlTimeoutException) {
+            LOGGER.finest(String.format(
+                "[WrapperGreenConnectivity @ %s] (SQLTimeoutException) thread exception: %s",
+                hostId,
+                sqlTimeoutException));
+            results.greenWrapperExecuteTimes.add(
+                new TimeHolder(
+                    startTime,
+                    System.nanoTime(),
+                    bgPlugin.getHoldTimeNano(),
+                    sqlTimeoutException.getMessage()));
+            if (conn.isClosed()) {
+              results.wrapperGreenLostConnectionTime.set(System.nanoTime());
+              break;
             }
-
-          } catch (InterruptedException interruptedException) {
-            // Ignore, stop the thread
-            Thread.currentThread().interrupt();
-          } catch (Exception exception) {
-            LOGGER.log(
-                Level.FINEST,
-                String.format(
-                    "[WrapperGreenConnectivity @ %s] thread unhandled exception: ", hostId),
-                exception);
-            this.unhandledExceptions.add(exception);
-          } finally {
-            this.closeConnection(conn);
-            finishLatch.get().countDown();
-            LOGGER.finest(
-                String.format("[WrapperGreenConnectivity @ %s] thread is completed.", hostId));
+          } catch (SQLException throwable) {
+            LOGGER.finest(String.format("[WrapperGreenConnectivity @ %s] thread exception: %s", hostId, throwable));
+            results.wrapperGreenLostConnectionTime.set(System.nanoTime());
+            break;
           }
-        });
+        }
+
+      } catch (InterruptedException interruptedException) {
+        // Ignore, stop the thread
+        Thread.currentThread().interrupt();
+      } catch (Exception exception) {
+        LOGGER.log(Level.FINEST,
+            String.format("[WrapperGreenConnectivity @ %s] thread unhandled exception: ", hostId), exception);
+        this.unhandledExceptions.add(exception);
+      } finally {
+        this.closeConnection(conn);
+        finishLatch.get().countDown();
+        LOGGER.finest(String.format("[WrapperGreenConnectivity @ %s] thread is completed.", hostId));
+      }
+    });
   }
 
   // Green node
@@ -1205,111 +1032,97 @@ public class BlueGreenDeploymentTests {
       final boolean notifyOnFirstError,
       final boolean exitOnFirstSuccess) {
 
-    return new Thread(
-        () -> {
-          Connection conn = null;
-          try {
-            RegularRdsUtility regularRdsUtility = new RegularRdsUtility();
+    return new Thread(() -> {
 
-            final Properties props = new Properties();
-            props.setProperty("user", TestEnvironment.getCurrent().getInfo().getIamUsername());
-            props.setProperty("connectTimeout", "10000");
-            props.setProperty("socketTimeout", "10000");
+      Connection conn = null;
+      try {
+        RegularRdsUtility regularRdsUtility = new RegularRdsUtility();
 
-            final String greenNodeConnectIp = InetAddress.getByName(connectHost).getHostAddress();
+        final Properties props = new Properties();
+        props.setProperty("user", TestEnvironment.getCurrent().getInfo().getIamUsername());
+        props.setProperty("connectTimeout", "10000");
+        props.setProperty("socketTimeout", "10000");
 
-            Thread.sleep(1000);
+        final String greenNodeConnectIp = InetAddress.getByName(connectHost).getHostAddress();
 
-            // notify that this thread is ready for work
-            startLatch.get().countDown();
+        Thread.sleep(1000);
 
-            // wait for another threads to be ready to start the test
-            startLatch.get().await(5, TimeUnit.MINUTES);
+        // notify that this thread is ready for work
+        startLatch.get().countDown();
 
-            LOGGER.finest(
-                String.format(
-                    "[DirectGreenIamIp%s @ %s] Starting connectivity monitoring %s",
-                    threadPrefix, hostId, iamTokenHost));
+        // wait for another threads to be ready to start the test
+        startLatch.get().await(5, TimeUnit.MINUTES);
 
-            while (!stop.get()) {
+        LOGGER.finest(String.format(
+            "[DirectGreenIamIp%s @ %s] Starting connectivity monitoring %s", threadPrefix, hostId, iamTokenHost));
 
-              String token =
-                  regularRdsUtility.generateAuthenticationToken(
-                      DefaultCredentialsProvider.create(),
-                      Region.of(TestEnvironment.getCurrent().getInfo().getRegion()),
-                      iamTokenHost,
-                      getPort(),
-                      TestEnvironment.getCurrent().getInfo().getIamUsername());
-              props.setProperty("password", token);
+        while (!stop.get()) {
 
-              long startTime = System.nanoTime();
-              long endTime;
-              try {
-                conn =
-                    DriverManager.getConnection(
-                        ConnectionStringHelper.getUrl(greenNodeConnectIp, port, dbName), props);
-                endTime = System.nanoTime();
-                resultQueue.add(new TimeHolder(startTime, endTime));
+          String token = regularRdsUtility.generateAuthenticationToken(
+              DefaultCredentialsProvider.create(),
+              Region.of(TestEnvironment.getCurrent().getInfo().getRegion()),
+              iamTokenHost,
+              getPort(),
+              TestEnvironment.getCurrent().getInfo().getIamUsername());
+          props.setProperty("password", token);
 
-                if (exitOnFirstSuccess) {
-                  results.greenNodeChangeNameTime.compareAndSet(0, System.nanoTime());
-                  LOGGER.finest(
-                      String.format(
-                          "[DirectGreenIamIp%s @ %s] Successfully connected. Exiting thread...",
-                          threadPrefix, hostId));
-                  return;
-                }
+          long startTime = System.nanoTime();
+          long endTime;
+          try  {
+            conn = DriverManager.getConnection(
+                ConnectionStringHelper.getUrl(greenNodeConnectIp, port, dbName),
+                props);
+            endTime = System.nanoTime();
+            resultQueue.add(new TimeHolder(startTime, endTime));
 
-              } catch (SQLTimeoutException sqlTimeoutException) {
-                LOGGER.finest(
-                    String.format(
-                        "[DirectGreenIamIp%s @ %s] (SQLTimeoutException) thread exception: %s",
-                        threadPrefix, hostId, sqlTimeoutException));
-                endTime = System.nanoTime();
-                resultQueue.add(
-                    new TimeHolder(startTime, endTime, sqlTimeoutException.getMessage()));
-              } catch (SQLException throwable) {
-                LOGGER.finest(
-                    String.format(
-                        "[DirectGreenIamIp%s @ %s] thread exception: %s",
-                        threadPrefix, hostId, throwable.getMessage()));
-                endTime = System.nanoTime();
-                resultQueue.add(new TimeHolder(startTime, endTime, throwable.getMessage()));
-                if (notifyOnFirstError
-                    && throwable.getMessage() != null
-                    && throwable.getMessage().contains("Access denied")) {
-                  results.greenNodeChangeNameTime.compareAndSet(0, System.nanoTime());
-                  LOGGER.finest(
-                      String.format(
-                          "[DirectGreenIamIp%s @ %s] The first 'Access denied' exception. Exiting thread...",
-                          threadPrefix, hostId));
-                  return;
-                }
-              }
-
-              this.closeConnection(conn);
-              conn = null;
-              TimeUnit.MILLISECONDS.sleep(1000);
+            if (exitOnFirstSuccess) {
+              results.greenNodeChangeNameTime.compareAndSet(0, System.nanoTime());
+              LOGGER.finest(String.format(
+                  "[DirectGreenIamIp%s @ %s] Successfully connected. Exiting thread...", threadPrefix, hostId));
+              return;
             }
 
-          } catch (InterruptedException interruptedException) {
-            // Ignore, stop the thread
-            Thread.currentThread().interrupt();
-          } catch (Exception exception) {
-            LOGGER.log(
-                Level.FINEST,
-                String.format(
-                    "[DirectGreenIamIp%s @ %s] thread unhandled exception: ", threadPrefix, hostId),
-                exception);
-            this.unhandledExceptions.add(exception);
-          } finally {
-            this.closeConnection(conn);
-            finishLatch.get().countDown();
-            LOGGER.finest(
-                String.format(
-                    "[DirectGreenIamIp%s @ %s] thread is completed.", threadPrefix, hostId));
+          } catch (SQLTimeoutException sqlTimeoutException) {
+            LOGGER.finest(String.format(
+                "[DirectGreenIamIp%s @ %s] (SQLTimeoutException) thread exception: %s",
+                threadPrefix, hostId, sqlTimeoutException));
+            endTime = System.nanoTime();
+            resultQueue.add(new TimeHolder(startTime, endTime, sqlTimeoutException.getMessage()));
+          } catch (SQLException throwable) {
+            LOGGER.finest(String.format(
+                "[DirectGreenIamIp%s @ %s] thread exception: %s", threadPrefix, hostId, throwable.getMessage()));
+            endTime = System.nanoTime();
+            resultQueue.add(new TimeHolder(startTime, endTime, throwable.getMessage()));
+            if (notifyOnFirstError
+                && throwable.getMessage() != null
+                && throwable.getMessage().contains("Access denied")) {
+              results.greenNodeChangeNameTime.compareAndSet(0, System.nanoTime());
+              LOGGER.finest(String.format(
+                  "[DirectGreenIamIp%s @ %s] The first 'Access denied' exception. Exiting thread...",
+                  threadPrefix, hostId));
+              return;
+            }
           }
-        });
+
+          this.closeConnection(conn);
+          conn = null;
+          TimeUnit.MILLISECONDS.sleep(1000);
+        }
+
+      } catch (InterruptedException interruptedException) {
+        // Ignore, stop the thread
+        Thread.currentThread().interrupt();
+      } catch (Exception exception) {
+        LOGGER.log(Level.FINEST, String.format(
+            "[DirectGreenIamIp%s @ %s] thread unhandled exception: ", threadPrefix, hostId), exception);
+        this.unhandledExceptions.add(exception);
+      } finally {
+        this.closeConnection(conn);
+        finishLatch.get().countDown();
+        LOGGER.finest(String.format(
+            "[DirectGreenIamIp%s @ %s] thread is completed.", threadPrefix, hostId));
+      }
+    });
   }
 
   // RDS API, trigger BG switchover
@@ -1320,33 +1133,33 @@ public class BlueGreenDeploymentTests {
       final AtomicReference<CountDownLatch> finishLatch,
       final Map<String, BlueGreenResults> results) {
 
-    return new Thread(
-        () -> {
-          try {
-            startLatch.get().countDown();
+    return new Thread(() -> {
 
-            // wait for another threads to be ready to start the test
-            startLatch.get().await(5, TimeUnit.MINUTES);
-            final long nanoTime = System.nanoTime();
-            results.forEach((key, value) -> value.threadsSyncTime.set(nanoTime));
+      try {
+        startLatch.get().countDown();
 
-            TimeUnit.SECONDS.sleep(30);
-            auroraUtil.switchoverBlueGreenDeployment(blueGreenId);
+        // wait for another threads to be ready to start the test
+        startLatch.get().await(5, TimeUnit.MINUTES);
+        final long nanoTime = System.nanoTime();
+        results.forEach((key, value) -> value.threadsSyncTime.set(nanoTime));
 
-            final long nanoTime2 = System.nanoTime();
-            results.forEach((key, value) -> value.bgTriggerTime.set(nanoTime2));
+        TimeUnit.SECONDS.sleep(30);
+        auroraUtil.switchoverBlueGreenDeployment(blueGreenId);
 
-          } catch (InterruptedException e) {
-            // do nothing
-            Thread.currentThread().interrupt();
-          } catch (Exception exception) {
-            LOGGER.log(Level.FINEST, "[Switchover] thread unhandled exception: ", exception);
-            this.unhandledExceptions.add(exception);
-          } finally {
-            finishLatch.get().countDown();
-            LOGGER.finest("[Switchover] thread is completed.");
-          }
-        });
+        final long nanoTime2 = System.nanoTime();
+        results.forEach((key, value) -> value.bgTriggerTime.set(nanoTime2));
+
+      } catch (InterruptedException e) {
+        // do nothing
+        Thread.currentThread().interrupt();
+      } catch (Exception exception) {
+        LOGGER.log(Level.FINEST, "[Switchover] thread unhandled exception: ", exception);
+        this.unhandledExceptions.add(exception);
+      } finally {
+        finishLatch.get().countDown();
+        LOGGER.finest("[Switchover] thread is completed.");
+      }
+    });
   }
 
   private Connection openConnectionWithRetry(String url, Properties props) {
@@ -1404,26 +1217,15 @@ public class BlueGreenDeploymentTests {
           throw new RuntimeException("Blue cluster not found.");
         }
         if (INCLUDE_CLUSTER_ENDPOINTS) {
-          endpoints.add(
-              TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint());
+          endpoints.add(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint());
         }
         if (INCLUDE_WRITER_AND_READER_ONLY) {
           endpoints.add(
-              TestEnvironment.getCurrent()
-                  .getInfo()
-                  .getDatabaseInfo()
-                  .getInstances()
-                  .get(0)
-                  .getHost()); // writer
+              TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0).getHost()); // writer
 
           if (TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().size() > 1) {
             endpoints.add(
-                TestEnvironment.getCurrent()
-                    .getInfo()
-                    .getDatabaseInfo()
-                    .getInstances()
-                    .get(1)
-                    .getHost()); // reader
+                TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(1).getHost()); // reader
           }
         } else {
           for (TestInstanceInfo instanceInfo :
@@ -1441,19 +1243,15 @@ public class BlueGreenDeploymentTests {
           endpoints.add(greenCluster.endpoint());
         }
 
-        List<String> instanceIds =
-            auroraUtil.getAuroraInstanceIds(
-                TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-                TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
-                ConnectionStringHelper.getUrl(
-                    greenCluster.endpoint(),
-                    TestEnvironment.getCurrent()
-                        .getInfo()
-                        .getDatabaseInfo()
-                        .getClusterEndpointPort(),
-                    TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
-                TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername(),
-                TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+        List<String> instanceIds = auroraUtil.getAuroraInstanceIds(
+            TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+            TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
+            ConnectionStringHelper.getUrl(
+                greenCluster.endpoint(),
+                TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpointPort(),
+                TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername(),
+            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
 
         if (instanceIds.isEmpty()) {
           throw new RuntimeException("Can't find green cluster instances.");
@@ -1473,12 +1271,8 @@ public class BlueGreenDeploymentTests {
         return endpoints;
 
       default:
-        throw new RuntimeException(
-            "Unsupported "
-                + TestEnvironment.getCurrent()
-                    .getInfo()
-                    .getRequest()
-                    .getDatabaseEngineDeployment());
+        throw new RuntimeException("Unsupported "
+            + TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment());
     }
   }
 
@@ -1486,8 +1280,7 @@ public class BlueGreenDeploymentTests {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
     RdsHostListProvider.CLUSTER_ID.set(props, TEST_CLUSTER_ID);
 
-    DatabaseEngine databaseEngine =
-        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
+    DatabaseEngine databaseEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
     switch (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()) {
       case AURORA:
         switch (databaseEngine) {
@@ -1517,24 +1310,15 @@ public class BlueGreenDeploymentTests {
         // do nothing
     }
 
-    if (TestEnvironment.getCurrent()
-        .getInfo()
-        .getRequest()
-        .getFeatures()
-        .contains(TestEnvironmentFeatures.IAM)) {
-      IamAuthConnectionPlugin.IAM_REGION.set(
-          props, TestEnvironment.getCurrent().getInfo().getRegion());
+    if (TestEnvironment.getCurrent().getInfo().getRequest().getFeatures().contains(TestEnvironmentFeatures.IAM)) {
+      IamAuthConnectionPlugin.IAM_REGION.set(props, TestEnvironment.getCurrent().getInfo().getRegion());
       PropertyDefinition.USER.set(props, TestEnvironment.getCurrent().getInfo().getIamUsername());
     }
     return props;
   }
 
   private String getWrapperConnectionPlugins() {
-    if (TestEnvironment.getCurrent()
-        .getInfo()
-        .getRequest()
-        .getFeatures()
-        .contains(TestEnvironmentFeatures.IAM)) {
+    if (TestEnvironment.getCurrent().getInfo().getRequest().getFeatures().contains(TestEnvironmentFeatures.IAM)) {
       return "bg,iam";
     }
     return "bg";
@@ -1555,11 +1339,10 @@ public class BlueGreenDeploymentTests {
 
   private void printMetrics() {
 
-    long bgTriggerTime =
-        results.values().stream()
-            .map(blueGreenResults -> blueGreenResults.bgTriggerTime.get())
-            .findFirst()
-            .orElseThrow(() -> new RuntimeException("Can't get bgTriggerTime"));
+    long bgTriggerTime = results.values().stream()
+        .map(blueGreenResults -> blueGreenResults.bgTriggerTime.get())
+        .findFirst()
+        .orElseThrow(() -> new RuntimeException("Can't get bgTriggerTime"));
 
     AsciiTable metricsTable = new AsciiTable();
     metricsTable.addRule();
@@ -1580,10 +1363,9 @@ public class BlueGreenDeploymentTests {
         Comparator.comparing(x -> rdsUtil.isGreenInstance(x.getKey() + ".") ? 1 : 0);
     Comparator<Entry<String, BlueGreenResults>> entryNameComparator =
         Comparator.comparing(x -> rdsUtil.removeGreenInstancePrefix(x.getKey()).toLowerCase());
-    List<Entry<String, BlueGreenResults>> sortedEntries =
-        this.results.entrySet().stream()
-            .sorted(entryGreenComparator.thenComparing(entryNameComparator))
-            .collect(Collectors.toList());
+    List<Entry<String, BlueGreenResults>> sortedEntries = this.results.entrySet().stream()
+        .sorted(entryGreenComparator.thenComparing(entryNameComparator))
+        .collect(Collectors.toList());
 
     if (sortedEntries.isEmpty()) {
       metricsTable.addRow("No entries");
@@ -1591,43 +1373,29 @@ public class BlueGreenDeploymentTests {
 
     for (Entry<String, BlueGreenResults> entry : sortedEntries) {
 
-      long startTime =
-          TimeUnit.NANOSECONDS.toMillis(entry.getValue().startTime.get() - bgTriggerTime);
-      long threadsSyncTime =
-          TimeUnit.NANOSECONDS.toMillis(entry.getValue().threadsSyncTime.get() - bgTriggerTime);
-      String directBlueIdleLostConnectionTime =
-          this.getFormattedNanoTime(
-              entry.getValue().directBlueIdleLostConnectionTime, bgTriggerTime);
-      String directBlueLostConnectionTime =
-          this.getFormattedNanoTime(entry.getValue().directBlueLostConnectionTime, bgTriggerTime);
-      String wrapperBlueIdleLostConnectionTime =
-          this.getFormattedNanoTime(
-              entry.getValue().wrapperBlueIdleLostConnectionTime, bgTriggerTime);
-      String wrapperGreenLostConnectionTime =
-          this.getFormattedNanoTime(entry.getValue().wrapperGreenLostConnectionTime, bgTriggerTime);
-      String dnsBlueChangedTime =
-          this.getFormattedNanoTime(entry.getValue().dnsBlueChangedTime, bgTriggerTime);
-      String dnsGreenRemovedTime =
-          this.getFormattedNanoTime(entry.getValue().dnsGreenRemovedTime, bgTriggerTime);
-      String greenNodeChangeNameTime =
-          this.getFormattedNanoTime(entry.getValue().greenNodeChangeNameTime, bgTriggerTime);
+      long startTime = TimeUnit.NANOSECONDS.toMillis(entry.getValue().startTime.get() - bgTriggerTime);
+      long threadsSyncTime = TimeUnit.NANOSECONDS.toMillis(entry.getValue().threadsSyncTime.get() - bgTriggerTime);
+      String directBlueIdleLostConnectionTime = this.getFormattedNanoTime(
+          entry.getValue().directBlueIdleLostConnectionTime, bgTriggerTime);
+      String directBlueLostConnectionTime = this.getFormattedNanoTime(
+          entry.getValue().directBlueLostConnectionTime, bgTriggerTime);
+      String wrapperBlueIdleLostConnectionTime = this.getFormattedNanoTime(
+          entry.getValue().wrapperBlueIdleLostConnectionTime, bgTriggerTime);
+      String wrapperGreenLostConnectionTime = this.getFormattedNanoTime(
+          entry.getValue().wrapperGreenLostConnectionTime, bgTriggerTime);
+      String dnsBlueChangedTime = this.getFormattedNanoTime(
+          entry.getValue().dnsBlueChangedTime, bgTriggerTime);
+      String dnsGreenRemovedTime = this.getFormattedNanoTime(
+          entry.getValue().dnsGreenRemovedTime, bgTriggerTime);
+      String greenNodeChangeNameTime = this.getFormattedNanoTime(
+          entry.getValue().greenNodeChangeNameTime, bgTriggerTime);
 
-      metricsTable
-          .addRow(
-              entry.getKey(),
-              startTime,
-              threadsSyncTime,
-              directBlueIdleLostConnectionTime,
-              directBlueLostConnectionTime,
-              wrapperBlueIdleLostConnectionTime,
-              wrapperGreenLostConnectionTime,
-              dnsBlueChangedTime,
-              dnsGreenRemovedTime,
-              greenNodeChangeNameTime)
-          .getCells()
-          .get(0)
-          .getContext()
-          .setTextAlignment(TextAlignment.LEFT);
+      metricsTable.addRow(
+          entry.getKey(),
+          startTime, threadsSyncTime, directBlueIdleLostConnectionTime,
+          directBlueLostConnectionTime, wrapperBlueIdleLostConnectionTime, wrapperGreenLostConnectionTime,
+          dnsBlueChangedTime, dnsGreenRemovedTime, greenNodeChangeNameTime)
+        .getCells().get(0).getContext().setTextAlignment(TextAlignment.LEFT);
     }
 
     metricsTable.addRule();
@@ -1644,52 +1412,39 @@ public class BlueGreenDeploymentTests {
       if (entry.getValue().blueWrapperConnectTimes.isEmpty()) {
         continue;
       }
-      this.printDurationTimes(
-          entry.getKey(),
-          "Wrapper connection time (ms) to Blue",
-          entry.getValue().blueWrapperConnectTimes,
-          bgTriggerTime);
+      this.printDurationTimes(entry.getKey(), "Wrapper connection time (ms) to Blue",
+          entry.getValue().blueWrapperConnectTimes, bgTriggerTime);
     }
 
     for (Entry<String, BlueGreenResults> entry : sortedEntries) {
       if (entry.getValue().greenDirectIamIpWithGreenNodeConnectTimes.isEmpty()) {
         continue;
       }
-      this.printDurationTimes(
-          entry.getKey(),
-          "Wrapper IAM (green token) connection time (ms) to Green",
-          entry.getValue().greenDirectIamIpWithGreenNodeConnectTimes,
-          bgTriggerTime);
+      this.printDurationTimes(entry.getKey(), "Wrapper IAM (green token) connection time (ms) to Green",
+          entry.getValue().greenDirectIamIpWithGreenNodeConnectTimes, bgTriggerTime);
     }
 
     for (Entry<String, BlueGreenResults> entry : sortedEntries) {
       if (entry.getValue().blueWrapperExecuteTimes.isEmpty()) {
         continue;
       }
-      this.printDurationTimes(
-          entry.getKey(),
-          "Wrapper execution time (ms) to Blue",
-          entry.getValue().blueWrapperExecuteTimes,
-          bgTriggerTime);
+      this.printDurationTimes(entry.getKey(), "Wrapper execution time (ms) to Blue",
+          entry.getValue().blueWrapperExecuteTimes, bgTriggerTime);
     }
 
     for (Entry<String, BlueGreenResults> entry : sortedEntries) {
       if (entry.getValue().greenWrapperExecuteTimes.isEmpty()) {
         continue;
       }
-      this.printDurationTimes(
-          entry.getKey(),
-          "Wrapper execution time (ms) to Green",
-          entry.getValue().greenWrapperExecuteTimes,
-          bgTriggerTime);
+      this.printDurationTimes(entry.getKey(), "Wrapper execution time (ms) to Green",
+          entry.getValue().greenWrapperExecuteTimes, bgTriggerTime);
     }
   }
 
   private String getFormattedNanoTime(AtomicLong timeNanoAtomic, long timeZeroNano) {
     return timeNanoAtomic.get() == 0
         ? "-"
-        : String.format(
-            "%d ms", TimeUnit.NANOSECONDS.toMillis(timeNanoAtomic.get() - timeZeroNano));
+        : String.format("%d ms", TimeUnit.NANOSECONDS.toMillis(timeNanoAtomic.get() - timeZeroNano));
   }
 
   private void printNodeStatusTimes(String node, BlueGreenResults results, long timeZeroNano) {
@@ -1703,25 +1458,20 @@ public class BlueGreenDeploymentTests {
     metricsTable.addRow("Status", "SOURCE", "TARGET");
     metricsTable.addRule();
 
-    List<String> sortedStatusNames =
-        statusMap.entrySet().stream()
-            .sorted(Entry.comparingByValue())
-            .map(Entry::getKey)
-            .collect(Collectors.toList());
+    List<String> sortedStatusNames = statusMap.entrySet().stream()
+        .sorted(Entry.comparingByValue())
+        .map(Entry::getKey)
+        .collect(Collectors.toList());
 
     for (String status : sortedStatusNames) {
-      String sourceTime =
-          results.blueStatusTime.containsKey(status)
-              ? String.format(
-                  "%d ms",
-                  TimeUnit.NANOSECONDS.toMillis(results.blueStatusTime.get(status) - timeZeroNano))
-              : "";
-      String targetTime =
-          results.greenStatusTime.containsKey(status)
-              ? String.format(
-                  "%d ms",
-                  TimeUnit.NANOSECONDS.toMillis(results.greenStatusTime.get(status) - timeZeroNano))
-              : "";
+      String sourceTime = results.blueStatusTime.containsKey(status)
+          ? String.format("%d ms",
+              TimeUnit.NANOSECONDS.toMillis(results.blueStatusTime.get(status) - timeZeroNano))
+          : "";
+      String targetTime = results.greenStatusTime.containsKey(status)
+          ? String.format("%d ms",
+              TimeUnit.NANOSECONDS.toMillis(results.greenStatusTime.get(status) - timeZeroNano))
+          : "";
 
       metricsTable.addRow(status, sourceTime, targetTime);
     }
@@ -1730,17 +1480,17 @@ public class BlueGreenDeploymentTests {
     LOGGER.finest("\n" + node + ":\n" + this.renderTable(metricsTable, true));
   }
 
-  private void printDurationTimes(
-      String node, String title, ConcurrentLinkedDeque<TimeHolder> times, long timeZeroNano) {
+  private void printDurationTimes(String node, String title,
+      ConcurrentLinkedDeque<TimeHolder> times, long timeZeroNano) {
 
     AsciiTable metricsTable = new AsciiTable();
     metricsTable.addRule();
     metricsTable.addRow("Connect at (ms)", "Connect time/duration (ms)", "Error");
     metricsTable.addRule();
 
-    long p99nano =
-        this.getPercentile(
-            times.stream().map(x -> x.endTime - x.startTime).collect(Collectors.toList()), 99.0);
+    long p99nano = this.getPercentile(
+        times.stream().map(x -> x.endTime - x.startTime).collect(Collectors.toList()),
+        99.0);
     long p99 = TimeUnit.NANOSECONDS.toMillis(p99nano);
     metricsTable.addRow("p99", p99, "");
     metricsTable.addRule();
@@ -1749,26 +1499,16 @@ public class BlueGreenDeploymentTests {
     metricsTable.addRow(
         TimeUnit.NANOSECONDS.toMillis(firstConnect.startTime - timeZeroNano),
         TimeUnit.NANOSECONDS.toMillis(firstConnect.endTime - firstConnect.startTime),
-        firstConnect.error == null
-            ? ""
-            : firstConnect
-                    .error
-                    .substring(0, Math.min(firstConnect.error.length(), 100))
-                    .replace("\n", " ")
-                + "...");
+        firstConnect.error == null ? "" : firstConnect.error.substring(
+            0, Math.min(firstConnect.error.length(), 100)).replace("\n", " ") + "...");
 
     for (TimeHolder timeHolder : times) {
       if (TimeUnit.NANOSECONDS.toMillis(timeHolder.endTime - timeHolder.startTime) > p99) {
         metricsTable.addRow(
             TimeUnit.NANOSECONDS.toMillis(timeHolder.startTime - timeZeroNano),
             TimeUnit.NANOSECONDS.toMillis(timeHolder.endTime - timeHolder.startTime),
-            timeHolder.error == null
-                ? ""
-                : timeHolder
-                        .error
-                        .substring(0, Math.min(timeHolder.error.length(), 100))
-                        .replace("\n", " ")
-                    + "...");
+            timeHolder.error == null ? "" : timeHolder.error.substring(
+                0, Math.min(timeHolder.error.length(), 100)).replace("\n", " ") + "...");
       }
     }
 
@@ -1776,13 +1516,8 @@ public class BlueGreenDeploymentTests {
     metricsTable.addRow(
         TimeUnit.NANOSECONDS.toMillis(lastConnect.startTime - timeZeroNano),
         TimeUnit.NANOSECONDS.toMillis(lastConnect.endTime - lastConnect.startTime),
-        lastConnect.error == null
-            ? ""
-            : lastConnect
-                    .error
-                    .substring(0, Math.min(lastConnect.error.length(), 100))
-                    .replace("\n", " ")
-                + "...");
+        lastConnect.error == null ? "" : lastConnect.error.substring(
+            0, Math.min(lastConnect.error.length(), 100)).replace("\n", " ") + "...");
 
     metricsTable.addRule();
     metricsTable.setTextAlignment(TextAlignment.CENTER);
@@ -1821,36 +1556,30 @@ public class BlueGreenDeploymentTests {
   }
 
   private void assertTest() {
-    long bgTriggerTime =
-        results.values().stream()
-            .map(blueGreenResults -> blueGreenResults.bgTriggerTime.get())
-            .findFirst()
-            .orElseThrow(() -> new RuntimeException("Can't get bgTriggerTime"));
+    long bgTriggerTime = results.values().stream()
+        .map(blueGreenResults -> blueGreenResults.bgTriggerTime.get())
+        .findFirst()
+        .orElseThrow(() -> new RuntimeException("Can't get bgTriggerTime"));
 
-    long maxGreenNodeChangeTime =
-        this.results.values().stream()
-            .map(
-                blueGreenResults ->
-                    blueGreenResults.greenNodeChangeNameTime.get() == 0
-                        ? 0
-                        : TimeUnit.NANOSECONDS.toMillis(
-                            blueGreenResults.greenNodeChangeNameTime.get() - bgTriggerTime))
-            .max(Comparator.comparingLong(x -> x))
-            .orElse(0L);
+    long maxGreenNodeChangeTime = this.results.values().stream()
+        .map(blueGreenResults -> blueGreenResults.greenNodeChangeNameTime.get() == 0
+            ? 0
+            : TimeUnit.NANOSECONDS.toMillis(blueGreenResults.greenNodeChangeNameTime.get() - bgTriggerTime))
+        .max(Comparator.comparingLong(x -> x))
+        .orElse(0L);
     LOGGER.finest(() -> String.format("maxGreenNodeChangeTime: %d ms", maxGreenNodeChangeTime));
 
-    long switchoverCompleteTime =
-        this.results.values().stream()
-            .filter(x -> !x.greenStatusTime.isEmpty())
-            .map(x -> x.greenStatusTime.getOrDefault("SWITCHOVER_COMPLETED", 0L))
-            .map(x -> x == 0 ? 0 : TimeUnit.NANOSECONDS.toMillis(x - bgTriggerTime))
-            .max(Comparator.comparingLong(x -> x))
-            .orElse(0L);
+    long switchoverCompleteTime = this.results.values().stream().filter(x -> !x.greenStatusTime.isEmpty())
+        .map(x -> x.greenStatusTime.getOrDefault("SWITCHOVER_COMPLETED", 0L))
+        .map(x -> x == 0
+            ? 0
+            : TimeUnit.NANOSECONDS.toMillis(x - bgTriggerTime))
+        .max(Comparator.comparingLong(x -> x))
+        .orElse(0L);
     LOGGER.finest(() -> String.format("switchoverCompleteTime: %d ms", switchoverCompleteTime));
 
     assertNotEquals(0L, switchoverCompleteTime, "BG switchover hasn't completed.");
-    assertTrue(
-        switchoverCompleteTime >= maxGreenNodeChangeTime,
+    assertTrue(switchoverCompleteTime >= maxGreenNodeChangeTime,
         "Green node changed name after SWITCHOVER_COMPLETED.");
   }
 }

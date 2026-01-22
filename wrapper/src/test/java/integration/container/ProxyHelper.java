@@ -84,14 +84,13 @@ public class ProxyHelper {
     try {
       proxy.toxics().getAll().stream()
           .filter(t -> "DOWN-STREAM".equals(t.getName()) || "UP-STREAM".equals(t.getName()))
-          .forEach(
-              toxic1 -> {
-                try {
-                  toxic1.remove();
-                } catch (IOException e) {
-                  // ignore
-                }
-              });
+          .forEach(toxic1 -> {
+            try {
+              toxic1.remove();
+            } catch (IOException e) {
+              // ignore
+            }
+          });
     } catch (IOException ex) {
       LOGGER.finest("Error enabling connectivity: " + ex.getMessage());
     }
@@ -122,14 +121,13 @@ public class ProxyHelper {
     try {
       proxy.toxics().getAll().stream()
           .filter(t -> "latency".equals(t.getName()))
-          .forEach(
-              toxic -> {
-                try {
-                  toxic.remove();
-                } catch (IOException e) {
-                  // ignore
-                }
-              });
+          .forEach(toxic -> {
+            try {
+              toxic.remove();
+            } catch (IOException e) {
+              // ignore
+            }
+          });
     } catch (IOException ex) {
       LOGGER.finest("Error clearing latencies for '" + proxy.getName() + "': " + ex.getMessage());
     }

@@ -56,23 +56,20 @@ import software.amazon.jdbc.util.storage.CacheMap;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
- * A {@link PluginService} containing some methods that are not intended to be called. This class is
- * intended to be used by monitors, which require a {@link PluginService}, but are not expected to
- * need or use some of the methods defined by the {@link PluginService} interface. The methods that
- * are not expected to be called will log a warning or throw an {@link
- * UnsupportedOperationException} when called.
+ * A {@link PluginService} containing some methods that are not intended to be called. This class is intended to be used
+ * by monitors, which require a {@link PluginService}, but are not expected to need or use some of the methods defined
+ * by the {@link PluginService} interface. The methods that are not expected to be called will log a warning or throw an
+ * {@link UnsupportedOperationException} when called.
  */
 @SuppressWarnings("deprecation")
-public class PartialPluginService
-    implements PluginService, CanReleaseResources, HostListProviderService, PluginManagerService {
+public class PartialPluginService implements PluginService, CanReleaseResources, HostListProviderService,
+    PluginManagerService {
 
   private static final Logger LOGGER = Logger.getLogger(PartialPluginService.class.getName());
-  protected static final long DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO =
-      TimeUnit.MINUTES.toNanos(5);
+  protected static final long DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(5);
   protected static final int DEFAULT_TOPOLOGY_QUERY_TIMEOUT_MS = 5000;
 
-  protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache =
-      new CacheMap<>();
+  protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache = new CacheMap<>();
   protected final FullServicesContainer servicesContainer;
   protected final ConnectionPluginManager pluginManager;
   protected final Properties props;
@@ -96,8 +93,7 @@ public class PartialPluginService
       @NonNull final String originalUrl,
       @NonNull final String targetDriverProtocol,
       @NonNull final TargetDriverDialect targetDriverDialect,
-      @NonNull final Dialect dbDialect)
-      throws SQLException {
+      @NonNull final Dialect dbDialect) throws SQLException {
     this(
         servicesContainer,
         new ExceptionManager(),
@@ -117,8 +113,7 @@ public class PartialPluginService
       @NonNull final String targetDriverProtocol,
       @NonNull final TargetDriverDialect targetDriverDialect,
       @NonNull final Dialect dbDialect,
-      @Nullable final ConfigurationProfile configurationProfile)
-      throws SQLException {
+      @Nullable final ConfigurationProfile configurationProfile) throws SQLException {
     this.servicesContainer = servicesContainer;
     this.servicesContainer.setHostListProviderService(this);
     this.servicesContainer.setPluginService(this);
@@ -133,26 +128,22 @@ public class PartialPluginService
     this.configurationProfile = configurationProfile;
     this.exceptionManager = exceptionManager;
 
-    this.connectionProviderManager =
-        new ConnectionProviderManager(
-            this.pluginManager.getDefaultConnProvider(),
-            this.pluginManager.getEffectiveConnProvider());
+    this.connectionProviderManager = new ConnectionProviderManager(
+        this.pluginManager.getDefaultConnProvider(),
+        this.pluginManager.getEffectiveConnProvider());
 
-    this.exceptionHandler =
-        this.configurationProfile != null && this.configurationProfile.getExceptionHandler() != null
-            ? this.configurationProfile.getExceptionHandler()
-            : null;
+    this.exceptionHandler = this.configurationProfile != null && this.configurationProfile.getExceptionHandler() != null
+        ? this.configurationProfile.getExceptionHandler()
+        : null;
 
     HostListProviderSupplier supplier = this.dbDialect.getHostListProviderSupplier();
-    this.hostListProvider =
-        supplier.getProvider(this.props, this.originalUrl, this.servicesContainer);
+    this.hostListProvider = supplier.getProvider(this.props, this.originalUrl, this.servicesContainer);
   }
 
   @Override
   public Connection getCurrentConnection() {
     throw new UnsupportedOperationException(
-        Messages.get(
-            "PartialPluginService.unexpectedMethodCall", new Object[] {"getCurrentConnection"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getCurrentConnection"}));
   }
 
   @Override
@@ -169,12 +160,11 @@ public class PartialPluginService
         final List<HostSpec> allowedHosts = this.getHosts();
         if (!Utils.containsHostAndPort(allowedHosts, this.currentHostSpec.getHostAndPort())) {
           throw new RuntimeException(
-              Messages.get(
-                  "PluginServiceImpl.currentHostNotAllowed",
+              Messages.get("PluginServiceImpl.currentHostNotAllowed",
                   new Object[] {
-                    currentHostSpec == null ? "<null>" : currentHostSpec.getHostAndPort(),
-                    LogUtils.logTopology(allowedHosts, "")
-                  }));
+                      currentHostSpec == null ? "<null>" : currentHostSpec.getHostAndPort(),
+                      LogUtils.logTopology(allowedHosts, "")})
+          );
         }
 
         if (this.currentHostSpec == null) {
@@ -206,23 +196,19 @@ public class PartialPluginService
   @Override
   public boolean acceptsStrategy(HostRole role, String strategy) throws SQLException {
     throw new UnsupportedOperationException(
-        Messages.get(
-            "PartialPluginService.unexpectedMethodCall", new Object[] {"acceptsStrategy"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"acceptsStrategy"}));
   }
 
   @Override
   public HostSpec getHostSpecByStrategy(HostRole role, String strategy) throws SQLException {
     throw new UnsupportedOperationException(
-        Messages.get(
-            "PartialPluginService.unexpectedMethodCall", new Object[] {"getHostSpecByStrategy"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getHostSpecByStrategy"}));
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy)
-      throws SQLException {
+  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy) throws SQLException {
     throw new UnsupportedOperationException(
-        Messages.get(
-            "PartialPluginService.unexpectedMethodCall", new Object[] {"getHostSpecByStrategy"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getHostSpecByStrategy"}));
   }
 
   @Override
@@ -251,8 +237,7 @@ public class PartialPluginService
   public void setCurrentConnection(
       final @NonNull Connection connection, final @NonNull HostSpec hostSpec) throws SQLException {
     throw new UnsupportedOperationException(
-        Messages.get(
-            "PartialPluginService.unexpectedMethodCall", new Object[] {"setCurrentConnection"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"setCurrentConnection"}));
   }
 
   @Override
@@ -262,12 +247,12 @@ public class PartialPluginService
       @Nullable final ConnectionPlugin skipNotificationForThisPlugin)
       throws SQLException {
     throw new UnsupportedOperationException(
-        Messages.get(
-            "PartialPluginService.unexpectedMethodCall", new Object[] {"setCurrentConnection"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"setCurrentConnection"}));
   }
 
   protected EnumSet<NodeChangeOptions> compare(
-      final @NonNull HostSpec hostSpecA, final @NonNull HostSpec hostSpecB) {
+      final @NonNull HostSpec hostSpecA,
+      final @NonNull HostSpec hostSpecB) {
 
     final EnumSet<NodeChangeOptions> changes = EnumSet.noneOf(NodeChangeOptions.class);
 
@@ -306,10 +291,8 @@ public class PartialPluginService
 
   @Override
   public List<HostSpec> getHosts() {
-    AllowedAndBlockedHosts hostPermissions =
-        this.servicesContainer
-            .getStorageService()
-            .get(AllowedAndBlockedHosts.class, this.initialConnectionHostSpec.getUrl());
+    AllowedAndBlockedHosts hostPermissions = this.servicesContainer.getStorageService().get(
+        AllowedAndBlockedHosts.class, this.initialConnectionHostSpec.getUrl());
     if (hostPermissions == null) {
       return this.allHosts;
     }
@@ -319,38 +302,32 @@ public class PartialPluginService
     Set<String> blockedHostIds = hostPermissions.getBlockedHostIds();
 
     if (!Utils.isNullOrEmpty(allowedHostIds)) {
-      hosts =
-          hosts.stream()
-              .filter((hostSpec -> allowedHostIds.contains(hostSpec.getHostId())))
-              .collect(Collectors.toList());
+      hosts = hosts.stream()
+          .filter((hostSpec -> allowedHostIds.contains(hostSpec.getHostId())))
+          .collect(Collectors.toList());
     }
 
     if (!Utils.isNullOrEmpty(blockedHostIds)) {
-      hosts =
-          hosts.stream()
-              .filter((hostSpec -> !blockedHostIds.contains(hostSpec.getHostId())))
-              .collect(Collectors.toList());
+      hosts = hosts.stream()
+          .filter((hostSpec -> !blockedHostIds.contains(hostSpec.getHostId())))
+          .collect(Collectors.toList());
     }
 
     return hosts;
   }
 
   @Override
-  public void setAvailability(
-      final @NonNull Set<String> hostAliases, final @NonNull HostAvailability availability) {
+  public void setAvailability(final @NonNull Set<String> hostAliases, final @NonNull HostAvailability availability) {
 
     if (hostAliases.isEmpty()) {
       return;
     }
 
-    final List<HostSpec> hostsToChange =
-        this.getAllHosts().stream()
-            .filter(
-                (host) ->
-                    hostAliases.contains(host.asAlias())
-                        || host.getAliases().stream().anyMatch(hostAliases::contains))
-            .distinct()
-            .collect(Collectors.toList());
+    final List<HostSpec> hostsToChange = this.getAllHosts().stream()
+        .filter((host) -> hostAliases.contains(host.asAlias())
+            || host.getAliases().stream().anyMatch(hostAliases::contains))
+        .distinct()
+        .collect(Collectors.toList());
 
     if (hostsToChange.isEmpty()) {
       LOGGER.finest(() -> Messages.get("PluginServiceImpl.hostsChangelistEmpty"));
@@ -361,8 +338,8 @@ public class PartialPluginService
     for (final HostSpec host : hostsToChange) {
       final HostAvailability currentAvailability = host.getAvailability();
       host.setAvailability(availability);
-      hostAvailabilityExpiringCache.put(
-          host.getUrl(), availability, DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO);
+      hostAvailabilityExpiringCache.put(host.getUrl(), availability,
+          DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO);
       if (currentAvailability != availability) {
         final EnumSet<NodeChangeOptions> hostChanges;
         if (availability == HostAvailability.AVAILABLE) {
@@ -382,15 +359,13 @@ public class PartialPluginService
   @Override
   public boolean isInTransaction() {
     throw new UnsupportedOperationException(
-        Messages.get(
-            "PartialPluginService.unexpectedMethodCall", new Object[] {"isInTransaction"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"isInTransaction"}));
   }
 
   @Override
   public boolean isDialectConfirmed() {
     throw new UnsupportedOperationException(
-        Messages.get(
-            "PartialPluginService.unexpectedMethodCall", new Object[] {"isDialectConfirmed"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"isDialectConfirmed"}));
   }
 
   @Override
@@ -423,8 +398,7 @@ public class PartialPluginService
 
     final HostListProvider hostListProvider = this.getHostListProvider();
     try {
-      final List<HostSpec> updatedHostList =
-          hostListProvider.forceRefresh(shouldVerifyWriter, timeoutMs);
+      final List<HostSpec> updatedHostList = hostListProvider.forceRefresh(shouldVerifyWriter, timeoutMs);
       if (updatedHostList != null) {
         updateHostAvailability(updatedHostList);
         setNodeList(this.allHosts, updatedHostList);
@@ -432,24 +406,21 @@ public class PartialPluginService
       }
     } catch (TimeoutException ex) {
       // do nothing.
-      LOGGER.finest(
-          Messages.get("PluginServiceImpl.forceRefreshTimeout", new Object[] {timeoutMs}));
+      LOGGER.finest(Messages.get("PluginServiceImpl.forceRefreshTimeout", new Object[] {timeoutMs}));
     }
     return false;
   }
 
-  void setNodeList(
-      @Nullable final List<HostSpec> oldHosts, @Nullable final List<HostSpec> newHosts) {
+  void setNodeList(@Nullable final List<HostSpec> oldHosts,
+      @Nullable final List<HostSpec> newHosts) {
 
-    final Map<String, HostSpec> oldHostMap =
-        oldHosts == null
-            ? new HashMap<>()
-            : oldHosts.stream().collect(Collectors.toMap(HostSpec::getUrl, (value) -> value));
+    final Map<String, HostSpec> oldHostMap = oldHosts == null
+        ? new HashMap<>()
+        : oldHosts.stream().collect(Collectors.toMap(HostSpec::getUrl, (value) -> value));
 
-    final Map<String, HostSpec> newHostMap =
-        newHosts == null
-            ? new HashMap<>()
-            : newHosts.stream().collect(Collectors.toMap(HostSpec::getUrl, (value) -> value));
+    final Map<String, HostSpec> newHostMap = newHosts == null
+        ? new HashMap<>()
+        : newHosts.stream().collect(Collectors.toMap(HostSpec::getUrl, (value) -> value));
 
     final Map<String, EnumSet<NodeChangeOptions>> changes = new HashMap<>();
 
@@ -460,8 +431,7 @@ public class PartialPluginService
         changes.put(entry.getKey(), EnumSet.of(NodeChangeOptions.NODE_DELETED));
       } else {
         // host maybe changed
-        final EnumSet<NodeChangeOptions> hostChanges =
-            compare(entry.getValue(), correspondingNewHost);
+        final EnumSet<NodeChangeOptions> hostChanges = compare(entry.getValue(), correspondingNewHost);
         if (!hostChanges.isEmpty()) {
           changes.put(entry.getKey(), hostChanges);
         }
@@ -508,7 +478,9 @@ public class PartialPluginService
   }
 
   @Override
-  public Connection forceConnect(final HostSpec hostSpec, final Properties props)
+  public Connection forceConnect(
+      final HostSpec hostSpec,
+      final Properties props)
       throws SQLException {
     return this.forceConnect(hostSpec, props, null);
   }
@@ -535,13 +507,11 @@ public class PartialPluginService
   @Override
   public void releaseResources() {
     throw new UnsupportedOperationException(
-        Messages.get(
-            "PartialPluginService.unexpectedMethodCall", new Object[] {"releaseResources"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"releaseResources"}));
   }
 
   @Override
-  public boolean isNetworkException(
-      final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
+  public boolean isNetworkException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     if (this.exceptionHandler != null) {
       return this.exceptionHandler.isNetworkException(throwable, targetDriverDialect);
     }
@@ -557,8 +527,7 @@ public class PartialPluginService
   }
 
   @Override
-  public boolean isLoginException(
-      final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
+  public boolean isLoginException(final Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     if (this.exceptionHandler != null) {
       return this.exceptionHandler.isLoginException(throwable, targetDriverDialect);
     }
@@ -574,8 +543,7 @@ public class PartialPluginService
   }
 
   @Override
-  public boolean isReadOnlyConnectionException(
-      @Nullable String sqlState, @Nullable Integer errorCode) {
+  public boolean isReadOnlyConnectionException(@Nullable String sqlState, @Nullable Integer errorCode) {
     if (this.exceptionHandler != null) {
       return this.exceptionHandler.isReadOnlyConnectionException(sqlState, errorCode);
     }
@@ -583,13 +551,11 @@ public class PartialPluginService
   }
 
   @Override
-  public boolean isReadOnlyConnectionException(
-      Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
+  public boolean isReadOnlyConnectionException(Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect) {
     if (this.exceptionHandler != null) {
       return this.exceptionHandler.isReadOnlyConnectionException(throwable, targetDriverDialect);
     }
-    return this.exceptionManager.isReadOnlyConnectionException(
-        this.dbDialect, throwable, targetDriverDialect);
+    return this.exceptionManager.isReadOnlyConnectionException(this.dbDialect, throwable, targetDriverDialect);
   }
 
   @Override
@@ -604,8 +570,7 @@ public class PartialPluginService
 
   @Override
   public void updateDialect(final @NonNull Connection connection) {
-    // do nothing. This method is called after connecting in DefaultConnectionPlugin but the dialect
-    // passed to the
+    // do nothing. This method is called after connecting in DefaultConnectionPlugin but the dialect passed to the
     // constructor should already be updated and verified.
   }
 
@@ -621,10 +586,7 @@ public class PartialPluginService
     }
 
     if (!hostSpec.getAliases().isEmpty()) {
-      LOGGER.finest(
-          () ->
-              Messages.get(
-                  "PluginServiceImpl.nonEmptyAliases", new Object[] {hostSpec.getAliases()}));
+      LOGGER.finest(() -> Messages.get("PluginServiceImpl.nonEmptyAliases", new Object[] {hostSpec.getAliases()}));
       return;
     }
 
@@ -639,14 +601,10 @@ public class PartialPluginService
       }
     } catch (final SQLException sqlException) {
       // log and ignore
-      LOGGER.log(
-          Level.FINEST,
-          sqlException,
-          () -> Messages.get("PluginServiceImpl.failedToRetrieveHostPort"));
+      LOGGER.log(Level.FINEST, sqlException, () -> Messages.get("PluginServiceImpl.failedToRetrieveHostPort"));
     }
 
-    // Add the instance endpoint if the current connection is associated with a topology aware
-    // database cluster.
+    // Add the instance endpoint if the current connection is associated with a topology aware database cluster.
     final HostSpec host = this.identifyConnection(connection);
     if (host != null) {
       hostSpec.addAlias(host.asAliases().toArray(new String[] {}));
@@ -674,8 +632,7 @@ public class PartialPluginService
   @Override
   public @NonNull SessionStateService getSessionStateService() {
     throw new UnsupportedOperationException(
-        Messages.get(
-            "PartialPluginService.unexpectedMethodCall", new Object[] {"getSessionStateService"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getSessionStateService"}));
   }
 
   public <T> T getPlugin(final Class<T> pluginClazz) {
@@ -699,8 +656,7 @@ public class PartialPluginService
   public Boolean isPooledConnection() {
     // This service implementation doesn't support call context.
     throw new UnsupportedOperationException(
-        Messages.get(
-            "PartialPluginService.unexpectedMethodCall", new Object[] {"getSessionStateService"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getSessionStateService"}));
   }
 
   @Override
@@ -713,8 +669,7 @@ public class PartialPluginService
   public void resetCallContext() {
     // This service implementation doesn't support call context.
     throw new UnsupportedOperationException(
-        Messages.get(
-            "PartialPluginService.unexpectedMethodCall", new Object[] {"getSessionStateService"}));
+        Messages.get("PartialPluginService.unexpectedMethodCall", new Object[] {"getSessionStateService"}));
   }
 
   @Override

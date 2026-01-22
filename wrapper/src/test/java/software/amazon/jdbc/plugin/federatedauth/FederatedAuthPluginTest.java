@@ -64,8 +64,7 @@ class FederatedAuthPluginTest {
       new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host(HOST).build();
   private static final String DB_USER = "iamUser";
   private static final String TEST_TOKEN = "someTestToken";
-  private static final TokenInfo TEST_TOKEN_INFO =
-      new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000));
+  private static final TokenInfo TEST_TOKEN_INFO = new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000));
   @Mock private PluginService mockPluginService;
   @Mock private Dialect mockDialect;
   @Mock JdbcCallable<Connection, SQLException> mockLambda;
@@ -91,12 +90,11 @@ class FederatedAuthPluginTest {
 
     when(mockRdsUtils.getRdsRegion(anyString())).thenReturn("us-east-2");
     when(mockIamTokenUtils.generateAuthenticationToken(
-            any(AwsCredentialsProvider.class),
-            any(Region.class),
-            anyString(),
-            anyInt(),
-            anyString()))
-        .thenReturn(TEST_TOKEN);
+        any(AwsCredentialsProvider.class),
+        any(Region.class),
+        anyString(),
+        anyInt(),
+        anyString())).thenReturn(TEST_TOKEN);
     when(mockPluginService.getDialect()).thenReturn(mockDialect);
     when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PORT);
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
@@ -129,49 +127,37 @@ class FederatedAuthPluginTest {
 
   @Test
   void testExpiredCachedToken() throws SQLException {
-    FederatedAuthPlugin spyPlugin =
-        Mockito.spy(
-            new FederatedAuthPlugin(
-                mockPluginService,
-                mockCredentialsProviderFactory,
-                mockRdsUtils,
-                mockIamTokenUtils));
+    FederatedAuthPlugin spyPlugin = Mockito.spy(
+        new FederatedAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils));
 
     String key = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:" + DEFAULT_PORT + ":iamUser";
     String someExpiredToken = "someExpiredToken";
-    TokenInfo expiredTokenInfo = new TokenInfo(someExpiredToken, Instant.now().minusMillis(300000));
+    TokenInfo expiredTokenInfo = new TokenInfo(
+        someExpiredToken, Instant.now().minusMillis(300000));
     FederatedAuthCacheHolder.tokenCache.put(key, expiredTokenInfo);
 
     spyPlugin.connect(DRIVER_PROTOCOL, HOST_SPEC, props, true, mockLambda);
-    verify(mockIamTokenUtils)
-        .generateAuthenticationToken(
-            mockAwsCredentialsProvider,
-            Region.US_EAST_2,
-            HOST_SPEC.getHost(),
-            DEFAULT_PORT,
-            DB_USER);
+    verify(mockIamTokenUtils).generateAuthenticationToken(mockAwsCredentialsProvider,
+        Region.US_EAST_2,
+        HOST_SPEC.getHost(),
+        DEFAULT_PORT,
+        DB_USER);
     assertEquals(DB_USER, PropertyDefinition.USER.getString(props));
     assertEquals(TEST_TOKEN, PropertyDefinition.PASSWORD.getString(props));
   }
 
   @Test
   void testNoCachedToken() throws SQLException {
-    FederatedAuthPlugin spyPlugin =
-        Mockito.spy(
-            new FederatedAuthPlugin(
-                mockPluginService,
-                mockCredentialsProviderFactory,
-                mockRdsUtils,
-                mockIamTokenUtils));
+    FederatedAuthPlugin spyPlugin = Mockito.spy(
+        new FederatedAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils));
 
     spyPlugin.connect(DRIVER_PROTOCOL, HOST_SPEC, props, true, mockLambda);
-    verify(mockIamTokenUtils)
-        .generateAuthenticationToken(
-            mockAwsCredentialsProvider,
-            Region.US_EAST_2,
-            HOST_SPEC.getHost(),
-            DEFAULT_PORT,
-            DB_USER);
+    verify(mockIamTokenUtils).generateAuthenticationToken(
+        mockAwsCredentialsProvider,
+        Region.US_EAST_2,
+        HOST_SPEC.getHost(),
+        DEFAULT_PORT,
+        DB_USER);
     assertEquals(DB_USER, PropertyDefinition.USER.getString(props));
     assertEquals(TEST_TOKEN, PropertyDefinition.PASSWORD.getString(props));
   }
@@ -186,13 +172,11 @@ class FederatedAuthPluginTest {
     props.setProperty(FederatedAuthPlugin.IAM_DEFAULT_PORT.name, String.valueOf(expectedPort));
     props.setProperty(FederatedAuthPlugin.IAM_REGION.name, expectedRegion.toString());
 
-    final String key =
-        "us-west-2:pg.testdb.us-west-2.rds.amazonaws.com:" + expectedPort + ":iamUser";
+    final String key = "us-west-2:pg.testdb.us-west-2.rds.amazonaws.com:" + expectedPort + ":iamUser";
     FederatedAuthCacheHolder.tokenCache.put(key, TEST_TOKEN_INFO);
 
     FederatedAuthPlugin plugin =
-        new FederatedAuthPlugin(
-            mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
+        new FederatedAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
 
     plugin.connect(DRIVER_PROTOCOL, HOST_SPEC, props, true, mockLambda);
 
@@ -208,8 +192,7 @@ class FederatedAuthPluginTest {
     PropertyDefinition.PASSWORD.set(props, expectedPassword);
 
     FederatedAuthPlugin plugin =
-        new FederatedAuthPlugin(
-            mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
+        new FederatedAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
 
     String key = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:" + DEFAULT_PORT + ":iamUser";
     FederatedAuthCacheHolder.tokenCache.put(key, TEST_TOKEN_INFO);
@@ -225,20 +208,18 @@ class FederatedAuthPluginTest {
   @Test
   public void testUsingIamHost() throws SQLException {
     IamAuthConnectionPlugin.IAM_HOST.set(props, IAM_HOST);
-    FederatedAuthPlugin spyPlugin =
-        Mockito.spy(
-            new FederatedAuthPlugin(
-                mockPluginService,
-                mockCredentialsProviderFactory,
-                mockRdsUtils,
-                mockIamTokenUtils));
+    FederatedAuthPlugin spyPlugin = Mockito.spy(
+        new FederatedAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils));
 
     spyPlugin.connect(DRIVER_PROTOCOL, HOST_SPEC, props, true, mockLambda);
 
     assertEquals(DB_USER, PropertyDefinition.USER.getString(props));
     assertEquals(TEST_TOKEN, PropertyDefinition.PASSWORD.getString(props));
-    verify(mockIamTokenUtils, times(1))
-        .generateAuthenticationToken(
-            mockAwsCredentialsProvider, Region.US_EAST_2, IAM_HOST, DEFAULT_PORT, DB_USER);
+    verify(mockIamTokenUtils, times(1)).generateAuthenticationToken(
+        mockAwsCredentialsProvider,
+        Region.US_EAST_2,
+        IAM_HOST,
+        DEFAULT_PORT,
+        DB_USER);
   }
 }

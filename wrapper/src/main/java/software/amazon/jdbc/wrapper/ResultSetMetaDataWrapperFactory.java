@@ -27,7 +27,6 @@ public class ResultSetMetaDataWrapperFactory implements WrapperFactory {
       @NonNull Object targetObj,
       @NonNull ConnectionWrapper connectionWrapper,
       @NonNull ConnectionPluginManager pluginManager) {
-    return new ResultSetMetaDataWrapper(
-        (ResultSetMetaData) targetObj, connectionWrapper, pluginManager);
+    return new ResultSetMetaDataWrapper((ResultSetMetaData) targetObj, connectionWrapper, pluginManager);
   }
 }

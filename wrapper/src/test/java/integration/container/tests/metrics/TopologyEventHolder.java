@@ -66,17 +66,12 @@ public class TopologyEventHolder {
     this.accessible = accessible;
     this.readOnly = readOnly;
     this.blankTopology = topology == null || topology.isEmpty();
-    this.writerHostId =
-        topology == null || topology.isEmpty()
-            ? null
-            : topology.stream().filter(x -> x.isWriter).map(x -> x.hostId).findFirst().orElse(null);
-    this.readerHostIds =
-        topology == null || topology.isEmpty()
-            ? null
-            : topology.stream()
-                .filter(x -> !x.isWriter)
-                .map(x -> x.hostId)
-                .collect(Collectors.toSet());
+    this.writerHostId = topology == null || topology.isEmpty()
+        ? null
+        : topology.stream().filter(x -> x.isWriter).map(x -> x.hostId).findFirst().orElse(null);
+    this.readerHostIds = topology == null || topology.isEmpty()
+        ? null
+        : topology.stream().filter(x -> !x.isWriter).map(x -> x.hostId).collect(Collectors.toSet());
   }
 
   public void setOffsetTimeMs(long offsetTimeMs) {
@@ -117,18 +112,15 @@ public class TopologyEventHolder {
   @Override
   public String toString() {
     return super.toString()
-        + String.format(
-            " [nodeId=%s, timestamp=%s, time=%d, accessible=%s, readOnly=%s, writer=%s, readers=%s]",
-            this.nodeId == null ? "<null>" : this.nodeId,
-            this.timestamp == null ? "<null>" : this.timestamp.toString(),
-            this.timestampNano,
-            this.accessible,
-            this.readOnly == null ? "<null>" : this.readOnly.toString(),
-            this.writerHostId == null ? "<null>" : this.writerHostId,
-            this.readerHostIds == null
-                ? "<null>"
-                : "["
-                    + this.readerHostIds.stream().sorted().collect(Collectors.joining(", "))
-                    + "]");
+        + String.format(" [nodeId=%s, timestamp=%s, time=%d, accessible=%s, readOnly=%s, writer=%s, readers=%s]",
+        this.nodeId == null ? "<null>" : this.nodeId,
+        this.timestamp == null ? "<null>" : this.timestamp.toString(),
+        this.timestampNano,
+        this.accessible,
+        this.readOnly == null ? "<null>" : this.readOnly.toString(),
+        this.writerHostId == null ? "<null>" : this.writerHostId,
+        this.readerHostIds == null
+            ? "<null>"
+            : "[" + this.readerHostIds.stream().sorted().collect(Collectors.joining(", ")) + "]");
   }
 }

@@ -20,16 +20,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public interface TelemetryFactory {
 
-  @Nullable
-  TelemetryContext openTelemetryContext(String name, TelemetryTraceLevel traceLevel);
+  @Nullable TelemetryContext openTelemetryContext(String name, TelemetryTraceLevel traceLevel);
 
   void postCopy(TelemetryContext telemetryContext, TelemetryTraceLevel traceLevel);
 
-  @Nullable
-  TelemetryCounter createCounter(String name);
+  @Nullable TelemetryCounter createCounter(String name);
 
-  @Nullable
-  TelemetryGauge createGauge(String name, GaugeCallable<Long> callback);
+  @Nullable TelemetryGauge createGauge(String name, GaugeCallable<Long> callback);
 
   boolean inUse();
 }

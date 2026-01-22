@@ -66,8 +66,7 @@ public class DeveloperConnectionPluginTest {
   @Mock TelemetryContext mockTelemetryContext;
 
   @SuppressWarnings("rawtypes")
-  @Mock
-  JdbcCallable mockCallable;
+  @Mock JdbcCallable mockCallable;
 
   protected Properties props = new Properties();
   protected DeveloperConnectionPlugin plugin = new DeveloperConnectionPlugin();
@@ -82,28 +81,24 @@ public class DeveloperConnectionPluginTest {
   @BeforeEach
   void init() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
-    servicesContainer =
-        new FullServicesContainerImpl(
-            mockStorageService,
-            mockMonitorService,
-            mockEventPublisher,
-            mockConnectionProvider,
-            mockTelemetryFactory,
-            mockConnectionPluginManager,
-            mockPluginService,
-            mockPluginService,
-            mockPluginService);
+    servicesContainer = new FullServicesContainerImpl(
+        mockStorageService,
+        mockMonitorService,
+        mockEventPublisher,
+        mockConnectionProvider,
+        mockTelemetryFactory,
+        mockConnectionPluginManager,
+        mockPluginService,
+        mockPluginService,
+        mockPluginService);
 
     when(mockConnectionProvider.connect(any(), any(), any(), any(), any()))
         .thenReturn(new ConnectionInfo(mockConnection, false));
-    when(mockConnectCallback.getExceptionToRaise(any(), any(), any(), anyBoolean()))
-        .thenReturn(null);
+    when(mockConnectCallback.getExceptionToRaise(any(), any(), any(), anyBoolean())).thenReturn(null);
 
     when(mockConnectionPluginManager.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
-    when(mockTelemetryFactory.openTelemetryContext(anyString(), any()))
-        .thenReturn(mockTelemetryContext);
-    when(mockTelemetryFactory.openTelemetryContext(eq(null), any()))
-        .thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
   }
 
   @Test
@@ -127,7 +122,7 @@ public class DeveloperConnectionPluginTest {
         mockConnection,
         "Connection.createStatement",
         mockCallable,
-        new Object[] {});
+        new Object[]{});
   }
 
   @Test
@@ -163,17 +158,15 @@ public class DeveloperConnectionPluginTest {
     assertDoesNotThrow(this::createStatement);
 
     @SuppressWarnings("unchecked")
-    Throwable thrownException =
-        assertThrows(
-            RuntimeException.class,
-            () ->
-                plugin.execute(
-                    Boolean.class,
-                    SQLException.class,
-                    mockConnection,
-                    "Connection.isClosed",
-                    mockCallable,
-                    new Object[] {}));
+    Throwable thrownException = assertThrows(
+        RuntimeException.class,
+        () -> plugin.execute(
+            Boolean.class,
+            SQLException.class,
+            mockConnection,
+            "Connection.isClosed",
+            mockCallable,
+            new Object[]{}));
     assertSame(runtimeException, thrownException);
 
     assertDoesNotThrow(this::createStatement);

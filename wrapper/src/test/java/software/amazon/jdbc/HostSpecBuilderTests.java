@@ -55,7 +55,10 @@ class HostSpecBuilderTests {
     int expectedPort = 555;
 
     HostSpecBuilder hostSpecBuilder = new HostSpecBuilder(availabilityStrategy);
-    HostSpec hostSpec = hostSpecBuilder.host(hostUrl).port(expectedPort).build();
+    HostSpec hostSpec = hostSpecBuilder
+        .host(hostUrl)
+        .port(expectedPort)
+        .build();
 
     assertEquals(hostUrl, hostSpec.getHost());
     assertEquals(availabilityStrategy, hostSpec.getHostAvailabilityStrategy());
@@ -72,7 +75,10 @@ class HostSpecBuilderTests {
     HostAvailability expectedAvailability = HostAvailability.NOT_AVAILABLE;
 
     HostSpecBuilder hostSpecBuilder = new HostSpecBuilder(availabilityStrategy);
-    HostSpec hostSpec = hostSpecBuilder.host(hostUrl).availability(expectedAvailability).build();
+    HostSpec hostSpec = hostSpecBuilder
+        .host(hostUrl)
+        .availability(expectedAvailability)
+        .build();
 
     assertEquals(hostUrl, hostSpec.getHost());
     assertEquals(availabilityStrategy, hostSpec.getHostAvailabilityStrategy());
@@ -89,7 +95,10 @@ class HostSpecBuilderTests {
     HostRole expectedRole = HostRole.READER;
 
     HostSpecBuilder hostSpecBuilder = new HostSpecBuilder(availabilityStrategy);
-    HostSpec hostSpec = hostSpecBuilder.host(hostUrl).role(expectedRole).build();
+    HostSpec hostSpec = hostSpecBuilder
+        .host(hostUrl)
+        .role(expectedRole)
+        .build();
 
     assertEquals(hostUrl, hostSpec.getHost());
     assertEquals(availabilityStrategy, hostSpec.getHostAvailabilityStrategy());
@@ -106,7 +115,10 @@ class HostSpecBuilderTests {
     long expectedWeight = 555;
 
     HostSpecBuilder hostSpecBuilder = new HostSpecBuilder(availabilityStrategy);
-    HostSpec hostSpec = hostSpecBuilder.host(hostUrl).weight(expectedWeight).build();
+    HostSpec hostSpec = hostSpecBuilder
+        .host(hostUrl)
+        .weight(expectedWeight)
+        .build();
 
     assertEquals(hostUrl, hostSpec.getHost());
     assertEquals(availabilityStrategy, hostSpec.getHostAvailabilityStrategy());
@@ -126,14 +138,13 @@ class HostSpecBuilderTests {
     long expectedWeight = 777;
 
     HostSpecBuilder hostSpecBuilder = new HostSpecBuilder(availabilityStrategy);
-    HostSpec hostSpec =
-        hostSpecBuilder
-            .host(hostUrl)
-            .port(expectedPort)
-            .availability(expectedAvailability)
-            .role(expectedRole)
-            .weight(expectedWeight)
-            .build();
+    HostSpec hostSpec = hostSpecBuilder
+        .host(hostUrl)
+        .port(expectedPort)
+        .availability(expectedAvailability)
+        .role(expectedRole)
+        .weight(expectedWeight)
+        .build();
 
     assertEquals(hostUrl, hostSpec.getHost());
     assertEquals(availabilityStrategy, hostSpec.getHostAvailabilityStrategy());
@@ -146,36 +157,31 @@ class HostSpecBuilderTests {
   @Test
   void testCopyConstructorIsDeepCopy() {
     HostAvailabilityStrategy hostAvailabilityStrategy = new SimpleHostAvailabilityStrategy();
-    HostSpecBuilder hostSpecBuilderOriginal =
-        new HostSpecBuilder(hostAvailabilityStrategy)
-            .host("someUrl")
-            .port(1111)
-            .availability(HostAvailability.AVAILABLE)
-            .role(HostRole.WRITER)
-            .weight(111)
-            .lastUpdateTime(new Timestamp(1));
-    HostSpecBuilder hostSpecBuilderModifiedCopy =
-        new HostSpecBuilder(hostSpecBuilderOriginal)
-            .host("someOtherUrl")
-            .port(2222)
-            .availability(HostAvailability.NOT_AVAILABLE)
-            .role(HostRole.READER)
-            .weight(222)
-            .lastUpdateTime(new Timestamp(2));
+    HostSpecBuilder hostSpecBuilderOriginal = new HostSpecBuilder(hostAvailabilityStrategy)
+        .host("someUrl")
+        .port(1111)
+        .availability(HostAvailability.AVAILABLE)
+        .role(HostRole.WRITER)
+        .weight(111)
+        .lastUpdateTime(new Timestamp(1));
+    HostSpecBuilder hostSpecBuilderModifiedCopy = new HostSpecBuilder(hostSpecBuilderOriginal)
+        .host("someOtherUrl")
+        .port(2222)
+        .availability(HostAvailability.NOT_AVAILABLE)
+        .role(HostRole.READER)
+        .weight(222)
+        .lastUpdateTime(new Timestamp(2));
 
     HostSpec fromOriginalBuilder = hostSpecBuilderOriginal.build();
     HostSpec fromModifiedCopyBuilder = hostSpecBuilderModifiedCopy.build();
 
     assertNotEquals(fromOriginalBuilder.getHost(), fromModifiedCopyBuilder.getHost());
     assertNotEquals(fromOriginalBuilder.getPort(), fromModifiedCopyBuilder.getPort());
-    assertNotEquals(
-        fromOriginalBuilder.getAvailability(), fromModifiedCopyBuilder.getAvailability());
+    assertNotEquals(fromOriginalBuilder.getAvailability(), fromModifiedCopyBuilder.getAvailability());
     assertNotEquals(fromOriginalBuilder.getRole(), fromModifiedCopyBuilder.getRole());
     assertNotEquals(fromOriginalBuilder.getWeight(), fromModifiedCopyBuilder.getWeight());
-    assertNotEquals(
-        fromOriginalBuilder.getLastUpdateTime(), fromModifiedCopyBuilder.getLastUpdateTime());
-    assertEquals(
-        fromOriginalBuilder.getHostAvailabilityStrategy(),
+    assertNotEquals(fromOriginalBuilder.getLastUpdateTime(), fromModifiedCopyBuilder.getLastUpdateTime());
+    assertEquals(fromOriginalBuilder.getHostAvailabilityStrategy(),
         fromModifiedCopyBuilder.getHostAvailabilityStrategy());
   }
 }

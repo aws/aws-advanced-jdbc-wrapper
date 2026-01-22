@@ -37,7 +37,8 @@ import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
 public class LimitlessRouterMonitor extends AbstractMonitor {
 
-  private static final Logger LOGGER = Logger.getLogger(LimitlessRouterMonitor.class.getName());
+  private static final Logger LOGGER =
+      Logger.getLogger(LimitlessRouterMonitor.class.getName());
 
   protected static final String MONITORING_PROPERTY_PREFIX = "limitless-router-monitor-";
   protected static final long TERMINATION_TIMEOUT_SEC = 5;
@@ -69,7 +70,8 @@ public class LimitlessRouterMonitor extends AbstractMonitor {
         .forEach(
             p -> {
               this.props.put(
-                  p.substring(MONITORING_PROPERTY_PREFIX.length()), this.props.getProperty(p));
+                  p.substring(MONITORING_PROPERTY_PREFIX.length()),
+                  this.props.getProperty(p));
               this.props.remove(p);
             });
     this.props.setProperty(LimitlessConnectionPlugin.WAIT_FOR_ROUTER_INFO.name, "false");
@@ -93,15 +95,14 @@ public class LimitlessRouterMonitor extends AbstractMonitor {
 
   @Override
   public void monitor() {
-    LOGGER.finest(
-        () ->
-            Messages.get("LimitlessRouterMonitor.running", new Object[] {this.hostSpec.getHost()}));
+    LOGGER.finest(() -> Messages.get(
+        "LimitlessRouterMonitor.running",
+        new Object[] {this.hostSpec.getHost()}));
 
     try {
       while (!this.stop.get()) {
-        TelemetryContext telemetryContext =
-            this.telemetryFactory.openTelemetryContext(
-                "limitless router monitor thread", TelemetryTraceLevel.TOP_LEVEL);
+        TelemetryContext telemetryContext = this.telemetryFactory.openTelemetryContext(
+            "limitless router monitor thread", TelemetryTraceLevel.TOP_LEVEL);
         if (telemetryContext != null) {
           telemetryContext.setAttribute("url", hostSpec.getUrl());
         }
@@ -114,10 +115,8 @@ public class LimitlessRouterMonitor extends AbstractMonitor {
 
           List<HostSpec> newLimitlessRouters =
               queryHelper.queryForLimitlessRouters(this.monitoringConn, this.hostSpec.getPort());
-          this.storageService.set(
-              this.limitlessRouterCacheKey, new LimitlessRouters(newLimitlessRouters));
-          LOGGER.finest(
-              LogUtils.logTopology(newLimitlessRouters, "[limitlessRouterMonitor] Topology:"));
+          this.storageService.set(this.limitlessRouterCacheKey, new LimitlessRouters(newLimitlessRouters));
+          LOGGER.finest(LogUtils.logTopology(newLimitlessRouters, "[limitlessRouterMonitor] Topology:"));
           TimeUnit.MILLISECONDS.sleep(this.intervalMs); // do not include this in the telemetry
         } catch (final Exception ex) {
           if (telemetryContext != null) {
@@ -133,10 +132,9 @@ public class LimitlessRouterMonitor extends AbstractMonitor {
       }
     } catch (final InterruptedException exception) {
       LOGGER.finest(
-          () ->
-              Messages.get(
-                  "LimitlessRouterMonitor.interruptedExceptionDuringMonitoring",
-                  new Object[] {this.hostSpec.getHost()}));
+          () -> Messages.get(
+              "LimitlessRouterMonitor.interruptedExceptionDuringMonitoring",
+              new Object[] {this.hostSpec.getHost()}));
     } catch (final Exception ex) {
       // this should not be reached; log and exit thread
       if (LOGGER.isLoggable(Level.FINEST)) {
@@ -158,23 +156,20 @@ public class LimitlessRouterMonitor extends AbstractMonitor {
       }
       this.monitoringConn = null;
     }
+
   }
 
   private void openConnection() throws SQLException {
     try {
       if (this.monitoringConn == null || this.monitoringConn.isClosed()) {
         // open a new connection
-        LOGGER.finest(
-            () ->
-                Messages.get(
-                    "LimitlessRouterMonitor.openingConnection",
-                    new Object[] {this.hostSpec.getUrl()}));
-        this.monitoringConn =
-            this.servicesContainer.getPluginService().forceConnect(this.hostSpec, this.props);
-        LOGGER.finest(
-            () ->
-                Messages.get(
-                    "LimitlessRouterMonitor.openedConnection", new Object[] {this.monitoringConn}));
+        LOGGER.finest(() -> Messages.get(
+            "LimitlessRouterMonitor.openingConnection",
+            new Object[] {this.hostSpec.getUrl()}));
+        this.monitoringConn = this.servicesContainer.getPluginService().forceConnect(this.hostSpec, this.props);
+        LOGGER.finest(() -> Messages.get(
+            "LimitlessRouterMonitor.openedConnection",
+            new Object[] {this.monitoringConn}));
       }
     } catch (SQLException ex) {
       if (this.monitoringConn != null && !this.monitoringConn.isClosed()) {

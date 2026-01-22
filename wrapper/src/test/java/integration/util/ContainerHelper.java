@@ -56,8 +56,7 @@ public class ContainerHelper {
   private static final String MYSQL_CONTAINER_IMAGE_NAME = "mysql:8.0.31";
   private static final String POSTGRES_CONTAINER_IMAGE_NAME = "postgres:latest";
   private static final String MARIADB_CONTAINER_IMAGE_NAME = "mariadb:10";
-  // Note: this image version may need to be occasionally updated to keep it up-to-date and prevent
-  // toxiproxy issues.
+  // Note: this image version may need to be occasionally updated to keep it up-to-date and prevent toxiproxy issues.
   private static final DockerImageName TOXIPROXY_IMAGE =
       DockerImageName.parse("ghcr.io/shopify/toxiproxy:2.11.0");
 
@@ -84,8 +83,7 @@ public class ContainerHelper {
     return exitCode;
   }
 
-  public Long runCmdInDirectory(
-      GenericContainer<?> container, String workingDirectory, String... cmd)
+  public Long runCmdInDirectory(GenericContainer<?> container, String workingDirectory, String... cmd)
       throws IOException, InterruptedException {
     System.out.println("==== Container console feed ==== >>>>");
     Consumer<OutputFrame> consumer = new ConsoleConsumer();
@@ -99,8 +97,7 @@ public class ContainerHelper {
     runTest(container, task, null, null);
   }
 
-  public void runTest(
-      GenericContainer<?> container, String task, String includeTags, String excludeTags)
+  public void runTest(GenericContainer<?> container, String task, String includeTags, String excludeTags)
       throws IOException, InterruptedException {
     System.out.println("==== Container console feed ==== >>>>");
     Consumer<OutputFrame> consumer = new ConsoleConsumer(true);
@@ -129,8 +126,7 @@ public class ContainerHelper {
     debugTest(container, task, null, null);
   }
 
-  public void debugTest(
-      GenericContainer<?> container, String task, String includeTags, String excludeTags)
+  public void debugTest(GenericContainer<?> container, String task, String includeTags, String excludeTags)
       throws IOException, InterruptedException {
     System.out.println("==== Container console feed ==== >>>>");
     Consumer<OutputFrame> consumer = new ConsoleConsumer();
@@ -157,26 +153,22 @@ public class ContainerHelper {
 
   // This container supports traces to AWS XRay.
   public GenericContainer<?> createTelemetryXrayContainer(
-      String xrayAwsRegion, Network network, String networkAlias) {
+      String xrayAwsRegion,
+      Network network,
+      String networkAlias) {
 
     return new FixedExposedPortContainer<>(
-            new ImageFromDockerfile("xray-daemon", true)
-                .withDockerfileFromBuilder(
-                    builder ->
-                        builder
-                            .from(XRAY_TELEMETRY_IMAGE_NAME)
-                            .entryPoint(
-                                "/xray",
-                                "-t",
-                                "0.0.0.0:2000",
-                                "-b",
-                                "0.0.0.0:2000",
-                                "--local-mode",
-                                "--log-level",
-                                "debug",
-                                "--region",
-                                xrayAwsRegion)
-                            .build()))
+        new ImageFromDockerfile("xray-daemon", true)
+            .withDockerfileFromBuilder(
+                builder -> builder
+                        .from(XRAY_TELEMETRY_IMAGE_NAME)
+                        .entryPoint("/xray",
+                          "-t", "0.0.0.0:2000",
+                          "-b", "0.0.0.0:2000",
+                          "--local-mode",
+                          "--log-level", "debug",
+                          "--region", xrayAwsRegion)
+                        .build()))
         .withExposedPort(2000)
         .waitingFor(Wait.forLogMessage(".*Starting proxy http server on 0.0.0.0:2000.*", 1))
         .withNetworkAliases(networkAlias)
@@ -184,30 +176,30 @@ public class ContainerHelper {
   }
 
   // This container supports traces and metrics to AWS CloudWatch/XRay
-  public GenericContainer<?> createTelemetryOtlpContainer(Network network, String networkAlias) {
+  public GenericContainer<?> createTelemetryOtlpContainer(
+      Network network,
+      String networkAlias) {
 
     return new FixedExposedPortContainer<>(DockerImageName.parse(OTLP_TELEMETRY_IMAGE_NAME))
         .withExposedPort(2000)
         .withExposedPort(1777)
         .withExposedPort(4317)
         .withExposedPort(4318)
-        .waitingFor(
-            Wait.forLogMessage(".*Everything is ready. Begin running and processing data.*", 1))
+        .waitingFor(Wait.forLogMessage(".*Everything is ready. Begin running and processing data.*", 1))
         .withNetworkAliases(networkAlias)
         .withNetwork(network)
         .withCopyFileToContainer(
             MountableFile.forHostPath("./src/test/resources/otel-config.yaml"),
             "/etc/otel-config.yaml");
+
   }
 
-  public GenericContainer<?> createTestContainer(
-      String dockerImageName, String testContainerImageName) {
+  public GenericContainer<?> createTestContainer(String dockerImageName, String testContainerImageName) {
     return createTestContainer(
         dockerImageName,
         testContainerImageName,
-        builder ->
-            builder // Return directly, do not append extra run commands to the docker builder.
-        );
+        builder -> builder // Return directly, do not append extra run commands to the docker builder.
+    );
   }
 
   public GenericContainer<?> createTestContainer(
@@ -228,24 +220,19 @@ public class ContainerHelper {
     }
 
     return new FixedExposedPortContainer<>(
-            new ImageFromDockerfile(dockerImageName, true)
-                .withDockerfileFromBuilder(
-                    builder ->
-                        appendExtraCommandsToBuilder
-                            .apply(
-                                builder
-                                    .from(testContainerImageName)
-                                    .run("mkdir", "app")
-                                    .workDir("/app")
-                                    .run(
-                                        testContainerImageName.contains("graalvm")
-                                            ? "microdnf install findutils"
-                                            : "echo Skipping findutils installation")
-                                    .entryPoint(
-                                        "rm -f /app/libs/*-bundle-*.jar; /bin/sh -c \"while true; do sleep 30; done;\"")
-                                    .expose(5005) // Exposing ports for debugger to be attached
-                                )
-                            .build()))
+        new ImageFromDockerfile(dockerImageName, true)
+            .withDockerfileFromBuilder(
+                builder -> appendExtraCommandsToBuilder.apply(
+                    builder
+                        .from(testContainerImageName)
+                        .run("mkdir", "app")
+                        .workDir("/app")
+                        .run(testContainerImageName.contains("graalvm")
+                            ? "microdnf install findutils"
+                            : "echo Skipping findutils installation")
+                        .entryPoint("rm -f /app/libs/*-bundle-*.jar; /bin/sh -c \"while true; do sleep 30; done;\"")
+                        .expose(5005) // Exposing ports for debugger to be attached
+                ).build()))
         .withFixedExposedPort(5005, 5005) // Mapping container port to host
         .withFileSystemBind(
             "./build/reports/tests",
@@ -281,16 +268,15 @@ public class ContainerHelper {
   }
 
   protected Long execInContainer(
-      GenericContainer<?> container,
-      String workingDirectory,
-      Consumer<OutputFrame> consumer,
-      String... command)
+      GenericContainer<?> container, String workingDirectory, Consumer<OutputFrame> consumer, String... command)
       throws UnsupportedOperationException, IOException, InterruptedException {
     return execInContainer(container.getContainerInfo(), consumer, workingDirectory, command);
   }
 
   protected Long execInContainer(
-      GenericContainer<?> container, Consumer<OutputFrame> consumer, String... command)
+      GenericContainer<?> container,
+      Consumer<OutputFrame> consumer,
+      String... command)
       throws UnsupportedOperationException, IOException, InterruptedException {
     return execInContainer(container.getContainerInfo(), consumer, null, command);
   }
@@ -314,12 +300,11 @@ public class ContainerHelper {
 
     final String containerId = containerInfo.getId();
     final DockerClient dockerClient = DockerClientFactory.instance().client();
-    final ExecCreateCmd cmd =
-        dockerClient
-            .execCreateCmd(containerId)
-            .withAttachStdout(true)
-            .withAttachStderr(true)
-            .withCmd(command);
+    final ExecCreateCmd cmd = dockerClient
+        .execCreateCmd(containerId)
+        .withAttachStdout(true)
+        .withAttachStderr(true)
+        .withCmd(command);
 
     if (!StringUtils.isNullOrEmpty(workingDir)) {
       cmd.withWorkingDir(workingDir);
@@ -385,47 +370,35 @@ public class ContainerHelper {
   public GenericContainer createPostgisContainer(
       Network network, String networkAlias, String testDbName, String username, String password) {
 
-    GenericContainer genericContainer =
-        new GenericContainer(
-                new ImageFromDockerfile()
-                    .withDockerfileFromBuilder(
-                        builder ->
-                            builder
-                                .from("postgis/postgis:16-3.4")
-                                .run("apt-get update")
-                                .run("/usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y")
-                                .run("apt install -y postgresql-16-pgvector")
-                                .cmd(
-                                    "postgres",
-                                    "-c",
-                                    "fsync=off",
-                                    "-c",
-                                    "synchronous_commit=off",
-                                    "-c",
-                                    "full_page_writes=off",
-                                    "-c",
-                                    "shared_buffers=256MB",
-                                    "-c",
-                                    "maintenance_work_mem=256MB",
-                                    "-c",
-                                    "max_wal_size=1GB",
-                                    "-c",
-                                    "checkpoint_timeout=1d")
-                                .build()))
-            .waitingFor(
-                new LogMessageWaitStrategy()
-                    .withRegEx(".*database system is ready to accept connections.*\\s")
-                    .withTimes(2)
-                    .withStartupTimeout(Duration.of(180, ChronoUnit.SECONDS)))
-            .withNetwork(network)
-            .withNetworkAliases(networkAlias)
-            .withEnv("POSTGRES_DB", testDbName)
-            .withEnv("POSTGRES_USER", username)
-            .withEnv("POSTGRES_PASSWORD", password)
-            .withCopyFileToContainer(
-                MountableFile.forHostPath(
-                    "src/test/resources/postgis_pgvector/docker-entrypoint-initdb.d/01_pgvector.sql"),
-                "/docker-entrypoint-initdb.d/01_pgvector.sql");
+    GenericContainer genericContainer = new GenericContainer(
+        new ImageFromDockerfile()
+            .withDockerfileFromBuilder(builder ->
+                builder
+                    .from("postgis/postgis:16-3.4")
+                    .run("apt-get update")
+                    .run("/usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y")
+                    .run("apt install -y postgresql-16-pgvector")
+                    .cmd("postgres",
+                        "-c", "fsync=off",
+                        "-c", "synchronous_commit=off",
+                        "-c", "full_page_writes=off",
+                        "-c", "shared_buffers=256MB",
+                        "-c", "maintenance_work_mem=256MB",
+                        "-c", "max_wal_size=1GB",
+                        "-c", "checkpoint_timeout=1d")
+                    .build()))
+        .waitingFor(new LogMessageWaitStrategy()
+            .withRegEx(".*database system is ready to accept connections.*\\s")
+            .withTimes(2)
+            .withStartupTimeout(Duration.of(180, ChronoUnit.SECONDS)))
+        .withNetwork(network)
+        .withNetworkAliases(networkAlias)
+        .withEnv("POSTGRES_DB", testDbName)
+        .withEnv("POSTGRES_USER", username)
+        .withEnv("POSTGRES_PASSWORD", password)
+        .withCopyFileToContainer(MountableFile.forHostPath(
+                "src/test/resources/postgis_pgvector/docker-entrypoint-initdb.d/01_pgvector.sql"),
+            "/docker-entrypoint-initdb.d/01_pgvector.sql");
 
     genericContainer.addExposedPort(5432);
 
@@ -444,22 +417,29 @@ public class ContainerHelper {
   }
 
   public ToxiproxyContainer createAndStartProxyContainer(
-      final Network network, String networkAlias, String networkUrl, String hostname, int port)
-      throws IOException {
+      final Network network,
+      String networkAlias,
+      String networkUrl,
+      String hostname,
+      int port) throws IOException {
     final ToxiproxyContainer container =
         new ToxiproxyContainer(TOXIPROXY_IMAGE)
             .withNetwork(network)
             .withNetworkAliases(networkAlias, networkUrl);
     container.start();
-    final ToxiproxyClient toxiproxyClient =
-        new ToxiproxyClient(container.getHost(), container.getMappedPort(PROXY_CONTROL_PORT));
+    final ToxiproxyClient toxiproxyClient = new ToxiproxyClient(
+        container.getHost(),
+        container.getMappedPort(PROXY_CONTROL_PORT));
     this.createProxy(toxiproxyClient, hostname, port);
     return container;
   }
 
   public void createProxy(final ToxiproxyClient client, String hostname, int port)
       throws IOException {
-    client.createProxy(hostname + ":" + port, "0.0.0.0:" + PROXY_PORT, hostname + ":" + port);
+    client.createProxy(
+        hostname + ":" + port,
+        "0.0.0.0:" + PROXY_PORT,
+        hostname + ":" + port);
   }
 
   public ToxiproxyContainer createProxyContainer(
@@ -471,8 +451,7 @@ public class ContainerHelper {
             instance.getHost() + proxyDomainNameSuffix);
   }
 
-  public static class FixedExposedPortContainer<T extends FixedExposedPortContainer<T>>
-      extends GenericContainer<T> {
+  public static class FixedExposedPortContainer<T extends FixedExposedPortContainer<T>> extends GenericContainer<T> {
 
     public FixedExposedPortContainer(ImageFromDockerfile withDockerfileFromBuilder) {
       super(withDockerfileFromBuilder);

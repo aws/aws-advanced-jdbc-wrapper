@@ -64,7 +64,8 @@ public class HostMonitorServiceImpl implements HostMonitorService {
                 properties,
                 MONITOR_DISPOSAL_TIME_MS.getLong(properties),
                 monitorService),
-        () -> ExecutorFactory.newCachedThreadPool("monitor"));
+        () ->
+            ExecutorFactory.newCachedThreadPool("monitor"));
   }
 
   HostMonitorServiceImpl(
@@ -89,8 +90,9 @@ public class HostMonitorServiceImpl implements HostMonitorService {
       final int failureDetectionCount) {
 
     if (nodeKeys.isEmpty()) {
-      throw new IllegalArgumentException(
-          Messages.get("HostMonitorServiceImpl.emptyAliasSet", new Object[] {hostSpec}));
+      throw new IllegalArgumentException(Messages.get(
+          "HostMonitorServiceImpl.emptyAliasSet",
+          new Object[] {hostSpec}));
     }
 
     HostMonitor monitor = this.cachedMonitor == null ? null : this.cachedMonitor.get();
@@ -149,11 +151,9 @@ public class HostMonitorServiceImpl implements HostMonitorService {
    * @param properties The user configuration for the current connection.
    * @return A {@link HostMonitorImpl} object associated with a specific server.
    */
-  protected HostMonitor getMonitor(
-      final Set<String> nodeKeys, final HostSpec hostSpec, final Properties properties) {
+  protected HostMonitor getMonitor(final Set<String> nodeKeys, final HostSpec hostSpec, final Properties properties) {
     return this.threadContainer.getOrCreateMonitor(
-        nodeKeys,
-        () -> monitorInitializer.createMonitor(hostSpec, properties, this.threadContainer));
+        nodeKeys, () -> monitorInitializer.createMonitor(hostSpec, properties, this.threadContainer));
   }
 
   HostMonitorThreadContainer getThreadContainer() {

@@ -66,10 +66,9 @@ public class ReadWriteSplittingPerformanceTest {
   private static final Logger LOGGER =
       Logger.getLogger(ReadWriteSplittingPerformanceTest.class.getName());
 
-  private static final int REPEAT_TIMES =
-      StringUtils.isNullOrEmpty(System.getenv("REPEAT_TIMES"))
-          ? 10
-          : Integer.parseInt(System.getenv("REPEAT_TIMES"));
+  private static final int REPEAT_TIMES = StringUtils.isNullOrEmpty(System.getenv("REPEAT_TIMES"))
+      ? 10
+      : Integer.parseInt(System.getenv("REPEAT_TIMES"));
 
   private static final int TIMEOUT_SEC = 5;
   private static final int CONNECT_TIMEOUT_SEC = 5;
@@ -77,7 +76,8 @@ public class ReadWriteSplittingPerformanceTest {
   private static final List<PerfStatSwitchConnection> setReadOnlyPerfDataList = new ArrayList<>();
 
   @TestTemplate
-  public void test_switchReaderWriterConnection() throws SQLException, IOException {
+  public void test_switchReaderWriterConnection()
+      throws SQLException, IOException {
 
     setReadOnlyPerfDataList.clear();
 
@@ -128,7 +128,8 @@ public class ReadWriteSplittingPerformanceTest {
                 + "DbEngine_%s_Driver_%s_ReadWriteSplittingPerformanceResults_"
                 + "SwitchReaderWriterConnection.xlsx",
             TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-            TestEnvironment.getCurrent().getCurrentDriver()));
+            TestEnvironment.getCurrent().getCurrentDriver())
+    );
 
     setReadOnlyPerfDataList.clear();
 
@@ -167,7 +168,8 @@ public class ReadWriteSplittingPerformanceTest {
                 + "DbEngine_%s_Driver_%s_ReadWriteSplittingPerformanceResults_"
                 + "InternalConnectionPools_SwitchReaderWriterConnection.xlsx",
             TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-            TestEnvironment.getCurrent().getCurrentDriver()));
+            TestEnvironment.getCurrent().getCurrentDriver())
+    );
   }
 
   private Connection connectToInstance(final Properties props) throws SQLException {
@@ -187,8 +189,7 @@ public class ReadWriteSplittingPerformanceTest {
       final XSSFSheet sheet = workbook.createSheet("PerformanceResults");
 
       for (int rows = 0; rows < setReadOnlyPerfDataList.size(); rows++) {
-        final PerfStatBase perfStat =
-            ((List<? extends PerfStatBase>) setReadOnlyPerfDataList).get(rows);
+        final PerfStatBase perfStat = ((List<? extends PerfStatBase>) setReadOnlyPerfDataList).get(rows);
         Row row;
 
         if (rows == 0) {
@@ -212,19 +213,15 @@ public class ReadWriteSplittingPerformanceTest {
 
   protected Properties initNoPluginPropsWithTimeouts() {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
-    PropertyDefinition.CONNECT_TIMEOUT.set(
-        props, String.valueOf(TimeUnit.SECONDS.toMillis(CONNECT_TIMEOUT_SEC)));
-    PropertyDefinition.SOCKET_TIMEOUT.set(
-        props, String.valueOf(TimeUnit.SECONDS.toMillis(TIMEOUT_SEC)));
+    PropertyDefinition.CONNECT_TIMEOUT.set(props, String.valueOf(TimeUnit.SECONDS.toMillis(CONNECT_TIMEOUT_SEC)));
+    PropertyDefinition.SOCKET_TIMEOUT.set(props, String.valueOf(TimeUnit.SECONDS.toMillis(TIMEOUT_SEC)));
 
     return props;
   }
 
   protected Properties initReadWritePluginProps() {
     final Properties props = initNoPluginPropsWithTimeouts();
-    props.setProperty(
-        PropertyDefinition.PLUGINS.name,
-        "auroraHostList,readWriteSplitting,connectTime,executionTime");
+    props.setProperty(PropertyDefinition.PLUGINS.name, "auroraHostList,readWriteSplitting,connectTime,executionTime");
     return props;
   }
 

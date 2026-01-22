@@ -20,9 +20,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import software.amazon.jdbc.plugin.TokenInfo;
 
 /* The main plugin code FederatedAuthPlugin depends on AWS SDK. In order to avoid unnecessary dependencies,
-the plugin cache has been extracted into this FederatedAuthCacheHolder class. This cache holder class doesn't depend
-on AWS SDK and can be safely cleared if needed.
-*/
+ the plugin cache has been extracted into this FederatedAuthCacheHolder class. This cache holder class doesn't depend
+ on AWS SDK and can be safely cleared if needed.
+ */
 public class FederatedAuthCacheHolder {
   static final ConcurrentHashMap<String, TokenInfo> tokenCache = new ConcurrentHashMap<>();
 

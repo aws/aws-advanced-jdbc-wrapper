@@ -63,10 +63,8 @@ public class CustomEndpointMonitorImplTest {
   @Mock private TelemetryFactory mockTelemetryFactory;
   @Mock private TelemetryCounter mockTelemetryCounter;
 
-  private final String customEndpointUrl1 =
-      "custom1.cluster-custom-XYZ.us-east-1.rds.amazonaws.com";
-  private final String customEndpointUrl2 =
-      "custom2.cluster-custom-XYZ.us-east-1.rds.amazonaws.com";
+  private final String customEndpointUrl1 = "custom1.cluster-custom-XYZ.us-east-1.rds.amazonaws.com";
+  private final String customEndpointUrl2 = "custom2.cluster-custom-XYZ.us-east-1.rds.amazonaws.com";
   private final String endpointId = "custom1";
   private final String clusterId = "cluster1";
   private final String endpointRoleType = "ANY";
@@ -74,18 +72,16 @@ public class CustomEndpointMonitorImplTest {
   private List<DBClusterEndpoint> oneEndpointList;
   private final List<String> staticMembersList = Arrays.asList("member1", "member2");
   private final Set<String> staticMembersSet = new HashSet<>(staticMembersList);
-  private final CustomEndpointInfo expectedInfo =
-      new CustomEndpointInfo(
-          endpointId,
-          clusterId,
-          customEndpointUrl1,
-          CustomEndpointRoleType.valueOf(endpointRoleType),
-          staticMembersSet,
-          MemberListType.STATIC_LIST);
+  private final CustomEndpointInfo expectedInfo = new CustomEndpointInfo(
+      endpointId,
+      clusterId,
+      customEndpointUrl1,
+      CustomEndpointRoleType.valueOf(endpointRoleType),
+      staticMembersSet,
+      MemberListType.STATIC_LIST);
 
   private AutoCloseable closeable;
-  private final HostAvailabilityStrategy availabilityStrategy =
-      new SimpleHostAvailabilityStrategy();
+  private final HostAvailabilityStrategy availabilityStrategy = new SimpleHostAvailabilityStrategy();
   private final HostSpecBuilder hostSpecBuilder = new HostSpecBuilder(availabilityStrategy);
   private final HostSpec host = hostSpecBuilder.host(customEndpointUrl1).build();
 
@@ -98,11 +94,8 @@ public class CustomEndpointMonitorImplTest {
 
     when(mockTelemetryFactory.createCounter(any(String.class))).thenReturn(mockTelemetryCounter);
     when(mockRdsClientFunc.apply(any(HostSpec.class), any(Region.class))).thenReturn(mockRdsClient);
-    when(mockRdsClient.describeDBClusterEndpoints(any(Consumer.class)))
-        .thenReturn(mockDescribeResponse);
-    when(mockDescribeResponse.dbClusterEndpoints())
-        .thenReturn(twoEndpointList)
-        .thenReturn(oneEndpointList);
+    when(mockRdsClient.describeDBClusterEndpoints(any(Consumer.class))).thenReturn(mockDescribeResponse);
+    when(mockDescribeResponse.dbClusterEndpoints()).thenReturn(twoEndpointList).thenReturn(oneEndpointList);
     when(mockClusterEndpoint1.endpoint()).thenReturn(customEndpointUrl1);
     when(mockClusterEndpoint2.endpoint()).thenReturn(customEndpointUrl2);
     when(mockClusterEndpoint1.hasStaticMembers()).thenReturn(true);
@@ -121,27 +114,24 @@ public class CustomEndpointMonitorImplTest {
   public void testRun() throws InterruptedException {
     int refreshRateMs = 50;
     int maxRefreshRateMs = refreshRateMs * 10;
-    CustomEndpointMonitorImpl monitor =
-        new CustomEndpointMonitorImpl(
-            mockStorageService,
-            mockTelemetryFactory,
-            host,
-            endpointId,
-            Region.US_EAST_1,
-            TimeUnit.MILLISECONDS.toNanos(refreshRateMs),
-            2,
-            TimeUnit.MILLISECONDS.toNanos(maxRefreshRateMs),
-            mockRdsClientFunc);
+    CustomEndpointMonitorImpl monitor = new CustomEndpointMonitorImpl(
+        mockStorageService,
+        mockTelemetryFactory,
+        host,
+        endpointId,
+        Region.US_EAST_1,
+        TimeUnit.MILLISECONDS.toNanos(refreshRateMs),
+        2,
+        TimeUnit.MILLISECONDS.toNanos(maxRefreshRateMs),
+        mockRdsClientFunc);
     monitor.start();
 
-    // Wait for after 2 run cycles. The first will return an unexpected number of endpoints in the
-    // API response, the
+    // Wait for after 2 run cycles. The first will return an unexpected number of endpoints in the API response, the
     // second will return the expected number of endpoints (one).
     TimeUnit.MILLISECONDS.sleep(2 * refreshRateMs);
     int runCycles = 2;
-    @Nullable
-    CustomEndpointInfo customEndpointInfo =
-        CustomEndpointMonitorImpl.customEndpointInfoCache.get(host.getUrl());
+    @Nullable CustomEndpointInfo customEndpointInfo = CustomEndpointMonitorImpl.customEndpointInfoCache
+        .get(host.getUrl());
     while (customEndpointInfo == null && runCycles < 5) {
       TimeUnit.MILLISECONDS.sleep(refreshRateMs);
       runCycles++;
@@ -150,8 +140,7 @@ public class CustomEndpointMonitorImplTest {
     assertEquals(expectedInfo, customEndpointInfo);
     monitor.stop();
 
-    ArgumentCaptor<AllowedAndBlockedHosts> captor =
-        ArgumentCaptor.forClass(AllowedAndBlockedHosts.class);
+    ArgumentCaptor<AllowedAndBlockedHosts> captor = ArgumentCaptor.forClass(AllowedAndBlockedHosts.class);
     verify(mockStorageService).set(eq(host.getUrl()), captor.capture());
     assertEquals(staticMembersSet, captor.getValue().getAllowedHostIds());
     assertNull(captor.getValue().getBlockedHostIds());

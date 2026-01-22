@@ -26,7 +26,8 @@ public class TestTelemetryInfo {
   private int endpointPort;
 
   // This constructor should NOT be used in the code. It's required for serialization.
-  public TestTelemetryInfo() {}
+  public TestTelemetryInfo() {
+  }
 
   public TestTelemetryInfo(String endpoint, int endpointPort) {
     this.endpoint = endpoint;

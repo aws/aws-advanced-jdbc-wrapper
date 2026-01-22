@@ -28,9 +28,8 @@ public class OpenTelemetryFactory implements TelemetryFactory {
   /**
    * Max allowed name length for counters and gauges.
    *
-   * @see <a
-   *     href="https://opentelemetry.io/docs/specs/otel/metrics/api/#instrument-name-syntax">More
-   *     details</a>
+   * @see
+   * <a href="https://opentelemetry.io/docs/specs/otel/metrics/api/#instrument-name-syntax">More details</a>
    */
   private static final int NAME_MAX_LENGTH = 255;
 

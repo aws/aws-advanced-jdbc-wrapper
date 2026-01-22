@@ -41,10 +41,16 @@ public class RegularRdsUtility implements IamTokenUtility {
       final @NonNull String username) {
 
     if (this.utilities == null) {
-      this.utilities =
-          RdsUtilities.builder().credentialsProvider(credentialsProvider).region(region).build();
+      this.utilities = RdsUtilities.builder()
+          .credentialsProvider(credentialsProvider)
+          .region(region)
+          .build();
     }
-    return this.utilities.generateAuthenticationToken(
-        (builder) -> builder.hostname(hostname).port(port).username(username));
+    return this.utilities.generateAuthenticationToken((builder) ->
+        builder
+            .hostname(hostname)
+            .port(port)
+            .username(username)
+    );
   }
 }

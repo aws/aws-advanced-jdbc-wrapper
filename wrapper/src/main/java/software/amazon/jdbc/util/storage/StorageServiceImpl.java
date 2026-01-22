@@ -43,8 +43,7 @@ public class StorageServiceImpl implements StorageService {
     Map<Class<?>, Supplier<ExpirationCache<Object, ?>>> suppliers = new HashMap<>();
     suppliers.put(Topology.class, ExpirationCache::new);
     suppliers.put(AllowedAndBlockedHosts.class, ExpirationCache::new);
-    suppliers.put(
-        BlueGreenStatus.class,
+    suppliers.put(BlueGreenStatus.class,
         () -> new ExpirationCache<>(false, TimeUnit.MINUTES.toNanos(60), null, null));
     defaultCacheSuppliers = Collections.unmodifiableMap(suppliers);
   }
@@ -84,9 +83,11 @@ public class StorageServiceImpl implements StorageService {
       @Nullable ItemDisposalFunc<V> itemDisposalFunc) {
     caches.computeIfAbsent(
         itemClass,
-        k ->
-            new ExpirationCache<>(
-                isRenewableExpiration, timeToLiveNanos, shouldDisposeFunc, itemDisposalFunc));
+        k -> new ExpirationCache<>(
+            isRenewableExpiration,
+            timeToLiveNanos,
+            shouldDisposeFunc,
+            itemDisposalFunc));
   }
 
   @Override
@@ -97,8 +98,7 @@ public class StorageServiceImpl implements StorageService {
       Supplier<ExpirationCache<Object, ?>> supplier = defaultCacheSuppliers.get(value.getClass());
       if (supplier == null) {
         throw new IllegalStateException(
-            Messages.get(
-                "StorageServiceImpl.itemClassNotRegistered", new Object[] {value.getClass()}));
+            Messages.get("StorageServiceImpl.itemClassNotRegistered", new Object[] {value.getClass()}));
       } else {
         cache = caches.computeIfAbsent(value.getClass(), c -> supplier.get());
       }
@@ -109,9 +109,7 @@ public class StorageServiceImpl implements StorageService {
       typedCache.put(key, value);
     } catch (ClassCastException e) {
       throw new IllegalArgumentException(
-          Messages.get(
-              "StorageServiceImpl.unexpectedValueMismatch",
-              new Object[] {value, value.getClass(), cache}));
+          Messages.get("StorageServiceImpl.unexpectedValueMismatch", new Object[] {value, value.getClass(), cache}));
     }
   }
 

@@ -45,19 +45,14 @@ public class DriverConnectionProvider implements ConnectionProvider {
   private static final Logger LOGGER = Logger.getLogger(DriverConnectionProvider.class.getName());
 
   private static final Map<String, HostSelector> acceptedStrategies =
-      Collections.unmodifiableMap(
-          new HashMap<String, HostSelector>() {
-            {
-              put(
-                  HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT,
-                  new HighestWeightHostSelector());
-              put(RandomHostSelector.STRATEGY_RANDOM, new RandomHostSelector());
-              put(RoundRobinHostSelector.STRATEGY_ROUND_ROBIN, new RoundRobinHostSelector());
-              put(
-                  WeightedRandomHostSelector.STRATEGY_WEIGHTED_RANDOM,
-                  new WeightedRandomHostSelector());
-            }
-          });
+      Collections.unmodifiableMap(new HashMap<String, HostSelector>() {
+        {
+          put(HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT, new HighestWeightHostSelector());
+          put(RandomHostSelector.STRATEGY_RANDOM, new RandomHostSelector());
+          put(RoundRobinHostSelector.STRATEGY_ROUND_ROBIN, new RoundRobinHostSelector());
+          put(WeightedRandomHostSelector.STRATEGY_WEIGHTED_RANDOM, new WeightedRandomHostSelector());
+        }
+      });
 
   private final java.sql.Driver driver;
   private final @NonNull String targetDriverClassName;
@@ -71,14 +66,14 @@ public class DriverConnectionProvider implements ConnectionProvider {
 
   /**
    * Indicates whether this ConnectionProvider can provide connections for the given host and
-   * properties. Some ConnectionProvider implementations may not be able to handle certain URL types
-   * or properties.
+   * properties. Some ConnectionProvider implementations may not be able to handle certain URL
+   * types or properties.
    *
    * @param protocol The connection protocol (example "jdbc:mysql://")
    * @param hostSpec The HostSpec containing the host-port information for the host to connect to
-   * @param props The Properties to use for the connection
+   * @param props    The Properties to use for the connection
    * @return true if this ConnectionProvider can provide connections for the given URL, otherwise
-   *     return false
+   *         return false
    */
   @Override
   public boolean acceptsUrl(
@@ -93,10 +88,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
 
   @Override
   public HostSpec getHostSpecByStrategy(
-      @NonNull List<HostSpec> hosts,
-      @Nullable HostRole role,
-      @NonNull String strategy,
-      @Nullable Properties props)
+      @NonNull List<HostSpec> hosts, @Nullable HostRole role, @NonNull String strategy, @Nullable Properties props)
       throws SQLException {
     if (!acceptedStrategies.containsKey(strategy)) {
       throw new UnsupportedOperationException(
@@ -134,15 +126,12 @@ public class DriverConnectionProvider implements ConnectionProvider {
     final Properties copy = PropertyUtils.copyProperties(props);
     dialect.prepareConnectProperties(copy, protocol, hostSpec);
 
-    final ConnectInfo connectInfo =
-        targetDriverDialect.prepareConnectInfo(protocol, hostSpec, copy);
+    final ConnectInfo connectInfo = targetDriverDialect.prepareConnectInfo(protocol, hostSpec, copy);
 
-    LOGGER.finest(
-        () ->
-            "Connecting to "
-                + connectInfo.url
-                + PropertyUtils.logProperties(
-                    PropertyUtils.maskProperties(connectInfo.props), "\nwith properties: \n"));
+    LOGGER.finest(() -> "Connecting to " + connectInfo.url
+        + PropertyUtils.logProperties(
+            PropertyUtils.maskProperties(connectInfo.props),
+        "\nwith properties: \n"));
 
     Connection conn;
     try {
@@ -169,8 +158,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
         throw throwable;
       }
 
-      if (!this.rdsUtils.isRdsDns(hostSpec.getHost())
-          || !this.rdsUtils.isGreenInstance(hostSpec.getHost())) {
+      if (!this.rdsUtils.isRdsDns(hostSpec.getHost()) || !this.rdsUtils.isGreenInstance(hostSpec.getHost())) {
         throw throwable;
       }
 
@@ -187,29 +175,21 @@ public class DriverConnectionProvider implements ConnectionProvider {
         throw throwable;
       }
 
-      // Green node DNS doesn't exist. Try to replace it with corresponding node name and connect
-      // again.
+      // Green node DNS doesn't exist. Try to replace it with corresponding node name and connect again.
 
       final String originalHost = hostSpec.getHost();
       final String fixedHost = this.rdsUtils.removeGreenInstancePrefix(hostSpec.getHost());
-      final HostSpec connectionHostSpec =
-          new HostSpecBuilder(hostSpec.getHostAvailabilityStrategy())
-              .copyFrom(hostSpec)
-              .host(fixedHost)
-              .build();
+      final HostSpec connectionHostSpec = new HostSpecBuilder(hostSpec.getHostAvailabilityStrategy())
+          .copyFrom(hostSpec)
+          .host(fixedHost)
+          .build();
 
-      final ConnectInfo fixedConnectInfo =
-          targetDriverDialect.prepareConnectInfo(protocol, connectionHostSpec, copy);
+      final ConnectInfo fixedConnectInfo = targetDriverDialect.prepareConnectInfo(protocol, connectionHostSpec, copy);
 
-      LOGGER.finest(
-          () ->
-              "Connecting to "
-                  + fixedConnectInfo.url
-                  + " after correcting the hostname from "
-                  + originalHost
-                  + PropertyUtils.logProperties(
-                      PropertyUtils.maskProperties(fixedConnectInfo.props),
-                      "\nwith properties: \n"));
+      LOGGER.finest(() -> "Connecting to " + fixedConnectInfo.url
+          + " after correcting the hostname from " + originalHost
+          + PropertyUtils.logProperties(
+              PropertyUtils.maskProperties(fixedConnectInfo.props), "\nwith properties: \n"));
 
       conn = this.driver.connect(fixedConnectInfo.url, fixedConnectInfo.props);
     }

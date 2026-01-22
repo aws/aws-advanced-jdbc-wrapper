@@ -47,14 +47,13 @@ public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
 
   protected final GlobalAuroraTopologyDialect dialect;
 
-  public GlobalAuroraTopologyUtils(
-      GlobalAuroraTopologyDialect dialect, HostSpecBuilder hostSpecBuilder) {
+  public GlobalAuroraTopologyUtils(GlobalAuroraTopologyDialect dialect, HostSpecBuilder hostSpecBuilder) {
     super(dialect, hostSpecBuilder);
     this.dialect = dialect;
   }
 
-  public @Nullable List<HostSpec> queryForTopology(
-      Connection conn, HostSpec initialHostSpec, HostSpec instanceTemplate) throws SQLException {
+  public @Nullable List<HostSpec> queryForTopology(Connection conn, HostSpec initialHostSpec, HostSpec instanceTemplate)
+      throws SQLException {
     // This method should not be called on this class.
     throw new UnsupportedOperationException();
   }
@@ -66,10 +65,9 @@ public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
     int originalNetworkTimeout = networkTimeoutPair.getValue1();
     boolean timeoutChanged = networkTimeoutPair.getValue2();
     try (final Statement stmt = conn.createStatement();
-        final ResultSet rs = stmt.executeQuery(this.dialect.getTopologyQuery())) {
+         final ResultSet rs = stmt.executeQuery(this.dialect.getTopologyQuery())) {
       if (rs.getMetaData().getColumnCount() == 0) {
-        // We expect at least 4 columns. Note that the server may return 0 columns if failover has
-        // occurred.
+        // We expect at least 4 columns. Note that the server may return 0 columns if failover has occurred.
         LOGGER.finest(Messages.get("TopologyUtils.unexpectedTopologyQueryColumnCount"));
         return null;
       }
@@ -85,8 +83,7 @@ public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
   }
 
   protected @Nullable List<HostSpec> getHosts(
-      ResultSet rs, HostSpec initialHostSpec, Map<String, HostSpec> instanceTemplatesByRegion)
-      throws SQLException {
+      ResultSet rs, HostSpec initialHostSpec, Map<String, HostSpec> instanceTemplatesByRegion) throws SQLException {
     // Data in the result set is ordered by last update time, so the latest records are last.
     // We add hosts to a map to ensure newer records are not overwritten by older ones.
     Map<String, HostSpec> hostsMap = new HashMap<>();
@@ -95,9 +92,7 @@ public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
         HostSpec host = createHost(rs, initialHostSpec, instanceTemplatesByRegion);
         hostsMap.put(host.getHost(), host);
       } catch (Exception e) {
-        LOGGER.finest(
-            Messages.get(
-                "TopologyUtils.errorProcessingQueryResults", new Object[] {e.getMessage()}));
+        LOGGER.finest(Messages.get("TopologyUtils.errorProcessingQueryResults", new Object[] {e.getMessage()}));
         return null;
       }
     }
@@ -120,24 +115,16 @@ public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
 
     final HostSpec instanceTemplate = instanceTemplatesByRegion.get(awsRegion);
     if (instanceTemplate == null) {
-      throw new SQLException(
-          Messages.get(
-              "GlobalAuroraTopologyMonitor.cannotFindRegionTemplate", new Object[] {awsRegion}));
+      throw new SQLException(Messages.get(
+          "GlobalAuroraTopologyMonitor.cannotFindRegionTemplate", new Object[] {awsRegion}));
     }
 
     return createHost(
-        hostName,
-        hostName,
-        isWriter,
-        weight,
-        Timestamp.from(Instant.now()),
-        initialHostSpec,
-        instanceTemplate);
+        hostName, hostName, isWriter, weight, Timestamp.from(Instant.now()), initialHostSpec, instanceTemplate);
   }
 
   public @Nullable String getRegion(String instanceId, Connection conn) throws SQLException {
-    try (final PreparedStatement stmt =
-        conn.prepareStatement(this.dialect.getRegionByInstanceIdQuery())) {
+    try (final PreparedStatement stmt = conn.prepareStatement(this.dialect.getRegionByInstanceIdQuery())) {
       stmt.setString(1, instanceId);
       try (final ResultSet rs = stmt.executeQuery()) {
         if (rs.next()) {
@@ -150,30 +137,23 @@ public class GlobalAuroraTopologyUtils extends AuroraTopologyUtils {
     return null;
   }
 
-  public Map<String, HostSpec> parseInstanceTemplates(
-      String instanceTemplatesString, Consumer<String> hostValidator) throws SQLException {
+  public Map<String, HostSpec> parseInstanceTemplates(String instanceTemplatesString, Consumer<String> hostValidator)
+      throws SQLException {
     if (StringUtils.isNullOrEmpty(instanceTemplatesString)) {
-      throw new SQLException(
-          Messages.get("GlobalAuroraTopologyUtils.globalClusterInstanceHostPatternsRequired"));
+      throw new SQLException(Messages.get("GlobalAuroraTopologyUtils.globalClusterInstanceHostPatternsRequired"));
     }
 
-    Map<String, HostSpec> instanceTemplates =
-        Arrays.stream(instanceTemplatesString.split(","))
-            .map(
-                x ->
-                    ConnectionUrlParser.parseHostPortPairWithRegionPrefix(
-                        x.trim(), () -> hostSpecBuilder))
-            .collect(
-                Collectors.toMap(
-                    Pair::getValue1,
-                    v -> {
-                      hostValidator.accept(v.getValue2().getHost());
-                      return v.getValue2();
-                    }));
-    LOGGER.finest(
-        Messages.get(
-            "GlobalAuroraTopologyUtils.detectedGdbPatterns",
-            new Object[] {LogUtils.toLogString(instanceTemplates)}));
+    Map<String, HostSpec> instanceTemplates = Arrays.stream(instanceTemplatesString.split(","))
+        .map(x -> ConnectionUrlParser.parseHostPortPairWithRegionPrefix(x.trim(), () -> hostSpecBuilder))
+        .collect(Collectors.toMap(
+            Pair::getValue1,
+            v -> {
+              hostValidator.accept(v.getValue2().getHost());
+              return v.getValue2();
+            }));
+    LOGGER.finest(Messages.get(
+        "GlobalAuroraTopologyUtils.detectedGdbPatterns",
+        new Object[] {LogUtils.toLogString(instanceTemplates)}));
 
     return instanceTemplates;
   }

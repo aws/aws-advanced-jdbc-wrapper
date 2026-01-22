@@ -48,8 +48,7 @@ public class ConfigurationProfile {
 
   private final ResourceLock lock = new ResourceLock();
 
-  ConfigurationProfile(
-      final @NonNull String name,
+  ConfigurationProfile(final @NonNull String name,
       @Nullable List<Class<? extends ConnectionPluginFactory>> pluginFactories,
       @Nullable Properties properties,
       @Nullable Supplier<Dialect> dialectSupplier,
@@ -68,8 +67,7 @@ public class ConfigurationProfile {
     this.awsCredentialsProviderHandlerSupplier = credentialsProviderHandlerSupplier;
   }
 
-  ConfigurationProfile(
-      final @NonNull String name,
+  ConfigurationProfile(final @NonNull String name,
       @Nullable List<Class<? extends ConnectionPluginFactory>> pluginFactories,
       @Nullable Properties properties,
       @Nullable Dialect dialect,

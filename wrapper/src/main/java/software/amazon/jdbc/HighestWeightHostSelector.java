@@ -31,29 +31,22 @@ public class HighestWeightHostSelector implements HostSelector {
   public static final String STRATEGY_HIGHEST_WEIGHT = "highestWeight";
 
   @Override
-  public HostSpec getHost(
-      @NonNull final List<HostSpec> hosts,
+  public HostSpec getHost(@NonNull final List<HostSpec> hosts,
       @Nullable final HostRole role,
-      @Nullable final Properties props)
-      throws SQLException {
+      @Nullable final Properties props) throws SQLException {
 
-    final List<HostSpec> eligibleHosts =
-        hosts.stream()
-            .filter(
-                hostSpec ->
-                    (role == null || role.equals(hostSpec.getRole()))
-                        && hostSpec.getAvailability().equals(HostAvailability.AVAILABLE))
-            .collect(Collectors.toList());
+    final List<HostSpec> eligibleHosts = hosts.stream()
+        .filter(hostSpec ->
+            (role == null || role.equals(hostSpec.getRole()))
+            && hostSpec.getAvailability().equals(HostAvailability.AVAILABLE))
+        .collect(Collectors.toList());
 
     if (eligibleHosts.isEmpty()) {
-      throw new SQLException(Messages.get("HostSelector.noHostsMatchingRole", new Object[] {role}));
+      throw new SQLException(Messages.get("HostSelector.noHostsMatchingRole", new Object[]{role}));
     }
 
     return eligibleHosts.stream()
         .max(Comparator.comparing(HostSpec::getWeight))
-        .orElseThrow(
-            () ->
-                new SQLException(
-                    Messages.get("HostSelector.noHostsMatchingRole", new Object[] {role})));
+        .orElseThrow(() -> new SQLException(Messages.get("HostSelector.noHostsMatchingRole", new Object[]{role})));
   }
 }

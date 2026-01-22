@@ -32,8 +32,7 @@ import software.amazon.jdbc.util.storage.StorageService;
 // Close current connection.
 public class CloseConnectionExecuteRouting extends BaseExecuteRouting {
 
-  private static final Logger LOGGER =
-      Logger.getLogger(CloseConnectionExecuteRouting.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(CloseConnectionExecuteRouting.class.getName());
 
   public CloseConnectionExecuteRouting(@Nullable String hostAndPort, @Nullable BlueGreenRole role) {
     super(hostAndPort, role);
@@ -50,8 +49,7 @@ public class CloseConnectionExecuteRouting extends BaseExecuteRouting {
       final Object[] jdbcMethodArgs,
       final StorageService storageService,
       final PluginService pluginService,
-      final Properties props)
-      throws E {
+      final Properties props) throws E {
 
     try {
       if (pluginService.getCurrentConnection() != null

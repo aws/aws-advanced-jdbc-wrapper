@@ -129,48 +129,46 @@ public class WrapperUtils {
         }
       };
 
-  private static final Set<Class<?>> allWrapperClasses =
-      new HashSet<Class<?>>() {
-        {
-          add(ArrayWrapper.class);
-          add(BlobWrapper.class);
-          add(CallableStatementWrapper.class);
-          add(ClobWrapper.class);
-          add(ConnectionWrapper.class); // additional
-          add(DatabaseMetaDataWrapper.class);
-          add(NClobWrapper.class);
-          add(ParameterMetaDataWrapper.class);
-          add(PreparedStatementWrapper.class);
-          add(RefWrapper.class);
-          add(ResultSetMetaDataWrapper.class);
-          add(ResultSetWrapper.class);
-          add(SavepointWrapper.class);
-          add(SQLDataWrapper.class);
-          add(SQLInputWrapper.class);
-          add(SQLOutputWrapper.class);
-          add(SQLTypeWrapper.class);
-          add(StatementWrapper.class);
-          add(StructWrapper.class);
-        }
-      };
+  private static final Set<Class<?>> allWrapperClasses = new HashSet<Class<?>>() {
+    {
+      add(ArrayWrapper.class);
+      add(BlobWrapper.class);
+      add(CallableStatementWrapper.class);
+      add(ClobWrapper.class);
+      add(ConnectionWrapper.class); // additional
+      add(DatabaseMetaDataWrapper.class);
+      add(NClobWrapper.class);
+      add(ParameterMetaDataWrapper.class);
+      add(PreparedStatementWrapper.class);
+      add(RefWrapper.class);
+      add(ResultSetMetaDataWrapper.class);
+      add(ResultSetWrapper.class);
+      add(SavepointWrapper.class);
+      add(SQLDataWrapper.class);
+      add(SQLInputWrapper.class);
+      add(SQLOutputWrapper.class);
+      add(SQLTypeWrapper.class);
+      add(StatementWrapper.class);
+      add(StructWrapper.class);
+    }
+  };
 
-  public static final Set<Class<?>> skipWrappingForClasses =
-      new HashSet<Class<?>>() {
-        {
-          add(Boolean.class);
-          add(String.class);
-          add(Float.class);
-          add(Integer.class);
-          add(BigDecimal.class);
-          add(Double.class);
-          add(Date.class);
-          add(Long.class);
-          add(Object.class);
-          add(Short.class);
-          add(Timer.class);
-          add(URL.class);
-        }
-      };
+  public static final Set<Class<?>> skipWrappingForClasses = new HashSet<Class<?>>() {
+    {
+      add(Boolean.class);
+      add(String.class);
+      add(Float.class);
+      add(Integer.class);
+      add(BigDecimal.class);
+      add(Double.class);
+      add(Date.class);
+      add(Long.class);
+      add(Object.class);
+      add(Short.class);
+      add(Timer.class);
+      add(URL.class);
+    }
+  };
 
   public static final Set<String> skipWrappingForPackages = new HashSet<>();
 
@@ -228,9 +226,7 @@ public class WrapperUtils {
           throw WrapperUtils.wrapExceptionIfNeeded(
               RuntimeException.class,
               new SQLException(
-                  Messages.get(
-                      "ConnectionPluginManager.invokedAgainstOldConnection",
-                      new Object[] {methodInvokeOn})));
+                  Messages.get("ConnectionPluginManager.invokedAgainstOldConnection", new Object[]{methodInvokeOn})));
         }
       }
 
@@ -301,15 +297,12 @@ public class WrapperUtils {
           throw WrapperUtils.wrapExceptionIfNeeded(
               exceptionClass,
               new SQLException(
-                  Messages.get(
-                      "ConnectionPluginManager.invokedAgainstOldConnection",
-                      new Object[] {methodInvokeOn})));
+                  Messages.get("ConnectionPluginManager.invokedAgainstOldConnection", new Object[]{methodInvokeOn})));
         }
       }
 
       final T result =
-          pluginManager.execute(
-              resultClass,
+          pluginManager.execute(resultClass,
               exceptionClass,
               methodInvokeOn,
               jdbcMethod,
@@ -347,8 +340,7 @@ public class WrapperUtils {
       final Class<T> resultClass,
       @Nullable final T toProxy,
       final ConnectionWrapper connectionWrapper,
-      final ConnectionPluginManager pluginManager)
-      throws InstantiationException {
+      final ConnectionPluginManager pluginManager) throws InstantiationException {
     if (toProxy == null) {
       return null;
     }
@@ -371,8 +363,7 @@ public class WrapperUtils {
     Class<?> effectiveResultClass = resultClass;
 
     if (resultClass == Statement.class) {
-      // Statement class is a special case since it has subclasses like PreparedStatement and
-      // CallableStatement.
+      // Statement class is a special case since it has subclasses like PreparedStatement and CallableStatement.
       // We need to choose the best result class based on actual toProxy object.
 
       // Order of the following if-statements is important!
@@ -386,16 +377,14 @@ public class WrapperUtils {
     WrapperFactory wrapperFactory = availableWrappers.get(effectiveResultClass);
 
     if (wrapperFactory != null) {
-      return resultClass.cast(
-          wrapperFactory.getInstance(toProxy, connectionWrapper, pluginManager));
+      return resultClass.cast(wrapperFactory.getInstance(toProxy, connectionWrapper, pluginManager));
     }
 
     for (final Class<?> iface : toProxy.getClass().getInterfaces()) {
       if (isJdbcInterface(iface)) {
         wrapperFactory = availableWrappers.get(iface);
         if (wrapperFactory != null) {
-          return resultClass.cast(
-              wrapperFactory.getInstance(toProxy, connectionWrapper, pluginManager));
+          return resultClass.cast(wrapperFactory.getInstance(toProxy, connectionWrapper, pluginManager));
         }
       }
     }
@@ -407,7 +396,8 @@ public class WrapperUtils {
     if (isJdbcInterface(toProxy.getClass())) {
       throw new RuntimeException(
           Messages.get(
-              "WrapperUtils.noWrapperClassExists", new Object[] {toProxy.getClass().getName()}));
+              "WrapperUtils.noWrapperClassExists",
+              new Object[] {toProxy.getClass().getName()}));
     }
 
     return toProxy;
@@ -422,8 +412,8 @@ public class WrapperUtils {
   public static boolean isJdbcPackage(@Nullable final String packageName) {
     return packageName != null
         && (packageName.startsWith("java.sql")
-            || packageName.startsWith("javax.sql")
-            || packageName.startsWith("org.postgresql"));
+        || packageName.startsWith("javax.sql")
+        || packageName.startsWith("org.postgresql"));
   }
 
   /**
@@ -495,7 +485,8 @@ public class WrapperUtils {
     } catch (final Exception e) {
       throw new InstantiationException(
           Messages.get(
-              "WrapperUtils.failedToInitializeClass", new Object[] {classToInstantiate.getName()}));
+              "WrapperUtils.failedToInitializeClass",
+              new Object[] {classToInstantiate.getName()}));
     }
   }
 
@@ -516,7 +507,9 @@ public class WrapperUtils {
       loaded = Class.forName(className);
     } catch (final Exception e) {
       throw new InstantiationException(
-          Messages.get("WrapperUtils.failedToInitializeClass", new Object[] {className}));
+          Messages.get(
+              "WrapperUtils.failedToInitializeClass",
+              new Object[] {className}));
     }
 
     return createInstance(loaded, resultClass, null, constructorArgs);
@@ -595,12 +588,12 @@ public class WrapperUtils {
    * exception class, otherwise throw it as a runtime exception.
    *
    * @param exceptionClass The exception class the exception is expected to be
-   * @param exception The exception that occurred while invoking the given method
-   * @param <E> The exception class the exception is expected to be
+   * @param exception      The exception that occurred while invoking the given method
+   * @param <E>            The exception class the exception is expected to be
    * @return an exception indicating the failure that occurred while invoking the given method
    */
-  public static <E extends Exception> E wrapExceptionIfNeeded(
-      final Class<E> exceptionClass, final Throwable exception) {
+  public static <E extends Exception> E wrapExceptionIfNeeded(final Class<E> exceptionClass,
+                                                              final Throwable exception) {
     if (exceptionClass.isAssignableFrom(exception.getClass())) {
       return exceptionClass.cast(exception);
     }
@@ -608,9 +601,11 @@ public class WrapperUtils {
     // wrap in an expected exception type
     E result;
     try {
-      result =
-          createInstance(
-              exceptionClass, exceptionClass, new Class<?>[] {Throwable.class}, exception);
+      result = createInstance(
+          exceptionClass,
+          exceptionClass,
+          new Class<?>[] {Throwable.class},
+          exception);
     } catch (InstantiationException e) {
       throw new RuntimeException(e);
     }

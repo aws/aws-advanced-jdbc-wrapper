@@ -48,28 +48,22 @@ import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.storage.SlidingExpirationCache;
 
-public class HikariPooledConnectionProvider
-    implements PooledConnectionProvider, CanReleaseResources {
+public class HikariPooledConnectionProvider implements PooledConnectionProvider,
+    CanReleaseResources {
 
   private static final String thisClassName = HikariPooledConnectionProvider.class.getName();
-  private static final Logger LOGGER =
-      Logger.getLogger(HikariPooledConnectionProvider.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(HikariPooledConnectionProvider.class.getName());
   private static final String CONNECTION_POOL_PROPERTY_PREFIX = "cp-";
 
   protected static final Map<String, HostSelector> acceptedStrategies =
-      Collections.unmodifiableMap(
-          new HashMap<String, HostSelector>() {
-            {
-              put(
-                  HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT,
-                  new HighestWeightHostSelector());
-              put(RandomHostSelector.STRATEGY_RANDOM, new RandomHostSelector());
-              put(RoundRobinHostSelector.STRATEGY_ROUND_ROBIN, new RoundRobinHostSelector());
-              put(
-                  WeightedRandomHostSelector.STRATEGY_WEIGHTED_RANDOM,
-                  new WeightedRandomHostSelector());
-            }
-          });
+      Collections.unmodifiableMap(new HashMap<String, HostSelector>() {
+        {
+          put(HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT, new HighestWeightHostSelector());
+          put(RandomHostSelector.STRATEGY_RANDOM, new RandomHostSelector());
+          put(RoundRobinHostSelector.STRATEGY_ROUND_ROBIN, new RoundRobinHostSelector());
+          put(WeightedRandomHostSelector.STRATEGY_WEIGHTED_RANDOM, new WeightedRandomHostSelector());
+        }
+      });
 
   protected static final RdsUtils rdsUtils = new RdsUtils();
   protected static long poolExpirationCheckNanos = TimeUnit.MINUTES.toNanos(30);
@@ -82,107 +76,106 @@ public class HikariPooledConnectionProvider
     HikariPoolsHolder.databasePools.setShouldDisposeFunc(
         (hikariDataSource) -> {
           if (hikariDataSource instanceof HikariDataSource) {
-            return ((HikariDataSource) hikariDataSource)
-                    .getHikariPoolMXBean()
-                    .getActiveConnections()
-                == 0;
+            return ((HikariDataSource) hikariDataSource).getHikariPoolMXBean().getActiveConnections() == 0;
           }
           return true;
         });
   }
 
   public HikariPooledConnectionProvider() {
-    this(
-        (hostSpec, originalProps) -> {
-          HikariConfig config = new HikariConfig();
-          config.setExceptionOverrideClassName(HikariCPSQLException.class.getName());
+    this((hostSpec, originalProps) -> {
+      HikariConfig config = new HikariConfig();
+      config.setExceptionOverrideClassName(HikariCPSQLException.class.getName());
 
-          final Properties poolProperties = new Properties();
-          originalProps.stringPropertyNames().stream()
-              .filter(p -> p.startsWith(CONNECTION_POOL_PROPERTY_PREFIX))
-              .forEach(
-                  p -> {
-                    poolProperties.put(
-                        p.substring(CONNECTION_POOL_PROPERTY_PREFIX.length()),
-                        originalProps.getProperty(p));
-                  });
+      final Properties poolProperties = new Properties();
+      originalProps.stringPropertyNames().stream()
+          .filter(p -> p.startsWith(CONNECTION_POOL_PROPERTY_PREFIX))
+          .forEach(
+              p -> {
+                poolProperties.put(
+                    p.substring(CONNECTION_POOL_PROPERTY_PREFIX.length()),
+                    originalProps.getProperty(p));
+              });
 
-          LOGGER.finest(
-              () ->
-                  PropertyUtils.logProperties(
-                      PropertyUtils.maskProperties(poolProperties), "HikariConfig properties: \n"));
+      LOGGER.finest(() -> PropertyUtils.logProperties(PropertyUtils.maskProperties(poolProperties),
+          "HikariConfig properties: \n"));
 
-          if (!poolProperties.isEmpty()) {
-            PropertyUtils.applyProperties(config, poolProperties);
-          }
-          return config;
-        },
-        null);
+      if (!poolProperties.isEmpty()) {
+        PropertyUtils.applyProperties(config, poolProperties);
+      }
+      return config;
+    }, null);
   }
 
   /**
-   * {@link HikariPooledConnectionProvider} constructor. This class can be passed to {@link
-   * Driver#setCustomConnectionProvider(ConnectionProvider)} to enable internal connection pools for
+   * {@link HikariPooledConnectionProvider} constructor. This class can be passed to
+   * {@link Driver#setCustomConnectionProvider(ConnectionProvider)} to enable internal connection pools for
    * each database instance in a cluster. By maintaining internal connection pools, the driver can
    * improve performance by reusing old {@link Connection} objects.
    *
    * @param hikariPoolConfigurator a function that returns a {@link HikariConfig} with specific
-   *     Hikari configurations. By default, the {@link HikariPooledConnectionProvider} will
-   *     configure the jdbcUrl, exceptionOverrideClassName, username, and password. Any additional
-   *     configuration should be defined by passing in this parameter. If no additional
-   *     configuration is desired, pass in a {@link HikariPoolConfigurator} that returns an empty
-   *     HikariConfig.
+   *                               Hikari configurations. By default, the
+   *                               {@link HikariPooledConnectionProvider} will configure the
+   *                               jdbcUrl, exceptionOverrideClassName, username, and password. Any
+   *                               additional configuration should be defined by passing in this
+   *                               parameter. If no additional configuration is desired, pass in a
+   *                               {@link HikariPoolConfigurator} that returns an empty
+   *                               HikariConfig.
    */
   public HikariPooledConnectionProvider(HikariPoolConfigurator hikariPoolConfigurator) {
     this(hikariPoolConfigurator, null);
   }
 
   /**
-   * {@link HikariPooledConnectionProvider} constructor. This class can be passed to {@link
-   * Driver#setCustomConnectionProvider(ConnectionProvider)} to enable internal connection pools for
+   * {@link HikariPooledConnectionProvider} constructor. This class can be passed to
+   * {@link Driver#setCustomConnectionProvider(ConnectionProvider)} to enable internal connection pools for
    * each database instance in a cluster. By maintaining internal connection pools, the driver can
    * improve performance by reusing old {@link Connection} objects.
    *
    * @param hikariPoolConfigurator a function that returns a {@link HikariConfig} with specific
-   *     Hikari configurations. By default, the {@link HikariPooledConnectionProvider} will
-   *     configure the jdbcUrl, exceptionOverrideClassName, username, and password. Any additional
-   *     configuration should be defined by passing in this parameter. If no additional
-   *     configuration is desired, pass in a {@link HikariPoolConfigurator} that returns an empty
-   *     HikariConfig.
-   * @param mapping a function that returns a String key used for the internal connection pool keys.
-   *     An internal connection pool will be generated for each unique key returned by this
-   *     function.
+   *                               Hikari configurations. By default, the
+   *                               {@link HikariPooledConnectionProvider} will configure the
+   *                               jdbcUrl, exceptionOverrideClassName, username, and password. Any
+   *                               additional configuration should be defined by passing in this
+   *                               parameter. If no additional configuration is desired, pass in a
+   *                               {@link HikariPoolConfigurator} that returns an empty
+   *                               HikariConfig.
+   * @param mapping                a function that returns a String key used for the internal
+   *                               connection pool keys. An internal connection pool will be
+   *                               generated for each unique key returned by this function.
    */
   public HikariPooledConnectionProvider(
       HikariPoolConfigurator hikariPoolConfigurator, HikariPoolMapping mapping) {
     this.poolConfigurator = hikariPoolConfigurator;
     this.poolMapping = mapping;
     this.acceptsUrlFunc = null;
-    this.leastConnectionsHostSelector =
-        new LeastConnectionsHostSelector(HikariPoolsHolder.databasePools);
+    this.leastConnectionsHostSelector = new LeastConnectionsHostSelector(HikariPoolsHolder.databasePools);
   }
 
   /**
-   * {@link HikariPooledConnectionProvider} constructor. This class can be passed to {@link
-   * Driver#setCustomConnectionProvider(ConnectionProvider)} to enable internal connection pools for
+   * {@link HikariPooledConnectionProvider} constructor. This class can be passed to
+   * {@link Driver#setCustomConnectionProvider(ConnectionProvider)} to enable internal connection pools for
    * each database instance in a cluster. By maintaining internal connection pools, the driver can
    * improve performance by reusing old {@link Connection} objects.
    *
    * @param hikariPoolConfigurator a function that returns a {@link HikariConfig} with specific
-   *     Hikari configurations. By default, the {@link HikariPooledConnectionProvider} will
-   *     configure the jdbcUrl, exceptionOverrideClassName, username, and password. Any additional
-   *     configuration should be defined by passing in this parameter. If no additional
-   *     configuration is desired, pass in a {@link HikariPoolConfigurator} that returns an empty
-   *     HikariConfig.
-   * @param mapping a function that returns a String key used for the internal connection pool keys.
-   *     An internal connection pool will be generated for each unique key returned by this
-   *     function.
-   * @param poolExpirationNanos the amount of time that a pool should sit in the cache before being
-   *     marked as expired for cleanup, in nanoseconds. Expired pools can still be used and will not
-   *     be closed unless there are no active connections.
-   * @param poolCleanupNanos the interval defining how often expired connection pools should be
-   *     cleaned up, in nanoseconds. Note that expired pools will not be closed unless there are no
-   *     active connections.
+   *                               Hikari configurations. By default, the
+   *                               {@link HikariPooledConnectionProvider} will configure the
+   *                               jdbcUrl, exceptionOverrideClassName, username, and password. Any
+   *                               additional configuration should be defined by passing in this
+   *                               parameter. If no additional configuration is desired, pass in a
+   *                               {@link HikariPoolConfigurator} that returns an empty
+   *                               HikariConfig.
+   * @param mapping                a function that returns a String key used for the internal
+   *                               connection pool keys. An internal connection pool will be
+   *                               generated for each unique key returned by this function.
+   * @param poolExpirationNanos    the amount of time that a pool should sit in the cache before
+   *                               being marked as expired for cleanup, in nanoseconds. Expired
+   *                               pools can still be used and will not be closed unless there
+   *                               are no active connections.
+   * @param poolCleanupNanos       the interval defining how often expired connection pools
+   *                               should be cleaned up, in nanoseconds. Note that expired pools
+   *                               will not be closed unless there are no active connections.
    */
   public HikariPooledConnectionProvider(
       HikariPoolConfigurator hikariPoolConfigurator,
@@ -194,34 +187,36 @@ public class HikariPooledConnectionProvider
     this.acceptsUrlFunc = null;
     poolExpirationCheckNanos = poolExpirationNanos;
     HikariPoolsHolder.databasePools.setCleanupIntervalNanos(poolCleanupNanos);
-    this.leastConnectionsHostSelector =
-        new LeastConnectionsHostSelector(HikariPoolsHolder.databasePools);
+    this.leastConnectionsHostSelector = new LeastConnectionsHostSelector(HikariPoolsHolder.databasePools);
   }
 
   /**
-   * {@link HikariPooledConnectionProvider} constructor. This class can be passed to {@link
-   * Driver#setCustomConnectionProvider(ConnectionProvider)} to enable internal connection pools for
+   * {@link HikariPooledConnectionProvider} constructor. This class can be passed to
+   * {@link Driver#setCustomConnectionProvider(ConnectionProvider)} to enable internal connection pools for
    * each database instance in a cluster. By maintaining internal connection pools, the driver can
    * improve performance by reusing old {@link Connection} objects.
    *
    * @param hikariPoolConfigurator a function that returns a {@link HikariConfig} with specific
-   *     Hikari configurations. By default, the {@link HikariPooledConnectionProvider} will
-   *     configure the jdbcUrl, exceptionOverrideClassName, username, and password. Any additional
-   *     configuration should be defined by passing in this parameter. If no additional
-   *     configuration is desired, pass in a {@link HikariPoolConfigurator} that returns an empty
-   *     HikariConfig.
-   * @param mapping a function that returns a String key used for the internal connection pool keys.
-   *     An internal connection pool will be generated for each unique key returned by this
-   *     function.
-   * @param acceptsUrlFunc a function that defines when an internal connection pool should be
-   *     created for a requested connection. An internal connection pool will be created when the
-   *     connect pipeline is being executed and this function returns <code>true</code>.
-   * @param poolExpirationNanos the amount of time that a pool should sit in the cache before being
-   *     marked as expired for cleanup, in nanoseconds. Expired pools can still be used and will not
-   *     be closed unless there are no active connections.
-   * @param poolCleanupNanos the interval defining how often expired connection pools should be
-   *     cleaned up, in nanoseconds. Note that expired pools will not be closed unless there are no
-   *     active connections.
+   *                               Hikari configurations. By default, the
+   *                               {@link HikariPooledConnectionProvider} will configure the
+   *                               jdbcUrl, exceptionOverrideClassName, username, and password. Any
+   *                               additional configuration should be defined by passing in this
+   *                               parameter. If no additional configuration is desired, pass in a
+   *                               {@link HikariPoolConfigurator} that returns an empty
+   *                               HikariConfig.
+   * @param mapping                a function that returns a String key used for the internal
+   *                               connection pool keys. An internal connection pool will be
+   *                               generated for each unique key returned by this function.
+   * @param acceptsUrlFunc         a function that defines when an internal connection pool should be created for a
+   *                               requested connection. An internal connection pool will be created when the connect
+   *                               pipeline is being executed and this function returns <code>true</code>.
+   * @param poolExpirationNanos    the amount of time that a pool should sit in the cache before
+   *                               being marked as expired for cleanup, in nanoseconds. Expired
+   *                               pools can still be used and will not be closed unless there
+   *                               are no active connections.
+   * @param poolCleanupNanos       the interval defining how often expired connection pools
+   *                               should be cleaned up, in nanoseconds. Note that expired pools
+   *                               will not be closed unless there are no active connections.
    */
   public HikariPooledConnectionProvider(
       HikariPoolConfigurator hikariPoolConfigurator,
@@ -234,9 +229,9 @@ public class HikariPooledConnectionProvider
     this.acceptsUrlFunc = acceptsUrlFunc;
     poolExpirationCheckNanos = poolExpirationNanos;
     HikariPoolsHolder.databasePools.setCleanupIntervalNanos(poolCleanupNanos);
-    this.leastConnectionsHostSelector =
-        new LeastConnectionsHostSelector(HikariPoolsHolder.databasePools);
+    this.leastConnectionsHostSelector = new LeastConnectionsHostSelector(HikariPoolsHolder.databasePools);
   }
+
 
   @Override
   public boolean acceptsUrl(
@@ -260,8 +255,7 @@ public class HikariPooledConnectionProvider
       @NonNull List<HostSpec> hosts,
       @Nullable HostRole role,
       @NonNull String strategy,
-      @Nullable Properties props)
-      throws SQLException {
+      @Nullable Properties props) throws SQLException {
     if (!acceptsStrategy(role, strategy)) {
       throw new UnsupportedOperationException(
           Messages.get(
@@ -303,24 +297,21 @@ public class HikariPooledConnectionProvider
         // Green node DNS doesn't exist
 
         final String fixedHost = rdsUtils.removeGreenInstancePrefix(hostSpec.getHost());
-        connectionHostSpec =
-            new HostSpecBuilder(hostSpec.getHostAvailabilityStrategy())
-                .copyFrom(hostSpec)
-                .host(fixedHost)
-                .build();
+        connectionHostSpec = new HostSpecBuilder(hostSpec.getHostAvailabilityStrategy())
+            .copyFrom(hostSpec)
+            .host(fixedHost)
+            .build();
       }
     }
 
     final HostSpec finalHostSpec = connectionHostSpec;
     dialect.prepareConnectProperties(copy, protocol, finalHostSpec);
 
-    final HikariDataSource ds =
-        (HikariDataSource)
-            HikariPoolsHolder.databasePools.computeIfAbsent(
-                Pair.create(hostSpec.getUrl(), getPoolKey(finalHostSpec, copy)),
-                (lambdaPoolKey) ->
-                    createHikariDataSource(protocol, finalHostSpec, copy, targetDriverDialect),
-                poolExpirationCheckNanos);
+    final HikariDataSource ds = (HikariDataSource) HikariPoolsHolder.databasePools.computeIfAbsent(
+        Pair.create(hostSpec.getUrl(), getPoolKey(finalHostSpec, copy)),
+        (lambdaPoolKey) -> createHikariDataSource(protocol, finalHostSpec, copy, targetDriverDialect),
+        poolExpirationCheckNanos
+    );
 
     ds.setPassword(copy.getProperty(PropertyDefinition.PASSWORD.name));
 
@@ -347,12 +338,13 @@ public class HikariPooledConnectionProvider
   /**
    * Configures the default required settings for the internal connection pool.
    *
-   * @param config the {@link HikariConfig} to configure. By default, this method sets the jdbcUrl,
-   *     exceptionOverrideClassName, username, and password. The HikariConfig passed to this method
-   *     should be created via a {@link HikariPoolConfigurator}, which allows the user to specify
-   *     any additional configuration properties.
-   * @param protocol the driver protocol that should be used to form connections
-   * @param hostSpec the host details used to form the connection
+   * @param config          the {@link HikariConfig} to configure. By default, this method sets the
+   *                        jdbcUrl, exceptionOverrideClassName, username, and password. The
+   *                        HikariConfig passed to this method should be created via a
+   *                        {@link HikariPoolConfigurator}, which allows the user to specify any
+   *                        additional configuration properties.
+   * @param protocol        the driver protocol that should be used to form connections
+   * @param hostSpec        the host details used to form the connection
    * @param connectionProps the connection properties
    * @param targetDriverDialect the target driver dialect {@link TargetDriverDialect}
    */
@@ -373,7 +365,8 @@ public class HikariPooledConnectionProvider
 
     ConnectInfo connectInfo;
     try {
-      connectInfo = targetDriverDialect.prepareConnectInfo(protocol, hostSpec, copy);
+      connectInfo = targetDriverDialect.prepareConnectInfo(
+          protocol, hostSpec, copy);
     } catch (SQLException ex) {
       throw new RuntimeException(ex);
     }
@@ -381,13 +374,11 @@ public class HikariPooledConnectionProvider
     StringBuilder urlBuilder = new StringBuilder(connectInfo.url);
 
     final StringJoiner propsJoiner = new StringJoiner("&");
-    connectInfo.props.forEach(
-        (k, v) -> {
-          if (!PropertyDefinition.PASSWORD.name.equals(k)
-              && !PropertyDefinition.USER.name.equals(k)) {
-            propsJoiner.add(k + "=" + v);
-          }
-        });
+    connectInfo.props.forEach((k, v) -> {
+      if (!PropertyDefinition.PASSWORD.name.equals(k) && !PropertyDefinition.USER.name.equals(k)) {
+        propsJoiner.add(k + "=" + v);
+      }
+    });
 
     if (connectInfo.url.contains("?")) {
       urlBuilder.append("&").append(propsJoiner);
@@ -442,30 +433,26 @@ public class HikariPooledConnectionProvider
     return thisClassName;
   }
 
-  /** Logs information for every active connection pool. */
+  /**
+   * Logs information for every active connection pool.
+   */
   public void logConnections() {
-    LOGGER.finest(
-        () -> {
-          final StringBuilder builder = new StringBuilder();
-          HikariPoolsHolder.databasePools
-              .getEntries()
-              .forEach(
-                  (key, dataSource) -> {
-                    builder.append("\t[ ");
-                    builder.append(key).append(":");
-                    builder.append("\n\t {");
-                    builder.append("\n\t\t").append(dataSource);
-                    if (dataSource instanceof HikariDataSource) {
-                      HikariPoolMXBean bean = ((HikariDataSource) dataSource).getHikariPoolMXBean();
-                      builder.append(
-                          String.format(
-                              " %d/%d", bean.getActiveConnections(), bean.getTotalConnections()));
-                    }
-                    builder.append("\n\t }\n");
-                    builder.append("\t");
-                  });
-          return String.format("Hikari Pooled Connection: \n[\n%s\n]", builder);
-        });
+    LOGGER.finest(() -> {
+      final StringBuilder builder = new StringBuilder();
+      HikariPoolsHolder.databasePools.getEntries().forEach((key, dataSource) -> {
+        builder.append("\t[ ");
+        builder.append(key).append(":");
+        builder.append("\n\t {");
+        builder.append("\n\t\t").append(dataSource);
+        if (dataSource instanceof HikariDataSource) {
+          HikariPoolMXBean bean = ((HikariDataSource) dataSource).getHikariPoolMXBean();
+          builder.append(String.format(" %d/%d", bean.getActiveConnections(), bean.getTotalConnections()));
+        }
+        builder.append("\n\t }\n");
+        builder.append("\t");
+      });
+      return String.format("Hikari Pooled Connection: \n[\n%s\n]", builder);
+    });
   }
 
   HikariDataSource createHikariDataSource(

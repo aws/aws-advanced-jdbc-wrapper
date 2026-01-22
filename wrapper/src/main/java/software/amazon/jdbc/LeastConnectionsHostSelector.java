@@ -33,7 +33,8 @@ public class LeastConnectionsHostSelector implements HostSelector {
   public static final String STRATEGY_LEAST_CONNECTIONS = "leastConnections";
   private final SlidingExpirationCache<Pair, AutoCloseable> databasePools;
 
-  public LeastConnectionsHostSelector(SlidingExpirationCache<Pair, AutoCloseable> databasePools) {
+  public LeastConnectionsHostSelector(
+      SlidingExpirationCache<Pair, AutoCloseable> databasePools) {
     this.databasePools = databasePools;
   }
 
@@ -41,40 +42,36 @@ public class LeastConnectionsHostSelector implements HostSelector {
   public HostSpec getHost(
       @NonNull final List<HostSpec> hosts,
       @Nullable final HostRole role,
-      @Nullable final Properties props)
-      throws SQLException {
-    final List<HostSpec> eligibleHosts =
-        hosts.stream()
-            .filter(
-                hostSpec ->
-                    (role == null || role.equals(hostSpec.getRole()))
-                        && hostSpec.getAvailability().equals(HostAvailability.AVAILABLE))
-            .sorted(
-                (hostSpec1, hostSpec2) ->
-                    getNumConnections(hostSpec1, this.databasePools)
-                        - getNumConnections(hostSpec2, this.databasePools))
-            .collect(Collectors.toList());
+      @Nullable final Properties props) throws SQLException {
+    final List<HostSpec> eligibleHosts = hosts.stream()
+        .filter(hostSpec ->
+            (role == null || role.equals(hostSpec.getRole()))
+            && hostSpec.getAvailability().equals(HostAvailability.AVAILABLE))
+        .sorted((hostSpec1, hostSpec2) ->
+            getNumConnections(hostSpec1, this.databasePools) - getNumConnections(hostSpec2, this.databasePools))
+        .collect(Collectors.toList());
 
     if (eligibleHosts.isEmpty()) {
-      throw new SQLException(Messages.get("HostSelector.noHostsMatchingRole", new Object[] {role}));
+      throw new SQLException(Messages.get("HostSelector.noHostsMatchingRole", new Object[]{role}));
     }
 
     return eligibleHosts.get(0);
   }
 
   private int getNumConnections(
-      final HostSpec hostSpec, final SlidingExpirationCache<Pair, AutoCloseable> databasePools) {
+      final HostSpec hostSpec,
+      final SlidingExpirationCache<Pair, AutoCloseable> databasePools) {
     int numConnections = 0;
     final String url = hostSpec.getUrl();
-    for (final Map.Entry<Pair, AutoCloseable> entry : databasePools.getEntries().entrySet()) {
+    for (final Map.Entry<Pair, AutoCloseable> entry :
+        databasePools.getEntries().entrySet()) {
       if (!url.equals(entry.getKey().getValue1())) {
         continue;
       }
       if (!(entry.getValue() instanceof HikariDataSource)) {
         continue;
       }
-      numConnections +=
-          ((HikariDataSource) entry.getValue()).getHikariPoolMXBean().getActiveConnections();
+      numConnections += ((HikariDataSource) entry.getValue()).getHikariPoolMXBean().getActiveConnections();
     }
     return numConnections;
   }

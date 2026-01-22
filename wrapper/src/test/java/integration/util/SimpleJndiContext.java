@@ -31,13 +31,14 @@ import javax.naming.Referenceable;
 import javax.naming.spi.ObjectFactory;
 
 /**
- * The Context for a simple JNDI implementation. This is not a complete implementation, and is only
- * used for testing purposes. Objects are stored as references.
+ * The Context for a simple JNDI implementation. This is not a complete implementation, and is only used for
+ * testing purposes. Objects are stored as references.
  */
 public class SimpleJndiContext implements Context {
   private Map<String, Object> map = new HashMap<String, Object>();
 
-  public SimpleJndiContext() {}
+  public SimpleJndiContext() {
+  }
 
   public Object lookup(Name name) throws NamingException {
     return lookup(name.get(0));
@@ -107,9 +108,11 @@ public class SimpleJndiContext implements Context {
     return null;
   }
 
-  public void destroySubcontext(Name name) throws NamingException {}
+  public void destroySubcontext(Name name) throws NamingException {
+  }
 
-  public void destroySubcontext(String name) throws NamingException {}
+  public void destroySubcontext(String name) throws NamingException {
+  }
 
   public Context createSubcontext(Name name) throws NamingException {
     return null;
@@ -155,7 +158,8 @@ public class SimpleJndiContext implements Context {
     return null;
   }
 
-  public void close() throws NamingException {}
+  public void close() throws NamingException {
+  }
 
   public String getNameInNamespace() throws NamingException {
     return null;

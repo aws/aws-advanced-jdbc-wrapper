@@ -16,4 +16,6 @@
 
 package software.amazon.jdbc.util.telemetry;
 
-public interface TelemetryGauge {}
+public interface TelemetryGauge {
+
+}

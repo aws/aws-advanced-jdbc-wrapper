@@ -39,16 +39,9 @@ public class RejectConnectRouting extends BaseConnectRouting {
   }
 
   @Override
-  public Connection apply(
-      ConnectionPlugin plugin,
-      HostSpec hostSpec,
-      Properties props,
-      boolean isInitialConnection,
-      boolean useForceConnect,
-      JdbcCallable<Connection, SQLException> connectFunc,
-      StorageService storageService,
-      PluginService pluginService)
-      throws SQLException {
+  public Connection apply(ConnectionPlugin plugin, HostSpec hostSpec, Properties props, boolean isInitialConnection,
+      boolean useForceConnect, JdbcCallable<Connection, SQLException> connectFunc, StorageService storageService,
+      PluginService pluginService) throws SQLException {
 
     LOGGER.finest(() -> Messages.get("bgd.inProgressCantConnect"));
     throw new SQLException(Messages.get("bgd.inProgressCantConnect"));

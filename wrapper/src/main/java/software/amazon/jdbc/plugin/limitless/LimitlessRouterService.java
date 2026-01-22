@@ -26,5 +26,7 @@ public interface LimitlessRouterService {
   void establishConnection(final LimitlessConnectionContext context) throws SQLException;
 
   void startMonitoring(
-      final @NonNull HostSpec hostSpec, final @NonNull Properties props, final int intervalMs);
+      final @NonNull HostSpec hostSpec,
+      final @NonNull Properties props,
+      final int intervalMs);
 }

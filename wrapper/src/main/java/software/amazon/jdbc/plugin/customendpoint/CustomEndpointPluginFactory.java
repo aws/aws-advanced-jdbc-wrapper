@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+
 package software.amazon.jdbc.plugin.customendpoint;
 
 import java.util.Properties;
@@ -25,8 +26,7 @@ import software.amazon.jdbc.util.Messages;
 public class CustomEndpointPluginFactory implements ConnectionPluginFactory {
 
   @Override
-  public ConnectionPlugin getInstance(
-      final FullServicesContainer servicesContainer, final Properties props) {
+  public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
     try {
       Class.forName("software.amazon.awssdk.services.rds.RdsClient");
     } catch (final ClassNotFoundException e) {

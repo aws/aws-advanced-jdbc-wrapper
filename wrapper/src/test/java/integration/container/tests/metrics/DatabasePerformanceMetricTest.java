@@ -99,14 +99,12 @@ import software.amazon.jdbc.util.Pair;
 @Order(22)
 public class DatabasePerformanceMetricTest {
 
-  private static final Logger LOGGER =
-      Logger.getLogger(DatabasePerformanceMetricTest.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(DatabasePerformanceMetricTest.class.getName());
   protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
 
   private static final int NUM_OF_ITERATIONS = 10;
   private static final long STOP_IF_NO_CHANGES_FOR_LAST_SECONDS = 180;
-  private static final long MULTIAZ_STOP_IF_NO_CHANGES_FOR_LAST_SECONDS =
-      TimeUnit.MINUTES.toSeconds(20);
+  private static final long MULTIAZ_STOP_IF_NO_CHANGES_FOR_LAST_SECONDS = TimeUnit.MINUTES.toSeconds(20);
   private static final String NOT_ACCESSIBLE = "#####";
   private static final String BLANK_TOPOLOGY = "(blank)";
   private static final long DIRECT_CONNECT_TIMEOUT_MS = 1000;
@@ -121,12 +119,9 @@ public class DatabasePerformanceMetricTest {
   private static final long EFM_DETECTION_INTERVAL_TIME_MS = 1000;
   private static final long EFM_DETECTION_COUNT = 1;
 
-  private final ConcurrentLinkedDeque<Throwable> unhandledExceptions =
-      new ConcurrentLinkedDeque<>();
-  private final ConcurrentLinkedDeque<TopologyEventHolder> topologyEvents =
-      new ConcurrentLinkedDeque<>();
-  private final ConcurrentLinkedDeque<FailoverResult> failoverResults =
-      new ConcurrentLinkedDeque<>();
+  private final ConcurrentLinkedDeque<Throwable> unhandledExceptions = new ConcurrentLinkedDeque<>();
+  private final ConcurrentLinkedDeque<TopologyEventHolder> topologyEvents = new ConcurrentLinkedDeque<>();
+  private final ConcurrentLinkedDeque<FailoverResult> failoverResults = new ConcurrentLinkedDeque<>();
   private final AtomicLong failoverTriggerTimeNano = new AtomicLong();
   private final AtomicReference<Instant> failoverTriggerTimestamp = new AtomicReference<>();
 
@@ -212,14 +207,13 @@ public class DatabasePerformanceMetricTest {
     }
 
     if (!success) {
-      LOGGER.finest(
-          "Cluster " + TestEnvironment.getCurrent().getInfo().getRdsDbName() + " is not healthy.");
+      LOGGER.finest("Cluster " + TestEnvironment.getCurrent().getInfo().getRdsDbName() + " is not healthy.");
       throw new RuntimeException("Not healthy.");
     }
 
-    LOGGER.finest(
-        "Cluster " + TestEnvironment.getCurrent().getInfo().getRdsDbName() + " is healthy.");
+    LOGGER.finest("Cluster " + TestEnvironment.getCurrent().getInfo().getRdsDbName() + " is healthy.");
   }
+
 
   public void collectMetrics(int iterationNum, final RunData runData) throws InterruptedException {
 
@@ -245,63 +239,36 @@ public class DatabasePerformanceMetricTest {
     final String dbName = info.getDatabaseInfo().getDefaultDbName();
 
     for (TestInstanceInfo hostInfo : info.getDatabaseInfo().getInstances()) {
-      threads.add(
-          this.getDirectTopologyMonitoringThread(
-              info.getRequest().getDatabaseEngine(),
-              info.getRequest().getDatabaseEngineDeployment(),
-              hostInfo.getInstanceId(),
-              hostInfo.getHost(),
-              hostInfo.getPort(),
-              dbName,
-              startLatchAtomic,
-              stop,
-              finishLatchAtomic,
-              topologyEvents));
+      threads.add(this.getDirectTopologyMonitoringThread(
+          info.getRequest().getDatabaseEngine(), info.getRequest().getDatabaseEngineDeployment(),
+          hostInfo.getInstanceId(), hostInfo.getHost(), hostInfo.getPort(), dbName,
+          startLatchAtomic, stop, finishLatchAtomic, topologyEvents));
       threadCount++;
       threadFinishCount++;
 
-      threads.add(
-          this.getFailoverMonitoringThread(
-              info.getRequest().getDatabaseEngine(),
-              info.getRequest().getDatabaseEngineDeployment(),
-              hostInfo.getInstanceId(),
-              hostInfo.getHost(),
-              hostInfo.getPort(),
-              dbName,
-              FailoverMode.STRICT_WRITER,
-              clusterId++,
-              startLatchAtomic,
-              stop,
-              finishLatchAtomic,
-              failoverResults));
+      threads.add(this.getFailoverMonitoringThread(
+          info.getRequest().getDatabaseEngine(), info.getRequest().getDatabaseEngineDeployment(),
+          hostInfo.getInstanceId(), hostInfo.getHost(), hostInfo.getPort(), dbName,
+          FailoverMode.STRICT_WRITER, clusterId++,
+          startLatchAtomic, stop, finishLatchAtomic, failoverResults));
       threadCount++;
       threadFinishCount++;
 
-      threads.add(
-          this.getFailoverMonitoringThread(
-              info.getRequest().getDatabaseEngine(),
-              info.getRequest().getDatabaseEngineDeployment(),
-              hostInfo.getInstanceId(),
-              hostInfo.getHost(),
-              hostInfo.getPort(),
-              dbName,
-              FailoverMode.STRICT_READER,
-              clusterId++,
-              startLatchAtomic,
-              stop,
-              finishLatchAtomic,
-              failoverResults));
+      threads.add(this.getFailoverMonitoringThread(
+          info.getRequest().getDatabaseEngine(), info.getRequest().getDatabaseEngineDeployment(),
+          hostInfo.getInstanceId(), hostInfo.getHost(), hostInfo.getPort(), dbName,
+          FailoverMode.STRICT_READER, clusterId++,
+          startLatchAtomic, stop, finishLatchAtomic, failoverResults));
       threadCount++;
       threadFinishCount++;
     }
 
-    threads.add(
-        this.getTriggerFailoverThread(
-            info.getRdsDbName(),
-            startLatchAtomic,
-            finishLatchAtomic,
-            this.failoverTriggerTimeNano,
-            this.failoverTriggerTimestamp));
+    threads.add(this.getTriggerFailoverThread(
+        info.getRdsDbName(),
+        startLatchAtomic,
+        finishLatchAtomic,
+        this.failoverTriggerTimeNano,
+        this.failoverTriggerTimestamp));
     threadCount++;
     threadFinishCount++;
 
@@ -348,136 +315,115 @@ public class DatabasePerformanceMetricTest {
       final AtomicBoolean stop,
       final AtomicReference<CountDownLatch> finishLatch,
       final ConcurrentLinkedDeque<TopologyEventHolder> results) {
-    return new Thread(
-        () -> {
-          Connection conn = null;
+    return new Thread(() -> {
 
-          try {
+      Connection conn = null;
 
-            long threadTimeoutSec =
-                (deployment == RDS_MULTI_AZ_CLUSTER
-                    ? MULTIAZ_STOP_IF_NO_CHANGES_FOR_LAST_SECONDS
-                    : STOP_IF_NO_CHANGES_FOR_LAST_SECONDS);
+      try {
 
-            final Properties props = ConnectionStringHelper.getDefaultProperties();
-            PropertyDefinition.CONNECT_TIMEOUT.set(
-                props, String.valueOf(DIRECT_CONNECT_TIMEOUT_MS));
-            PropertyDefinition.SOCKET_TIMEOUT.set(props, String.valueOf(DIRECT_SOCKET_TIMEOUT_MS));
+        long threadTimeoutSec = (deployment == RDS_MULTI_AZ_CLUSTER
+            ? MULTIAZ_STOP_IF_NO_CHANGES_FOR_LAST_SECONDS
+            : STOP_IF_NO_CHANGES_FOR_LAST_SECONDS);
 
-            conn =
-                openConnectionWithRetry(ConnectionStringHelper.getUrl(host, port, dbName), props);
-            LOGGER.finest(String.format("[DirectTopology @ %s] connection opened", hostId));
+        final Properties props = ConnectionStringHelper.getDefaultProperties();
+        PropertyDefinition.CONNECT_TIMEOUT.set(props, String.valueOf(DIRECT_CONNECT_TIMEOUT_MS));
+        PropertyDefinition.SOCKET_TIMEOUT.set(props, String.valueOf(DIRECT_SOCKET_TIMEOUT_MS));
 
-            Boolean readOnly = this.getReadOnly(databaseEngine, deployment, conn);
-            List<ClusterInstanceInfo> topologyHosts =
-                this.getClusterInstances(databaseEngine, deployment, conn);
-            TopologyEventHolder lastEvent =
-                new TopologyEventHolder(
-                    hostId, Instant.now(), System.nanoTime(), true, topologyHosts, readOnly);
-            long lastEventChangeTimeNano = 0;
-            results.add(lastEvent);
+        conn = openConnectionWithRetry(
+            ConnectionStringHelper.getUrl(host, port, dbName),
+            props);
+        LOGGER.finest(String.format("[DirectTopology @ %s] connection opened", hostId));
 
-            Thread.sleep(1000);
+        Boolean readOnly = this.getReadOnly(databaseEngine, deployment, conn);
+        List<ClusterInstanceInfo> topologyHosts = this.getClusterInstances(databaseEngine, deployment, conn);
+        TopologyEventHolder lastEvent = new TopologyEventHolder(
+            hostId, Instant.now(), System.nanoTime(), true, topologyHosts, readOnly);
+        long lastEventChangeTimeNano = 0;
+        results.add(lastEvent);
 
-            // notify that this thread is ready for work
-            startLatch.get().countDown();
+        Thread.sleep(1000);
 
-            // wait for another threads to be ready to start the test
-            startLatch.get().await(5, TimeUnit.MINUTES);
+        // notify that this thread is ready for work
+        startLatch.get().countDown();
 
-            lastEvent = null;
+        // wait for another threads to be ready to start the test
+        startLatch.get().await(5, TimeUnit.MINUTES);
 
-            LOGGER.finest(
-                String.format(
-                    "[DirectTopology @ %s] Starting topology and connectivity monitoring.",
-                    hostId));
+        lastEvent = null;
 
-            long endTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(15);
+        LOGGER.finest(String.format("[DirectTopology @ %s] Starting topology and connectivity monitoring.", hostId));
 
-            while (!stop.get() && System.nanoTime() < endTime) {
-              TopologyEventHolder currentEvent = null;
+        long endTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(15);
 
-              if (conn == null) {
-                try {
-                  conn =
-                      DriverManager.getConnection(
-                          ConnectionStringHelper.getUrl(host, port, dbName), props);
+        while (!stop.get() && System.nanoTime() < endTime) {
+          TopologyEventHolder currentEvent = null;
 
-                } catch (SQLException sqlEx) {
-                  // ignore, try to connect again
-                }
+          if (conn == null) {
+            try {
+              conn = DriverManager.getConnection(ConnectionStringHelper.getUrl(host, port, dbName), props);
 
-                if (conn != null) {
-                  LOGGER.finest(
-                      String.format("[DirectTopology @ %s] connection re-opened", hostId));
-                } else {
-                  currentEvent =
-                      new TopologyEventHolder(
-                          hostId, Instant.now(), System.nanoTime(), false, null, null);
-                }
-              }
-
-              if (conn != null) {
-                try {
-                  readOnly = this.getReadOnly(databaseEngine, deployment, conn);
-                  topologyHosts = this.getClusterInstances(databaseEngine, deployment, conn);
-                  currentEvent =
-                      new TopologyEventHolder(
-                          hostId, Instant.now(), System.nanoTime(), true, topologyHosts, readOnly);
-
-                } catch (SQLException throwable) {
-                  currentEvent =
-                      new TopologyEventHolder(
-                          hostId, Instant.now(), System.nanoTime(), false, null, null);
-                  LOGGER.finest(
-                      String.format(
-                          "[DirectTopology @ %s] thread exception: %s", hostId, throwable));
-                  this.closeConnection(conn);
-                  conn = null;
-                }
-              }
-
-              if (lastEvent == null || !lastEvent.equals(currentEvent)) {
-                lastEvent = currentEvent;
-                lastEventChangeTimeNano = System.nanoTime();
-                results.add(currentEvent);
-                TopologyEventHolder finalCurrentEvent = currentEvent;
-                LOGGER.finest(
-                    () ->
-                        String.format(
-                            "[DirectTopology @ %s] topology or availability changed to: %s",
-                            hostId, finalCurrentEvent));
-              }
-
-              TimeUnit.MILLISECONDS.sleep(10);
-
-              if (lastEventChangeTimeNano != 0
-                  && TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - lastEventChangeTimeNano)
-                      >= threadTimeoutSec) {
-                LOGGER.finest(
-                    () ->
-                        String.format(
-                            "[DirectTopology @ %s] no changes in topology or availability for the last %d sec",
-                            hostId, threadTimeoutSec));
-                break;
-              }
+            } catch (SQLException sqlEx) {
+              // ignore, try to connect again
             }
 
-          } catch (InterruptedException interruptedException) {
-            // Ignore, stop the thread
-            Thread.currentThread().interrupt();
-          } catch (Exception exception) {
-            LOGGER.log(
-                Level.FINEST,
-                String.format("[DirectTopology @ %s] thread unhandled exception: ", hostId),
-                exception);
-            this.unhandledExceptions.add(exception);
-          } finally {
-            this.closeConnection(conn);
-            finishLatch.get().countDown();
-            LOGGER.finest(String.format("[DirectTopology @ %s] thread is completed.", hostId));
+            if (conn != null) {
+              LOGGER.finest(String.format("[DirectTopology @ %s] connection re-opened", hostId));
+            } else {
+              currentEvent = new TopologyEventHolder(hostId, Instant.now(), System.nanoTime(), false, null, null);
+            }
           }
-        });
+
+          if (conn != null) {
+            try {
+              readOnly = this.getReadOnly(databaseEngine, deployment, conn);
+              topologyHosts = this.getClusterInstances(databaseEngine, deployment, conn);
+              currentEvent = new TopologyEventHolder(
+                  hostId, Instant.now(), System.nanoTime(), true, topologyHosts, readOnly);
+
+            } catch (SQLException throwable) {
+              currentEvent = new TopologyEventHolder(
+                  hostId, Instant.now(), System.nanoTime(), false, null, null);
+              LOGGER.finest(String.format("[DirectTopology @ %s] thread exception: %s", hostId, throwable));
+              this.closeConnection(conn);
+              conn = null;
+            }
+          }
+
+          if (lastEvent == null || !lastEvent.equals(currentEvent)) {
+            lastEvent = currentEvent;
+            lastEventChangeTimeNano = System.nanoTime();
+            results.add(currentEvent);
+            TopologyEventHolder finalCurrentEvent = currentEvent;
+            LOGGER.finest(() -> String.format(
+                "[DirectTopology @ %s] topology or availability changed to: %s", hostId, finalCurrentEvent));
+          }
+
+          TimeUnit.MILLISECONDS.sleep(10);
+
+          if (lastEventChangeTimeNano != 0
+              && TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - lastEventChangeTimeNano)
+                >= threadTimeoutSec) {
+            LOGGER.finest(() -> String.format(
+                "[DirectTopology @ %s] no changes in topology or availability for the last %d sec",
+                hostId, threadTimeoutSec));
+            break;
+          }
+        }
+
+      } catch (InterruptedException interruptedException) {
+        // Ignore, stop the thread
+        Thread.currentThread().interrupt();
+      } catch (Exception exception) {
+        LOGGER.log(Level.FINEST,
+            String.format("[DirectTopology @ %s] thread unhandled exception: ", hostId),
+            exception);
+        this.unhandledExceptions.add(exception);
+      } finally {
+        this.closeConnection(conn);
+        finishLatch.get().countDown();
+        LOGGER.finest(String.format("[DirectTopology @ %s] thread is completed.", hostId));
+      }
+    });
   }
 
   private Thread getFailoverMonitoringThread(
@@ -493,162 +439,116 @@ public class DatabasePerformanceMetricTest {
       final AtomicBoolean stop,
       final AtomicReference<CountDownLatch> finishLatch,
       final ConcurrentLinkedDeque<FailoverResult> results) {
-    return new Thread(
-        () -> {
-          Connection conn = null;
+    return new Thread(() -> {
 
-          try {
-            final Properties props = ConnectionStringHelper.getDefaultProperties();
+      Connection conn = null;
 
-            props.setProperty(PropertyDefinition.ENABLE_TELEMETRY.name, "false");
-            props.setProperty(PropertyDefinition.TELEMETRY_TRACES_BACKEND.name, "none");
-            props.setProperty(PropertyDefinition.TELEMETRY_METRICS_BACKEND.name, "none");
+      try {
+        final Properties props = ConnectionStringHelper.getDefaultProperties();
 
-            props.setProperty("clusterId", String.valueOf(clusterId));
-            // PropertyDefinition.PLUGINS.set(props, "efm2,failover2");
-            PropertyDefinition.PLUGINS.set(props, "failover2");
-            PropertyDefinition.CONNECT_TIMEOUT.set(
-                props, String.valueOf(WRAPPER_CONNECT_TIMEOUT_MS));
+        props.setProperty(PropertyDefinition.ENABLE_TELEMETRY.name, "false");
+        props.setProperty(PropertyDefinition.TELEMETRY_TRACES_BACKEND.name, "none");
+        props.setProperty(PropertyDefinition.TELEMETRY_METRICS_BACKEND.name, "none");
 
-            // Socket timeout also helps to abort a long-running query if failover isn't occurred.
-            PropertyDefinition.SOCKET_TIMEOUT.set(props, String.valueOf(WRAPPER_SOCKET_TIMEOUT_MS));
+        props.setProperty("clusterId", String.valueOf(clusterId));
+        //PropertyDefinition.PLUGINS.set(props, "efm2,failover2");
+        PropertyDefinition.PLUGINS.set(props, "failover2");
+        PropertyDefinition.CONNECT_TIMEOUT.set(props, String.valueOf(WRAPPER_CONNECT_TIMEOUT_MS));
 
-            // Failover2 settings
-            props.setProperty(
-                "failoverMode",
-                failoverMode == FailoverMode.STRICT_WRITER ? "strict-writer" : "strict-reader");
-            props.setProperty(
-                "topology-monitoring-" + PropertyDefinition.CONNECT_TIMEOUT.name,
-                String.valueOf(TOPOLOGY_CONNECT_TIMEOUT_MS));
-            props.setProperty(
-                "topology-monitoring-" + PropertyDefinition.SOCKET_TIMEOUT.name,
-                String.valueOf(TOPOLOGY_SOCKET_TIMEOUT_MS));
+        // Socket timeout also helps to abort a long-running query if failover isn't occurred.
+        PropertyDefinition.SOCKET_TIMEOUT.set(props, String.valueOf(WRAPPER_SOCKET_TIMEOUT_MS));
 
-            // EFM2 settings
-            props.setProperty(
-                "monitoring-" + PropertyDefinition.CONNECT_TIMEOUT.name,
-                String.valueOf(EFM_CONNECT_TIMEOUT_MS));
-            props.setProperty(
-                "monitoring-" + PropertyDefinition.SOCKET_TIMEOUT.name,
-                String.valueOf(EFM_SOCKET_TIMEOUT_MS));
-            props.setProperty("failureDetectionTime", String.valueOf(EFM_DETECTION_TIME_MS));
-            props.setProperty(
-                "failureDetectionInterval", String.valueOf(EFM_DETECTION_INTERVAL_TIME_MS));
-            props.setProperty("failureDetectionCount", String.valueOf(EFM_DETECTION_COUNT));
+        // Failover2 settings
+        props.setProperty("failoverMode",
+            failoverMode == FailoverMode.STRICT_WRITER ? "strict-writer" : "strict-reader");
+        props.setProperty("topology-monitoring-" + PropertyDefinition.CONNECT_TIMEOUT.name,
+            String.valueOf(TOPOLOGY_CONNECT_TIMEOUT_MS));
+        props.setProperty("topology-monitoring-" + PropertyDefinition.SOCKET_TIMEOUT.name,
+            String.valueOf(TOPOLOGY_SOCKET_TIMEOUT_MS));
 
-            conn =
-                openConnectionWithRetry(
-                    ConnectionStringHelper.getWrapperUrl(host, port, dbName), props);
-            LOGGER.finest(
-                String.format(
-                    "[FailoverMonitor @ %s %s] connection opened, clusterId: %d",
-                    hostId, failoverMode, clusterId));
+        // EFM2 settings
+        props.setProperty("monitoring-" + PropertyDefinition.CONNECT_TIMEOUT.name,
+            String.valueOf(EFM_CONNECT_TIMEOUT_MS));
+        props.setProperty("monitoring-" + PropertyDefinition.SOCKET_TIMEOUT.name,
+            String.valueOf(EFM_SOCKET_TIMEOUT_MS));
+        props.setProperty("failureDetectionTime", String.valueOf(EFM_DETECTION_TIME_MS));
+        props.setProperty("failureDetectionInterval", String.valueOf(EFM_DETECTION_INTERVAL_TIME_MS));
+        props.setProperty("failureDetectionCount", String.valueOf(EFM_DETECTION_COUNT));
 
-            Thread.sleep(1000);
+        conn = openConnectionWithRetry(ConnectionStringHelper.getWrapperUrl(host, port, dbName), props);
+        LOGGER.finest(String.format(
+            "[FailoverMonitor @ %s %s] connection opened, clusterId: %d",
+            hostId, failoverMode, clusterId));
 
-            // notify that this thread is ready for work
-            startLatch.get().countDown();
+        Thread.sleep(1000);
 
-            // wait for another threads to be ready to start the test
-            startLatch.get().await(5, TimeUnit.MINUTES);
+        // notify that this thread is ready for work
+        startLatch.get().countDown();
 
-            LOGGER.finest(
-                String.format(
-                    "[FailoverMonitor @ %s %s] Starting topology and connectivity monitoring.",
-                    hostId, failoverMode));
+        // wait for another threads to be ready to start the test
+        startLatch.get().await(5, TimeUnit.MINUTES);
 
-            try {
-              try (final Statement statement = conn.createStatement();
-                  final ResultSet rs =
-                      statement.executeQuery(
-                          this.getLongRunningQuery(databaseEngine, deployment))) {
-                // do nothing
-                LOGGER.warning(
-                    String.format(
-                        "[FailoverMonitor @ %s %s] Long-running query has completed! rs: %s",
-                        hostId, failoverMode, rs));
-                while (rs.next()) {
-                  LOGGER.warning(
-                      String.format(
-                          "[FailoverMonitor @ %s %s] Returned data: %d",
-                          hostId, failoverMode, rs.getLong(1)));
-                }
-              }
-            } catch (FailoverSuccessSQLException ex) {
-              String connectedHost = this.getConnectedHost(conn, databaseEngine, deployment);
-              LOGGER.finest(
-                  () ->
-                      String.format(
-                          "[FailoverMonitor @ %s %s] Failover successful. Connected to: %s",
-                          hostId, failoverMode, connectedHost));
-              results.add(
-                  new FailoverResult(
-                      hostId,
-                      failoverMode,
-                      Instant.now(),
-                      System.nanoTime(),
-                      true,
-                      connectedHost,
-                      null));
+        LOGGER.finest(String.format("[FailoverMonitor @ %s %s] Starting topology and connectivity monitoring.",
+            hostId, failoverMode));
 
-            } catch (FailoverFailedSQLException ex) {
-              LOGGER.finest(
-                  () ->
-                      String.format(
-                          "[FailoverMonitor @ %s %s] Failover failed", hostId, failoverMode));
-              results.add(
-                  new FailoverResult(
-                      hostId, failoverMode, Instant.now(), System.nanoTime(), false, null, null));
-
-            } catch (SQLException ex) {
-              LOGGER.finest(
-                  () ->
-                      String.format(
-                          "[FailoverMonitor @ %s %s] Unexpected SQLException",
-                          hostId, failoverMode));
-              results.add(
-                  new FailoverResult(
-                      hostId,
-                      failoverMode,
-                      Instant.now(),
-                      System.nanoTime(),
-                      false,
-                      null,
-                      ex.toString()));
+        try {
+          try (final Statement statement = conn.createStatement();
+              final ResultSet rs = statement.executeQuery(this.getLongRunningQuery(databaseEngine, deployment))) {
+            // do nothing
+            LOGGER.warning(String.format("[FailoverMonitor @ %s %s] Long-running query has completed! rs: %s",
+                hostId, failoverMode, rs));
+            while (rs.next()) {
+              LOGGER.warning(String.format("[FailoverMonitor @ %s %s] Returned data: %d",
+                  hostId, failoverMode, rs.getLong(1)));
             }
-
-          } catch (InterruptedException interruptedException) {
-            // Ignore, stop the thread
-            Thread.currentThread().interrupt();
-            LOGGER.finest(
-                String.format(
-                    "[FailoverMonitor @ %s %s] thread in interrupted.", hostId, failoverMode));
-          } catch (Exception exception) {
-            LOGGER.log(
-                Level.FINEST,
-                String.format(
-                    "[FailoverMonitor @ %s %s] thread unhandled exception: ", hostId, failoverMode),
-                exception);
-            this.unhandledExceptions.add(exception);
-          } finally {
-            this.closeConnection(conn);
-            finishLatch.get().countDown();
-            LOGGER.finest(
-                String.format(
-                    "[FailoverMonitor @ %s %s] thread is completed.", hostId, failoverMode));
           }
-        });
+        } catch (FailoverSuccessSQLException ex) {
+          String connectedHost = this.getConnectedHost(conn, databaseEngine, deployment);
+          LOGGER.finest(() -> String.format(
+              "[FailoverMonitor @ %s %s] Failover successful. Connected to: %s", hostId, failoverMode, connectedHost));
+          results.add(new FailoverResult(
+              hostId, failoverMode, Instant.now(), System.nanoTime(), true, connectedHost, null));
+
+        } catch (FailoverFailedSQLException ex) {
+          LOGGER.finest(() -> String.format(
+              "[FailoverMonitor @ %s %s] Failover failed", hostId, failoverMode));
+          results.add(new FailoverResult(
+              hostId, failoverMode, Instant.now(), System.nanoTime(), false, null, null));
+
+        } catch (SQLException ex) {
+          LOGGER.finest(() -> String.format(
+              "[FailoverMonitor @ %s %s] Unexpected SQLException", hostId, failoverMode));
+          results.add(new FailoverResult(
+              hostId, failoverMode, Instant.now(), System.nanoTime(), false, null, ex.toString()));
+        }
+
+      } catch (InterruptedException interruptedException) {
+        // Ignore, stop the thread
+        Thread.currentThread().interrupt();
+        LOGGER.finest(String.format("[FailoverMonitor @ %s %s] thread in interrupted.", hostId, failoverMode));
+      } catch (Exception exception) {
+        LOGGER.log(Level.FINEST,
+            String.format("[FailoverMonitor @ %s %s] thread unhandled exception: ", hostId, failoverMode),
+            exception);
+        this.unhandledExceptions.add(exception);
+      } finally {
+        this.closeConnection(conn);
+        finishLatch.get().countDown();
+        LOGGER.finest(String.format("[FailoverMonitor @ %s %s] thread is completed.", hostId, failoverMode));
+      }
+    });
   }
 
   private String getLongRunningQuery(
-      final DatabaseEngine databaseEngine, final DatabaseEngineDeployment deployment) {
+      final DatabaseEngine databaseEngine,
+      final DatabaseEngineDeployment deployment) {
 
     switch (databaseEngine) {
       case PG:
         return "SELECT 9999, pg_catalog.pg_sleep(600)"; // 10 min
       case MYSQL:
       case MARIADB:
-        // return "SELECT sleep(600)"; // 10 min
+        //return "SELECT sleep(600)"; // 10 min
         return "SELECT 9999 WHERE sleep(600)"; // 10 min
       default:
         throw new UnsupportedOperationException(databaseEngine.toString());
@@ -674,32 +574,32 @@ public class DatabasePerformanceMetricTest {
       final AtomicLong failoverTriggerTimeNano,
       final AtomicReference<Instant> failoverTriggerTimestamp) {
 
-    return new Thread(
-        () -> {
-          try {
-            startLatch.get().countDown();
+    return new Thread(() -> {
 
-            // wait for another threads to be ready to start the test
-            startLatch.get().await(5, TimeUnit.MINUTES);
+      try {
+        startLatch.get().countDown();
 
-            TimeUnit.SECONDS.sleep(30);
-            auroraUtil.failoverClusterToTarget(clusterId, null);
+        // wait for another threads to be ready to start the test
+        startLatch.get().await(5, TimeUnit.MINUTES);
 
-            LOGGER.finest("[TriggerFailover] failover has triggered.");
-            failoverTriggerTimeNano.set(System.nanoTime());
-            failoverTriggerTimestamp.set(Instant.now());
+        TimeUnit.SECONDS.sleep(30);
+        auroraUtil.failoverClusterToTarget(clusterId, null);
 
-          } catch (InterruptedException e) {
-            // do nothing
-            Thread.currentThread().interrupt();
-          } catch (Exception exception) {
-            LOGGER.log(Level.FINEST, "[TriggerFailover] thread unhandled exception: ", exception);
-            this.unhandledExceptions.add(exception);
-          } finally {
-            finishLatch.get().countDown();
-            LOGGER.finest("[TriggerFailover] thread is completed.");
-          }
-        });
+        LOGGER.finest("[TriggerFailover] failover has triggered.");
+        failoverTriggerTimeNano.set(System.nanoTime());
+        failoverTriggerTimestamp.set(Instant.now());
+
+      } catch (InterruptedException e) {
+        // do nothing
+        Thread.currentThread().interrupt();
+      } catch (Exception exception) {
+        LOGGER.log(Level.FINEST, "[TriggerFailover] thread unhandled exception: ", exception);
+        this.unhandledExceptions.add(exception);
+      } finally {
+        finishLatch.get().countDown();
+        LOGGER.finest("[TriggerFailover] thread is completed.");
+      }
+    });
   }
 
   private Connection openConnectionWithRetry(String url, Properties props) {
@@ -732,7 +632,9 @@ public class DatabasePerformanceMetricTest {
   }
 
   public List<ClusterInstanceInfo> getClusterInstances(
-      DatabaseEngine databaseEngine, DatabaseEngineDeployment deployment, Connection conn)
+      DatabaseEngine databaseEngine,
+      DatabaseEngineDeployment deployment,
+      Connection conn)
       throws SQLException {
 
     String retrieveTopologySql;
@@ -742,8 +644,8 @@ public class DatabasePerformanceMetricTest {
           case MYSQL:
             retrieveTopologySql =
                 "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN 1 ELSE 0 END "
-                    + "FROM information_schema.replica_host_status "
-                    + "ORDER BY IF(SESSION_ID = 'MASTER_SESSION_ID', 0, 1), SERVER_ID";
+                  + "FROM information_schema.replica_host_status "
+                  + "ORDER BY IF(SESSION_ID = 'MASTER_SESSION_ID', 0, 1), SERVER_ID";
             break;
           case PG:
             retrieveTopologySql =
@@ -759,18 +661,14 @@ public class DatabasePerformanceMetricTest {
       case RDS_MULTI_AZ_CLUSTER:
         switch (databaseEngine) {
           case MYSQL:
+
             final String replicaWriterId = getMultiAzMysqlReplicaWriterInstanceId(conn);
-            String s =
-                replicaWriterId == null ? "@@server_id" : String.format("'%s'", replicaWriterId);
+            String s = replicaWriterId == null ? "@@server_id" : String.format("'%s'", replicaWriterId);
             retrieveTopologySql =
                 "SELECT SUBSTRING_INDEX(endpoint, '.', 1) as SERVER_ID, "
-                    + "CASE WHEN id = "
-                    + s
-                    + " THEN 1 ELSE 0 END "
+                    + "CASE WHEN id = " + s + " THEN 1 ELSE 0 END "
                     + "FROM mysql.rds_topology "
-                    + "ORDER BY CASE WHEN id = "
-                    + s
-                    + " THEN 0 ELSE 1 END, "
+                    + "ORDER BY CASE WHEN id = " + s + " THEN 0 ELSE 1 END, "
                     + "SUBSTRING_INDEX(endpoint, '.', 1)";
             break;
           case PG:
@@ -779,9 +677,7 @@ public class DatabasePerformanceMetricTest {
                     + " CASE WHEN id = (SELECT MAX(multi_az_db_cluster_source_dbi_resource_id) FROM "
                     + " rds_tools.multi_az_db_cluster_source_dbi_resource_id())"
                     + " THEN 1 ELSE 0 END"
-                    + " FROM rds_tools.show_topology('aws_jdbc_driver-"
-                    + DriverInfo.DRIVER_VERSION
-                    + "')"
+                    + " FROM rds_tools.show_topology('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')"
                     + " ORDER BY CASE WHEN id ="
                     + " (SELECT MAX(multi_az_db_cluster_source_dbi_resource_id) FROM"
                     + " rds_tools.multi_az_db_cluster_source_dbi_resource_id())"
@@ -810,7 +706,9 @@ public class DatabasePerformanceMetricTest {
   }
 
   public Boolean getReadOnly(
-      DatabaseEngine databaseEngine, DatabaseEngineDeployment deployment, Connection conn) {
+      DatabaseEngine databaseEngine,
+      DatabaseEngineDeployment deployment,
+      Connection conn) {
 
     String retrieveReadOnlySql;
     switch (deployment) {
@@ -818,7 +716,8 @@ public class DatabasePerformanceMetricTest {
       case RDS_MULTI_AZ_CLUSTER:
         switch (databaseEngine) {
           case MYSQL:
-            retrieveReadOnlySql = "SELECT @@innodb_read_only";
+            retrieveReadOnlySql =
+                "SELECT @@innodb_read_only";
             break;
           case PG:
             retrieveReadOnlySql =
@@ -846,7 +745,8 @@ public class DatabasePerformanceMetricTest {
     return null;
   }
 
-  private String getMultiAzMysqlReplicaWriterInstanceId(Connection conn) throws SQLException {
+  private String getMultiAzMysqlReplicaWriterInstanceId(Connection conn)
+      throws SQLException {
 
     try (final Statement stmt = conn.createStatement();
         final ResultSet resultSet = stmt.executeQuery("SHOW REPLICA STATUS")) {
@@ -859,11 +759,8 @@ public class DatabasePerformanceMetricTest {
 
   private void processMetrics(final RunData runData) {
 
-    LOGGER.finest(
-        "Topology event:\n\t"
-            + this.topologyEvents.stream()
-                .map(TopologyEventHolder::toString)
-                .collect(Collectors.joining("\n\t")));
+    LOGGER.finest("Topology event:\n\t"
+        + this.topologyEvents.stream().map(TopologyEventHolder::toString).collect(Collectors.joining("\n\t")));
 
     if (this.failoverTriggerTimestamp.get() == null || this.failoverTriggerTimeNano.get() == 0) {
       runData.topologyError = "Failover trigger time is null.";
@@ -873,62 +770,51 @@ public class DatabasePerformanceMetricTest {
     LOGGER.finest(String.format("Failover triggered: %s", this.failoverTriggerTimestamp.get()));
 
     // The first event that is occurred after failover is time Zero
-    long timeZeroNano =
-        this.topologyEvents.stream()
-            .filter(x -> x.timestampNano > this.failoverTriggerTimeNano.get())
-            .map(x -> x.timestampNano)
-            .sorted()
-            .findFirst()
-            .orElse(0L);
+    long timeZeroNano = this.topologyEvents.stream()
+        .filter(x -> x.timestampNano > this.failoverTriggerTimeNano.get())
+        .map(x -> x.timestampNano)
+        .sorted()
+        .findFirst().orElse(0L);
     if (timeZeroNano == 0) {
       runData.topologyError = "Can't identify time Zero.";
       return;
     }
     LOGGER.finest(String.format("timeZeroNano: %d", timeZeroNano));
 
-    // Get list of all times when the state of topology changed. Calculate offsetTime (ms) against
-    // Time Zero.
+    // Get list of all times when the state of topology changed. Calculate offsetTime (ms) against Time Zero.
     final Set<Pair<Long, Instant>> eventOffsetTimes = new HashSet<>();
     for (TopologyEventHolder topologyEventHolder : this.topologyEvents) {
-      long offsetTimeMs =
-          TimeUnit.NANOSECONDS.toMillis(topologyEventHolder.timestampNano - timeZeroNano);
+      long offsetTimeMs = TimeUnit.NANOSECONDS.toMillis(topologyEventHolder.timestampNano - timeZeroNano);
       topologyEventHolder.setOffsetTimeMs(offsetTimeMs);
       eventOffsetTimes.add(Pair.create(offsetTimeMs, topologyEventHolder.timestamp));
     }
 
     // Sort all events by time. The map key is (original) hostId.
     Map<String, ArrayList<TopologyEventHolder>> sortedEventsByOffsetTime = new HashMap<>();
-    this.topologyEvents.stream()
-        .collect(groupingBy(x -> x.nodeId, toList()))
-        .forEach(
-            (key, value) -> {
-              final ArrayList<TopologyEventHolder> sortedEvents =
-                  value.stream()
-                      .sorted(Comparator.comparingLong(y -> y.getOffsetTimeMs()))
-                      .collect(Collectors.toCollection(ArrayList::new));
-              sortedEventsByOffsetTime.put(key, sortedEvents);
-            });
+    this.topologyEvents.stream().collect(groupingBy(x -> x.nodeId, toList()))
+        .forEach((key, value) -> {
+          final ArrayList<TopologyEventHolder> sortedEvents = value.stream()
+              .sorted(Comparator.comparingLong(y -> y.getOffsetTimeMs()))
+              .collect(Collectors.toCollection(ArrayList::new));
+          sortedEventsByOffsetTime.put(key, sortedEvents);
+        });
 
     // Collect a reported writer hostId for each host.
-    Set<String> startWriterIds =
-        sortedEventsByOffsetTime.values().stream()
-            .map(
-                eventHolders ->
-                    eventHolders.stream()
-                        .filter(y -> y.accessible && y.writerHostId != null)
-                        .sorted(Comparator.comparingLong(y -> y.timestampNano))
-                        .map(y -> y.writerHostId)
-                        .findFirst()
-                        .orElse(null))
-            .collect(toSet());
+    Set<String> startWriterIds = sortedEventsByOffsetTime
+        .values().stream()
+        .map(eventHolders -> eventHolders.stream()
+            .filter(y -> y.accessible && y.writerHostId != null)
+            .sorted(Comparator.comparingLong(y -> y.timestampNano))
+            .map(y -> y.writerHostId)
+            .findFirst().orElse(null))
+        .collect(toSet());
 
     if (startWriterIds.size() == 0) {
       runData.topologyError = "Can't identify start writer node.";
       return;
     }
     if (startWriterIds.size() > 1) {
-      runData.topologyError =
-          "Unstable cluster topology at test start. Possible writers: " + startWriterIds;
+      runData.topologyError = "Unstable cluster topology at test start. Possible writers: " + startWriterIds;
       return;
     }
 
@@ -936,19 +822,14 @@ public class DatabasePerformanceMetricTest {
     LOGGER.finest(String.format("startWriterId: %s", startWriterId));
 
     // Collect the latest writer hostId for each host.
-    Set<String> endWriterIds =
-        sortedEventsByOffsetTime.values().stream()
-            .map(
-                eventHolders ->
-                    eventHolders.stream()
-                        .filter(y -> y.accessible && y.writerHostId != null)
-                        .sorted(
-                            Comparator.comparingLong(
-                                y -> -y.timestampNano)) // effectively sort in reverse order
-                        .map(y -> y.writerHostId)
-                        .findFirst()
-                        .orElse(null))
-            .collect(toSet());
+    Set<String> endWriterIds = sortedEventsByOffsetTime
+        .values().stream()
+        .map(eventHolders -> eventHolders.stream()
+            .filter(y -> y.accessible && y.writerHostId != null)
+            .sorted(Comparator.comparingLong(y -> -y.timestampNano)) // effectively sort in reverse order
+            .map(y -> y.writerHostId)
+            .findFirst().orElse(null))
+        .collect(toSet());
 
     if (endWriterIds.size() == 0) {
       runData.topologyError = "Can't identify end writer node.";
@@ -959,8 +840,7 @@ public class DatabasePerformanceMetricTest {
       LOGGER.warning("Unstable cluster topology at test end. Possible writers: " + endWriterIds);
     }
 
-    String endWriterId =
-        endWriterIds.stream().filter(x -> !x.equals(startWriterId)).findFirst().orElse(null);
+    String endWriterId = endWriterIds.stream().filter(x -> !x.equals(startWriterId)).findFirst().orElse(null);
     LOGGER.info(String.format("endWriterId: %s", endWriterId));
 
     if (startWriterId.equals(endWriterId)) {
@@ -977,45 +857,42 @@ public class DatabasePerformanceMetricTest {
     hostMapping.put(endWriterId, 2); // always "2"
 
     int mappedReaderHostId = 3;
-    Set<String> readers =
-        this.topologyEvents.stream()
-            .map(x -> x.nodeId)
-            .filter(x -> !startWriterId.equals(x) && !endWriterId.equals(x))
-            .collect(toSet());
+    Set<String> readers = this.topologyEvents.stream()
+        .map(x -> x.nodeId)
+        .filter(x -> !startWriterId.equals(x) && !endWriterId.equals(x))
+        .collect(toSet());
     for (String readerHostId : readers.stream().sorted().collect(toList())) {
       hostMapping.put(readerHostId, mappedReaderHostId++);
     }
 
-    LOGGER.finest(
-        "Host mapping: \n"
-            + hostMapping.entrySet().stream()
-                .map(x -> String.format("[%s] -> %d", x.getKey(), x.getValue()))
-                .collect(Collectors.joining("\n")));
+    LOGGER.finest("Host mapping: \n"
+        + hostMapping.entrySet().stream()
+        .map(x -> String.format("[%s] -> %d", x.getKey(), x.getValue()))
+        .collect(Collectors.joining("\n")));
 
     // Make a reverse host name mapping (host as number to an original host name)
     String[] reverseHostMapping = new String[hostMapping.size() + 1];
     hostMapping.forEach((key, value) -> reverseHostMapping[value] = key);
 
-    LOGGER.finest(
-        "Reverse host mapping: \n"
-            + IntStream.range(1, reverseHostMapping.length)
-                .mapToObj(index -> String.format("[%d] -> %s", index, reverseHostMapping[index]))
-                .collect(Collectors.joining("\n")));
+    LOGGER.finest("Reverse host mapping: \n"
+        + IntStream.range(1, reverseHostMapping.length)
+        .mapToObj(index -> String.format("[%d] -> %s", index, reverseHostMapping[index]))
+        .collect(Collectors.joining("\n")));
+
 
     RunDataRow beforeFailover = new RunDataRow();
     beforeFailover.timestamp = this.failoverTriggerTimestamp.get();
-    beforeFailover.offsetTimeMs =
-        TimeUnit.NANOSECONDS.toMillis(this.failoverTriggerTimeNano.get() - timeZeroNano);
+    beforeFailover.offsetTimeMs = TimeUnit.NANOSECONDS.toMillis(this.failoverTriggerTimeNano.get() - timeZeroNano);
     beforeFailover.nodes = new HashMap<>();
 
     // Find a topology state before failover for each mapped host name (as numbers).
     for (int mappedHostId = 1; mappedHostId < reverseHostMapping.length; mappedHostId++) {
 
       final TopologyEventHolder beforeFailoverTopologyEventHolder =
-          sortedEventsByOffsetTime.get(reverseHostMapping[mappedHostId]).stream()
-              .filter(x -> x.timestampNano <= this.failoverTriggerTimeNano.get())
-              .findFirst()
-              .orElse(null);
+          sortedEventsByOffsetTime.get(reverseHostMapping[mappedHostId])
+            .stream()
+            .filter(x -> x.timestampNano <= this.failoverTriggerTimeNano.get())
+            .findFirst().orElse(null);
 
       final RunDataNode runDataNode = new RunDataNode();
       runDataNode.nodeId = mappedHostId;
@@ -1023,17 +900,13 @@ public class DatabasePerformanceMetricTest {
         runDataNode.accessible = beforeFailoverTopologyEventHolder.accessible;
         runDataNode.readOnly = beforeFailoverTopologyEventHolder.readOnly;
         runDataNode.blankTopology = beforeFailoverTopologyEventHolder.blankTopology;
-        runDataNode.writerHostId =
-            beforeFailoverTopologyEventHolder.writerHostId == null
-                ? null
-                : hostMapping.getOrDefault(beforeFailoverTopologyEventHolder.writerHostId, null);
-        runDataNode.readerHostIds =
-            beforeFailoverTopologyEventHolder.readerHostIds == null
-                ? null
-                : beforeFailoverTopologyEventHolder.readerHostIds.stream()
-                    .map(hostMapping::get)
-                    .sorted()
-                    .collect(toList());
+        runDataNode.writerHostId = beforeFailoverTopologyEventHolder.writerHostId == null
+            ? null
+            : hostMapping.getOrDefault(beforeFailoverTopologyEventHolder.writerHostId, null);
+        runDataNode.readerHostIds = beforeFailoverTopologyEventHolder.readerHostIds == null
+              ? null
+              : beforeFailoverTopologyEventHolder.readerHostIds.stream()
+                    .map(hostMapping::get).sorted().collect(toList());
       } else {
         runDataNode.accessible = false;
         runDataNode.blankTopology = true;
@@ -1050,8 +923,7 @@ public class DatabasePerformanceMetricTest {
     int[] currentIndexByMappedHostId = new int[hostMapping.size() + 1];
     for (int mappedHostId = 1; mappedHostId < reverseHostMapping.length; mappedHostId++) {
 
-      final ArrayList<TopologyEventHolder> events =
-          sortedEventsByOffsetTime.get(reverseHostMapping[mappedHostId]);
+      final ArrayList<TopologyEventHolder> events = sortedEventsByOffsetTime.get(reverseHostMapping[mappedHostId]);
 
       // skip all events that occurred before failover trigger time
       int index = 0;
@@ -1079,8 +951,7 @@ public class DatabasePerformanceMetricTest {
       // Find a node states for the current event time.
       for (int mappedHostId = 1; mappedHostId < reverseHostMapping.length; mappedHostId++) {
 
-        final ArrayList<TopologyEventHolder> events =
-            sortedEventsByOffsetTime.get(reverseHostMapping[mappedHostId]);
+        final ArrayList<TopologyEventHolder> events = sortedEventsByOffsetTime.get(reverseHostMapping[mappedHostId]);
 
         // Adjust event index to point to the latest events if needed.
         int index = currentIndexByMappedHostId[mappedHostId];
@@ -1102,18 +973,13 @@ public class DatabasePerformanceMetricTest {
         runDataNode.accessible = currentTopologyEventHolderForMappedHost.accessible;
         runDataNode.readOnly = currentTopologyEventHolderForMappedHost.readOnly;
         runDataNode.blankTopology = currentTopologyEventHolderForMappedHost.blankTopology;
-        runDataNode.writerHostId =
-            currentTopologyEventHolderForMappedHost.writerHostId == null
-                ? null
-                : hostMapping.getOrDefault(
-                    currentTopologyEventHolderForMappedHost.writerHostId, null);
-        runDataNode.readerHostIds =
-            currentTopologyEventHolderForMappedHost.readerHostIds == null
-                ? null
-                : currentTopologyEventHolderForMappedHost.readerHostIds.stream()
-                    .map(hostMapping::get)
-                    .sorted()
-                    .collect(toList());
+        runDataNode.writerHostId = currentTopologyEventHolderForMappedHost.writerHostId == null
+            ? null
+            : hostMapping.getOrDefault(currentTopologyEventHolderForMappedHost.writerHostId, null);
+        runDataNode.readerHostIds = currentTopologyEventHolderForMappedHost.readerHostIds == null
+            ? null
+            : currentTopologyEventHolderForMappedHost.readerHostIds.stream()
+                .map(hostMapping::get).sorted().collect(toList());
 
         currentRow.nodes.put(mappedHostId, runDataNode);
       }
@@ -1123,8 +989,7 @@ public class DatabasePerformanceMetricTest {
 
     if (!runData.topologyRows.isEmpty()) {
       int index = 1;
-      // We assume that at this Time Zero moment node "1" identifies itself as a writer or is
-      // unavailable.
+      // We assume that at this Time Zero moment node "1" identifies itself as a writer or is unavailable.
       // Skip all rows when node "1" ia still accessible and identifies itself as a writer.
       while (index < runData.topologyRows.size()
           && runData.topologyRows.get(index).nodes.get(1).accessible
@@ -1139,12 +1004,9 @@ public class DatabasePerformanceMetricTest {
       }
 
       if (index < runData.topologyRows.size()) {
-        // Index points out to a row that reports a writer right after node "1" gets available
-        // again.
-        // We assume that it should report node "2" as a new writer. Otherwise, it's a false
-        // positive case.
-        runData.topologyFalsePositive =
-            runData.topologyRows.get(index).nodes.get(1).writerHostId != 2;
+        // Index points out to a row that reports a writer right after node "1" gets available again.
+        // We assume that it should report node "2" as a new writer. Otherwise, it's a false positive case.
+        runData.topologyFalsePositive = runData.topologyRows.get(index).nodes.get(1).writerHostId != 2;
       } else {
         // Index points out behind the last row.
         // It means that node "1" is still unavailable and can't report a new writer.
@@ -1155,24 +1017,19 @@ public class DatabasePerformanceMetricTest {
     this.processFailoverMetrics(runData, timeZeroNano, hostMapping);
   }
 
-  private void processFailoverMetrics(
-      final RunData runData, long timeZeroNano, Map<String, Integer> hostMapping) {
-    this.failoverResults.forEach(
-        x -> {
-          x.setMappedHostId(hostMapping.getOrDefault(x.nodeId, 0));
-          x.setOffsetTimeMs(TimeUnit.NANOSECONDS.toMillis(x.timestampNano - timeZeroNano));
-          if (x.connectedHostId != null) {
-            x.setMappedConnectedHostId(hostMapping.getOrDefault(x.connectedHostId, 0));
-          }
-        });
+  private void processFailoverMetrics(final RunData runData, long timeZeroNano, Map<String, Integer> hostMapping) {
+    this.failoverResults.forEach(x -> {
+      x.setMappedHostId(hostMapping.getOrDefault(x.nodeId, 0));
+      x.setOffsetTimeMs(TimeUnit.NANOSECONDS.toMillis(x.timestampNano - timeZeroNano));
+      if (x.connectedHostId != null) {
+        x.setMappedConnectedHostId(hostMapping.getOrDefault(x.connectedHostId, 0));
+      }
+    });
     runData.failoverResults = new ArrayList<>(this.failoverResults);
     runData.failoverFail = this.failoverResults.stream().anyMatch(x -> !x.success);
 
-    LOGGER.finest(
-        "Failover results:\n\t"
-            + this.failoverResults.stream()
-                .map(FailoverResult::toString)
-                .collect(Collectors.joining("\n\t")));
+    LOGGER.finest("Failover results:\n\t"
+        + this.failoverResults.stream().map(FailoverResult::toString).collect(Collectors.joining("\n\t")));
   }
 
   private void storeJsonMetrics(final Runs runs) {
@@ -1191,15 +1048,13 @@ public class DatabasePerformanceMetricTest {
     final String FILE_PREFIX = "topology";
 
     if (runData.topologyRows.isEmpty()) {
-      this.storeTextMetrics(
-          iterationNum, FILE_PREFIX, String.format("Iteration %d: no data", iterationNum));
+      this.storeTextMetrics(iterationNum, FILE_PREFIX,
+          String.format("Iteration %d: no data", iterationNum));
       return;
     }
 
     if (runData.topologyError != null) {
-      this.storeTextMetrics(
-          iterationNum,
-          FILE_PREFIX,
+      this.storeTextMetrics(iterationNum, FILE_PREFIX,
           String.format("Iteration %d: %s", iterationNum, runData.topologyError));
       return;
     }
@@ -1207,8 +1062,8 @@ public class DatabasePerformanceMetricTest {
     final RunDataRow firstRow = runData.topologyRows.get(0);
 
     if (firstRow.nodes.isEmpty()) {
-      this.storeTextMetrics(
-          iterationNum, FILE_PREFIX, String.format("Iteration %d: No columns", iterationNum));
+      this.storeTextMetrics(iterationNum, FILE_PREFIX,
+          String.format("Iteration %d: No columns", iterationNum));
       return;
     }
 
@@ -1221,11 +1076,10 @@ public class DatabasePerformanceMetricTest {
     columns.add("1 (writer at start)");
     columns.add(null);
     columns.add("2 (writer at end)");
-    for (Entry<Integer, RunDataNode> entry :
-        firstRow.nodes.entrySet().stream()
-            .filter(x -> x.getKey() != 1 && x.getKey() != 2)
-            .sorted(Comparator.comparingInt(Entry::getKey))
-            .collect(toList())) {
+    for (Entry<Integer, RunDataNode> entry : firstRow.nodes.entrySet().stream()
+        .filter(x -> x.getKey() != 1 && x.getKey() != 2)
+        .sorted(Comparator.comparingInt(Entry::getKey))
+        .collect(toList())) {
       columns.add(null);
       columns.add(String.valueOf(entry.getValue().nodeId));
     }
@@ -1239,11 +1093,10 @@ public class DatabasePerformanceMetricTest {
     columns.add("Readers");
     columns.add("Writer");
     columns.add("Readers");
-    for (Entry<Integer, RunDataNode> entry :
-        firstRow.nodes.entrySet().stream()
-            .filter(x -> x.getKey() != 1 && x.getKey() != 2)
-            .sorted(Comparator.comparingInt(Entry::getKey))
-            .collect(toList())) {
+    for (Entry<Integer, RunDataNode> entry : firstRow.nodes.entrySet().stream()
+        .filter(x -> x.getKey() != 1 && x.getKey() != 2)
+        .sorted(Comparator.comparingInt(Entry::getKey))
+        .collect(toList())) {
       columns.add("Writer");
       columns.add("Readers");
     }
@@ -1256,28 +1109,22 @@ public class DatabasePerformanceMetricTest {
       columns = new ArrayList<>();
       columns.add(runDataRow.timestamp.toString());
       columns.add(String.format("%d", runDataRow.offsetTimeMs));
-      for (Entry<Integer, RunDataNode> entry :
-          runDataRow.nodes.entrySet().stream()
-              .sorted(Comparator.comparingInt(Entry::getKey))
-              .collect(toList())) {
-        columns.add(
-            entry.getValue().accessible
-                ? (entry.getValue().blankTopology
-                        || (entry.getValue().writerHostId == null
-                            && entry.getValue().readerHostIds == null)
-                    ? BLANK_TOPOLOGY
-                    : (entry.getValue().writerHostId == null
-                        ? ""
-                        : String.valueOf(entry.getValue().writerHostId)))
-                : NOT_ACCESSIBLE);
-        columns.add(
-            entry.getValue().accessible
-                ? (entry.getValue().blankTopology || entry.getValue().readerHostIds == null
-                    ? BLANK_TOPOLOGY
-                    : entry.getValue().readerHostIds.stream()
-                        .map(String::valueOf)
-                        .collect(joining(",")))
-                : NOT_ACCESSIBLE);
+      for (Entry<Integer, RunDataNode> entry : runDataRow.nodes.entrySet().stream()
+          .sorted(Comparator.comparingInt(Entry::getKey))
+          .collect(toList())) {
+        columns.add(entry.getValue().accessible
+            ? (entry.getValue().blankTopology
+                || (entry.getValue().writerHostId == null && entry.getValue().readerHostIds == null)
+                ? BLANK_TOPOLOGY
+                : (entry.getValue().writerHostId == null
+                  ? ""
+                  : String.valueOf(entry.getValue().writerHostId)))
+            : NOT_ACCESSIBLE);
+        columns.add(entry.getValue().accessible
+            ? (entry.getValue().blankTopology || entry.getValue().readerHostIds == null
+              ? BLANK_TOPOLOGY
+              : entry.getValue().readerHostIds.stream().map(String::valueOf).collect(joining(",")))
+            : NOT_ACCESSIBLE);
       }
 
       LinkedList<AT_Cell> cells = metricsTable.addRow(columns).getCells();
@@ -1302,16 +1149,16 @@ public class DatabasePerformanceMetricTest {
     final String FILE_PREFIX = "failover";
 
     if (runData.failoverResults.isEmpty()) {
-      this.storeTextMetrics(
-          iterationNum, FILE_PREFIX, String.format("Iteration %d: no data", iterationNum));
+      this.storeTextMetrics(iterationNum, FILE_PREFIX,
+          String.format("Iteration %d: no data", iterationNum));
       return;
     }
 
     final RunDataRow firstRow = runData.topologyRows.get(0);
 
     if (firstRow.nodes.isEmpty()) {
-      this.storeTextMetrics(
-          iterationNum, FILE_PREFIX, String.format("Iteration %d: No columns", iterationNum));
+      this.storeTextMetrics(iterationNum, FILE_PREFIX,
+          String.format("Iteration %d: No columns", iterationNum));
       return;
     }
 
@@ -1324,11 +1171,10 @@ public class DatabasePerformanceMetricTest {
     columns.add("1 (writer at start)");
     columns.add(null);
     columns.add("2 (writer at end)");
-    for (Entry<Integer, RunDataNode> entry :
-        firstRow.nodes.entrySet().stream()
-            .filter(x -> x.getKey() != 1 && x.getKey() != 2)
-            .sorted(Comparator.comparingInt(Entry::getKey))
-            .collect(toList())) {
+    for (Entry<Integer, RunDataNode> entry : firstRow.nodes.entrySet().stream()
+        .filter(x -> x.getKey() != 1 && x.getKey() != 2)
+        .sorted(Comparator.comparingInt(Entry::getKey))
+        .collect(toList())) {
       columns.add(null);
       columns.add(String.valueOf(entry.getValue().nodeId));
     }
@@ -1342,11 +1188,10 @@ public class DatabasePerformanceMetricTest {
     columns.add("follow reader");
     columns.add("follow writer");
     columns.add("follow reader");
-    for (Entry<Integer, RunDataNode> entry :
-        firstRow.nodes.entrySet().stream()
-            .filter(x -> x.getKey() != 1 && x.getKey() != 2)
-            .sorted(Comparator.comparingInt(Entry::getKey))
-            .collect(toList())) {
+    for (Entry<Integer, RunDataNode> entry : firstRow.nodes.entrySet().stream()
+        .filter(x -> x.getKey() != 1 && x.getKey() != 2)
+        .sorted(Comparator.comparingInt(Entry::getKey))
+        .collect(toList())) {
       columns.add("follow writer");
       columns.add("follow reader");
     }
@@ -1357,10 +1202,9 @@ public class DatabasePerformanceMetricTest {
     columns = new ArrayList<>();
     columns.add(runDataRow.timestamp.toString());
     columns.add(String.format("%d", runDataRow.offsetTimeMs));
-    for (Entry<Integer, RunDataNode> entry :
-        runDataRow.nodes.entrySet().stream()
-            .sorted(Comparator.comparingInt(Entry::getKey))
-            .collect(toList())) {
+    for (Entry<Integer, RunDataNode> entry : runDataRow.nodes.entrySet().stream()
+        .sorted(Comparator.comparingInt(Entry::getKey))
+        .collect(toList())) {
       columns.add("");
       columns.add("");
     }
@@ -1370,19 +1214,16 @@ public class DatabasePerformanceMetricTest {
     cells.get(1).getContext().setTextAlignment(TextAlignment.RIGHT);
     metricsTable.addRule();
 
-    for (long offsetTimeMs :
-        this.failoverResults.stream()
-            .map(FailoverResult::getOffsetTimeMs)
-            .filter(x -> x >= 0)
-            .distinct()
-            .sorted()
-            .collect(toList())) {
+    for (long offsetTimeMs : this.failoverResults.stream()
+        .map(FailoverResult::getOffsetTimeMs)
+        .filter(x -> x >= 0)
+        .distinct()
+        .sorted()
+        .collect(toList())) {
 
-      FailoverResult failoverResult =
-          this.failoverResults.stream()
-              .filter(x -> x.getOffsetTimeMs() == offsetTimeMs)
-              .findFirst()
-              .orElse(null);
+      FailoverResult failoverResult = this.failoverResults.stream()
+          .filter(x -> x.getOffsetTimeMs() == offsetTimeMs)
+          .findFirst().orElse(null);
 
       if (failoverResult == null) {
         continue;
@@ -1391,45 +1232,32 @@ public class DatabasePerformanceMetricTest {
       columns = new ArrayList<>();
       columns.add(failoverResult.timestamp.toString());
       columns.add(String.format("%d", failoverResult.getOffsetTimeMs()));
-      for (Entry<Integer, RunDataNode> entry :
-          firstRow.nodes.entrySet().stream()
-              .sorted(Comparator.comparingInt(Entry::getKey))
-              .collect(toList())) {
+      for (Entry<Integer, RunDataNode> entry : firstRow.nodes.entrySet().stream()
+          .sorted(Comparator.comparingInt(Entry::getKey))
+          .collect(toList())) {
 
-        FailoverResult failoverResultForNodeFollowWriter =
-            this.failoverResults.stream()
-                .filter(
-                    x ->
-                        x.getOffsetTimeMs() == offsetTimeMs
-                            && x.mappedHostId == entry.getKey()
-                            && x.failoverMode.equals(FailoverMode.STRICT_WRITER))
-                .findFirst()
-                .orElse(null);
+        FailoverResult failoverResultForNodeFollowWriter = this.failoverResults.stream()
+            .filter(x -> x.getOffsetTimeMs() == offsetTimeMs
+                && x.mappedHostId == entry.getKey()
+                && x.failoverMode.equals(FailoverMode.STRICT_WRITER))
+            .findFirst().orElse(null);
         if (failoverResultForNodeFollowWriter != null) {
-          columns.add(
-              failoverResultForNodeFollowWriter.success
-                  ? String.format(
-                      "success(%d)", failoverResultForNodeFollowWriter.mappedConnectedHostId)
-                  : "failed");
+          columns.add(failoverResultForNodeFollowWriter.success
+              ? String.format("success(%d)", failoverResultForNodeFollowWriter.mappedConnectedHostId)
+              : "failed");
         } else {
           columns.add("");
         }
 
-        FailoverResult failoverResultForNodeFollowReader =
-            this.failoverResults.stream()
-                .filter(
-                    x ->
-                        x.getOffsetTimeMs() == offsetTimeMs
-                            && x.mappedHostId == entry.getKey()
-                            && x.failoverMode.equals(FailoverMode.STRICT_READER))
-                .findFirst()
-                .orElse(null);
+        FailoverResult failoverResultForNodeFollowReader = this.failoverResults.stream()
+            .filter(x -> x.getOffsetTimeMs() == offsetTimeMs
+                && x.mappedHostId == entry.getKey()
+                && x.failoverMode.equals(FailoverMode.STRICT_READER))
+            .findFirst().orElse(null);
         if (failoverResultForNodeFollowReader != null) {
-          columns.add(
-              failoverResultForNodeFollowReader.success
-                  ? String.format(
-                      "success(%d)", failoverResultForNodeFollowReader.mappedConnectedHostId)
-                  : "failed");
+          columns.add(failoverResultForNodeFollowReader.success
+              ? String.format("success(%d)", failoverResultForNodeFollowReader.mappedConnectedHostId)
+              : "failed");
         } else {
           columns.add("");
         }
@@ -1451,8 +1279,7 @@ public class DatabasePerformanceMetricTest {
   private void storeTextMetrics(int iterationNum, String filePrefix, String renderedContent) {
     FileWriter writer = null;
     try {
-      String fileName =
-          String.format("./build/reports/tests/%s_metrics_%d.txt", filePrefix, iterationNum);
+      String fileName = String.format("./build/reports/tests/%s_metrics_%d.txt", filePrefix, iterationNum);
       writer = new FileWriter(fileName);
       writer.write(renderedContent);
       writer.close();

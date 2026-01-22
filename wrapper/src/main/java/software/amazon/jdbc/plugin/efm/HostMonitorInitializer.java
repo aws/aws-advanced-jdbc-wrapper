@@ -22,6 +22,5 @@ import software.amazon.jdbc.HostSpec;
 /** Interface for initialize a new {@link HostMonitorImpl}. */
 @FunctionalInterface
 public interface HostMonitorInitializer {
-  HostMonitor createMonitor(
-      HostSpec hostSpec, Properties properties, HostMonitorThreadContainer threadContainer);
+  HostMonitor createMonitor(HostSpec hostSpec, Properties properties, HostMonitorThreadContainer threadContainer);
 }

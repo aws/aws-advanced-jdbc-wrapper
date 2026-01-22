@@ -24,8 +24,7 @@ import software.amazon.jdbc.util.FullServicesContainer;
 public class BlueGreenConnectionPluginFactory implements ConnectionPluginFactory {
 
   @Override
-  public ConnectionPlugin getInstance(
-      final FullServicesContainer servicesContainer, final Properties props) {
+  public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
     return new BlueGreenConnectionPlugin(servicesContainer, props);
   }
 }

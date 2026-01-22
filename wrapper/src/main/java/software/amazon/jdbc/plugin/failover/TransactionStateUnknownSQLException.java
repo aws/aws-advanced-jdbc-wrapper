@@ -22,10 +22,8 @@ import software.amazon.jdbc.util.SqlState;
 public class TransactionStateUnknownSQLException extends FailoverSQLException {
 
   public TransactionStateUnknownSQLException(final Throwable cause) {
-    super(
-        Messages.get("Failover.transactionResolutionUnknownError"),
-        SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(),
-        cause);
+    super(Messages.get("Failover.transactionResolutionUnknownError"),
+        SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), cause);
   }
 
   public TransactionStateUnknownSQLException(final String message) {
@@ -33,8 +31,7 @@ public class TransactionStateUnknownSQLException extends FailoverSQLException {
   }
 
   public TransactionStateUnknownSQLException() {
-    super(
-        Messages.get("Failover.transactionResolutionUnknownError"),
+    super(Messages.get("Failover.transactionResolutionUnknownError"),
         SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState());
   }
 }

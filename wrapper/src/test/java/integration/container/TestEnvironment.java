@@ -88,14 +88,12 @@ public class TestEnvironment {
       initProxies(environment);
 
       // Helps to eliminate problem with proxied endpoints.
-      Driver.setPrepareHostFunc(
-          (host) -> {
-            if (host.endsWith(".proxied")) {
-              return host.substring(
-                  0, host.length() - ".proxied".length()); // removes prefix at the end of host
-            }
-            return host;
-          });
+      Driver.setPrepareHostFunc((host) -> {
+        if (host.endsWith(".proxied")) {
+          return host.substring(0, host.length() - ".proxied".length()); // removes prefix at the end of host
+        }
+        return host;
+      });
     }
 
     if (environment
@@ -104,11 +102,9 @@ public class TestEnvironment {
         .getFeatures()
         .contains(TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED)) {
       try {
-        String xrayEndpoint =
-            String.format(
-                "%s:%d",
-                environment.info.getTracesTelemetryInfo().getEndpoint(),
-                environment.info.getTracesTelemetryInfo().getEndpointPort());
+        String xrayEndpoint = String.format("%s:%d",
+            environment.info.getTracesTelemetryInfo().getEndpoint(),
+            environment.info.getTracesTelemetryInfo().getEndpointPort());
 
         DaemonConfiguration configuration = new DaemonConfiguration();
         configuration.setUDPAddress(xrayEndpoint);
@@ -128,26 +124,24 @@ public class TestEnvironment {
         .contains(TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED)) {
 
       try {
-        String metricsEndpoint =
-            String.format(
-                "http://%s:%d",
-                environment.info.getMetricsTelemetryInfo().getEndpoint(),
-                environment.info.getMetricsTelemetryInfo().getEndpointPort());
+        String metricsEndpoint = String.format("http://%s:%d",
+            environment.info.getMetricsTelemetryInfo().getEndpoint(),
+            environment.info.getMetricsTelemetryInfo().getEndpointPort());
 
-        MetricReader metricReader =
-            PeriodicMetricReader.builder(
-                    OtlpGrpcMetricExporter.builder().setEndpoint(metricsEndpoint).build())
-                .setInterval(5, TimeUnit.SECONDS) // send metrics every 5s
-                .build();
+        MetricReader metricReader = PeriodicMetricReader.builder(
+            OtlpGrpcMetricExporter.builder()
+                .setEndpoint(metricsEndpoint)
+                .build())
+            .setInterval(5, TimeUnit.SECONDS) // send metrics every 5s
+            .build();
 
         OpenTelemetrySdk.builder()
             .setMeterProvider(
                 SdkMeterProvider.builder()
-                    .setResource(
-                        Resource.getDefault()
-                            .toBuilder()
-                            .put("service.name", "AWSJDBCWrapperIntegrationTests")
-                            .build())
+                    .setResource(Resource.getDefault()
+                        .toBuilder()
+                        .put("service.name", "AWSJDBCWrapperIntegrationTests")
+                        .build())
                     .registerMetricReader(metricReader)
                     .build())
             .buildAndRegisterGlobal();

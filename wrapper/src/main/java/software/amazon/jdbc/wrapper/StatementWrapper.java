@@ -46,8 +46,8 @@ public class StatementWrapper implements Statement {
     return WrapperUtils.executeWithPlugins(
         ResultSet.class,
         SQLException.class,
-        this.connectionWrapper,
-        this.pluginManager,
+         this.connectionWrapper,
+          this.pluginManager,
         this.statement,
         JdbcMethod.STATEMENT_EXECUTEQUERY,
         () -> this.statement.executeQuery(sql),
@@ -391,7 +391,7 @@ public class StatementWrapper implements Statement {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.statement,
         JdbcMethod.STATEMENT_GETRESULTSET,
         this.statement::getResultSet);
@@ -598,7 +598,7 @@ public class StatementWrapper implements Statement {
         Connection.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.statement,
         JdbcMethod.STATEMENT_GETCONNECTION,
         () -> this.connectionWrapper);
@@ -610,7 +610,7 @@ public class StatementWrapper implements Statement {
         ResultSet.class,
         SQLException.class,
         this.connectionWrapper,
-        this.pluginManager,
+          this.pluginManager,
         this.statement,
         JdbcMethod.STATEMENT_GETGENERATEDKEYS,
         this.statement::getGeneratedKeys);

@@ -43,8 +43,7 @@ public class AuroraTopologyUtils extends TopologyUtils {
 
   @Override
   protected @Nullable List<HostSpec> getHosts(
-      Connection conn, ResultSet rs, HostSpec initialHostSpec, HostSpec instanceTemplate)
-      throws SQLException {
+      Connection conn, ResultSet rs, HostSpec initialHostSpec, HostSpec instanceTemplate) throws SQLException {
     // Data in the result set is ordered by last update time, so the latest records are last.
     // We add hosts to a map to ensure newer records are not overwritten by older ones.
     Map<String, HostSpec> hostsMap = new HashMap<>();
@@ -53,9 +52,7 @@ public class AuroraTopologyUtils extends TopologyUtils {
         HostSpec host = createHost(rs, initialHostSpec, instanceTemplate);
         hostsMap.put(host.getHost(), host);
       } catch (Exception e) {
-        LOGGER.finest(
-            Messages.get(
-                "TopologyUtils.errorProcessingQueryResults", new Object[] {e.getMessage()}));
+        LOGGER.finest(Messages.get("TopologyUtils.errorProcessingQueryResults", new Object[] {e.getMessage()}));
         return null;
       }
     }
@@ -76,8 +73,7 @@ public class AuroraTopologyUtils extends TopologyUtils {
     return false;
   }
 
-  protected HostSpec createHost(ResultSet rs, HostSpec initialHostSpec, HostSpec instanceTemplate)
-      throws SQLException {
+  protected HostSpec createHost(ResultSet rs, HostSpec initialHostSpec, HostSpec instanceTemplate) throws SQLException {
     // According to the topology query the result set should contain 4 columns:
     // instance ID, 1/0 (writer/reader), CPU utilization, instance lag in time.
     String hostName = rs.getString(1);
@@ -94,7 +90,6 @@ public class AuroraTopologyUtils extends TopologyUtils {
     // Calculate weight based on instance lag in time and CPU utilization.
     final long weight = Math.round(instanceLag) * 100L + Math.round(cpuUtilization);
 
-    return createHost(
-        hostName, hostName, isWriter, weight, lastUpdateTime, initialHostSpec, instanceTemplate);
+    return createHost(hostName, hostName, isWriter, weight, lastUpdateTime, initialHostSpec, instanceTemplate);
   }
 }

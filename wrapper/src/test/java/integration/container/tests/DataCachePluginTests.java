@@ -45,12 +45,11 @@ import software.amazon.jdbc.plugin.DataCacheConnectionPlugin.CachedResultSet;
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
 @DisableOnTestFeature({
-  TestEnvironmentFeatures.PERFORMANCE,
-  TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
-  TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
-  TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
-  TestEnvironmentFeatures.RUN_DB_METRICS_ONLY
-})
+    TestEnvironmentFeatures.PERFORMANCE,
+    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
+    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
+    TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
+    TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
 @MakeSureFirstInstanceWriter
 @Order(5)
 public class DataCachePluginTests {
@@ -77,8 +76,7 @@ public class DataCachePluginTests {
     Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
 
     conn.createStatement().execute("drop table if exists testTable");
-    conn.createStatement()
-        .execute("create table testTable (id int not null primary key, name varchar(100))");
+    conn.createStatement().execute("create table testTable (id int not null primary key, name varchar(100))");
     conn.createStatement().execute("insert into testTable (id, name) values (1, 'name1')");
     conn.createStatement().execute("insert into testTable (id, name) values (2, 'name2')");
     conn.createStatement().execute("insert into testTable (id, name) values (3, 'name3')");
@@ -188,8 +186,7 @@ public class DataCachePluginTests {
     Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
 
     conn.createStatement().execute("drop table if exists testTable");
-    conn.createStatement()
-        .execute("create table testTable (id int not null primary key, name varchar(100))");
+    conn.createStatement().execute("create table testTable (id int not null primary key, name varchar(100))");
     conn.createStatement().execute("insert into testTable (id, name) values (1, 'name1')");
     conn.createStatement().execute("insert into testTable (id, name) values (2, 'name2')");
     conn.createStatement().execute("insert into testTable (id, name) values (3, 'name3')");

@@ -21,5 +21,6 @@ public interface ExceptionSimulatorExecuteJdbcMethodCallback {
       final Class<T> resultClass,
       final Class<E> exceptionClass,
       final String methodName,
-      final Object[] jdbcMethodArgs);
+      final Object[] jdbcMethodArgs
+  );
 }

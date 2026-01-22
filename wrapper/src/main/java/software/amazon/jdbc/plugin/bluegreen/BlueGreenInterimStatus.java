@@ -67,19 +67,16 @@ public class BlueGreenInterimStatus {
 
   @Override
   public String toString() {
-    String currentIpMap =
-        this.currentIpAddressesByHostMap.entrySet().stream()
-            .map(x -> String.format("%s -> %s", x.getKey(), x.getValue()))
-            .collect(Collectors.joining("\n   "));
-    String startIpMap =
-        this.startIpAddressesByHostMap.entrySet().stream()
-            .map(x -> String.format("%s -> %s", x.getKey(), x.getValue()))
-            .collect(Collectors.joining("\n   "));
+    String currentIpMap = this.currentIpAddressesByHostMap.entrySet().stream()
+        .map(x -> String.format("%s -> %s", x.getKey(), x.getValue()))
+        .collect(Collectors.joining("\n   "));
+    String startIpMap = this.startIpAddressesByHostMap.entrySet().stream()
+        .map(x -> String.format("%s -> %s", x.getKey(), x.getValue()))
+        .collect(Collectors.joining("\n   "));
     String allHostNamesStr = String.join("\n   ", this.hostNames);
     String startTopologyStr = LogUtils.logTopology(this.startTopology);
     String currentTopologyStr = LogUtils.logTopology(this.currentTopology);
-    return String.format(
-        "%s [\n"
+    return String.format("%s [\n"
             + " phase %s, \n"
             + " version '%s', \n"
             + " port %d, \n"
@@ -111,60 +108,54 @@ public class BlueGreenInterimStatus {
 
   public int getCustomHashCode() {
 
-    int result =
-        this.getValueHash(1, this.blueGreenPhase == null ? "" : this.blueGreenPhase.toString());
-    result = this.getValueHash(result, this.version == null ? "" : this.version);
+    int result = this.getValueHash(1,
+        this.blueGreenPhase == null ? "" : this.blueGreenPhase.toString());
+    result = this.getValueHash(result,
+        this.version == null ? "" : this.version);
     result = this.getValueHash(result, String.valueOf(this.port));
     result = this.getValueHash(result, String.valueOf(this.allStartTopologyIpChanged));
     result = this.getValueHash(result, String.valueOf(this.allStartTopologyEndpointsRemoved));
     result = this.getValueHash(result, String.valueOf(this.allTopologyChanged));
 
-    result =
-        this.getValueHash(
-            result,
-            this.hostNames == null
-                ? ""
-                : this.hostNames.stream().sorted().collect(Collectors.joining(",")));
-    result =
-        this.getValueHash(
-            result,
-            this.startTopology == null
-                ? ""
-                : this.startTopology.stream()
-                    .map(x -> x.getHostAndPort() + x.getRole())
-                    .sorted(Comparator.comparing(x -> x))
-                    .collect(Collectors.joining(",")));
-    result =
-        this.getValueHash(
-            result,
-            this.currentTopology == null
-                ? ""
-                : this.currentTopology.stream()
-                    .map(x -> x.getHostAndPort() + x.getRole())
-                    .sorted(Comparator.comparing(x -> x))
-                    .collect(Collectors.joining(",")));
-    result =
-        this.getValueHash(
-            result,
-            this.startIpAddressesByHostMap == null
-                ? ""
-                : this.startIpAddressesByHostMap.entrySet().stream()
-                    .map(x -> x.getKey() + x.getValue())
-                    .sorted(Comparator.comparing(x -> x))
-                    .collect(Collectors.joining(",")));
-    result =
-        this.getValueHash(
-            result,
-            this.currentIpAddressesByHostMap == null
-                ? ""
-                : this.currentIpAddressesByHostMap.entrySet().stream()
-                    .map(x -> x.getKey() + x.getValue())
-                    .sorted(Comparator.comparing(x -> x))
-                    .collect(Collectors.joining(",")));
+    result = this.getValueHash(result,
+        this.hostNames == null
+            ? ""
+            : this.hostNames.stream()
+                .sorted()
+                .collect(Collectors.joining(",")));
+    result = this.getValueHash(result,
+        this.startTopology == null
+            ? ""
+            : this.startTopology.stream()
+                .map(x -> x.getHostAndPort() + x.getRole())
+                .sorted(Comparator.comparing(x -> x))
+                .collect(Collectors.joining(",")));
+    result = this.getValueHash(result,
+        this.currentTopology == null
+            ? ""
+            : this.currentTopology.stream()
+                .map(x -> x.getHostAndPort() + x.getRole())
+                .sorted(Comparator.comparing(x -> x))
+                .collect(Collectors.joining(",")));
+    result = this.getValueHash(result,
+        this.startIpAddressesByHostMap == null
+            ? ""
+            : this.startIpAddressesByHostMap.entrySet().stream()
+                .map(x -> x.getKey() + x.getValue())
+                .sorted(Comparator.comparing(x -> x))
+                .collect(Collectors.joining(",")));
+    result = this.getValueHash(result,
+        this.currentIpAddressesByHostMap == null
+            ? ""
+            : this.currentIpAddressesByHostMap.entrySet().stream()
+                .map(x -> x.getKey() + x.getValue())
+                .sorted(Comparator.comparing(x -> x))
+                .collect(Collectors.joining(",")));
     return result;
   }
 
   protected int getValueHash(int currentHash, String val) {
     return currentHash * 31 + val.hashCode();
   }
+
 }

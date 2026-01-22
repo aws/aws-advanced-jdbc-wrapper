@@ -40,8 +40,7 @@ public class IamAuthUtils {
     return hostSpec.getHost();
   }
 
-  public static int getIamPort(
-      final int iamDefaultPort, final HostSpec hostSpec, final int dialectDefaultPort) {
+  public static int getIamPort(final int iamDefaultPort, final HostSpec hostSpec, final int dialectDefaultPort) {
     if (iamDefaultPort > 0) {
       return iamDefaultPort;
     } else if (hostSpec.isPortSpecified()) {
@@ -52,7 +51,10 @@ public class IamAuthUtils {
   }
 
   public static String getCacheKey(
-      final String user, final String hostname, final int port, final Region region) {
+      final String user,
+      final String hostname,
+      final int port,
+      final Region region) {
 
     return String.format("%s:%s:%d:%s", region, hostname, port, user);
   }
@@ -63,8 +65,7 @@ public class IamAuthUtils {
       Class.forName("software.amazon.awssdk.services.rds.RdsUtilities");
       return new RegularRdsUtility();
     } catch (final ClassNotFoundException e) {
-      // If Java SDK for RDS isn't presented, try to check the required dependency for
-      // LightRdsUtility.
+      // If Java SDK for RDS isn't presented, try to check the required dependency for LightRdsUtility.
       try {
         // LightRdsUtility requires "software.amazon.awssdk.auth"
         // and "software.amazon.awssdk.http-client-spi" libraries.
@@ -89,12 +90,11 @@ public class IamAuthUtils {
       final Region region,
       final AwsCredentialsProvider awsCredentialsProvider) {
     final TelemetryFactory telemetryFactory = pluginService.getTelemetryFactory();
-    final TelemetryContext telemetryContext =
-        telemetryFactory.openTelemetryContext(TELEMETRY_FETCH_TOKEN, TelemetryTraceLevel.NESTED);
+    final TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
+        TELEMETRY_FETCH_TOKEN, TelemetryTraceLevel.NESTED);
 
     try {
-      return tokenUtils.generateAuthenticationToken(
-          awsCredentialsProvider, region, hostname, port, user);
+      return tokenUtils.generateAuthenticationToken(awsCredentialsProvider, region, hostname, port, user);
     } catch (final Exception e) {
       if (telemetryContext != null) {
         telemetryContext.setSuccess(false);

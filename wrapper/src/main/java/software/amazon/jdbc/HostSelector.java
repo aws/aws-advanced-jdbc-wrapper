@@ -28,15 +28,12 @@ public interface HostSelector {
    * Selects a host with the requested role from the given host list.
    *
    * @param hosts a list of available hosts to pick from.
-   * @param role the desired host role - either a writer or a reader. Null value means no
-   *     preferences on host role.
-   * @param props connection properties that may be needed by the host selector in order to choose a
-   *     host.
+   * @param role  the desired host role - either a writer or a reader. Null value means no preferences on host role.
+   * @param props connection properties that may be needed by the host selector in order to choose a host.
    * @return a host matching the requested role
    * @throws SQLException if the host list does not contain any hosts matching the requested role or
-   *     an error occurs while selecting a host
+   *                      an error occurs while selecting a host
    */
   HostSpec getHost(
-      @NonNull List<HostSpec> hosts, @Nullable HostRole role, @Nullable Properties props)
-      throws SQLException;
+      @NonNull List<HostSpec> hosts, @Nullable HostRole role, @Nullable Properties props) throws SQLException;
 }

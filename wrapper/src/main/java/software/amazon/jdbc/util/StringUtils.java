@@ -65,13 +65,12 @@ public class StringUtils {
    * Splits stringToSplit into a list, using the given delimiter.
    *
    * @param stringToSplit the string to split
-   * @param delimiter the string to split on
-   * @param trim should the split strings be whitespace trimmed?
+   * @param delimiter     the string to split on
+   * @param trim          should the split strings be whitespace trimmed?
    * @return the list of strings, split by delimiter
    * @throws IllegalArgumentException if an error occurs
    */
-  public static List<String> split(
-      final String stringToSplit, final String delimiter, final boolean trim) {
+  public static List<String> split(final String stringToSplit, final String delimiter, final boolean trim) {
     if (stringToSplit == null || "".equals(stringToSplit)) {
       return new ArrayList<>();
     }

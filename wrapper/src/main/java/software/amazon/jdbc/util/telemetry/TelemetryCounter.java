@@ -21,4 +21,5 @@ public interface TelemetryCounter {
   void add(long value);
 
   void inc();
+
 }

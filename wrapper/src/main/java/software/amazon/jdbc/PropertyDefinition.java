@@ -31,14 +31,12 @@ public class PropertyDefinition {
 
   public static final AwsWrapperProperty CASE_SENSITIVE =
       new AwsWrapperProperty(
-          "wrapperCaseSensitive",
-          "true",
+          "wrapperCaseSensitive", "true",
           "Allows the driver to change case sensitivity for parameter names in the connection string.");
 
   public static final AwsWrapperProperty LOG_UNCLOSED_CONNECTIONS =
       new AwsWrapperProperty(
-          "wrapperLogUnclosedConnections",
-          "false",
+          "wrapperLogUnclosedConnections", "false",
           "Allows the driver to track a point in the code where connection has been opened and never closed after");
 
   public static final AwsWrapperProperty LOGGER_LEVEL =
@@ -48,7 +46,7 @@ public class PropertyDefinition {
           "Logger level of the driver",
           false,
           new String[] {
-            "OFF", "SEVERE", "WARNING", "INFO", "CONFIG", "FINE", "FINER", "FINEST", "ALL"
+              "OFF", "SEVERE", "WARNING", "INFO", "CONFIG", "FINE", "FINER", "FINEST", "ALL"
           });
 
   public static final AwsWrapperProperty PLUGINS =
@@ -60,28 +58,32 @@ public class PropertyDefinition {
           "autoSortWrapperPluginOrder",
           "true",
           "This flag is enabled by default, meaning that the plugins order will be automatically adjusted."
-              + " Disable it at your own risk or if you really need plugins to be executed in a particular order.");
+          + " Disable it at your own risk or if you really need plugins to be executed in a particular order.");
 
   public static final AwsWrapperProperty PROFILE_NAME =
-      new AwsWrapperProperty("wrapperProfileName", null, "Driver configuration profile name");
+      new AwsWrapperProperty(
+          "wrapperProfileName", null, "Driver configuration profile name");
 
   public static final AwsWrapperProperty USER =
-      new AwsWrapperProperty("user", null, "Driver user name");
+      new AwsWrapperProperty(
+          "user", null, "Driver user name");
 
   public static final AwsWrapperProperty PASSWORD =
-      new AwsWrapperProperty("password", null, "Driver password");
+      new AwsWrapperProperty(
+          "password", null, "Driver password");
 
   public static final AwsWrapperProperty DATABASE =
-      new AwsWrapperProperty("database", null, "Driver database name");
+      new AwsWrapperProperty(
+          "database", null, "Driver database name");
 
   public static final AwsWrapperProperty ENABLE_TELEMETRY =
       new AwsWrapperProperty(
-          "enableTelemetry", "false", "Enables telemetry and observability of the driver");
+          "enableTelemetry", "false",
+          "Enables telemetry and observability of the driver");
 
   public static final AwsWrapperProperty TELEMETRY_SUBMIT_TOPLEVEL =
       new AwsWrapperProperty(
-          "telemetrySubmitToplevel",
-          "false",
+          "telemetrySubmitToplevel", "false",
           "Force submitting traces related to JDBC calls as top level traces.");
 
   public static final AwsWrapperProperty TELEMETRY_TRACES_BACKEND =
@@ -90,7 +92,9 @@ public class PropertyDefinition {
           null,
           "Method to export telemetry traces of the driver",
           false,
-          new String[] {"XRAY", "OTLP", "NONE"});
+          new String[] {
+              "XRAY", "OTLP", "NONE"
+          });
 
   public static final AwsWrapperProperty TELEMETRY_METRICS_BACKEND =
       new AwsWrapperProperty(
@@ -98,19 +102,24 @@ public class PropertyDefinition {
           null,
           "Method to export telemetry metrics of the driver",
           false,
-          new String[] {"OTLP", "NONE"});
+          new String[] {
+              "OTLP", "NONE"
+          });
 
   public static final AwsWrapperProperty AWS_PROFILE =
       new AwsWrapperProperty(
           "awsProfile", null, "Name of the AWS Profile to use for IAM/SecretsManager auth.");
 
   public static final AwsWrapperProperty LOGIN_TIMEOUT =
-      new AwsWrapperProperty("loginTimeout", null, "Login timeout in msec.");
+      new AwsWrapperProperty(
+          "loginTimeout", null, "Login timeout in msec.");
 
   public static final AwsWrapperProperty CONNECT_TIMEOUT =
-      new AwsWrapperProperty("connectTimeout", null, "Socket connect timeout in msec.");
+      new AwsWrapperProperty(
+          "connectTimeout", null, "Socket connect timeout in msec.");
   public static final AwsWrapperProperty SOCKET_TIMEOUT =
-      new AwsWrapperProperty("socketTimeout", null, "Socket timeout in msec.");
+      new AwsWrapperProperty(
+          "socketTimeout", null, "Socket timeout in msec.");
 
   public static final AwsWrapperProperty TCP_KEEP_ALIVE =
       new AwsWrapperProperty(
@@ -118,7 +127,9 @@ public class PropertyDefinition {
           "false",
           "Enable or disable TCP keep-alive probe.",
           false,
-          new String[] {"true", "false"});
+          new String[] {
+              "true", "false"
+          });
 
   public static final AwsWrapperProperty TRANSFER_SESSION_STATE_ON_SWITCH =
       new AwsWrapperProperty(
@@ -126,7 +137,9 @@ public class PropertyDefinition {
           "true",
           "Enables session state transfer to a new connection.",
           false,
-          new String[] {"true", "false"});
+          new String[] {
+              "true", "false"
+          });
 
   public static final AwsWrapperProperty RESET_SESSION_STATE_ON_CLOSE =
       new AwsWrapperProperty(
@@ -134,7 +147,9 @@ public class PropertyDefinition {
           "true",
           "Enables to reset connection session state before closing it.",
           false,
-          new String[] {"true", "false"});
+          new String[] {
+              "true", "false"
+          });
 
   public static final AwsWrapperProperty ROLLBACK_ON_SWITCH =
       new AwsWrapperProperty(
@@ -142,41 +157,44 @@ public class PropertyDefinition {
           "true",
           "Enables to rollback a current transaction being in progress when switching to a new connection.",
           false,
-          new String[] {"true", "false"});
+          new String[] {
+              "true", "false"
+          });
 
   public static final AwsWrapperProperty ENABLE_GREEN_NODE_REPLACEMENT =
       new AwsWrapperProperty(
           "enableGreenNodeReplacement",
           "false",
           "Enables replacing a green node host name with the original hostname after"
-              + " a blue/green switchover and the green name no longer resolves.",
+            + " a blue/green switchover and the green name no longer resolves.",
           false,
-          new String[] {"true", "false"});
+          new String[] {
+              "true", "false"
+          });
 
-  public static final AwsWrapperProperty ASSUME_FETCH_ENTIRE_RESULT_SET =
-      new AwsWrapperProperty(
-          "wrapperAssumeFetchEntireResultSet",
-          "true",
-          "Allow the driver to optimized work with ResultSets and skip tracking some of their methods"
-              + " by assuming that entire data result are fetched at once.");
+  public static final AwsWrapperProperty ASSUME_FETCH_ENTIRE_RESULT_SET = new AwsWrapperProperty(
+      "wrapperAssumeFetchEntireResultSet", "true",
+      "Allow the driver to optimized work with ResultSets and skip tracking some of their methods"
+          + " by assuming that entire data result are fetched at once.");
 
   public static final AwsWrapperProperty SKIP_WRAPPING_FOR_PACKAGES =
       new AwsWrapperProperty(
-          "skipWrappingForPackages",
-          null,
+          "skipWrappingForPackages", null,
           "Register Java package names (comma separated list) which will be left unwrapped."
               + " This setting modifies all future connections established by the driver, not just the current"
               + " connection using this set of connection properties.");
 
   public static final AwsWrapperProperty CONNECTION_POOL_TYPE =
       new AwsWrapperProperty(
-          "connectionPoolType",
-          null,
+          "connectionPoolType", null,
           "Enable internal connection pooling with specified type for the current cluster.",
           false,
-          new String[] {"hikari", "c3p0"});
+          new String[] {
+              "hikari", "c3p0"
+          });
 
-  private static final Map<String, AwsWrapperProperty> PROPS_BY_NAME = new ConcurrentHashMap<>();
+  private static final Map<String, AwsWrapperProperty> PROPS_BY_NAME =
+      new ConcurrentHashMap<>();
   private static final Map<String, AwsWrapperProperty> PROPS_BY_NAME_LOWERCASE =
       new ConcurrentHashMap<>();
   private static final Set<String> KNOWN_PROPS_BY_PREFIX = ConcurrentHashMap.newKeySet();
@@ -190,9 +208,9 @@ public class PropertyDefinition {
   }
 
   /**
-   * The usage of the method should be restricted. In most cases the {@link #byName(String)} method
-   * should be used since the driver internally treats all properties in case-sensitive manner. For
-   * the moment only {@link software.amazon.jdbc.util.ConnectionUrlParser} uses this method.
+   * The usage of the method should be restricted. In most cases the {@link #byName(String)} method should be used
+   * since the driver internally treats all properties in case-sensitive manner.
+   * For the moment only {@link software.amazon.jdbc.util.ConnectionUrlParser} uses this method.
    *
    * @param name A parameter name
    * @return A parameter definition
@@ -217,7 +235,8 @@ public class PropertyDefinition {
     PROPS_BY_NAME.keySet().forEach(props::remove);
 
     props.stringPropertyNames().stream()
-        .filter(propertyName -> KNOWN_PROPS_BY_PREFIX.stream().anyMatch(propertyName::startsWith))
+        .filter(propertyName -> KNOWN_PROPS_BY_PREFIX.stream()
+            .anyMatch(propertyName::startsWith))
         .forEach(props::remove);
   }
 
@@ -227,7 +246,8 @@ public class PropertyDefinition {
     propsToDelete.forEach(props::remove);
 
     props.stringPropertyNames().stream()
-        .filter(propertyName -> KNOWN_PROPS_BY_PREFIX.stream().anyMatch(propertyName::startsWith))
+        .filter(propertyName -> KNOWN_PROPS_BY_PREFIX.stream()
+            .anyMatch(propertyName::startsWith))
         .forEach(props::remove);
   }
 
@@ -267,5 +287,6 @@ public class PropertyDefinition {
                 PROPS_BY_NAME_LOWERCASE.put(prop.name.toLowerCase(), prop);
               }
             });
+
   }
 }

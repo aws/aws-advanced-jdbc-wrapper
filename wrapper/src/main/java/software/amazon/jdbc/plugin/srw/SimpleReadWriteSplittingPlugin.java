@@ -53,34 +53,32 @@ import software.amazon.jdbc.util.WrapperUtils;
 public class SimpleReadWriteSplittingPlugin extends AbstractConnectionPlugin
     implements CanReleaseResources {
 
-  private static final Logger LOGGER =
-      Logger.getLogger(SimpleReadWriteSplittingPlugin.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(SimpleReadWriteSplittingPlugin.class.getName());
   private static final Set<String> subscribedMethods =
-      Collections.unmodifiableSet(
-          new HashSet<String>() {
-            {
-              add(JdbcMethod.CONNECT.methodName);
-              add(JdbcMethod.INITHOSTPROVIDER.methodName);
-              add(JdbcMethod.NOTIFYCONNECTIONCHANGED.methodName);
-              add(JdbcMethod.CONNECTION_SETREADONLY.methodName);
-              add(JdbcMethod.CONNECTION_CLEARWARNINGS.methodName);
-              add(JdbcMethod.STATEMENT_EXECUTE.methodName);
-              add(JdbcMethod.STATEMENT_EXECUTEQUERY.methodName);
-              add(JdbcMethod.STATEMENT_EXECUTEBATCH.methodName);
-              add(JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName);
-              add(JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName);
-              add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName);
-              add(JdbcMethod.PREPAREDSTATEMENT_EXECUTELARGEUPDATE.methodName);
-              add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName);
-              add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEBATCH.methodName);
-              add(JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName);
-              add(JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName);
-              add(JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE.methodName);
-              add(JdbcMethod.CALLABLESTATEMENT_EXECUTEBATCH.methodName);
-              add(JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName);
-              add(JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName);
-            }
-          });
+      Collections.unmodifiableSet(new HashSet<String>() {
+        {
+          add(JdbcMethod.CONNECT.methodName);
+          add(JdbcMethod.INITHOSTPROVIDER.methodName);
+          add(JdbcMethod.NOTIFYCONNECTIONCHANGED.methodName);
+          add(JdbcMethod.CONNECTION_SETREADONLY.methodName);
+          add(JdbcMethod.CONNECTION_CLEARWARNINGS.methodName);
+          add(JdbcMethod.STATEMENT_EXECUTE.methodName);
+          add(JdbcMethod.STATEMENT_EXECUTEQUERY.methodName);
+          add(JdbcMethod.STATEMENT_EXECUTEBATCH.methodName);
+          add(JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_EXECUTELARGEUPDATE.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName);
+          add(JdbcMethod.PREPAREDSTATEMENT_EXECUTEBATCH.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_EXECUTEBATCH.methodName);
+          add(JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName);
+          add(JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName);
+        }
+      });
 
   private final PluginService pluginService;
   private final Properties properties;
@@ -118,7 +116,9 @@ public class SimpleReadWriteSplittingPlugin extends AbstractConnectionPlugin
           "true",
           "Enables role verification for new connections made by the Simple Read/Write Splitting Plugin.",
           false,
-          new String[] {"true", "false"});
+          new String[] {
+              "true", "false"
+          });
 
   public static final AwsWrapperProperty SRW_CONNECT_RETRY_TIMEOUT_MS =
       new AwsWrapperProperty(
@@ -128,7 +128,9 @@ public class SimpleReadWriteSplittingPlugin extends AbstractConnectionPlugin
 
   public static final AwsWrapperProperty SRW_CONNECT_RETRY_INTERVAL_MS =
       new AwsWrapperProperty(
-          "srwConnectRetryIntervalMs", "1000", "Time between each retry of opening a connection.");
+          "srwConnectRetryIntervalMs",
+          "1000",
+          "Time between each retry of opening a connection.");
 
   public static final AwsWrapperProperty VERIFY_INITIAL_CONNECTION_TYPE =
       new AwsWrapperProperty(
@@ -140,22 +142,23 @@ public class SimpleReadWriteSplittingPlugin extends AbstractConnectionPlugin
     PropertyDefinition.registerPluginProperties(SimpleReadWriteSplittingPlugin.class);
   }
 
-  SimpleReadWriteSplittingPlugin(
-      final FullServicesContainer servicesContainer, final Properties properties) {
+  SimpleReadWriteSplittingPlugin(final FullServicesContainer servicesContainer, final Properties properties) {
     this(servicesContainer.getPluginService(), properties);
   }
 
   SimpleReadWriteSplittingPlugin(final PluginService pluginService, final Properties properties) {
     this.writeEndpoint = SRW_WRITE_ENDPOINT.getString(properties);
     if (StringUtils.isNullOrEmpty(writeEndpoint)) {
-      throw new RuntimeException(
+      throw new
+          RuntimeException(
           Messages.get(
               "SimpleReadWriteSplittingPlugin.missingRequiredConfigParameter",
               new Object[] {SRW_WRITE_ENDPOINT.name}));
     }
     this.readEndpoint = SRW_READ_ENDPOINT.getString(properties);
     if (StringUtils.isNullOrEmpty(readEndpoint)) {
-      throw new RuntimeException(
+      throw new
+          RuntimeException(
           Messages.get(
               "SimpleReadWriteSplittingPlugin.missingRequiredConfigParameter",
               new Object[] {SRW_READ_ENDPOINT.name}));
@@ -170,7 +173,9 @@ public class SimpleReadWriteSplittingPlugin extends AbstractConnectionPlugin
     this.connectRetryTimeoutMs = SRW_CONNECT_RETRY_TIMEOUT_MS.getInteger(properties);
   }
 
-  /** For testing purposes only. */
+  /**
+   * For testing purposes only.
+   */
   SimpleReadWriteSplittingPlugin(
       final PluginService pluginService,
       final Properties properties,
@@ -261,8 +266,8 @@ public class SimpleReadWriteSplittingPlugin extends AbstractConnectionPlugin
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
-    final long endTimeNano =
-        System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(this.connectRetryTimeoutMs);
+    final long endTimeNano = System.nanoTime()
+        + TimeUnit.MILLISECONDS.toNanos(this.connectRetryTimeoutMs);
 
     Connection candidateConn;
 
@@ -302,10 +307,8 @@ public class SimpleReadWriteSplittingPlugin extends AbstractConnectionPlugin
     }
 
     LOGGER.fine(
-        () ->
-            Messages.get(
-                "SimpleReadWriteSplittingPlugin.verificationFailed",
-                new Object[] {hostRole, this.connectRetryTimeoutMs}));
+        () -> Messages.get("SimpleReadWriteSplittingPlugin.verificationFailed",
+            new Object[] {hostRole, this.connectRetryTimeoutMs}));
     return null;
   }
 
@@ -335,10 +338,8 @@ public class SimpleReadWriteSplittingPlugin extends AbstractConnectionPlugin
     final Connection conn = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
     if (conn != null && conn != this.pluginService.getCurrentConnection()) {
       LOGGER.fine(
-          () ->
-              Messages.get(
-                  "ReadWriteSplittingPlugin.executingAgainstOldConnection",
-                  new Object[] {methodInvokeOn}));
+          () -> Messages.get("ReadWriteSplittingPlugin.executingAgainstOldConnection",
+              new Object[] {methodInvokeOn}));
       return jdbcMethodFunc.call();
     }
 
@@ -370,17 +371,13 @@ public class SimpleReadWriteSplittingPlugin extends AbstractConnectionPlugin
     } catch (final Exception e) {
       if (e instanceof FailoverSQLException) {
         LOGGER.finer(
-            () ->
-                Messages.get(
-                    "ReadWriteSplittingPlugin.failoverExceptionWhileExecutingCommand",
-                    new Object[] {methodName}));
+            () -> Messages.get("ReadWriteSplittingPlugin.failoverExceptionWhileExecutingCommand",
+                new Object[] {methodName}));
         closeIdleConnections();
       } else {
         LOGGER.finest(
-            () ->
-                Messages.get(
-                    "ReadWriteSplittingPlugin.exceptionWhileExecutingCommand",
-                    new Object[] {methodName}));
+            () -> Messages.get("ReadWriteSplittingPlugin.exceptionWhileExecutingCommand",
+                new Object[] {methodName}));
       }
       throw e;
     }
@@ -393,17 +390,12 @@ public class SimpleReadWriteSplittingPlugin extends AbstractConnectionPlugin
       return;
     }
 
-    // Only update internal connection info if connection is to the endpoint and different from
-    // internal connection.
-    if (isWriteEndpoint(currentHost)
-        && !currentConnection.equals(this.writerConnection)
-        && (!this.verifyNewConnections
-            || this.pluginService.getHostRole(currentConnection) == HostRole.WRITER)) {
+    // Only update internal connection info if connection is to the endpoint and different from internal connection.
+    if (isWriteEndpoint(currentHost) && !currentConnection.equals(this.writerConnection)
+        && (!this.verifyNewConnections || this.pluginService.getHostRole(currentConnection) == HostRole.WRITER)) {
       setWriterConnection(currentConnection, currentHost);
-    } else if (isReadEndpoint(currentHost)
-        && !currentConnection.equals(this.readerConnection)
-        && (!this.verifyNewConnections
-            || this.pluginService.getHostRole(currentConnection) == HostRole.READER)) {
+    } else if (isReadEndpoint(currentHost) && !currentConnection.equals(this.readerConnection)
+        && (!this.verifyNewConnections || this.pluginService.getHostRole(currentConnection) == HostRole.READER)) {
       setReaderConnection(currentConnection, currentHost);
     }
   }
@@ -422,27 +414,26 @@ public class SimpleReadWriteSplittingPlugin extends AbstractConnectionPlugin
     this.writerConnection = conn;
     this.writeEndpointHostSpec = host;
     LOGGER.finest(
-        () ->
-            Messages.get(
-                "ReadWriteSplittingPlugin.setWriterConnection",
-                new Object[] {host.getHostAndPort()}));
+        () -> Messages.get(
+            "ReadWriteSplittingPlugin.setWriterConnection",
+            new Object[] {
+                host.getHostAndPort()}));
   }
 
   private void setReaderConnection(final Connection conn, final HostSpec host) {
     this.readerConnection = conn;
     this.readEndpointHostSpec = host;
     LOGGER.finest(
-        () ->
-            Messages.get(
-                "ReadWriteSplittingPlugin.setReaderConnection",
-                new Object[] {host.getHostAndPort()}));
+        () -> Messages.get(
+            "ReadWriteSplittingPlugin.setReaderConnection",
+            new Object[] {
+                host.getHostAndPort()}));
   }
 
   void switchConnectionIfRequired(final boolean readOnly) throws SQLException {
     final Connection currentConnection = this.pluginService.getCurrentConnection();
     if (currentConnection != null && currentConnection.isClosed()) {
-      logAndThrowException(
-          Messages.get("ReadWriteSplittingPlugin.setReadOnlyOnClosedConnection"),
+      logAndThrowException(Messages.get("ReadWriteSplittingPlugin.setReadOnlyOnClosedConnection"),
           SqlState.CONNECTION_NOT_OPEN);
     }
 
@@ -454,20 +445,15 @@ public class SimpleReadWriteSplittingPlugin extends AbstractConnectionPlugin
         } catch (final SQLException e) {
           if (!isConnectionUsable(currentConnection)) {
             logAndThrowException(
-                Messages.get(
-                    "ReadWriteSplittingPlugin.errorSwitchingToReader",
-                    new Object[] {e.getMessage()}),
+                Messages.get("ReadWriteSplittingPlugin.errorSwitchingToReader", new Object[]{e.getMessage()}),
                 e);
           }
-          // Failed to switch to the reader endpoint. The current connection will be used as a
-          // fallback.
-          LOGGER.fine(
-              () ->
-                  Messages.get(
-                      "SimpleReadWriteSplittingPlugin.fallbackToCurrentConnection",
-                      new Object[] {
-                        this.pluginService.getCurrentHostSpec().getHostAndPort(), e.getMessage()
-                      }));
+          // Failed to switch to the reader endpoint. The current connection will be used as a fallback.
+          LOGGER.fine(() -> Messages.get(
+              "SimpleReadWriteSplittingPlugin.fallbackToCurrentConnection",
+              new Object[] {
+                  this.pluginService.getCurrentHostSpec().getHostAndPort(),
+                  e.getMessage()}));
         }
       }
     } else {
@@ -480,13 +466,11 @@ public class SimpleReadWriteSplittingPlugin extends AbstractConnectionPlugin
       if (!isWriteEndpoint(currentHost)) {
         try {
           switchToWriterConnection();
-          LOGGER.finer(
-              () ->
-                  Messages.get(
-                      "ReadWriteSplittingPlugin.switchedFromReaderToWriter",
-                      new Object[] {writeEndpointHostSpec.getHostAndPort()}));
+          LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.switchedFromReaderToWriter",
+              new Object[] {writeEndpointHostSpec.getHostAndPort()}));
         } catch (final SQLException e) {
-          logAndThrowException(Messages.get("ReadWriteSplittingPlugin.errorSwitchingToWriter"), e);
+          logAndThrowException(Messages.get("ReadWriteSplittingPlugin.errorSwitchingToWriter"),
+              e);
         }
       }
     }
@@ -503,11 +487,11 @@ public class SimpleReadWriteSplittingPlugin extends AbstractConnectionPlugin
     throw new ReadWriteSplittingSQLException(logMessage, sqlState.getState());
   }
 
-  private void logAndThrowException(final String logMessage, final Throwable cause)
+  private void logAndThrowException(
+      final String logMessage, final Throwable cause)
       throws SQLException {
     LOGGER.fine(logMessage);
-    throw new ReadWriteSplittingSQLException(
-        logMessage, SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), cause);
+    throw new ReadWriteSplittingSQLException(logMessage, SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), cause);
   }
 
   private void switchToReaderConnection() throws SQLException {
@@ -524,24 +508,16 @@ public class SimpleReadWriteSplittingPlugin extends AbstractConnectionPlugin
     } else {
       try {
         switchCurrentConnectionTo(this.readerConnection, this.readEndpointHostSpec);
-        LOGGER.finer(
-            () ->
-                Messages.get(
-                    "ReadWriteSplittingPlugin.switchedFromWriterToReader",
-                    new Object[] {this.readEndpointHostSpec.getHostAndPort()}));
+        LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.switchedFromWriterToReader",
+            new Object[] {this.readEndpointHostSpec.getHostAndPort()}));
       } catch (SQLException e) {
         if (e.getMessage() != null) {
           LOGGER.warning(
-              () ->
-                  Messages.get(
-                      "ReadWriteSplittingPlugin.errorSwitchingToCachedReaderWithCause",
-                      new Object[] {this.readEndpointHostSpec.getHostAndPort(), e.getMessage()}));
+              () -> Messages.get("ReadWriteSplittingPlugin.errorSwitchingToCachedReaderWithCause",
+                  new Object[] {this.readEndpointHostSpec.getHostAndPort(), e.getMessage()}));
         } else {
-          LOGGER.warning(
-              () ->
-                  Messages.get(
-                      "ReadWriteSplittingPlugin.errorSwitchingToCachedReader",
-                      new Object[] {this.readEndpointHostSpec.getHostAndPort()}));
+          LOGGER.warning(() -> Messages.get("ReadWriteSplittingPlugin.errorSwitchingToCachedReader",
+              new Object[] {this.readEndpointHostSpec.getHostAndPort()}));
         }
 
         this.readerConnection.close();
@@ -581,24 +557,21 @@ public class SimpleReadWriteSplittingPlugin extends AbstractConnectionPlugin
     }
     final Connection conn;
     if (this.verifyNewConnections) {
-      conn =
-          this.getVerifiedConnection(
-              this.properties, this.writeEndpointHostSpec, HostRole.WRITER, null);
+      conn = this.getVerifiedConnection(
+          this.properties, this.writeEndpointHostSpec, HostRole.WRITER, null);
     } else {
       conn = this.pluginService.connect(this.writeEndpointHostSpec, this.properties, this);
     }
 
     if (conn == null) {
       logAndThrowException(
-          Messages.get(
-              "SimpleReadWriteSplittingPlugin.failedToConnectToWriter",
-              new Object[] {this.writeEndpoint}));
+          Messages.get("SimpleReadWriteSplittingPlugin.failedToConnectToWriter",
+              new Object[]{this.writeEndpoint}));
     }
 
     setWriterConnection(conn, writeEndpointHostSpec);
     switchCurrentConnectionTo(this.writerConnection, writeEndpointHostSpec);
-    this.isWriterConnFromInternalPool =
-        Boolean.TRUE.equals(this.pluginService.isPooledConnection());
+    this.isWriterConnFromInternalPool = Boolean.TRUE.equals(this.pluginService.isPooledConnection());
   }
 
   private void initializeReaderConnection() throws SQLException {
@@ -608,51 +581,44 @@ public class SimpleReadWriteSplittingPlugin extends AbstractConnectionPlugin
     final Connection conn;
 
     if (this.verifyNewConnections) {
-      conn =
-          this.getVerifiedConnection(
-              this.properties, this.readEndpointHostSpec, HostRole.READER, null);
+      conn = this.getVerifiedConnection(
+          this.properties, this.readEndpointHostSpec, HostRole.READER, null);
     } else {
       conn = this.pluginService.connect(this.readEndpointHostSpec, this.properties, this);
     }
 
     if (conn == null) {
-      logAndThrowException(
-          Messages.get(
-              "ReadWriteSplittingPlugin.failedToConnectToReader", new Object[] {this.readEndpoint}),
+      logAndThrowException(Messages.get("ReadWriteSplittingPlugin.failedToConnectToReader",
+              new Object[]{this.readEndpoint}),
           SqlState.CONNECTION_UNABLE_TO_CONNECT);
     }
 
     LOGGER.finest(
-        () ->
-            Messages.get(
-                "ReadWriteSplittingPlugin.successfullyConnectedToReader",
-                new Object[] {readEndpointHostSpec.getHostAndPort()}));
+        () -> Messages.get("ReadWriteSplittingPlugin.successfullyConnectedToReader",
+            new Object[]{readEndpointHostSpec.getHostAndPort()}));
 
     // Store reader connection for reuse.
     setReaderConnection(conn, readEndpointHostSpec);
     switchCurrentConnectionTo(conn, this.readEndpointHostSpec);
-    this.isReaderConnFromInternalPool =
-        Boolean.TRUE.equals(this.pluginService.isPooledConnection());
-    LOGGER.finer(
-        () ->
-            Messages.get(
-                "ReadWriteSplittingPlugin.switchedFromWriterToReader",
-                new Object[] {readEndpoint}));
+    this.isReaderConnFromInternalPool = Boolean.TRUE.equals(this.pluginService.isPooledConnection());
+    LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.switchedFromWriterToReader",
+        new Object[] {readEndpoint}));
   }
 
   private void switchCurrentConnectionTo(
-      final Connection newConnection, final HostSpec newConnectionHost) throws SQLException {
+      final Connection newConnection,
+      final HostSpec newConnectionHost)
+      throws SQLException {
 
     final Connection currentConnection = this.pluginService.getCurrentConnection();
     if (currentConnection == newConnection) {
       return;
     }
     this.pluginService.setCurrentConnection(newConnection, newConnectionHost);
-    LOGGER.finest(
-        () ->
-            Messages.get(
-                "ReadWriteSplittingPlugin.settingCurrentConnection",
-                new Object[] {newConnectionHost.getHostAndPort()}));
+    LOGGER.finest(() -> Messages.get(
+        "ReadWriteSplittingPlugin.settingCurrentConnection",
+        new Object[] {
+            newConnectionHost.getHostAndPort()}));
   }
 
   private HostSpec createHostSpec(String endpoint, HostRole role) {
@@ -722,7 +688,9 @@ public class SimpleReadWriteSplittingPlugin extends AbstractConnectionPlugin
     }
   }
 
-  /** Methods for testing purposes only. */
+  /**
+   * Methods for testing purposes only.
+   */
   Connection getWriterConnection() {
     return this.writerConnection;
   }

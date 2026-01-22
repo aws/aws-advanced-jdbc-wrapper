@@ -36,5 +36,6 @@ public class Runs implements Serializable {
   public int numOfTopologyFalsePositive;
   public int numOfTopologyOldWriterUnavailable;
 
-  public Runs() {}
+  public Runs() {
+  }
 }

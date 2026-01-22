@@ -31,6 +31,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -61,10 +62,10 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
   private static final String MONITORING_PROPERTY_PREFIX = "monitoring-";
   private static final int MIN_VALIDITY_CHECK_TIMEOUT_SEC = 1;
 
-  protected static final Executor ABORT_EXECUTOR = ExecutorFactory.newSingleThreadExecutor("abort");
+  protected static final Executor ABORT_EXECUTOR =
+      ExecutorFactory.newSingleThreadExecutor("abort");
 
-  private final Queue<WeakReference<HostMonitorConnectionContext>> activeContexts =
-      new ConcurrentLinkedQueue<>();
+  private final Queue<WeakReference<HostMonitorConnectionContext>> activeContexts = new ConcurrentLinkedQueue<>();
   private final Map<Long, Queue<WeakReference<HostMonitorConnectionContext>>> newContexts =
       new ConcurrentHashMap<>();
   private final FullServicesContainer servicesContainer;
@@ -86,10 +87,11 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
   /**
    * Store the monitoring configuration for a connection.
    *
-   * @param servicesContainer The telemetry factory to use to create telemetry data.
-   * @param hostSpec The {@link HostSpec} of the server this {@link HostMonitorImpl} instance is
-   *     monitoring.
-   * @param properties The {@link Properties} containing additional monitoring configuration.
+   * @param servicesContainer          The telemetry factory to use to create telemetry data.
+   * @param hostSpec                  The {@link HostSpec} of the server this {@link HostMonitorImpl}
+   *                                  instance is monitoring.
+   * @param properties                The {@link Properties} containing additional monitoring
+   *                                  configuration.
    * @param failureDetectionTimeMillis A failure detection time in millis.
    * @param failureDetectionIntervalMillis A failure detection interval in millis.
    * @param failureDetectionCount A failure detection count.
@@ -109,13 +111,11 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
     this.hostSpec = hostSpec;
     this.properties = properties;
     this.failureDetectionTimeNano = TimeUnit.MILLISECONDS.toNanos(failureDetectionTimeMillis);
-    this.failureDetectionIntervalNano =
-        TimeUnit.MILLISECONDS.toNanos(failureDetectionIntervalMillis);
+    this.failureDetectionIntervalNano = TimeUnit.MILLISECONDS.toNanos(failureDetectionIntervalMillis);
     this.failureDetectionCount = failureDetectionCount;
     this.abortedConnectionsCounter = abortedConnectionsCounter;
-    this.monitoringConn =
-        new AtomicConnection(
-            this, PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(properties));
+    this.monitoringConn = new AtomicConnection(
+        this, PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(properties));
   }
 
   @Override
@@ -133,19 +133,17 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
   @Override
   public void startMonitoring(final HostMonitorConnectionContext context) {
     if (this.stop.get()) {
-      LOGGER.warning(
-          () ->
-              Messages.get(
-                  "HostMonitorImpl.monitorIsStopped", new Object[] {this.hostSpec.getHost()}));
+      LOGGER.warning(() -> Messages.get("HostMonitorImpl.monitorIsStopped", new Object[] {this.hostSpec.getHost()}));
     }
 
     final long currentTimeNano = this.getCurrentTimeNano();
-    long startMonitoringTimeNano =
-        this.truncateNanoToSeconds(currentTimeNano + this.failureDetectionTimeNano);
+    long startMonitoringTimeNano = this.truncateNanoToSeconds(
+        currentTimeNano + this.failureDetectionTimeNano);
 
     Queue<WeakReference<HostMonitorConnectionContext>> queue =
         this.newContexts.computeIfAbsent(
-            startMonitoringTimeNano, (key) -> new ConcurrentLinkedQueue<>());
+            startMonitoringTimeNano,
+            (key) -> new ConcurrentLinkedQueue<>());
     queue.add(new WeakReference<>(context));
   }
 
@@ -160,11 +158,9 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
 
   public void newContextRun() {
 
-    LOGGER.finest(
-        () ->
-            Messages.get(
-                "HostMonitorImpl.startMonitoringThreadNewContext",
-                new Object[] {this.hostSpec.getHost()}));
+    LOGGER.finest(() -> Messages.get(
+        "HostMonitorImpl.startMonitoringThreadNewContext",
+        new Object[] {this.hostSpec.getHost()}));
 
     try {
       while (!this.stop.get()) {
@@ -175,22 +171,20 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
         this.newContexts.entrySet().stream()
             // Get entries with key (that is a time in nanos) less or equal than current time.
             .filter(entry -> entry.getKey() < currentTimeNano)
-            .forEach(
-                entry -> {
-                  final Queue<WeakReference<HostMonitorConnectionContext>> queue = entry.getValue();
-                  processedKeys.add(entry.getKey());
-                  // Each value of found entry is a queue of monitoring contexts awaiting active
-                  // monitoring.
-                  // Add all contexts to an active monitoring contexts queue.
-                  // Ignore disposed contexts.
-                  WeakReference<HostMonitorConnectionContext> contextWeakRef;
-                  while ((contextWeakRef = queue.poll()) != null) {
-                    HostMonitorConnectionContext context = contextWeakRef.get();
-                    if (context != null && context.isActive()) {
-                      this.activeContexts.add(contextWeakRef);
-                    }
-                  }
-                });
+            .forEach(entry -> {
+              final Queue<WeakReference<HostMonitorConnectionContext>> queue = entry.getValue();
+              processedKeys.add(entry.getKey());
+              // Each value of found entry is a queue of monitoring contexts awaiting active monitoring.
+              // Add all contexts to an active monitoring contexts queue.
+              // Ignore disposed contexts.
+              WeakReference<HostMonitorConnectionContext> contextWeakRef;
+              while ((contextWeakRef = queue.poll()) != null) {
+                HostMonitorConnectionContext context = contextWeakRef.get();
+                if (context != null && context.isActive()) {
+                  this.activeContexts.add(contextWeakRef);
+                }
+              }
+            });
         processedKeys.forEach(this.newContexts::remove);
 
         TimeUnit.SECONDS.sleep(1);
@@ -209,26 +203,22 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
       }
     }
 
-    LOGGER.finest(
-        () ->
-            Messages.get(
-                "HostMonitorImpl.stopMonitoringThreadNewContext",
-                new Object[] {this.hostSpec.getHost()}));
+    LOGGER.finest(() -> Messages.get(
+        "HostMonitorImpl.stopMonitoringThreadNewContext",
+        new Object[] {this.hostSpec.getHost()}));
   }
 
   @Override
   public void monitor() {
 
-    LOGGER.finest(
-        () ->
-            Messages.get(
-                "HostMonitorImpl.startMonitoringThread", new Object[] {this.hostSpec.getHost()}));
+    LOGGER.finest(() -> Messages.get(
+        "HostMonitorImpl.startMonitoringThread",
+        new Object[] {this.hostSpec.getHost()}));
 
     try {
 
-      this.servicesContainer
-          .getEventPublisher()
-          .subscribe(this, Collections.singleton(MonitorResetEvent.class));
+      this.servicesContainer.getEventPublisher().subscribe(
+          this, Collections.singleton(MonitorResetEvent.class));
 
       while (!this.stop.get()) {
 
@@ -243,8 +233,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
 
         this.updateNodeHealthStatus(isValid, statusCheckStartTimeNano, statusCheckEndTimeNano);
 
-        final List<WeakReference<HostMonitorConnectionContext>> tmpActiveContexts =
-            new ArrayList<>();
+        final List<WeakReference<HostMonitorConnectionContext>> tmpActiveContexts = new ArrayList<>();
         WeakReference<HostMonitorConnectionContext> monitorContextWeakRef;
 
         while ((monitorContextWeakRef = this.activeContexts.poll()) != null) {
@@ -277,8 +266,7 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
         // Add active contexts back to the queue.
         this.activeContexts.addAll(tmpActiveContexts);
 
-        long delayNano =
-            this.failureDetectionIntervalNano - (statusCheckEndTimeNano - statusCheckStartTimeNano);
+        long delayNano = this.failureDetectionIntervalNano - (statusCheckEndTimeNano - statusCheckStartTimeNano);
         if (delayNano < THREAD_SLEEP_NANO) {
           delayNano = THREAD_SLEEP_NANO;
         }
@@ -299,15 +287,13 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
     } finally {
       this.stop.set(true);
       this.monitoringConn.clean();
-      this.servicesContainer
-          .getEventPublisher()
-          .unsubscribe(this, Collections.singleton(MonitorResetEvent.class));
+      this.servicesContainer.getEventPublisher().unsubscribe(
+          this, Collections.singleton(MonitorResetEvent.class));
     }
 
-    LOGGER.finest(
-        () ->
-            Messages.get(
-                "HostMonitorImpl.stopMonitoringThread", new Object[] {this.hostSpec.getHost()}));
+    LOGGER.finest(() -> Messages.get(
+        "HostMonitorImpl.stopMonitoringThread",
+        new Object[] {this.hostSpec.getHost()}));
   }
 
   /**
@@ -316,9 +302,8 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
    * @return True, if the server is still alive.
    */
   boolean checkConnectionStatus() {
-    TelemetryContext connectContext =
-        telemetryFactory.openTelemetryContext(
-            "connection status check", TelemetryTraceLevel.FORCE_TOP_LEVEL);
+    TelemetryContext connectContext = telemetryFactory.openTelemetryContext(
+        "connection status check", TelemetryTraceLevel.FORCE_TOP_LEVEL);
 
     if (connectContext != null) {
       connectContext.setAttribute("url", this.hostSpec.getHost());
@@ -342,24 +327,17 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
 
         LOGGER.finest(() -> "Opening a monitoring connection to " + this.hostSpec.getUrl());
         this.monitoringConn.set(
-            this.servicesContainer
-                .getPluginService()
-                .forceConnect(this.hostSpec, monitoringConnProperties));
+            this.servicesContainer.getPluginService().forceConnect(this.hostSpec, monitoringConnProperties));
         LOGGER.finest(() -> "Opened monitoring connection: " + this.monitoringConn.get());
         return true;
       }
 
-      // Some drivers, like MySQL Connector/J, execute isValid() in a double of specified timeout
-      // time.
+      // Some drivers, like MySQL Connector/J, execute isValid() in a double of specified timeout time.
       // validTimeout could get rounded down to 0.
-      final int validTimeout =
-          (int)
-                  TimeUnit.NANOSECONDS.toSeconds(
-                      this.failureDetectionIntervalNano - THREAD_SLEEP_NANO)
-              / 2;
+      final int validTimeout = (int) TimeUnit.NANOSECONDS.toSeconds(
+          this.failureDetectionIntervalNano - THREAD_SLEEP_NANO) / 2;
       final Connection copyConnection2 = this.monitoringConn.get();
-      return copyConnection2 != null
-          && copyConnection2.isValid(Math.max(MIN_VALIDITY_CHECK_TIMEOUT_SEC, validTimeout));
+      return copyConnection2 != null && copyConnection2.isValid(Math.max(MIN_VALIDITY_CHECK_TIMEOUT_SEC, validTimeout));
     } catch (final SQLException sqlEx) {
       return false;
     } finally {
@@ -386,30 +364,24 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
           this.failureDetectionIntervalNano * Math.max(0, this.failureDetectionCount - 1);
 
       if (invalidNodeDurationNano >= maxInvalidNodeDurationNano) {
-        LOGGER.fine(
-            () ->
-                Messages.get(
-                    "HostMonitorConnectionContext.hostDead",
-                    new Object[] {this.hostSpec.getHost()}));
+        LOGGER.fine(() ->
+            Messages.get("HostMonitorConnectionContext.hostDead", new Object[] {this.hostSpec.getHost()}));
         this.nodeUnhealthy.set(true);
         return;
       }
 
       LOGGER.finest(
-          () ->
-              Messages.get(
-                  "HostMonitorConnectionContext.hostNotResponding",
-                  new Object[] {this.hostSpec.getHost(), this.failureCount.get()}));
+          () -> Messages.get(
+              "HostMonitorConnectionContext.hostNotResponding",
+              new Object[] {this.hostSpec.getHost(), this.failureCount.get()}));
       return;
     }
 
     if (this.failureCount.get() > 0) {
       // Node is back alive
       LOGGER.finest(
-          () ->
-              Messages.get(
-                  "HostMonitorConnectionContext.hostAlive",
-                  new Object[] {this.hostSpec.getHost()}));
+          () -> Messages.get("HostMonitorConnectionContext.hostAlive",
+              new Object[] {this.hostSpec.getHost()}));
     }
 
     this.failureCount.set(0);
@@ -424,10 +396,9 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
     } catch (final SQLException sqlEx) {
       // ignore
       LOGGER.finest(
-          () ->
-              Messages.get(
-                  "HostMonitorConnectionContext.exceptionAbortingConnection",
-                  new Object[] {sqlEx.getMessage()}));
+          () -> Messages.get(
+              "HostMonitorConnectionContext.exceptionAbortingConnection",
+              new Object[] {sqlEx.getMessage()}));
     }
   }
 

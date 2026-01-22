@@ -21,8 +21,7 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 
 public interface ExceptionHandler {
 
-  boolean isNetworkException(
-      Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect);
+  boolean isNetworkException(Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect);
 
   boolean isNetworkException(String sqlState);
 
@@ -30,9 +29,7 @@ public interface ExceptionHandler {
 
   boolean isLoginException(Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect);
 
-  boolean isReadOnlyConnectionException(
-      final @Nullable String sqlState, final @Nullable Integer errorCode);
+  boolean isReadOnlyConnectionException(final @Nullable String sqlState, final @Nullable Integer errorCode);
 
-  boolean isReadOnlyConnectionException(
-      Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect);
+  boolean isReadOnlyConnectionException(Throwable throwable, @Nullable TargetDriverDialect targetDriverDialect);
 }

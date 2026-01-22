@@ -27,7 +27,6 @@ public class PreparedStatementWrapperFactory implements WrapperFactory {
       @NonNull Object targetObj,
       @NonNull ConnectionWrapper connectionWrapper,
       @NonNull ConnectionPluginManager pluginManager) {
-    return new PreparedStatementWrapper(
-        (PreparedStatement) targetObj, connectionWrapper, pluginManager);
+    return new PreparedStatementWrapper((PreparedStatement) targetObj, connectionWrapper, pluginManager);
   }
 }

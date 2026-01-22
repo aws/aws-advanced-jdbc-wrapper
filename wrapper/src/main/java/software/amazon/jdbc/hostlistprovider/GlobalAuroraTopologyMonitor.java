@@ -26,6 +26,7 @@ import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
+
 public class GlobalAuroraTopologyMonitor extends ClusterTopologyMonitorImpl {
   protected final Map<String, HostSpec> instanceTemplatesByRegion;
   protected final GlobalAuroraTopologyUtils topologyUtils;
@@ -40,8 +41,7 @@ public class GlobalAuroraTopologyMonitor extends ClusterTopologyMonitorImpl {
       final long refreshRateNano,
       final long highRefreshRateNano,
       final Map<String, HostSpec> instanceTemplatesByRegion) {
-    super(
-        servicesContainer,
+    super(servicesContainer,
         topologyUtils,
         clusterId,
         initialHostSpec,
@@ -55,15 +55,13 @@ public class GlobalAuroraTopologyMonitor extends ClusterTopologyMonitorImpl {
   }
 
   @Override
-  protected HostSpec getInstanceTemplate(String instanceId, Connection connection)
-      throws SQLException {
+  protected HostSpec getInstanceTemplate(String instanceId, Connection connection) throws SQLException {
     String region = this.topologyUtils.getRegion(instanceId, connection);
     if (!StringUtils.isNullOrEmpty(region)) {
       final HostSpec instanceTemplate = this.instanceTemplatesByRegion.get(region);
       if (instanceTemplate == null) {
         throw new SQLException(
-            Messages.get(
-                "GlobalAuroraTopologyMonitor.cannotFindRegionTemplate", new Object[] {region}));
+            Messages.get("GlobalAuroraTopologyMonitor.cannotFindRegionTemplate", new Object[] {region}));
       }
 
       return instanceTemplate;
@@ -74,7 +72,6 @@ public class GlobalAuroraTopologyMonitor extends ClusterTopologyMonitorImpl {
 
   @Override
   protected List<HostSpec> queryForTopology(Connection connection) throws SQLException {
-    return this.topologyUtils.queryForTopology(
-        connection, this.initialHostSpec, this.instanceTemplatesByRegion);
+    return this.topologyUtils.queryForTopology(connection, this.initialHostSpec, this.instanceTemplatesByRegion);
   }
 }

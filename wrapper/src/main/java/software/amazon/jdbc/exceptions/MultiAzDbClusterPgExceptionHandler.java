@@ -23,20 +23,18 @@ import java.util.List;
 public class MultiAzDbClusterPgExceptionHandler extends AbstractPgExceptionHandler {
 
   // The following SQL States for Postgresql are considered as "communication" errors
-  private static final List<String> NETWORK_ERRORS =
-      Arrays.asList(
-          "28000", // 28000 for access denied during reboot, this should be considered as a
-          // temporary failure
-          "53", // insufficient resources
-          "57P01", // admin shutdown
-          "57P02", // crash shutdown
-          "57P03", // cannot connect now
-          "58", // system error (backend)
-          "08", // connection error
-          "99", // unexpected error
-          "F0", // configuration file error (backend)
-          "XX" // internal error (backend)
-          );
+  private static final List<String> NETWORK_ERRORS = Arrays.asList(
+      "28000", // 28000 for access denied during reboot, this should be considered as a temporary failure
+      "53", // insufficient resources
+      "57P01", // admin shutdown
+      "57P02", // crash shutdown
+      "57P03", // cannot connect now
+      "58", // system error (backend)
+      "08", // connection error
+      "99", // unexpected error
+      "F0", // configuration file error (backend)
+      "XX" // internal error (backend)
+  );
 
   private static final List<String> ACCESS_ERRORS = Collections.singletonList("28P01");
 

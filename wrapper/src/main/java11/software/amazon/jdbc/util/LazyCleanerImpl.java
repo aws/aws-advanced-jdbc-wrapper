@@ -21,16 +21,18 @@ import java.time.Duration;
 import java.util.concurrent.ThreadFactory;
 import java.util.logging.Logger;
 
-/** Java 11+ implementation using java.lang.ref.Cleaner. */
+/**
+ * Java 11+ implementation using java.lang.ref.Cleaner.
+ */
 public class LazyCleanerImpl implements LazyCleaner {
 
-  private static final Logger LOGGER =
-      Logger.getLogger(LazyCleanerImpl.class.getName() + "-java11");
+  private static final Logger LOGGER = Logger.getLogger(LazyCleanerImpl.class.getName() + "-java11");
 
   private static final LazyCleanerImpl instance =
       new LazyCleanerImpl(
           Duration.ofMillis(Long.getLong("aws.jdbc.cleanup.thread.ttl", 30000)),
-          "AWS-JDBC-Cleaner");
+          "AWS-JDBC-Cleaner"
+      );
 
   private final Cleaner cleaner;
 
@@ -39,13 +41,11 @@ public class LazyCleanerImpl implements LazyCleaner {
   }
 
   public LazyCleanerImpl(Duration threadTtl, final String threadName) {
-    this(
-        threadTtl,
-        runnable -> {
-          Thread thread = new Thread(runnable, threadName);
-          thread.setDaemon(true);
-          return thread;
-        });
+    this(threadTtl, runnable -> {
+      Thread thread = new Thread(runnable, threadName);
+      thread.setDaemon(true);
+      return thread;
+    });
   }
 
   private LazyCleanerImpl(Duration threadTtl, ThreadFactory threadFactory) {
@@ -53,18 +53,14 @@ public class LazyCleanerImpl implements LazyCleaner {
   }
 
   public Cleanable register(Object obj, CleaningAction action) {
-    return new CleanableWrapper(
-        cleaner.register(
-            obj,
-            () -> {
-              try {
-                action.onClean(true);
-              } catch (Throwable e) {
-                // Cleaner swallows exceptions, but we should at least log them
-                // The logging is handled by the action itself
-              }
-            }),
-        action);
+    return new CleanableWrapper(cleaner.register(obj, () -> {
+      try {
+        action.onClean(true);
+      } catch (Throwable e) {
+        // Cleaner swallows exceptions, but we should at least log them
+        // The logging is handled by the action itself
+      }
+    }), action);
   }
 
   private static class CleanableWrapper implements Cleanable {

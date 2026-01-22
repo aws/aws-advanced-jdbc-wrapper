@@ -37,6 +37,5 @@ public interface ConnectRouting {
       boolean useForceConnect,
       JdbcCallable<Connection, SQLException> connectFunc,
       StorageService storageService,
-      PluginService pluginService)
-      throws SQLException;
+      PluginService pluginService) throws SQLException;
 }

@@ -33,9 +33,10 @@ public class ConnectionProviderManager {
    * {@link ConnectionProviderManager} constructor.
    *
    * @param defaultProvider the default {@link ConnectionProvider} to use if a non-default
-   *     ConnectionProvider has not been set or the non-default ConnectionProvider has been set but
-   *     does not accept a requested URL
+   *                        ConnectionProvider has not been set or the non-default
+   *                        ConnectionProvider has been set but does not accept a requested URL
    * @param effectiveConnProvider the non-default {@link ConnectionProvider} to use
+   *
    */
   public ConnectionProviderManager(
       final ConnectionProvider defaultProvider,
@@ -47,13 +48,13 @@ public class ConnectionProviderManager {
   /**
    * Get the {@link ConnectionProvider} to use to establish a connection using the given driver
    * protocol, host details, and properties. If a non-default ConnectionProvider has been set using
-   * {@link Driver#setCustomConnectionProvider} and {@link ConnectionProvider#acceptsUrl} returns
-   * true, the non-default ConnectionProvider will be returned. Otherwise, the default
-   * ConnectionProvider will be returned. See {@link ConnectionProvider#acceptsUrl} for more info.
+   * {@link Driver#setCustomConnectionProvider} and {@link ConnectionProvider#acceptsUrl} returns true, the
+   * non-default ConnectionProvider will be returned. Otherwise, the default ConnectionProvider will
+   * be returned. See {@link ConnectionProvider#acceptsUrl} for more info.
    *
    * @param driverProtocol the driver protocol that will be used to establish the connection
-   * @param host the host info for the connection that will be established
-   * @param props the connection properties for the connection that will be established
+   * @param host           the host info for the connection that will be established
+   * @param props          the connection properties for the connection that will be established
    * @return the {@link ConnectionProvider} to use to establish a connection using the given driver
    *     protocol, host details, and properties
    */
@@ -61,13 +62,11 @@ public class ConnectionProviderManager {
       String driverProtocol, HostSpec host, Properties props) {
 
     final ConnectionProvider customConnectionProvider = Driver.getCustomConnectionProvider();
-    if (customConnectionProvider != null
-        && customConnectionProvider.acceptsUrl(driverProtocol, host, props)) {
+    if (customConnectionProvider != null && customConnectionProvider.acceptsUrl(driverProtocol, host, props)) {
       return customConnectionProvider;
     }
 
-    if (this.effectiveConnProvider != null
-        && this.effectiveConnProvider.acceptsUrl(driverProtocol, host, props)) {
+    if (this.effectiveConnProvider != null && this.effectiveConnProvider.acceptsUrl(driverProtocol, host, props)) {
       return this.effectiveConnProvider;
     }
 
@@ -87,7 +86,7 @@ public class ConnectionProviderManager {
    * Returns a boolean indicating if the available {@link ConnectionProvider} instances support the
    * selection of a host with the requested role and strategy via {@link #getHostSpecByStrategy}.
    *
-   * @param role the desired host role
+   * @param role     the desired host role
    * @param strategy the strategy that should be used to pick a host (eg "random")
    * @return true if the available {@link ConnectionProvider} instances support the selection of a
    *     host with the requested role and strategy via {@link #getHostSpecByStrategy}. Otherwise,
@@ -95,13 +94,11 @@ public class ConnectionProviderManager {
    */
   public boolean acceptsStrategy(HostRole role, String strategy) {
     final ConnectionProvider customConnectionProvider = Driver.getCustomConnectionProvider();
-    if (customConnectionProvider != null
-        && customConnectionProvider.acceptsStrategy(role, strategy)) {
+    if (customConnectionProvider != null && customConnectionProvider.acceptsStrategy(role, strategy)) {
       return true;
     }
 
-    if (this.effectiveConnProvider != null
-        && this.effectiveConnProvider.acceptsStrategy(role, strategy)) {
+    if (this.effectiveConnProvider != null && this.effectiveConnProvider.acceptsStrategy(role, strategy)) {
       return true;
     }
 
@@ -110,42 +107,39 @@ public class ConnectionProviderManager {
 
   /**
    * Select a {@link HostSpec} with the desired role from the given hosts using the requested
-   * strategy. {@link #acceptsStrategy} should be called first to evaluate if the available {@link
-   * ConnectionProvider} instances support the selection of a host with the requested role and
-   * strategy.
+   * strategy. {@link #acceptsStrategy} should be called first to evaluate if the available
+   * {@link ConnectionProvider} instances support the selection of a host with the requested role
+   * and strategy.
    *
-   * @param hosts the list of hosts to select from
-   * @param role the desired role of the host - either a writer or a reader
+   * @param hosts    the list of hosts to select from
+   * @param role     the desired role of the host - either a writer or a reader
    * @param strategy the strategy that should be used to select a {@link HostSpec} from the host
-   *     list (eg "random")
-   * @param props any properties that are required by the provided strategy to select a host
+   *                 list (eg "random")
+   * @param props    any properties that are required by the provided strategy to select a host
    * @return a {@link HostSpec} with the requested role
-   * @throws SQLException if the available {@link ConnectionProvider} instances cannot find a host
-   *     in the host list matching the requested role or an error occurs while selecting a host
+   * @throws SQLException                  if the available {@link ConnectionProvider} instances
+   *                                       cannot find a host in the host list matching the
+   *                                       requested role or an error occurs while selecting a host
    * @throws UnsupportedOperationException if the available {@link ConnectionProvider} instances do
-   *     not support the requested strategy
+   *                                       not support the requested strategy
    */
-  public HostSpec getHostSpecByStrategy(
-      List<HostSpec> hosts, HostRole role, String strategy, Properties props)
+  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy, Properties props)
       throws SQLException, UnsupportedOperationException {
     HostSpec host = null;
     final ConnectionProvider customConnectionProvider = Driver.getCustomConnectionProvider();
     try {
-      if (customConnectionProvider != null
-          && customConnectionProvider.acceptsStrategy(role, strategy)) {
+      if (customConnectionProvider != null && customConnectionProvider.acceptsStrategy(role, strategy)) {
         host = customConnectionProvider.getHostSpecByStrategy(hosts, role, strategy, props);
       }
     } catch (UnsupportedOperationException e) {
-      // The custom provider does not support the provided strategy, ignore it and try with the
-      // other providers.
+      // The custom provider does not support the provided strategy, ignore it and try with the other providers.
     }
 
     if (host != null) {
       return host;
     }
 
-    if (this.effectiveConnProvider != null
-        && this.effectiveConnProvider.acceptsStrategy(role, strategy)) {
+    if (this.effectiveConnProvider != null && this.effectiveConnProvider.acceptsStrategy(role, strategy)) {
       host = this.effectiveConnProvider.getHostSpecByStrategy(hosts, role, strategy, props);
       if (host != null) {
         return host;
@@ -155,7 +149,9 @@ public class ConnectionProviderManager {
     return this.defaultProvider.getHostSpecByStrategy(hosts, role, strategy, props);
   }
 
-  /** Releases any resources held by the available {@link ConnectionProvider} instances. */
+  /**
+   * Releases any resources held by the available {@link ConnectionProvider} instances.
+   */
   public static void releaseResources() {
     final ConnectionProvider customConnectionProvider = Driver.getCustomConnectionProvider();
     if (customConnectionProvider instanceof CanReleaseResources) {
@@ -167,8 +163,7 @@ public class ConnectionProviderManager {
       final @Nullable Connection connection,
       final @NonNull String protocol,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props)
-      throws SQLException {
+      final @NonNull Properties props) throws SQLException {
 
     final ConnectionInitFunc connectionInitFunc = Driver.getConnectionInitFunc();
     if (connectionInitFunc == null) {
@@ -183,7 +178,6 @@ public class ConnectionProviderManager {
         final @Nullable Connection connection,
         final @NonNull String protocol,
         final @NonNull HostSpec hostSpec,
-        final @NonNull Properties props)
-        throws SQLException;
+        final @NonNull Properties props) throws SQLException;
   }
 }

@@ -351,7 +351,10 @@ public class DriverHelper {
     try {
       Class.forName(DriverHelper.getDriverClassname(engine));
     } catch (ClassNotFoundException e) {
-      throw new RuntimeException("Driver not found: " + DriverHelper.getDriverClassname(engine), e);
+      throw new RuntimeException(
+          "Driver not found: "
+              + DriverHelper.getDriverClassname(engine),
+          e);
     }
   }
 
@@ -388,29 +391,25 @@ public class DriverHelper {
     switch (info.getRequest().getDatabaseEngineDeployment()) {
       case AURORA:
       case RDS_MULTI_AZ_CLUSTER:
-        url =
-            String.format(
-                "%s%s:%d/%s",
-                DriverHelper.getDriverProtocol(info.getRequest().getDatabaseEngine()),
-                info.getDatabaseInfo().getClusterEndpoint(),
-                info.getDatabaseInfo().getClusterEndpointPort(),
-                info.getDatabaseInfo().getDefaultDbName());
+        url = String.format(
+            "%s%s:%d/%s",
+            DriverHelper.getDriverProtocol(info.getRequest().getDatabaseEngine()),
+            info.getDatabaseInfo().getClusterEndpoint(),
+            info.getDatabaseInfo().getClusterEndpointPort(),
+            info.getDatabaseInfo().getDefaultDbName());
         break;
       case DOCKER:
       case RDS_MULTI_AZ_INSTANCE:
-        url =
-            String.format(
-                "%s%s:%d/%s",
-                DriverHelper.getDriverProtocol(info.getRequest().getDatabaseEngine()),
-                info.getDatabaseInfo().getInstances().get(0).getHost(),
-                info.getDatabaseInfo().getInstances().get(0).getPort(),
-                info.getDatabaseInfo().getDefaultDbName());
+        url = String.format(
+            "%s%s:%d/%s",
+            DriverHelper.getDriverProtocol(info.getRequest().getDatabaseEngine()),
+            info.getDatabaseInfo().getInstances().get(0).getHost(),
+            info.getDatabaseInfo().getInstances().get(0).getPort(),
+            info.getDatabaseInfo().getDefaultDbName());
         break;
       default:
-        throw new UnsupportedOperationException(
-            info.getRequest().getDatabaseEngineDeployment().toString());
+        throw new UnsupportedOperationException(info.getRequest().getDatabaseEngineDeployment().toString());
     }
-    return DriverManager.getConnection(
-        url, info.getDatabaseInfo().getUsername(), info.getDatabaseInfo().getPassword());
+    return DriverManager.getConnection(url, info.getDatabaseInfo().getUsername(), info.getDatabaseInfo().getPassword());
   }
 }

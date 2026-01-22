@@ -29,8 +29,7 @@ public abstract class BaseRouting {
   }
 
   @SuppressWarnings("SynchronizationOnLocalVariableOrMethodParameter")
-  protected void delay(
-      long delayMs, BlueGreenStatus bgStatus, StorageService storageService, String bgdId)
+  protected void delay(long delayMs, BlueGreenStatus bgStatus, StorageService storageService, String bgdId)
       throws InterruptedException {
 
     long start = System.nanoTime();
@@ -46,10 +45,10 @@ public abstract class BaseRouting {
           bgStatus.wait(minDelay);
         }
       } while (
-      // check if status reference is changed
-      bgStatus == storageService.get(BlueGreenStatus.class, bgdId)
-          && System.nanoTime() < end
-          && !Thread.currentThread().isInterrupted());
+        // check if status reference is changed
+        bgStatus == storageService.get(BlueGreenStatus.class, bgdId)
+            && System.nanoTime() < end
+            && !Thread.currentThread().isInterrupted());
     }
   }
 }

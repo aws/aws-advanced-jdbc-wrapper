@@ -113,7 +113,6 @@ public interface SessionStateService {
   // Apply current session state (of the current connection) to a new connection.
   void applyCurrentSessionState(final Connection newConnection) throws SQLException;
 
-  // Apply pristine values to the provided connection (practically resetting the connection to its
-  // original state).
+  // Apply pristine values to the provided connection (practically resetting the connection to its original state).
   void applyPristineSessionState(final Connection connection) throws SQLException;
 }

@@ -44,8 +44,8 @@ public class BlueGreenStatus {
   // all known host names; host with no port
   private final Map<String, BlueGreenRole> roleByHost = new ConcurrentHashMap<>();
 
-  private final Map<String, Pair<HostSpec, HostSpec>> correspondingNodes =
-      new ConcurrentHashMap<>();
+  private final Map<String, Pair<HostSpec, HostSpec>> correspondingNodes = new ConcurrentHashMap<>();
+
 
   public BlueGreenStatus(final String bgdId, final BlueGreenPhase phase) {
     this(bgdId, phase, new ArrayList<>(), new ArrayList<>(), new HashMap<>(), new HashMap<>());
@@ -93,21 +93,15 @@ public class BlueGreenStatus {
 
   @Override
   public String toString() {
-    String roleByHostMap =
-        this.roleByHost.entrySet().stream()
-            .map(x -> String.format("%s -> %s", x.getKey(), x.getValue()))
-            .collect(Collectors.joining("\n   "));
-    String connectRoutingStr =
-        this.unmodifiableConnectRouting.stream()
-            .map(Object::toString)
-            .collect(Collectors.joining("\n   "));
-    String executeRoutingStr =
-        this.unmodifiableExecuteRouting.stream()
-            .map(Object::toString)
-            .collect(Collectors.joining("\n   "));
+    String roleByHostMap = this.roleByHost.entrySet().stream()
+        .map(x -> String.format("%s -> %s", x.getKey(), x.getValue()))
+        .collect(Collectors.joining("\n   "));
+    String connectRoutingStr = this.unmodifiableConnectRouting.stream().map(Object::toString)
+        .collect(Collectors.joining("\n   "));
+    String executeRoutingStr = this.unmodifiableExecuteRouting.stream().map(Object::toString)
+        .collect(Collectors.joining("\n   "));
 
-    return String.format(
-        "%s [\n"
+    return String.format("%s [\n"
             + " bgdId: '%s', \n"
             + " phase: %s, \n"
             + " Connect routing: \n"

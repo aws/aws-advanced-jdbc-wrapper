@@ -30,18 +30,21 @@ import software.amazon.jdbc.util.Messages;
 public class TargetDriverHelper {
 
   /**
-   * The method returns a driver for specified url. If driver couldn't be found, the method tries to
-   * identify a driver that corresponds to an url and register it. Registration of the driver could
-   * be disabled by provided configuration properties. If driver couldn't be found and couldn't be
-   * registered, the method raises an exception.
+   * The method returns a driver for specified url. If driver couldn't be found,
+   * the method tries to identify a driver that corresponds to an url and register it.
+   * Registration of the driver could be disabled by provided configuration properties.
+   * If driver couldn't be found and couldn't be registered, the method raises an exception.
    *
    * @param driverUrl A driver connection string.
    * @param props Connection properties
    * @return A target driver
+   *
    * @throws SQLException when a driver couldn't be found.
    */
   public java.sql.Driver getTargetDriver(
-      final @NonNull String driverUrl, final @NonNull Properties props) throws SQLException {
+      final @NonNull String driverUrl,
+      final @NonNull Properties props)
+      throws SQLException {
 
     final ConnectionUrlParser parser = new ConnectionUrlParser();
     final String protocol = parser.getProtocol(driverUrl);
@@ -57,14 +60,12 @@ public class TargetDriverHelper {
       lastException = e;
     }
 
-    // If the driver isn't found, it's possible to register a driver that corresponds to the
-    // protocol
+    // If the driver isn't found, it's possible to register a driver that corresponds to the protocol
     // and try again.
     if (targetDriver == null) {
       boolean triedToRegister = targetDriverDialectManager.registerDriver(protocol, props);
       if (triedToRegister) {
-        // There was an attempt to register a corresponding to the protocol driver. Try to find the
-        // driver again.
+        // There was an attempt to register a corresponding to the protocol driver. Try to find the driver again.
         try {
           targetDriver = DriverManager.getDriver(driverUrl);
         } catch (SQLException e) {
@@ -75,13 +76,12 @@ public class TargetDriverHelper {
 
     // The driver is not found yet. Let's raise an exception.
     if (targetDriver == null) {
-      final List<String> registeredDrivers =
-          Collections.list(DriverManager.getDrivers()).stream()
-              .map(x -> x.getClass().getName())
-              .collect(Collectors.toList());
+      final List<String> registeredDrivers = Collections.list(DriverManager.getDrivers())
+          .stream()
+          .map(x -> x.getClass().getName())
+          .collect(Collectors.toList());
       throw new SQLException(
-          Messages.get("Driver.missingDriver", new Object[] {driverUrl, registeredDrivers}),
-          lastException);
+          Messages.get("Driver.missingDriver", new Object[] {driverUrl, registeredDrivers}), lastException);
     }
 
     return targetDriver;

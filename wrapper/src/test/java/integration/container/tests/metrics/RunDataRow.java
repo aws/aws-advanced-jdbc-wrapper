@@ -26,5 +26,6 @@ public class RunDataRow implements Serializable {
   public long offsetTimeMs;
   public Map<Integer, RunDataNode> nodes;
 
-  public RunDataRow() {}
+  public RunDataRow() {
+  }
 }

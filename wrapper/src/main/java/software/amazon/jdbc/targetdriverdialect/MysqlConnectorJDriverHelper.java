@@ -39,17 +39,14 @@ public class MysqlConnectorJDriverHelper {
   public void prepareDataSource(
       final @NonNull DataSource dataSource,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props)
-      throws SQLException {
+      final @NonNull Properties props) throws SQLException {
 
     if (!(dataSource instanceof MysqlDataSource)) {
-      throw new SQLException(
-          Messages.get(
-              "TargetDriverDialectManager.unexpectedClass",
-              new Object[] {
-                "com.mysql.cj.jdbc.MysqlDataSource, com.mysql.cj.jdbc.MysqlConnectionPoolDataSource",
-                dataSource.getClass().getName()
-              }));
+      throw new SQLException(Messages.get(
+          "TargetDriverDialectManager.unexpectedClass",
+          new Object[] {
+              "com.mysql.cj.jdbc.MysqlDataSource, com.mysql.cj.jdbc.MysqlConnectionPoolDataSource",
+              dataSource.getClass().getName()}));
     }
 
     final MysqlDataSource baseDataSource = (MysqlDataSource) dataSource;
@@ -63,16 +60,14 @@ public class MysqlConnectorJDriverHelper {
       baseDataSource.setPortNumber(hostSpec.getPort());
     }
 
-    Integer loginTimeout =
-        PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.LOGIN_TIMEOUT);
+    Integer loginTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.LOGIN_TIMEOUT);
     if (loginTimeout != null) {
       baseDataSource.setLoginTimeout((int) TimeUnit.MILLISECONDS.toSeconds(loginTimeout));
     }
 
     // keep unknown properties (the ones that don't belong to AWS Wrapper Driver)
     // and try to apply them to data source
-    PropertyDefinition.removeAllExcept(
-        props,
+    PropertyDefinition.removeAllExcept(props,
         PropertyDefinition.USER.name,
         PropertyDefinition.PASSWORD.name,
         PropertyDefinition.TCP_KEEP_ALIVE.name,
@@ -83,7 +78,8 @@ public class MysqlConnectorJDriverHelper {
   }
 
   public boolean isDriverRegistered() throws SQLException {
-    return Collections.list(DriverManager.getDrivers()).stream()
+    return Collections.list(DriverManager.getDrivers())
+        .stream()
         .filter(x -> x instanceof com.mysql.cj.jdbc.Driver)
         .map(x -> true)
         .findAny()

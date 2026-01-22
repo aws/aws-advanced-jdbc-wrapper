@@ -24,10 +24,8 @@ import software.amazon.jdbc.util.FullServicesContainer;
 
 @FunctionalInterface
 public interface HostListProviderSupplier {
-  @NonNull
-  HostListProvider getProvider(
+  @NonNull HostListProvider getProvider(
       final @NonNull Properties properties,
       final String initialUrl,
-      final @NonNull FullServicesContainer servicesContainer)
-      throws SQLException;
+      final @NonNull FullServicesContainer servicesContainer) throws SQLException;
 }

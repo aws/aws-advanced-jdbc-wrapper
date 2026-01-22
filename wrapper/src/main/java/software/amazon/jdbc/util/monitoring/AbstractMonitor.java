@@ -26,7 +26,9 @@ import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
 
-/** An AbstractMonitor that implements common monitor logic. */
+/**
+ * An AbstractMonitor that implements common monitor logic.
+ */
 public abstract class AbstractMonitor implements Monitor, Runnable {
   private static final Logger LOGGER = Logger.getLogger(AbstractMonitor.class.getName());
   protected final AtomicBoolean stop = new AtomicBoolean(false);
@@ -54,9 +56,9 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
   }
 
   /**
-   * Starts the monitor workflow, making sure to set the initial state of the monitor. The monitor's
-   * workflow is wrapped in a try-catch so that unexpected exceptions are reported to the monitor
-   * service and the monitor's state is updated to {@link MonitorState#ERROR}.
+   * Starts the monitor workflow, making sure to set the initial state of the monitor. The monitor's workflow is wrapped
+   * in a try-catch so that unexpected exceptions are reported to the monitor service and the monitor's state is updated
+   * to {@link MonitorState#ERROR}.
    */
   @Override
   public void run() {
@@ -79,12 +81,9 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
     this.stop.set(true);
 
     try {
-      if (!this.monitorExecutor.awaitTermination(
-          this.terminationTimeoutSec.get(), TimeUnit.SECONDS)) {
-        LOGGER.info(
-            Messages.get(
-                "AbstractMonitor.monitorTerminationTimeout",
-                new Object[] {terminationTimeoutSec, this}));
+      if (!this.monitorExecutor.awaitTermination(this.terminationTimeoutSec.get(), TimeUnit.SECONDS)) {
+        LOGGER.info(Messages.get(
+            "AbstractMonitor.monitorTerminationTimeout", new Object[] {terminationTimeoutSec, this}));
         this.monitorExecutor.shutdownNow();
       }
     } catch (InterruptedException e) {
@@ -99,8 +98,7 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
 
   @Override
   public void close() {
-    // do nothing. Classes that extend this class should override this method if they open resources
-    // that need closing.
+    // do nothing. Classes that extend this class should override this method if they open resources that need closing.
   }
 
   @Override
@@ -119,8 +117,8 @@ public abstract class AbstractMonitor implements Monitor, Runnable {
   }
 
   /**
-   * Forms the suffix for the monitor thread name by abbreviating the concrete class name. For
-   * example, a {@link CustomEndpointMonitorImpl} will have a suffix of "cemi".
+   * Forms the suffix for the monitor thread name by abbreviating the concrete class name. For example, a
+   * {@link CustomEndpointMonitorImpl} will have a suffix of "cemi".
    *
    * @return the suffix for the monitor thread name.
    */

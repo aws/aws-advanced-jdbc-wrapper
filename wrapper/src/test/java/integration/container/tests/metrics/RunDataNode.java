@@ -28,5 +28,6 @@ public class RunDataNode implements Serializable {
   public Boolean readOnly;
   public boolean blankTopology;
 
-  public RunDataNode() {}
+  public RunDataNode() {
+  }
 }

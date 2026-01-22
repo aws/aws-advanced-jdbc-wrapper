@@ -26,11 +26,9 @@ import software.amazon.jdbc.PropertyDefinition;
 
 public class DriverMetaDataConnectionPlugin extends AbstractConnectionPlugin {
 
-  public static final AwsWrapperProperty WRAPPER_DRIVER_NAME =
-      new AwsWrapperProperty(
-          "wrapperDriverName",
-          "Amazon Web Services (AWS) Advanced JDBC Wrapper",
-          "Override this value to return a specific driver name for the DatabaseMetaData#getDriverName method");
+  public static final AwsWrapperProperty WRAPPER_DRIVER_NAME = new AwsWrapperProperty(
+      "wrapperDriverName", "Amazon Web Services (AWS) Advanced JDBC Wrapper",
+      "Override this value to return a specific driver name for the DatabaseMetaData#getDriverName method");
 
   private static final String GET_DRIVER_NAME = "DatabaseMetaData.getDriverName";
   private final Properties properties;
@@ -49,14 +47,9 @@ public class DriverMetaDataConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   @Override
-  public <T, E extends Exception> T execute(
-      Class<T> resultClass,
-      Class<E> exceptionClass,
-      Object methodInvokeOn,
-      String methodName,
-      JdbcCallable<T, E> jdbcMethodFunc,
-      Object[] jdbcMethodArgs)
-      throws E {
+  public <T, E extends Exception> T execute(Class<T> resultClass, Class<E> exceptionClass,
+      Object methodInvokeOn, String methodName, JdbcCallable<T, E> jdbcMethodFunc,
+      Object[] jdbcMethodArgs) throws E {
     return resultClass.cast(WRAPPER_DRIVER_NAME.getString(this.properties));
   }
 }

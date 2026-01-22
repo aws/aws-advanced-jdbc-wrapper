@@ -31,14 +31,13 @@ public class OpenTelemetryGauge implements TelemetryGauge {
     this.name = name;
     this.meter = meter;
 
-    this.gauge =
-        this.meter
-            .gaugeBuilder(name)
-            .ofLongs()
-            .buildWithCallback(measurement -> measurement.record(callback.call()));
+    this.gauge = this.meter.gaugeBuilder(name)
+        .ofLongs()
+        .buildWithCallback(measurement -> measurement.record(callback.call()));
   }
 
   public String getName() {
     return name;
   }
+
 }

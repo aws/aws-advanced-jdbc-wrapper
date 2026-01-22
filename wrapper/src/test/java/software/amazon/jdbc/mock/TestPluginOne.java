@@ -122,19 +122,14 @@ public class TestPluginOne implements ConnectionPlugin {
   @Override
   public HostSpec getHostSpecByStrategy(@Nullable HostRole role, String strategy) {
     this.calls.add(this.getClass().getSimpleName() + ":before getHostSpecByStrategy");
-    HostSpec result =
-        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-            .host("host")
-            .port(1234)
-            .role(role)
-            .build();
+    HostSpec result = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("host").port(1234).role(role).build();
     this.calls.add(this.getClass().getSimpleName() + ":after getHostSpecByStrategy");
     return result;
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(
-      List<HostSpec> hosts, @Nullable HostRole role, String strategy) {
+  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, @Nullable HostRole role, String strategy) {
     return getHostSpecByStrategy(role, strategy);
   }
 

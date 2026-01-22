@@ -27,7 +27,6 @@ public class DatabaseMetaDataWrapperFactory implements WrapperFactory {
       @NonNull Object targetObj,
       @NonNull ConnectionWrapper connectionWrapper,
       @NonNull ConnectionPluginManager pluginManager) {
-    return new DatabaseMetaDataWrapper(
-        (DatabaseMetaData) targetObj, connectionWrapper, pluginManager);
+    return new DatabaseMetaDataWrapper((DatabaseMetaData) targetObj, connectionWrapper, pluginManager);
   }
 }

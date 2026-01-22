@@ -38,9 +38,8 @@ public interface WriterFailoverHandler {
   WriterFailoverResult failover(List<HostSpec> currentTopology) throws SQLException;
 
   /**
-   * Get the host availability map for the failover handler. This map will be populated with host
-   * availability information during the failover process and can be used to determine which hosts
-   * are available.
+   * Get the host availability map for the failover handler. This map will be populated with host availability
+   * information during the failover process and can be used to determine which hosts are available.
    *
    * @return the host availability map for the failover handler.
    */

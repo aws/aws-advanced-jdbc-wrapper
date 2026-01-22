@@ -24,8 +24,7 @@ import software.amazon.jdbc.util.FullServicesContainer;
 public class DeveloperConnectionPluginFactory implements ConnectionPluginFactory {
 
   @Override
-  public ConnectionPlugin getInstance(
-      FullServicesContainer fullServicesContainer, Properties props) {
+  public ConnectionPlugin getInstance(FullServicesContainer fullServicesContainer, Properties props) {
     return new DeveloperConnectionPlugin();
   }
 }

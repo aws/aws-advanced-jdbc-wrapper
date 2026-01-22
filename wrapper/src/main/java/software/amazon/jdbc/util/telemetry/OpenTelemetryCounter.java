@@ -47,4 +47,5 @@ public class OpenTelemetryCounter implements TelemetryCounter {
   public String getName() {
     return name;
   }
+
 }

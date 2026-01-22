@@ -56,31 +56,20 @@ class WeightedRandomHostSelectorTests {
     final HostSelector hostSelector = new WeightedRandomHostSelector();
     final Properties props = new Properties();
     final List<HostSpec> emptyHostList = Collections.emptyList();
-    assertThrows(
-        SQLException.class, () -> hostSelector.getHost(emptyHostList, HostRole.WRITER, props));
+    assertThrows(SQLException.class, () -> hostSelector.getHost(emptyHostList, HostRole.WRITER, props));
   }
 
   @Test
   void testGetHost_noEligibleHosts() {
     final HostSelector hostSelector = new WeightedRandomHostSelector();
     final Properties props = new Properties();
-    final List<HostSpec> noEligibleHostsList =
-        Arrays.asList(
-            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-                .host("instance-1")
-                .role(HostRole.READER)
-                .build(),
-            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-                .host("instance-2")
-                .role(HostRole.WRITER)
-                .availability(HostAvailability.NOT_AVAILABLE)
-                .build(),
-            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-                .host("instance-3")
-                .role(HostRole.READER)
-                .build());
-    assertThrows(
-        SQLException.class,
+    final List<HostSpec> noEligibleHostsList = Arrays.asList(
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-1").role(HostRole.READER).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-2").role(HostRole.WRITER)
+            .availability(HostAvailability.NOT_AVAILABLE).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3").role(HostRole.READER).build()
+    );
+    assertThrows(SQLException.class,
         () -> hostSelector.getHost(noEligibleHostsList, HostRole.WRITER, props));
   }
 
@@ -88,27 +77,17 @@ class WeightedRandomHostSelectorTests {
   void testGetHost_invalidWeight() {
     final HostSelector hostSelector = new WeightedRandomHostSelector();
     final Properties props = new Properties();
-    props.setProperty(
-        WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS.name, "instance-1:3,instance-2:2,instance-3:0");
-    final List<HostSpec> eligibleHostsList =
-        Arrays.asList(
-            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-                .host("instance-1")
-                .role(HostRole.WRITER)
-                .availability(HostAvailability.AVAILABLE)
-                .build(),
-            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-                .host("instance-2")
-                .role(HostRole.WRITER)
-                .availability(HostAvailability.AVAILABLE)
-                .build(),
-            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-                .host("instance-3")
-                .role(HostRole.WRITER)
-                .availability(HostAvailability.AVAILABLE)
-                .build());
-    assertThrows(
-        SQLException.class, () -> hostSelector.getHost(eligibleHostsList, HostRole.WRITER, props));
+    props.setProperty(WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS.name, "instance-1:3,instance-2:2,instance-3:0");
+    final List<HostSpec> eligibleHostsList = Arrays.asList(
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-1").role(HostRole.WRITER)
+            .availability(HostAvailability.AVAILABLE).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-2").role(HostRole.WRITER)
+            .availability(HostAvailability.AVAILABLE).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3").role(HostRole.WRITER)
+            .availability(HostAvailability.AVAILABLE).build()
+    );
+    assertThrows(SQLException.class,
+        () -> hostSelector.getHost(eligibleHostsList, HostRole.WRITER, props));
   }
 
   @Test
@@ -116,50 +95,31 @@ class WeightedRandomHostSelectorTests {
     final HostSelector hostSelector = new WeightedRandomHostSelector();
     final Properties props = new Properties();
     props.setProperty(WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS.name, "someInvalidString");
-    final List<HostSpec> eligibleHostsList =
-        Arrays.asList(
-            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-                .host("instance-1")
-                .role(HostRole.WRITER)
-                .availability(HostAvailability.AVAILABLE)
-                .build(),
-            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-                .host("instance-2")
-                .role(HostRole.WRITER)
-                .availability(HostAvailability.AVAILABLE)
-                .build(),
-            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-                .host("instance-3")
-                .role(HostRole.WRITER)
-                .availability(HostAvailability.AVAILABLE)
-                .build());
-    assertThrows(
-        SQLException.class, () -> hostSelector.getHost(eligibleHostsList, HostRole.WRITER, props));
+    final List<HostSpec> eligibleHostsList = Arrays.asList(
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-1").role(HostRole.WRITER)
+            .availability(HostAvailability.AVAILABLE).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-2").role(HostRole.WRITER)
+            .availability(HostAvailability.AVAILABLE).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3").role(HostRole.WRITER)
+            .availability(HostAvailability.AVAILABLE).build()
+    );
+    assertThrows(SQLException.class,
+        () -> hostSelector.getHost(eligibleHostsList, HostRole.WRITER, props));
   }
 
   @Test
   void testGetHost() throws SQLException {
     final WeightedRandomHostSelector hostSelector = new WeightedRandomHostSelector(mockRandom);
     final Properties props = new Properties();
-    props.setProperty(
-        WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS.name, "instance-1:3,instance-2:2,instance-3:01");
-    final List<HostSpec> eligibleHostsList =
-        Arrays.asList(
-            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-                .host("instance-1")
-                .role(HostRole.WRITER)
-                .availability(HostAvailability.AVAILABLE)
-                .build(),
-            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-                .host("instance-2")
-                .role(HostRole.WRITER)
-                .availability(HostAvailability.AVAILABLE)
-                .build(),
-            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-                .host("instance-3")
-                .role(HostRole.WRITER)
-                .availability(HostAvailability.AVAILABLE)
-                .build());
+    props.setProperty(WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS.name, "instance-1:3,instance-2:2,instance-3:01");
+    final List<HostSpec> eligibleHostsList = Arrays.asList(
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-1").role(HostRole.WRITER)
+            .availability(HostAvailability.AVAILABLE).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-2").role(HostRole.WRITER)
+            .availability(HostAvailability.AVAILABLE).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3").role(HostRole.WRITER)
+            .availability(HostAvailability.AVAILABLE).build()
+    );
 
     when(mockRandom.nextInt(anyInt())).thenReturn(1, 2, 3, 4, 5, 6);
 
@@ -187,25 +147,15 @@ class WeightedRandomHostSelectorTests {
     final WeightedRandomHostSelector hostSelector = new WeightedRandomHostSelector(mockRandom);
     final Properties props = new Properties();
 
-    props.setProperty(
-        WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS.name, "instance-1:3,instance-2:2,instance-3:01");
-    final List<HostSpec> eligibleHostsList =
-        Arrays.asList(
-            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-                .host("instance-1")
-                .role(HostRole.WRITER)
-                .availability(HostAvailability.AVAILABLE)
-                .build(),
-            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-                .host("instance-2")
-                .role(HostRole.WRITER)
-                .availability(HostAvailability.AVAILABLE)
-                .build(),
-            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-                .host("instance-3")
-                .role(HostRole.WRITER)
-                .availability(HostAvailability.AVAILABLE)
-                .build());
+    props.setProperty(WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS.name, "instance-1:3,instance-2:2,instance-3:01");
+    final List<HostSpec> eligibleHostsList = Arrays.asList(
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-1").role(HostRole.WRITER)
+            .availability(HostAvailability.AVAILABLE).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-2").role(HostRole.WRITER)
+            .availability(HostAvailability.AVAILABLE).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3").role(HostRole.WRITER)
+            .availability(HostAvailability.AVAILABLE).build()
+    );
 
     when(mockRandom.nextInt(anyInt())).thenReturn(1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 7);
 
@@ -227,8 +177,7 @@ class WeightedRandomHostSelectorTests {
     final HostSpec actualHost6 = hostSelector.getHost(eligibleHostsList, HostRole.WRITER, props);
     assertEquals(eligibleHostsList.get(2).getHost(), actualHost6.getHost());
 
-    props.setProperty(
-        WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS.name, "instance-1:1,instance-2:4,instance-3:2");
+    props.setProperty(WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS.name, "instance-1:1,instance-2:4,instance-3:2");
 
     final HostSpec actualHost7 = hostSelector.getHost(eligibleHostsList, HostRole.WRITER, props);
     assertEquals(eligibleHostsList.get(0).getHost(), actualHost7.getHost());

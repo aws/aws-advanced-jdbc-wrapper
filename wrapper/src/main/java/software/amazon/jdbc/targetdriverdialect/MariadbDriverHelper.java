@@ -35,7 +35,8 @@ import software.amazon.jdbc.util.PropertyUtils;
 
 public class MariadbDriverHelper {
 
-  private static final Logger LOGGER = Logger.getLogger(MariadbDriverHelper.class.getName());
+  private static final Logger LOGGER =
+      Logger.getLogger(MariadbDriverHelper.class.getName());
 
   private static final String LOGIN_TIMEOUT = "loginTimeout";
   private static final String DS_CLASS_NAME = MariaDbDataSource.class.getName();
@@ -45,8 +46,7 @@ public class MariadbDriverHelper {
       final @NonNull DataSource dataSource,
       final @NonNull String protocol,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props)
-      throws SQLException {
+      final @NonNull Properties props) throws SQLException {
 
     if (dataSource instanceof MariaDbDataSource) {
       final MariaDbDataSource mariaDbDataSource = (MariaDbDataSource) dataSource;
@@ -60,16 +60,14 @@ public class MariadbDriverHelper {
         props.remove(LOGIN_TIMEOUT);
       }
 
-      Integer loginTimeout =
-          PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.LOGIN_TIMEOUT);
+      Integer loginTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.LOGIN_TIMEOUT);
       if (loginTimeout != null) {
         mariaDbDataSource.setLoginTimeout((int) TimeUnit.MILLISECONDS.toSeconds(loginTimeout));
       }
 
       // keep unknown properties (the ones that don't belong to AWS Wrapper Driver)
       // and include them to connect URL.
-      PropertyDefinition.removeAllExcept(
-          props,
+      PropertyDefinition.removeAllExcept(props,
           PropertyDefinition.DATABASE.name,
           PropertyDefinition.TCP_KEEP_ALIVE.name,
           PropertyDefinition.CONNECT_TIMEOUT.name,
@@ -92,16 +90,14 @@ public class MariadbDriverHelper {
         props.remove(LOGIN_TIMEOUT);
       }
 
-      Integer loginTimeout =
-          PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.LOGIN_TIMEOUT);
+      Integer loginTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.LOGIN_TIMEOUT);
       if (loginTimeout != null) {
         mariaDbPoolDataSource.setLoginTimeout((int) TimeUnit.MILLISECONDS.toSeconds(loginTimeout));
       }
 
       // keep unknown properties (the ones that don't belong to AWS Wrapper Driver)
       // and include them to connect URL.
-      PropertyDefinition.removeAllExcept(
-          props,
+      PropertyDefinition.removeAllExcept(props,
           PropertyDefinition.DATABASE.name,
           PropertyDefinition.TCP_KEEP_ALIVE.name,
           PropertyDefinition.CONNECT_TIMEOUT.name,
@@ -112,17 +108,15 @@ public class MariadbDriverHelper {
       mariaDbPoolDataSource.setUrl(finalUrl);
 
     } else {
-      throw new SQLException(
-          Messages.get(
-              "TargetDriverDialectManager.unexpectedClass",
-              new Object[] {
-                DS_CLASS_NAME + ", " + DS_CP_CLASS_NAME, dataSource.getClass().getName()
-              }));
+      throw new SQLException(Messages.get(
+          "TargetDriverDialectManager.unexpectedClass",
+          new Object[] { DS_CLASS_NAME + ", " + DS_CP_CLASS_NAME, dataSource.getClass().getName() }));
     }
   }
 
   public boolean isDriverRegistered() throws SQLException {
-    return Collections.list(DriverManager.getDrivers()).stream()
+    return Collections.list(DriverManager.getDrivers())
+        .stream()
         .filter(x -> x instanceof org.mariadb.jdbc.Driver)
         .map(x -> true)
         .findAny()

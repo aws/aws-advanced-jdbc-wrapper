@@ -68,30 +68,29 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(FailoverConnectionPlugin.class.getName());
   private static final String TELEMETRY_WRITER_FAILOVER = "failover to writer node";
   private static final String TELEMETRY_READER_FAILOVER = "failover to replica";
-  private static final Set<String> METHODS_REQUIRING_UPDATED_TOPOLOGY =
-      Collections.unmodifiableSet(
-          new HashSet<>(
-              Arrays.asList(
-                  JdbcMethod.CONNECTION_COMMIT.methodName,
-                  JdbcMethod.CONNECT.methodName,
-                  JdbcMethod.CONNECTION_ISVALID.methodName,
-                  JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName,
-                  JdbcMethod.CONNECTION_SETREADONLY.methodName,
-                  JdbcMethod.STATEMENT_EXECUTE.methodName,
-                  JdbcMethod.STATEMENT_EXECUTEBATCH.methodName,
-                  JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
-                  JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName,
-                  JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName,
-                  JdbcMethod.PREPAREDSTATEMENT_EXECUTEBATCH.methodName,
-                  JdbcMethod.PREPAREDSTATEMENT_EXECUTELARGEUPDATE.methodName,
-                  JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName,
-                  JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName,
-                  JdbcMethod.PREPAREDSTATEMENT_GETPARAMETERMETADATA.methodName,
-                  JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
-                  JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE.methodName,
-                  JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName,
-                  JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName,
-                  JdbcMethod.CALLABLESTATEMENT_EXECUTEBATCH.methodName)));
+  private static final Set<String> METHODS_REQUIRING_UPDATED_TOPOLOGY = Collections.unmodifiableSet(
+      new HashSet<>(Arrays.asList(
+          JdbcMethod.CONNECTION_COMMIT.methodName,
+          JdbcMethod.CONNECT.methodName,
+          JdbcMethod.CONNECTION_ISVALID.methodName,
+          JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName,
+          JdbcMethod.CONNECTION_SETREADONLY.methodName,
+          JdbcMethod.STATEMENT_EXECUTE.methodName,
+          JdbcMethod.STATEMENT_EXECUTEBATCH.methodName,
+          JdbcMethod.STATEMENT_EXECUTEQUERY.methodName,
+          JdbcMethod.STATEMENT_EXECUTEUPDATE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTEBATCH.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTELARGEUPDATE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTEQUERY.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_EXECUTEUPDATE.methodName,
+          JdbcMethod.PREPAREDSTATEMENT_GETPARAMETERMETADATA.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTELARGEUPDATE.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTEUPDATE.methodName,
+          JdbcMethod.CALLABLESTATEMENT_EXECUTEBATCH.methodName
+      )));
 
   private final Set<String> subscribedMethods;
   private final PluginService pluginService;
@@ -132,7 +131,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   public static final AwsWrapperProperty FAILOVER_TIMEOUT_MS =
       new AwsWrapperProperty(
-          "failoverTimeoutMs", "300000", "Maximum allowed time for the failover process.");
+          "failoverTimeoutMs",
+          "300000",
+          "Maximum allowed time for the failover process.");
 
   public static final AwsWrapperProperty FAILOVER_WRITER_RECONNECT_INTERVAL_MS =
       new AwsWrapperProperty(
@@ -149,29 +150,29 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   public static final AwsWrapperProperty ENABLE_CLUSTER_AWARE_FAILOVER =
       new AwsWrapperProperty(
-          "enableClusterAwareFailover", "true", "Enable/disable cluster-aware failover logic");
+          "enableClusterAwareFailover", "true",
+          "Enable/disable cluster-aware failover logic");
 
   public static final AwsWrapperProperty ENABLE_CONNECT_FAILOVER =
       new AwsWrapperProperty(
-          "enableConnectFailover",
-          "false",
+          "enableConnectFailover", "false",
           "Enable/disable cluster-aware failover if the initial connection to the database fails due to a "
               + "network exception. Note that this may result in a connection to a different instance in the cluster "
               + "than was specified by the URL.");
 
   public static final AwsWrapperProperty FAILOVER_MODE =
-      new AwsWrapperProperty("failoverMode", null, "Set node role to follow during failover.");
+      new AwsWrapperProperty(
+          "failoverMode", null,
+          "Set node role to follow during failover.");
 
   public static final AwsWrapperProperty TELEMETRY_FAILOVER_ADDITIONAL_TOP_TRACE =
       new AwsWrapperProperty(
-          "telemetryFailoverAdditionalTopTrace",
-          "false",
+          "telemetryFailoverAdditionalTopTrace", "false",
           "Post an additional top-level trace for failover process.");
 
   public static final AwsWrapperProperty SKIP_FAILOVER_ON_INTERRUPTED_THREAD =
       new AwsWrapperProperty(
-          "skipFailoverOnInterruptedThread",
-          "false",
+          "skipFailoverOnInterruptedThread", "false",
           "Enable to skip failover if the current thread is interrupted.");
 
   private final TelemetryCounter failoverWriterTriggeredCounter;
@@ -187,8 +188,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     PropertyDefinition.registerPluginProperties(FailoverConnectionPlugin.class);
   }
 
-  public FailoverConnectionPlugin(
-      final FullServicesContainer servicesContainer, final Properties properties) {
+  public FailoverConnectionPlugin(final FullServicesContainer servicesContainer, final Properties properties) {
     this(servicesContainer, properties, new RdsUtils());
   }
 
@@ -222,24 +222,17 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       methods.add(JdbcMethod.CONNECT.methodName);
       methods.add(JdbcMethod.NOTIFYCONNECTIONCHANGED.methodName);
       methods.add(JdbcMethod.NOTIFYNODELISTCHANGED.methodName);
-      methods.addAll(
-          this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.properties));
+      methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.properties));
     }
     this.subscribedMethods = Collections.unmodifiableSet(methods);
 
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
-    this.failoverWriterTriggeredCounter =
-        telemetryFactory.createCounter("writerFailover.triggered.count");
-    this.failoverWriterSuccessCounter =
-        telemetryFactory.createCounter("writerFailover.completed.success.count");
-    this.failoverWriterFailedCounter =
-        telemetryFactory.createCounter("writerFailover.completed.failed.count");
-    this.failoverReaderTriggeredCounter =
-        telemetryFactory.createCounter("readerFailover.triggered.count");
-    this.failoverReaderSuccessCounter =
-        telemetryFactory.createCounter("readerFailover.completed.success.count");
-    this.failoverReaderFailedCounter =
-        telemetryFactory.createCounter("readerFailover.completed.failed.count");
+    this.failoverWriterTriggeredCounter = telemetryFactory.createCounter("writerFailover.triggered.count");
+    this.failoverWriterSuccessCounter = telemetryFactory.createCounter("writerFailover.completed.success.count");
+    this.failoverWriterFailedCounter = telemetryFactory.createCounter("writerFailover.completed.failed.count");
+    this.failoverReaderTriggeredCounter = telemetryFactory.createCounter("readerFailover.triggered.count");
+    this.failoverReaderSuccessCounter = telemetryFactory.createCounter("readerFailover.completed.success.count");
+    this.failoverReaderFailedCounter = telemetryFactory.createCounter("readerFailover.completed.failed.count");
   }
 
   @Override
@@ -383,18 +376,16 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         }
       }
 
-      LOGGER.fine(() -> Messages.get("Failover.invalidNode", new Object[] {currentHost}));
+      LOGGER.fine(() -> Messages.get("Failover.invalidNode", new Object[]{currentHost}));
     } finally {
       this.staleDnsHelper.notifyNodeListChanged(changes);
     }
   }
 
-  private boolean isNodeStillValid(
-      final String node, final Map<String, EnumSet<NodeChangeOptions>> changes) {
+  private boolean isNodeStillValid(final String node, final Map<String, EnumSet<NodeChangeOptions>> changes) {
     if (changes.containsKey(node)) {
       final EnumSet<NodeChangeOptions> options = changes.get(node);
-      return !options.contains(NodeChangeOptions.NODE_DELETED)
-          && !options.contains(NodeChangeOptions.WENT_DOWN);
+      return !options.contains(NodeChangeOptions.NODE_DELETED) && !options.contains(NodeChangeOptions.WENT_DOWN);
     }
     return true;
   }
@@ -412,14 +403,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     this.failoverTimeoutMsSetting = FAILOVER_TIMEOUT_MS.getInteger(this.properties);
     this.failoverClusterTopologyRefreshRateMsSetting =
         FAILOVER_CLUSTER_TOPOLOGY_REFRESH_RATE_MS.getInteger(this.properties);
-    this.failoverWriterReconnectIntervalMsSetting =
-        FAILOVER_WRITER_RECONNECT_INTERVAL_MS.getInteger(this.properties);
-    this.failoverReaderConnectTimeoutMsSetting =
-        FAILOVER_READER_CONNECT_TIMEOUT_MS.getInteger(this.properties);
+    this.failoverWriterReconnectIntervalMsSetting = FAILOVER_WRITER_RECONNECT_INTERVAL_MS.getInteger(this.properties);
+    this.failoverReaderConnectTimeoutMsSetting = FAILOVER_READER_CONNECT_TIMEOUT_MS.getInteger(this.properties);
     this.telemetryFailoverAdditionalTopTraceSetting =
         TELEMETRY_FAILOVER_ADDITIONAL_TOP_TRACE.getBoolean(this.properties);
-    this.skipFailoverOnInterruptedThread =
-        SKIP_FAILOVER_ON_INTERRUPTED_THREAD.getBoolean(this.properties);
+    this.skipFailoverOnInterruptedThread = SKIP_FAILOVER_ON_INTERRUPTED_THREAD.getBoolean(this.properties);
   }
 
   protected void initFailoverMode() {
@@ -429,16 +417,15 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       this.rdsUrlType = this.rdsHelper.identifyRdsType(initialHostSpec.getHost());
 
       if (this.failoverMode == null) {
-        this.failoverMode =
-            this.rdsUrlType == RdsUrlType.RDS_READER_CLUSTER
-                ? FailoverMode.READER_OR_WRITER
-                : FailoverMode.STRICT_WRITER;
+        this.failoverMode = this.rdsUrlType == RdsUrlType.RDS_READER_CLUSTER
+            ? FailoverMode.READER_OR_WRITER
+            : FailoverMode.STRICT_WRITER;
       }
 
       LOGGER.finer(
-          () ->
-              Messages.get(
-                  "Failover.parameterValue", new Object[] {"failoverMode", this.failoverMode}));
+          () -> Messages.get(
+              "Failover.parameterValue",
+              new Object[]{"failoverMode", this.failoverMode}));
     }
   }
 
@@ -484,9 +471,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   /**
-   * Updating topology requires creating and executing a new statement. This may cause interruptions
-   * during certain workflows. For instance, the driver should not be updating topology while the
-   * connection is fetching a large streaming result set.
+   * Updating topology requires creating and executing a new statement.
+   * This may cause interruptions during certain workflows. For instance,
+   * the driver should not be updating topology while the connection is fetching a large streaming result set.
    *
    * @param methodName the method to check.
    * @return true if the driver should update topology before executing the method; false otherwise.
@@ -498,10 +485,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   /**
    * Connects this dynamic failover connection proxy to the host pointed out by the given host
    * index.
-   *
-   * <p>The method assumes that current connection is not setup. If it's not true, a session state
-   * transfer from the current connection to a new one may be necessary. This should be handled by
-   * callee.
+   * <p></p>
+   * The method assumes that current connection is not setup. If it's not true, a session state
+   * transfer from the current connection to a new one may be necessary. This should be handled by callee.
    *
    * @param host The host.
    * @throws SQLException if an error occurs
@@ -510,15 +496,17 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     try {
       this.pluginService.setCurrentConnection(createConnectionForHost(host), host);
 
-      LOGGER.fine(() -> Messages.get("Failover.establishedConnection", new Object[] {host}));
+      LOGGER.fine(
+          () -> Messages.get(
+              "Failover.establishedConnection",
+              new Object[]{host}));
     } catch (final SQLException e) {
       if (this.pluginService.getCurrentConnection() != null) {
-        final String msg =
-            "Connection to "
-                + (isWriter(host) ? "writer" : "reader")
-                + " host '"
-                + host.getUrl()
-                + "' failed";
+        final String msg = "Connection to "
+            + (isWriter(host) ? "writer" : "reader")
+            + " host '"
+            + host.getUrl()
+            + "' failed";
         LOGGER.warning(() -> String.format("%s: %s", msg, e.getMessage()));
       }
       throw e;
@@ -557,14 +545,10 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private <E extends Exception> void dealWithOriginalException(
       final Throwable originalException,
       final Throwable wrapperException,
-      final Class<E> exceptionClass)
-      throws E {
+      final Class<E> exceptionClass) throws E {
     Throwable exceptionToThrow = wrapperException;
     if (originalException != null) {
-      LOGGER.finer(
-          () ->
-              Messages.get(
-                  "Failover.detectedException", new Object[] {originalException.getMessage()}));
+      LOGGER.finer(() -> Messages.get("Failover.detectedException", new Object[]{originalException.getMessage()}));
       if (this.lastExceptionDealtWith != originalException
           && shouldExceptionTriggerConnectionSwitch(originalException)) {
         invalidateCurrentConnection();
@@ -603,7 +587,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   protected <E extends Exception> void dealWithIllegalStateException(
-      final IllegalStateException e, final Class<E> exceptionClass) throws E {
+      final IllegalStateException e,
+      final Class<E> exceptionClass) throws E {
     dealWithOriginalException(e.getCause(), e, exceptionClass);
   }
 
@@ -614,8 +599,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @param failedHost The host with network errors.
    * @throws SQLException if an error occurs
    */
-  protected void failover(@Nullable final HostSpec failedHost, boolean isInitialConnection)
-      throws SQLException {
+  protected void failover(@Nullable final HostSpec failedHost, boolean isInitialConnection) throws SQLException {
     if (failedHost != null) {
       this.pluginService.setAvailability(failedHost.asAliases(), HostAvailability.NOT_AVAILABLE);
     }
@@ -629,9 +613,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   protected void failoverReader(final HostSpec failedHostSpec) throws SQLException {
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
-    TelemetryContext telemetryContext =
-        telemetryFactory.openTelemetryContext(
-            TELEMETRY_READER_FAILOVER, TelemetryTraceLevel.NESTED);
+    TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
+        TELEMETRY_READER_FAILOVER, TelemetryTraceLevel.NESTED);
     if (this.failoverReaderTriggeredCounter != null) {
       this.failoverReaderTriggeredCounter.inc();
     }
@@ -650,8 +633,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
       HostSpec failedHost = null;
       final Set<String> oldAliases = this.pluginService.getCurrentHostSpec().getAliases();
-      if (failedHostSpec != null
-          && failedHostSpec.getRawAvailability() == HostAvailability.AVAILABLE) {
+      if (failedHostSpec != null && failedHostSpec.getRawAvailability() == HostAvailability.AVAILABLE) {
         failedHost = failedHostSpec;
       }
 
@@ -677,10 +659,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       updateTopology(true);
 
       LOGGER.info(
-          () ->
-              Messages.get(
-                  "Failover.establishedConnection",
-                  new Object[] {this.pluginService.getCurrentHostSpec()}));
+          () -> Messages.get(
+              "Failover.establishedConnection",
+              new Object[] {this.pluginService.getCurrentHostSpec()}));
       throwFailoverSuccessException();
     } catch (FailoverSuccessSQLException ex) {
       if (this.failoverReaderSuccessCounter != null) {
@@ -701,13 +682,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
       throw ex;
     } finally {
-      LOGGER.finest(
-          () ->
-              Messages.get(
-                  "Failover.readerFailoverElapsed",
-                  new Object[] {
-                    TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - failoverStartNano)
-                  }));
+      LOGGER.finest(() -> Messages.get(
+          "Failover.readerFailoverElapsed",
+          new Object[]{TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - failoverStartNano)}));
       this.readerFailoverHandler = null;
       if (telemetryContext != null) {
         telemetryContext.closeContext();
@@ -738,15 +715,13 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   protected void failoverWriter(boolean isInitialConnection) throws SQLException {
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
-    TelemetryContext telemetryContext =
-        telemetryFactory.openTelemetryContext(
-            TELEMETRY_WRITER_FAILOVER, TelemetryTraceLevel.NESTED);
+    TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
+        TELEMETRY_WRITER_FAILOVER, TelemetryTraceLevel.NESTED);
     if (this.failoverWriterTriggeredCounter != null) {
       this.failoverWriterTriggeredCounter.inc();
     }
 
-    // The writer failover handler uses the reader failover handler, so we need to make sure it has
-    // been instantiated.
+    // The writer failover handler uses the reader failover handler, so we need to make sure it has been instantiated.
     if (this.readerFailoverHandler == null) {
       if (this.readerFailoverHandlerSupplier == null) {
         throw new SQLException(Messages.get("Failover.nullReaderFailoverHandlerSupplier"));
@@ -785,7 +760,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         throwFailoverFailedException(
             Messages.get(
                 "Failover.noWriterHostAfterReconnecting",
-                new Object[] {LogUtils.logTopology(hosts, "")}));
+                new Object[]{LogUtils.logTopology(hosts, "")}));
         return;
       }
 
@@ -800,8 +775,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final List<HostSpec> allowedHosts = this.pluginService.getHosts();
       if (!Utils.containsHostAndPort(allowedHosts, writerHostSpec.getHostAndPort())) {
         throwFailoverFailedException(
-            Messages.get(
-                "Failover.newWriterNotAllowed",
+            Messages.get("Failover.newWriterNotAllowed",
                 new Object[] {writerHostSpec.getUrl(), LogUtils.logTopology(allowedHosts, "")}));
         return;
       }
@@ -809,10 +783,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       this.pluginService.setCurrentConnection(conn, writerHostSpec);
 
       LOGGER.fine(
-          () ->
-              Messages.get(
-                  "Failover.establishedConnection",
-                  new Object[] {this.pluginService.getCurrentHostSpec()}));
+          () -> Messages.get(
+              "Failover.establishedConnection",
+              new Object[]{this.pluginService.getCurrentHostSpec()}));
 
       throwFailoverSuccessException();
     } catch (FailoverSuccessSQLException ex) {
@@ -834,13 +807,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
       throw ex;
     } finally {
-      LOGGER.finest(
-          () ->
-              Messages.get(
-                  "Failover.writerFailoverElapsed",
-                  new Object[] {
-                    TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - failoverStartTimeNano)
-                  }));
+      LOGGER.finest(() -> Messages.get(
+          "Failover.writerFailoverElapsed",
+          new Object[]{TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - failoverStartTimeNano)}));
       this.writerFailoverHandler = null;
       if (telemetryContext != null) {
         telemetryContext.closeContext();
@@ -934,12 +903,10 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return true;
     }
 
-    // For STRICT_WRITER failover mode when connection exception indicate that the connection's in
-    // read-only mode,
+    // For STRICT_WRITER failover mode when connection exception indicate that the connection's in read-only mode,
     // initiate a failover by returning true.
     return this.failoverMode == FailoverMode.STRICT_WRITER
-        && this.pluginService.isReadOnlyConnectionException(
-            t, this.pluginService.getTargetDriverDialect());
+      && this.pluginService.isReadOnlyConnectionException(t, this.pluginService.getTargetDriverDialect());
   }
 
   /**
@@ -966,9 +933,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
     Connection conn = null;
     try {
-      conn =
-          this.staleDnsHelper.getVerifiedConnection(
-              isInitialConnection, this.hostListProviderService, hostSpec, props, connectFunc);
+      conn = this.staleDnsHelper.getVerifiedConnection(
+          isInitialConnection, this.hostListProviderService, hostSpec, props, connectFunc);
     } catch (final SQLException e) {
       if (!this.enableConnectFailover || !shouldExceptionTriggerConnectionSwitch(e)) {
         throw e;
@@ -982,8 +948,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     if (conn == null) {
-      // This should be unreachable, the above logic will either get a connection successfully or
-      // throw an exception.
+      // This should be unreachable, the above logic will either get a connection successfully or throw an exception.
       throw new SQLException(Messages.get("Failover.unableToConnect"));
     }
 

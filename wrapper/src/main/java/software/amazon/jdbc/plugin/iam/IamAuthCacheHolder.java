@@ -20,9 +20,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import software.amazon.jdbc.plugin.TokenInfo;
 
 /* The main plugin code IamAuthConnectionPlugin depends on AWS SDK. In order to avoid unnecessary dependencies,
-the plugin cache has been extracted into this IamAuthCacheHolder class. This cache holder class doesn't depend
-on AWS SDK and can be safely cleared if needed.
-*/
+ the plugin cache has been extracted into this IamAuthCacheHolder class. This cache holder class doesn't depend
+ on AWS SDK and can be safely cleared if needed.
+ */
 public class IamAuthCacheHolder {
   static final ConcurrentHashMap<String, TokenInfo> tokenCache = new ConcurrentHashMap<>();
 

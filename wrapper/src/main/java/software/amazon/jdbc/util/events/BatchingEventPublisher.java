@@ -27,17 +27,14 @@ import java.util.concurrent.TimeUnit;
 import software.amazon.jdbc.util.ExecutorFactory;
 
 /**
- * An event publisher that periodically publishes a batch of all unique events encountered during
- * the latest time interval. Batches do not contain duplicate events; if the current batch receives
- * a duplicate, it will not be added to the batch and the original event will only be published
- * once, when the entire batch is published.
+ * An event publisher that periodically publishes a batch of all unique events encountered during the latest time
+ * interval. Batches do not contain duplicate events; if the current batch receives a duplicate, it will not be
+ * added to the batch and the original event will only be published once, when the entire batch is published.
  */
 public class BatchingEventPublisher implements EventPublisher {
   protected static final long DEFAULT_MESSAGE_INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(30);
-  protected final Map<Class<? extends Event>, Set<EventSubscriber>> subscribersMap =
-      new ConcurrentHashMap<>();
-  // ConcurrentHashMap.newKeySet() is the recommended way to get a concurrent set. A set is used to
-  // prevent duplicate
+  protected final Map<Class<? extends Event>, Set<EventSubscriber>> subscribersMap = new ConcurrentHashMap<>();
+  // ConcurrentHashMap.newKeySet() is the recommended way to get a concurrent set. A set is used to prevent duplicate
   // event messages from being sent in the same message batch.
   protected final Set<Event> eventMessages = ConcurrentHashMap.newKeySet();
   protected static final ScheduledExecutorService publishingExecutor =
@@ -48,8 +45,7 @@ public class BatchingEventPublisher implements EventPublisher {
   }
 
   /**
-   * Constructs a PeriodicEventPublisher instance and submits a thread to periodically send message
-   * batches.
+   * Constructs a PeriodicEventPublisher instance and submits a thread to periodically send message batches.
    *
    * @param messageIntervalNanos the rate at which messages batches should be sent, in nanoseconds.
    */
@@ -85,23 +81,19 @@ public class BatchingEventPublisher implements EventPublisher {
   @Override
   public void subscribe(EventSubscriber subscriber, Set<Class<? extends Event>> eventClasses) {
     for (Class<? extends Event> eventClass : eventClasses) {
-      // The subscriber collection is a weakly referenced set so that we avoid garbage collection
-      // issues.
-      this.subscribersMap
-          .computeIfAbsent(eventClass, (k) -> Collections.newSetFromMap(new WeakHashMap<>()))
-          .add(subscriber);
+      // The subscriber collection is a weakly referenced set so that we avoid garbage collection issues.
+      this.subscribersMap.computeIfAbsent(
+          eventClass, (k) -> Collections.newSetFromMap(new WeakHashMap<>())).add(subscriber);
     }
   }
 
   @Override
   public void unsubscribe(EventSubscriber subscriber, Set<Class<? extends Event>> eventClasses) {
     for (Class<? extends Event> eventClass : eventClasses) {
-      subscribersMap.computeIfPresent(
-          eventClass,
-          (k, v) -> {
-            v.remove(subscriber);
-            return v.isEmpty() ? null : v;
-          });
+      subscribersMap.computeIfPresent(eventClass, (k, v) -> {
+        v.remove(subscriber);
+        return v.isEmpty() ? null : v;
+      });
     }
   }
 

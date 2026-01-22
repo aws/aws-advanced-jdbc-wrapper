@@ -26,10 +26,7 @@ public interface HostMonitor extends Runnable {
 
   void stopMonitoring(HostMonitorConnectionContext context);
 
-  /**
-   * Clear all {@link HostMonitorConnectionContext} associated with this {@link HostMonitor}
-   * instance.
-   */
+  /** Clear all {@link HostMonitorConnectionContext} associated with this {@link HostMonitor} instance. */
   void clearContexts();
 
   /**

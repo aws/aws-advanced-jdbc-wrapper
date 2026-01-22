@@ -87,8 +87,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     this.configurationProfile = configurationProfile;
     init(props);
 
-    final boolean logUnclosedConnections =
-        PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(props);
+    final boolean logUnclosedConnections = PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(props);
     if (logUnclosedConnections) {
       this.openConnectionStacktrace = new UnclosedConnectionException();
     }
@@ -97,15 +96,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     // tracked and monitored more precisely. That's why LazyCleaner.Cleanable is used instead of
     // simple calling this.pluginService.releaseResources().
     // Both PluginService and ConnectionPluginManager is cleaned by LazyCleaner.Cleanable.
-    this.cleanable =
-        LazyCleanerImpl.getInstance()
-            .register(
-                this,
-                new CleanupAction(
-                    this.openConnectionStacktrace,
-                    logUnclosedConnections,
-                    this.pluginService,
-                    this.pluginManager));
+    this.cleanable = LazyCleanerImpl.getInstance().register(this, new CleanupAction(
+        this.openConnectionStacktrace, logUnclosedConnections, this.pluginService, this.pluginManager));
   }
 
   // For testing purposes only
@@ -143,12 +135,10 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
               null);
 
       if (conn == null) {
-        throw new SQLException(
-            Messages.get("ConnectionWrapper.connectionNotOpen"), SqlState.UNKNOWN_STATE.getState());
+        throw new SQLException(Messages.get("ConnectionWrapper.connectionNotOpen"), SqlState.UNKNOWN_STATE.getState());
       }
 
-      this.pluginService.setCurrentConnection(
-          conn, this.pluginService.getInitialConnectionHostSpec());
+      this.pluginService.setCurrentConnection(conn, this.pluginService.getInitialConnectionHostSpec());
       this.pluginService.refreshHostList();
     }
   }
@@ -211,9 +201,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
           () -> {
             this.pluginService.getSessionStateService().begin();
             try {
-              this.pluginService
-                  .getSessionStateService()
-                  .applyPristineSessionState(this.pluginService.getCurrentConnection());
+              this.pluginService.getSessionStateService().applyPristineSessionState(
+                  this.pluginService.getCurrentConnection());
               this.pluginService.getCurrentConnection().close();
             } finally {
               this.pluginService.getSessionStateService().complete();
@@ -225,9 +214,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     } else {
       this.pluginService.getSessionStateService().begin();
       try {
-        this.pluginService
-            .getSessionStateService()
-            .applyPristineSessionState(this.pluginService.getCurrentConnection());
+        this.pluginService.getSessionStateService().applyPristineSessionState(
+            this.pluginService.getCurrentConnection());
         this.pluginService.getCurrentConnection().close();
       } finally {
         this.pluginService.getSessionStateService().complete();
@@ -271,8 +259,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     return WrapperUtils.executeWithPlugins(
         Array.class,
         SQLException.class,
-        this,
-        this.pluginManager,
+         this,
+          this.pluginManager,
         this.pluginService.getCurrentConnection(),
         JdbcMethod.CONNECTION_CREATEARRAYOF,
         () -> this.pluginService.getCurrentConnection().createArrayOf(typeName, elements),
@@ -285,8 +273,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     return WrapperUtils.executeWithPlugins(
         Blob.class,
         SQLException.class,
-        this,
-        this.pluginManager,
+         this,
+          this.pluginManager,
         this.pluginService.getCurrentConnection(),
         JdbcMethod.CONNECTION_CREATEBLOB,
         () -> this.pluginService.getCurrentConnection().createBlob());
@@ -297,8 +285,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     return WrapperUtils.executeWithPlugins(
         Clob.class,
         SQLException.class,
-        this,
-        this.pluginManager,
+         this,
+          this.pluginManager,
         this.pluginService.getCurrentConnection(),
         JdbcMethod.CONNECTION_CREATECLOB,
         () -> this.pluginService.getCurrentConnection().createClob());
@@ -309,8 +297,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     return WrapperUtils.executeWithPlugins(
         NClob.class,
         SQLException.class,
-        this,
-        this.pluginManager,
+         this,
+          this.pluginManager,
         this.pluginService.getCurrentConnection(),
         JdbcMethod.CONNECTION_CREATENCLOB,
         () -> this.pluginService.getCurrentConnection().createNClob());
@@ -337,8 +325,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     return WrapperUtils.executeWithPlugins(
         Statement.class,
         SQLException.class,
-        this,
-        this.pluginManager,
+         this,
+          this.pluginManager,
         this.pluginService.getCurrentConnection(),
         JdbcMethod.CONNECTION_CREATESTATEMENT,
         () -> this.pluginService.getCurrentConnection().createStatement());
@@ -350,8 +338,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     return WrapperUtils.executeWithPlugins(
         Statement.class,
         SQLException.class,
-        this,
-        this.pluginManager,
+         this,
+          this.pluginManager,
         this.pluginService.getCurrentConnection(),
         JdbcMethod.CONNECTION_CREATESTATEMENT,
         () ->
@@ -364,19 +352,17 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
   @Override
   public Statement createStatement(
-      final int resultSetType, final int resultSetConcurrency, final int resultSetHoldability)
-      throws SQLException {
+      final int resultSetType, final int resultSetConcurrency, final int resultSetHoldability) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         Statement.class,
         SQLException.class,
-        this,
-        this.pluginManager,
+         this,
+          this.pluginManager,
         this.pluginService.getCurrentConnection(),
         JdbcMethod.CONNECTION_CREATESTATEMENT,
-        () ->
-            this.pluginService
-                .getCurrentConnection()
-                .createStatement(resultSetType, resultSetConcurrency, resultSetHoldability),
+        () -> this.pluginService
+            .getCurrentConnection()
+            .createStatement(resultSetType, resultSetConcurrency, resultSetHoldability),
         resultSetType,
         resultSetConcurrency,
         resultSetHoldability);
@@ -388,7 +374,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         Struct.class,
         SQLException.class,
         this,
-        this.pluginManager,
+          this.pluginManager,
         this.pluginService.getCurrentConnection(),
         JdbcMethod.CONNECTION_CREATESTRUCT,
         () -> this.pluginService.getCurrentConnection().createStruct(typeName, attributes),
@@ -501,7 +487,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         DatabaseMetaData.class,
         SQLException.class,
         this,
-        this.pluginManager,
+          this.pluginManager,
         this.pluginService.getCurrentConnection(),
         JdbcMethod.CONNECTION_GETMETADATA,
         () -> this.pluginService.getCurrentConnection().getMetaData());
@@ -587,8 +573,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
           this.pluginService.getCurrentConnection(),
           JdbcMethod.CONNECTION_GETTYPEMAP,
           () -> {
-            final Map<String, Class<?>> map =
-                this.pluginService.getCurrentConnection().getTypeMap();
+            final Map<String, Class<?>> map = this.pluginService.getCurrentConnection().getTypeMap();
             this.pluginService.getSessionStateService().setupPristineTypeMap(map);
             return map;
           });
@@ -693,7 +678,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         CallableStatement.class,
         SQLException.class,
         this,
-        this.pluginManager,
+          this.pluginManager,
         this.pluginService.getCurrentConnection(),
         JdbcMethod.CONNECTION_PREPARECALL,
         () -> this.pluginService.getCurrentConnection().prepareCall(sql),
@@ -701,14 +686,13 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public CallableStatement prepareCall(
-      final String sql, final int resultSetType, final int resultSetConcurrency)
+  public CallableStatement prepareCall(final String sql, final int resultSetType, final int resultSetConcurrency)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         CallableStatement.class,
         SQLException.class,
         this,
-        this.pluginManager,
+          this.pluginManager,
         this.pluginService.getCurrentConnection(),
         JdbcMethod.CONNECTION_PREPARECALL,
         () ->
@@ -722,16 +706,13 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
   @Override
   public CallableStatement prepareCall(
-      final String sql,
-      final int resultSetType,
-      final int resultSetConcurrency,
-      final int resultSetHoldability)
+      final String sql, final int resultSetType, final int resultSetConcurrency, final int resultSetHoldability)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         CallableStatement.class,
         SQLException.class,
         this,
-        this.pluginManager,
+          this.pluginManager,
         this.pluginService.getCurrentConnection(),
         JdbcMethod.CONNECTION_PREPARECALL,
         () ->
@@ -750,7 +731,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         PreparedStatement.class,
         SQLException.class,
         this,
-        this.pluginManager,
+          this.pluginManager,
         this.pluginService.getCurrentConnection(),
         JdbcMethod.CONNECTION_PREPARESTATEMENT,
         () -> this.pluginService.getCurrentConnection().prepareStatement(sql),
@@ -758,14 +739,13 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public PreparedStatement prepareStatement(
-      final String sql, final int resultSetType, final int resultSetConcurrency)
+  public PreparedStatement prepareStatement(final String sql, final int resultSetType, final int resultSetConcurrency)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         PreparedStatement.class,
         SQLException.class,
         this,
-        this.pluginManager,
+          this.pluginManager,
         this.pluginService.getCurrentConnection(),
         JdbcMethod.CONNECTION_PREPARESTATEMENT,
         () ->
@@ -779,16 +759,13 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
   @Override
   public PreparedStatement prepareStatement(
-      final String sql,
-      final int resultSetType,
-      final int resultSetConcurrency,
-      final int resultSetHoldability)
+      final String sql, final int resultSetType, final int resultSetConcurrency, final int resultSetHoldability)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         PreparedStatement.class,
         SQLException.class,
         this,
-        this.pluginManager,
+          this.pluginManager,
         this.pluginService.getCurrentConnection(),
         JdbcMethod.CONNECTION_PREPARESTATEMENT,
         () ->
@@ -802,13 +779,12 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public PreparedStatement prepareStatement(final String sql, final int autoGeneratedKeys)
-      throws SQLException {
+  public PreparedStatement prepareStatement(final String sql, final int autoGeneratedKeys) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         PreparedStatement.class,
         SQLException.class,
         this,
-        this.pluginManager,
+          this.pluginManager,
         this.pluginService.getCurrentConnection(),
         JdbcMethod.CONNECTION_PREPARESTATEMENT,
         () -> this.pluginService.getCurrentConnection().prepareStatement(sql, autoGeneratedKeys),
@@ -817,13 +793,12 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public PreparedStatement prepareStatement(final String sql, final int[] columnIndexes)
-      throws SQLException {
+  public PreparedStatement prepareStatement(final String sql, final int[] columnIndexes) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         PreparedStatement.class,
         SQLException.class,
         this,
-        this.pluginManager,
+          this.pluginManager,
         this.pluginService.getCurrentConnection(),
         JdbcMethod.CONNECTION_PREPARESTATEMENT,
         () -> this.pluginService.getCurrentConnection().prepareStatement(sql, columnIndexes),
@@ -832,13 +807,12 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public PreparedStatement prepareStatement(final String sql, final String[] columnNames)
-      throws SQLException {
+  public PreparedStatement prepareStatement(final String sql, final String[] columnNames) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         PreparedStatement.class,
         SQLException.class,
         this,
-        this.pluginManager,
+          this.pluginManager,
         this.pluginService.getCurrentConnection(),
         JdbcMethod.CONNECTION_PREPARESTATEMENT,
         () -> this.pluginService.getCurrentConnection().prepareStatement(sql, columnNames),
@@ -857,9 +831,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
           JdbcMethod.CONNECTION_RELEASESAVEPOINT,
           () -> {
             if (savepoint instanceof SavepointWrapper) {
-              this.pluginService
-                  .getCurrentConnection()
-                  .releaseSavepoint(((SavepointWrapper) savepoint).savepoint);
+              this.pluginService.getCurrentConnection().releaseSavepoint(((SavepointWrapper) savepoint).savepoint);
             } else {
               this.pluginService.getCurrentConnection().releaseSavepoint(savepoint);
             }
@@ -867,9 +839,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
           savepoint);
     } else {
       if (savepoint instanceof SavepointWrapper) {
-        this.pluginService
-            .getCurrentConnection()
-            .releaseSavepoint(((SavepointWrapper) savepoint).savepoint);
+        this.pluginService.getCurrentConnection().releaseSavepoint(((SavepointWrapper) savepoint).savepoint);
       } else {
         this.pluginService.getCurrentConnection().releaseSavepoint(savepoint);
       }
@@ -914,9 +884,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
           JdbcMethod.CONNECTION_ROLLBACK,
           () -> {
             if (savepoint instanceof SavepointWrapper) {
-              this.pluginService
-                  .getCurrentConnection()
-                  .rollback(((SavepointWrapper) savepoint).savepoint);
+              this.pluginService.getCurrentConnection().rollback(((SavepointWrapper) savepoint).savepoint);
             } else {
               this.pluginService.getCurrentConnection().rollback(savepoint);
             }
@@ -925,9 +893,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
           savepoint);
     } else {
       if (savepoint instanceof SavepointWrapper) {
-        this.pluginService
-            .getCurrentConnection()
-            .rollback(((SavepointWrapper) savepoint).savepoint);
+        this.pluginService.getCurrentConnection().rollback(((SavepointWrapper) savepoint).savepoint);
       } else {
         this.pluginService.getCurrentConnection().rollback(savepoint);
       }
@@ -1057,8 +1023,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public void setNetworkTimeout(final Executor executor, final int milliseconds)
-      throws SQLException {
+  public void setNetworkTimeout(final Executor executor, final int milliseconds) throws SQLException {
     if (this.pluginManager.mustUsePipeline(JdbcMethod.CONNECTION_SETNETWORKTIMEOUT)) {
       WrapperUtils.runWithPlugins(
           SQLException.class,
@@ -1086,7 +1051,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         Savepoint.class,
         SQLException.class,
         this,
-        this.pluginManager,
+          this.pluginManager,
         this.pluginService.getCurrentConnection(),
         JdbcMethod.CONNECTION_SETSAVEPOINT,
         () -> this.pluginService.getCurrentConnection().setSavepoint());
@@ -1098,7 +1063,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         Savepoint.class,
         SQLException.class,
         this,
-        this.pluginManager,
+          this.pluginManager,
         this.pluginService.getCurrentConnection(),
         JdbcMethod.CONNECTION_SETSAVEPOINT,
         () -> this.pluginService.getCurrentConnection().setSavepoint(name),
@@ -1230,10 +1195,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         LOGGER.log(
             Level.WARNING,
             this.openConnectionStacktrace,
-            () ->
-                Messages.get(
-                    "ConnectionWrapper.finalizingUnclosedConnection",
-                    new Object[] {this.threadName}));
+            () -> Messages.get("ConnectionWrapper.finalizingUnclosedConnection", new Object[] {this.threadName}));
       }
 
       try {

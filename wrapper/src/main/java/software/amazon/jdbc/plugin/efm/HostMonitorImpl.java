@@ -22,6 +22,7 @@ import java.util.Properties;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -79,15 +80,16 @@ public class HostMonitorImpl implements HostMonitor {
   /**
    * Store the monitoring configuration for a connection.
    *
-   * @param pluginService A service for creating new connections.
-   * @param hostSpec The {@link HostSpec} of the server this {@link HostMonitorImpl} instance is
-   *     monitoring.
-   * @param properties The {@link Properties} containing additional monitoring configuration.
+   * @param pluginService             A service for creating new connections.
+   * @param hostSpec                  The {@link HostSpec} of the server this {@link HostMonitorImpl}
+   *                                  instance is monitoring.
+   * @param properties                The {@link Properties} containing additional monitoring
+   *                                  configuration.
    * @param monitorDisposalTimeMillis Time in milliseconds before stopping the monitoring thread
-   *     where there are no active connection to the server this {@link HostMonitorImpl} instance is
-   *     monitoring.
-   * @param threadContainer A reference to the {@link HostMonitorThreadContainer} implementation
-   *     that initialized this class.
+   *                                  where there are no active connection to the server this
+   *                                  {@link HostMonitorImpl} instance is monitoring.
+   * @param threadContainer           A reference to the {@link HostMonitorThreadContainer} implementation
+   *                                  that initialized this class.
    */
   public HostMonitorImpl(
       final @NonNull PluginService pluginService,
@@ -101,30 +103,23 @@ public class HostMonitorImpl implements HostMonitor {
     this.properties = properties;
     this.monitorDisposalTimeMillis = monitorDisposalTimeMillis;
     this.threadContainer = threadContainer;
-    this.monitoringConn =
-        new AtomicConnection(
-            this, PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(properties));
+    this.monitoringConn = new AtomicConnection(
+        this, PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(properties));
 
     this.contextLastUsedTimestampNano = this.getCurrentTimeNano();
-    this.contextsSizeGauge =
-        telemetryFactory.createGauge(
-            "efm.activeContexts.queue.size", () -> (long) activeContexts.size());
+    this.contextsSizeGauge = telemetryFactory.createGauge("efm.activeContexts.queue.size",
+        () -> (long) activeContexts.size());
 
-    final String nodeId =
-        StringUtils.isNullOrEmpty(this.hostSpec.getHostId())
-            ? this.hostSpec.getHost()
-            : this.hostSpec.getHostId();
-    this.nodeInvalidCounter =
-        telemetryFactory.createCounter(String.format("efm.nodeUnhealthy.count.%s", nodeId));
+    final String nodeId = StringUtils.isNullOrEmpty(this.hostSpec.getHostId())
+        ? this.hostSpec.getHost()
+        : this.hostSpec.getHostId();
+    this.nodeInvalidCounter = telemetryFactory.createCounter(String.format("efm.nodeUnhealthy.count.%s", nodeId));
   }
 
   @Override
   public void startMonitoring(final HostMonitorConnectionContext context) {
     if (this.stopped) {
-      LOGGER.warning(
-          () ->
-              Messages.get(
-                  "HostMonitorImpl.monitorIsStopped", new Object[] {this.hostSpec.getHost()}));
+      LOGGER.warning(() -> Messages.get("HostMonitorImpl.monitorIsStopped", new Object[] {this.hostSpec.getHost()}));
     }
     final long currentTimeNano = this.getCurrentTimeNano();
     context.setStartMonitorTimeNano(currentTimeNano);
@@ -151,10 +146,9 @@ public class HostMonitorImpl implements HostMonitor {
   @Override
   public void run() {
 
-    LOGGER.finest(
-        () ->
-            Messages.get(
-                "HostMonitorImpl.startMonitoringThread", new Object[] {this.hostSpec.getHost()}));
+    LOGGER.finest(() -> Messages.get(
+        "HostMonitorImpl.startMonitoringThread",
+        new Object[]{this.hostSpec.getHost()}));
 
     try {
       this.stopped = false;
@@ -225,16 +219,14 @@ public class HostMonitorImpl implements HostMonitor {
                     statusCheckStartTimeNano + status.elapsedTimeNano,
                     status.isValid);
 
-                // If context is still valid and node is still healthy, it needs to continue
-                // updating this context
+                // If context is still valid and node is still healthy, it needs to continue updating this context
                 if (monitorContext.isActiveContext() && !monitorContext.isNodeUnhealthy()) {
                   this.activeContexts.add(monitorContext);
                   if (firstAddedMonitorContext == null) {
                     firstAddedMonitorContext = monitorContext;
                   }
 
-                  if (delayMillis == -1
-                      || delayMillis > monitorContext.getFailureDetectionIntervalMillis()) {
+                  if (delayMillis == -1 || delayMillis > monitorContext.getFailureDetectionIntervalMillis()) {
                     delayMillis = monitorContext.getFailureDetectionIntervalMillis();
                   }
                 }
@@ -252,8 +244,7 @@ public class HostMonitorImpl implements HostMonitor {
               if (delayMillis <= MIN_CONNECTION_CHECK_TIMEOUT_MILLIS) {
                 delayMillis = MIN_CONNECTION_CHECK_TIMEOUT_MILLIS;
               }
-              // Use this delay as node checkout timeout since it corresponds to min interval for
-              // all active contexts
+              // Use this delay as node checkout timeout since it corresponds to min interval for all active contexts
               this.nodeCheckTimeoutMillis = delayMillis;
             }
 
@@ -277,7 +268,7 @@ public class HostMonitorImpl implements HostMonitor {
                 Level.FINEST,
                 Messages.get(
                     "HostMonitorImpl.exceptionDuringMonitoringContinue",
-                    new Object[] {this.hostSpec.getHost()}),
+                    new Object[]{this.hostSpec.getHost()}),
                 ex); // We want to print full trace stack of the exception.
           }
         }
@@ -285,10 +276,9 @@ public class HostMonitorImpl implements HostMonitor {
     } catch (final InterruptedException intEx) {
       // exit thread
       LOGGER.finest(
-          () ->
-              Messages.get(
-                  "HostMonitorImpl.interruptedExceptionDuringMonitoring",
-                  new Object[] {this.hostSpec.getHost()}));
+          () -> Messages.get(
+              "HostMonitorImpl.interruptedExceptionDuringMonitoring",
+              new Object[] {this.hostSpec.getHost()}));
     } catch (final Exception ex) {
       // this should not be reached; log and exit thread
       if (LOGGER.isLoggable(Level.FINEST)) {
@@ -296,7 +286,7 @@ public class HostMonitorImpl implements HostMonitor {
             Level.FINEST,
             Messages.get(
                 "HostMonitorImpl.exceptionDuringMonitoringStop",
-                new Object[] {this.hostSpec.getHost()}),
+                new Object[]{this.hostSpec.getHost()}),
             ex); // We want to print full trace stack of the exception.
       }
     } finally {
@@ -305,24 +295,23 @@ public class HostMonitorImpl implements HostMonitor {
       this.monitoringConn.clean();
     }
 
-    LOGGER.finest(
-        () ->
-            Messages.get(
-                "HostMonitorImpl.stopMonitoringThread", new Object[] {this.hostSpec.getHost()}));
+    LOGGER.finest(() -> Messages.get(
+        "HostMonitorImpl.stopMonitoringThread",
+        new Object[]{this.hostSpec.getHost()}));
   }
 
   /**
    * Check the status of the monitored server by sending a ping.
    *
    * @param shortestFailureDetectionIntervalMillis The shortest failure detection interval used by
-   *     all the connections to this server. This value is used as the maximum time to wait for a
-   *     response from the server.
+   *                                               all the connections to this server. This value is
+   *                                               used as the maximum time to wait for a response
+   *                                               from the server.
    * @return whether the server is still alive and the elapsed time spent checking.
    */
   ConnectionStatus checkConnectionStatus(final long shortestFailureDetectionIntervalMillis) {
-    TelemetryContext connectContext =
-        telemetryFactory.openTelemetryContext(
-            "connection status check", TelemetryTraceLevel.FORCE_TOP_LEVEL);
+    TelemetryContext connectContext = telemetryFactory.openTelemetryContext(
+        "connection status check", TelemetryTraceLevel.FORCE_TOP_LEVEL);
 
     if (connectContext != null) {
       connectContext.setAttribute("url", hostSpec.getHost());
@@ -347,22 +336,17 @@ public class HostMonitorImpl implements HostMonitor {
 
         LOGGER.finest(() -> "Opening a monitoring connection to " + this.hostSpec.getUrl());
         startNano = this.getCurrentTimeNano();
-        this.monitoringConn.set(
-            this.pluginService.forceConnect(this.hostSpec, monitoringConnProperties));
+        this.monitoringConn.set(this.pluginService.forceConnect(this.hostSpec, monitoringConnProperties));
         LOGGER.finest(() -> "Opened monitoring connection: " + this.monitoringConn.get());
         return new ConnectionStatus(true, this.getCurrentTimeNano() - startNano);
       }
 
       startNano = this.getCurrentTimeNano();
       final Connection copyConnection2 = this.monitoringConn.get();
-      // Some drivers, like MySQL Connector/J, execute isValid() in a double of specified timeout
-      // time.
+      // Some drivers, like MySQL Connector/J, execute isValid() in a double of specified timeout time.
       // TODO: fix me. Need to find a better solution to double timeout issue.
-      final boolean isValid =
-          copyConnection2 != null
-              && copyConnection2.isValid(
-                  (int) TimeUnit.MILLISECONDS.toSeconds(shortestFailureDetectionIntervalMillis)
-                      / 2);
+      final boolean isValid = copyConnection2 != null && copyConnection2.isValid(
+          (int) TimeUnit.MILLISECONDS.toSeconds(shortestFailureDetectionIntervalMillis) / 2);
       if (!isValid) {
         if (this.nodeInvalidCounter != null) {
           this.nodeInvalidCounter.inc();

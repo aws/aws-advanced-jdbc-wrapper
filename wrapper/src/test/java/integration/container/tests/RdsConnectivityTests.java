@@ -44,12 +44,11 @@ import software.amazon.jdbc.PropertyDefinition;
 @ExtendWith(TestDriverProvider.class)
 @EnableOnNumOfInstances(min = 2)
 @DisableOnTestFeature({
-  TestEnvironmentFeatures.PERFORMANCE,
-  TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
-  TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
-  TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
-  TestEnvironmentFeatures.RUN_DB_METRICS_ONLY
-})
+    TestEnvironmentFeatures.PERFORMANCE,
+    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
+    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
+    TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
+    TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
 @Order(2)
 public class RdsConnectivityTests {
 
@@ -57,8 +56,7 @@ public class RdsConnectivityTests {
 
   @TestTemplate
   @ExtendWith(TestDriverProvider.class)
-  public void test_WrapperConnectionReaderClusterWithEfmEnabled(TestDriver testDriver)
-      throws SQLException {
+  public void test_WrapperConnectionReaderClusterWithEfmEnabled(TestDriver testDriver) throws SQLException {
     LOGGER.info(testDriver.toString());
 
     final Properties props = new Properties();

@@ -103,8 +103,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
    */
   public HostMonitoringConnectionPlugin(
       final @NonNull PluginService pluginService, final @NonNull Properties properties) {
-    this(
-        pluginService, properties, () -> new HostMonitorServiceImpl(pluginService), new RdsUtils());
+    this(pluginService, properties, () -> new HostMonitorServiceImpl(pluginService), new RdsUtils());
   }
 
   HostMonitoringConnectionPlugin(
@@ -118,14 +117,14 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     this.rdsHelper = rdsHelper;
     this.isEnabled = FAILURE_DETECTION_ENABLED.getBoolean(this.properties);
     this.failureDetectionTimeMillis = FAILURE_DETECTION_TIME.getInteger(this.properties);
-    this.failureDetectionIntervalMillis = FAILURE_DETECTION_INTERVAL.getInteger(this.properties);
+    this.failureDetectionIntervalMillis =
+        FAILURE_DETECTION_INTERVAL.getInteger(this.properties);
     this.failureDetectionCount = FAILURE_DETECTION_COUNT.getInteger(this.properties);
 
     final HashSet<String> methods = new HashSet<>();
     if (this.isEnabled) {
       methods.add(JdbcMethod.CONNECT.methodName);
-      methods.addAll(
-          this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.properties));
+      methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.properties));
     }
     this.subscribedMethods = Collections.unmodifiableSet(methods);
   }
@@ -136,8 +135,8 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
   }
 
   /**
-   * Executes the given SQL function with {@link HostMonitorImpl} if connection monitoring is
-   * enabled. Otherwise, executes the SQL function directly.
+   * Executes the given SQL function with {@link HostMonitorImpl} if connection monitoring is enabled.
+   * Otherwise, executes the SQL function directly.
    */
   @Override
   public <T, E extends Exception> T execute(
@@ -160,9 +159,9 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
 
     try {
       LOGGER.finest(
-          () ->
-              Messages.get(
-                  "HostMonitoringConnectionPlugin.activatedMonitoring", new Object[] {methodName}));
+          () -> Messages.get(
+              "HostMonitoringConnectionPlugin.activatedMonitoring",
+              new Object[] {methodName}));
 
       final HostSpec monitoringHostSpec = this.getMonitoringHostSpec();
 
@@ -186,7 +185,8 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
 
           if (monitorContext.isNodeUnhealthy()) {
             this.pluginService.setAvailability(
-                this.getMonitoringHostSpec().asAliases(), HostAvailability.NOT_AVAILABLE);
+                this.getMonitoringHostSpec().asAliases(),
+                HostAvailability.NOT_AVAILABLE);
 
             final boolean isConnectionClosed;
             try {
@@ -210,10 +210,9 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
         }
 
         LOGGER.finest(
-            () ->
-                Messages.get(
-                    "HostMonitoringConnectionPlugin.monitoringDeactivated",
-                    new Object[] {methodName}));
+            () -> Messages.get(
+                "HostMonitoringConnectionPlugin.monitoringDeactivated",
+                new Object[] {methodName}));
       }
     }
 
@@ -254,13 +253,11 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
   }
 
   @Override
-  public OldConnectionSuggestedAction notifyConnectionChanged(
-      final EnumSet<NodeChangeOptions> changes) {
+  public OldConnectionSuggestedAction notifyConnectionChanged(final EnumSet<NodeChangeOptions> changes) {
     if (changes.contains(NodeChangeOptions.WENT_DOWN)
         || changes.contains(NodeChangeOptions.NODE_DELETED)) {
       if (!this.getMonitoringHostSpec().asAliases().isEmpty()) {
-        this.monitorService.stopMonitoringForAllConnections(
-            this.getMonitoringHostSpec().asAliases());
+        this.monitorService.stopMonitoringForAllConnections(this.getMonitoringHostSpec().asAliases());
       }
     }
 
@@ -299,28 +296,21 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
 
       try {
         if (rdsUrlType.isRdsCluster()) {
-          LOGGER.finest(
-              "Monitoring HostSpec is associated with a cluster endpoint, "
-                  + "plugin needs to identify the cluster connection.");
-          this.monitoringHostSpec =
-              this.pluginService.identifyConnection(this.pluginService.getCurrentConnection());
+          LOGGER.finest("Monitoring HostSpec is associated with a cluster endpoint, "
+              + "plugin needs to identify the cluster connection.");
+          this.monitoringHostSpec = this.pluginService.identifyConnection(this.pluginService.getCurrentConnection());
           if (this.monitoringHostSpec == null) {
-            throw new RuntimeException(
-                Messages.get(
-                    "HostMonitoringConnectionPlugin.unableToIdentifyConnection",
-                    new Object[] {
-                      this.pluginService.getCurrentHostSpec().getHost(),
-                      this.pluginService.getHostListProvider()
-                    }));
+            throw new RuntimeException(Messages.get(
+                "HostMonitoringConnectionPlugin.unableToIdentifyConnection",
+                new Object[] {
+                    this.pluginService.getCurrentHostSpec().getHost(),
+                    this.pluginService.getHostListProvider()}));
           }
-          this.pluginService.fillAliases(
-              this.pluginService.getCurrentConnection(), monitoringHostSpec);
+          this.pluginService.fillAliases(this.pluginService.getCurrentConnection(), monitoringHostSpec);
         }
       } catch (SQLException e) {
         // Log and throw.
-        LOGGER.finest(
-            Messages.get(
-                "HostMonitoringConnectionPlugin.errorIdentifyingConnection", new Object[] {e}));
+        LOGGER.finest(Messages.get("HostMonitoringConnectionPlugin.errorIdentifyingConnection", new Object[] {e}));
         throw new RuntimeException(e);
       }
     }
