@@ -51,7 +51,6 @@ public class KmsEncryptionIntegrationTest {
   private static String kmsKeyArn;
 
   @BeforeAll
-  @TestTemplate
   static void setUp() throws Exception {
     kmsKeyArn = System.getenv(KMS_KEY_ARN_ENV);
     assumeTrue(
