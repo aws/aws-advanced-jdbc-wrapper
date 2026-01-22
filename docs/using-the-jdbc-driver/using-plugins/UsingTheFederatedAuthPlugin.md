@@ -17,7 +17,7 @@ In the case of AD FS, the user signs into the AD FS sign in page. This generates
   - [AWS Java SDK RDS v2.7.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds)
   - [AWS Java SDK STS v2.7.x](https://central.sonatype.com/artifact/software.amazon.awssdk/sts)
 - Note: The above dependencies may have transitive dependencies that are also required (ex. AWS Java SDK RDS requires [AWS Java SDK Core](https://central.sonatype.com/artifact/software.amazon.awssdk/aws-core/)). If you are not using a package manager such as Maven or Gradle, please refer to Maven Central to determine these transitive dependencies.
-- This plugin does not create or modify any ADFS or IAM resources, therefore all permissions and policies must be correctly configured before using this plugin.
+- This plugin does not create or modify any ADFS or IAM resources, therefore all permissions and policies must be correctly configured before using this plugin. If you plan on using [Amazon Aurora Global Databases](https://aws.amazon.com/rds/aurora/global-database/) with this plugin, please see the [Using Federated Authentication with Global Databases](#using-federated-authentication-with-global-databases) section as well.
 
 > [!NOTE]\
 > Since [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) size is around 5.4Mb (22Mb including all RDS SDK dependencies), some users may experience difficulties using the plugin due to limited available disk size.
@@ -78,3 +78,28 @@ Note: AWS IAM database authentication is needed to use the Federated Authenticat
 
 ## Sample code
 [FederatedAuthPluginExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/FederatedAuthPluginExample.java)
+
+## Using Federated Authentication with Global Databases
+
+When using Federated authentication with [Amazon Aurora Global Databases](https://aws.amazon.com/rds/aurora/global-database/), the IAM user or role requires the additional `rds:DescribeGlobalClusters` permission. This permission allows the driver to resolve the Global Database endpoint to the appropriate regional cluster for IAM token generation.
+
+Example IAM policy:
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "rds-db:connect",
+                "rds:DescribeGlobalClusters"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+
+```
+
+> [!NOTE]
+> [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) is **required** when using this plugin with Global databases.
