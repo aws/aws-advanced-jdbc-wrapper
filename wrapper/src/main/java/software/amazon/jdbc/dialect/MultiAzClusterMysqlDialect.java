@@ -30,6 +30,7 @@ import software.amazon.jdbc.hostlistprovider.MultiAzTopologyUtils;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.hostlistprovider.TopologyUtils;
 import software.amazon.jdbc.plugin.failover.FailoverRestriction;
+import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
@@ -40,17 +41,14 @@ public class MultiAzClusterMysqlDialect extends MysqlDialect implements MultiAzC
   protected static final String TOPOLOGY_TABLE_EXISTS_QUERY =
       "SELECT 1 AS tmp FROM information_schema.tables WHERE"
           + " table_schema = 'mysql' AND table_name = 'rds_topology'";
-  protected static final String TOPOLOGY_QUERY =
-      "SELECT id, endpoint, port FROM mysql.rds_topology";
+  protected static final String TOPOLOGY_QUERY = "SELECT id, endpoint, port FROM mysql.rds_topology";
 
   // This query returns both instanceId and instanceName.
   // For example: "1845128080", "test-multiaz-instance-1"
-  protected static final String INSTANCE_ID_QUERY =
-      "SELECT id, SUBSTRING_INDEX(endpoint, '.', 1)"
-          + " FROM mysql.rds_topology"
-          + " WHERE id = @@server_id";
-  // For reader instances, this query returns a writer instance ID. For a writer instance, this
-  // query returns no data.
+  protected static final String INSTANCE_ID_QUERY = "SELECT id, SUBSTRING_INDEX(endpoint, '.', 1)"
+      + " FROM mysql.rds_topology"
+      + " WHERE id = @@server_id";
+  // For reader instances, this query returns a writer instance ID. For a writer instance, this query returns no data.
   protected static final String WRITER_ID_QUERY = "SHOW REPLICA STATUS";
   protected static final String WRITER_ID_QUERY_COLUMN_NAME = "Source_Server_Id";
   protected static final String IS_READER_QUERY = "SELECT @@read_only";
@@ -62,13 +60,12 @@ public class MultiAzClusterMysqlDialect extends MysqlDialect implements MultiAzC
 
   @Override
   public boolean isDialect(final Connection connection) {
-    if (!dialectUtils.checkExistenceQueries(
-        connection, TOPOLOGY_TABLE_EXISTS_QUERY, TOPOLOGY_QUERY)) {
+    if (!dialectUtils.checkExistenceQueries(connection, TOPOLOGY_TABLE_EXISTS_QUERY, TOPOLOGY_QUERY)) {
       return false;
     }
 
     try (Statement stmt = connection.createStatement();
-        ResultSet rs = stmt.executeQuery(REPORT_HOST_EXISTS_QUERY)) {
+         ResultSet rs = stmt.executeQuery(REPORT_HOST_EXISTS_QUERY)) {
       if (!rs.next()) {
         return false;
       }
@@ -89,21 +86,17 @@ public class MultiAzClusterMysqlDialect extends MysqlDialect implements MultiAzC
   public HostListProviderSupplier getHostListProviderSupplier() {
     return (properties, initialUrl, servicesContainer) -> {
       final PluginService pluginService = servicesContainer.getPluginService();
-      final TopologyUtils topologyUtils =
-          new MultiAzTopologyUtils(this, pluginService.getHostSpecBuilder());
+      final TopologyUtils topologyUtils = new MultiAzTopologyUtils(this, pluginService.getHostSpecBuilder());
       return new RdsHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
     };
   }
 
   @Override
   public void prepareConnectProperties(
-      final @NonNull Properties connectProperties,
-      final @NonNull String protocol,
-      final @NonNull HostSpec hostSpec) {
+      final @NonNull Properties connectProperties, final @NonNull String protocol, final @NonNull HostSpec hostSpec) {
     final String connectionAttributes =
         "_jdbc_wrapper_name:aws_jdbc_driver,_jdbc_wrapper_version:" + DriverInfo.DRIVER_VERSION;
-    connectProperties.setProperty(
-        "connectionAttributes",
+    connectProperties.setProperty("connectionAttributes",
         connectProperties.getProperty("connectionAttributes") == null
             ? connectionAttributes
             : connectProperties.getProperty("connectionAttributes") + "," + connectionAttributes);

@@ -39,17 +39,16 @@ public class MariaDbDialect implements Dialect {
   private static MariaDBExceptionHandler mariaDBExceptionHandler;
   private static final EnumSet<FailoverRestriction> NO_FAILOVER_RESTRICTIONS =
       EnumSet.noneOf(FailoverRestriction.class);
-  private static final List<String> dialectUpdateCandidates =
-      Arrays.asList(
-          DialectCodes.AURORA_MYSQL,
-          DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER,
-          DialectCodes.RDS_MYSQL,
-          DialectCodes.MYSQL);
+  private static final List<String> dialectUpdateCandidates = Arrays.asList(
+      DialectCodes.AURORA_MYSQL,
+      DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER,
+      DialectCodes.RDS_MYSQL,
+      DialectCodes.MYSQL);
 
   @Override
   public boolean isDialect(final Connection connection) {
     try (Statement stmt = connection.createStatement();
-        ResultSet rs = stmt.executeQuery(VERSION_QUERY)) {
+         ResultSet rs = stmt.executeQuery(VERSION_QUERY)) {
       while (rs.next()) {
         final String columnValue = rs.getString(1);
         if (columnValue != null && columnValue.toLowerCase().contains("mariadb")) {
@@ -83,15 +82,12 @@ public class MariaDbDialect implements Dialect {
 
   public HostListProviderSupplier getHostListProviderSupplier() {
     return (properties, initialUrl, servicesContainer) ->
-        new ConnectionStringHostListProvider(
-            properties, initialUrl, servicesContainer.getHostListProviderService());
+        new ConnectionStringHostListProvider(properties, initialUrl, servicesContainer.getHostListProviderService());
   }
 
   @Override
   public void prepareConnectProperties(
-      final @NonNull Properties connectProperties,
-      final @NonNull String protocol,
-      final @NonNull HostSpec hostSpec) {
+      final @NonNull Properties connectProperties, final @NonNull String protocol, final @NonNull HostSpec hostSpec) {
     // do nothing
   }
 

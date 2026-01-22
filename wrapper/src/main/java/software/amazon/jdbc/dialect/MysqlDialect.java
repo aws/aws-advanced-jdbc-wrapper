@@ -39,19 +39,19 @@ public class MysqlDialect implements Dialect {
   private static MySQLExceptionHandler mySQLExceptionHandler;
   private static final EnumSet<FailoverRestriction> NO_FAILOVER_RESTRICTIONS =
       EnumSet.noneOf(FailoverRestriction.class);
-  private static final List<String> dialectUpdateCandidates =
-      Arrays.asList(
-          DialectCodes.GLOBAL_AURORA_MYSQL,
-          DialectCodes.AURORA_MYSQL,
-          DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER,
-          DialectCodes.RDS_MYSQL);
+  private static final List<String> dialectUpdateCandidates = Arrays.asList(
+      DialectCodes.GLOBAL_AURORA_MYSQL,
+      DialectCodes.AURORA_MYSQL,
+      DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER,
+      DialectCodes.RDS_MYSQL
+  );
 
   protected final DialectUtils dialectUtils = new DialectUtils();
 
   @Override
   public boolean isDialect(final Connection connection) {
     try (Statement stmt = connection.createStatement();
-        ResultSet rs = stmt.executeQuery(VERSION_QUERY)) {
+         ResultSet rs = stmt.executeQuery(VERSION_QUERY)) {
       while (rs.next()) {
         final String columnValue = rs.getString(2);
         if (columnValue != null && columnValue.toLowerCase().contains("mysql")) {
@@ -85,15 +85,12 @@ public class MysqlDialect implements Dialect {
 
   public HostListProviderSupplier getHostListProviderSupplier() {
     return (properties, initialUrl, servicesContainer) ->
-        new ConnectionStringHostListProvider(
-            properties, initialUrl, servicesContainer.getHostListProviderService());
+        new ConnectionStringHostListProvider(properties, initialUrl, servicesContainer.getHostListProviderService());
   }
 
   @Override
   public void prepareConnectProperties(
-      final @NonNull Properties connectProperties,
-      final @NonNull String protocol,
-      final @NonNull HostSpec hostSpec) {
+      final @NonNull Properties connectProperties, final @NonNull String protocol, final @NonNull HostSpec hostSpec) {
     // do nothing
   }
 

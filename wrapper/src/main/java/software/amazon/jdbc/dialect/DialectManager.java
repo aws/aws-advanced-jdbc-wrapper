@@ -42,13 +42,13 @@ public class DialectManager implements DialectProvider {
 
   private static final Logger LOGGER = Logger.getLogger(DialectManager.class.getName());
 
-  public static final AwsWrapperProperty DIALECT =
-      new AwsWrapperProperty(
-          "wrapperDialect", "", "A unique identifier for the supported database dialect.");
+  public static final AwsWrapperProperty DIALECT = new AwsWrapperProperty(
+      "wrapperDialect", "",
+      "A unique identifier for the supported database dialect.");
 
   /**
-   * Every Dialect implementation SHOULD BE stateless!!! Dialect objects are shared between
-   * different connections.
+   * Every Dialect implementation SHOULD BE stateless!!!
+   * Dialect objects are shared between different connections.
    */
   protected static final Map<String, Dialect> knownDialectsByCode =
       new HashMap<String, Dialect>() {
@@ -69,9 +69,9 @@ public class DialectManager implements DialectProvider {
       };
 
   /**
-   * In order to simplify dialect detection, there's an internal host-to-dialect cache. The cache
-   * contains host endpoints and identified dialect. Cache expiration time is defined by the
-   * variable below.
+   * In order to simplify dialect detection, there's an internal host-to-dialect cache.
+   * The cache contains host endpoints and identified dialect. Cache expiration time
+   * is defined by the variable below.
    */
   protected static final long ENDPOINT_CACHE_EXPIRATION = TimeUnit.HOURS.toNanos(24);
 
@@ -117,10 +117,9 @@ public class DialectManager implements DialectProvider {
     }
 
     final String userDialectSetting = DIALECT.getString(props);
-    final String dialectCode =
-        !StringUtils.isNullOrEmpty(userDialectSetting)
-            ? userDialectSetting
-            : knownEndpointDialects.get(url);
+    final String dialectCode = !StringUtils.isNullOrEmpty(userDialectSetting)
+        ? userDialectSetting
+        : knownEndpointDialects.get(url);
 
     if (!StringUtils.isNullOrEmpty(dialectCode)) {
       final Dialect userDialect = knownDialectsByCode.get(dialectCode);
@@ -130,8 +129,7 @@ public class DialectManager implements DialectProvider {
         this.logCurrentDialect();
         return userDialect;
       } else {
-        throw new SQLException(
-            Messages.get("DialectManager.unknownDialectCode", new Object[] {dialectCode}));
+        throw new SQLException(Messages.get("DialectManager.unknownDialectCode", new Object[] {dialectCode}));
       }
     }
 
@@ -140,9 +138,8 @@ public class DialectManager implements DialectProvider {
     }
 
     String host = url;
-    final List<HostSpec> hosts =
-        this.connectionUrlParser.getHostsFromConnectionUrl(
-            url, true, pluginService::getHostSpecBuilder);
+    final List<HostSpec> hosts = this.connectionUrlParser.getHostsFromConnectionUrl(
+        url, true, pluginService::getHostSpecBuilder);
     if (!Utils.isNullOrEmpty(hosts)) {
       host = hosts.get(0).getHost();
     }
@@ -228,8 +225,7 @@ public class DialectManager implements DialectProvider {
   public Dialect getDialect(
       final @NonNull String originalUrl,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Connection connection)
-      throws SQLException {
+      final @NonNull Connection connection) throws SQLException {
 
     if (!this.canUpdate) {
       this.logCurrentDialect();
@@ -241,9 +237,8 @@ public class DialectManager implements DialectProvider {
       for (String dialectCandidateCode : dialectCandidates) {
         Dialect dialectCandidate = knownDialectsByCode.get(dialectCandidateCode);
         if (dialectCandidate == null) {
-          throw new SQLException(
-              Messages.get(
-                  "DialectManager.unknownDialectCode", new Object[] {dialectCandidateCode}));
+          throw new SQLException(Messages.get(
+              "DialectManager.unknownDialectCode", new Object[] {dialectCandidateCode}));
         }
 
         boolean isDialect = dialectCandidate.isDialect(connection);
@@ -253,8 +248,7 @@ public class DialectManager implements DialectProvider {
           this.dialect = dialectCandidate;
 
           knownEndpointDialects.put(originalUrl, dialectCandidateCode, ENDPOINT_CACHE_EXPIRATION);
-          knownEndpointDialects.put(
-              hostSpec.getUrl(), dialectCandidateCode, ENDPOINT_CACHE_EXPIRATION);
+          knownEndpointDialects.put(hostSpec.getUrl(), dialectCandidateCode, ENDPOINT_CACHE_EXPIRATION);
 
           this.logCurrentDialect();
           return this.dialect;
@@ -276,11 +270,8 @@ public class DialectManager implements DialectProvider {
   }
 
   private void logCurrentDialect() {
-    LOGGER.finest(
-        Messages.get(
-            "DialectManager.currentDialect",
-            new Object[] {
-              this.dialectCode, this.dialect == null ? "<null>" : this.dialect, this.canUpdate
-            }));
+    LOGGER.finest(Messages.get(
+        "DialectManager.currentDialect",
+        new Object[] {this.dialectCode, this.dialect == null ? "<null>" : this.dialect, this.canUpdate}));
   }
 }

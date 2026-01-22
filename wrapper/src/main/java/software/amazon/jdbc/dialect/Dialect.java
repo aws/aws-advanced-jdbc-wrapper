@@ -40,9 +40,7 @@ public interface Dialect {
   String getHostAliasQuery();
 
   void prepareConnectProperties(
-      final @NonNull Properties connectProperties,
-      final @NonNull String protocol,
-      final @NonNull HostSpec hostSpec);
+      final @NonNull Properties connectProperties, final @NonNull String protocol, final @NonNull HostSpec hostSpec);
 
   EnumSet<FailoverRestriction> getFailoverRestrictions();
 

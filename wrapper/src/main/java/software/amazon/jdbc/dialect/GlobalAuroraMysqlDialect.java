@@ -25,8 +25,7 @@ import java.util.List;
 import software.amazon.jdbc.hostlistprovider.GlobalAuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.GlobalAuroraTopologyUtils;
 
-public class GlobalAuroraMysqlDialect extends AuroraMysqlDialect
-    implements GlobalAuroraTopologyDialect {
+public class GlobalAuroraMysqlDialect extends AuroraMysqlDialect implements GlobalAuroraTopologyDialect {
 
   protected static final String GLOBAL_STATUS_TABLE_EXISTS_QUERY =
       "SELECT 1 AS tmp FROM information_schema.tables WHERE"
@@ -40,10 +39,10 @@ public class GlobalAuroraMysqlDialect extends AuroraMysqlDialect
           + "VISIBILITY_LAG_IN_MSEC, AWS_REGION "
           + "FROM information_schema.aurora_global_db_instance_status ";
 
-  protected static final String REGION_COUNT_QUERY =
-      "SELECT count(1) FROM information_schema.aurora_global_db_status";
+  protected static final String REGION_COUNT_QUERY = "SELECT count(1) FROM information_schema.aurora_global_db_status";
   protected static final String REGION_BY_INSTANCE_ID_QUERY =
       "SELECT AWS_REGION FROM information_schema.aurora_global_db_instance_status WHERE SERVER_ID = ?";
+
 
   @Override
   public boolean isDialect(final Connection connection) {
@@ -53,7 +52,7 @@ public class GlobalAuroraMysqlDialect extends AuroraMysqlDialect
     }
 
     try (Statement stmt = connection.createStatement();
-        ResultSet rs = stmt.executeQuery(REGION_COUNT_QUERY)) {
+         ResultSet rs = stmt.executeQuery(REGION_COUNT_QUERY)) {
       if (!rs.next()) {
         return false;
       }
@@ -74,10 +73,8 @@ public class GlobalAuroraMysqlDialect extends AuroraMysqlDialect
   public HostListProviderSupplier getHostListProviderSupplier() {
     return (properties, initialUrl, servicesContainer) -> {
       final GlobalAuroraTopologyUtils topologyUtils =
-          new GlobalAuroraTopologyUtils(
-              this, servicesContainer.getPluginService().getHostSpecBuilder());
-      return new GlobalAuroraHostListProvider(
-          topologyUtils, properties, initialUrl, servicesContainer);
+          new GlobalAuroraTopologyUtils(this, servicesContainer.getPluginService().getHostSpecBuilder());
+      return new GlobalAuroraHostListProvider(topologyUtils, properties, initialUrl, servicesContainer);
     };
   }
 

@@ -34,18 +34,18 @@ public class TargetDriverDialectManager implements TargetDriverDialectProvider {
 
   private static final Logger LOGGER = Logger.getLogger(TargetDriverDialectManager.class.getName());
 
-  public static final AwsWrapperProperty TARGET_DRIVER_DIALECT =
-      new AwsWrapperProperty(
-          "wrapperTargetDriverDialect", "", "A unique identifier for the target driver dialect.");
+  public static final AwsWrapperProperty TARGET_DRIVER_DIALECT = new AwsWrapperProperty(
+      "wrapperTargetDriverDialect", "",
+      "A unique identifier for the target driver dialect.");
 
-  public static final AwsWrapperProperty TARGET_DRIVER_AUTO_REGISTER =
-      new AwsWrapperProperty(
-          "targetDriverAutoRegister", "true", "Allows to auto-register a target driver.");
+  public static final AwsWrapperProperty TARGET_DRIVER_AUTO_REGISTER = new AwsWrapperProperty(
+      "targetDriverAutoRegister", "true",
+      "Allows to auto-register a target driver.");
 
   /**
-   * Every Dialect implementation SHOULD BE stateless!!! Dialect objects are shared between
-   * different connections. The order of entries in this map is the order in which dialects are
-   * called/verified.
+   * Every Dialect implementation SHOULD BE stateless!!!
+   * Dialect objects are shared between different connections.
+   * The order of entries in this map is the order in which dialects are called/verified.
    */
   protected static final Map<String, TargetDriverDialect> knownDialectsByCode =
       new HashMap<String, TargetDriverDialect>() {
@@ -72,25 +72,25 @@ public class TargetDriverDialectManager implements TargetDriverDialectProvider {
 
   @Override
   public TargetDriverDialect getDialect(
-      final @NonNull Driver driver, final @NonNull Properties props) throws SQLException {
+      final @NonNull Driver driver,
+      final @NonNull Properties props) throws SQLException {
 
     return this.getDialect(props, (targetDriverDialect -> targetDriverDialect.isDialect(driver)));
   }
 
   @Override
   public TargetDriverDialect getDialect(
-      final @NonNull String dataSourceClass, final @NonNull Properties props) throws SQLException {
+      final @NonNull String dataSourceClass,
+      final @NonNull Properties props) throws SQLException {
 
-    return this.getDialect(
-        props, (targetDriverDialect -> targetDriverDialect.isDialect(dataSourceClass)));
+    return this.getDialect(props, (targetDriverDialect -> targetDriverDialect.isDialect(dataSourceClass)));
   }
 
   private TargetDriverDialect getDialect(
-      final @NonNull Properties props, Function<TargetDriverDialect, Boolean> checkFunc)
-      throws SQLException {
+      final @NonNull Properties props,
+      Function<TargetDriverDialect, Boolean> checkFunc) throws SQLException {
 
-    final TargetDriverDialect customDialect =
-        software.amazon.jdbc.Driver.getCustomTargetDriverDialect();
+    final TargetDriverDialect customDialect = software.amazon.jdbc.Driver.getCustomTargetDriverDialect();
     if (customDialect != null) {
       if (checkFunc.apply(customDialect)) {
         this.logDialect("custom", customDialect);
@@ -105,9 +105,9 @@ public class TargetDriverDialectManager implements TargetDriverDialectProvider {
     if (!StringUtils.isNullOrEmpty(dialectCode)) {
       result = knownDialectsByCode.get(dialectCode);
       if (result == null) {
-        throw new SQLException(
-            Messages.get(
-                "TargetDriverDialectManager.unknownDialectCode", new Object[] {dialectCode}));
+        throw new SQLException(Messages.get(
+            "TargetDriverDialectManager.unknownDialectCode",
+            new Object[] {dialectCode}));
       }
       this.logDialect(dialectCode, result);
       return result;
@@ -126,25 +126,25 @@ public class TargetDriverDialectManager implements TargetDriverDialectProvider {
   }
 
   private void logDialect(final String dialectCode, final TargetDriverDialect targetDriverDialect) {
-    LOGGER.finest(
-        () ->
-            Messages.get(
-                "TargetDriverDialectManager.useDialect",
-                new Object[] {dialectCode, targetDriverDialect}));
+    LOGGER.finest(() -> Messages.get(
+        "TargetDriverDialectManager.useDialect",
+        new Object[] {dialectCode, targetDriverDialect}));
   }
 
   /**
-   * Tries to identify a driver corresponded to provided protocol and register it. Driver
-   * registration may be disabled by provided configuration properties.
+   * Tries to identify a driver corresponded to provided protocol and register it.
+   * Driver registration may be disabled by provided configuration properties.
    *
    * @param protocol The protocol to identify a corresponding driver for registration.
    * @param props The properties
-   * @return True, if a corresponding driver was found and registered. False, otherwise.
-   * @throws SQLException when user provided invalid target driver dialect code, or when provided
-   *     protocol is not recognized.
+   * @return True, if a corresponding driver was found and registered.
+   *        False, otherwise.
+   * @throws SQLException when user provided invalid target driver dialect code,
+   *        or when provided protocol is not recognized.
    */
-  public boolean registerDriver(final @NonNull String protocol, final @NonNull Properties props)
-      throws SQLException {
+  public boolean registerDriver(
+      final @NonNull String protocol,
+      final @NonNull Properties props) throws SQLException {
 
     if (!TARGET_DRIVER_AUTO_REGISTER.getBoolean(props)) {
       // Driver auto-registration isn't allowed.
@@ -158,24 +158,21 @@ public class TargetDriverDialectManager implements TargetDriverDialectProvider {
     if (!StringUtils.isNullOrEmpty(dialectCode)) {
       targetDriverDialect = knownDialectsByCode.get(dialectCode);
       if (targetDriverDialect == null) {
-        throw new SQLException(
-            Messages.get(
-                "TargetDriverDialectManager.unknownDialectCode", new Object[] {dialectCode}));
+        throw new SQLException(Messages.get(
+            "TargetDriverDialectManager.unknownDialectCode",
+            new Object[] {dialectCode}));
       }
     }
 
     // Target driver dialect isn't found (or it's not provided by the user).
     // Try to find a dialect by provided protocol.
     if (targetDriverDialect == null) {
-      final String targetDriverDialectCode =
-          defaultDialectCodesByProtocol.get(protocol.toLowerCase());
-      targetDriverDialect =
-          targetDriverDialectCode == null ? null : knownDialectsByCode.get(targetDriverDialectCode);
+      final String targetDriverDialectCode = defaultDialectCodesByProtocol.get(protocol.toLowerCase());
+      targetDriverDialect = targetDriverDialectCode == null ? null : knownDialectsByCode.get(targetDriverDialectCode);
       if (targetDriverDialect == null) {
-        throw new SQLException(
-            Messages.get(
-                "TargetDriverDialectManager.unknownProtocol",
-                new Object[] {protocol.toLowerCase()}));
+        throw new SQLException(Messages.get(
+            "TargetDriverDialectManager.unknownProtocol",
+            new Object[] {protocol.toLowerCase()}));
       }
     }
 

@@ -37,24 +37,23 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
   private static final String DS_CLASS_NAME = "com.mysql.cj.jdbc.MysqlDataSource";
   private static final String CP_DS_CLASS_NAME = "com.mysql.cj.jdbc.MysqlConnectionPoolDataSource";
 
-  private static final Set<String> MYSQL_ALLOWED_ON_CLOSED_METHOD_NAMES =
-      Collections.unmodifiableSet(
-          new HashSet<String>() {
-            {
-              addAll(ALLOWED_ON_CLOSED_METHODS);
-              add(JdbcMethod.CONNECTION_GETCATALOG.methodName);
-              add(JdbcMethod.CONNECTION_ISREADONLY.methodName);
-              add(JdbcMethod.CONNECTION_GETAUTOCOMMIT.methodName);
-              add(JdbcMethod.CONNECTION_GETHOLDABILITY.methodName);
-              add(JdbcMethod.CONNECTION_GETCLIENTINFO.methodName);
-              add(JdbcMethod.CONNECTION_GETNETWORKTIMEOUT.methodName);
-              add(JdbcMethod.CONNECTION_GETTYPEMAP.methodName);
-              add(JdbcMethod.CONNECTION_CREATECLOB.methodName);
-              add(JdbcMethod.CONNECTION_CREATEBLOB.methodName);
-              add(JdbcMethod.CONNECTION_CREATENCLOB.methodName);
-              add(JdbcMethod.CONNECTION_SETHOLDABILITY.methodName);
-            }
-          });
+  private static final Set<String> MYSQL_ALLOWED_ON_CLOSED_METHOD_NAMES = Collections.unmodifiableSet(
+      new HashSet<String>() {
+        {
+          addAll(ALLOWED_ON_CLOSED_METHODS);
+          add(JdbcMethod.CONNECTION_GETCATALOG.methodName);
+          add(JdbcMethod.CONNECTION_ISREADONLY.methodName);
+          add(JdbcMethod.CONNECTION_GETAUTOCOMMIT.methodName);
+          add(JdbcMethod.CONNECTION_GETHOLDABILITY.methodName);
+          add(JdbcMethod.CONNECTION_GETCLIENTINFO.methodName);
+          add(JdbcMethod.CONNECTION_GETNETWORKTIMEOUT.methodName);
+          add(JdbcMethod.CONNECTION_GETTYPEMAP.methodName);
+          add(JdbcMethod.CONNECTION_CREATECLOB.methodName);
+          add(JdbcMethod.CONNECTION_CREATEBLOB.methodName);
+          add(JdbcMethod.CONNECTION_CREATENCLOB.methodName);
+          add(JdbcMethod.CONNECTION_SETHOLDABILITY.methodName);
+        }
+      });
 
   @Override
   public boolean isDialect(Driver driver) {
@@ -63,15 +62,14 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
 
   @Override
   public boolean isDialect(String dataSourceClass) {
-    return DS_CLASS_NAME.equals(dataSourceClass) || CP_DS_CLASS_NAME.equals(dataSourceClass);
+    return DS_CLASS_NAME.equals(dataSourceClass)
+        || CP_DS_CLASS_NAME.equals(dataSourceClass);
   }
 
   @Override
-  public ConnectInfo prepareConnectInfo(
-      final @NonNull String protocol,
+  public ConnectInfo prepareConnectInfo(final @NonNull String protocol,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props)
-      throws SQLException {
+      final @NonNull Properties props) throws SQLException {
 
     final String databaseName =
         PropertyDefinition.DATABASE.getString(props) != null
@@ -81,8 +79,7 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
 
     // keep unknown properties (the ones that don't belong to AWS Wrapper Driver)
     // and use them to make a connection
-    PropertyDefinition.removeAllExcept(
-        props,
+    PropertyDefinition.removeAllExcept(props,
         PropertyDefinition.USER.name,
         PropertyDefinition.PASSWORD.name,
         PropertyDefinition.TCP_KEEP_ALIVE.name,
@@ -97,8 +94,7 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
       final @NonNull DataSource dataSource,
       final @NonNull String protocol,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props)
-      throws SQLException {
+      final @NonNull Properties props) throws SQLException {
 
     // The logic is isolated to a separated class since it uses
     // direct reference to com.mysql.cj.jdbc.MysqlDataSource
