@@ -50,13 +50,6 @@ public final class JSQLParserAnalyzer {
     // Utility class
   }
 
-  /** SQL dialect for parser configuration. */
-  public enum Dialect {
-    POSTGRESQL,
-    MYSQL,
-    MARIADB
-  }
-
   /** Column information with table and column name. */
   public static class ColumnInfo {
     public String tableName;
@@ -90,13 +83,12 @@ public final class JSQLParserAnalyzer {
   }
 
   /**
-   * Analyze SQL statement with dialect support.
+   * Analyze SQL statement.
    *
    * @param sql SQL statement to analyze
-   * @param dialect SQL dialect (PostgreSQL, MySQL, MariaDB)
    * @return Query analysis result
    */
-  public static QueryAnalysis analyze(String sql, Dialect dialect) {
+  public static QueryAnalysis analyze(String sql) {
     QueryAnalysis analysis = new QueryAnalysis();
 
     if (sql == null || sql.trim().isEmpty()) {

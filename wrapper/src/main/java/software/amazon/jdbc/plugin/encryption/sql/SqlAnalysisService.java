@@ -25,7 +25,6 @@ import java.util.logging.Logger;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
-import software.amazon.jdbc.plugin.encryption.parser.DialectDetector;
 import software.amazon.jdbc.plugin.encryption.parser.JSQLParserAnalyzer;
 
 /**
@@ -53,10 +52,10 @@ public class SqlAnalysisService {
   }
 
   /**
-   * Analyzes a SQL statement with dialect detection.
+   * Analyzes a SQL statement.
    *
    * @param sql The SQL statement to analyze
-   * @param jdbcUrl JDBC URL for dialect detection (optional)
+   * @param jdbcUrl JDBC URL (unused, kept for compatibility)
    * @return Analysis result containing affected columns and their encryption configs
    */
   public static SqlAnalysisResult analyzeSql(String sql, String jdbcUrl) {
@@ -65,12 +64,8 @@ public class SqlAnalysisService {
     }
 
     try {
-      // Detect dialect from JDBC URL
-      JSQLParserAnalyzer.Dialect dialect = DialectDetector.detectFromUrl(jdbcUrl);
-      
       // Use JSQLParser for analysis
-      JSQLParserAnalyzer.QueryAnalysis queryAnalysis = 
-          JSQLParserAnalyzer.analyze(sql, dialect);
+      JSQLParserAnalyzer.QueryAnalysis queryAnalysis = JSQLParserAnalyzer.analyze(sql);
       
       if (queryAnalysis != null) {
         Set<String> tables = extractTablesFromJSQLAnalysis(queryAnalysis);
@@ -168,17 +163,13 @@ public class SqlAnalysisService {
     return getColumnParameterMapping(sql, null);
   }
 
-  /** Gets column-to-parameter mapping with dialect detection. */
+  /** Gets column-to-parameter mapping. */
   public Map<Integer, String> getColumnParameterMapping(String sql, String jdbcUrl) {
     Map<Integer, String> mapping = new HashMap<>();
 
     try {
-      // Detect dialect from JDBC URL
-      JSQLParserAnalyzer.Dialect dialect = DialectDetector.detectFromUrl(jdbcUrl);
-      
       // Use JSQLParser for analysis
-      JSQLParserAnalyzer.QueryAnalysis queryAnalysis = 
-          JSQLParserAnalyzer.analyze(sql, dialect);
+      JSQLParserAnalyzer.QueryAnalysis queryAnalysis = JSQLParserAnalyzer.analyze(sql);
       
       if (queryAnalysis != null) {
         // For SELECT statements, map parameters to WHERE clause columns

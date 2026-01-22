@@ -29,7 +29,7 @@ class MySqlParserTest {
   void testMySqlBacktickIdentifiers() {
     String sql = "SELECT `user_id`, `email` FROM `users` WHERE `id` = ?";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.MYSQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("SELECT", result.queryType);
     assertTrue(result.tables.contains("users") || result.tables.contains("`users`"));
@@ -39,7 +39,7 @@ class MySqlParserTest {
   void testMySqlInsertWithBackticks() {
     String sql = "INSERT INTO `users` (`name`, `email`, `ssn`) VALUES (?, ?, ?)";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.MYSQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("INSERT", result.queryType);
     assertEquals(3, result.columns.size());
@@ -49,7 +49,7 @@ class MySqlParserTest {
   void testMySqlUpdateWithBackticks() {
     String sql = "UPDATE `users` SET `name` = ?, `email` = ? WHERE `id` = ?";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.MYSQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("UPDATE", result.queryType);
     assertEquals(2, result.columns.size());
@@ -59,7 +59,7 @@ class MySqlParserTest {
   void testMySqlDeleteWithBackticks() {
     String sql = "DELETE FROM `users` WHERE `id` = ?";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.MYSQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("DELETE", result.queryType);
     assertTrue(result.tables.contains("users") || result.tables.contains("`users`"));
@@ -71,7 +71,7 @@ class MySqlParserTest {
         "SELECT `u`.`name`, `o`.`total` FROM `users` `u` "
             + "JOIN `orders` `o` ON `u`.`id` = `o`.`user_id` WHERE `u`.`id` = ?";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.MYSQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("SELECT", result.queryType);
     assertTrue(result.tables.size() >= 2);
@@ -82,7 +82,7 @@ class MySqlParserTest {
     // MySQL can use double quotes in ANSI mode
     String sql = "SELECT \"name\" FROM \"users\" WHERE \"id\" = ?";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.MYSQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("SELECT", result.queryType);
     assertNotNull(result.tables);
@@ -92,7 +92,7 @@ class MySqlParserTest {
   void testMySqlMixedQuoting() {
     String sql = "SELECT `name`, email FROM users WHERE `id` = ?";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.MYSQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("SELECT", result.queryType);
     assertTrue(result.tables.contains("users"));
@@ -103,7 +103,7 @@ class MySqlParserTest {
     // 'order' is a reserved keyword in MySQL, must be backticked
     String sql = "SELECT `order`, `date` FROM `orders` WHERE `id` = ?";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.MYSQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("SELECT", result.queryType);
     assertTrue(result.tables.contains("orders") || result.tables.contains("`orders`"));
@@ -113,7 +113,7 @@ class MySqlParserTest {
   void testMySqlInsertMultipleRows() {
     String sql = "INSERT INTO `users` (`name`, `email`) VALUES (?, ?), (?, ?)";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.MYSQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("INSERT", result.queryType);
     assertEquals(2, result.columns.size()); // Column count, not value count
@@ -125,7 +125,7 @@ class MySqlParserTest {
         "INSERT INTO `users` (`id`, `name`) VALUES (?, ?) "
             + "ON DUPLICATE KEY UPDATE `name` = ?";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.MYSQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("INSERT", result.queryType);
     assertTrue(result.tables.contains("users") || result.tables.contains("`users`"));
@@ -135,7 +135,7 @@ class MySqlParserTest {
   void testMySqlLimit() {
     String sql = "SELECT `name` FROM `users` WHERE `active` = ? LIMIT 10";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.MYSQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("SELECT", result.queryType);
     assertTrue(result.tables.contains("users") || result.tables.contains("`users`"));
@@ -145,7 +145,7 @@ class MySqlParserTest {
   void testMySqlLimitOffset() {
     String sql = "SELECT `name` FROM `users` WHERE `active` = ? LIMIT 10 OFFSET 20";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.MYSQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("SELECT", result.queryType);
     assertTrue(result.tables.contains("users") || result.tables.contains("`users`"));
@@ -160,7 +160,7 @@ class MySqlParserTest {
             + "`email` VARCHAR(255)"
             + ")";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.MYSQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("CREATE", result.queryType);
     assertTrue(result.tables.contains("users") || result.tables.contains("`users`"));
@@ -170,7 +170,7 @@ class MySqlParserTest {
   void testMySqlDropTable() {
     String sql = "DROP TABLE `users`";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.MYSQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("DROP", result.queryType);
     assertTrue(result.tables.contains("users") || result.tables.contains("`users`"));
@@ -182,7 +182,7 @@ class MySqlParserTest {
         "SELECT `name` FROM `users` WHERE `id` IN "
             + "(SELECT `user_id` FROM `orders` WHERE `total` > ?)";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.MYSQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("SELECT", result.queryType);
     assertTrue(result.tables.size() >= 2);
@@ -195,7 +195,7 @@ class MySqlParserTest {
             + "UNION "
             + "SELECT `name` FROM `archived_users` WHERE `id` = ?";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.MYSQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("SELECT", result.queryType);
     assertTrue(result.tables.size() >= 2);
@@ -205,7 +205,7 @@ class MySqlParserTest {
   void testMySqlCaseInsensitiveKeywords() {
     String sql = "select `name` from `users` where `id` = ?";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.MYSQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("SELECT", result.queryType);
     assertTrue(result.tables.contains("users") || result.tables.contains("`users`"));
@@ -217,7 +217,7 @@ class MySqlParserTest {
         "SELECT `name` FROM `users` "
             + "WHERE `age` > ? AND (`status` = ? OR `role` = ?)";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.MYSQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("SELECT", result.queryType);
     assertTrue(result.whereColumns.size() >= 3);
@@ -229,7 +229,7 @@ class MySqlParserTest {
         "SELECT `department`, COUNT(*) FROM `employees` "
             + "WHERE `active` = ? GROUP BY `department`";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.MYSQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("SELECT", result.queryType);
     assertTrue(result.tables.contains("employees") || result.tables.contains("`employees`"));
@@ -241,7 +241,7 @@ class MySqlParserTest {
         "SELECT `department`, COUNT(*) as cnt FROM `employees` "
             + "GROUP BY `department` HAVING cnt > ?";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.MYSQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("SELECT", result.queryType);
     assertTrue(result.tables.contains("employees") || result.tables.contains("`employees`"));

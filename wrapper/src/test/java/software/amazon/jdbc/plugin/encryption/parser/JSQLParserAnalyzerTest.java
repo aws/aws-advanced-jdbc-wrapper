@@ -29,7 +29,7 @@ class JSQLParserAnalyzerTest {
   void testPostgreSqlSelect() {
     String sql = "SELECT name, age FROM users WHERE id = ?";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.POSTGRESQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("SELECT", result.queryType);
     assertTrue(result.tables.contains("users"));
@@ -41,7 +41,7 @@ class JSQLParserAnalyzerTest {
   void testMySqlSelect() {
     String sql = "SELECT `name`, `age` FROM `users` WHERE `id` = ?";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.MYSQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("SELECT", result.queryType);
     // JSQLParser may preserve backticks in table names
@@ -52,7 +52,7 @@ class JSQLParserAnalyzerTest {
   void testInsertStatement() {
     String sql = "INSERT INTO users (name, email) VALUES (?, ?)";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.POSTGRESQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("INSERT", result.queryType);
     assertTrue(result.tables.contains("users"));
@@ -65,7 +65,7 @@ class JSQLParserAnalyzerTest {
   void testUpdateStatement() {
     String sql = "UPDATE users SET name = ?, email = ? WHERE id = ?";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.POSTGRESQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("UPDATE", result.queryType);
     assertTrue(result.tables.contains("users"));
@@ -76,7 +76,7 @@ class JSQLParserAnalyzerTest {
   void testDeleteStatement() {
     String sql = "DELETE FROM users WHERE id = ?";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.POSTGRESQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("DELETE", result.queryType);
     assertTrue(result.tables.contains("users"));
@@ -86,7 +86,7 @@ class JSQLParserAnalyzerTest {
   void testMySqlBackticks() {
     String sql = "INSERT INTO `users` (`name`, `email`) VALUES (?, ?)";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.MYSQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("INSERT", result.queryType);
     // JSQLParser may preserve backticks in table names
@@ -99,7 +99,7 @@ class JSQLParserAnalyzerTest {
     String sql =
         "SELECT u.name, o.total FROM users u JOIN orders o ON u.id = o.user_id WHERE u.id = ?";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.POSTGRESQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertEquals("SELECT", result.queryType);
     assertTrue(result.tables.contains("users"));
@@ -110,7 +110,7 @@ class JSQLParserAnalyzerTest {
   void testInvalidSql() {
     String sql = "INVALID SQL STATEMENT";
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(sql, JSQLParserAnalyzer.Dialect.POSTGRESQL);
+        JSQLParserAnalyzer.analyze(sql);
 
     assertNotNull(result);
     assertEquals("UNKNOWN", result.queryType);
@@ -119,7 +119,7 @@ class JSQLParserAnalyzerTest {
   @Test
   void testEmptySql() {
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze("", JSQLParserAnalyzer.Dialect.POSTGRESQL);
+        JSQLParserAnalyzer.analyze("");
 
     assertEquals("UNKNOWN", result.queryType);
   }
@@ -127,7 +127,7 @@ class JSQLParserAnalyzerTest {
   @Test
   void testNullSql() {
     JSQLParserAnalyzer.QueryAnalysis result =
-        JSQLParserAnalyzer.analyze(null, JSQLParserAnalyzer.Dialect.POSTGRESQL);
+        JSQLParserAnalyzer.analyze(null);
 
     assertEquals("UNKNOWN", result.queryType);
   }
