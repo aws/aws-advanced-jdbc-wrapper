@@ -23,7 +23,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.services.rds.model.DBClusterEndpoint;
+import software.amazon.jdbc.HostRole;
 
 /**
  * Represents custom endpoint information for a given custom endpoint.
@@ -132,6 +134,22 @@ public class CustomEndpointInfo {
    */
   public CustomEndpointRoleType getCustomEndpointType() {
     return roleType;
+  }
+
+  /**
+   * Evaluates whether instances in the custom endpoint must match a particular role according to the custom endpoint
+   * properties. Note that custom clusters with static member lists always route to all static members, even if the
+   * member is a writer and the custom endpoint is of type is READER, so there are never role requirements for static
+   * list custom clusters.
+   *
+   * @return the required role of instances in the custom endpoint, or null if there is no strict role requirement.
+   */
+  public @Nullable HostRole getRequiredRole() {
+    if (this.memberListType == MemberListType.EXCLUSION_LIST && this.roleType == CustomEndpointRoleType.READER) {
+      return HostRole.READER;
+    }
+
+    return null;
   }
 
   /**

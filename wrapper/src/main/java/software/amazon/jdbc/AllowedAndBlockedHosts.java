@@ -27,6 +27,7 @@ import software.amazon.jdbc.util.Utils;
 public class AllowedAndBlockedHosts {
   @Nullable private final Set<String> allowedHostIds;
   @Nullable private final Set<String> blockedHostIds;
+  @Nullable private final HostRole requiredRole;
 
   /**
    * Constructs an AllowedAndBlockedHosts instance with the specified allowed and blocked host IDs.
@@ -36,10 +37,16 @@ public class AllowedAndBlockedHosts {
    * @param blockedHostIds The set of blocked host IDs for connections. If null or empty, all host IDs in
    *                       {@code allowedHostIds} are allowed. If {@code allowedHostIds} is also null or empty, there
    *                       are no restrictions on which hosts are allowed.
+   * @param requiredRole   The required role of instances in the custom cluster. Note that custom clusters with static
+   *                       member lists always route to all static members, even if the member is a writer and the
+   *                       custom endpoint is of type is READER, so there are never role requirements for static list
+   *                       custom clusters.
    */
-  public AllowedAndBlockedHosts(@Nullable Set<String> allowedHostIds, @Nullable Set<String> blockedHostIds) {
+  public AllowedAndBlockedHosts(
+      @Nullable Set<String> allowedHostIds, @Nullable Set<String> blockedHostIds, @Nullable HostRole requiredRole) {
     this.allowedHostIds = Utils.isNullOrEmpty(allowedHostIds) ? null : Collections.unmodifiableSet(allowedHostIds);
     this.blockedHostIds = Utils.isNullOrEmpty(blockedHostIds) ? null : Collections.unmodifiableSet(blockedHostIds);
+    this.requiredRole = requiredRole;
   }
 
   /**
@@ -62,5 +69,17 @@ public class AllowedAndBlockedHosts {
   @Nullable
   public Set<String> getBlockedHostIds() {
     return this.blockedHostIds;
+  }
+
+  /**
+   * Returns the required role of instances in the custom cluster. Note that custom clusters with static member lists
+   * always route to all static members, even if the member is a writer and the custom endpoint is of type is READER, so
+   * there are never role requirements for static list custom clusters.
+   *
+   * @return the required role of instances in the custom endpoint, or null if there is no strict role requirement.
+   */
+  @Nullable
+  public HostRole getRequiredRole() {
+    return this.requiredRole;
   }
 }
