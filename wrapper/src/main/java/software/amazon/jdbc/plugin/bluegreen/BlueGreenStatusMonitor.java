@@ -411,36 +411,37 @@ public class BlueGreenStatusMonitor {
           LOGGER.finest(() -> Messages.get("bgd.statusNotAvailable",
               new Object[] {this.role, BlueGreenPhase.NOT_CREATED}));
         } else {
-          this.connection.set(null);
           this.clearCheckStatusStatement();
+          this.connection.set(null);
           this.currentPhase = null;
           this.panicMode.set(true);
         }
         return;
       }
 
-      ResultSet resultSet = this.executeCheckStatusStatement(conn);
-
       final List<StatusInfo> statusEntries = new ArrayList<>();
-      while (resultSet.next()) {
-        String version = resultSet.getString("version");
-        if (!knownVersions.contains(version)) {
-          final String versionCopy = version;
-          version = latestKnownVersion;
-          LOGGER.warning(() -> Messages.get("bgd.usesVersion",
-                  new Object[] {this.role, versionCopy, latestKnownVersion}));
+
+      try (ResultSet resultSet = this.executeCheckStatusStatement(conn)) {
+        while (resultSet.next()) {
+          String version = resultSet.getString("version");
+          if (!knownVersions.contains(version)) {
+            final String versionCopy = version;
+            version = latestKnownVersion;
+            LOGGER.warning(() -> Messages.get("bgd.usesVersion",
+                    new Object[] {this.role, versionCopy, latestKnownVersion}));
+          }
+
+          final String endpoint = resultSet.getString("endpoint");
+          final int port = resultSet.getInt("port");
+          final BlueGreenRole role = BlueGreenRole.parseRole(resultSet.getString("role"), version);
+          final BlueGreenPhase phase = BlueGreenPhase.parsePhase(resultSet.getString("status"), version);
+
+          if (this.role != role) {
+            continue;
+          }
+
+          statusEntries.add(new StatusInfo(version, endpoint, port, phase, role));
         }
-
-        final String endpoint = resultSet.getString("endpoint");
-        final int port = resultSet.getInt("port");
-        final BlueGreenRole role = BlueGreenRole.parseRole(resultSet.getString("role"), version);
-        final BlueGreenPhase phase = BlueGreenPhase.parsePhase(resultSet.getString("status"), version);
-
-        if (this.role != role) {
-          continue;
-        }
-
-        statusEntries.add(new StatusInfo(version, endpoint, port, phase, role));
       }
 
       // Check if there's a cluster writer endpoint.
