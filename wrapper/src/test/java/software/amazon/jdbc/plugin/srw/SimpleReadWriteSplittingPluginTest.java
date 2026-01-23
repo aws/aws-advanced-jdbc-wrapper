@@ -127,7 +127,7 @@ public class SimpleReadWriteSplittingPluginTest {
   }
 
   @Test
-  public void testSwitchToReader_noReaderEndpoint() throws SQLException {
+  public void testSwitchToReader_noReaderEndpoint() {
     Properties props = new Properties();
     SimpleReadWriteSplittingPlugin.SRW_WRITE_ENDPOINT.set(props, WRITE_ENDPOINT);
     // No read endpoint set
@@ -699,7 +699,7 @@ public class SimpleReadWriteSplittingPluginTest {
     spyPlugin.switchConnectionIfRequired(true);
     spyPlugin.switchConnectionIfRequired(false);
 
-    verify(spyPlugin, times(1)).closeConnectionIfIdle(eq(mockReaderConn));
+    verify(spyPlugin, times(2)).closeReaderConnectionIfIdle();
   }
 
   @Test
@@ -728,6 +728,6 @@ public class SimpleReadWriteSplittingPluginTest {
     spyPlugin.switchConnectionIfRequired(false);
     spyPlugin.switchConnectionIfRequired(true);
 
-    verify(spyPlugin, times(1)).closeConnectionIfIdle(eq(mockWriterConn));
+    verify(spyPlugin, times(1)).closeWriterConnectionIfIdle();
   }
 }

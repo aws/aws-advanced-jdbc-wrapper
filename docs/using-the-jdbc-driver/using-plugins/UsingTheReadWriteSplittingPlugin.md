@@ -115,7 +115,7 @@ props.setProperty(ReadWriteSplittingPlugin.READER_HOST_SELECTOR_STRATEGY.name, "
 
 ## Reader keep-alive timeout
 If no connection pool is used, reader connections created by calls to `setReadOnly(true)` will be cached for the entire lifetime of the `Connection` object. This may have a negative performance impact if your application makes frequent calls to `setReadOnly(true)` on the same `Connection` object, as all read traffic for that `Connection` will be directed to a single reader instance.
-To improve performance, you can specify a timeout for the cached reader connection using `cachedReaderKeepAliveTimeoutMs`. Once the reader has expired, the next call to `setReadOnly(true)` will create a new reader connection determined by the reader host selection strategy.
+To improve performance, you can specify a timeout for the cached reader connection using `cachedReaderKeepAliveTimeoutMs`. Once the reader has expired, the next call to `setReadOnly(true)` will create a new reader connection determined by the reader host selection strategy. The default value of 0 means the wrapper will keep reusing the same cached reader connection.
 
 ```java
 final Properties properties = new Properties();

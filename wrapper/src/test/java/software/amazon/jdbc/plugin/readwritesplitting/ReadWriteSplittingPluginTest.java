@@ -565,7 +565,7 @@ public class ReadWriteSplittingPluginTest {
   }
 
   @Test
-  public void testExecuteClearWarningsOnNullConnectionsIsNotCalled() throws SQLException {
+  public void testExecuteClearWarningsOnNullConnectionsIsNotCalled() {
     final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
         defaultProps,
