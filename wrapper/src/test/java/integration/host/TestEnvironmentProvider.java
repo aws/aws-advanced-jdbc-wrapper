@@ -209,6 +209,7 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
                               config.noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null,
                               config.testHibernateOnly ? TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY : null,
                               config.testAutoscalingOnly ? TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY : null,
+                              config.testEncryptionOnly ? TestEnvironmentFeatures.RUN_ENCRYPTION_TESTS_ONLY : null,
                               config.noTracesTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED,
                               config.noMetricsTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED,
                               withBlueGreenFeature ? TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT : null,

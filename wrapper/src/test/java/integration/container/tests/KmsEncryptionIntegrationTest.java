@@ -13,6 +13,7 @@ import java.util.Base64;
 import java.util.Properties;
 import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngineDeployment;
+import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,6 +30,9 @@ import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
+@EnableOnTestFeature({
+    TestEnvironmentFeatures.RUN_ENCRYPTION_TESTS_ONLY
+})
 @DisableOnTestFeature({
     TestEnvironmentFeatures.PERFORMANCE,
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,

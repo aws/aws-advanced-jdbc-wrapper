@@ -515,6 +515,7 @@ tasks.register<Test>("test-all-multi-az") {
 tasks.register<Test>("test-all-pg-aurora") {
     group = "verification"
     filter.includeTestsMatching("integration.host.TestRunner.runTests")
+    filter.includeTestsMatching("integration.container.tests.KmsEncryptionIntegrationTest")
     doFirst {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-performance", "true")
@@ -529,6 +530,28 @@ tasks.register<Test>("test-all-pg-aurora") {
         systemProperty("test-no-openjdk17", "true")
         systemProperty("test-no-openjdk22", "true")
         systemProperty("test-no-bg", "true")
+    }
+}
+
+tasks.register<Test>("test-encryption-only") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
+    filter.includeTestsMatching("integration.container.tests.KmsEncryptionIntegrationTest")
+    doFirst {
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-no-mysql-driver", "true")
+        systemProperty("test-no-mysql-engine", "true")
+        systemProperty("test-no-mariadb-driver", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+        systemProperty("test-no-multi-az-cluster", "true")
+        systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-graalvm", "true")
+        systemProperty("test-no-openjdk8", "true")
+        systemProperty("test-no-openjdk17", "true")
+        systemProperty("test-no-openjdk22", "true")
+        systemProperty("test-no-bg", "true")
+        systemProperty("test-encryption-only", "true")
     }
 }
 

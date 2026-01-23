@@ -146,7 +146,7 @@ jobs:
 
       - name: 'Build and Test Encryption Plugin'
         run: |
-          ./gradlew :aws-advanced-jdbc-wrapper:test-all-pg-aurora \
+          ./gradlew :aws-advanced-jdbc-wrapper: test-encryption-only \
             -PkmsKeyId=${{ steps.active-key.outputs.key_id }}
         env:
           KMS_KEY_ID: ${{ steps.active-key.outputs.key_id }}
