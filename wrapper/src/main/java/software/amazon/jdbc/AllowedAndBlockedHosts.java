@@ -37,6 +37,10 @@ public class AllowedAndBlockedHosts {
    * @param blockedHostIds The set of blocked host IDs for connections. If null or empty, all host IDs in
    *                       {@code allowedHostIds} are allowed. If {@code allowedHostIds} is also null or empty, there
    *                       are no restrictions on which hosts are allowed.
+   * @param requiredRole   The required role of instances in the custom cluster. Note that custom clusters with static
+   *                       member lists always route to all static members, even if the member is a writer and the
+   *                       custom endpoint is of type is READER, so there are never role requirements for static list
+   *                       custom clusters.
    */
   public AllowedAndBlockedHosts(
       @Nullable Set<String> allowedHostIds, @Nullable Set<String> blockedHostIds, @Nullable HostRole requiredRole) {
