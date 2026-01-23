@@ -164,9 +164,11 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
           // The custom endpoint info has changed, so we need to update the set of allowed/blocked hosts.
           AllowedAndBlockedHosts allowedAndBlockedHosts;
           if (STATIC_LIST.equals(endpointInfo.getMemberListType())) {
-            allowedAndBlockedHosts = new AllowedAndBlockedHosts(endpointInfo.getStaticMembers(), null);
+            allowedAndBlockedHosts = new AllowedAndBlockedHosts(
+                endpointInfo.getStaticMembers(), null, endpointInfo.getRequiredRole());
           } else {
-            allowedAndBlockedHosts = new AllowedAndBlockedHosts(null, endpointInfo.getExcludedMembers());
+            allowedAndBlockedHosts = new AllowedAndBlockedHosts(
+                null, endpointInfo.getExcludedMembers(), endpointInfo.getRequiredRole());
           }
 
           this.storageService.set(this.customEndpointHostSpec.getUrl(), allowedAndBlockedHosts);
