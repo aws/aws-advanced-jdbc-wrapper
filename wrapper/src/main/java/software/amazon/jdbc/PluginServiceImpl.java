@@ -71,7 +71,6 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache = new CacheMap<>();
 
-  protected final RdsUtils rdsUtils = new RdsUtils();
   protected final FullServicesContainer servicesContainer;
   protected final ConnectionPluginManager pluginManager;
   private final Properties props;
