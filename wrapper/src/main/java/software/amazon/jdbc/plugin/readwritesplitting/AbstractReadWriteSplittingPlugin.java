@@ -91,7 +91,7 @@ public abstract class AbstractReadWriteSplittingPlugin extends AbstractConnectio
               + "Default value 0 means the Wrapper will keep reusing the same cached reader connection.");
 
   static {
-    PropertyDefinition.registerPluginProperties(ReadWriteSplittingPlugin.class);
+    PropertyDefinition.registerPluginProperties(AbstractReadWriteSplittingPlugin.class);
   }
 
   public AbstractReadWriteSplittingPlugin(final PluginService pluginService, final Properties properties) {

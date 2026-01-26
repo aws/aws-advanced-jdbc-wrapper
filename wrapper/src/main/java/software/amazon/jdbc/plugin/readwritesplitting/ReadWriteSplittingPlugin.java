@@ -132,10 +132,10 @@ public class ReadWriteSplittingPlugin extends AbstractReadWriteSplittingPlugin
     }
 
     this.hosts = this.pluginService.getHosts();
-    if (Utils.isNullOrEmpty(hosts)) {
+    if (Utils.isNullOrEmpty(this.hosts)) {
       logAndThrowException(Messages.get("ReadWriteSplittingPlugin.emptyHostList"));
     }
-    this.writerHostSpec = getWriter(hosts);
+    this.writerHostSpec = getWriterHost(this.hosts);
   }
 
   @Override
@@ -148,7 +148,7 @@ public class ReadWriteSplittingPlugin extends AbstractReadWriteSplittingPlugin
 
   @Override
   protected void initializeReaderConnection() throws SQLException {
-    if (hosts.size() == 1) {
+    if (this.hosts.size() == 1) {
       if (!isConnectionUsable(this.writerConnection)) {
         initializeWriterConnection();
       }
@@ -173,7 +173,7 @@ public class ReadWriteSplittingPlugin extends AbstractReadWriteSplittingPlugin
     }
   }
 
-  private HostSpec getWriter(final @NonNull List<HostSpec> hosts) throws SQLException {
+  private HostSpec getWriterHost(final @NonNull List<HostSpec> hosts) throws SQLException {
     HostSpec writerHost = Utils.getWriter(hosts);
     if (writerHost == null) {
       logAndThrowException(Messages.get("ReadWriteSplittingPlugin.noWriterFound"));
