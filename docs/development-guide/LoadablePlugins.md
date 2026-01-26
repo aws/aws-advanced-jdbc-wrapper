@@ -68,12 +68,15 @@ A custom plugin can subscribe to all JDBC methods being executed, which means it
 We recommend that you be aware of the performance impact of subscribing and performing demanding tasks for every JDBC method.
 
 ### Register the Custom Plugin
-The `DriverConfigurationProfiles` manages the plugin profiles.
-To register a new custom plugin, call `DriverConfigurationProfiles.addOrReplaceProfile()` as follows:
+The `DriverConfigurationProfileBuilder` manages the plugin profiles.
+Implement a class which implements `ConnectionPluginFactory` for your custom plugin and then 
+register a new custom plugin, by calling `ConfigurationProfileBuilder.buildAndSet()` as follows:
 
 ```java
-properties.setProperty("wrapperProfileName", "foo");
-DriverConfigurationProfiles.addOrReplaceProfile("foo", Collections.singletonList(FooPluginFactory.class));
+ConfigurationProfileBuilder.get()
+.withName("testProfile")
+.withPluginFactories(Collections.singletonList(YourCustomPluginFactory.class))
+.buildAndSet();
 ```
 
 ## What is Not Allowed in Plugins
