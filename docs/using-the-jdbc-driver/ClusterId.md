@@ -6,9 +6,9 @@ The `clusterId` parameter is a critical configuration setting when using the AWS
 
 ## What is a Cluster?
 
-In the context of the AWS Advanced JDBC Wrapper, a **cluster** is a logical grouping of database instances that should share the same topology cache, connection pools, and monitoring services. Understanding what constitutes a cluster is crucial for correctly setting the `clusterId` parameter.
+In the context of the AWS Advanced JDBC Wrapper, a **cluster** is a logical grouping of database instances that should share the same topology cache and monitoring services. Understanding what constitutes a cluster is crucial for correctly setting the `clusterId` parameter.
 
-A cluster represents one writer instance (primary), zero or more reader instances (replicas), shared topology that the driver needs to track, and a single failover domain where the driver can switch between instances.
+A cluster represents one writer instance (primary), zero or more reader instances (replicas), shared topology that the driver needs to track, and a group of instances where the driver can reconnect to when a failover is detected.
 
 ### Examples of Clusters
 
@@ -27,7 +27,6 @@ The AWS Advanced JDBC Wrapper uses the `clusterId` as a **key for internal cachi
 
 - Cache collisions between different clusters
 - Incorrect topology information
-- Connection pool conflicts
 - Degraded performance due to cache invalidation
 
 ## Why Not Use AWS DB Cluster Identifiers?
@@ -80,24 +79,29 @@ The following diagram shows how different `clusterId` values maintain separate c
 You **must** specify a unique `clusterId` when your application connects to multiple database clusters:
 
 ```java
-// Application connecting to two different clusters
-Properties prodProps = new Properties();
-prodProps.setProperty("clusterId", "production-cluster");
-prodProps.setProperty("user", "admin");
-prodProps.setProperty("password", "***");
-Connection prodConn = DriverManager.getConnection(
-    "jdbc:aws-wrapper:mysql://prod-cluster.us-east-1.rds.amazonaws.com:3306/mydb",
-    prodProps
+// Sample data migration app
+Properties sourceProps = new Properties();
+sourceProps.setProperty("clusterId", "source-cluster");
+sourceProps.setProperty("user", "admin");
+sourceProps.setProperty("password", "***");
+Connection sourceConn = DriverManager.getConnection(
+    "jdbc:aws-wrapper:mysql://source-db.us-east-1.rds.amazonaws.com:3306/mydb",
+    sourceProps
 );
 
-Properties stagingProps = new Properties();
-stagingProps.setProperty("clusterId", "staging-cluster");  // Different clusterId!
-stagingProps.setProperty("user", "admin");
-stagingProps.setProperty("password", "***");
-Connection stagingConn = DriverManager.getConnection(
-    "jdbc:aws-wrapper:mysql://staging-cluster.us-east-1.rds.amazonaws.com:3306/mydb",
-    stagingProps
+Properties destProps = new Properties();
+destProps.setProperty("clusterId", "destination-cluster");  // Different clusterId!
+destProps.setProperty("user", "admin");
+destProps.setProperty("password", "***");
+Connection destConn = DriverManager.getConnection(
+    "jdbc:aws-wrapper:mysql://dest-db.us-west-2.rds.amazonaws.com:3306/mydb",
+    destProps
 );
+
+// Read from source, write to destination
+ResultSet rs = sourceConn.createStatement().executeQuery("SELECT * FROM users");
+PreparedStatement ps = destConn.prepareStatement("INSERT INTO users VALUES (?, ?, ?)");
+// ... migration logic
 ```
 
 ### **Optional: Single Cluster Applications**
@@ -130,7 +134,6 @@ Connection conn2 = DriverManager.getConnection(url, props2);
 
 **Benefits of consistent `clusterId`:**
 - Shared topology cache (no redundant queries)
-- Shared connection pools (better resource utilization)
 - Single monitoring thread per cluster (reduced overhead)
 
 
@@ -165,8 +168,8 @@ Connection conn2 = DriverManager.getConnection(
 **Correct approach:**
 ```java
 // ✅ CORRECT - Unique clusterId for each cluster
-props1.setProperty("clusterId", "cluster-a-prod");
-props2.setProperty("clusterId", "cluster-b-staging");
+props1.setProperty("clusterId", "source-cluster");
+props2.setProperty("clusterId", "destination-cluster");
 ```
 
 ### ⚠️ **Always Use Same clusterId for Same Cluster**
@@ -191,11 +194,11 @@ Connection conn2 = DriverManager.getConnection(sameClusterUrl, props2);
 **Best practice:**
 ```java
 // ✅ BEST - Same clusterId for same cluster
-final String CLUSTER_ID = "my-production-cluster";
+final String CLUSTER_ID = "my-cluster";
 props1.setProperty("clusterId", CLUSTER_ID);
 props2.setProperty("clusterId", CLUSTER_ID);  // Shared cache and resources
 ```
 
 ## Summary
 
-The `clusterId` parameter is essential for applications connecting to multiple database clusters. It serves as a cache key for topology information, connection pools, and monitoring services. Always use unique `clusterId` values for different clusters, and consistent values for the same cluster to maximize performance and avoid conflicts.
+The `clusterId` parameter is essential for applications connecting to multiple database clusters. It serves as a cache key for topology information and monitoring services. Always use unique `clusterId` values for different clusters, and consistent values for the same cluster to maximize performance and avoid conflicts.
