@@ -39,11 +39,11 @@ dependencies {
     optionalImplementation("software.amazon.awssdk:http-client-spi:2.41.10") // Required for IAM (light implementation)
     optionalImplementation("software.amazon.awssdk:sts:2.41.10")
     optionalImplementation("software.amazon.awssdk:secretsmanager:2.41.10")
-    optionalImplementation("com.fasterxml.jackson.core:jackson-databind:2.19.0")
+    optionalImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
     optionalImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
-    optionalImplementation("com.mchange:c3p0:0.11.0")
+    optionalImplementation("com.mchange:c3p0:0.11.2")
     optionalImplementation("org.apache.httpcomponents:httpclient:4.5.14")
-    optionalImplementation("com.fasterxml.jackson.core:jackson-databind:2.19.0")
+    optionalImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
     optionalImplementation("org.jsoup:jsoup:1.21.1")
     optionalImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
     optionalImplementation("io.opentelemetry:opentelemetry-api:1.52.0")
@@ -77,7 +77,7 @@ dependencies {
     testImplementation("com.mysql:mysql-connector-j:9.4.0")
     testImplementation("org.mariadb.jdbc:mariadb-java-client:3.5.6")
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
-    testImplementation("com.mchange:c3p0:0.11.0")
+    testImplementation("com.mchange:c3p0:0.11.2")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
     testImplementation("software.amazon.awssdk:rds:2.41.10", )
@@ -96,7 +96,7 @@ dependencies {
     testImplementation("eu.rekawek.toxiproxy:toxiproxy-java:2.1.7")
     testImplementation("org.apache.poi:poi-ooxml:5.5.1")
     testImplementation("org.slf4j:slf4j-simple:2.0.17")
-    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.19.0")
+    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
     testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
     testImplementation("io.opentelemetry:opentelemetry-api:1.52.0")
     testImplementation("io.opentelemetry:opentelemetry-sdk:1.52.0")
