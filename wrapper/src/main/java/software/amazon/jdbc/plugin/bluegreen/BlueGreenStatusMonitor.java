@@ -19,10 +19,10 @@ package software.amazon.jdbc.plugin.bluegreen;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -38,6 +38,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -125,6 +126,8 @@ public class BlueGreenStatusMonitor {
   protected final AtomicBoolean connectionHostSpecCorrect = new AtomicBoolean(false);
   protected final AtomicBoolean panicMode = new AtomicBoolean(true);
   protected Future<Void> openConnectionFuture = null;
+  
+  protected final AtomicReference<PreparedStatement> checkStatusStatement = new AtomicReference<>(null);
 
   public BlueGreenStatusMonitor(
       final @NonNull BlueGreenRole role,
@@ -373,6 +376,28 @@ public class BlueGreenStatusMonitor {
     }
   }
 
+  protected void clearCheckStatusStatement() {
+    final PreparedStatement statement = this.checkStatusStatement.getAndSet(null);
+    if (statement != null) {
+      try {
+        statement.close();
+      } catch (SQLException e) {
+        // Ignore - connection is likely closed
+      }
+    }
+  }
+
+  protected ResultSet executeCheckStatusStatement(final Connection conn) throws SQLException {
+    // Get cached prepared statement, if isn't available, then create and set it.
+    PreparedStatement statement = this.checkStatusStatement.get();
+    if (statement == null) {
+      statement = conn.prepareStatement(this.blueGreenDialect.getBlueGreenStatusQuery());
+      this.checkStatusStatement.set(statement);
+    }
+  
+    return statement.executeQuery();
+  }
+
   protected void collectStatus() {
     final Connection conn = this.connection.get();
     try {
@@ -386,6 +411,7 @@ public class BlueGreenStatusMonitor {
           LOGGER.finest(() -> Messages.get("bgd.statusNotAvailable",
               new Object[] {this.role, BlueGreenPhase.NOT_CREATED}));
         } else {
+          this.clearCheckStatusStatement();
           this.connection.set(null);
           this.currentPhase = null;
           this.panicMode.set(true);
@@ -393,29 +419,29 @@ public class BlueGreenStatusMonitor {
         return;
       }
 
-      final Statement statement = conn.createStatement();
-      final ResultSet resultSet = statement.executeQuery(this.blueGreenDialect.getBlueGreenStatusQuery());
-
       final List<StatusInfo> statusEntries = new ArrayList<>();
-      while (resultSet.next()) {
-        String version = resultSet.getString("version");
-        if (!knownVersions.contains(version)) {
-          final String versionCopy = version;
-          version = latestKnownVersion;
-          LOGGER.warning(() -> Messages.get("bgd.usesVersion",
-                  new Object[] {this.role, versionCopy, latestKnownVersion}));
+
+      try (ResultSet resultSet = this.executeCheckStatusStatement(conn)) {
+        while (resultSet.next()) {
+          String version = resultSet.getString("version");
+          if (!knownVersions.contains(version)) {
+            final String versionCopy = version;
+            version = latestKnownVersion;
+            LOGGER.warning(() -> Messages.get("bgd.usesVersion",
+                    new Object[] {this.role, versionCopy, latestKnownVersion}));
+          }
+
+          final String endpoint = resultSet.getString("endpoint");
+          final int port = resultSet.getInt("port");
+          final BlueGreenRole role = BlueGreenRole.parseRole(resultSet.getString("role"), version);
+          final BlueGreenPhase phase = BlueGreenPhase.parsePhase(resultSet.getString("status"), version);
+
+          if (this.role != role) {
+            continue;
+          }
+
+          statusEntries.add(new StatusInfo(version, endpoint, port, phase, role));
         }
-
-        final String endpoint = resultSet.getString("endpoint");
-        final int port = resultSet.getInt("port");
-        final BlueGreenRole role = BlueGreenRole.parseRole(resultSet.getString("role"), version);
-        final BlueGreenPhase phase = BlueGreenPhase.parsePhase(resultSet.getString("status"), version);
-
-        if (this.role != role) {
-          continue;
-        }
-
-        statusEntries.add(new StatusInfo(version, endpoint, port, phase, role));
       }
 
       // Check if there's a cluster writer endpoint.
@@ -479,6 +505,7 @@ public class BlueGreenStatusMonitor {
               .port(statusInfo.port)
               .build());
           this.connectionHostSpecCorrect.set(true);
+          this.clearCheckStatusStatement();
           this.connection.set(null);
           this.panicMode.set(true);
 
@@ -520,6 +547,7 @@ public class BlueGreenStatusMonitor {
           LOGGER.log(Level.FINEST, Messages.get("bgd.unhandledSqlException", new Object[] {this.role}), e);
         }
       }
+      this.clearCheckStatusStatement();
       this.connection.set(null);
       this.panicMode.set(true);
     } catch (Exception e) {
@@ -557,6 +585,7 @@ public class BlueGreenStatusMonitor {
       }
     }
 
+    this.clearCheckStatusStatement();
     this.connection.set(null);
     this.panicMode.set(true);
 
@@ -605,6 +634,7 @@ public class BlueGreenStatusMonitor {
 
       } catch (SQLException ex) {
         // can't open connection
+        this.clearCheckStatusStatement();
         this.connection.set(null);
         this.panicMode.set(true);
         this.notifyChanges();
