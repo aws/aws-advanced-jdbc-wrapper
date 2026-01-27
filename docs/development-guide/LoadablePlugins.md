@@ -74,11 +74,18 @@ register a new custom plugin, by calling `ConfigurationProfileBuilder.buildAndSe
 
 ```java
 ConfigurationProfileBuilder.get()
-.withName("testProfile")
+.withName("customPluginProfile")   // this can be any name of your choosing except for existing names
 .withPluginFactories(Collections.singletonList(YourCustomPluginFactory.class))
 .buildAndSet();
 ```
+In order to use the plugin to open a connection you must provide the custom profile name into the `wrapperProfileName` configuration parameter
 
+```java
+Properties props = ConnectionStringHelper.getDefaultProperties();
+props.setProperty(PropertyDefinition.PROFILE_NAME.name, "customPluginProfile");
+
+Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
+```
 ## What is Not Allowed in Plugins
 
 When creating custom plugins, it is important to **avoid** the following bad practices in your plugin implementation:
