@@ -35,8 +35,10 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.TokenInfo;
 import software.amazon.jdbc.plugin.iam.IamTokenUtility;
+import software.amazon.jdbc.util.GDBRegionUtils;
 import software.amazon.jdbc.util.IamAuthUtils;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.RegionUtils;
 import software.amazon.jdbc.util.StringUtils;
@@ -83,7 +85,7 @@ public class OktaAuthPlugin extends AbstractConnectionPlugin {
       new AwsWrapperProperty("dbUser", null, "The database user used to access the database");
 
   private static final Logger LOGGER = Logger.getLogger(OktaAuthPlugin.class.getName());
-  protected static final RegionUtils regionUtils = new RegionUtils();
+  protected RegionUtils regionUtils;
 
   protected final PluginService pluginService;
 
@@ -149,14 +151,17 @@ public class OktaAuthPlugin extends AbstractConnectionPlugin {
 
     this.samlUtils.checkIdpCredentialsWithFallback(IDP_USERNAME, IDP_PASSWORD, props);
 
-    final String host = IamAuthUtils.getIamHost(IAM_HOST.getString(props), hostSpec);
+    final HostSpec host = IamAuthUtils.getIamHost(IAM_HOST.getString(props), hostSpec);
 
     final int port = IamAuthUtils.getIamPort(
         IAM_DEFAULT_PORT.getInteger(props),
         hostSpec,
         this.pluginService.getDialect().getDefaultPort());
 
-    final Region region = regionUtils.getRegion(host, props, IAM_REGION.name);
+    final RdsUrlType type = rdsUtils.identifyRdsType(host.getHost());
+    this.regionUtils = type == RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER ? new GDBRegionUtils() : new RegionUtils();
+
+    final Region region = this.regionUtils.getRegion(host, props, IAM_REGION.name);
     if (region == null) {
       throw new SQLException(
           Messages.get("OktaAuthPlugin.unableToDetermineRegion", new Object[]{ IAM_REGION.name }));
@@ -164,7 +169,7 @@ public class OktaAuthPlugin extends AbstractConnectionPlugin {
 
     final String cacheKey = IamAuthUtils.getCacheKey(
         DB_USER.getString(props),
-        host,
+        host.getHost(),
         port,
         region);
 
@@ -179,7 +184,7 @@ public class OktaAuthPlugin extends AbstractConnectionPlugin {
               new Object[] {tokenInfo.getToken()}));
       PropertyDefinition.PASSWORD.set(props, tokenInfo.getToken());
     } else {
-      updateAuthenticationToken(hostSpec, props, region, cacheKey, host);
+      updateAuthenticationToken(hostSpec, props, region, cacheKey, host.getHost());
     }
 
     PropertyDefinition.USER.set(props, DB_USER.getString(props));
@@ -191,7 +196,7 @@ public class OktaAuthPlugin extends AbstractConnectionPlugin {
           || !this.pluginService.isLoginException(exception, this.pluginService.getTargetDriverDialect())) {
         throw exception;
       }
-      updateAuthenticationToken(hostSpec, props, region, cacheKey, host);
+      updateAuthenticationToken(hostSpec, props, region, cacheKey, host.getHost());
       return connectFunc.call();
     } catch (final Exception exception) {
       LOGGER.warning(

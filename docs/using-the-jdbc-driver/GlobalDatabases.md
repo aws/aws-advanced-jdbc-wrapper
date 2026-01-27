@@ -128,4 +128,5 @@ For detailed compatibility information, see:
 
 - [Failover Plugin v2](./using-plugins/UsingTheFailover2Plugin.md)
 - [Aurora Initial Connection Strategy Plugin](./using-plugins/UsingTheAuroraInitialConnectionStrategyPlugin.md)
+- [IAM Authentication Plugin](./using-plugins/UsingTheIamAuthenticationPlugin.md)
 - [Database Dialects](./DatabaseDialects.md)
