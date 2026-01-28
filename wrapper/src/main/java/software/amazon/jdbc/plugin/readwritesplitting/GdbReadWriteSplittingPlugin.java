@@ -81,7 +81,7 @@ public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
     this.homeRegion = RW_HOME_REGION.getString(props);
     if (StringUtils.isNullOrEmpty(this.homeRegion)) {
       final RdsUrlType rdsUrlType = this.rdsHelper.identifyRdsType(initHostSpec.getHost());
-      if (rdsUrlType != null && rdsUrlType.isHasRegion()) {
+      if (rdsUrlType != null && rdsUrlType.hasRegion()) {
         this.homeRegion = this.rdsHelper.getRdsRegion(initHostSpec.getHost());
       }
     }

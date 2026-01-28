@@ -20,9 +20,20 @@ final Properties properties = new Properties();
 properties.setProperty(PropertyDefinition.PLUGINS.name, "readWriteSplitting");
 ```
 
+> [!WARNING]
+> Do not use the `readWriteSplitting`, `srw` and/or `gdbReadWriteSplitting` plugins (or their combination) at the same time for the same connection!
+
+
 ## Supplying the connection string
 
 When using the read/write splitting plugin against Aurora clusters, you do not have to supply multiple instance URLs in the connection string. Instead, supply just the URL for the initial instance to which you're connecting. You must also include either the failover plugin or the Aurora host list plugin in your plugin chain so that the driver knows to query Aurora for its topology. See the section on [loading the read/write splitting plugin](#loading-the-readwrite-splitting-plugin) for more info.
+
+## Configuration Parameters
+
+| Parameter                        |  Value  |                                                                  Required                                                                   | Description                                                                                                                                                                                                                                                                                                                                                                                       | Default Value                                                                                                                    |
+|----------------------------------|:-------:|:-------------------------------------------------------------------------------------------------------------------------------------------:|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
+| `readerHostSelectorStrategy`     | String  |                                                                     No                                                                      | The name of strategy that should be used to select a new reader host.                                                                                                                                                                                                                                                                                                                             | `random`                                                                                                                         |
+| `cachedReaderKeepAliveTimeoutMs` | Integer |                                                                     No                                                                      | The time in milliseconds to keep a reader connection alive in the cache. Default value 0 means the Wrapper will keep reusing the same cached reader connection.                                                                                                                                                                                                                                   | 0                                                                                                                                | 
 
 ## Using the Read/Write Splitting Plugin against non-Aurora clusters
 
