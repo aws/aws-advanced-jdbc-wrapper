@@ -7,11 +7,11 @@ It is possible to use the AWS Advanced JDBC Wrapper with plain RDS databases, bu
 
 ## Using the AWS JDBC Driver to access multiple database clusters
 > [!WARNING]\
-> If connecting to multiple database clusters within a single application, each connection string must set the `clusterId` property. The property value should be the same for all connections to the same cluster. Connections to different clusters should have difference `clusterId` values. If the `clusterId` is omitted, you may experience various issues. For more information, please see the [Cluster Id Parameter](./ClusterId.md) section.
+> If connecting to multiple database clusters within a single application, each connection string must set the `clusterId` property. The property value should be the same for all connections to the same cluster. Connections to different clusters should have difference `clusterId` values. If the `clusterId` is omitted, you may experience various issues. For more information, please see the [Cluster Id](./ClusterId.md) documentation.
 
 ## Using the AWS Advanced JDBC Wrapper with custom endpoints and other non-standard URLs
 > [!WARNING]\
-> If connecting using a non-standard RDS URL (e.g. a custom endpoint, ip address, rds proxy, or custom domain URL), the clusterId property must be set. If the `clusterId` is omitted when using a non-standard RDS URL, you may experience various issues. For more information, please see the [Cluster Id Parameter](./ClusterId.md) section. 
+> If connecting using a non-standard RDS URL (e.g. a custom endpoint, ip address, rds proxy, or custom domain URL), the clusterId property must be set. If the `clusterId` is omitted when using a non-standard RDS URL, you may experience various issues. For more information, please see the [Cluster Id Parameter](./ClusterId.md) documentation. 
 
 ## Wrapper Protocol
 The AWS Advanced JDBC Wrapper uses the protocol prefix `jdbc:aws-wrapper:`. Internally, the JDBC Wrapper will replace this protocol prefix with `jdbc:`, making the final protocol `jdbc:aws-wrapper:{suffix}` where `suffix` is specific to the desired underlying protocol. For example, to connect to a PostgreSQL database, you would use the protocol `jdbc:aws-wrapper:postgresql:`, and inside the AWS Advanced JDBC Wrapper, the final protocol that will be used to connect to a database will be `jdbc:postgresql:`.

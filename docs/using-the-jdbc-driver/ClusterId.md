@@ -6,9 +6,9 @@ The `clusterId` parameter is a critical configuration setting when using the AWS
 
 ## What is a Cluster?
 
-In the context of the AWS Advanced JDBC Wrapper, a **cluster** is a logical grouping of database instances that should share the same topology cache and monitoring services. Understanding what constitutes a cluster is crucial for correctly setting the `clusterId` parameter.
+Understanding what constitutes a cluster is crucial for correctly setting the `clusterId` parameter. In the context of the AWS Advanced JDBC Wrapper, a **cluster** is a logical grouping of database instances that should share the same topology cache and monitoring services.
 
-A cluster represents one writer instance (primary), zero or more reader instances (replicas), shared topology that the driver needs to track, and a group of instances where the driver can reconnect to when a failover is detected.
+A cluster represents one writer instance (primary) and zero or more reader instances (replicas). These make up shared topology that the driver needs to track, and are the group of instances the driver can reconnect to when a failover is detected.
 
 ### Examples of Clusters
 
@@ -17,7 +17,7 @@ A cluster represents one writer instance (primary), zero or more reader instance
 - Aurora Global Database (when supplying a global db endpoint, the driver considers them as a single cluster)
 
 
-> **Rule of thumb:** If the driver should track separate topology information and perform independent failover operations, use different `clusterId` values. If instances share the same topology and failover domain, use the same `clusterId`.
+> **Rule of thumb:** :thumbsup: If the driver should track separate topology information and perform independent failover operations, use different `clusterId` values. If instances share the same topology and failover domain, use the same `clusterId`.
 
 
 
@@ -55,7 +55,9 @@ The following diagram shows how connections with the same `clusterId` share cach
 - All three connections share the same Topology Cache and Monitor Threads in the driver
 - The Topology Cache stores a key-value mapping where `"foo"` maps to `["instance-1", "instance-2", "instance-3"]`
 - Despite different connection URLs, all connections monitor and query the same physical database cluster
-- Shared resources eliminate redundant topology queries and reduce monitoring overhead
+
+**The Impact**
+Shared resources eliminate redundant topology queries and reduce monitoring overhead.
 
 ### Example: Multiple Clusters with Separate Cache Isolation
 
@@ -70,7 +72,9 @@ The following diagram shows how different `clusterId` values maintain separate c
 - Topology Cache maintains separate entries: `"foo"` → `[instance-1, instance-2, instance-3]` and `"bar"` → `[instance-4, instance-5]`
 - Monitor Cache maintains separate monitor threads for each cluster
 - Monitors poll their respective database clusters and update the corresponding topology cache entries
-- This isolation prevents cache collisions and ensures correct failover behavior for each cluster
+
+**The Impact**
+This isolation prevents cache collisions and ensures correct failover behavior for each cluster.
 
 ## When to Specify clusterId
 
