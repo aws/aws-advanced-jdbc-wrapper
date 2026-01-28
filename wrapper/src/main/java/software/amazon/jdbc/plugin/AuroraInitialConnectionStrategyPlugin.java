@@ -96,9 +96,8 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
       new AwsWrapperProperty(
           "inactiveClusterWriterEndpointSubstitutionRole",
           "writer",
-          "Defines whether or not the inactive cluster writer endpoint in initial connection URL should"
-              + " be replaced with an instance URL from the"
-              + " topology info when available, and if so, the role of the instance URL that should be selected.",
+          "Defines whether or not the inactive cluster writer endpoint in the initial connection URL should"
+              + " be replaced with a writer instance URL from the topology info when available.",
           false,
           new String[] {
               "writer", "none"
@@ -305,25 +304,24 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
       return InstanceSubstitutionStrategy.SUBSTITUTE_WITH_WRITER;
     } else if (urlType == RdsUrlType.RDS_WRITER_CLUSTER) {
       final HostSpec writer = Utils.getWriter(this.pluginService.getAllHosts());
-      if (writer != null && this.rdsUtils.isRdsInstance(writer.getHost())) {
-        final String writerRegion = this.rdsUtils.getRdsRegion(writer.getHost());
-        final String clusterRegion = this.rdsUtils.getRdsRegion(originalConnectHost);
-        if (!clusterRegion.equalsIgnoreCase(writerRegion)) {
-          // The cluster writer endpoint belongs to a different region than the current writer region.
-          // It means that the cluster is Aurora Global Database and cluster writer endpoint is in secondary region.
-          // In this case the cluster writer endpoint is in inactive state and doesn't represent the current writer
-          // so any connection check should be skipped.
-          // Continue with a normal workflow.
-          InstanceSubstitutionStrategy inactiveClusterWriterStrategy = InstanceSubstitutionStrategy.fromPropertyValue(
-              INACTIVE_CLUSTER_WRITER_SUBSTITUTION_ROLE.getString(props));
-          return inactiveClusterWriterStrategy != null
-              ? inactiveClusterWriterStrategy
-              : InstanceSubstitutionStrategy.SUBSTITUTE_WITH_WRITER;
-        }
-        return InstanceSubstitutionStrategy.SUBSTITUTE_WITH_WRITER;
-      } else {
+      if (writer == null || !this.rdsUtils.isRdsInstance(writer.getHost())) {
         return InstanceSubstitutionStrategy.DO_NOT_SUBSTITUTE;
       }
+
+      if (this.rdsUtils.isSameRegion(writer.getHost(), originalConnectHost)) {
+        return InstanceSubstitutionStrategy.SUBSTITUTE_WITH_WRITER;
+      }
+
+      // The cluster writer endpoint belongs to a different region than the current writer region.
+      // It means that the cluster is Aurora Global Database and cluster writer endpoint is in secondary region.
+      // In this case the cluster writer endpoint is in inactive state and doesn't represent the current writer.
+      // A user setting should be used to decide whether to substitute the endpoint with a writer instance URL.
+      InstanceSubstitutionStrategy inactiveClusterWriterStrategy = InstanceSubstitutionStrategy.fromPropertyValue(
+          INACTIVE_CLUSTER_WRITER_SUBSTITUTION_ROLE.getString(props));
+      return inactiveClusterWriterStrategy != null
+          ? inactiveClusterWriterStrategy
+          : InstanceSubstitutionStrategy.SUBSTITUTE_WITH_WRITER;
+
     } else if (urlType == RdsUrlType.RDS_READER_CLUSTER) {
       return InstanceSubstitutionStrategy.SUBSTITUTE_WITH_READER;
     }
@@ -404,9 +402,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     if (urlType == RdsUrlType.RDS_WRITER_CLUSTER) {
       final HostSpec writer = Utils.getWriter(this.pluginService.getAllHosts());
       if (writer != null && this.rdsUtils.isRdsInstance(writer.getHost())) {
-        final String writerRegion = this.rdsUtils.getRdsRegion(writer.getHost());
-        final String clusterRegion = this.rdsUtils.getRdsRegion(originalConnectHost);
-        if (clusterRegion.equals(writerRegion)) {
+        if (this.rdsUtils.isSameRegion(writer.getHost(), originalConnectHost)) {
           // The cluster writer endpoint belongs to the same region as the current writer region.
           // It means it's an active endpoint.
           return HostRole.WRITER;
@@ -491,7 +487,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
     }
 
     try {
-      final String awsRegion = urlType.isHasRegion()
+      final String awsRegion = urlType.hasRegion()
           ? this.rdsUtils.getRdsRegion(originalConnectHost.getHost())
           : null;
       if (!StringUtils.isNullOrEmpty(awsRegion)) {

@@ -51,7 +51,7 @@ The Failover Plugin v2 will be enabled by default if the [`wrapperPlugins`](../U
 Please refer to the [failover configuration guide](../FailoverConfigurationGuide.md) for tips to keep in mind when using the failover plugin.
 
 > [!WARNING]
-> Do not use the `failover` and `failover2` plugins at the same time for the same connection! 
+> Do not use the `gdbFailover`, `failover` and/or `failover2` plugins (or their combination) at the same time for the same connection!
 
 Verify plugin compatibility within your driver configuration using the [compatibility guide](../Compatibility.md).
 

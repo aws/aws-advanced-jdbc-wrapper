@@ -45,8 +45,6 @@ public class AuroraStaleDnsHelper {
 
   private static final Logger LOGGER = Logger.getLogger(AuroraStaleDnsHelper.class.getName());
 
-  private static final int RETRIES = 3;
-
   public static final AwsWrapperProperty SKIP_INACTIVE_WRITER_CLUSTER_CHECK =
       new AwsWrapperProperty(
           "skipInactiveWriterClusterEndpointCheck", "false",
@@ -89,11 +87,9 @@ public class AuroraStaleDnsHelper {
     if (type == RdsUrlType.RDS_WRITER_CLUSTER) {
       final HostSpec writer = Utils.getWriter(this.pluginService.getAllHosts());
       if (writer != null && this.rdsUtils.isRdsInstance(writer.getHost())) {
-        final String writerRegion = this.rdsUtils.getRdsRegion(writer.getHost());
-        final String clusterRegion = this.rdsUtils.getRdsRegion(hostSpec.getHost());
         if (isInitialConnection
-            && !clusterRegion.equals(writerRegion)
-            && SKIP_INACTIVE_WRITER_CLUSTER_CHECK.getBoolean(props)) {
+            && SKIP_INACTIVE_WRITER_CLUSTER_CHECK.getBoolean(props)
+            && !this.rdsUtils.isSameRegion(writer.getHost(), hostSpec.getHost())) {
           // The cluster writer endpoint belongs to a different region than the current writer region.
           // It means that the cluster is Aurora Global Database and cluster writer endpoint is in secondary region.
           // In this case the cluster writer endpoint is in inactive state and doesn't represent the current writer

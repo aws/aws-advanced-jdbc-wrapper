@@ -46,7 +46,7 @@ public enum RdsUrlType {
     return this.isRdsCluster;
   }
 
-  public boolean isHasRegion() {
+  public boolean hasRegion() {
     return hasRegion;
   }
 }
