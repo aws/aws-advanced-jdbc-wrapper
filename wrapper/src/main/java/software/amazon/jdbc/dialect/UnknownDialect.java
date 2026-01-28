@@ -22,11 +22,14 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.GenericExceptionHandler;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
+import software.amazon.jdbc.hostlistprovider.HostRoleUtils;
 import software.amazon.jdbc.plugin.failover.FailoverRestriction;
+import software.amazon.jdbc.util.Messages;
 
 public class UnknownDialect implements Dialect {
 
@@ -72,6 +75,11 @@ public class UnknownDialect implements Dialect {
   }
 
   @Override
+  public String getIsReaderQuery() {
+    return null;
+  }
+
+  @Override
   public boolean isDialect(final Connection connection) {
     return false;
   }
@@ -84,7 +92,8 @@ public class UnknownDialect implements Dialect {
   @Override
   public HostListProviderSupplier getHostListProviderSupplier() {
     return (properties, initialUrl, servicesContainer) ->
-        new ConnectionStringHostListProvider(properties, initialUrl, servicesContainer.getHostListProviderService());
+        new ConnectionStringHostListProvider(null,
+            properties, initialUrl, servicesContainer.getHostListProviderService());
   }
 
   @Override

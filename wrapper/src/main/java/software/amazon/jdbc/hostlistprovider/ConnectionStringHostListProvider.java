@@ -41,6 +41,7 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
   private final ConnectionUrlParser connectionUrlParser;
   private final String initialUrl;
   private final HostListProviderService hostListProviderService;
+  protected final HostRoleUtils hostRoleUtils;
 
   public static final AwsWrapperProperty SINGLE_WRITER_CONNECTION_STRING =
       new AwsWrapperProperty(
@@ -50,13 +51,15 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
               + "cluster has only one writer. The writer must be the first host in the connection string");
 
   public ConnectionStringHostListProvider(
+      final HostRoleUtils hostRoleUtils,
       final @NonNull Properties properties,
       final String initialUrl,
       final @NonNull HostListProviderService hostListProviderService) {
-    this(properties, initialUrl, hostListProviderService, new ConnectionUrlParser());
+    this(hostRoleUtils, properties, initialUrl, hostListProviderService, new ConnectionUrlParser());
   }
 
   ConnectionStringHostListProvider(
+      final HostRoleUtils hostRoleUtils,
       final @NonNull Properties properties,
       final String initialUrl,
       final @NonNull HostListProviderService hostListProviderService,
@@ -66,6 +69,7 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
     this.initialUrl = initialUrl;
     this.connectionUrlParser = connectionUrlParser;
     this.hostListProviderService = hostListProviderService;
+    this.hostRoleUtils = hostRoleUtils;
   }
 
   private void init() throws SQLException {
@@ -110,8 +114,13 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
   }
 
   @Override
-  public HostRole getHostRole(Connection connection) {
-    throw new UnsupportedOperationException("ConnectionStringHostListProvider does not support getHostRole");
+  public HostRole getHostRole(Connection connection) throws SQLException {
+    if (this.hostRoleUtils == null) {
+      throw new UnsupportedOperationException(
+          "ConnectionStringHostListProvider does not support getHostRole with unknown DB type.");
+    }
+    init();
+    return this.hostRoleUtils.getHostRole(connection);
   }
 
   @Override
