@@ -287,6 +287,9 @@ public abstract class AbstractReadWriteSplittingPlugin extends AbstractConnectio
       final String logMessage, final Throwable cause)
       throws SQLException {
     LOGGER.fine(logMessage);
+    if (cause instanceof ReadWriteSplittingSQLException) {
+      throw (ReadWriteSplittingSQLException) cause;
+    }
     throw new ReadWriteSplittingSQLException(logMessage, SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), cause);
   }
 

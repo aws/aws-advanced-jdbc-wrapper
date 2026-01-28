@@ -20,7 +20,7 @@ Plugins are notified by the connection plugin manager when changes to the databa
 To use a custom plugin, you must:
 1. Create a custom plugin.
 2. Register the custom plugin to a wrapper profile.
-3. Specify the custom plugin to use in `wrapperProfileName`.
+3. Specify the custom profile name to use in `wrapperProfileName`.
 
 ### Creating Custom Plugins
 

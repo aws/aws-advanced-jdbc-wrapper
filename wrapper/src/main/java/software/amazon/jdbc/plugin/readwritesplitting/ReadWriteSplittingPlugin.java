@@ -42,7 +42,7 @@ public class ReadWriteSplittingPlugin extends AbstractReadWriteSplittingPlugin
 
   private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingPlugin.class.getName());
 
-  private final String readerSelectorStrategy;
+  protected final String readerSelectorStrategy;
   protected List<HostSpec> hosts;
 
   public static final AwsWrapperProperty READER_HOST_SELECTOR_STRATEGY =
@@ -182,13 +182,19 @@ public class ReadWriteSplittingPlugin extends AbstractReadWriteSplittingPlugin
     return writerHost;
   }
 
-  private void openNewReaderConnection() throws SQLException {
+  protected List<HostSpec> getReaderHostCandidates() throws SQLException {
+    return this.pluginService.getHosts();
+  }
+
+  protected void openNewReaderConnection() throws SQLException {
     Connection conn = null;
     HostSpec readerHost = null;
 
-    int connAttempts = this.pluginService.getHosts().size() * 2;
+    final List<HostSpec> hostCandidates = this.getReaderHostCandidates();
+    int connAttempts = hostCandidates.size() * 2;
     for (int i = 0; i < connAttempts; i++) {
-      HostSpec hostSpec = this.pluginService.getHostSpecByStrategy(HostRole.READER, this.readerSelectorStrategy);
+      HostSpec hostSpec = this.pluginService.getHostSpecByStrategy(
+          hostCandidates, HostRole.READER, this.readerSelectorStrategy);
       try {
         conn = this.pluginService.connect(hostSpec, this.properties, this);
         this.isReaderConnFromInternalPool = Boolean.TRUE.equals(this.pluginService.isPooledConnection());
