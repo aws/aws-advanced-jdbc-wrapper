@@ -21,14 +21,12 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
-import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
@@ -36,9 +34,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.ResourceLock;
@@ -316,58 +312,6 @@ public class RdsHostListProvider implements DynamicHostListProvider, CanReleaseR
   @Override
   public void releaseResources() {
     // Do nothing.
-  }
-
-  @Override
-  public HostRole getHostRole(Connection conn) throws SQLException {
-    init();
-    return this.topologyUtils.getHostRole(conn);
-  }
-
-  @Override
-  public @Nullable HostSpec identifyConnection(Connection connection) throws SQLException {
-    init();
-    try {
-      Pair<String, String> instanceIds = this.topologyUtils.getInstanceId(connection);
-      if (instanceIds == null) {
-        throw new SQLException(Messages.get("RdsHostListProvider.errorIdentifyConnection"));
-      }
-
-      List<HostSpec> topology = this.refresh();
-      boolean isForcedRefresh = false;
-      if (topology == null) {
-        topology = this.forceRefresh();
-        isForcedRefresh = true;
-      }
-
-      if (topology == null) {
-        return null;
-      }
-
-      String instanceName = instanceIds.getValue2();
-      HostSpec foundHost = topology
-          .stream()
-          .filter(host -> Objects.equals(instanceName, host.getHostId()))
-          .findAny()
-          .orElse(null);
-
-      if (foundHost == null && !isForcedRefresh) {
-        topology = this.forceRefresh();
-        if (topology == null) {
-          return null;
-        }
-
-        foundHost = topology
-            .stream()
-            .filter(host -> Objects.equals(instanceName, host.getHostId()))
-            .findAny()
-            .orElse(null);
-      }
-
-      return foundHost;
-    } catch (final SQLException | TimeoutException e) {
-      throw new SQLException(Messages.get("RdsHostListProvider.errorIdentifyConnection"), e);
-    }
   }
 
   @Override

@@ -52,7 +52,6 @@ import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Pair;
-import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.storage.CacheMap;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -216,7 +215,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
 
   @Override
   public HostRole getHostRole(Connection conn) throws SQLException {
-    return this.hostListProvider.getHostRole(conn);
+    return this.dbDialect.getHostRole(conn);
   }
 
   @Override
@@ -581,7 +580,47 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
 
   @Override
   public HostSpec identifyConnection(Connection connection) throws SQLException {
-    return this.getHostListProvider().identifyConnection(connection);
+    try {
+      Pair<String, String> instanceIds = this.getDialect().getHostId(connection);
+      if (instanceIds == null) {
+        throw new SQLException(Messages.get("PluginServiceImpl.errorIdentifyConnection"));
+      }
+
+      List<HostSpec> topology = this.hostListProvider.refresh();
+      boolean isForcedRefresh = false;
+      if (topology == null) {
+        topology = this.hostListProvider.forceRefresh();
+        isForcedRefresh = true;
+      }
+
+      if (topology == null) {
+        return null;
+      }
+
+      String instanceName = instanceIds.getValue2();
+      HostSpec foundHost = topology
+          .stream()
+          .filter(host -> Objects.equals(instanceName, host.getHostId()))
+          .findAny()
+          .orElse(null);
+
+      if (foundHost == null && !isForcedRefresh) {
+        topology = this.hostListProvider.forceRefresh();
+        if (topology == null) {
+          return null;
+        }
+
+        foundHost = topology
+            .stream()
+            .filter(host -> Objects.equals(instanceName, host.getHostId()))
+            .findAny()
+            .orElse(null);
+      }
+
+      return foundHost;
+    } catch (final SQLException | TimeoutException e) {
+      throw new SQLException(Messages.get("PluginServiceImpl.errorIdentifyConnection"), e);
+    }
   }
 
   @Override

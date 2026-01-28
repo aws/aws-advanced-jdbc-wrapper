@@ -20,8 +20,6 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 
 public interface HostListProvider {
@@ -67,19 +65,6 @@ public interface HostListProvider {
    */
   List<HostSpec> forceRefresh(final boolean verifyTopology, final long timeoutMs)
       throws SQLException, TimeoutException;
-
-  /**
-   * Evaluates the host role of the given connection - either a writer or a reader.
-   *
-   * @param connection a connection to the database instance whose role should be determined
-   * @return the role of the given connection - either a writer or a reader
-   * @throws SQLException if there is a problem executing or processing the SQL query used to
-   *                      determine the host role
-   */
-  HostRole getHostRole(Connection connection) throws SQLException;
-
-  @Nullable
-  HostSpec identifyConnection(Connection connection) throws SQLException;
 
   String getClusterId() throws UnsupportedOperationException, SQLException;
 

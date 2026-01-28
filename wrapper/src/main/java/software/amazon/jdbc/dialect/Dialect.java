@@ -17,13 +17,17 @@
 package software.amazon.jdbc.dialect;
 
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.plugin.failover.FailoverRestriction;
+import software.amazon.jdbc.util.Pair;
 
 public interface Dialect {
 
@@ -45,4 +49,8 @@ public interface Dialect {
   EnumSet<FailoverRestriction> getFailoverRestrictions();
 
   String getServerVersionQuery();
+
+  HostRole getHostRole(Connection connection) throws SQLException;
+
+  @Nullable Pair<String, String> getHostId(Connection connection) throws SQLException;
 }

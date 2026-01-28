@@ -32,6 +32,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.dialect.MultiAzClusterDialect;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.StringUtils;
 
 public class MultiAzTopologyUtils extends TopologyUtils {
@@ -89,14 +90,17 @@ public class MultiAzTopologyUtils extends TopologyUtils {
           }
         }
       }
+    }
 
-      // The writer ID is only returned when connected to a reader, so if the query does not return a value, it
-      // means we are connected to a writer
-      try (final ResultSet rs = stmt.executeQuery(this.dialect.getInstanceIdQuery())) {
-        if (rs.next()) {
-          return rs.getString(1);
-        }
+    // The writer ID is only returned when connected to a reader, so if the query does not return a value, it
+    // means we are connected to a writer
+    try {
+      Pair<String, String> pair = this.dialect.getHostId(connection);
+      if (pair != null) {
+        return pair.getValue1();
       }
+    } catch (SQLException e) {
+      return null;
     }
 
     return null;

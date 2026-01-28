@@ -21,6 +21,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.MultiAzDbClusterPgExceptionHandler;
@@ -29,6 +30,7 @@ import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.hostlistprovider.TopologyUtils;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.DriverInfo;
+import software.amazon.jdbc.util.Pair;
 
 public class MultiAzClusterPgDialect extends PgDialect implements MultiAzClusterDialect {
 
@@ -50,7 +52,6 @@ public class MultiAzClusterPgDialect extends PgDialect implements MultiAzCluster
           + " WHERE multi_az_db_cluster_source_dbi_resource_id OPERATOR(pg_catalog.!=)"
           + " (SELECT dbi_resource_id FROM rds_tools.dbi_resource_id())";
   protected static final String WRITER_ID_QUERY_COLUMN_NAME = "multi_az_db_cluster_source_dbi_resource_id";
-  protected static final String IS_READER_QUERY = "SELECT pg_catalog.pg_is_in_recovery()";
 
   private static MultiAzDbClusterPgExceptionHandler exceptionHandler;
 
@@ -92,13 +93,8 @@ public class MultiAzClusterPgDialect extends PgDialect implements MultiAzCluster
   }
 
   @Override
-  public String getInstanceIdQuery() {
-    return INSTANCE_ID_QUERY;
-  }
-
-  @Override
-  public String getIsReaderQuery() {
-    return IS_READER_QUERY;
+  public @Nullable Pair<String, String> getHostId(Connection connection) throws SQLException {
+    return this.dialectUtils.getInstanceId(connection, INSTANCE_ID_QUERY);
   }
 
   @Override
