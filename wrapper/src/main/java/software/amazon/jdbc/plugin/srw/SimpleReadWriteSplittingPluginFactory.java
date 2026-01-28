@@ -25,6 +25,6 @@ public class SimpleReadWriteSplittingPluginFactory implements ConnectionPluginFa
 
   @Override
   public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
-    return new SimpleReadWriteSplittingPlugin(servicesContainer, props);
+    return new SimpleReadWriteSplittingPlugin(servicesContainer.getPluginService(), props);
   }
 }
