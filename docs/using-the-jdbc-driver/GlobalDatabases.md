@@ -30,7 +30,7 @@ Use the global cluster endpoint:
 
 | Parameter | Value | Notes |
 |-----------|-------|-------|
-| `clusterId` | `1` | See [clusterId parameter documentation](./using-plugins/UsingTheFailover2Plugin.md#failover-plugin-v2-configuration-parameters) |
+| `clusterId` | `1` | See [clusterId parameter documentation](../../docs/using-the-jdbc-driver/ClusterId.md) |
 | `wrapperDialect` | `global-aurora-mysql` or `global-aurora-pg` | |
 | `wrapperPlugins` | `initialConnection,failover2,efm2` | Without connection pooling |
 | | `auroraConnectionTracker,initialConnection,failover2,efm2` | With connection pooling |
