@@ -18,6 +18,7 @@ package software.amazon.jdbc.plugin.failover;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public enum FailoverMode {
   STRICT_WRITER,
@@ -32,10 +33,14 @@ public enum FailoverMode {
     }
   };
 
-  public static FailoverMode fromValue(String value) {
+  public static @Nullable FailoverMode fromValue(final @Nullable String value) {
     if (value == null) {
       return null;
     }
-    return nameToValue.get(value.toLowerCase());
+    FailoverMode mode = nameToValue.get(value.toLowerCase());
+    if (mode == null) {
+      throw new IllegalArgumentException("Invalid FailoverMode value: " + value);
+    }
+    return mode;
   }
 }
