@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `clusterId` parameter is a critical configuration setting when using the AWS Advanced JDBC Wrapper to connect to multiple database clusters within a single application. This parameter serves as a unique identifier that enables the driver to maintain separate caches and state for each distinct database cluster your application connects to.
+The `clusterId` parameter is a critical configuration setting when using the AWS Advanced JDBC Wrapper to connect to multiple database clusters within a single application**. This parameter serves as a unique identifier that enables the driver to maintain separate caches and state for each distinct database cluster your application connects to.
 
 ## What is a Cluster?
 
@@ -76,7 +76,7 @@ The following diagram shows how different `clusterId` values maintain separate c
 
 ### **Required: Multiple Clusters in One Application**
 
-You **must** specify a unique `clusterId` when your application connects to multiple database clusters:
+You **must** specify a unique `clusterId` for every DB cluster when your application connects to multiple database clusters:
 
 ```java
 // Sample data migration app
@@ -101,7 +101,18 @@ Connection destConn = DriverManager.getConnection(
 // Read from source, write to destination
 ResultSet rs = sourceConn.createStatement().executeQuery("SELECT * FROM users");
 PreparedStatement ps = destConn.prepareStatement("INSERT INTO users VALUES (?, ?, ?)");
+
 // ... migration logic
+
+// If you are connecting `source-db` with a different url later on, then you should use the same clusterId.
+Properties sourcePropsIp = new Properties();
+sourcePropsIp.setProperty("clusterId", "source-cluster"); // Same ID as sourceConn
+sourcePropsIp.setProperty("user", "admin");
+sourcePropsIp.setProperty("password", "***");
+Connection sourceIpConn = DriverManager.getConnection(
+    "jdbc:aws-wrapper:mysql://10.0.0.1:3306/mydb",
+    sourcePropsIp
+);
 ```
 
 ### **Optional: Single Cluster Applications**
@@ -116,26 +127,18 @@ Connection conn = DriverManager.getConnection(
 );
 ```
 
-### **Highly Recommended: Consistent clusterId for Same Cluster**
-
-When making multiple connections to the **same cluster**, you should use the **same `clusterId`** to benefit from shared caching:
+This also includes if you have multiple connections using different host information:
 
 ```java
-// Multiple connections to the same cluster - use same clusterId
-String url = "cluster-a..."
-Properties props1 = new Properties();
-props1.setProperty("clusterId", "my-cluster");
-Connection conn1 = DriverManager.getConnection(url, props1);
+String url = "jdbc:aws-wrapper:mysql://my-cluster.us-east-1.rds.amazonaws.com:3306/mydb"
+Properties props = new Properties();  // clusterId defaults to 1
+Connection urlConn = DriverManager.getConnection(url, props);
 
-Properties props2 = new Properties();
-props2.setProperty("clusterId", "my-cluster");  // Same clusterId = shared cache
-Connection conn2 = DriverManager.getConnection(url, props2);
+// "10.0.0.1" -> ip address of source-db. So it is the same cluster. 
+String ipUrl = "jdbc:aws-wrapper:mysql://10.0.0.1:3306/mydb"
+Properties ipProps = new Properties();  // clusterId defaults to 1
+Connection ipConn = DriverManager.getConnection(ipUrl, ipProps);
 ```
-
-**Benefits of consistent `clusterId`:**
-- Shared topology cache (no redundant queries)
-- Single monitoring thread per cluster (reduced overhead)
-
 
 ## Critical Warnings
 
@@ -145,31 +148,31 @@ Using the same `clusterId` for different database clusters will cause serious is
 
 ```java
 // ❌ WRONG - Same clusterId for different clusters
-Properties props1 = new Properties();
-props1.setProperty("clusterId", "shared-id");  // ← BAD!
-Connection conn1 = DriverManager.getConnection(
-    "jdbc:aws-wrapper:mysql://cluster-a.us-east-1.rds.amazonaws.com:3306/db",
-    props1
+Properties sourceProps = new Properties();
+sourceProps.setProperty("clusterId", "shared-id");  // ← BAD!
+Connection sourceConn = DriverManager.getConnection(
+    "jdbc:aws-wrapper:mysql://source-db.us-east-1.rds.amazonaws.com:3306/db",
+    sourceProps
 );
 
-Properties props2 = new Properties();
-props2.setProperty("clusterId", "shared-id");  // ← BAD! Same ID for different cluster
-Connection conn2 = DriverManager.getConnection(
-    "jdbc:aws-wrapper:mysql://cluster-b.us-west-2.rds.amazonaws.com:3306/db",
-    props2
+Properties destProps = new Properties();
+destProps.setProperty("clusterId", "shared-id");  // ← BAD! Same ID for different cluster
+Connection destConn = DriverManager.getConnection(
+    "jdbc:aws-wrapper:mysql://dest-db.us-west-2.rds.amazonaws.com:3306/db",
+    destProps
 );
 ```
 
 **Problems this causes:**
-- Topology cache collision (cluster-b's topology could overwrite cluster-a's)
+- Topology cache collision (dest-db's topology could overwrite source-db's)
 - Incorrect failover behavior (driver may try to failover to wrong cluster)
 - Monitor conflicts (Only one monitor instance for both clusters will lead to undefined results)
 
 **Correct approach:**
 ```java
 // ✅ CORRECT - Unique clusterId for each cluster
-props1.setProperty("clusterId", "source-cluster");
-props2.setProperty("clusterId", "destination-cluster");
+sourceProps.setProperty("clusterId", "source-cluster");
+destProps.setProperty("clusterId", "destination-cluster");
 ```
 
 ### ⚠️ **Always Use Same clusterId for Same Cluster**
@@ -178,6 +181,7 @@ Using different `clusterId` values for the same cluster reduces efficiency:
 
 ```java
 // ⚠️ SUBOPTIMAL - Different clusterIds for same cluster
+String sameClusterUrl = "jdbc:aws-wrapper:mysql://my-cluster.us-east-1.rds.amazonaws.com:3306/db"
 Properties props1 = new Properties();
 props1.setProperty("clusterId", "my-cluster-1");
 Connection conn1 = DriverManager.getConnection(sameClusterUrl, props1);
@@ -195,8 +199,8 @@ Connection conn2 = DriverManager.getConnection(sameClusterUrl, props2);
 ```java
 // ✅ BEST - Same clusterId for same cluster
 final String CLUSTER_ID = "my-cluster";
-props1.setProperty("clusterId", CLUSTER_ID);
-props2.setProperty("clusterId", CLUSTER_ID);  // Shared cache and resources
+sourceProps1.setProperty("clusterId", CLUSTER_ID);
+sourceProps2.setProperty("clusterId", CLUSTER_ID);  // Shared cache and resources
 ```
 
 ## Summary
