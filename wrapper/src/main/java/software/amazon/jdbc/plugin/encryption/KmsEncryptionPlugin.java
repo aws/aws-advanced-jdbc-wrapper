@@ -25,7 +25,6 @@ import java.util.logging.Logger;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.plugin.encryption.factory.IndependentDataSource;
 import software.amazon.jdbc.plugin.encryption.key.KeyManager;
 import software.amazon.jdbc.plugin.encryption.logging.AuditLogger;
 import software.amazon.jdbc.plugin.encryption.metadata.MetadataException;

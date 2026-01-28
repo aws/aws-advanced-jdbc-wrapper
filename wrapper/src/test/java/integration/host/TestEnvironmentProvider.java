@@ -212,6 +212,7 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
                               config.testEncryptionOnly ? TestEnvironmentFeatures.RUN_ENCRYPTION_TESTS_ONLY : null,
                               config.noTracesTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED,
                               config.noMetricsTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED,
+                              config.testEncryptionOnly ? TestEnvironmentFeatures.RUN_ENCRYPTION_TESTS_ONLY : null,
                               withBlueGreenFeature ? TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT : null,
                               withMetricsFeature ? TestEnvironmentFeatures.RUN_DB_METRICS_ONLY : null)));
                 }

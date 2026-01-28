@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.factory;
+package software.amazon.jdbc.plugin.encryption.factory;
 
 import java.sql.SQLException;
 import java.util.Properties;
+import java.util.logging.Logger;
 import javax.sql.DataSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import software.amazon.jdbc.plugin.encryption.wrapper.EncryptingDataSource;
 
 /**
@@ -30,7 +29,7 @@ import software.amazon.jdbc.plugin.encryption.wrapper.EncryptingDataSource;
  */
 public class EncryptingDataSourceFactory {
 
-  private static final Logger logger = LoggerFactory.getLogger(EncryptingDataSourceFactory.class);
+  private static final Logger logger = Logger.getLogger(EncryptingDataSourceFactory.class.getName());
 
   /**
    * Creates an EncryptingDataSource that wraps the provided DataSource with encryption
@@ -65,7 +64,7 @@ public class EncryptingDataSourceFactory {
   public static EncryptingDataSource createWithAwsWrapper(
       String jdbcUrl, String username, String password, Properties encryptionProperties)
       throws SQLException {
-    logger.info("Creating EncryptingDataSource with AWS JDBC Wrapper for URL: {}", jdbcUrl);
+    logger.info("Creating EncryptingDataSource with AWS JDBC Wrapper for URL: " + jdbcUrl);
 
     try {
       // Create properties for AWS JDBC Wrapper
@@ -84,7 +83,7 @@ public class EncryptingDataSourceFactory {
       return create(awsDataSource, encryptionProperties);
 
     } catch (Exception e) {
-      logger.error("Failed to create EncryptingDataSource with AWS Wrapper", e);
+      logger.severe("Failed to create EncryptingDataSource with AWS Wrapper: " + e.getMessage());
       throw new SQLException("Failed to create encrypted DataSource: " + e.getMessage(), e);
     }
   }
@@ -116,7 +115,7 @@ public class EncryptingDataSourceFactory {
     }
 
     // Check for required properties (these will be validated by EncryptionConfig)
-    logger.debug("Validating encryption properties");
+    logger.fine("Validating encryption properties");
 
     // The actual validation is done by EncryptionConfig.validate() in the plugin
     // We just do basic null checks here
@@ -157,7 +156,7 @@ public class EncryptingDataSourceFactory {
       return (DataSource)
           awsDataSourceClass.getConstructor(Properties.class).newInstance(properties);
     } catch (ClassNotFoundException e) {
-      logger.warn("AWS JDBC Wrapper not found, falling back to direct PostgreSQL DataSource");
+      logger.warning("AWS JDBC Wrapper not found, falling back to direct PostgreSQL DataSource");
       return createPostgreSqlDataSource(properties);
     }
   }
@@ -222,8 +221,8 @@ public class EncryptingDataSourceFactory {
     // Metadata configuration
     properties.setProperty("metadata.refreshIntervalMinutes", "5");
 
-    logger.debug(
-        "Created default encryption properties for KMS key: {}, region: {}", kmsKeyArn, region);
+    logger.fine(
+        "Created default encryption properties for KMS key: " + kmsKeyArn + ", region: " + region);
 
     return properties;
   }

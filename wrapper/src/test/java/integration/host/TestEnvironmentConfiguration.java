@@ -114,6 +114,7 @@ public class TestEnvironmentConfiguration {
   public String awsAccessKeyId = System.getenv("AWS_ACCESS_KEY_ID");
   public String awsSecretAccessKey = System.getenv("AWS_SECRET_ACCESS_KEY");
   public String awsSessionToken = System.getenv("AWS_SESSION_TOKEN");
+  public String kmsKeyId = System.getenv("KMS_KEY_ID");
 
   public String iamUser = System.getenv("IAM_USER");
 

@@ -41,9 +41,10 @@ dependencies {
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
-    testImplementation("software.amazon.awssdk:ec2:2.33.5")
-    testImplementation("software.amazon.awssdk:rds:2.33.5")
-    testImplementation("software.amazon.awssdk:sts:2.33.5")
+    testImplementation("software.amazon.awssdk:ec2:2.41.10")
+    testImplementation("software.amazon.awssdk:rds:2.41.10")
+    testImplementation("software.amazon.awssdk:sts:2.41.10")
+    testImplementation("software.amazon.awssdk:kms:2.41.10")
     // Note: all org.testcontainers dependencies should have the same version
     testImplementation("org.testcontainers:testcontainers:1.20.4")
     testImplementation("org.testcontainers:mysql:1.20.4")
@@ -62,6 +63,7 @@ dependencies {
     testImplementation("org.hibernate:hibernate-core:5.6.15.Final") // the latest version compatible with Java 8
     testImplementation("jakarta.persistence:jakarta.persistence-api:2.2.3")
     testImplementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.19.2")
+    testImplementation("com.github.jsqlparser:jsqlparser:4.5") // JSqlParser SQL parser (Java 8 compatible)
 }
 
 tasks.withType<Test> {

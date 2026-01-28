@@ -5,16 +5,7 @@ on:
   push:
     branches:
       - main
-      - main-2.x
-    paths:
-      - 'wrapper/src/main/java/software/amazon/jdbc/plugin/encryption/**'
-      - '.github/workflows/test-encryption-e2e.yml'
-  pull_request:
-    branches:
-      - '*'
-    paths:
-      - 'wrapper/src/main/java/software/amazon/jdbc/plugin/encryption/**'
-      - '.github/workflows/test-encryption-e2e.yml'
+      - kms_encryption1
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -28,7 +19,6 @@ jobs:
   test-encryption:
     name: 'Test KMS Encryption End-to-End'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
 
     steps:
       - name: 'Clone repository'
@@ -146,8 +136,7 @@ jobs:
 
       - name: 'Build and Test Encryption Plugin'
         run: |
-          ./gradlew :aws-advanced-jdbc-wrapper:test-encryption-only \
-            -PkmsKeyId=${{ steps.active-key.outputs.key_id }}
+          ./gradlew --no-parallel --no-daemon test-kms-encryption
         env:
           KMS_KEY_ID: ${{ steps.active-key.outputs.key_id }}
           AWS_REGION: ${{ inputs.aws_region || secrets.AWS_DEFAULT_REGION }}

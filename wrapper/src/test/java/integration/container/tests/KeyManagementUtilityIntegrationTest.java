@@ -16,18 +16,33 @@
 
 package integration.container.tests;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
-import integration.container.ConnectionStringHelper;
-import integration.container.TestEnvironment;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Properties;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import integration.TestEnvironmentFeatures;
+import integration.container.ConnectionStringHelper;
+import integration.container.TestDriverProvider;
+import integration.container.TestEnvironment;
+import integration.container.condition.DisableOnTestFeature;
+import integration.container.condition.EnableOnTestFeature;
+import integration.container.condition.MakeSureFirstInstanceWriter;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.CreateKeyRequest;
 import software.amazon.awssdk.services.kms.model.CreateKeyResponse;
@@ -37,10 +52,24 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 
 /** Integration test for KeyManagementUtility functionality. */
+
+@TestMethodOrder(MethodOrderer.MethodName.class)
+@ExtendWith(TestDriverProvider.class)
+@EnableOnTestFeature({
+    TestEnvironmentFeatures.RUN_ENCRYPTION_TESTS_ONLY
+})
+@DisableOnTestFeature({
+    TestEnvironmentFeatures.PERFORMANCE,
+    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
+    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
+    TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT,
+    TestEnvironmentFeatures.RUN_DB_METRICS_ONLY})
+@MakeSureFirstInstanceWriter
+@Order(18)
 public class KeyManagementUtilityIntegrationTest {
 
-  private static final Logger logger =
-      LoggerFactory.getLogger(KeyManagementUtilityIntegrationTest.class);
+  private static final Logger LOGGER = Logger.getLogger(KeyManagementUtilityIntegrationTest.class.getName());
+  
   private static final String KMS_KEY_ARN_ENV = "AWS_KMS_KEY_ARN";
   private static final String TEST_TABLE = "users";
   private static final String TEST_COLUMN = "ssn";
@@ -54,15 +83,16 @@ public class KeyManagementUtilityIntegrationTest {
   @BeforeEach
   void setUp() throws Exception {
     // Get or create master key
+    final String kmsRegion = TestEnvironment.getCurrent().getInfo().getRegion();
+    kmsClient = KmsClient.builder().region(Region.of(kmsRegion)).build();
+
     masterKeyArn = System.getenv(KMS_KEY_ARN_ENV);
     if (masterKeyArn == null || masterKeyArn.isEmpty()) {
-      logger.info("No AWS_KMS_KEY_ARN environment variable found, creating new master key");
-      kmsClient = KmsClient.builder().build();
+      LOGGER.info("No AWS_KMS_KEY_ARN environment variable found, creating new master key");
       masterKeyArn = createTestMasterKey();
       createdKey = true;
     } else {
-      logger.info("Using existing master key from environment: {}", masterKeyArn);
-      kmsClient = KmsClient.builder().build();
+      LOGGER.info("Using existing master key from environment: " + masterKeyArn);
     }
 
     assumeTrue(
@@ -72,21 +102,16 @@ public class KeyManagementUtilityIntegrationTest {
     Properties props = ConnectionStringHelper.getDefaultProperties();
     props.setProperty(PropertyDefinition.PLUGINS.name, "kmsEncryption");
     props.setProperty(EncryptionConfig.KMS_MASTER_KEY_ARN.name, masterKeyArn);
-    props.setProperty(EncryptionConfig.KMS_REGION.name, "us-east-1");
+    props.setProperty(EncryptionConfig.KMS_REGION.name, kmsRegion);
 
-    String url =
-        String.format(
-            "jdbc:aws-wrapper:postgresql://%s:%d/%s",
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint(),
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpointPort(),
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+    final String url = ConnectionStringHelper.getWrapperUrl();
 
     connection = DriverManager.getConnection(url, props);
 
     // Setup test database schema
     setupTestSchema();
 
-    logger.info("Test setup completed with master key: {}", masterKeyArn);
+    LOGGER.info("Test setup completed with master key: " + masterKeyArn);
   }
 
   @AfterEach
@@ -107,10 +132,9 @@ public class KeyManagementUtilityIntegrationTest {
     }
   }
 
-  @Test
+  @TestTemplate
   void testCreateDataKeyAndPopulateMetadata() throws Exception {
-    logger.info(
-        "Testing data key creation and metadata population for {}.{}", TEST_TABLE, TEST_COLUMN);
+    LOGGER.info("Testing data key creation and metadata population for " + TEST_TABLE + "." + TEST_COLUMN);
 
     // For this test, we'll use the KeyManagementUtility concept by directly calling
     // the same methods it would use, demonstrating the key management workflow
@@ -129,7 +153,7 @@ public class KeyManagementUtilityIntegrationTest {
       stmt.setString(3, TEST_ALGORITHM);
       stmt.setString(4, keyId);
       stmt.executeUpdate();
-      logger.info("Created encryption metadata with key ID: {}", keyId);
+      LOGGER.info("Created encryption metadata with key ID: " + keyId);
     }
 
     // Step 3: Verify the metadata was created correctly
@@ -145,7 +169,7 @@ public class KeyManagementUtilityIntegrationTest {
       assertEquals(TEST_COLUMN, rs.getString("column_name"));
       assertEquals(TEST_ALGORITHM, rs.getString("encryption_algorithm"));
       assertEquals(keyId, rs.getString("key_id"));
-      logger.info("Verified encryption metadata exists for key: {}", keyId);
+      LOGGER.info("Verified encryption metadata exists for key: " + keyId);
     }
 
     // Step 4: Test that the encryption system works with the configured metadata
@@ -155,7 +179,7 @@ public class KeyManagementUtilityIntegrationTest {
       pstmt.setString(2, "123-45-6789");
       int rowsInserted = pstmt.executeUpdate();
       assertEquals(1, rowsInserted, "Should insert one row");
-      logger.info("Successfully inserted encrypted data using key: {}", keyId);
+      LOGGER.info("Successfully inserted encrypted data using key: " + keyId);
     }
 
     // Step 5: Verify data can be retrieved and decrypted
@@ -167,17 +191,17 @@ public class KeyManagementUtilityIntegrationTest {
       assertTrue(rs.next(), "Should find inserted row");
       assertEquals("Test User", rs.getString("name"));
       assertEquals("123-45-6789", rs.getString(TEST_COLUMN));
-      logger.info("Successfully retrieved and decrypted data using key: {}", keyId);
+      LOGGER.info("Successfully retrieved and decrypted data using key: " + keyId);
     }
 
     // Step 6: Demonstrate key management utility concept - validate master key
     assertTrue(masterKeyArn != null && !masterKeyArn.isEmpty(), "Master key should be valid");
-    logger.info("Master key validation successful: {}", masterKeyArn);
+    LOGGER.info("Master key validation successful: " + masterKeyArn);
   }
 
-  @Test
+  @TestTemplate
   void testEncryptionWithDifferentValues() throws Exception {
-    logger.info("Testing encryption with different SSN values");
+    LOGGER.info("Testing encryption with different SSN values");
 
     // Demonstrate KeyManagementUtility workflow for multiple keys
     String keyId = "test-key-multi-" + System.currentTimeMillis();
@@ -191,7 +215,7 @@ public class KeyManagementUtilityIntegrationTest {
       stmt.setString(3, TEST_ALGORITHM);
       stmt.setString(4, keyId);
       stmt.executeUpdate();
-      logger.info("Setup encryption metadata with key: {}", keyId);
+      LOGGER.info("Setup encryption metadata with key: " + keyId);
     }
 
     // Test multiple SSN values (demonstrating key management for different data)
@@ -205,7 +229,7 @@ public class KeyManagementUtilityIntegrationTest {
         pstmt.setString(1, testNames[i]);
         pstmt.setString(2, testSSNs[i]);
         pstmt.executeUpdate();
-        logger.info("Inserted encrypted data for {} using key: {}", testNames[i], keyId);
+        LOGGER.info("Inserted encrypted data for " + testNames[i] + " using key: " + keyId);
       }
     }
 
@@ -224,19 +248,19 @@ public class KeyManagementUtilityIntegrationTest {
           if (testNames[i].equals(name)) {
             assertEquals(testSSNs[i], ssn, "SSN should match for " + name);
             count++;
-            logger.info("Successfully decrypted data for {} using key: {}", name, keyId);
+            LOGGER.info("Successfully decrypted data for " + name + " using key: " + keyId);
             break;
           }
         }
       }
 
       assertEquals(testSSNs.length, count, "Should retrieve all inserted records");
-      logger.info("Successfully verified {} encrypted records using key management", count);
+      LOGGER.info("Successfully verified " + count + " encrypted records using key management");
     }
   }
 
   private String createTestMasterKey() throws Exception {
-    logger.info("Creating test master key");
+    LOGGER.info("Creating test master key");
 
     CreateKeyRequest request =
         CreateKeyRequest.builder()
@@ -247,7 +271,7 @@ public class KeyManagementUtilityIntegrationTest {
 
     CreateKeyResponse response = kmsClient.createKey(request);
     String keyArn = response.keyMetadata().arn();
-    logger.info("Created test master key: {}", keyArn);
+    LOGGER.info("Created test master key: " + keyArn);
     return keyArn;
   }
 
@@ -294,7 +318,7 @@ public class KeyManagementUtilityIntegrationTest {
               + "email VARCHAR(100)"
               + ")");
 
-      logger.info("Test database schema setup complete");
+      LOGGER.info("Test database schema setup complete");
     }
   }
 }

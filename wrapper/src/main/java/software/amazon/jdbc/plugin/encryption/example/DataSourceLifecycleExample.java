@@ -20,7 +20,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
-import software.amazon.jdbc.factory.EncryptingDataSourceFactory;
+import software.amazon.jdbc.plugin.encryption.factory.EncryptingDataSourceFactory;
 import software.amazon.jdbc.plugin.encryption.wrapper.EncryptingDataSource;
 
 /**

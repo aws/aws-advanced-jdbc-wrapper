@@ -78,7 +78,10 @@ import software.amazon.jdbc.util.StringUtils;
   TestEnvironmentFeatures.PERFORMANCE,
   TestEnvironmentFeatures.FAILOVER_SUPPORTED
 })
-@DisableOnTestFeature(TestEnvironmentFeatures.RUN_DB_METRICS_ONLY)
+@DisableOnTestFeature({
+    TestEnvironmentFeatures.RUN_DB_METRICS_ONLY,
+    TestEnvironmentFeatures.RUN_ENCRYPTION_TESTS_ONLY
+})
 @Tag("advanced")
 @Order(1)
 public class AdvancedPerformanceTest {

@@ -1,24 +1,55 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package integration.container.tests;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
-import integration.DatabaseEngineDeployment;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.Base64;
+import java.util.Properties;
+import java.util.logging.Logger;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import integration.DatabaseEngine;
 import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
-import java.sql.*;
-import java.util.Base64;
-import java.util.Properties;
 import integration.container.condition.DisableOnTestFeature;
-import integration.container.condition.EnableOnDatabaseEngineDeployment;
+import integration.container.condition.EnableOnDatabaseEngine;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
-import org.junit.jupiter.api.*;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.GenerateDataKeyRequest;
 import software.amazon.awssdk.services.kms.model.GenerateDataKeyResponse;
@@ -30,6 +61,7 @@ import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
+@EnableOnDatabaseEngine(DatabaseEngine.PG)
 @EnableOnTestFeature({
     TestEnvironmentFeatures.RUN_ENCRYPTION_TESTS_ONLY
 })
@@ -43,7 +75,7 @@ import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
 @Order(17)
 public class KmsEncryptionIntegrationTest {
 
-  private static final Logger logger = LoggerFactory.getLogger(KmsEncryptionIntegrationTest.class);
+  private static final Logger LOGGER = Logger.getLogger(KmsEncryptionIntegrationTest.class.getName());
   private static final String KMS_KEY_ARN_ENV = "AWS_KMS_KEY_ARN";
   private static final String TEST_SSN_1 = "111-11-1111";
   private static final String TEST_NAME_1 = "Alice Test";
@@ -54,6 +86,7 @@ public class KmsEncryptionIntegrationTest {
 
   private static Connection connection;
   private static String kmsKeyArn;
+  private static String region;
 
   @BeforeAll
   static void setUp() throws Exception {
@@ -62,10 +95,11 @@ public class KmsEncryptionIntegrationTest {
         kmsKeyArn != null && !kmsKeyArn.isEmpty(),
         "KMS Key ARN must be provided via " + KMS_KEY_ARN_ENV + " environment variable");
 
+    region = TestEnvironment.getCurrent().getInfo().getRegion();
     Properties props = ConnectionStringHelper.getDefaultProperties();
     props.setProperty(PropertyDefinition.PLUGINS.name, "kmsEncryption");
     props.setProperty(EncryptionConfig.KMS_MASTER_KEY_ARN.name, kmsKeyArn);
-    props.setProperty(EncryptionConfig.KMS_REGION.name, TestEnvironment.getCurrent().getInfo().getRegion());
+    props.setProperty(EncryptionConfig.KMS_REGION.name, region);
 
     // Get the metadata schema from config (defaults to "encrypt")
     String metadataSchema = EncryptionConfig.ENCRYPTION_METADATA_SCHEMA.defaultValue;
@@ -73,12 +107,7 @@ public class KmsEncryptionIntegrationTest {
     String url = ConnectionStringHelper.getWrapperUrl();
     // use a direct connection so that we setup all of the metadata before instantiating the
     // encrypted connection
-    String directUrl =
-        String.format(
-            "jdbc:postgresql://%s:%d/%s",
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint(),
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpointPort(),
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+    String directUrl = ConnectionStringHelper.getUrl();
 
     try (Connection directConnection = DriverManager.getConnection(directUrl, props)) {
       // Setup encryption metadata schema
@@ -89,7 +118,7 @@ public class KmsEncryptionIntegrationTest {
         stmt.execute("DROP TABLE IF EXISTS users CASCADE");
 
         // Install encrypted_data custom type
-        logger.trace("Installing encrypted_data custom type");
+        LOGGER.finest("Installing encrypted_data custom type");
         stmt.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto");
         EncryptedDataTypeInstaller.installEncryptedDataType(directConnection);
 
@@ -125,7 +154,7 @@ public class KmsEncryptionIntegrationTest {
 
         // Insert a key into key_storage with real KMS data key and separate HMAC key
         KmsClient kmsClient =
-            KmsClient.builder().region(software.amazon.awssdk.regions.Region.US_EAST_1).build();
+            KmsClient.builder().region(Region.of(region)).build();
         GenerateDataKeyRequest dataKeyRequest =
             GenerateDataKeyRequest.builder().keyId(kmsKeyArn).keySpec("AES_256").build();
         GenerateDataKeyResponse dataKeyResponse = kmsClient.generateDataKey(dataKeyRequest);
@@ -152,7 +181,7 @@ public class KmsEncryptionIntegrationTest {
         keyStmt.close();
 
         // Use KeyManagementUtility approach to setup encryption metadata
-        logger.trace(
+        LOGGER.finest(
             "Setting up encryption metadata for users.ssn using KeyManagementUtility approach");
 
         try (PreparedStatement metaStmt =
@@ -165,7 +194,7 @@ public class KmsEncryptionIntegrationTest {
           metaStmt.setString(3, "AES-256-GCM");
           metaStmt.setInt(4, generatedKeyId);
           metaStmt.executeUpdate();
-          logger.trace("Encryption metadata configured for key: {}", generatedKeyId);
+          LOGGER.finest("Encryption metadata configured for key: " + generatedKeyId);
         }
 
         // Verify the metadata was configured correctly
@@ -178,12 +207,8 @@ public class KmsEncryptionIntegrationTest {
           checkStmt.setString(2, "ssn");
           ResultSet rs = checkStmt.executeQuery();
           while (rs.next()) {
-            logger.trace(
-                "Verified metadata: {}.{} -> {} (key: {})",
-                rs.getString("table_name"),
-                rs.getString("column_name"),
-                rs.getString("encryption_algorithm"),
-                rs.getInt("key_id"));
+            LOGGER.finest(
+                "Verified metadata: " + rs.getString("table_name") + "." + rs.getString("column_name") + " -> " + rs.getString("encryption_algorithm") + " (key: " + rs.getInt("key_id") + ")");
           }
         }
 
@@ -201,7 +226,7 @@ public class KmsEncryptionIntegrationTest {
                 + "BEFORE INSERT OR UPDATE ON users "
                 + "FOR EACH ROW EXECUTE FUNCTION validate_encrypted_data_hmac('ssn')");
 
-        logger.trace("Test setup completed");
+        LOGGER.finest("Test setup completed");
 
         // Final verification that metadata exists
         try (PreparedStatement finalCheck =
@@ -212,7 +237,7 @@ public class KmsEncryptionIntegrationTest {
           ResultSet rs = finalCheck.executeQuery();
           rs.next();
           int count = rs.getInt(1);
-          logger.info("Final metadata verification: {} rows found for users.ssn", count);
+          LOGGER.info("Final metadata verification: " + count + " rows found for users.ssn");
           if (count == 0) {
             throw new RuntimeException("Encryption metadata was not properly created!");
           }
@@ -229,7 +254,7 @@ public class KmsEncryptionIntegrationTest {
     if (connection != null && !connection.isClosed()) {
       try (Statement stmt = connection.createStatement()) {
         stmt.execute("DELETE FROM users WHERE name LIKE '%Test'");
-        logger.trace("Cleaned up test data");
+        logger.finest("Cleaned up test data");
       }
     }
      */
@@ -265,12 +290,7 @@ public class KmsEncryptionIntegrationTest {
 
     // Verify data is encrypted in storage
     Properties plainProps = ConnectionStringHelper.getDefaultProperties();
-    String plainUrl =
-        String.format(
-            "jdbc:postgresql://%s:%d/%s",
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint(),
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpointPort(),
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+    String plainUrl = ConnectionStringHelper.getUrl();
 
     try (Connection plainConn = DriverManager.getConnection(plainUrl, plainProps);
         PreparedStatement pstmt = plainConn.prepareStatement(selectSql)) {
@@ -286,13 +306,10 @@ public class KmsEncryptionIntegrationTest {
   @TestTemplate
   void testUpdateEncryption() throws Exception {
     String insertSql = "INSERT INTO users (name, ssn,email) VALUES (?, ?, ?)";
-    logger.trace("testUpdateEncryption: INSERT SQL: {}", insertSql);
+    LOGGER.finest("testUpdateEncryption: INSERT SQL: " + insertSql);
     try (PreparedStatement pstmt = connection.prepareStatement(insertSql)) {
-      logger.trace(
-          "Setting INSERT parameters: name={}, ssn={}, email={}",
-          TEST_NAME_2,
-          TEST_SSN_1,
-          TEST_EMAIL_2);
+      LOGGER.finest(
+          "Setting INSERT parameters: name=" + TEST_NAME_2 + ", ssn=" + TEST_SSN_1 + ", email=" + TEST_EMAIL_2);
       pstmt.setString(1, TEST_NAME_2);
       pstmt.setString(2, TEST_SSN_1);
       pstmt.setString(3, TEST_EMAIL_2);
@@ -300,7 +317,7 @@ public class KmsEncryptionIntegrationTest {
     }
 
     // Check what was actually stored in the database
-    logger.trace("Checking what was stored in database...");
+    LOGGER.finest("Checking what was stored in database...");
     try (PreparedStatement stmt =
         connection.prepareStatement(
             "SELECT name, ssn, pg_typeof(name) as name_type, pg_typeof(ssn) as ssn_type FROM users where name = ?")) {
@@ -315,9 +332,9 @@ public class KmsEncryptionIntegrationTest {
     }
 
     String updateSql = "UPDATE users SET ssn = ? WHERE name = ?";
-    logger.trace("testUpdateEncryption: UPDATE SQL: {}", updateSql);
+    LOGGER.finest("testUpdateEncryption: UPDATE SQL: " + updateSql);
     try (PreparedStatement pstmt = connection.prepareStatement(updateSql)) {
-      logger.trace("Setting UPDATE parameters: ssn={}, name={}", TEST_SSN_2, TEST_NAME_2);
+      LOGGER.finest("Setting UPDATE parameters: ssn=" + TEST_SSN_2 + ", name=" + TEST_NAME_2);
       pstmt.setString(1, TEST_SSN_2);
       pstmt.setString(2, TEST_NAME_2);
       assertEquals(1, pstmt.executeUpdate());
@@ -362,6 +379,8 @@ public class KmsEncryptionIntegrationTest {
     }
 
     // Verify KMS master key ARN is configured
+    LOGGER.info("kmsKeyArn:::" + kmsKeyArn);
+    LOGGER.info("KMS_KEY_ARN_ENV:::" + KMS_KEY_ARN_ENV);
     assertEquals(kmsKeyArn, System.getenv(KMS_KEY_ARN_ENV));
     assertTrue(kmsKeyArn.startsWith("arn:aws:kms:"));
   }
@@ -386,7 +405,7 @@ public class KmsEncryptionIntegrationTest {
         assertTrue(rs.next());
         assertTrue(
             rs.getBoolean("valid_structure"), "Encrypted data should have valid HMAC structure");
-        logger.info("HMAC structure validation passed for encrypted SSN");
+        LOGGER.info("HMAC structure validation passed for encrypted SSN");
       }
     }
 
@@ -397,7 +416,7 @@ public class KmsEncryptionIntegrationTest {
       try (ResultSet rs = pstmt.executeQuery()) {
         assertTrue(rs.next());
         assertEquals("999-99-9999", rs.getString("ssn"));
-        logger.info("Successfully decrypted SSN with HMAC verification");
+        LOGGER.info("Successfully decrypted SSN with HMAC verification");
       }
     }
   }

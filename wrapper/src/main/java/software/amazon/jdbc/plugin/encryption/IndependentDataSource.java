@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.encryption.factory;
+package software.amazon.jdbc.plugin.encryption;
 
 import java.io.PrintWriter;
 import java.sql.Connection;
