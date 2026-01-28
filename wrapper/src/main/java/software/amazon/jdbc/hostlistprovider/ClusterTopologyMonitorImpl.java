@@ -80,6 +80,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
   protected final Object topologyUpdated = new Object();
   protected final AtomicBoolean requestToUpdateTopology = new AtomicBoolean(false);
+  protected final AtomicBoolean isTopologyStableAfterPanicAtomic = new AtomicBoolean(false);
   protected final AtomicLong ignoreNewTopologyRequestsEndTimeNano = new AtomicLong(-1);
   protected final ConcurrentHashMap<String, Boolean> submittedNodes = new ConcurrentHashMap<>();
 
@@ -177,12 +178,13 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     if (shouldVerifyWriter) {
       this.monitoringConnection.set(null);
       this.isVerifiedWriterConnection = false;
+      this.isTopologyStableAfterPanicAtomic.set(false);
     }
 
-    return this.waitTillTopologyGetsUpdated(timeoutMs);
+    return this.waitForStableTopology(timeoutMs);
   }
 
-  protected List<HostSpec> waitTillTopologyGetsUpdated(final long timeoutMs) throws TimeoutException {
+  protected List<HostSpec> waitForStableTopology(final long timeoutMs) throws TimeoutException {
     List<HostSpec> currentHosts = getStoredHosts();
     List<HostSpec> latestHosts;
 
@@ -203,9 +205,9 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
     // Note that we are checking reference equality instead of value equality here. We will break out of the loop if
     // there is a new entry in the topology map, even if the value of the hosts in latestHosts is the same as
-    // currentHosts.
-    while (currentHosts == (latestHosts = getStoredHosts())
-        && System.nanoTime() < end) {
+    // currentHosts. We also break out if the topology is considered stable.
+    while ((currentHosts == (latestHosts = getStoredHosts()) && System.nanoTime() < end)
+        || this.isTopologyStableAfterPanicAtomic.get()) {
       try {
         synchronized (this.topologyUpdated) {
           this.topologyUpdated.wait(1000);
@@ -238,6 +240,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     this.nodeThreadsWriterConnection.set(null);
     this.nodeThreadsReaderConnection.set(null);
     this.monitoringConnection.set(null);
+    this.isTopologyStableAfterPanicAtomic.set(false);
 
     // This code interrupts the waiting/sleeping cycle in the monitoring thread.
     synchronized (this.requestToUpdateTopology) {
@@ -390,6 +393,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
             this.monitoringConnection.set(null);
             this.isVerifiedWriterConnection = false;
             this.writerHostSpec.set(null);
+            this.isTopologyStableAfterPanicAtomic.set(false);
             continue;
           }
 
@@ -458,6 +462,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     this.monitoringConnection.set(null);
     this.isVerifiedWriterConnection = false;
     this.writerHostSpec.set(null);
+    this.isTopologyStableAfterPanicAtomic.set(false);
     this.highRefreshRateEndTimeNano = 0;
     this.requestToUpdateTopology.set(false);
     this.ignoreNewTopologyRequestsEndTimeNano.set(-1);
@@ -686,7 +691,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   }
 
   protected void updateTopologyCache(final @NonNull List<HostSpec> hosts) {
-    //LOGGER.finest(() -> LogUtils.logTopology(hosts, null));
     synchronized (this.requestToUpdateTopology) {
       this.servicesContainer.getStorageService().set(this.clusterId, new Topology(hosts));
       synchronized (this.topologyUpdated) {
