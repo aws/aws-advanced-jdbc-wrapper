@@ -512,7 +512,7 @@ public class RdsUtils {
 
     try {
       return matcher.group(groupName);
-    } catch (IllegalStateException e) {
+    } catch (IllegalStateException | IllegalArgumentException e) {
       return null;
     }
   }

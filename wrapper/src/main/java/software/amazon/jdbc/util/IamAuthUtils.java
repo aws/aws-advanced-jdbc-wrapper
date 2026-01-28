@@ -20,7 +20,9 @@ import java.util.logging.Logger;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.plugin.iam.IamTokenUtility;
 import software.amazon.jdbc.plugin.iam.LightRdsUtility;
 import software.amazon.jdbc.plugin.iam.RegularRdsUtility;
@@ -33,11 +35,11 @@ public class IamAuthUtils {
   private static final Logger LOGGER = Logger.getLogger(IamAuthUtils.class.getName());
   private static final String TELEMETRY_FETCH_TOKEN = "fetch authentication token";
 
-  public static String getIamHost(final String iamHost, final HostSpec hostSpec) {
+  public static HostSpec getIamHost(final String iamHost, final HostSpec hostSpec) {
     if (!StringUtils.isNullOrEmpty(iamHost)) {
-      return iamHost;
+      return new HostSpecBuilder(hostSpec.getHostAvailabilityStrategy()).copyFrom(hostSpec).host(iamHost).build();
     }
-    return hostSpec.getHost();
+    return hostSpec;
   }
 
   public static int getIamPort(final int iamDefaultPort, final HostSpec hostSpec, final int dialectDefaultPort) {

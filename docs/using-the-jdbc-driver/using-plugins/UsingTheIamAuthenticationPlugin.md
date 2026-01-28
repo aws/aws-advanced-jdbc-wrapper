@@ -13,7 +13,7 @@ AWS Identity and Access Management (IAM) grants users access control across all 
 > Note: AWS Java SDK RDS may have transitive dependencies that are also required (ex. [AWS Java SDK Core](https://central.sonatype.com/artifact/software.amazon.awssdk/aws-core/)). If you are not using a package manager such as Maven or Gradle, please refer to Maven Central to determine these transitive dependencies.
 >
 > Since [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) size is around 5.4Mb (22Mb including all RDS SDK dependencies), some users may experience difficulties using the plugin due to limited available disk size.
-> In such cases, the [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) dependency may be replaced with just two dependencies which have a smaller footprint (around 300Kb in total):
+> In such cases, the [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) dependency may be replaced with just two dependencies which have a smaller footprint (around 300Kb in total)<sup>1</sup>:
 > - [software.amazon.awssdk:http-client-spi](https://central.sonatype.com/artifact/software.amazon.awssdk/http-client-spi)
 > - [software.amazon.awssdk:auth](https://central.sonatype.com/artifact/software.amazon.awssdk/auth)
 >
@@ -57,3 +57,31 @@ IAM database authentication use is limited to certain database engines. For more
 [AwsIamAuthenticationPostgresqlExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/AwsIamAuthenticationPostgresqlExample.java)<br>
 [AwsIamAuthenticationMysqlExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/AwsIamAuthenticationMysqlExample.java)<br>
 [AwsIamAuthenticationMariadbExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/AwsIamAuthenticationMariadbExample.java)
+
+## Using IAM Authentication with Global Databases
+
+When using IAM authentication with [Amazon Aurora Global Databases](https://aws.amazon.com/rds/aurora/global-database/), the IAM user or role requires the additional `rds:DescribeGlobalClusters` permission. This permission allows the driver to resolve the Global Database endpoint to the appropriate regional cluster for IAM token generation.
+
+Example IAM policy:
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "rds-db:connect",
+                "rds:DescribeGlobalClusters"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+
+```
+
+> [!NOTE]
+> [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) is **required** when using this plugin with Global databases.
+
+---
+<sup>1</sup> Note: The smaller dependencies cannot be used with Global databases, which require the full [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) dependency.
