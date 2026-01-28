@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `clusterId` parameter is a critical configuration setting when using the AWS Advanced JDBC Wrapper to connect to multiple database clusters within a single application**. This parameter serves as a unique identifier that enables the driver to maintain separate caches and state for each distinct database cluster your application connects to.
+The `clusterId` parameter is a critical configuration setting when using the AWS Advanced JDBC Wrapper to connect to **multiple database clusters within a single application**. This parameter serves as a unique identifier that enables the driver to maintain separate caches and state for each distinct database cluster your application connects to.
 
 ## What is a Cluster?
 
