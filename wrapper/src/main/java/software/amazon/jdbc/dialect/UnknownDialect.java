@@ -17,16 +17,20 @@
 package software.amazon.jdbc.dialect;
 
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.GenericExceptionHandler;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverRestriction;
+import software.amazon.jdbc.util.Pair;
 
 public class UnknownDialect implements Dialect {
 
@@ -72,6 +76,18 @@ public class UnknownDialect implements Dialect {
   }
 
   @Override
+  public HostRole getHostRole(Connection conn) throws SQLException {
+    throw new UnsupportedOperationException(
+        "Unable to gather host role, connected to unknown DB type.");
+  }
+
+  @Override
+  public @Nullable Pair<String, String> getHostId(Connection connection) throws SQLException {
+    throw new UnsupportedOperationException(
+        "Unable to gather host id, connected to unknown DB type.");
+  }
+
+  @Override
   public boolean isDialect(final Connection connection) {
     return false;
   }
@@ -84,7 +100,8 @@ public class UnknownDialect implements Dialect {
   @Override
   public HostListProviderSupplier getHostListProviderSupplier() {
     return (properties, initialUrl, servicesContainer) ->
-        new ConnectionStringHostListProvider(properties, initialUrl, servicesContainer.getHostListProviderService());
+        new ConnectionStringHostListProvider(
+            properties, initialUrl, servicesContainer.getHostListProviderService());
   }
 
   @Override

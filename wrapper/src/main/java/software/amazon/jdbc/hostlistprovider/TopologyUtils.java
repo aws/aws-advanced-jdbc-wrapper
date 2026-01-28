@@ -181,32 +181,6 @@ public abstract class TopologyUtils {
   }
 
   /**
-   * Identifies instances across different database types using instanceId and instanceName values.
-   *
-   * <p>Database types handle these identifiers differently:
-   * - Aurora: Uses the instance name as both instanceId and instanceName
-   * Example: "test-instance-1" for both values
-   * - RDS Cluster: Uses distinct values for instanceId and instanceName
-   * Example:
-   * instanceId: "db-WQFQKBTL2LQUPIEFIFBGENS4ZQ"
-   * instanceName: "test-multiaz-instance-1"
-   */
-  public @Nullable Pair<String /* instanceId */, String /* instanceName */> getInstanceId(final Connection connection) {
-    try {
-      try (final Statement stmt = connection.createStatement();
-           final ResultSet rs = stmt.executeQuery(this.dialect.getInstanceIdQuery())) {
-        if (rs.next()) {
-          return Pair.create(rs.getString(1), rs.getString(2));
-        }
-      }
-    } catch (SQLException ex) {
-      return null;
-    }
-
-    return null;
-  }
-
-  /**
    * Evaluate whether the given connection is to a writer instance.
    *
    * @param connection the connection to evaluate.
@@ -214,25 +188,4 @@ public abstract class TopologyUtils {
    * @throws SQLException if an exception occurs when querying the database or processing the database response.
    */
   public abstract boolean isWriterInstance(Connection connection) throws SQLException;
-
-  /**
-   * Evaluate the database role of the given connection, either {@link HostRole#WRITER} or {@link HostRole#READER}.
-   *
-   * @param conn the connection to evaluate.
-   * @return the database role of the given connection.
-   * @throws SQLException if an exception occurs when querying the database or processing the database response.
-   */
-  public HostRole getHostRole(Connection conn) throws SQLException {
-    try (final Statement stmt = conn.createStatement();
-         final ResultSet rs = stmt.executeQuery(this.dialect.getIsReaderQuery())) {
-      if (rs.next()) {
-        boolean isReader = rs.getBoolean(1);
-        return isReader ? HostRole.READER : HostRole.WRITER;
-      }
-    } catch (SQLException e) {
-      throw new SQLException(Messages.get("TopologyUtils.errorGettingHostRole"), e);
-    }
-
-    throw new SQLException(Messages.get("TopologyUtils.errorGettingHostRole"));
-  }
 }

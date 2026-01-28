@@ -26,7 +26,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
-import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
@@ -107,17 +106,6 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
       throws SQLException, TimeoutException {
     init();
     return this.forceRefresh();
-  }
-
-  @Override
-  public HostRole getHostRole(Connection connection) {
-    throw new UnsupportedOperationException("ConnectionStringHostListProvider does not support getHostRole");
-  }
-
-  @Override
-  public HostSpec identifyConnection(Connection connection) throws SQLException {
-    LOGGER.finest(Messages.get("ConnectionStringHostListProvider.unsupportedIdentifyConnection"));
-    return null;
   }
 
   @Override

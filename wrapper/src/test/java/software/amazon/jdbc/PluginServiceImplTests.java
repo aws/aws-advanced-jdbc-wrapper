@@ -21,12 +21,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -44,6 +46,7 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
@@ -57,6 +60,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.dialect.AuroraPgDialect;
 import software.amazon.jdbc.dialect.Dialect;
@@ -72,6 +76,7 @@ import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.ImportantEventService;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.TestStorageServiceImpl;
@@ -856,16 +861,33 @@ public class PluginServiceImplTests {
             mockTargetDriverDialect,
             configurationProfile,
             sessionStateService));
-    when(target.getHostListProvider()).thenReturn(hostListProvider);
+    target.hostListProvider = hostListProvider;
 
-    when(target.getDialect()).thenReturn(new MysqlDialect());
-    assertNull(target.identifyConnection(newConnection));
+    final Dialect dialect = Mockito.mock(MysqlDialect.class);
+    target.dialect = dialect;
+    doReturn(null).when(dialect).getHostId(newConnection);
+
+    // When getHostId returns null, identifyConnection should throw SQLException
+    assertThrows(SQLException.class, () -> target.identifyConnection(newConnection));
   }
 
   @Test
-  void testIdentifyConnectionWithAliases() throws SQLException {
-    final HostSpec expected = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("test")
+  void testIdentifyConnectionHostFoundAfterForceRefresh() throws SQLException, TimeoutException {
+    final HostSpec expectedHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("instance-b-1.xyz.us-east-2.rds.amazonaws.com")
+        .hostId("instance-b-1")
+        .port(HostSpec.NO_PORT)
+        .role(HostRole.READER)
         .build();
+    final List<HostSpec> staleTopology = Collections.singletonList(
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("instance-a-1.xyz.us-east-2.rds.amazonaws.com")
+            .hostId("instance-a-1")
+            .port(HostSpec.NO_PORT)
+            .role(HostRole.WRITER)
+            .build());
+    final List<HostSpec> freshTopology = Collections.singletonList(expectedHost);
+
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
             servicesContainer,
@@ -878,14 +900,17 @@ public class PluginServiceImplTests {
             configurationProfile,
             sessionStateService));
     target.hostListProvider = hostListProvider;
-    when(target.getHostListProvider()).thenReturn(hostListProvider);
-    when(hostListProvider.identifyConnection(eq(newConnection))).thenReturn(expected);
 
-    when(target.getDialect()).thenReturn(new AuroraPgDialect());
+    final Dialect dialect = spy(new AuroraPgDialect());
+    target.dialect = dialect;
+    doReturn(Pair.create("instance-b-1", "instance-b-1")).when(dialect).getHostId(newConnection);
+    when(hostListProvider.refresh()).thenReturn(staleTopology);
+    when(hostListProvider.forceRefresh()).thenReturn(freshTopology);
+
     final HostSpec actual = target.identifyConnection(newConnection);
-    verify(target, never()).getCurrentHostSpec();
-    verify(hostListProvider).identifyConnection(newConnection);
-    assertEquals(expected, actual);
+    verify(hostListProvider).refresh();
+    verify(hostListProvider).forceRefresh();
+    assertEquals(expectedHost, actual);
   }
 
   @Test
@@ -914,8 +939,14 @@ public class PluginServiceImplTests {
 
   @ParameterizedTest
   @MethodSource("fillAliasesDialects")
-  void testFillAliasesWithInstanceEndpoint(Dialect dialect, String[] expectedInstanceAliases) throws SQLException {
+  void testFillAliasesWithInstanceEndpoint(Dialect dialectParam, String[] expectedInstanceAliases) throws SQLException {
     final HostSpec empty = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("foo").build();
+    final HostSpec instanceHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .hostId("instance")
+        .host("instance")
+        .build();
+    final List<HostSpec> topology = Collections.singletonList(instanceHost);
+
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
             servicesContainer,
@@ -928,12 +959,20 @@ public class PluginServiceImplTests {
             configurationProfile,
             sessionStateService));
     target.hostListProvider = hostListProvider;
-    when(target.getDialect()).thenReturn(dialect);
-    when(resultSet.next()).thenReturn(true, false); // Result set contains 1 row.
+    
+    final Dialect dialect = Mockito.mock(dialectParam.getClass());
+    target.dialect = dialect;
+    doReturn(true).doReturn(false).when(resultSet).next(); // Result set contains 1 row.
     when(resultSet.getString(eq(1))).thenReturn("ip");
-    if (dialect instanceof AuroraPgDialect) {
-      when(hostListProvider.identifyConnection(eq(newConnection)))
-          .thenReturn(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance").build());
+
+    if (dialectParam instanceof AuroraPgDialect) {
+      doReturn(Pair.create("instance", "instance")).when(dialect).getHostId(newConnection);
+      when(hostListProvider.refresh()).thenReturn(topology);
+    } else {
+      // For non-Aurora dialects, getHostId should return a value that won't be found in topology
+      // so identifyConnection returns null without throwing an exception
+      doReturn(Pair.create("not-found", "not-found")).when(dialect).getHostId(newConnection);
+      when(hostListProvider.refresh()).thenReturn(Collections.emptyList());
     }
 
     target.fillAliases(newConnection, empty);
@@ -947,5 +986,116 @@ public class PluginServiceImplTests {
         Arguments.of(new AuroraPgDialect(), new String[]{"instance", "foo", "ip"}),
         Arguments.of(new MysqlDialect(), new String[]{"foo", "ip"})
     );
+  }
+
+  @Test
+  void testIdentifyConnectionWithInvalidNodeIdQuery() throws SQLException {
+    PluginServiceImpl target = spy(
+        new PluginServiceImpl(
+            servicesContainer,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile,
+            sessionStateService));
+    target.hostListProvider = hostListProvider;
+
+    final Dialect dialect = spy(new MysqlDialect());
+    target.dialect = dialect;
+    when(dialect.getHostId(newConnection)).thenThrow(new SQLException("exception"));
+
+    assertThrows(SQLException.class, () -> target.identifyConnection(newConnection));
+  }
+
+  @Test
+  void testIdentifyConnectionNullTopology() throws SQLException, TimeoutException {
+    PluginServiceImpl target = spy(
+        new PluginServiceImpl(
+            servicesContainer,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile,
+            sessionStateService));
+    target.hostListProvider = hostListProvider;
+
+    final Dialect dialect = spy(new AuroraPgDialect());
+    target.dialect = dialect;
+    doReturn(Pair.create("instance-1", "instance-1")).when(dialect).getHostId(newConnection);
+    when(hostListProvider.refresh()).thenReturn(null);
+    when(hostListProvider.forceRefresh()).thenReturn(null);
+
+    assertNull(target.identifyConnection(newConnection));
+  }
+
+  @Test
+  void testIdentifyConnectionHostNotInTopology() throws SQLException, TimeoutException {
+    final List<HostSpec> cachedTopology = Collections.singletonList(
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("instance-a-1.xyz.us-east-2.rds.amazonaws.com")
+            .hostId("instance-a-1")
+            .port(HostSpec.NO_PORT)
+            .role(HostRole.WRITER)
+            .build());
+
+    PluginServiceImpl target = spy(
+        new PluginServiceImpl(
+            servicesContainer,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile,
+            sessionStateService));
+    target.hostListProvider = hostListProvider;
+
+    final Dialect dialect = spy(new AuroraPgDialect());
+    target.dialect = dialect;
+    doReturn(Pair.create("instance-2", "instance-2")).when(dialect).getHostId(newConnection);
+    when(hostListProvider.refresh()).thenReturn(cachedTopology);
+    when(hostListProvider.forceRefresh()).thenReturn(cachedTopology);
+
+    assertNull(target.identifyConnection(newConnection));
+  }
+
+  @Test
+  void testIdentifyConnectionHostInTopology() throws SQLException {
+    final HostSpec expectedHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("instance-a-1.xyz.us-east-2.rds.amazonaws.com")
+        .hostId("instance-a-1")
+        .port(HostSpec.NO_PORT)
+        .role(HostRole.WRITER)
+        .build();
+    final List<HostSpec> cachedTopology = Collections.singletonList(expectedHost);
+
+    PluginServiceImpl target = spy(
+        new PluginServiceImpl(
+            servicesContainer,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile,
+            sessionStateService));
+    target.hostListProvider = hostListProvider;
+
+    final Dialect dialect = spy(new AuroraPgDialect());
+    target.dialect = dialect;
+    doReturn(Pair.create("instance-a-1", "instance-a-1")).when(dialect).getHostId(newConnection);
+    when(hostListProvider.refresh()).thenReturn(cachedTopology);
+
+    final HostSpec actual = target.identifyConnection(newConnection);
+    assertEquals("instance-a-1.xyz.us-east-2.rds.amazonaws.com", Objects.requireNonNull(actual).getHost());
+    assertEquals("instance-a-1", actual.getHostId());
   }
 }

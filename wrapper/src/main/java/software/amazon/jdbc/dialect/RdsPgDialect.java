@@ -23,8 +23,10 @@ import java.sql.Statement;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
 
 /**
  * Suitable for the following AWS PG configurations.
@@ -40,6 +42,10 @@ public class RdsPgDialect extends PgDialect implements BlueGreenDialect {
       + "WHERE name OPERATOR(pg_catalog.=) 'rds.extensions'";
   protected static final String TOPOLOGY_TABLE_EXISTS_QUERY =
       "SELECT 'rds_tools.show_topology'::regproc";
+  protected static final String INSTANCE_ID_QUERY =
+      "SELECT id, SUBSTRING(endpoint FROM 0 FOR POSITION('.' IN endpoint))"
+          + " FROM rds_tools.show_topology()"
+          + " WHERE id OPERATOR(pg_catalog.=) rds_tools.dbi_resource_id()";
 
   protected static final String BG_STATUS_QUERY =
       "SELECT * FROM rds_tools.show_topology('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
@@ -86,5 +92,10 @@ public class RdsPgDialect extends PgDialect implements BlueGreenDialect {
   @Override
   public String getBlueGreenStatusQuery() {
     return BG_STATUS_QUERY;
+  }
+
+  @Override
+  public @Nullable Pair<String, String> getHostId(Connection connection) throws SQLException {
+    return this.dialectUtils.getInstanceId(connection, INSTANCE_ID_QUERY);
   }
 }
