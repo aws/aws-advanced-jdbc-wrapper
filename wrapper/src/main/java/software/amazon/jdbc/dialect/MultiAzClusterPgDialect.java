@@ -50,7 +50,6 @@ public class MultiAzClusterPgDialect extends PgDialect implements MultiAzCluster
           + " WHERE multi_az_db_cluster_source_dbi_resource_id OPERATOR(pg_catalog.!=)"
           + " (SELECT dbi_resource_id FROM rds_tools.dbi_resource_id())";
   protected static final String WRITER_ID_QUERY_COLUMN_NAME = "multi_az_db_cluster_source_dbi_resource_id";
-  protected static final String IS_READER_QUERY = "SELECT pg_catalog.pg_is_in_recovery()";
 
   private static MultiAzDbClusterPgExceptionHandler exceptionHandler;
 
@@ -94,11 +93,6 @@ public class MultiAzClusterPgDialect extends PgDialect implements MultiAzCluster
   @Override
   public String getInstanceIdQuery() {
     return INSTANCE_ID_QUERY;
-  }
-
-  @Override
-  public String getIsReaderQuery() {
-    return IS_READER_QUERY;
   }
 
   @Override

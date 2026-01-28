@@ -52,7 +52,6 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
       "SELECT SERVER_ID FROM pg_catalog.aurora_replica_status() "
           + "WHERE SESSION_ID OPERATOR(pg_catalog.=) 'MASTER_SESSION_ID' "
           + "AND SERVER_ID OPERATOR(pg_catalog.=) pg_catalog.aurora_db_instance_identifier()";
-  protected static final String IS_READER_QUERY = "SELECT pg_catalog.pg_is_in_recovery()";
 
   protected static final String LIMITLESS_ROUTER_ENDPOINT_QUERY =
       "select router_endpoint, load from pg_catalog.aurora_limitless_router_endpoints()";
@@ -123,11 +122,6 @@ public class AuroraPgDialect extends PgDialect implements TopologyDialect, Auror
   @Override
   public String getWriterIdQuery() {
     return WRITER_ID_QUERY;
-  }
-
-  @Override
-  public String getIsReaderQuery() {
-    return IS_READER_QUERY;
   }
 
   @Override
