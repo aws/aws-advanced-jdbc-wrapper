@@ -163,7 +163,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   }
 
   @Override
-  public List<HostSpec> forceRefresh(final boolean shouldVerifyWriter, final long timeoutMs)
+  public List<HostSpec> forceRefresh(final boolean verifyTopology, final long timeoutMs)
       throws SQLException, TimeoutException {
 
     if (this.ignoreNewTopologyRequestsEndTimeNano.get() > 0
@@ -179,7 +179,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       }
     }
 
-    if (shouldVerifyWriter) {
+    if (verifyTopology) {
+      // Enter panic mode, which will verify the topology for us.
       this.monitoringConnection.set(null);
       this.isVerifiedWriterConnection = false;
     }

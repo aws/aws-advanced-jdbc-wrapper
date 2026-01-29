@@ -167,13 +167,15 @@ public interface PluginService extends ExceptionHandler, Wrapper {
   /**
    * Initiates a topology update.
    *
-   * @param shouldVerifyWriter true, if a caller expects to get topology with the latest confirmed writer
-   * @param timeoutMs timeout in msec to wait until topology gets refreshed and a new (or existing) writer is
-   *                  confirmed (if shouldVerifyWriter has a value of <code>true</code>).
-   * @return true, if successful. False, if operation is unsuccessful or timeout is reached
+   * @param verifyTopology defines whether extra measures should be taken to verify the topology. If false, the
+   *                       method will return as soon as topology is successfully retrieved from any instance. If
+   *                       true, extra steps are taken to verify the topology is accurate.
+   * @param timeoutMs      timeout in msec to wait until the topology gets refreshed (if verifyWriter has a value of
+   *                       <code>false</code>) or verified (if verifyTopology has a value of <code>true</code>).
+   * @return true if successful, false if unsuccessful or the timeout is reached
    * @throws SQLException if there was an error establishing a connection or fetching a topology
    */
-  boolean forceRefreshHostList(final boolean shouldVerifyWriter, final long timeoutMs) throws SQLException;
+  boolean forceRefreshHostList(final boolean verifyTopology, final long timeoutMs) throws SQLException;
 
   Connection connect(HostSpec hostSpec, Properties props, final @Nullable ConnectionPlugin pluginToSkip)
       throws SQLException;
