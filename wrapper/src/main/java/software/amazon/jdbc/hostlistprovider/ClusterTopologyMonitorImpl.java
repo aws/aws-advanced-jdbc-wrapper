@@ -91,7 +91,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected final AtomicConnection nodeThreadsReaderConnection;
   protected final AtomicReference<List<HostSpec>> nodeThreadsLatestTopology = new AtomicReference<>(null);
 
-  // TODO: verify that this list is cleared at the appropriate time
   protected final Map<String, List<HostSpec>> readerTopologiesById = new ConcurrentHashMap<>();
   protected final long stableTopologiesDurationNano = TimeUnit.SECONDS.toNanos(15);
   protected long stableTopologiesStartNano;
@@ -458,7 +457,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     }
 
     long numReaders = latestHosts.stream().filter(h -> h.getRole() == HostRole.READER).count();
-    // TODO: what if this.readerTopologiesById changes while processing information in it?
     if (numReaders == 0 || numReaders != this.readerTopologiesById.size()) {
       // There are no readers, or we have not received topology information from every reader yet.
       this.stableTopologiesStartNano = 0;
@@ -497,7 +495,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     this.closeNodeMonitors();
     this.nodeThreadConnectionCleanUp();
     this.nodeThreadsStop.set(false);
-    // TODO: seems like we do a bunch of this cleanup in many places, can refactor
     this.submittedNodes.clear();
     this.stableTopologiesStartNano = 0;
     this.readerTopologiesById.clear();
