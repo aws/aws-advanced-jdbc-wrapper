@@ -141,7 +141,7 @@ public class KeyManagementUtilityIntegrationTest {
 
     // Step 1: Generate a data key using KMS (what KeyManagementUtility.generateAndStoreDataKey
     // would do)
-    String keyId = "test-key-" + System.currentTimeMillis();
+    int keyId = (int) System.currentTimeMillis();
 
     // Step 2: Store the encryption metadata (what
     // KeyManagementUtility.initializeEncryptionForColumn would do)
@@ -151,7 +151,7 @@ public class KeyManagementUtilityIntegrationTest {
       stmt.setString(1, TEST_TABLE);
       stmt.setString(2, TEST_COLUMN);
       stmt.setString(3, TEST_ALGORITHM);
-      stmt.setString(4, keyId);
+      stmt.setInt(4, keyId);
       stmt.executeUpdate();
       LOGGER.info("Created encryption metadata with key ID: " + keyId);
     }
@@ -168,7 +168,7 @@ public class KeyManagementUtilityIntegrationTest {
       assertEquals(TEST_TABLE, rs.getString("table_name"));
       assertEquals(TEST_COLUMN, rs.getString("column_name"));
       assertEquals(TEST_ALGORITHM, rs.getString("encryption_algorithm"));
-      assertEquals(keyId, rs.getString("key_id"));
+      assertEquals(keyId, rs.getInt("key_id"));
       LOGGER.info("Verified encryption metadata exists for key: " + keyId);
     }
 
@@ -204,7 +204,7 @@ public class KeyManagementUtilityIntegrationTest {
     LOGGER.info("Testing encryption with different SSN values");
 
     // Demonstrate KeyManagementUtility workflow for multiple keys
-    String keyId = "test-key-multi-" + System.currentTimeMillis();
+    int keyId = (int) System.currentTimeMillis();
 
     // Setup encryption metadata using KeyManagementUtility approach
     try (PreparedStatement stmt =
@@ -213,7 +213,7 @@ public class KeyManagementUtilityIntegrationTest {
       stmt.setString(1, TEST_TABLE);
       stmt.setString(2, TEST_COLUMN);
       stmt.setString(3, TEST_ALGORITHM);
-      stmt.setString(4, keyId);
+      stmt.setInt(4, keyId);
       stmt.executeUpdate();
       LOGGER.info("Setup encryption metadata with key: " + keyId);
     }
