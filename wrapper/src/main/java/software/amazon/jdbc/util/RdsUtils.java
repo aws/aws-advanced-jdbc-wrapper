@@ -341,6 +341,15 @@ public class RdsUtils {
     return null;
   }
 
+  public boolean isSameRegion(final @Nullable String host1, final @Nullable String host2) {
+    if (StringUtils.isNullOrEmpty(host1) || StringUtils.isNullOrEmpty(host2)) {
+      return false;
+    }
+    final String host1Region = this.getRdsRegion(host1);
+    final String host2Region = this.getRdsRegion(host2);
+    return host1Region != null && host1Region.equalsIgnoreCase(host2Region);
+  }
+
   public boolean isWriterClusterDns(final String host) {
     final String dnsGroup = getDnsGroup(getPreparedHost(host));
     return dnsGroup != null && dnsGroup.equalsIgnoreCase("cluster-");
@@ -512,7 +521,7 @@ public class RdsUtils {
 
     try {
       return matcher.group(groupName);
-    } catch (IllegalStateException e) {
+    } catch (IllegalStateException | IllegalArgumentException e) {
       return null;
     }
   }

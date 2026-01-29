@@ -83,7 +83,7 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
   }
 
   // Inherited failoverMode member should not be used in this class.
-  // Use homeFailoverMode and outOfHomeFailoverMode instead.
+  // Use activeHomeFailoverMode and inactiveHomeFailoverMode instead.
   protected GlobalDbFailoverMode activeHomeFailoverMode;
   protected GlobalDbFailoverMode inactiveHomeFailoverMode;
 
@@ -97,68 +97,64 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
 
   @Override
   protected void initFailoverMode() throws SQLException {
-    if (this.rdsUrlType == null) {
-      final HostSpec initialHostSpec = this.hostListProviderService.getInitialConnectionHostSpec();
-      this.rdsUrlType = this.rdsHelper.identifyRdsType(initialHostSpec.getHost());
-
-      this.homeRegion = FAILOVER_HOME_REGION.getString(properties);
-      if (StringUtils.isNullOrEmpty(this.homeRegion)) {
-        switch (this.rdsUrlType) {
-          case RDS_WRITER_CLUSTER:
-          case RDS_READER_CLUSTER:
-          case RDS_CUSTOM_CLUSTER:
-          case RDS_INSTANCE:
-            this.homeRegion = this.rdsHelper.getRdsRegion(initialHostSpec.getHost());
-            if (StringUtils.isNullOrEmpty(this.homeRegion)) {
-              throw new SQLException(Messages.get("GlobalDbFailoverConnectionPlugin.missingHomeRegion"));
-            }
-            break;
-          default:
-            throw new SQLException(Messages.get("GlobalDbFailoverConnectionPlugin.missingHomeRegion"));
-        }
-      }
-
-      LOGGER.finer(
-          () -> Messages.get(
-              "Failover.parameterValue",
-              new Object[]{"failoverHomeRegion", this.homeRegion}));
-
-      this.activeHomeFailoverMode = GlobalDbFailoverMode.fromValue(
-          ACTIVE_HOME_FAILOVER_MODE.getString(this.properties));
-      this.inactiveHomeFailoverMode = GlobalDbFailoverMode.fromValue(
-          INACTIVE_HOME_FAILOVER_MODE.getString(this.properties));
-
-      if (this.activeHomeFailoverMode == null) {
-        switch (this.rdsUrlType) {
-          case RDS_WRITER_CLUSTER:
-          case RDS_GLOBAL_WRITER_CLUSTER:
-            this.activeHomeFailoverMode = GlobalDbFailoverMode.STRICT_WRITER;
-            break;
-          default:
-            this.activeHomeFailoverMode = GlobalDbFailoverMode.HOME_READER_OR_WRITER;
-        }
-      }
-
-      if (this.inactiveHomeFailoverMode == null) {
-        switch (this.rdsUrlType) {
-          case RDS_WRITER_CLUSTER:
-          case RDS_GLOBAL_WRITER_CLUSTER:
-            this.inactiveHomeFailoverMode = GlobalDbFailoverMode.STRICT_WRITER;
-            break;
-          default:
-            this.inactiveHomeFailoverMode = GlobalDbFailoverMode.HOME_READER_OR_WRITER;
-        }
-      }
-
-      LOGGER.finer(
-          () -> Messages.get(
-              "Failover.parameterValue",
-              new Object[]{"activeHomeFailoverMode", this.activeHomeFailoverMode}));
-      LOGGER.finer(
-          () -> Messages.get(
-              "Failover.parameterValue",
-              new Object[]{"inactiveHomeFailoverMode", this.inactiveHomeFailoverMode}));
+    if (this.rdsUrlType != null) {
+      return;
     }
+
+    final HostSpec initialHostSpec = this.hostListProviderService.getInitialConnectionHostSpec();
+    this.rdsUrlType = this.rdsHelper.identifyRdsType(initialHostSpec.getHost());
+
+    this.homeRegion = FAILOVER_HOME_REGION.getString(properties);
+    if (StringUtils.isNullOrEmpty(this.homeRegion)) {
+      if (!this.rdsUrlType.hasRegion()) {
+        throw new SQLException(Messages.get("GlobalDbFailoverConnectionPlugin.missingHomeRegion"));
+      }
+      this.homeRegion = this.rdsHelper.getRdsRegion(initialHostSpec.getHost());
+      if (StringUtils.isNullOrEmpty(this.homeRegion)) {
+        throw new SQLException(Messages.get("GlobalDbFailoverConnectionPlugin.missingHomeRegion"));
+      }
+    }
+
+    LOGGER.finer(
+        () -> Messages.get(
+            "Failover.parameterValue",
+            new Object[]{"failoverHomeRegion", this.homeRegion}));
+
+    this.activeHomeFailoverMode = GlobalDbFailoverMode.fromValue(
+        ACTIVE_HOME_FAILOVER_MODE.getString(this.properties));
+    this.inactiveHomeFailoverMode = GlobalDbFailoverMode.fromValue(
+        INACTIVE_HOME_FAILOVER_MODE.getString(this.properties));
+
+    if (this.activeHomeFailoverMode == null) {
+      switch (this.rdsUrlType) {
+        case RDS_WRITER_CLUSTER:
+        case RDS_GLOBAL_WRITER_CLUSTER:
+          this.activeHomeFailoverMode = GlobalDbFailoverMode.STRICT_WRITER;
+          break;
+        default:
+          this.activeHomeFailoverMode = GlobalDbFailoverMode.HOME_READER_OR_WRITER;
+      }
+    }
+
+    if (this.inactiveHomeFailoverMode == null) {
+      switch (this.rdsUrlType) {
+        case RDS_WRITER_CLUSTER:
+        case RDS_GLOBAL_WRITER_CLUSTER:
+          this.inactiveHomeFailoverMode = GlobalDbFailoverMode.STRICT_WRITER;
+          break;
+        default:
+          this.inactiveHomeFailoverMode = GlobalDbFailoverMode.HOME_READER_OR_WRITER;
+      }
+    }
+
+    LOGGER.finer(
+        () -> Messages.get(
+            "Failover.parameterValue",
+            new Object[]{"activeHomeFailoverMode", this.activeHomeFailoverMode}));
+    LOGGER.finer(
+        () -> Messages.get(
+            "Failover.parameterValue",
+            new Object[]{"inactiveHomeFailoverMode", this.inactiveHomeFailoverMode}));
   }
 
   @Override
@@ -222,7 +218,7 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
               () -> this.pluginService.getHosts().stream()
                   .filter(x -> x.getRole() == HostRole.READER
                       && this.rdsHelper.getRdsRegion(x.getHost()).equalsIgnoreCase(this.homeRegion))
-                  .collect(Collectors.toList()),
+                  .collect(Collectors.toSet()),
               HostRole.READER,
               failoverEndNano);
           break;
@@ -231,7 +227,7 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
               () -> this.pluginService.getHosts().stream()
                   .filter(x -> x.getRole() == HostRole.READER
                       && !this.rdsHelper.getRdsRegion(x.getHost()).equalsIgnoreCase(this.homeRegion))
-                  .collect(Collectors.toList()),
+                  .collect(Collectors.toSet()),
               HostRole.READER,
               failoverEndNano);
           break;
@@ -239,7 +235,7 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
           this.failoverToAllowedHost(
               () -> this.pluginService.getHosts().stream()
                   .filter(x -> x.getRole() == HostRole.READER)
-                  .collect(Collectors.toList()),
+                  .collect(Collectors.toSet()),
               HostRole.READER,
               failoverEndNano);
           break;
@@ -249,7 +245,7 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
                   .filter(x -> x.getRole() == HostRole.WRITER
                       || (x.getRole() == HostRole.READER
                           && this.rdsHelper.getRdsRegion(x.getHost()).equalsIgnoreCase(this.homeRegion)))
-                  .collect(Collectors.toList()),
+                  .collect(Collectors.toSet()),
               null,
               failoverEndNano);
           break;
@@ -259,13 +255,13 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
                   .filter(x -> x.getRole() == HostRole.WRITER
                       || (x.getRole() == HostRole.READER
                       && !this.rdsHelper.getRdsRegion(x.getHost()).equalsIgnoreCase(this.homeRegion)))
-                  .collect(Collectors.toList()),
+                  .collect(Collectors.toSet()),
               null,
               failoverEndNano);
           break;
         case ANY_READER_OR_WRITER:
           this.failoverToAllowedHost(
-              this.pluginService::getHosts,
+              () -> new HashSet<>(this.pluginService.getHosts()),
               null,
               failoverEndNano);
           break;
@@ -359,6 +355,8 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
       if (this.failoverWriterSuccessCounter != null) {
         this.failoverWriterSuccessCounter.inc();
       }
+    } catch (FailoverFailedSQLException ex) {
+      throw ex;
     } catch (Exception ex) {
       if (this.failoverWriterFailedCounter != null) {
         this.failoverWriterFailedCounter.inc();
@@ -376,7 +374,7 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
   }
 
   protected void failoverToAllowedHost(
-      final @NonNull Supplier<List<HostSpec>> allowedHosts,
+      final @NonNull Supplier<Set<HostSpec>> allowedHosts,
       @Nullable HostRole verifyRole,
       final long failoverEndNano)
       throws SQLException {
@@ -421,7 +419,7 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
   }
 
   protected ReaderFailoverResult getAllowedFailoverConnection(
-      final @NonNull Supplier<List<HostSpec>> allowedHosts,
+      final @NonNull Supplier<Set<HostSpec>> allowedHosts,
       @Nullable HostRole verifyRole,
       final long failoverEndNano)
       throws TimeoutException, SQLException {
@@ -429,17 +427,15 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
     do {
       // The roles in this list might not be accurate, depending on whether the new topology has become available yet.
       this.pluginService.refreshHostList();
-      List<HostSpec> updatedAllowedHosts = allowedHosts.get();
+      Set<HostSpec> updatedAllowedHosts = allowedHosts.get();
       // Make a copy of hosts and set their availability.
       updatedAllowedHosts = updatedAllowedHosts.stream()
           .map(x -> this.pluginService.getHostSpecBuilder()
               .copyFrom(x)
               .availability(HostAvailability.AVAILABLE)
               .build())
-          .collect(Collectors.toList());
+          .collect(Collectors.toSet());
       final Set<HostSpec> remainingAllowedHosts = new HashSet<>(updatedAllowedHosts);
-
-      //LOGGER.finest(LogUtils.logTopology(updatedAllowedHosts, "Allowed hosts:"));
 
       if (remainingAllowedHosts.isEmpty()) {
         this.shortDelay();

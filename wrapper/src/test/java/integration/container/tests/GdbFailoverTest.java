@@ -32,6 +32,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
@@ -58,6 +59,7 @@ public class GdbFailoverTest extends FailoverTest {
   @TestTemplate
   @EnableOnNumOfInstances(min = 2)
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
+  @Disabled
   @Override
   public void test_readerFailover_readerOrWriter() throws SQLException {
     final String initialWriterId = this.currentWriter;

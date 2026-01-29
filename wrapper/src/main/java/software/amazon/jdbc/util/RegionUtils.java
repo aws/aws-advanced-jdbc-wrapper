@@ -19,6 +19,7 @@ package software.amazon.jdbc.util;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.jdbc.HostSpec;
 
 public class RegionUtils {
   protected static final RdsUtils rdsUtils = new RdsUtils();
@@ -37,6 +38,21 @@ public class RegionUtils {
   public Region getRegion(String host, Properties props, String propKey) {
     Region region = getRegion(props, propKey);
     return region != null ? region : getRegionFromHost(host);
+  }
+
+  /**
+   * Determines the AWS region from the given parameters. If the region is defined in the properties, that region will
+   * be used. Otherwise, attempts to determine the region from the passed in host.
+   *
+   * @param hostSpec    The hostSpec from which to extract the region if it is not defined in the properties.
+   * @param props   The connection properties for the connection being established.
+   * @param propKey The key name of the region property.
+   * @return The AWS region defined by the properties or extracted from the host, or null if the region was not
+   *     defined in the properties and could not be determined from the {@code host}.
+   */
+  @Nullable
+  public Region getRegion(HostSpec hostSpec, Properties props, String propKey) {
+    return getRegion(hostSpec.getHost(), props, propKey);
   }
 
   /**
