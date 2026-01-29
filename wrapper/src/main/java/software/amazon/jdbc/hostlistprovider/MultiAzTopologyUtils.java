@@ -112,6 +112,6 @@ public class MultiAzTopologyUtils extends TopologyUtils {
     final boolean isWriter = hostId.equals(writerId);
 
     return createHost(
-        hostId, instanceName, isWriter, 0, Timestamp.from(Instant.now()), initialHostSpec, instanceTemplate);
+        instanceName, isWriter, 0, Timestamp.from(Instant.now()), initialHostSpec, instanceTemplate);
   }
 }

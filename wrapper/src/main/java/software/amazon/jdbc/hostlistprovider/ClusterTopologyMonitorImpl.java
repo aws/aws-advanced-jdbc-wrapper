@@ -577,7 +577,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
               if (pair != null) {
                 HostSpec instanceTemplate = this.getInstanceTemplate(pair.getValue2(), this.monitoringConnection.get());
                 HostSpec writerHost = this.topologyUtils.createHost(
-                    pair.getValue1(), pair.getValue2(), true, 0, null, this.initialHostSpec, instanceTemplate);
+                    pair.getValue2(), true, 0, null, this.initialHostSpec, instanceTemplate);
                 this.writerHostSpec.set(writerHost);
                 LOGGER.finest(() -> Messages.get(
                     "ClusterTopologyMonitorImpl.writerMonitoringConnection",
