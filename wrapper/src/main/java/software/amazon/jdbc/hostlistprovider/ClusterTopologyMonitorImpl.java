@@ -187,8 +187,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     return this.waitForTopologyUpdate(timeoutMs);
   }
 
-  // Topology is considered stable if we successfully fetch it from a writer node, or if the reader nodes detect
-  // matching host lists for stableTopologiesDurationsNano nanoseconds.
   protected List<HostSpec> waitForTopologyUpdate(final long timeoutMs) throws TimeoutException {
     List<HostSpec> currentHosts = getStoredHosts();
     List<HostSpec> latestHosts;
@@ -207,10 +205,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     }
 
     final long end = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMs);
-
-    // Note that we are checking reference equality instead of value equality here. We will break out of the loop if
-    // there is a new entry in the topology map, even if the value of the hosts in latestHosts is the same as
-    // currentHosts. We also break out if the topology is considered stable.
+    // Note: we are checking reference equality instead of value equality. We will break out of the loop if there is a
+    // new entry in the topology cache, even if the value of the hosts in latestHosts is the same as currentHosts.
     while ((currentHosts == (latestHosts = getStoredHosts()) && System.nanoTime() < end)) {
       try {
         synchronized (this.topologyUpdated) {
@@ -481,8 +477,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     }
 
     if (System.nanoTime() > this.stableTopologiesStartNano + this.stableTopologiesDurationNano) {
-      // Reader topologies have matched for stableTopologiesDurationNano nanoseconds, so we can consider the topology
-      // accurate.
+      // Reader topologies have been consistent for stableTopologiesDurationNano, so the topology should be accurate.
       updateTopologyCache(readerTopology);
     }
   }
