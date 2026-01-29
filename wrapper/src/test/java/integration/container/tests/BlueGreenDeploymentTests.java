@@ -90,7 +90,10 @@ import software.amazon.jdbc.util.RdsUtils;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @EnableOnTestFeature(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)
-@DisableOnTestFeature(TestEnvironmentFeatures.RUN_DB_METRICS_ONLY)
+@DisableOnTestFeature({
+    TestEnvironmentFeatures.RUN_DB_METRICS_ONLY,
+    TestEnvironmentFeatures.RUN_ENCRYPTION_TESTS_ONLY
+})
 @EnableOnDatabaseEngineDeployment({DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE, DatabaseEngineDeployment.AURORA})
 @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
 @Order(20)

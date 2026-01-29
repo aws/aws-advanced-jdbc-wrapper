@@ -64,6 +64,8 @@ public class TestEnvironmentConfiguration {
       Boolean.parseBoolean(System.getProperty("test-hibernate-only", "false"));
   public boolean testAutoscalingOnly =
       Boolean.parseBoolean(System.getProperty("test-autoscaling-only", "false"));
+  public boolean testEncryptionOnly =
+      Boolean.parseBoolean(System.getProperty("test-encryption-only", "false"));
   public boolean testMetricsOnly =
       Boolean.parseBoolean(System.getProperty("test-metrics-only", "false"));
 
@@ -112,6 +114,7 @@ public class TestEnvironmentConfiguration {
   public String awsAccessKeyId = System.getenv("AWS_ACCESS_KEY_ID");
   public String awsSecretAccessKey = System.getenv("AWS_SECRET_ACCESS_KEY");
   public String awsSessionToken = System.getenv("AWS_SESSION_TOKEN");
+  public String kmsKeyId = System.getenv("KMS_KEY_ID");
 
   public String iamUser = System.getenv("IAM_USER");
 
