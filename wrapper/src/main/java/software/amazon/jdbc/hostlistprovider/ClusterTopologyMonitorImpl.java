@@ -453,6 +453,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected void checkForStableReaderTopologies() {
     List<HostSpec> latestHosts = this.getStoredHosts();
     if (Utils.isNullOrEmpty(latestHosts)) {
+      this.stableTopologiesStartNano = 0;
       return;
     }
 
@@ -460,22 +461,24 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     // TODO: what if this.readerTopologiesById changes while processing information in it?
     if (numReaders == 0 || numReaders != this.readerTopologiesById.size()) {
       // There are no readers, or we have not received topology information from every reader yet.
+      this.stableTopologiesStartNano = 0;
       return;
     }
 
     List<HostSpec> readerTopology = this.readerTopologiesById.values().stream().findFirst().orElse(null);
     if (readerTopology == null) {
       // readerTopologiesById has been cleared since checking its size.
+      this.stableTopologiesStartNano = 0;
       return;
     }
 
     if (this.readerTopologiesById.values().stream().distinct().count() != 1) {
+      this.stableTopologiesStartNano = 0;
       return;
     }
 
     // All reader topologies match.
     if (this.stableTopologiesStartNano == 0) {
-      // TODO: reset this to 0 when topologies don't match or we close the node monitors
       this.stableTopologiesStartNano = System.nanoTime();
     }
 
@@ -872,14 +875,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
               if (this.monitor.nodeThreadsWriterConnection.get() == null) {
                 // We can use this reader connection to update the topology while we wait for the writer connection to
                 // be established.
-                if (updateTopology) {
-                  this.readerThreadFetchTopology(this.connection.get(), this.writerHostSpec); // MARKER
-                } else if (this.monitor.nodeThreadsReaderConnection.compareAndSet(
-                    null, this.connection.get())) {
-                  // Use this connection to update the topology.
-                  updateTopology = true;
-                  this.readerThreadFetchTopology(this.connection.get(), this.writerHostSpec); // MARKER
-                }
+                this.monitor.nodeThreadsReaderConnection.compareAndSet(null, this.connection.get());
+                this.readerThreadFetchTopology(this.connection.get(), this.writerHostSpec); // MARKER
               }
             }
           }
