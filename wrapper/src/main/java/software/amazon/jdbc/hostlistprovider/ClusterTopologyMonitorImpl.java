@@ -468,6 +468,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     }
 
     if (this.readerTopologiesById.values().stream().distinct().count() != 1) {
+      // The topologies detected by each reader do not match.
       this.stableTopologiesStartNano = 0;
       return;
     }
