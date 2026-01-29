@@ -289,10 +289,10 @@ public class KeyManagementUtilityIntegrationTest {
               + "name VARCHAR(255) NOT NULL, "
               + "master_key_arn VARCHAR(512) NOT NULL, "
               + "encrypted_data_key TEXT NOT NULL, "
-              + "key_spec VARCHAR(50) NOT NULL, "
+              + "hmac_key BYTEA NOT NULL, "
+              + "key_spec VARCHAR(50) DEFAULT 'AES_256', "
               + "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
-              + "last_used_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP"
-              + ")");
+              + "last_used_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP)");
 
       // Create encryption metadata table
       stmt.execute(
