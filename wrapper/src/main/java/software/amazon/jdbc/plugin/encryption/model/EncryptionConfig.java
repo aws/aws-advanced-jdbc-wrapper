@@ -82,7 +82,7 @@ public class EncryptionConfig {
 
   public static final AwsWrapperProperty ENCRYPTION_METADATA_SCHEMA =
       new AwsWrapperProperty(
-          "encryption.metadataSchema", "aws", "Schema name for encryption metadata tables");
+          "encryption.metadataSchema", "encrypt", "Schema name for encryption metadata tables");
 
   static {
     PropertyDefinition.registerPluginProperties(EncryptionConfig.class);
