@@ -850,7 +850,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
                 // When nodeThreadsWriterConnection and nodeThreadsWriterHostSpec are both set, the topology monitor may
                 // set ignoreNewTopologyRequestsEndTimeNano, in which case other threads will use the cached topology
                 // for the ignore duration, so we need to update the topology before setting nodeThreadsWriterHostSpec.
-                this.monitor.fetchTopologyAndUpdateCache(this.connection.get()); // MARKER
+                this.monitor.fetchTopologyAndUpdateCache(this.connection.get());
                 this.monitor.nodeThreadsWriterHostSpec.set(hostSpec);
 
                 // Connection is already assigned to this.monitor.nodeThreadsWriterConnection
@@ -868,7 +868,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
                 // We can use this reader connection to update the topology while we wait for the writer connection to
                 // be established.
                 this.monitor.nodeThreadsReaderConnection.compareAndSet(null, this.connection.get());
-                this.readerThreadFetchTopology(this.connection.get(), this.writerHostSpec); // MARKER
+                this.readerThreadFetchTopology(this.connection.get(), this.writerHostSpec);
               }
             }
           }
