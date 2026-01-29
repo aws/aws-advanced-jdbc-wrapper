@@ -16,8 +16,6 @@
 
 package software.amazon.jdbc.plugin.staledns;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.EnumSet;
@@ -57,7 +55,6 @@ public class AuroraStaleDnsHelper {
   private final RdsUtils rdsUtils = new RdsUtils();
 
   private HostSpec writerHostSpec = null;
-  private String writerHostAddress = null;
 
   static {
     PropertyDefinition.registerPluginProperties(AuroraStaleDnsHelper.class);
@@ -106,21 +103,6 @@ public class AuroraStaleDnsHelper {
 
     final Connection conn = connectFunc.call();
 
-    String clusterInetAddress = null;
-    try {
-      clusterInetAddress = InetAddress.getByName(hostSpec.getHost()).getHostAddress();
-    } catch (UnknownHostException e) {
-      // ignore
-    }
-
-    final String hostInetAddress = clusterInetAddress;
-    LOGGER.finest(() -> Messages.get("AuroraStaleDnsHelper.clusterEndpointDns",
-        new Object[]{hostInetAddress}));
-
-    if (clusterInetAddress == null) {
-      return conn;
-    }
-
     final boolean isConnectedToReader = this.pluginService.getHostRole(conn) == HostRole.READER;
     if (isConnectedToReader) {
       // This is if-statement is only reached if the connection url is a writer cluster endpoint.
@@ -148,22 +130,7 @@ public class AuroraStaleDnsHelper {
       return conn;
     }
 
-    if (this.writerHostAddress == null) {
-      try {
-        this.writerHostAddress = InetAddress.getByName(this.writerHostSpec.getHost()).getHostAddress();
-      } catch (UnknownHostException e) {
-        // ignore
-      }
-    }
-
-    LOGGER.finest(() -> Messages.get("AuroraStaleDnsHelper.writerInetAddress",
-        new Object[]{this.writerHostAddress}));
-
-    if (this.writerHostAddress == null) {
-      return conn;
-    }
-
-    if (!writerHostAddress.equals(clusterInetAddress) || isConnectedToReader) {
+    if (isConnectedToReader) {
       // DNS resolves a cluster endpoint to a wrong writer
       // opens a connection to a proper writer node
 
@@ -178,7 +145,7 @@ public class AuroraStaleDnsHelper {
         throw new SQLException(
             Messages.get("AuroraStaleDnsHelper.currentWriterNotAllowed",
                 new Object[] {
-                    this.writerHostSpec == null ? "<null>" : this.writerHostSpec.getHostAndPort(),
+                    this.writerHostSpec.getHostAndPort(),
                     LogUtils.logTopology(allowedHosts, "")})
         );
       }
@@ -212,7 +179,6 @@ public class AuroraStaleDnsHelper {
           && entry.getValue().contains(NodeChangeOptions.PROMOTED_TO_READER)) {
         LOGGER.finest(() -> Messages.get("AuroraStaleDnsHelper.reset"));
         this.writerHostSpec = null;
-        this.writerHostAddress = null;
         return;
       }
     }
