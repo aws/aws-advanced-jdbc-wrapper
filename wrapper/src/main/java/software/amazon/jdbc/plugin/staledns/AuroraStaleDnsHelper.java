@@ -121,7 +121,8 @@ public class AuroraStaleDnsHelper {
       return conn;
     }
 
-    if (this.pluginService.getHostRole(conn) == HostRole.READER) {
+    final boolean isConnectedToReader = this.pluginService.getHostRole(conn) == HostRole.READER;
+    if (isConnectedToReader) {
       // This is if-statement is only reached if the connection url is a writer cluster endpoint.
       // If the new connection resolves to a reader instance, this means the topology is outdated.
       // Force refresh to update the topology.
@@ -162,7 +163,7 @@ public class AuroraStaleDnsHelper {
       return conn;
     }
 
-    if (!writerHostAddress.equals(clusterInetAddress)) {
+    if (!writerHostAddress.equals(clusterInetAddress) || isConnectedToReader) {
       // DNS resolves a cluster endpoint to a wrong writer
       // opens a connection to a proper writer node
 
