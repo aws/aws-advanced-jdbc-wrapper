@@ -203,7 +203,7 @@ public abstract class AbstractReadWriteSplittingPlugin extends AbstractConnectio
     }
   }
 
-  protected void setWriterConnection(final Connection conn, final HostSpec host) {
+  protected void setWriterConnection(final Connection conn, final HostSpec host) throws SQLException {
     this.writerConnection = conn;
     this.writerHostSpec = host;
     LOGGER.finest(

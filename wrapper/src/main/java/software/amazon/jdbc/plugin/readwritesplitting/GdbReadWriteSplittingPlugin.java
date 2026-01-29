@@ -41,25 +41,25 @@ public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
       new AwsWrapperProperty(
           "gdbRwHomeRegion",
           null,
-          "Allows to define home region for read/write splitting.");
+          "Specifies the home region for read/write splitting.");
 
-  public static final AwsWrapperProperty STAY_IN_HOME_REGION_FOR_WRITER =
+  public static final AwsWrapperProperty RESTRICT_WRITER_TO_HOME_REGION =
       new AwsWrapperProperty(
-          "gdbRwStayHomeRegionForWriter",
+          "gdbRwRestrictWriterToHomeRegion",
           "false",
-          "Prevents following and connecting a writer node outside of defined home region.");
+          "Prevents connections to a writer node outside of the defined home region.");
 
-  public static final AwsWrapperProperty STAY_IN_HOME_REGION_FOR_READER =
+  public static final AwsWrapperProperty RESTRICT_READER_TO_HOME_REGION =
       new AwsWrapperProperty(
-          "gdbRwStayHomeRegionForReader",
+          "gdbRwRestrictReaderToHomeRegion",
           "false",
-          "Prevents connecting a reader node outside of defined home region.");
+          "Prevents connections to a reader node outside of the defined home region.");
 
   protected boolean isInit = false;
   protected final RdsUtils rdsHelper = new RdsUtils();
   protected String homeRegion;
-  protected final boolean stayInHomeRegionForWriter;
-  protected final boolean stayInHomeRegionForReader;
+  protected final boolean restrictWriterToHomeRegion;
+  protected final boolean restrictReaderToHomeRegion;
 
   static {
     PropertyDefinition.registerPluginProperties(GdbReadWriteSplittingPlugin.class);
@@ -67,8 +67,8 @@ public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
 
   public GdbReadWriteSplittingPlugin(final PluginService pluginService, final @NonNull Properties properties) {
     super(pluginService, properties);
-    this.stayInHomeRegionForWriter = STAY_IN_HOME_REGION_FOR_WRITER.getBoolean(properties);
-    this.stayInHomeRegionForReader = STAY_IN_HOME_REGION_FOR_READER.getBoolean(properties);
+    this.restrictWriterToHomeRegion = RESTRICT_WRITER_TO_HOME_REGION.getBoolean(properties);
+    this.restrictReaderToHomeRegion = RESTRICT_READER_TO_HOME_REGION.getBoolean(properties);
   }
 
   protected void initSettings(final HostSpec initHostSpec, Properties props) throws SQLException {
@@ -87,8 +87,12 @@ public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
     }
 
     if (StringUtils.isNullOrEmpty(this.homeRegion)) {
-      throw new SQLException(Messages.get("GdbReadWriteSplittingPlugin.missingHomeRegion"));
+      throw new SQLException(Messages.get(
+          "GdbReadWriteSplittingPlugin.missingHomeRegion",
+          new Object[] {initHostSpec.getHost()}));
     }
+
+    LOGGER.finest(() -> String.format("gdbRwHomeRegion: %s", this.homeRegion));
   }
 
   @Override
@@ -105,7 +109,7 @@ public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
 
   @Override
   protected void initializeWriterConnection() throws SQLException {
-    if (this.stayInHomeRegionForWriter
+    if (this.restrictWriterToHomeRegion
         && this.writerHostSpec != null
         && !this.homeRegion.equalsIgnoreCase(this.rdsHelper.getRdsRegion(this.writerHostSpec.getHost()))) {
       throw new ReadWriteSplittingSQLException(Messages.get(
@@ -116,8 +120,20 @@ public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
   }
 
   @Override
+  protected void setWriterConnection(final Connection conn, final HostSpec host) throws SQLException {
+    if (this.restrictWriterToHomeRegion
+        && this.writerHostSpec != null
+        && !this.homeRegion.equalsIgnoreCase(this.rdsHelper.getRdsRegion(this.writerHostSpec.getHost()))) {
+      throw new ReadWriteSplittingSQLException(Messages.get(
+          "GdbReadWriteSplittingPlugin.cantConnectWriterOutOfHomeRegion",
+          new Object[] {this.writerHostSpec.getHost(), this.homeRegion}));
+    }
+    super.setWriterConnection(conn, host);
+  }
+
+  @Override
   protected List<HostSpec> getReaderHostCandidates() throws SQLException {
-    if (this.stayInHomeRegionForReader) {
+    if (this.restrictReaderToHomeRegion) {
       final List<HostSpec> hostsInRegion = this.pluginService.getHosts().stream()
           .filter(x -> this.rdsHelper.getRdsRegion(x.getHost())
               .equalsIgnoreCase(this.homeRegion))

@@ -168,9 +168,8 @@ ConfigurationProfileBuilder.get()
         CustomConnectionPluginFactory.class))
     .buildAndSet();
 
-// Use the configuration profile "testProfile"
+// Use the configuration profile "testProfile". Note that you don't need to specify plugins with the "wrapperPlugins" parameter when using a configuration profile.
 properties.setProperty("wrapperProfileName", "testProfile");
-// You don't need to specify plugins with "wrapperPlugins" parameters in this case.
 ```
 
 Configuration profiles can be created based on other existing configuration profiles. Profile names are case sensitive and should be unique.
