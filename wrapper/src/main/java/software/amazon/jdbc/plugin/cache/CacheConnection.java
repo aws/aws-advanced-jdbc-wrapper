@@ -102,7 +102,7 @@ public class CacheConnection {
   private final String[] defaultCacheServerHostAndPort;
   private MessageDigest msgHashDigest = null;
 
-  protected static final AwsWrapperProperty CACHE_RW_ENDPOINT_ADDR =
+  public static final AwsWrapperProperty CACHE_RW_ENDPOINT_ADDR =
       new AwsWrapperProperty(
           "cacheEndpointAddrRw",
           null,

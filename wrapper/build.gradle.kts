@@ -463,6 +463,19 @@ tasks.register<Test>("test-all-docker") {
     }
 }
 
+tasks.register<Test>("test-all-caching") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
+    doFirst {
+        systemProperty("test-no-aurora", "true")
+        systemProperty("test-no-multi-az-cluster", "true")
+        systemProperty("test-no-multi-az-instance", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-no-bg", "true")
+        systemProperty("test-valkey-cache", "true")
+    }
+}
+
 tasks.register<Test>("test-hibernate-only") {
     group = "verification"
     filter.includeTestsMatching("integration.host.TestRunner.runTests")

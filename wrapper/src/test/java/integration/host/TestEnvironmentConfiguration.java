@@ -84,6 +84,8 @@ public class TestEnvironmentConfiguration {
       Boolean.parseBoolean(System.getProperty("test-no-bg", "true"));
   public boolean testBlueGreenOnly =
       Boolean.parseBoolean(System.getProperty("test-bg-only", "false"));
+  public boolean testValkeyCache =
+      Boolean.parseBoolean(System.getProperty("test-valkey-cache", "false"));
 
   public String includeTags = System.getProperty("test-include-tags");
   public String excludeTags = System.getProperty("test-exclude-tags");
