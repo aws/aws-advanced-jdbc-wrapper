@@ -480,6 +480,9 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
     if (System.nanoTime() > this.stableTopologiesStartNano + this.stableTopologiesDurationNano) {
       // Reader topologies have been consistent for stableTopologiesDurationNano, so the topology should be accurate.
+      LOGGER.finest(() -> Messages.get(
+          "ClusterTopologyMonitorImpl.matchingReaderTopologies",
+          new Object[]{TimeUnit.NANOSECONDS.toMillis(this.stableTopologiesDurationNano)}));
       updateTopologyCache(readerTopology);
     }
   }
