@@ -19,12 +19,12 @@ package software.amazon.jdbc.plugin.cache;
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionPluginFactory;
-import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.FullServicesContainer;
 
-public class DataRemoteCachePluginFactory implements ConnectionPluginFactory {
+public class DataRemoteCachePluginFactory implements ConnectionPluginFactory  {
 
   @Override
-  public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
-    return new DataRemoteCachePlugin(pluginService, props);
+  public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
+    return new DataRemoteCachePlugin(servicesContainer.getPluginService(), props);
   }
 }
