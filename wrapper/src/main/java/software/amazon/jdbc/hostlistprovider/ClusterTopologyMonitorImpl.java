@@ -92,7 +92,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected final AtomicReference<List<HostSpec>> nodeThreadsLatestTopology = new AtomicReference<>(null);
 
   protected final Map<String, List<HostSpec>> readerTopologiesById = new ConcurrentHashMap<>();
-  protected final long stableTopologiesDurationNano = TimeUnit.SECONDS.toNanos(15);
+  protected final long stableTopologiesDurationNano = TimeUnit.SECONDS.toNanos(90);
   protected long stableTopologiesStartNano;
 
   protected final long refreshRateNano;
@@ -480,6 +480,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
     if (System.nanoTime() > this.stableTopologiesStartNano + this.stableTopologiesDurationNano) {
       // Reader topologies have been consistent for stableTopologiesDurationNano, so the topology should be accurate.
+      this.stableTopologiesStartNano = 0;
       LOGGER.finest(() -> Messages.get(
           "ClusterTopologyMonitorImpl.matchingReaderTopologies",
           new Object[]{TimeUnit.NANOSECONDS.toMillis(this.stableTopologiesDurationNano)}));
