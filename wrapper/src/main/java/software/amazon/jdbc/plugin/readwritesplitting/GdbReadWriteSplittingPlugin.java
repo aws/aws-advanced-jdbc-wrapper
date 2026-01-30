@@ -92,7 +92,9 @@ public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
           new Object[] {initHostSpec.getHost()}));
     }
 
-    LOGGER.finest(() -> String.format("gdbRwHomeRegion: %s", this.homeRegion));
+    LOGGER.finest(() -> Messages.get(
+        "GdbReadWriteSplittingPlugin.parameterValue",
+        new Object[] {"gdbRwHomeRegion", this.homeRegion}));
   }
 
   @Override
