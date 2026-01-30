@@ -145,6 +145,7 @@ public abstract class TopologyUtils {
   /**
    * Creates a {@link HostSpec} from the given topology information.
    *
+   * @param instanceId       the database instance identifier, e.g. "mydb-instance-1".
    * @param isWriter         true if this is a writer instance, false for reader.
    * @param weight           the instance weight for load balancing.
    * @param lastUpdateTime   the timestamp of the last update to this instance's information.
