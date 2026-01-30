@@ -154,6 +154,7 @@ public abstract class TopologyUtils {
    * @return a {@link HostSpec} representing the given information.
    */
   public HostSpec createHost(
+      String instanceId,
       String instanceName,
       final boolean isWriter,
       final long weight,
@@ -167,7 +168,7 @@ public abstract class TopologyUtils {
         : (initialHostSpec == null ? HostSpec.NO_PORT : initialHostSpec.getPort());
 
     final HostSpec hostSpec = this.hostSpecBuilder
-        .hostId(instanceName)
+        .hostId(instanceId)
         .host(endpoint)
         .port(port)
         .role(isWriter ? HostRole.WRITER : HostRole.READER)
@@ -176,6 +177,7 @@ public abstract class TopologyUtils {
         .lastUpdateTime(lastUpdateTime)
         .build();
     hostSpec.addAlias(instanceName);
+    hostSpec.setHostId(instanceName);
     return hostSpec;
   }
 
