@@ -829,4 +829,9 @@ public class CacheConnection {
   protected void setClusterMode(boolean clusterMode) {
     this.isClusterMode = clusterMode;
   }
+
+  // Used for integration testing only to avoid cross tests pollution
+  public static void clearEndpointPoolRegistry() {
+    endpointToPoolRegistry.clear();
+  }
 }
