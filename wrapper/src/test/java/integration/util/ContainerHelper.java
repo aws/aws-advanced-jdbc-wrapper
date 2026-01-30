@@ -56,6 +56,7 @@ public class ContainerHelper {
   private static final String MYSQL_CONTAINER_IMAGE_NAME = "mysql:8.0.31";
   private static final String POSTGRES_CONTAINER_IMAGE_NAME = "postgres:latest";
   private static final String MARIADB_CONTAINER_IMAGE_NAME = "mariadb:10";
+  private static final String VALKEY_CONTAINER_IMAGE_NAME = "valkey/valkey:8.1";
   // Note: this image version may need to be occasionally updated to keep it up-to-date and prevent toxiproxy issues.
   private static final DockerImageName TOXIPROXY_IMAGE =
       DockerImageName.parse("ghcr.io/shopify/toxiproxy:2.11.0");
@@ -435,6 +436,14 @@ public class ContainerHelper {
         container.getMappedPort(PROXY_CONTROL_PORT));
     this.createProxy(toxiproxyClient, hostname, port);
     return container;
+  }
+
+  public GenericContainer<?> createValkeyContainer(Network network, String networkAlias) {
+    return new GenericContainer<>(VALKEY_CONTAINER_IMAGE_NAME)
+        .withNetwork(network)
+        .withNetworkAliases(networkAlias)
+        .withExposedPorts(6379)
+        .withCommand("--protected-mode no");
   }
 
   public void createProxy(final ToxiproxyClient client, String hostname, int port)
