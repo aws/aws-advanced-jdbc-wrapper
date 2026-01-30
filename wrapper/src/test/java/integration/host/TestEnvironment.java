@@ -421,15 +421,34 @@ public class TestEnvironment implements AutoCloseable {
   private static void createValkeyCacheContainer(TestEnvironment env) {
     if (env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.VALKEY_CACHE)) {
       ContainerHelper containerHelper = new ContainerHelper();
-      int numValkeyInstances = env.info.getDbCacheInfo().getInstances().size();
-      GenericContainer<?> valkeyContainer = containerHelper.createValkeyContainer(env.network, VALKEY_SERVER_ADDRESS_PREFIX + numValkeyInstances);
+      List<TestInstanceInfo> cacheInstances = env.info.getDbCacheInfo().getInstances();
+
+      // Create Valkey container WITH authentication
+      int authInstanceIndex = cacheInstances.size();
+      env.info.setDbCacheUsername("test_cache_user");
+      env.info.setDbCachePassword("test_cache_password");
+      GenericContainer<?> valkeyContainer = containerHelper.createValkeyContainer(
+          env.network,
+          VALKEY_SERVER_ADDRESS_PREFIX + authInstanceIndex,
+          true);
       env.valkeyContainers.add(valkeyContainer);
       valkeyContainer.start();
-      // Update the test environment with a new valkey cache instance information
-      List<TestInstanceInfo> cacheInstances = env.info.getDbCacheInfo().getInstances();
       cacheInstances.add(new TestInstanceInfo(
-          VALKEY_CONTAINER_NAME_PREFIX + cacheInstances.size(),
-          VALKEY_SERVER_ADDRESS_PREFIX + cacheInstances.size(),
+          VALKEY_CONTAINER_NAME_PREFIX + authInstanceIndex,
+          VALKEY_SERVER_ADDRESS_PREFIX + authInstanceIndex,
+          6379));
+
+      // Create Valkey container WITHOUT authentication (default user, no password)
+      int noAuthInstanceIndex = cacheInstances.size();
+      GenericContainer<?> valkeyContainerNoAuth = containerHelper.createValkeyContainer(
+          env.network,
+          VALKEY_SERVER_ADDRESS_PREFIX + noAuthInstanceIndex,
+          false);
+      env.valkeyContainers.add(valkeyContainerNoAuth);
+      valkeyContainerNoAuth.start();
+      cacheInstances.add(new TestInstanceInfo(
+          VALKEY_CONTAINER_NAME_PREFIX + noAuthInstanceIndex,
+          VALKEY_SERVER_ADDRESS_PREFIX + noAuthInstanceIndex,
           6379));
     }
   }

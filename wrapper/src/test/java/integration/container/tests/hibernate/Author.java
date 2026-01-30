@@ -16,32 +16,51 @@
 
 package integration.container.tests.hibernate;
 
-import org.hibernate.jpa.QueryHints;
-import javax.persistence.*;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
 
 @Entity
-@NamedQuery(
-    name = "Plane.findAll",
-    query = "SELECT p FROM Plane p",
-    hints = @QueryHint(name = QueryHints.HINT_COMMENT, value = "+CACHE_PARAM(ttl=250s)")
-)
-@Table(name = "Plane")
-public class Plane {
+public class Author {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long id;
+  private int id;
 
-  @Column(nullable = false, unique = true)
   private String name;
 
-  public Plane() {}
+  private String country;
 
-  public Plane(String name) {
+  public Author() {
+  }
+
+  public Author(String name, String country) {
+    this.name = name;
+    this.country = country;
+  }
+
+  public int getId() {
+    return this.id;
+  }
+
+  public void setId(int id) {
+    this.id = id;
+  }
+
+  public String getName() {
+    return this.name;
+  }
+
+  public void setName(String name) {
     this.name = name;
   }
 
-  public Long getId() { return id; }
-  public String getName() { return name; }
-  public void setName(String name) { this.name = name; }
+  public String getCountry() {
+    return this.country;
+  }
+
+  public void setCountry(String country) {
+    this.country = country;
+  }
 }
