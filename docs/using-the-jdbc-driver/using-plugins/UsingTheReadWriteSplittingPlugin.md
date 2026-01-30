@@ -7,7 +7,7 @@ The plugin is available since version 1.0.1.
 
 ## Loading the Read/Write Splitting Plugin
 
-The read/write splitting plugin is not loaded by default. To load the plugin, include it in the `wrapperPlugins` connection parameter. If you would like to load the read/write splitting plugin alongside the failover and host monitoring plugins, the read/write splitting plugin must be listed before these plugins in the plugin chain. If it is not, failover exceptions will not be properly processed by the plugin. See the example below to properly load the read/write splitting plugin with these plugins.
+The read/write splitting plugin is not loaded by default. To load the plugin, include it in the `wrapperPlugins` connection parameter. If you would like to load the read/write splitting plugin alongside the failover and host monitoring plugins, the read/write splitting plugin must be listed before these plugins in the plugin chain. If it is not, failover exceptions will not be properly processed by the plugin. See the example below to properly load the read/write splitting plugin with these plugins. Although the driver performs proper plugin sorting by default (see [`autoSortWrapperPluginOrder` configuration parameter](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters)), this note remains important.
 
 ```
 final Properties properties = new Properties();
@@ -20,9 +20,20 @@ final Properties properties = new Properties();
 properties.setProperty(PropertyDefinition.PLUGINS.name, "readWriteSplitting");
 ```
 
+> [!WARNING]
+> Do not use the `readWriteSplitting`, `srw` and/or `gdbReadWriteSplitting` plugins (or their combination) at the same time for the same connection!
+
+
 ## Supplying the connection string
 
 When using the read/write splitting plugin against Aurora clusters, you do not have to supply multiple instance URLs in the connection string. Instead, supply just the URL for the initial instance to which you're connecting. You must also include either the failover plugin or the Aurora host list plugin in your plugin chain so that the driver knows to query Aurora for its topology. See the section on [loading the read/write splitting plugin](#loading-the-readwrite-splitting-plugin) for more info.
+
+## Configuration Parameters
+
+| Parameter                        |  Value  |                                                                  Required                                                                   | Description                                                                                                                                                                                                                                                                                                                                                                                       | Default Value                                                                                                                    |
+|----------------------------------|:-------:|:-------------------------------------------------------------------------------------------------------------------------------------------:|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
+| `readerHostSelectorStrategy`     | String  |                                                                     No                                                                      | The name of the strategy that should be used to select a new reader host.                                                                                                                                                                                                                                                                                                                             | `random`                                                                                                                         |
+| `cachedReaderKeepAliveTimeoutMs` | Integer |                                                                     No                                                                      | The time in milliseconds to keep a reader connection alive in the cache. Default value 0 means the Wrapper will keep reusing the same cached reader connection.                                                                                                                                                                                                                                   | 0                                                                                                                                | 
 
 ## Using the Read/Write Splitting Plugin against non-Aurora clusters
 
