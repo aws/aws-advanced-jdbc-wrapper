@@ -438,12 +438,21 @@ public class ContainerHelper {
     return container;
   }
 
-  public GenericContainer<?> createValkeyContainer(Network network, String networkAlias) {
-    return new GenericContainer<>(VALKEY_CONTAINER_IMAGE_NAME)
+  public GenericContainer<?> createValkeyContainer(Network network, String networkAlias, boolean authEnabled) {
+    GenericContainer<?> container = new GenericContainer<>(VALKEY_CONTAINER_IMAGE_NAME)
         .withNetwork(network)
         .withNetworkAliases(networkAlias)
-        .withExposedPorts(6379)
-        .withCommand("--protected-mode no");
+        .withExposedPorts(6379);
+    if (authEnabled) {
+      container
+          .withCopyFileToContainer(
+              MountableFile.forHostPath("./src/test/resources/valkey-acl.conf"),
+              "/etc/valkey/valkey-acl.conf")
+          .withCommand("--protected-mode no", "--aclfile /etc/valkey/valkey-acl.conf");
+    } else {
+      container.withCommand("--protected-mode no");
+    }
+    return container;
   }
 
   public void createProxy(final ToxiproxyClient client, String hostname, int port)
