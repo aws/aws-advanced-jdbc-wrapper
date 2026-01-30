@@ -30,6 +30,7 @@ public class TestEnvironmentInfo {
   private String iamUsername;
 
   private TestDatabaseInfo databaseInfo;
+  private TestDatabaseInfo dbCacheInfo;
   private TestProxyDatabaseInfo proxyDatabaseInfo;
   private String databaseEngine;
   private String databaseEngineVersion;
@@ -45,6 +46,10 @@ public class TestEnvironmentInfo {
 
   public TestDatabaseInfo getDatabaseInfo() {
     return this.databaseInfo;
+  }
+
+  public TestDatabaseInfo getDbCacheInfo() {
+    return this.dbCacheInfo;
   }
 
   public TestProxyDatabaseInfo getProxyDatabaseInfo() {
@@ -117,6 +122,10 @@ public class TestEnvironmentInfo {
 
   public void setDatabaseInfo(TestDatabaseInfo databaseInfo) {
     this.databaseInfo = databaseInfo;
+  }
+
+  public void setDbCacheInfo(TestDatabaseInfo dbCacheInfo) {
+    this.dbCacheInfo = dbCacheInfo;
   }
 
   public void setProxyDatabaseInfo(TestProxyDatabaseInfo proxyDatabaseInfo) {

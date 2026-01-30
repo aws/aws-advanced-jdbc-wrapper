@@ -207,7 +207,7 @@ public class DataRemoteCachePluginTest {
     plugin.setCacheConnection(mockCacheConn);
     // Query is not cacheable
     when(mockPluginService.isInTransaction()).thenReturn(false);
-    when(mockPreparedStatement.toString()).thenReturn("", null);
+    when(mockPreparedStatement.toString()).thenReturn("", (String)null);
     when(mockCallable.call()).thenReturn(mockResult1);
 
     ResultSet rs = plugin.execute(ResultSet.class, SQLException.class, mockPreparedStatement,

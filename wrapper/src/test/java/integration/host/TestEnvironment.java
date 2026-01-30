@@ -76,6 +76,10 @@ public class TestEnvironment implements AutoCloseable {
   protected static final int PROXY_PORT = 8666;
   private static final String HIBERNATE_VERSION = "7.0.2"; // branch or tag name
 
+  // Valkey cache
+  private static final String VALKEY_CONTAINER_NAME_PREFIX = "valkey-container-";
+  private static final String VALKEY_SERVER_ADDRESS_PREFIX = "valkey-server-address-";
+
   private static final TestEnvironmentConfiguration config = new TestEnvironmentConfiguration();
   private static final boolean USE_OTLP_CONTAINER_FOR_TRACES = true;
 
@@ -99,6 +103,7 @@ public class TestEnvironment implements AutoCloseable {
 
   private GenericContainer<?> testContainer;
   private final ArrayList<GenericContainer<?>> databaseContainers = new ArrayList<>();
+  private final ArrayList<GenericContainer<?>> valkeyContainers = new ArrayList<>();
   private ArrayList<ToxiproxyContainer> proxyContainers;
   private GenericContainer<?> telemetryXRayContainer;
   private GenericContainer<?> telemetryOtlpContainer;
@@ -114,7 +119,6 @@ public class TestEnvironment implements AutoCloseable {
   }
 
   public static TestEnvironment build(TestEnvironmentRequest request) throws IOException, URISyntaxException {
-
     LOGGER.finest("Building test env: " + request.getEnvPreCreateIndex());
     preCreateEnvironment(request.getEnvPreCreateIndex());
 
@@ -126,6 +130,7 @@ public class TestEnvironment implements AutoCloseable {
         env = new TestEnvironment(request);
         initDatabaseParams(env);
         createDatabaseContainers(env);
+        createValkeyCacheContainer(env);
 
         if (request.getFeatures().contains(TestEnvironmentFeatures.IAM)) {
           throw new UnsupportedOperationException(TestEnvironmentFeatures.IAM.toString());
@@ -145,7 +150,6 @@ public class TestEnvironment implements AutoCloseable {
       case AURORA:
       case RDS_MULTI_AZ_CLUSTER:
       case RDS_MULTI_AZ_INSTANCE:
-
         env = createAuroraOrMultiAzEnvironment(request);
 
         if (request.getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)) {
@@ -412,6 +416,22 @@ public class TestEnvironment implements AutoCloseable {
     env.auroraUtil.createCustomClusterParameterGroup(
         groupName, engine, engineVersion, env.info.getRequest().getDatabaseEngine());
     env.info.setClusterParameterGroupName(groupName);
+  }
+
+  private static void createValkeyCacheContainer(TestEnvironment env) {
+    if (env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.VALKEY_CACHE)) {
+      ContainerHelper containerHelper = new ContainerHelper();
+      int numValkeyInstances = env.info.getDbCacheInfo().getInstances().size();
+      GenericContainer<?> valkeyContainer = containerHelper.createValkeyContainer(env.network, VALKEY_SERVER_ADDRESS_PREFIX + numValkeyInstances);
+      env.valkeyContainers.add(valkeyContainer);
+      valkeyContainer.start();
+      // Update the test environment with a new valkey cache instance information
+      List<TestInstanceInfo> cacheInstances = env.info.getDbCacheInfo().getInstances();
+      cacheInstances.add(new TestInstanceInfo(
+          VALKEY_CONTAINER_NAME_PREFIX + cacheInstances.size(),
+          VALKEY_SERVER_ADDRESS_PREFIX + cacheInstances.size(),
+          6379));
+    }
   }
 
   private static void createDatabaseContainers(TestEnvironment env) {
@@ -1009,6 +1029,7 @@ public class TestEnvironment implements AutoCloseable {
               : "secret_password");
 
     env.info.setDatabaseInfo(new TestDatabaseInfo());
+    env.info.setDbCacheInfo(new TestDatabaseInfo());
     env.info.getDatabaseInfo().setUsername(dbUsername);
     env.info.getDatabaseInfo().setPassword(dbPassword);
     env.info.getDatabaseInfo().setDefaultDbName(dbName);
