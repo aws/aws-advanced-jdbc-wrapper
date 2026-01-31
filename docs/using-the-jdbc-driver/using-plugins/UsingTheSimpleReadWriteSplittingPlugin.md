@@ -20,6 +20,10 @@ properties.setProperty("srwWriteEndpoint", "test-db.cluster-XYZ.us-east-2.rds.am
 properties.setProperty("srwReadEndpoint", "test-db.cluster-ro-XYZ.us-east-2.rds.amazonaws.com");
 ```
 
+> [!WARNING]
+> Do not use the `readWriteSplitting`, `srw` and/or `gdbReadWriteSplitting` plugins (or their combination) at the same time for the same connection!
+
+
 ## Simple Read/Write Splitting Plugin Parameters
 | Parameter                        |  Value  | Required | Description                                                                                                                                                                                                                                                                                                                         | Default Value | Example Values                                               |
 |----------------------------------|:-------:|:--------:|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|--------------------------------------------------------------|
