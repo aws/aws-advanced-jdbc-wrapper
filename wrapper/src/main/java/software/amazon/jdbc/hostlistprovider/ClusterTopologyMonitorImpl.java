@@ -20,6 +20,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -33,8 +34,10 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AtomicConnection;
@@ -92,8 +95,12 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected final AtomicReference<List<HostSpec>> nodeThreadsLatestTopology = new AtomicReference<>(null);
 
   protected final Map<String, List<HostSpec>> readerTopologiesById = new ConcurrentHashMap<>();
-  protected final long stableTopologiesDurationNano = TimeUnit.SECONDS.toNanos(90);
+  protected final long stableTopologiesDurationNano = TimeUnit.SECONDS.toNanos(15);
   protected long stableTopologiesStartNano;
+  // When comparing topologies, we don't want to check HostSpec.weight, which is used in HostSpec#equals. We will use
+  // this function to compare the other fields.
+  protected Function<HostSpec, List<Object>> hostSpecExtractor =
+      host -> Arrays.asList(host.getHost(), host.getPort(), host.getAvailability(), host.getRole());
 
   protected final long refreshRateNano;
   protected final long highRefreshRateNano;
@@ -467,7 +474,10 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       return;
     }
 
-    if (this.readerTopologiesById.values().stream().distinct().count() != 1) {
+    // Check whether the topologies match. HostSpecs are compared using their host, port, role, and availability fields.
+    if (this.readerTopologiesById.values().stream()
+        .map(list -> list.stream().map(hostSpecExtractor).collect(Collectors.toList()))
+        .distinct().count() != 1) {
       // The topologies detected by each reader do not match.
       this.stableTopologiesStartNano = 0;
       return;
@@ -481,9 +491,9 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     if (System.nanoTime() > this.stableTopologiesStartNano + this.stableTopologiesDurationNano) {
       // Reader topologies have been consistent for stableTopologiesDurationNano, so the topology should be accurate.
       this.stableTopologiesStartNano = 0;
-      LOGGER.finest(() -> Messages.get(
+      LOGGER.finest(() -> LogUtils.logTopology(readerTopology, Messages.get(
           "ClusterTopologyMonitorImpl.matchingReaderTopologies",
-          new Object[]{TimeUnit.NANOSECONDS.toMillis(this.stableTopologiesDurationNano)}));
+          new Object[]{TimeUnit.NANOSECONDS.toMillis(this.stableTopologiesDurationNano)})));
       updateTopologyCache(readerTopology);
     }
   }
@@ -873,8 +883,16 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
               if (this.monitor.nodeThreadsWriterConnection.get() == null) {
                 // We can use this reader connection to update the topology while we wait for the writer connection to
                 // be established.
-                this.monitor.nodeThreadsReaderConnection.compareAndSet(null, this.connection.get());
-                this.readerThreadFetchTopology(this.connection.get(), this.writerHostSpec);
+                if (updateTopology) {
+                  this.readerThreadFetchTopology(this.connection.get(), this.writerHostSpec);
+                } else if (this.monitor.nodeThreadsReaderConnection.compareAndSet(
+                    null, this.connection.get())) {
+                  // Use this connection to update the topology.
+                  updateTopology = true;
+                  this.readerThreadFetchTopology(this.connection.get(), this.writerHostSpec);
+                } else {
+                  this.readerThreadFetchTopology(this.connection.get(), this.writerHostSpec);
+                }
               }
             }
           }
