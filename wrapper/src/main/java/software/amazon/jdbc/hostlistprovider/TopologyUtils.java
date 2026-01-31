@@ -177,7 +177,6 @@ public abstract class TopologyUtils {
         .lastUpdateTime(lastUpdateTime)
         .build();
     hostSpec.addAlias(instanceName);
-    hostSpec.setHostId(instanceName);
     return hostSpec;
   }
 
