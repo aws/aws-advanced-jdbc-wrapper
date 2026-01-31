@@ -42,6 +42,7 @@ import software.amazon.jdbc.plugin.bluegreen.BlueGreenConnectionPluginFactory;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointPluginFactory;
 import software.amazon.jdbc.plugin.dev.DeveloperConnectionPluginFactory;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPluginFactory;
+import software.amazon.jdbc.plugin.encryption.KmsEncryptionConnectionPluginFactory;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
 import software.amazon.jdbc.plugin.federatedauth.FederatedAuthPluginFactory;
 import software.amazon.jdbc.plugin.federatedauth.OktaAuthPluginFactory;
@@ -94,6 +95,7 @@ public class ConnectionPluginChainBuilder {
           put("initialConnection", new AuroraInitialConnectionStrategyPluginFactory());
           put("limitless", new LimitlessConnectionPluginFactory());
           put("bg", new BlueGreenConnectionPluginFactory());
+          put("kmsEncryption", new KmsEncryptionConnectionPluginFactory());
         }
       };
 

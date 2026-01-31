@@ -1,0 +1,186 @@
+name: End-to-End Encryption Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - main-2.x
+    paths:
+      - 'wrapper/src/main/java/software/amazon/jdbc/plugin/encryption/**'
+      - '.github/workflows/test-encryption-e2e.yml'
+  pull_request:
+    branches:
+      - '*'
+    paths:
+      - 'wrapper/src/main/java/software/amazon/jdbc/plugin/encryption/**'
+      - '.github/workflows/test-encryption-e2e.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  test-encryption:
+    name: 'Test KMS Encryption End-to-End'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: 'Clone repository'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 'Set up JDK 8'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'corretto'
+          java-version: 8
+
+      - name: 'Configure AWS credentials'
+        id: creds
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: encryption_e2e_test
+          role-duration-seconds: 7200
+          aws-region: ${{ inputs.aws_region || secrets.AWS_DEFAULT_REGION }}
+          output-credentials: true
+
+      - name: 'Check for Cached KMS Key'
+        id: check-cached-key
+        if: inputs.force_new_key != true
+        run: |
+          # Look for existing test key by alias
+          KEY_ID=$(aws kms list-aliases \
+            --query "Aliases[?AliasName=='alias/alias/jdbc-encryption-key'].TargetKeyId" \
+            --output text 2>/dev/null || echo "")
+
+          if [ -n "$KEY_ID" ]; then
+            # Verify key is enabled
+            KEY_STATE=$(aws kms describe-key --key-id "$KEY_ID" \
+              --query 'KeyMetadata.KeyState' --output text 2>/dev/null || echo "")
+
+            if [ "$KEY_STATE" == "Enabled" ]; then
+              echo "key_id=$KEY_ID" >> $GITHUB_OUTPUT
+              echo "key_exists=true" >> $GITHUB_OUTPUT
+              echo "Found cached KMS Key: $KEY_ID"
+            else
+              echo "key_exists=false" >> $GITHUB_OUTPUT
+              echo "Cached key exists but is not enabled"
+            fi
+          else
+            echo "key_exists=false" >> $GITHUB_OUTPUT
+            echo "No cached key found"
+          fi
+
+      - name: 'Create KMS Master Key'
+        id: create-kms-key
+        if: steps.check-cached-key.outputs.key_exists != 'true'
+        run: |
+          KEY_ID=$(aws kms create-key \
+            --description "JDBC Encryption Test Key (Cached)" \
+            --key-usage ENCRYPT_DECRYPT \
+            --key-spec SYMMETRIC_DEFAULT \
+            --tags TagKey=Project,TagValue=aws-jdbc-wrapper TagKey=Purpose,TagValue=testing \
+            --query 'KeyMetadata.KeyId' \
+            --output text)
+          echo "key_id=$KEY_ID" >> $GITHUB_OUTPUT
+          echo "Created KMS Key: $KEY_ID"
+
+          # Create persistent alias
+          aws kms create-alias \
+            --alias-name "alias/alias/jdbc-encryption-key" \
+            --target-key-id "$KEY_ID"
+
+          # Enable key rotation
+          aws kms enable-key-rotation --key-id "$KEY_ID"
+
+      - name: 'Set Active Key ID'
+        id: active-key
+        run: |
+          if [ "${{ steps.check-cached-key.outputs.key_exists }}" == "true" ]; then
+            echo "key_id=${{ steps.check-cached-key.outputs.key_id }}" >> $GITHUB_OUTPUT
+            echo "Using cached key: ${{ steps.check-cached-key.outputs.key_id }}"
+          else
+            echo "key_id=${{ steps.create-kms-key.outputs.key_id }}" >> $GITHUB_OUTPUT
+            echo "Using newly created key: ${{ steps.create-kms-key.outputs.key_id }}"
+          fi
+
+      - name: 'Generate Data Key'
+        id: generate-data-key
+        run: |
+          # Generate a data key using the master key
+          DATA_KEY_RESPONSE=$(aws kms generate-data-key \
+            --key-id ${{ steps.active-key.outputs.key_id }} \
+            --key-spec AES_256 \
+            --output json)
+
+          PLAINTEXT_KEY=$(echo "$DATA_KEY_RESPONSE" | jq -r '.Plaintext')
+          CIPHERTEXT_BLOB=$(echo "$DATA_KEY_RESPONSE" | jq -r '.CiphertextBlob')
+
+          echo "plaintext_key=$PLAINTEXT_KEY" >> $GITHUB_OUTPUT
+          echo "ciphertext_blob=$CIPHERTEXT_BLOB" >> $GITHUB_OUTPUT
+          echo "Data key generated successfully"
+
+      - name: 'Test Data Key Decryption'
+        run: |
+          # Decrypt the data key to verify it works
+          DECRYPTED_KEY=$(aws kms decrypt \
+            --ciphertext-blob fileb://<(echo "${{ steps.generate-data-key.outputs.ciphertext_blob }}" | base64 -d) \
+            --key-id ${{ steps.active-key.outputs.key_id }} \
+            --query 'Plaintext' \
+            --output text)
+
+          if [ "$DECRYPTED_KEY" == "${{ steps.generate-data-key.outputs.plaintext_key }}" ]; then
+            echo "✓ Data key decryption successful"
+          else
+            echo "✗ Data key decryption failed"
+            exit 1
+          fi
+
+      - name: 'Build and Test Encryption Plugin'
+        run: |
+          ./gradlew :aws-advanced-jdbc-wrapper:test-kms-encryption-integration \
+            -PkmsKeyId=${{ steps.active-key.outputs.key_id }}
+        env:
+          KMS_KEY_ID: ${{ steps.active-key.outputs.key_id }}
+          AWS_REGION: ${{ inputs.aws_region || secrets.AWS_DEFAULT_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
+          AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}
+          AWS_SESSION_TOKEN: ${{ steps.creds.outputs.aws-session-token }}
+
+      - name: 'Verify Key Metadata'
+        run: |
+          # Describe the key to verify all properties
+          aws kms describe-key \
+            --key-id ${{ steps.active-key.outputs.key_id }} \
+            --output json | jq '{
+              KeyId: .KeyMetadata.KeyId,
+              KeyState: .KeyMetadata.KeyState,
+              KeyUsage: .KeyMetadata.KeyUsage,
+              KeySpec: .KeyMetadata.KeySpec,
+              Enabled: .KeyMetadata.Enabled
+            }'
+
+      - name: 'Cleanup - Schedule Key Deletion'
+        if: false  # Disabled - key is cached for reuse
+        run: |
+          # Key is intentionally kept for reuse across test runs
+          # To manually delete: aws kms schedule-key-deletion --key-id <KEY_ID> --pending-window-in-days 7
+          echo "KMS key retained for future test runs"
+
+      - name: 'Upload Test Results'
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: encryption-test-results
+          path: |
+            wrapper/build/reports/tests/
+            wrapper/build/test-results/
+          retention-days: 7
