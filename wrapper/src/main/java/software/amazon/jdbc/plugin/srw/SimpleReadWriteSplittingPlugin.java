@@ -294,7 +294,8 @@ public class SimpleReadWriteSplittingPlugin extends AbstractReadWriteSplittingPl
     if (conn == null) {
       logAndThrowException(
           Messages.get("SimpleReadWriteSplittingPlugin.failedToConnectToWriter",
-              new Object[]{this.writeEndpoint}));
+              new Object[]{this.writeEndpoint}),
+          SqlState.CONNECTION_UNABLE_TO_CONNECT);
     }
 
     setWriterConnection(conn, this.writerHostSpec);
