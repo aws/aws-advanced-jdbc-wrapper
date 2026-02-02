@@ -465,10 +465,10 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       return;
     }
 
-    Set<String> readerIds = latestHosts.stream().map(HostSpec::getHostId).collect(Collectors.toSet());
+    List<String> readerIds = latestHosts.stream().map(HostSpec::getHostId).collect(Collectors.toList());
     for (String id : readerIds) {
-      Boolean completedOneCycle = this.completedOneCycle.get(id);
-      if (completedOneCycle == null || !completedOneCycle) {
+      Boolean completedOneCycle = this.completedOneCycle.getOrDefault(id, Boolean.FALSE);
+      if (!completedOneCycle) {
         // Not all reader monitors have completed at least one cycle. We shouldn't conclude that reader topologies are
         // stable until each reader monitor has made at least one attempt to fetch topology information.
         this.stableTopologiesStartNano = 0;
