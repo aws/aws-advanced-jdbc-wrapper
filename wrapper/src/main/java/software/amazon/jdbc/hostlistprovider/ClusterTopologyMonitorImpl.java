@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -95,6 +96,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected final AtomicReference<List<HostSpec>> nodeThreadsLatestTopology = new AtomicReference<>(null);
 
   protected final Map<String, List<HostSpec>> readerTopologiesById = new ConcurrentHashMap<>();
+  // Keeps track of whether each node monitor has completed at least one work cycle.
+  protected final Map<String, Boolean> completedOneCycle = new ConcurrentHashMap<>();
   protected final long stableTopologiesDurationNano = TimeUnit.SECONDS.toNanos(15);
   protected long stableTopologiesStartNano;
   // When comparing topologies, we don't want to check HostSpec.weight, which is used in HostSpec#equals. We will use
@@ -352,6 +355,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
               this.submittedNodes.clear();
               this.stableTopologiesStartNano = 0;
               this.readerTopologiesById.clear();
+              this.completedOneCycle.clear();
 
               continue;
 
@@ -394,6 +398,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
             this.submittedNodes.clear();
             this.stableTopologiesStartNano = 0;
             this.readerTopologiesById.clear();
+            this.completedOneCycle.clear();
           }
 
           final List<HostSpec> hosts = this.fetchTopologyAndUpdateCache(this.monitoringConnection.get());
@@ -460,11 +465,15 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       return;
     }
 
-    long numReaders = latestHosts.stream().filter(h -> h.getRole() == HostRole.READER).count();
-    if (numReaders == 0 || numReaders != this.readerTopologiesById.size()) {
-      // There are no readers, or we have not received topology information from every reader yet.
-      this.stableTopologiesStartNano = 0;
-      return;
+    Set<String> readerIds = latestHosts.stream().map(HostSpec::getHostId).collect(Collectors.toSet());
+    for (String id : readerIds) {
+      Boolean completedOneCycle = this.completedOneCycle.get(id);
+      if (completedOneCycle == null || !completedOneCycle) {
+        // Not all reader monitors have completed at least one cycle. We shouldn't conclude that reader topologies are
+        // stable until each reader monitor has made at least one attempt to fetch topology information.
+        this.stableTopologiesStartNano = 0;
+        return;
+      }
     }
 
     List<HostSpec> readerTopology = this.readerTopologiesById.values().stream().findFirst().orElse(null);
@@ -509,6 +518,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     this.submittedNodes.clear();
     this.stableTopologiesStartNano = 0;
     this.readerTopologiesById.clear();
+    this.completedOneCycle.clear();
     this.createNodeExecutorService();
 
     this.nodeThreadsWriterHostSpec.set(null);
@@ -815,6 +825,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
                 // It's a network issue that's expected during a cluster failover.
                 // We will try again on the next iteration.
                 TimeUnit.MILLISECONDS.sleep(100);
+                this.monitor.completedOneCycle.put(this.hostSpec.getHostId(), Boolean.TRUE);
                 continue;
               } else if (this.servicesContainer.getPluginService().isLoginException(
                     ex, this.servicesContainer.getPluginService().getTargetDriverDialect())) {
@@ -824,6 +835,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
                 // It might be some transient error. Let's try again.
                 //  If the error repeats, we will try again after a longer delay.
                 TimeUnit.MILLISECONDS.sleep(this.calculateBackoffWithJitter(this.connectionAttempts++));
+                this.monitor.completedOneCycle.put(this.hostSpec.getHostId(), Boolean.TRUE);
                 continue;
               }
             }
@@ -850,6 +862,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
                 }
               } catch (SQLException e) {
                 // Invalid connection, retry.
+                this.monitor.completedOneCycle.put(this.hostSpec.getHostId(), Boolean.TRUE);
                 continue;
               }
             }
@@ -896,6 +909,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
               }
             }
           }
+
+          this.monitor.completedOneCycle.put(this.hostSpec.getHostId(), Boolean.TRUE);
           TimeUnit.MILLISECONDS.sleep(100);
         }
       } catch (InterruptedException ex) {
@@ -904,7 +919,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
         LOGGER.log(Level.SEVERE, ex, () -> Messages.get("NodeMonitoringThread.unhandledException"));
         throw ex;
       } finally {
-
+        this.monitor.completedOneCycle.put(this.hostSpec.getHostId(), Boolean.TRUE);
         // Connection in this.connection may already be assigned to other variables.
         // In this case we just need to reset the JDBC connection without closing it.
         final Connection tempConnection = this.connection.get();
