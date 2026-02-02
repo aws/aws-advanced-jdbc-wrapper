@@ -96,7 +96,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   protected final AtomicReference<List<HostSpec>> nodeThreadsLatestTopology = new AtomicReference<>(null);
 
   protected final Map<String, List<HostSpec>> readerTopologiesById = new ConcurrentHashMap<>();
-  // Keeps track of whether each node monitor has completed at least one work cycle.
+  // Tracks whether all node monitors have completed at least one work cycle, even if an exception occurs. We use this
+  // map to guard against concluding all reader topologies are stable when not all monitors have booted up yet.
   protected final Map<String, Boolean> completedOneCycle = new ConcurrentHashMap<>();
   protected final long stableTopologiesDurationNano = TimeUnit.SECONDS.toNanos(15);
   protected long stableTopologiesStartNano;
@@ -469,8 +470,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     for (String id : readerIds) {
       Boolean completedOneCycle = this.completedOneCycle.getOrDefault(id, Boolean.FALSE);
       if (!completedOneCycle) {
-        // Not all reader monitors have completed at least one cycle. We shouldn't conclude that reader topologies are
-        // stable until each reader monitor has made at least one attempt to fetch topology information.
+        // Not all reader monitors have completed a cycle. We shouldn't conclude that reader topologies are stable until
+        // each reader monitor has made at least one attempt to fetch topology information, even if unsuccessful.
         this.stableTopologiesStartNano = 0;
         return;
       }
@@ -484,6 +485,8 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     }
 
     // Check whether the topologies match. HostSpecs are compared using their host, port, role, and availability fields.
+    // Note that monitors that encounter exceptions will remove their entry from the map, so only entries from
+    // successful monitors are checked.
     if (this.readerTopologiesById.values().stream()
         .map(list -> list.stream().map(hostSpecExtractor).collect(Collectors.toList()))
         .distinct().count() != 1) {
@@ -826,6 +829,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
                 // We will try again on the next iteration.
                 TimeUnit.MILLISECONDS.sleep(100);
                 this.monitor.completedOneCycle.put(this.hostSpec.getHostId(), Boolean.TRUE);
+                this.monitor.readerTopologiesById.remove(this.hostSpec.getHostId());
                 continue;
               } else if (this.servicesContainer.getPluginService().isLoginException(
                     ex, this.servicesContainer.getPluginService().getTargetDriverDialect())) {
@@ -836,6 +840,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
                 //  If the error repeats, we will try again after a longer delay.
                 TimeUnit.MILLISECONDS.sleep(this.calculateBackoffWithJitter(this.connectionAttempts++));
                 this.monitor.completedOneCycle.put(this.hostSpec.getHostId(), Boolean.TRUE);
+                this.monitor.readerTopologiesById.remove(this.hostSpec.getHostId());
                 continue;
               }
             }
@@ -863,6 +868,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
               } catch (SQLException e) {
                 // Invalid connection, retry.
                 this.monitor.completedOneCycle.put(this.hostSpec.getHostId(), Boolean.TRUE);
+                this.monitor.readerTopologiesById.remove(this.hostSpec.getHostId());
                 continue;
               }
             }
@@ -920,6 +926,7 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
         throw ex;
       } finally {
         this.monitor.completedOneCycle.put(this.hostSpec.getHostId(), Boolean.TRUE);
+        this.monitor.readerTopologiesById.remove(this.hostSpec.getHostId());
         // Connection in this.connection may already be assigned to other variables.
         // In this case we just need to reset the JDBC connection without closing it.
         final Connection tempConnection = this.connection.get();
