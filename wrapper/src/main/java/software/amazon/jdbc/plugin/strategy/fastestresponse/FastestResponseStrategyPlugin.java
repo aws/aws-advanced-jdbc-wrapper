@@ -134,6 +134,13 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
   @Override
   public HostSpec getHostSpecByStrategy(final @Nullable HostRole role, final String strategy)
       throws SQLException, UnsupportedOperationException {
+    return this.getHostSpecByStrategy(this.pluginService.getHosts(), role, strategy);
+  }
+
+  @Override
+  public HostSpec getHostSpecByStrategy(
+      final List<HostSpec> hosts, final @Nullable HostRole role, final String strategy)
+      throws SQLException, UnsupportedOperationException {
 
     if (!acceptsStrategy(role, strategy)) {
       return null;
@@ -147,7 +154,7 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
 
     if (fastestResponseHost != null) {
       // Found a fastest host. Let find it in the latest topology.
-      HostSpec foundHostSpec = this.pluginService.getHosts().stream()
+      HostSpec foundHostSpec = hosts.stream()
           .filter(x -> x.getHostAndPort().equals(fastestResponseHost.getHostAndPort()))
           .findAny()
           .orElse(null);
@@ -163,7 +170,7 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
 
     // Cached result isn't available. Need to find the fastest response time host.
 
-    final HostSpec calculatedFastestResponseHost = this.pluginService.getHosts().stream()
+    final HostSpec calculatedFastestResponseHost = hosts.stream()
         .filter(x -> role == null || role.equals(x.getRole()))
         .map(x -> new ResponseTimeTuple(x, this.hostResponseTimeService.getResponseTime(x)))
         .sorted(Comparator.comparingInt(x -> x.responseTime))
