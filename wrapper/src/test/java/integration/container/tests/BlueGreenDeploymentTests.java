@@ -16,6 +16,7 @@
 
 package integration.container.tests;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -1095,10 +1096,11 @@ public class BlueGreenDeploymentTests {
             resultQueue.add(new TimeHolder(startTime, endTime, throwable.getMessage()));
             if (notifyOnFirstError
                 && throwable.getMessage() != null
-                && throwable.getMessage().contains("Access denied")) {
+                && (throwable.getMessage().contains("Access denied")
+                    || throwable.getMessage().contains("PAM authentication failed"))) {
               results.greenNodeChangeNameTime.compareAndSet(0, System.nanoTime());
               LOGGER.finest(String.format(
-                  "[DirectGreenIamIp%s @ %s] The first 'Access denied' exception. Exiting thread...",
+                  "[DirectGreenIamIp%s @ %s] The first authentication failure exception. Exiting thread...",
                   threadPrefix, hostId));
               return;
             }
@@ -1569,17 +1571,55 @@ public class BlueGreenDeploymentTests {
         .orElse(0L);
     LOGGER.finest(() -> String.format("maxGreenNodeChangeTime: %d ms", maxGreenNodeChangeTime));
 
-    long switchoverCompleteTime = this.results.values().stream().filter(x -> !x.greenStatusTime.isEmpty())
+    long switchoverCompleteTimeFromStatusTable = this.results.values().stream().filter(x -> !x.greenStatusTime.isEmpty())
         .map(x -> x.greenStatusTime.getOrDefault("SWITCHOVER_COMPLETED", 0L))
         .map(x -> x == 0
             ? 0
             : TimeUnit.NANOSECONDS.toMillis(x - bgTriggerTime))
         .max(Comparator.comparingLong(x -> x))
         .orElse(0L);
+    LOGGER.finest(() -> String.format("switchoverCompleteTimeFromStatusTable: %d ms", switchoverCompleteTimeFromStatusTable));
+
+    // Verify that BG switchover actually completed based on:
+    // 1. status table with SWITCHOVER_COMPLETED
+    // 2. That green node certificate has changed for all instances.
+    assertNotEquals(0L, switchoverCompleteTimeFromStatusTable, "BG switchover hasn't completed.");
+
+    // Verify that every green instance has a non-zero greenNodeChangeNameTime
+    for (Map.Entry<String, BlueGreenResults> entry : this.results.entrySet()) {
+      String instanceId = entry.getKey();
+      // Only check green instances - blue instances don't have IAM monitoring threads
+      if (rdsUtil.isGreenInstance(instanceId)) {
+        long greenNodeChangeTime = entry.getValue().greenNodeChangeNameTime.get();
+        assertNotEquals(0L, greenNodeChangeTime,
+            String.format("Green node certificate should have changed for instance '%s'.", instanceId));
+      }
+    }
+
+    // Use the max of certificate change time and switchover complete time as the baseline
+    long switchoverCompleteTime = Math.max(maxGreenNodeChangeTime, switchoverCompleteTimeFromStatusTable);
     LOGGER.finest(() -> String.format("switchoverCompleteTime: %d ms", switchoverCompleteTime));
 
-    assertNotEquals(0L, switchoverCompleteTime, "BG switchover hasn't completed.");
-    assertTrue(switchoverCompleteTime >= maxGreenNodeChangeTime,
-        "Green node changed name after SWITCHOVER_COMPLETED.");
+    // 2. Verify wrapper connections succeeded after switchover
+    long unsuccessfulConnectionsAfterSwitchover = this.results.values().stream()
+        .flatMap(r -> r.blueWrapperConnectTimes.stream())
+        .filter(t -> TimeUnit.NANOSECONDS.toMillis(t.startTime - bgTriggerTime) > switchoverCompleteTime
+            && t.error != null)
+        .count();
+    LOGGER.finest(() -> String.format("Unsuccessful wrapper connections after switchover: %d", unsuccessfulConnectionsAfterSwitchover));
+    assertEquals(0L, unsuccessfulConnectionsAfterSwitchover,
+        String.format("Found %d unsuccessful wrapper connections after switchover completed.", unsuccessfulConnectionsAfterSwitchover));
+
+    // 3. Verify wrapper executions succeeded after switchover
+    long unsuccessfulExecutionsAfterSwitchover = this.results.values().stream()
+        .flatMap(r -> r.blueWrapperExecuteTimes.stream())
+        .filter(t -> TimeUnit.NANOSECONDS.toMillis(t.startTime - bgTriggerTime) > switchoverCompleteTime
+            && t.error != null)
+        .count();
+    LOGGER.finest(() -> String.format("Unsuccessful wrapper executions after switchover: %d", unsuccessfulExecutionsAfterSwitchover));
+    assertEquals(0L, unsuccessfulExecutionsAfterSwitchover,
+        String.format("Found %d unsuccessful wrapper executions after switchover completed.", unsuccessfulExecutionsAfterSwitchover));
+
+
   }
 }
