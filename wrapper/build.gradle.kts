@@ -34,11 +34,11 @@ if (useJacoco) {
 
 dependencies {
 
-    optionalImplementation("software.amazon.awssdk:rds:2.41.10")
-    optionalImplementation("software.amazon.awssdk:auth:2.41.10") // Required for IAM (light implementation)
-    optionalImplementation("software.amazon.awssdk:http-client-spi:2.41.10") // Required for IAM (light implementation)
-    optionalImplementation("software.amazon.awssdk:sts:2.41.10")
-    optionalImplementation("software.amazon.awssdk:secretsmanager:2.41.10")
+    optionalImplementation("software.amazon.awssdk:rds:2.41.20")
+    optionalImplementation("software.amazon.awssdk:auth:2.41.20") // Required for IAM (light implementation)
+    optionalImplementation("software.amazon.awssdk:http-client-spi:2.41.20") // Required for IAM (light implementation)
+    optionalImplementation("software.amazon.awssdk:sts:2.41.20")
+    optionalImplementation("software.amazon.awssdk:secretsmanager:2.41.20")
     optionalImplementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
     optionalImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     optionalImplementation("com.mchange:c3p0:0.11.2")
@@ -59,8 +59,8 @@ dependencies {
 
     // The following dependency will be included in federated-auth bundle jar.
     federatedAuthBundleImplementation("org.apache.httpcomponents:httpclient:4.5.14")
-    federatedAuthBundleImplementation("software.amazon.awssdk:rds:2.41.10")
-    federatedAuthBundleImplementation("software.amazon.awssdk:sts:2.41.10")
+    federatedAuthBundleImplementation("software.amazon.awssdk:rds:2.41.20")
+    federatedAuthBundleImplementation("software.amazon.awssdk:sts:2.41.20")
     federatedAuthBundleImplementation("org.jsoup:jsoup:1.21.1")
 
     testImplementation("org.checkerframework:checker-qual:3.49.5")
@@ -80,12 +80,12 @@ dependencies {
     testImplementation("com.mchange:c3p0:0.11.2")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
-    testImplementation("software.amazon.awssdk:rds:2.41.10", )
-    testImplementation("software.amazon.awssdk:auth:2.41.10") // Required for IAM (light implementation)
-    testImplementation("software.amazon.awssdk:http-client-spi:2.41.10") // Required for IAM (light implementation)
-    testImplementation("software.amazon.awssdk:ec2:2.41.10")
-    testImplementation("software.amazon.awssdk:secretsmanager:2.41.10")
-    testImplementation("software.amazon.awssdk:sts:2.41.10")
+    testImplementation("software.amazon.awssdk:rds:2.41.20", )
+    testImplementation("software.amazon.awssdk:auth:2.41.20") // Required for IAM (light implementation)
+    testImplementation("software.amazon.awssdk:http-client-spi:2.41.20") // Required for IAM (light implementation)
+    testImplementation("software.amazon.awssdk:ec2:2.41.20")
+    testImplementation("software.amazon.awssdk:secretsmanager:2.41.20")
+    testImplementation("software.amazon.awssdk:sts:2.41.20")
     // Note: all org.testcontainers dependencies should have the same version
     testImplementation("org.testcontainers:testcontainers:1.21.2")
     testImplementation("org.testcontainers:mysql:1.21.2")
