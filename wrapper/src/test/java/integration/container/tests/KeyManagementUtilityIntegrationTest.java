@@ -141,6 +141,11 @@ public class KeyManagementUtilityIntegrationTest {
   void testCreateDataKeyAndPopulateMetadata() throws Exception {
     LOGGER.info("Testing data key creation and metadata population for " + TEST_TABLE + "." + TEST_COLUMN);
 
+    // Clean up any existing metadata for this column
+    try (Statement stmt = connection.createStatement()) {
+      stmt.execute("DELETE FROM encrypt.encryption_metadata WHERE table_name = '" + TEST_TABLE + "' AND column_name = '" + TEST_COLUMN + "'");
+    }
+
     // Step 1: Generate a data key using KMS
     GenerateDataKeyResponse dataKeyResponse = executeWithRetry(() ->
         kmsClient.generateDataKey(
@@ -241,6 +246,12 @@ public class KeyManagementUtilityIntegrationTest {
   @TestTemplate
   void testEncryptionWithDifferentValues() throws Exception {
     LOGGER.info("Testing encryption with different SSN values");
+
+    // Clean up any existing metadata for this column
+    try (Statement stmt = connection.createStatement()) {
+      stmt.execute("DELETE FROM encrypt.encryption_metadata WHERE table_name = '" + TEST_TABLE + "' AND column_name = '" + TEST_COLUMN + "'");
+      stmt.execute("TRUNCATE TABLE " + TEST_TABLE);
+    }
 
     // Step 1: Generate a data key using KMS
     GenerateDataKeyResponse dataKeyResponse = executeWithRetry(() ->
