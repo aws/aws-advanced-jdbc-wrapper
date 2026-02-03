@@ -158,7 +158,7 @@ public class KeyManagementUtilityIntegrationTest {
 
     // Generate HMAC key (32 bytes for SHA-256)
     byte[] hmacKey = new byte[32];
-    ThreadLocalRandom.current().nextBytes(hmacKey);
+    new java.security.SecureRandom().nextBytes(hmacKey);
 
     LOGGER.info("Generated data key using master key: " + masterKeyArn);
 
@@ -259,7 +259,7 @@ public class KeyManagementUtilityIntegrationTest {
 
     // Generate HMAC key (32 bytes for SHA-256)
     byte[] hmacKey = new byte[32];
-    ThreadLocalRandom.current().nextBytes(hmacKey);
+    new java.security.SecureRandom().nextBytes(hmacKey);
 
     LOGGER.info("Generated data key for multiple value test");
 
