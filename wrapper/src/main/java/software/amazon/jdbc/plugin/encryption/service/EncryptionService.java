@@ -279,63 +279,6 @@ public class EncryptionService {
     return decrypt(encryptedValue, dataKey, dataKey, algorithm, targetType);
   }
 
-  /** Decrypts data encrypted with old salt-based format. */
-  private Object decryptOldFormat(
-      byte[] encryptedValue, byte[] dataKey, String algorithm, Class<?> targetType)
-      throws Exception {
-    ByteBuffer buffer = ByteBuffer.wrap(encryptedValue);
-
-    // Extract salt (first 16 bytes)
-    byte[] hmacSalt = new byte[16];
-    buffer.get(hmacSalt);
-
-    // Extract HMAC tag (next 32 bytes)
-    byte[] storedHmacTag = new byte[32];
-    buffer.get(storedHmacTag);
-
-    // Extract encrypted data (everything after salt + HMAC)
-    byte[] encryptedData = new byte[buffer.remaining()];
-    buffer.get(encryptedData);
-
-    // Derive verification key from data key and salt
-    Mac hmacDerive = Mac.getInstance(HMAC_ALGORITHM);
-    hmacDerive.init(new SecretKeySpec(dataKey, HMAC_ALGORITHM));
-    byte[] verificationKey = hmacDerive.doFinal(hmacSalt);
-
-    // Verify HMAC
-    Mac hmac = Mac.getInstance(HMAC_ALGORITHM);
-    hmac.init(new SecretKeySpec(verificationKey, HMAC_ALGORITHM));
-    byte[] calculatedHmacTag = hmac.doFinal(encryptedData);
-
-    if (!MessageDigest.isEqual(storedHmacTag, calculatedHmacTag)) {
-      throw EncryptionException.decryptionFailed("HMAC verification failed (old format)", null);
-    }
-
-    Arrays.fill(verificationKey, (byte) 0);
-    Arrays.fill(hmacSalt, (byte) 0);
-
-    // Decrypt the verified data
-    ByteBuffer dataBuffer = ByteBuffer.wrap(encryptedData);
-    final byte typeMarker = dataBuffer.get();
-    byte[] iv = new byte[GCM_IV_LENGTH];
-    dataBuffer.get(iv);
-    byte[] ciphertext = new byte[dataBuffer.remaining()];
-    dataBuffer.get(ciphertext);
-
-    Cipher cipher = Cipher.getInstance(AES_GCM_TRANSFORMATION);
-    SecretKeySpec keySpec = new SecretKeySpec(dataKey, "AES");
-    GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH * 8, iv);
-    cipher.init(Cipher.DECRYPT_MODE, keySpec, gcmSpec);
-
-    byte[] plaintext = cipher.doFinal(ciphertext);
-    Object result = deserializeValue(plaintext, typeMarker, targetType);
-
-    Arrays.fill(plaintext, (byte) 0);
-    Arrays.fill(iv, (byte) 0);
-
-    return result;
-  }
-
   /**
    * Returns the default encryption algorithm.
    *
