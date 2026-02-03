@@ -172,23 +172,6 @@ public class EncryptionService {
     validateAlgorithm(algorithm);
     validateDataKey(dataKey, algorithm);
 
-    // Check if this is old format (with salt) or new format (without salt)
-    // Old format: [salt:16][HMAC:32][type:1][IV:12][ciphertext] = min 61 bytes
-    // New format: [HMAC:32][type:1][IV:12][ciphertext] = min 45 bytes
-    boolean isOldFormat =
-        encryptedValue.length >= 61 && encryptedValue.length >= 16 + 32 + 1 + 12 + 16;
-
-    if (isOldFormat) {
-      // Try old format first (with salt-based HMAC derivation)
-      try {
-        return decryptOldFormat(encryptedValue, dataKey, algorithm, targetType);
-      } catch (Exception e) {
-        // If old format fails, try new format
-        LOGGER.fine(() -> "Old format decryption failed, trying new format: " + e.getMessage());
-      }
-    }
-
-    // New format (two-key system)
     if (encryptedValue.length < 32 + 1 + 12 + 16) {
       throw EncryptionException.decryptionFailed("Invalid encrypted data length", null)
           .withAlgorithm(algorithm)
