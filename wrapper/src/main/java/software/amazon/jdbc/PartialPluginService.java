@@ -397,12 +397,12 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public boolean forceRefreshHostList(final boolean shouldVerifyWriter, final long timeoutMs)
+  public boolean forceRefreshHostList(final boolean verifyTopology, final long timeoutMs)
       throws SQLException {
 
     final HostListProvider hostListProvider = this.getHostListProvider();
     try {
-      final List<HostSpec> updatedHostList = hostListProvider.forceRefresh(shouldVerifyWriter, timeoutMs);
+      final List<HostSpec> updatedHostList = hostListProvider.forceRefresh(verifyTopology, timeoutMs);
       if (updatedHostList != null) {
         updateHostAvailability(updatedHostList);
         setNodeList(this.allHosts, updatedHostList);

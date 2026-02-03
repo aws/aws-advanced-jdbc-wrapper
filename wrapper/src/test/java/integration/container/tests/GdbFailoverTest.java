@@ -59,7 +59,6 @@ public class GdbFailoverTest extends FailoverTest {
   @TestTemplate
   @EnableOnNumOfInstances(min = 2)
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
-  @Disabled
   @Override
   public void test_readerFailover_readerOrWriter() throws SQLException {
     final String initialWriterId = this.currentWriter;
