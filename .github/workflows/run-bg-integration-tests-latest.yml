@@ -5,7 +5,7 @@ on:
   push:
     branches:
       - main
-      - main-2.x
+      - test/bg-ap-southeast
 
 permissions:
   id-token: write   # This is required for requesting the JWT
@@ -42,8 +42,8 @@ jobs:
         run: |
           ./gradlew --no-parallel --no-daemon test-bgd-${{ matrix.testTask }}
         env:
-          AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
-          RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          AURORA_CLUSTER_DOMAIN: ${{ secrets.TEST_CONN_SUFFIX }}
+          RDS_DB_REGION: ${{ secrets.TEST_REGION }}
           AWS_ACCESS_KEY_ID: ${{ steps.creds.outputs.aws-access-key-id }}
           AWS_SECRET_ACCESS_KEY: ${{ steps.creds.outputs.aws-secret-access-key }}
           AWS_SESSION_TOKEN: ${{ steps.creds.outputs.aws-session-token }}
