@@ -84,6 +84,9 @@ public class EncryptionService {
     validateAlgorithm(algorithm);
     validateDataKey(dataKey, algorithm);
 
+    LOGGER.finest(() -> String.format("Encrypting with HMAC key: %s", 
+        java.util.Base64.getEncoder().encodeToString(hmacKey)));
+
     try {
       // Convert value to bytes based on type
       byte[] plaintext = serializeValue(value);
@@ -171,6 +174,9 @@ public class EncryptionService {
 
     validateAlgorithm(algorithm);
     validateDataKey(dataKey, algorithm);
+
+    LOGGER.finest(() -> String.format("Decrypting with HMAC key: %s", 
+        java.util.Base64.getEncoder().encodeToString(hmacKey)));
 
     if (encryptedValue.length < 32 + 1 + 12 + 16) {
       throw EncryptionException.decryptionFailed("Invalid encrypted data length", null)
