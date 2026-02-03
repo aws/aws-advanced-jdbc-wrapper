@@ -54,6 +54,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.encryption.key.KeyManagementException;
 import software.amazon.jdbc.plugin.encryption.key.KeyManager;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
+import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
 
 /** Integration test for KeyManagementUtility functionality. */
 
@@ -114,7 +115,7 @@ public class KeyManagementUtilityIntegrationTest {
 
     // Setup test database schema
     setupTestSchema();
-
+    EncryptedDataTypeInstaller.installEncryptedDataType(connection);
     LOGGER.info("Test setup completed with master key: " + masterKeyArn);
   }
 
