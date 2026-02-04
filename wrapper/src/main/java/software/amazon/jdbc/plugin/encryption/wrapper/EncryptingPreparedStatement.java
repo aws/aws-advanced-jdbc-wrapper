@@ -222,6 +222,15 @@ public class EncryptingPreparedStatement implements PreparedStatement {
       // Get HMAC key
       byte[] hmacKey = config.getKeyMetadata().getHmacKey();
 
+      LOGGER.info(
+          () ->
+              String.format(
+                  "EncryptingPreparedStatement: param=%d, column=%s.%s, hmacKey=%s",
+                  parameterIndex,
+                  tableName,
+                  columnName,
+                  java.util.Base64.getEncoder().encodeToString(hmacKey)));
+
       // Encrypt the value
       byte[] encryptedValue =
           encryptionService.encrypt(value, dataKey, hmacKey, config.getAlgorithm());
