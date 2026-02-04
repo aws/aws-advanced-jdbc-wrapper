@@ -313,7 +313,17 @@ public class DecryptingResultSet implements ResultSet {
       if (obj instanceof EncryptedData) {
         value = ((EncryptedData) obj).getBytes();
       } else {
-        value = delegate.getBytes(columnLabel);
+        // Fallback: get as bytes and check if hex-encoded
+        byte[] rawBytes = delegate.getBytes(columnLabel);
+        if (rawBytes != null && rawBytes.length > 2 
+            && rawBytes[0] == '\\' && rawBytes[1] == 'x') {
+          // PostgreSQL returned hex-encoded string, decode it
+          String hexString = new String(rawBytes, 2, rawBytes.length - 2, java.nio.charset.StandardCharsets.US_ASCII);
+          value = hexToBytes(hexString);
+          LOGGER.fine(() -> "Decoded hex-encoded encrypted data from text mode");
+        } else {
+          value = rawBytes;
+        }
       }
     } else {
       value = delegate.getObject(columnLabel);
