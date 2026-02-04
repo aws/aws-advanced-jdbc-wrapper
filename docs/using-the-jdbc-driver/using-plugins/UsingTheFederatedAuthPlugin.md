@@ -19,6 +19,15 @@ In the case of AD FS, the user signs into the AD FS sign in page. This generates
 - Note: The above dependencies may have transitive dependencies that are also required (ex. AWS Java SDK RDS requires [AWS Java SDK Core](https://central.sonatype.com/artifact/software.amazon.awssdk/aws-core/)). If you are not using a package manager such as Maven or Gradle, please refer to Maven Central to determine these transitive dependencies.
 - This plugin does not create or modify any ADFS or IAM resources, therefore all permissions and policies must be correctly configured before using this plugin. If you plan on using [Amazon Aurora Global Databases](https://aws.amazon.com/rds/aurora/global-database/) with this plugin, please see the [Using Federated Authentication with Global Databases](#using-federated-authentication-with-global-databases) section as well.
 
+> [!WARNING]\
+> To use this plugin, you must provide valid AWS credentials. The AWS SDK relies on the AWS SDK credential provider chain to authenticate with AWS services. If you are using temporary credentials (such as those obtained through AWS STS, IAM roles, or SSO), be aware that these credentials have an expiration time. AWS SDK exceptions will occur and the plugin will not work properly if your credentials expire without being refreshed or replaced. To avoid interruptions:
+> - Ensure your credential provider supports automatic refresh (most AWS SDK credential providers do this automatically)
+> - Monitor credential expiration times in production environments
+> - Configure appropriate session durations for temporary credentials
+> - Implement proper error handling for credential-related failures
+>
+> For more information on configuring AWS credentials, see our [AWS credentials documentation](../AwsCredentials.md).
+
 > [!NOTE]\
 > Since [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) size is around 5.4Mb (22Mb including all RDS SDK dependencies), some users may experience difficulties using the plugin due to limited available disk size.
 > In such cases, the [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) dependency may be replaced with just two dependencies which have a smaller footprint (around 300Kb in total):

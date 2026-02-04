@@ -19,6 +19,15 @@ AWS Identity and Access Management (IAM) grants users access control across all 
 >
 > It's recommended to use [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) when it's possible.
 
+> [!WARNING]\
+> To use this plugin, you must provide valid AWS credentials. The AWS SDK relies on the AWS SDK credential provider chain to authenticate with AWS services. If you are using temporary credentials (such as those obtained through AWS STS, IAM roles, or SSO), be aware that these credentials have an expiration time. AWS SDK exceptions will occur and the plugin will not work properly if your credentials expire without being refreshed or replaced. To avoid interruptions:
+> - Ensure your credential provider supports automatic refresh (most AWS SDK credential providers do this automatically)
+> - Monitor credential expiration times in production environments
+> - Configure appropriate session durations for temporary credentials
+> - Implement proper error handling for credential-related failures
+>
+> For more information on configuring AWS credentials, see our [AWS credentials documentation](../AwsCredentials.md).
+
 To enable the IAM Authentication Connection Plugin, add the plugin code `iam` to the [`wrapperPlugins`](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters) value, or to the current [driver profile](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters).
 
 This plugin requires valid AWS credentials. See more details at [AWS Credentials Configuration](../custom-configuration/AwsCredentialsConfiguration.md)
