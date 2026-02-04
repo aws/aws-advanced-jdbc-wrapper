@@ -251,6 +251,15 @@ public class DecryptingResultSet implements ResultSet {
     Object value;
     if (config != null) {
       Object obj = delegate.getObject(columnIndex);
+      
+      LOGGER.info(
+          () ->
+              String.format(
+                  "DecryptingResultSet.getString: columnIndex=%d, obj type=%s, isEncryptedData=%b",
+                  columnIndex,
+                  obj != null ? obj.getClass().getName() : "null",
+                  obj instanceof EncryptedData));
+      
       if (obj instanceof EncryptedData) {
         value = ((EncryptedData) obj).getBytes();
       } else {
