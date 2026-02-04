@@ -1603,21 +1603,39 @@ public class BlueGreenDeploymentTests {
     long bgTriggerTime = getBgTriggerTime();
     long switchoverCompleteTime = getSwitchoverCompleteTime();
 
+    // Gather all metrics
+    long successfulConnections = countSuccessfulOperationsAfterSwitchover(
+        this.results.values().stream().flatMap(r -> r.blueWrapperConnectTimes.stream()),
+        bgTriggerTime,
+        switchoverCompleteTime);
+    long successfulExecutions = countSuccessfulOperationsAfterSwitchover(
+        this.results.values().stream().flatMap(r -> r.blueWrapperExecuteTimes.stream()),
+        bgTriggerTime,
+        switchoverCompleteTime);
     long unsuccessfulConnections = countUnsuccessfulOperationsAfterSwitchover(
         this.results.values().stream().flatMap(r -> r.blueWrapperConnectTimes.stream()),
         bgTriggerTime,
         switchoverCompleteTime);
-    LOGGER.finest(() -> String.format("Unsuccessful wrapper connections after switchover: %d", unsuccessfulConnections));
-    assertEquals(0L, unsuccessfulConnections,
-        String.format("Found %d unsuccessful wrapper connections after switchover completed.", unsuccessfulConnections));
-
     long unsuccessfulExecutions = countUnsuccessfulOperationsAfterSwitchover(
         this.results.values().stream().flatMap(r -> r.blueWrapperExecuteTimes.stream()),
         bgTriggerTime,
         switchoverCompleteTime);
+
+    // Log all metrics
+    LOGGER.finest(() -> String.format("Successful wrapper connections after switchover: %d", successfulConnections));
+    LOGGER.finest(() -> String.format("Successful wrapper executions after switchover: %d", successfulExecutions));
+    LOGGER.finest(() -> String.format("Unsuccessful wrapper connections after switchover: %d", unsuccessfulConnections));
     LOGGER.finest(() -> String.format("Unsuccessful wrapper executions after switchover: %d", unsuccessfulExecutions));
+
+    // Assert all metrics
+    assertEquals(0L, unsuccessfulConnections,
+        String.format("Found %d unsuccessful wrapper connections after switchover completed.", unsuccessfulConnections));
     assertEquals(0L, unsuccessfulExecutions,
         String.format("Found %d unsuccessful wrapper executions after switchover completed.", unsuccessfulExecutions));
+    assertTrue(successfulConnections > 0,
+        String.format("Expected at least one successful wrapper connection after switchover, but found %d.", successfulConnections));
+    assertTrue(successfulExecutions > 0,
+        String.format("Expected at least one successful wrapper execution after switchover, but found %d.", successfulExecutions));
   }
 
   private long getBgTriggerTime() {
@@ -1656,6 +1674,15 @@ public class BlueGreenDeploymentTests {
 
   private long getTimeOffsetMs(long nanoTime, long bgTriggerTime) {
     return nanoTime == 0 ? 0 : TimeUnit.NANOSECONDS.toMillis(nanoTime - bgTriggerTime);
+  }
+
+  private long countSuccessfulOperationsAfterSwitchover(
+      java.util.stream.Stream<TimeHolder> times,
+      long bgTriggerTime,
+      long switchoverCompleteTime) {
+    return times
+        .filter(t -> getTimeOffsetMs(t.startTime, bgTriggerTime) > switchoverCompleteTime && t.error == null)
+        .count();
   }
 
   private long countUnsuccessfulOperationsAfterSwitchover(
