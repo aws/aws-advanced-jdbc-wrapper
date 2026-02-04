@@ -941,8 +941,8 @@ public class PluginServiceImplTests {
 
   private static Stream<Arguments> fillAliasesDialects() {
     return Stream.of(
-        Arguments.of(new AuroraPgDialect(), new String[]{"instance", "foo", "ip"}),
-        Arguments.of(new MysqlDialect(), new String[]{"foo", "ip"})
+        Arguments.of(new AuroraPgDialect(), new String[]{"instance", "foo", "ip", "url/"}),
+        Arguments.of(new MysqlDialect(), new String[]{"foo", "ip", "url/"})
     );
   }
 }

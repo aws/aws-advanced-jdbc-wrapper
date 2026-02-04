@@ -91,6 +91,7 @@ public class OpenedConnectionTracker {
     // Check if the connection was established using an instance endpoint
     if (rdsUtils.isRdsInstance(hostSpec.getHost())) {
       trackConnection(hostSpec.getHostAndPort(), conn);
+      trackConnection(hostSpec.getUrl(), conn);
       logOpenedConnections();
       return;
     }

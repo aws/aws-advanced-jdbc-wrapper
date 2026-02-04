@@ -729,6 +729,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     }
 
     hostSpec.addAlias(hostSpec.asAlias());
+    hostSpec.addAlias(hostSpec.getUrl());
 
     // Add the host name and port, this host name is usually the internal IP address.
     try (final Statement stmt = connection.createStatement()) {
