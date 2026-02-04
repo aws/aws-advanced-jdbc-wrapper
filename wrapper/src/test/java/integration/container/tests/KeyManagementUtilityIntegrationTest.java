@@ -127,7 +127,8 @@ public class KeyManagementUtilityIntegrationTest {
         stmt.execute("DROP TABLE IF EXISTS " + TEST_TABLE);
         stmt.execute(
             "DELETE FROM encrypt.encryption_metadata WHERE table_name = '" + TEST_TABLE + "'");
-        stmt.execute("DELETE FROM encrypt.key_storage WHERE key_id LIKE 'test-%'");
+        String tableName = TEST_TABLE+'.'+TEST_COLUMN;
+        stmt.execute("DELETE FROM encrypt.key_storage WHERE name = '" +tableName + "'" );
       }
       connection.close();
     }
