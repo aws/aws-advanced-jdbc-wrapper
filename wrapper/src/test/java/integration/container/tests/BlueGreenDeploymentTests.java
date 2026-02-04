@@ -162,7 +162,8 @@ public class BlueGreenDeploymentTests {
     public final ConcurrentHashMap<String, Long> blueStatusTime = new ConcurrentHashMap<>();
     public final ConcurrentHashMap<String, Long> greenStatusTime = new ConcurrentHashMap<>();
     public final ConcurrentLinkedDeque<TimeHolder> blueWrapperConnectTimes = new ConcurrentLinkedDeque<>();
-    public final ConcurrentLinkedDeque<TimeHolder> blueWrapperExecuteTimes = new ConcurrentLinkedDeque<>();
+    public final ConcurrentLinkedDeque<TimeHolder> blueWrapperPreSwitchoverExecuteTimes = new ConcurrentLinkedDeque<>();
+    public final ConcurrentLinkedDeque<TimeHolder> blueWrapperPostSwitchoverExecuteTimes = new ConcurrentLinkedDeque<>();
     public final ConcurrentLinkedDeque<TimeHolder> greenWrapperExecuteTimes = new ConcurrentLinkedDeque<>();
     public final ConcurrentLinkedDeque<TimeHolder> greenDirectIamIpWithBlueNodeConnectTimes =
         new ConcurrentLinkedDeque<>();
@@ -538,7 +539,8 @@ public class BlueGreenDeploymentTests {
   // Blue node
   // Check: connectivity, SELECT sleep(5)
   // Expect: long execution time (longer than 5s) during active phase of switchover
-  // Can terminate for itself
+  // After switchover, reconnects and continues executing to verify post-switchover behavior
+  // Need a stop signal to terminate
   private Thread getWrapperBlueExecutingConnectivityMonitoringThread(
       final String hostId,
       final String host,
@@ -552,6 +554,8 @@ public class BlueGreenDeploymentTests {
     return new Thread(() -> {
 
       Connection conn = null;
+      BlueGreenConnectionPlugin bgPlugin = null;
+      Statement statement = null;
 
       String query;
       switch (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine()) {
@@ -568,14 +572,14 @@ public class BlueGreenDeploymentTests {
 
       try {
         final Properties props = this.getWrapperConnectionProperties();
-        conn = DriverManager.getConnection(
-            ConnectionStringHelper.getWrapperUrlWithPlugins(host, port, dbName, this.getWrapperConnectionPlugins()),
-            props);
+        final String url = ConnectionStringHelper.getWrapperUrlWithPlugins(
+            host, port, dbName, this.getWrapperConnectionPlugins());
+        conn = DriverManager.getConnection(url, props);
 
-        BlueGreenConnectionPlugin bgPlugin = conn.unwrap(BlueGreenConnectionPlugin.class);
+        bgPlugin = conn.unwrap(BlueGreenConnectionPlugin.class);
         assertNotNull(bgPlugin);
 
-        Statement statement = conn.createStatement();
+        statement = conn.createStatement();
         LOGGER.finest(String.format("[WrapperBlueExecute @ %s] connection is open.", hostId));
 
         Thread.sleep(1000);
@@ -588,21 +592,55 @@ public class BlueGreenDeploymentTests {
 
         LOGGER.finest(String.format("[WrapperBlueExecute @ %s] Starting connectivity monitoring.", hostId));
 
+        // Phase 1: Execute until connection closes during switchover
         while (!stop.get()) {
           long startTime = System.nanoTime();
           long endTime;
           try  {
             ResultSet rs = statement.executeQuery(query);
             endTime = System.nanoTime();
-            results.blueWrapperExecuteTimes.add(
+            results.blueWrapperPreSwitchoverExecuteTimes.add(
                 new TimeHolder(startTime, endTime, bgPlugin.getHoldTimeNano()));
           } catch (SQLException throwable) {
             endTime = System.nanoTime();
-            results.blueWrapperExecuteTimes.add(
+            results.blueWrapperPreSwitchoverExecuteTimes.add(
                 new TimeHolder(startTime, endTime, bgPlugin.getHoldTimeNano(), throwable.getMessage()));
             if (conn.isClosed()) {
               break;
             }
+          }
+
+          TimeUnit.MILLISECONDS.sleep(1000);
+        }
+
+        LOGGER.finest(String.format("[WrapperBlueExecute @ %s] Connection closed, starting post-switchover phase.", hostId));
+
+        // Phase 2: Post-switchover - reconnect and continue executing
+        while (!stop.get()) {
+          long startTime = System.nanoTime();
+          long endTime;
+          try {
+            // Reconnect if needed
+            if (conn == null || conn.isClosed()) {
+              conn = DriverManager.getConnection(url, props);
+              bgPlugin = conn.unwrap(BlueGreenConnectionPlugin.class);
+              assertNotNull(bgPlugin);
+              statement = conn.createStatement();
+              LOGGER.finest(String.format("[WrapperBlueExecute @ %s] Reconnected after switchover.", hostId));
+            }
+
+            ResultSet rs = statement.executeQuery(query);
+            endTime = System.nanoTime();
+            results.blueWrapperPostSwitchoverExecuteTimes.add(
+                new TimeHolder(startTime, endTime, bgPlugin.getHoldTimeNano()));
+          } catch (SQLException throwable) {
+            endTime = System.nanoTime();
+            long holdTime = bgPlugin != null ? bgPlugin.getHoldTimeNano() : 0;
+            results.blueWrapperPostSwitchoverExecuteTimes.add(
+                new TimeHolder(startTime, endTime, holdTime, throwable.getMessage()));
+            // Close connection on error so we reconnect on next iteration
+            this.closeConnection(conn);
+            conn = null;
           }
 
           TimeUnit.MILLISECONDS.sleep(1000);
@@ -1440,11 +1478,11 @@ public class BlueGreenDeploymentTests {
     }
 
     for (Entry<String, BlueGreenResults> entry : sortedEntries) {
-      if (entry.getValue().blueWrapperExecuteTimes.isEmpty()) {
+      if (entry.getValue().blueWrapperPreSwitchoverExecuteTimes.isEmpty()) {
         continue;
       }
       this.printDurationTimes(entry.getKey(), "Wrapper execution time (ms) to Blue",
-          entry.getValue().blueWrapperExecuteTimes, bgTriggerTime);
+          entry.getValue().blueWrapperPreSwitchoverExecuteTimes, bgTriggerTime);
     }
 
     for (Entry<String, BlueGreenResults> entry : sortedEntries) {
@@ -1608,18 +1646,14 @@ public class BlueGreenDeploymentTests {
         this.results.values().stream().flatMap(r -> r.blueWrapperConnectTimes.stream()),
         bgTriggerTime,
         switchoverCompleteTime);
-    long successfulExecutions = countSuccessfulOperationsAfterSwitchover(
-        this.results.values().stream().flatMap(r -> r.blueWrapperExecuteTimes.stream()),
-        bgTriggerTime,
-        switchoverCompleteTime);
+    long successfulExecutions = countSuccessfulOperations(
+        this.results.values().stream().flatMap(r -> r.blueWrapperPostSwitchoverExecuteTimes.stream()));
     long unsuccessfulConnections = countUnsuccessfulOperationsAfterSwitchover(
         this.results.values().stream().flatMap(r -> r.blueWrapperConnectTimes.stream()),
         bgTriggerTime,
         switchoverCompleteTime);
-    long unsuccessfulExecutions = countUnsuccessfulOperationsAfterSwitchover(
-        this.results.values().stream().flatMap(r -> r.blueWrapperExecuteTimes.stream()),
-        bgTriggerTime,
-        switchoverCompleteTime);
+    long unsuccessfulExecutions = countUnsuccessfulOperations(
+        this.results.values().stream().flatMap(r -> r.blueWrapperPostSwitchoverExecuteTimes.stream()));
 
     // Log all metrics
     LOGGER.finest(() -> String.format("Successful wrapper connections after switchover: %d", successfulConnections));
@@ -1691,6 +1725,18 @@ public class BlueGreenDeploymentTests {
       long switchoverCompleteTime) {
     return times
         .filter(t -> getTimeOffsetMs(t.startTime, bgTriggerTime) > switchoverCompleteTime && t.error != null)
+        .count();
+  }
+
+  private long countSuccessfulOperations(java.util.stream.Stream<TimeHolder> times) {
+    return times
+        .filter(t -> t.error == null)
+        .count();
+  }
+
+  private long countUnsuccessfulOperations(java.util.stream.Stream<TimeHolder> times) {
+    return times
+        .filter(t -> t.error != null)
         .count();
   }
 }
