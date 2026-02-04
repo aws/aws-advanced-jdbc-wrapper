@@ -1039,10 +1039,7 @@ public class BlueGreenDeploymentTests {
       try {
         RegularRdsUtility regularRdsUtility = new RegularRdsUtility();
 
-        final Properties props = new Properties();
-        props.setProperty("user", TestEnvironment.getCurrent().getInfo().getIamUsername());
-        props.setProperty("connectTimeout", "10000");
-        props.setProperty("socketTimeout", "10000");
+        final Properties props = this.getDirectIamConnectionProperties();
 
         final String greenNodeConnectIp = InetAddress.getByName(connectHost).getHostAddress();
 
@@ -1315,7 +1312,26 @@ public class BlueGreenDeploymentTests {
     if (TestEnvironment.getCurrent().getInfo().getRequest().getFeatures().contains(TestEnvironmentFeatures.IAM)) {
       IamAuthConnectionPlugin.IAM_REGION.set(props, TestEnvironment.getCurrent().getInfo().getRegion());
       PropertyDefinition.USER.set(props, TestEnvironment.getCurrent().getInfo().getIamUsername());
+
+      if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB) {
+        props.setProperty("sslMode", "verify-ca");
+        props.setProperty("serverSslCert", "/app/test/resources/rds-ca-rsa2048-g1.pem");
+      }
     }
+    return props;
+  }
+
+  private Properties getDirectIamConnectionProperties() {
+    final Properties props = new Properties();
+    props.setProperty("user", TestEnvironment.getCurrent().getInfo().getIamUsername());
+    props.setProperty("connectTimeout", "10000");
+    props.setProperty("socketTimeout", "10000");
+
+    if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB) {
+      props.setProperty("sslMode", "verify-ca");
+      props.setProperty("serverSslCert", "/app/test/resources/rds-ca-rsa2048-g1.pem");
+    }
+
     return props;
   }
 
@@ -1341,10 +1357,7 @@ public class BlueGreenDeploymentTests {
 
   private void printMetrics() {
 
-    long bgTriggerTime = results.values().stream()
-        .map(blueGreenResults -> blueGreenResults.bgTriggerTime.get())
-        .findFirst()
-        .orElseThrow(() -> new RuntimeException("Can't get bgTriggerTime"));
+    long bgTriggerTime = getBgTriggerTime();
 
     AsciiTable metricsTable = new AsciiTable();
     metricsTable.addRule();
@@ -1558,68 +1571,99 @@ public class BlueGreenDeploymentTests {
   }
 
   private void assertTest() {
-    long bgTriggerTime = results.values().stream()
-        .map(blueGreenResults -> blueGreenResults.bgTriggerTime.get())
-        .findFirst()
-        .orElseThrow(() -> new RuntimeException("Can't get bgTriggerTime"));
+    assertSwitchoverCompleted();
+    assertWrapperBehavior();
+  }
 
-    long maxGreenNodeChangeTime = this.results.values().stream()
-        .map(blueGreenResults -> blueGreenResults.greenNodeChangeNameTime.get() == 0
-            ? 0
-            : TimeUnit.NANOSECONDS.toMillis(blueGreenResults.greenNodeChangeNameTime.get() - bgTriggerTime))
-        .max(Comparator.comparingLong(x -> x))
-        .orElse(0L);
-    LOGGER.finest(() -> String.format("maxGreenNodeChangeTime: %d ms", maxGreenNodeChangeTime));
-
-    long switchoverCompleteTimeFromStatusTable = this.results.values().stream().filter(x -> !x.greenStatusTime.isEmpty())
-        .map(x -> x.greenStatusTime.getOrDefault("SWITCHOVER_COMPLETED", 0L))
-        .map(x -> x == 0
-            ? 0
-            : TimeUnit.NANOSECONDS.toMillis(x - bgTriggerTime))
-        .max(Comparator.comparingLong(x -> x))
-        .orElse(0L);
-    LOGGER.finest(() -> String.format("switchoverCompleteTimeFromStatusTable: %d ms", switchoverCompleteTimeFromStatusTable));
-
-    // Verify that BG switchover actually completed based on:
-    // 1. status table with SWITCHOVER_COMPLETED
-    // 2. That green node certificate has changed for all instances.
+  /**
+   * Validates that the B/G switchover completed successfully.
+   * Checks:
+   * 1. Status table shows SWITCHOVER_COMPLETED
+   * 2. All green nodes changed their names (certificate change detected)
+   */
+  private void assertSwitchoverCompleted() {
+    long switchoverCompleteTimeFromStatusTable = getSwitchoverCompleteTimeFromStatusTable();
     assertNotEquals(0L, switchoverCompleteTimeFromStatusTable, "BG switchover hasn't completed.");
 
-    // Verify that every green instance has a non-zero greenNodeChangeNameTime
     for (Map.Entry<String, BlueGreenResults> entry : this.results.entrySet()) {
       String instanceId = entry.getKey();
-      // Only check green instances - blue instances don't have IAM monitoring threads
       if (rdsUtil.isGreenInstance(instanceId)) {
         long greenNodeChangeTime = entry.getValue().greenNodeChangeNameTime.get();
         assertNotEquals(0L, greenNodeChangeTime,
             String.format("Green node certificate should have changed for instance '%s'.", instanceId));
       }
     }
+  }
 
-    // Use the max of certificate change time and switchover complete time as the baseline
-    long switchoverCompleteTime = Math.max(maxGreenNodeChangeTime, switchoverCompleteTimeFromStatusTable);
-    LOGGER.finest(() -> String.format("switchoverCompleteTime: %d ms", switchoverCompleteTime));
+  /**
+   * Validates that the wrapper handled the switchover correctly.
+   * Checks that no connections or executions failed after switchover completed.
+   */
+  private void assertWrapperBehavior() {
+    long bgTriggerTime = getBgTriggerTime();
+    long switchoverCompleteTime = getSwitchoverCompleteTime();
 
-    // 2. Verify wrapper connections succeeded after switchover
-    long unsuccessfulConnectionsAfterSwitchover = this.results.values().stream()
-        .flatMap(r -> r.blueWrapperConnectTimes.stream())
-        .filter(t -> TimeUnit.NANOSECONDS.toMillis(t.startTime - bgTriggerTime) > switchoverCompleteTime
-            && t.error != null)
+    long unsuccessfulConnections = countUnsuccessfulOperationsAfterSwitchover(
+        this.results.values().stream().flatMap(r -> r.blueWrapperConnectTimes.stream()),
+        bgTriggerTime,
+        switchoverCompleteTime);
+    LOGGER.finest(() -> String.format("Unsuccessful wrapper connections after switchover: %d", unsuccessfulConnections));
+    assertEquals(0L, unsuccessfulConnections,
+        String.format("Found %d unsuccessful wrapper connections after switchover completed.", unsuccessfulConnections));
+
+    long unsuccessfulExecutions = countUnsuccessfulOperationsAfterSwitchover(
+        this.results.values().stream().flatMap(r -> r.blueWrapperExecuteTimes.stream()),
+        bgTriggerTime,
+        switchoverCompleteTime);
+    LOGGER.finest(() -> String.format("Unsuccessful wrapper executions after switchover: %d", unsuccessfulExecutions));
+    assertEquals(0L, unsuccessfulExecutions,
+        String.format("Found %d unsuccessful wrapper executions after switchover completed.", unsuccessfulExecutions));
+  }
+
+  private long getBgTriggerTime() {
+    return results.values().stream()
+        .map(r -> r.bgTriggerTime.get())
+        .findFirst()
+        .orElseThrow(() -> new RuntimeException("Can't get bgTriggerTime"));
+  }
+
+  private long getSwitchoverCompleteTimeFromStatusTable() {
+    long bgTriggerTime = getBgTriggerTime();
+    long time = this.results.values().stream()
+        .filter(x -> !x.greenStatusTime.isEmpty())
+        .map(x -> getTimeOffsetMs(x.greenStatusTime.getOrDefault("SWITCHOVER_COMPLETED", 0L), bgTriggerTime))
+        .max(Comparator.comparingLong(x -> x))
+        .orElse(0L);
+    LOGGER.finest(() -> String.format("switchoverCompleteTimeFromStatusTable: %d ms", time));
+    return time;
+  }
+
+  private long getMaxGreenNodeChangeTime() {
+    long bgTriggerTime = getBgTriggerTime();
+    long time = this.results.values().stream()
+        .map(r -> getTimeOffsetMs(r.greenNodeChangeNameTime.get(), bgTriggerTime))
+        .max(Comparator.comparingLong(x -> x))
+        .orElse(0L);
+    LOGGER.finest(() -> String.format("maxGreenNodeChangeTime: %d ms", time));
+    return time;
+  }
+
+  private long getSwitchoverCompleteTime() {
+    long time = Math.max(getMaxGreenNodeChangeTime(), getSwitchoverCompleteTimeFromStatusTable());
+    LOGGER.finest(() -> String.format("switchoverCompleteTime: %d ms", time));
+    return time;
+  }
+
+  private long getTimeOffsetMs(long nanoTime, long bgTriggerTime) {
+    return nanoTime == 0 ? 0 : TimeUnit.NANOSECONDS.toMillis(nanoTime - bgTriggerTime);
+  }
+
+  private long countUnsuccessfulOperationsAfterSwitchover(
+      java.util.stream.Stream<TimeHolder> times,
+      long bgTriggerTime,
+      long switchoverCompleteTime) {
+    return times
+        .filter(t -> getTimeOffsetMs(t.startTime, bgTriggerTime) > switchoverCompleteTime && t.error != null)
         .count();
-    LOGGER.finest(() -> String.format("Unsuccessful wrapper connections after switchover: %d", unsuccessfulConnectionsAfterSwitchover));
-    assertEquals(0L, unsuccessfulConnectionsAfterSwitchover,
-        String.format("Found %d unsuccessful wrapper connections after switchover completed.", unsuccessfulConnectionsAfterSwitchover));
-
-    // 3. Verify wrapper executions succeeded after switchover
-    long unsuccessfulExecutionsAfterSwitchover = this.results.values().stream()
-        .flatMap(r -> r.blueWrapperExecuteTimes.stream())
-        .filter(t -> TimeUnit.NANOSECONDS.toMillis(t.startTime - bgTriggerTime) > switchoverCompleteTime
-            && t.error != null)
-        .count();
-    LOGGER.finest(() -> String.format("Unsuccessful wrapper executions after switchover: %d", unsuccessfulExecutionsAfterSwitchover));
-    assertEquals(0L, unsuccessfulExecutionsAfterSwitchover,
-        String.format("Found %d unsuccessful wrapper executions after switchover completed.", unsuccessfulExecutionsAfterSwitchover));
-
-
   }
 }
