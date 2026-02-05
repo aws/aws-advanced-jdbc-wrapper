@@ -37,7 +37,7 @@ $$ LANGUAGE plpgsql IMMUTABLE STRICT;
 CREATE OR REPLACE FUNCTION validate_encrypted_data_hmac()
 RETURNS trigger AS $$
 DECLARE
-    metadata_schema text := 'aws';
+    metadata_schema text := SCHEMA_NAME;
     col_name text := TG_ARGV[0];
     col_value encrypted_data;
     hmac_key bytea;
@@ -48,7 +48,7 @@ DECLARE
     cache_key text;
 BEGIN
     EXECUTE format('SELECT ($1).%I', col_name) INTO col_value USING NEW;
-    
+
     IF col_value IS NOT NULL THEN
         -- Try to get HMAC key from session cache
         cache_key := 'hmac_key.' || TG_TABLE_NAME || '.' || col_name;
@@ -62,29 +62,29 @@ BEGIN
                 'WHERE em.table_name = $1 AND em.column_name = $2',
                 metadata_schema, metadata_schema
             ) INTO hmac_key USING TG_TABLE_NAME, col_name;
-            
+
             IF hmac_key IS NULL THEN
                 RAISE EXCEPTION 'No HMAC key found for %.%', TG_TABLE_NAME, col_name;
             END IF;
-            
+
             -- Cache in session variable as hex string
             PERFORM set_config(cache_key, encode(hmac_key, 'hex'), false);
         END;
-        
+
         -- Verify HMAC (format: [HMAC:32][type:1][IV:12][ciphertext])
         data_bytes := col_value::bytea;
-        
+
         IF length(data_bytes) < 45 THEN
             RAISE EXCEPTION 'Invalid encrypted data length for column %', col_name;
         END IF;
-        
+
         stored_hmac := substring(data_bytes from 1 for 32);
         encrypted_payload := substring(data_bytes from 33);
-        
+
         calculated_hmac := hmac(encrypted_payload, hmac_key, 'sha256');
-        
+
         IF stored_hmac != calculated_hmac THEN
-            RAISE EXCEPTION 'HMAC verification failed for column %. Stored: %, Calculated: %', 
+            RAISE EXCEPTION 'HMAC verification failed for column %. Stored: %, Calculated: %',
                 col_name,
                 encode(stored_hmac, 'hex'),
                 encode(calculated_hmac, 'hex');

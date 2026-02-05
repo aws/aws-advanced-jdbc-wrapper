@@ -120,7 +120,7 @@ public class KmsEncryptionIntegrationTest {
         // Install encrypted_data custom type
         LOGGER.finest("Installing encrypted_data custom type");
         stmt.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto");
-        EncryptedDataTypeInstaller.installEncryptedDataType(directConnection);
+        EncryptedDataTypeInstaller.installEncryptedDataType(directConnection, metadataSchema);
 
         // Create key_storage table first (referenced by encryption_metadata)
         stmt.execute(

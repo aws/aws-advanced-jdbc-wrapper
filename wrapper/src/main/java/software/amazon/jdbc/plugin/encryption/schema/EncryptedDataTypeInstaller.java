@@ -32,7 +32,7 @@ public class EncryptedDataTypeInstaller {
   private static final Logger LOGGER = Logger.getLogger(EncryptedDataTypeInstaller.class.getName());
   private static final String SQL_RESOURCE_PATH = "/sql/encrypted_data_type.sql";
 
-  public static void installEncryptedDataType(Connection connection) throws SQLException {
+  public static void installEncryptedDataType(Connection connection, String metaDataSchema) throws SQLException {
     LOGGER.info("Installing encrypted_data custom type");
 
     try (Statement stmt = connection.createStatement()) {
@@ -41,6 +41,7 @@ public class EncryptedDataTypeInstaller {
 
       // Use DOMAIN-based implementation
       String sql = loadSqlScript();
+      sql = sql.replaceFirst("SCHEMA_NAME", metaDataSchema);
       stmt.execute(sql);
 
       LOGGER.info("encrypted_data type installed successfully (DOMAIN approach)");

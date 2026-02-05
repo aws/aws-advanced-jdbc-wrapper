@@ -112,7 +112,7 @@ public class KeyManagementUtilityIntegrationTest {
     final String url = ConnectionStringHelper.getWrapperUrl();
 
     connection = DriverManager.getConnection(url, props);
-    EncryptedDataTypeInstaller.installEncryptedDataType(connection);
+    EncryptedDataTypeInstaller.installEncryptedDataType(connection,"encrypt");
 
     // Setup test database schema
     setupTestSchema();
