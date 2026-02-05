@@ -262,7 +262,19 @@ public class EncryptingPreparedStatement implements PreparedStatement {
   public void setString(int parameterIndex, String x) throws SQLException {
     Object encryptedValue = encryptParameterIfNeeded(parameterIndex, x);
     if (encryptedValue instanceof byte[]) {
-      delegate.setObject(parameterIndex, new EncryptedData((byte[]) encryptedValue));
+      byte[] encBytes = (byte[]) encryptedValue;
+      EncryptedData encData = new EncryptedData(encBytes);
+      
+      LOGGER.info(
+          () ->
+              String.format(
+                  "EncryptingPreparedStatement.setString: param=%d, encryptedLength=%d, first16bytes=%s, EncryptedData.getValue()=%s",
+                  parameterIndex,
+                  encBytes.length,
+                  bytesToHex(java.util.Arrays.copyOf(encBytes, Math.min(16, encBytes.length))),
+                  encData.getValue() != null ? encData.getValue().substring(0, Math.min(20, encData.getValue().length())) : "null"));
+      
+      delegate.setObject(parameterIndex, encData);
     } else {
       delegate.setString(parameterIndex, (String) encryptedValue);
     }
