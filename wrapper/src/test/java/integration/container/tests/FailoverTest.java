@@ -370,33 +370,12 @@ public class FailoverTest {
                 conn));
       }
 
-      // Sleep for 30 seconds to allow daemon threads to finish running.
-      Thread.sleep(30000);
+      // Sleep for 10 seconds to allow daemon threads to finish running.
+      Thread.sleep(10000);
 
-      try (final Connection conn = DriverManager.getConnection(
-          ConnectionStringHelper.getWrapperUrl(
-              clusterEndpoint,
-              clusterEndpointPort,
-              TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
-          props)) {
-
-        final String instanceId = auroraUtil.queryInstanceId(
-            TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-            TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
-            conn);
-
-        if (this.currentWriter.equals(instanceId)) {
-          LOGGER.finest("Cluster failed over to the same instance " + instanceId + ".");
-          for (Connection idleConnection : idleConnections) {
-            assertFalse(idleConnection.isClosed(), String.format("Idle connection %s is closed.", idleConnection));
-          }
-        } else {
-          LOGGER.finest("Cluster failed over to the instance " + instanceId + ".");
-          // Ensure that all idle connections are closed.
-          for (Connection idleConnection : idleConnections) {
-            assertTrue(idleConnection.isClosed(), String.format("Idle connection %s is still opened.", idleConnection));
-          }
-        }
+      // Ensure that all idle connections are closed.
+      for (Connection idleConnection : idleConnections) {
+        assertTrue(idleConnection.isClosed(), String.format("Idle connection %s is still opened.", idleConnection));
       }
     } finally {
       for (Connection idleConnection : idleConnections) {
