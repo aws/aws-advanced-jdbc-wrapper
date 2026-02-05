@@ -35,20 +35,7 @@ import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 
-/**
- * Tests for WeightedRandomHostSelector using cumulative weight selection algorithm.
- * 
- * The algorithm works as follows:
- * 1. Calculate total weight of all eligible hosts
- * 2. Generate a random value in [0, totalWeight)
- * 3. Iterate through hosts, subtracting each weight from the random value
- * 4. Return the host where the random value becomes negative
- * 
- * Example with weights [3, 2, 1] (total = 6):
- * - roll in [0, 3) → selects host 1
- * - roll in [3, 5) → selects host 2
- * - roll in [5, 6) → selects host 3
- */
+
 class WeightedRandomHostSelectorTests {
 
   @Mock Random mockRandom;
@@ -63,8 +50,6 @@ class WeightedRandomHostSelectorTests {
   void cleanUp() throws Exception {
     closeable.close();
   }
-
-  // ==================== Tests with property-based weights ====================
 
   @Test
   void testGetHost_emptyHostList_withProperty() {
@@ -226,8 +211,6 @@ class WeightedRandomHostSelectorTests {
     final HostSpec actualHost = hostSelector.getHost(eligibleHostsList, HostRole.WRITER, props);
     assertEquals("instance-3", actualHost.getHost());
   }
-
-  // ==================== Tests with HostSpec.getWeight() fallback ====================
 
   @Test
   void testGetHost_usesHostSpecWeight_selectsFirst() throws SQLException {

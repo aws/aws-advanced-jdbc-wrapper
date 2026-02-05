@@ -91,10 +91,11 @@ public class WeightedRandomHostSelector implements HostSelector {
     final List<HostSpec> eligibleHosts = new ArrayList<>();
     long totalWeight = 0;
     for (HostSpec host : hosts) {
-      if (isEligible(host, role)) {
-        eligibleHosts.add(host);
-        totalWeight += getWeight(host, hostWeightMap);
+      if (notEligible(host, role)) {
+        continue;
       }
+      eligibleHosts.add(host);
+      totalWeight += getWeight(host, hostWeightMap);
     }
 
     if (eligibleHosts.isEmpty()) {
@@ -116,9 +117,9 @@ public class WeightedRandomHostSelector implements HostSelector {
     return null;
   }
 
-  private boolean isEligible(final HostSpec host, final @Nullable HostRole role) {
-    return (role == null || role.equals(host.getRole()))
-        && host.getAvailability().equals(HostAvailability.AVAILABLE);
+  private boolean notEligible(final HostSpec host, final @Nullable HostRole role) {
+    return (role != null && !role.equals(host.getRole()))
+        || !host.getAvailability().equals(HostAvailability.AVAILABLE);
   }
 
   private long getWeight(final HostSpec host, final @Nullable Map<String, Integer> hostWeightMap) {
