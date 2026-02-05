@@ -84,8 +84,7 @@ public class EncryptionService {
     validateAlgorithm(algorithm);
     validateDataKey(dataKey, algorithm);
 
-    LOGGER.finest(() -> String.format("Encrypting with HMAC key: %s", 
-        java.util.Base64.getEncoder().encodeToString(hmacKey)));
+    LOGGER.finest(() -> "Encrypting value");
 
     try {
       // Convert value to bytes based on type
@@ -116,11 +115,11 @@ public class EncryptionService {
       hmac.init(new SecretKeySpec(hmacKey, HMAC_ALGORITHM));
       byte[] hmacTag = hmac.doFinal(encryptedData);
 
-      LOGGER.info(
+      LOGGER.finest(
           () ->
               String.format(
-                  "Encrypting: hmacKey length=%d, encryptedData length=%d, hmacTag=%s",
-                  hmacKey.length, encryptedData.length, bytesToHex(hmacTag).substring(0, 16)));
+                  "Encrypting: hmacKey length=%d, encryptedData length=%d",
+                  hmacKey.length, encryptedData.length));
 
       // Prepend HMAC tag to encrypted data: [HMAC:32bytes][type:1byte][IV:12bytes][ciphertext]
       ByteBuffer finalBuffer = ByteBuffer.allocate(HMAC_TAG_LENGTH + encryptedData.length);
@@ -181,8 +180,7 @@ public class EncryptionService {
     validateAlgorithm(algorithm);
     validateDataKey(dataKey, algorithm);
 
-    LOGGER.finest(() -> String.format("Decrypting with HMAC key: %s", 
-        java.util.Base64.getEncoder().encodeToString(hmacKey)));
+    LOGGER.finest(() -> "Decrypting value");
 
     if (encryptedValue.length < 32 + 1 + 12 + 16) {
       throw EncryptionException.decryptionFailed("Invalid encrypted data length", null)
@@ -204,23 +202,17 @@ public class EncryptionService {
       buffer.get(encryptedData);
 
       // Verify HMAC using the separate HMAC key
-      LOGGER.info(
+      LOGGER.finest(
           () ->
               String.format(
-                  "Decrypting: hmacKey length=%d, encryptedData length=%d, storedHmac=%s",
-                  hmacKey != null ? hmacKey.length : 0, encryptedData.length, 
-                  bytesToHex(storedHmacTag).substring(0, 16)));
+                  "Decrypting: hmacKey length=%d, encryptedData length=%d",
+                  hmacKey != null ? hmacKey.length : 0, encryptedData.length));
 
       Mac hmac = Mac.getInstance(HMAC_ALGORITHM);
       hmac.init(new SecretKeySpec(hmacKey, HMAC_ALGORITHM));
       byte[] calculatedHmacTag = hmac.doFinal(encryptedData);
 
-      LOGGER.info(
-          () ->
-              String.format(
-                  "HMAC comparison: stored=%s, calculated=%s",
-                  bytesToHex(storedHmacTag).substring(0, 16),
-                  bytesToHex(calculatedHmacTag).substring(0, 16)));
+      LOGGER.finest(() -> "Verifying HMAC tag");
 
       if (!MessageDigest.isEqual(storedHmacTag, calculatedHmacTag)) {
         throw EncryptionException.decryptionFailed(

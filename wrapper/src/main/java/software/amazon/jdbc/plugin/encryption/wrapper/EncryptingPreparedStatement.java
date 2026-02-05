@@ -265,14 +265,12 @@ public class EncryptingPreparedStatement implements PreparedStatement {
       byte[] encBytes = (byte[]) encryptedValue;
       EncryptedData encData = new EncryptedData(encBytes);
       
-      LOGGER.info(
+      LOGGER.finest(
           () ->
               String.format(
-                  "EncryptingPreparedStatement.setString: param=%d, encryptedLength=%d, first16bytes=%s, EncryptedData.getValue()=%s",
+                  "EncryptingPreparedStatement.setString: param=%d, encryptedLength=%d",
                   parameterIndex,
-                  encBytes.length,
-                  bytesToHex(java.util.Arrays.copyOf(encBytes, Math.min(16, encBytes.length))),
-                  encData.getValue() != null ? encData.getValue().substring(0, Math.min(20, encData.getValue().length())) : "null"));
+                  encBytes.length));
       
       delegate.setObject(parameterIndex, encData);
     } else {

@@ -210,13 +210,12 @@ public class DecryptingResultSet implements ResultSet {
       // Get HMAC key
       byte[] hmacKey = config.getKeyMetadata().getHmacKey();
 
-      LOGGER.info(
+      LOGGER.finest(
           () ->
               String.format(
-                  "DecryptingResultSet: column=%s.%s, hmacKey=%s, encryptedLength=%d",
+                  "DecryptingResultSet: column=%s.%s, encryptedLength=%d",
                   tableName,
                   columnName,
-                  java.util.Base64.getEncoder().encodeToString(hmacKey),
                   encryptedBytes.length));
 
       // Decrypt the value
