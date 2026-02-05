@@ -13,8 +13,8 @@ In the case of AD FS, the user signs into the AD FS sign in page. This generates
 
 ## Prerequisites
 - This plugin requires the following runtime dependencies to be registered separately in the classpath:
-  - [AWS Java SDK RDS v2.7.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds)
-  - [AWS Java SDK STS v2.7.x](https://central.sonatype.com/artifact/software.amazon.awssdk/sts)
+  - [AWS Java SDK RDS v2.7.x or later](https://central.sonatype.com/artifact/software.amazon.awssdk/rds)
+  - [AWS Java SDK STS v2.7.x or later](https://central.sonatype.com/artifact/software.amazon.awssdk/sts)
   - [jsoup](https://central.sonatype.com/artifact/org.jsoup/jsoup)
   - [Jackson Databind](https://central.sonatype.com/artifact/com.fasterxml.jackson.core/jackson-databind)
 - Note: The above dependencies may have transitive dependencies that are also required (ex. AWS Java SDK RDS requires [AWS Java SDK Core](https://central.sonatype.com/artifact/software.amazon.awssdk/aws-core/)). If you are not using a package manager such as Maven or Gradle, please refer to Maven Central to determine these transitive dependencies. 
