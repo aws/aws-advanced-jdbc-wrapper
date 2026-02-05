@@ -30,6 +30,7 @@ import de.vandermeer.skb.interfaces.document.TableRowType;
 import de.vandermeer.skb.interfaces.transformers.textformat.TextAlignment;
 import integration.DatabaseEngine;
 import integration.DatabaseEngineDeployment;
+import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
 import integration.TestEnvironmentInfo;
 import integration.TestInstanceInfo;
@@ -116,6 +117,8 @@ public class BlueGreenDeploymentTests {
 
   private static final String TEST_CLUSTER_ID = "test-cluster-id";
 
+  private static final String RDS_SSL_CERT_PATH = "/app/test/resources/rds-ca-rsa2048-g1.pem";
+
   public static class TimeHolder {
     public long startTime;
     public long endTime;
@@ -147,6 +150,30 @@ public class BlueGreenDeploymentTests {
     }
   }
 
+  public static class HostVerificationResult {
+    public final long timestamp;
+    public final String connectedHost;
+    public final String originalBlueIp;
+    public final boolean connectedToBlue;
+    public final String error;
+
+    private HostVerificationResult(long timestamp, String connectedHost, String originalBlueIp, String error) {
+      this.timestamp = timestamp;
+      this.connectedHost = connectedHost;
+      this.originalBlueIp = originalBlueIp;
+      this.connectedToBlue = connectedHost != null && connectedHost.equals(originalBlueIp);
+      this.error = error;
+    }
+
+    public static HostVerificationResult success(long timestamp, String connectedHost, String originalBlueIp) {
+      return new HostVerificationResult(timestamp, connectedHost, originalBlueIp, null);
+    }
+
+    public static HostVerificationResult failure(long timestamp, String originalBlueIp, String error) {
+      return new HostVerificationResult(timestamp, null, originalBlueIp, error);
+    }
+  }
+
   public static class BlueGreenResults {
     public final AtomicLong startTime = new AtomicLong();
     public final AtomicLong threadsSyncTime = new AtomicLong();
@@ -170,6 +197,8 @@ public class BlueGreenDeploymentTests {
     public final ConcurrentLinkedDeque<TimeHolder> greenDirectIamIpWithBlueNodeConnectTimes =
         new ConcurrentLinkedDeque<>();
     public final ConcurrentLinkedDeque<TimeHolder> greenDirectIamIpWithGreenNodeConnectTimes =
+        new ConcurrentLinkedDeque<>();
+    public final ConcurrentLinkedDeque<HostVerificationResult> hostVerificationResults =
         new ConcurrentLinkedDeque<>();
   }
 
@@ -262,6 +291,20 @@ public class BlueGreenDeploymentTests {
         threads.add(getWrapperBlueNewConnectionMonitoringThread(
             hostId, host, testInstance.getPort(), dbName, startLatchAtomic, stop, finishLatchAtomic,
             results.get(hostId)));
+        threadCount++;
+        threadFinishCount++;
+
+        // Capture original blue IP for host verification
+        String originalBlueIp;
+        try {
+          originalBlueIp = InetAddress.getByName(host).getHostAddress();
+        } catch (UnknownHostException e) {
+          throw new RuntimeException("Failed to resolve original blue IP for " + host, e);
+        }
+
+        threads.add(getWrapperBlueHostVerificationThread(
+            hostId, host, testInstance.getPort(), dbName, originalBlueIp,
+            startLatchAtomic, stop, finishLatchAtomic, results.get(hostId)));
         threadCount++;
         threadFinishCount++;
 
@@ -557,7 +600,6 @@ public class BlueGreenDeploymentTests {
 
       Connection conn = null;
       BlueGreenConnectionPlugin bgPlugin = null;
-      Statement statement = null;
 
       String query;
       switch (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine()) {
@@ -581,7 +623,6 @@ public class BlueGreenDeploymentTests {
         bgPlugin = conn.unwrap(BlueGreenConnectionPlugin.class);
         assertNotNull(bgPlugin);
 
-        statement = conn.createStatement();
         LOGGER.finest(String.format("[WrapperBlueExecute @ %s] connection is open.", hostId));
 
         Thread.sleep(1000);
@@ -595,24 +636,25 @@ public class BlueGreenDeploymentTests {
         LOGGER.finest(String.format("[WrapperBlueExecute @ %s] Starting connectivity monitoring.", hostId));
 
         // Phase 1: Execute until connection closes during switchover
-        while (!stop.get()) {
-          long startTime = System.nanoTime();
-          long endTime;
-          try  {
-            ResultSet rs = statement.executeQuery(query);
-            endTime = System.nanoTime();
-            results.blueWrapperPreSwitchoverExecuteTimes.add(
-                new TimeHolder(startTime, endTime, bgPlugin.getHoldTimeNano()));
-          } catch (SQLException throwable) {
-            endTime = System.nanoTime();
-            results.blueWrapperPreSwitchoverExecuteTimes.add(
-                new TimeHolder(startTime, endTime, bgPlugin.getHoldTimeNano(), throwable.getMessage()));
-            if (conn.isClosed()) {
-              break;
+        try (Statement statement = conn.createStatement()) {
+          while (!stop.get()) {
+            long startTime = System.nanoTime();
+            long endTime;
+            try (ResultSet rs = statement.executeQuery(query)) {
+              endTime = System.nanoTime();
+              results.blueWrapperPreSwitchoverExecuteTimes.add(
+                  new TimeHolder(startTime, endTime, bgPlugin.getHoldTimeNano()));
+            } catch (SQLException throwable) {
+              endTime = System.nanoTime();
+              results.blueWrapperPreSwitchoverExecuteTimes.add(
+                  new TimeHolder(startTime, endTime, bgPlugin.getHoldTimeNano(), throwable.getMessage()));
+              if (conn.isClosed()) {
+                break;
+              }
             }
-          }
 
-          TimeUnit.MILLISECONDS.sleep(1000);
+            TimeUnit.MILLISECONDS.sleep(1000);
+          }
         }
 
         LOGGER.finest(String.format(
@@ -620,7 +662,6 @@ public class BlueGreenDeploymentTests {
 
         // Phase 2: Post-switchover - reconnect and continue executing
         while (!stop.get()) {
-          long startTime = System.nanoTime();
           long endTime;
           try {
             // Reconnect if needed
@@ -628,19 +669,23 @@ public class BlueGreenDeploymentTests {
               conn = DriverManager.getConnection(url, props);
               bgPlugin = conn.unwrap(BlueGreenConnectionPlugin.class);
               assertNotNull(bgPlugin);
-              statement = conn.createStatement();
               LOGGER.finest(String.format("[WrapperBlueExecute @ %s] Reconnected after switchover.", hostId));
             }
 
-            ResultSet rs = statement.executeQuery(query);
-            endTime = System.nanoTime();
-            results.blueWrapperPostSwitchoverExecuteTimes.add(
-                new TimeHolder(startTime, endTime, bgPlugin.getHoldTimeNano()));
+            // Create fresh statement and measure only the execute time
+            try (Statement statement = conn.createStatement()) {
+              long startTime = System.nanoTime();
+              try (ResultSet rs = statement.executeQuery(query)) {
+                endTime = System.nanoTime();
+                results.blueWrapperPostSwitchoverExecuteTimes.add(
+                    new TimeHolder(startTime, endTime, bgPlugin.getHoldTimeNano()));
+              }
+            }
           } catch (SQLException throwable) {
             endTime = System.nanoTime();
             long holdTime = bgPlugin != null ? bgPlugin.getHoldTimeNano() : 0;
             results.blueWrapperPostSwitchoverExecuteTimes.add(
-                new TimeHolder(startTime, endTime, holdTime, throwable.getMessage()));
+                new TimeHolder(System.nanoTime(), endTime, holdTime, throwable.getMessage()));
             // Close connection on error so we reconnect on next iteration
             this.closeConnection(conn);
             conn = null;
@@ -757,6 +802,95 @@ public class BlueGreenDeploymentTests {
         LOGGER.finest(String.format("[WrapperBlueNewConnection @ %s] thread is completed.", hostId));
       }
     });
+  }
+
+  // Blue node
+  // Check: verify we never connect to old blue cluster after switchover
+  // Connects, queries server IP, compares against original blue IP
+  // Need a stop signal to terminate
+  private Thread getWrapperBlueHostVerificationThread(
+      final String hostId,
+      final String host,
+      final int port,
+      final String dbName,
+      final String originalBlueIp,
+      final AtomicReference<CountDownLatch> startLatch,
+      final AtomicBoolean stop,
+      final AtomicReference<CountDownLatch> finishLatch,
+      final BlueGreenResults results) {
+
+    return new Thread(() -> {
+
+      Connection conn = null;
+      try {
+        final Properties props = this.getWrapperConnectionProperties();
+
+        Thread.sleep(1000);
+
+        // notify that this thread is ready for work
+        startLatch.get().countDown();
+
+        // wait for another threads to be ready to start the test
+        startLatch.get().await(5, TimeUnit.MINUTES);
+
+        LOGGER.finest(String.format(
+            "[WrapperBlueHostVerification @ %s] Starting host verification. Original blue IP: %s",
+            hostId, originalBlueIp));
+
+        while (!stop.get()) {
+          long timestamp = System.nanoTime();
+          try {
+            conn = DriverManager.getConnection(
+                ConnectionStringHelper.getWrapperUrlWithPlugins(host, port, dbName, this.getWrapperConnectionPlugins()),
+                props);
+
+            String connectedHost = getConnectedServerHost(conn);
+            HostVerificationResult result = HostVerificationResult.success(timestamp, connectedHost, originalBlueIp);
+            results.hostVerificationResults.add(result);
+
+            if (result.connectedToBlue) {
+              LOGGER.warning(String.format(
+                  "[WrapperBlueHostVerification @ %s] Connected to old blue cluster! Host: %s",
+                  hostId, connectedHost));
+            }
+
+          } catch (SQLException throwable) {
+            LOGGER.finest(String.format(
+                "[WrapperBlueHostVerification @ %s] thread exception: %s", hostId, throwable.getMessage()));
+            results.hostVerificationResults.add(
+                HostVerificationResult.failure(timestamp, originalBlueIp, throwable.getMessage()));
+          }
+
+          this.closeConnection(conn);
+          conn = null;
+          TimeUnit.MILLISECONDS.sleep(1000);
+        }
+
+      } catch (InterruptedException interruptedException) {
+        // Ignore, stop the thread
+        Thread.currentThread().interrupt();
+      } catch (Exception exception) {
+        LOGGER.log(Level.FINEST,
+            String.format("[WrapperBlueHostVerification @ %s] thread unhandled exception: ", hostId), exception);
+        this.unhandledExceptions.add(exception);
+      } finally {
+        this.closeConnection(conn);
+        finishLatch.get().countDown();
+        LOGGER.finest(String.format("[WrapperBlueHostVerification @ %s] thread is completed.", hostId));
+      }
+    });
+  }
+
+  private String getConnectedServerHost(Connection conn) throws SQLException {
+    String query = DriverHelper.getHostnameSql();
+
+    try (Statement stmt = conn.createStatement();
+         ResultSet rs = stmt.executeQuery(query)) {
+      if (rs.next()) {
+        return rs.getString(1);
+      }
+    }
+    return null;
   }
 
   // Green node
@@ -1356,7 +1490,7 @@ public class BlueGreenDeploymentTests {
 
       if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB) {
         props.setProperty("sslMode", "verify-ca");
-        props.setProperty("serverSslCert", "/app/test/resources/rds-ca-rsa2048-g1.pem");
+        props.setProperty("serverSslCert", RDS_SSL_CERT_PATH);
       }
     }
     return props;
@@ -1370,7 +1504,7 @@ public class BlueGreenDeploymentTests {
 
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB) {
       props.setProperty("sslMode", "verify-ca");
-      props.setProperty("serverSslCert", "/app/test/resources/rds-ca-rsa2048-g1.pem");
+      props.setProperty("serverSslCert", RDS_SSL_CERT_PATH);
     }
 
     return props;
@@ -1495,6 +1629,46 @@ public class BlueGreenDeploymentTests {
       this.printDurationTimes(entry.getKey(), "Wrapper execution time (ms) to Green",
           entry.getValue().greenWrapperExecuteTimes, bgTriggerTime);
     }
+
+    // Print host verification summary
+    for (Entry<String, BlueGreenResults> entry : sortedEntries) {
+      if (entry.getValue().hostVerificationResults.isEmpty()) {
+        continue;
+      }
+      this.printHostVerificationResults(entry.getKey(), entry.getValue().hostVerificationResults, bgTriggerTime);
+    }
+  }
+
+  private void printHostVerificationResults(
+      String node, ConcurrentLinkedDeque<HostVerificationResult> results, long timeZeroNano) {
+
+    long totalVerifications = results.stream().filter(r -> r.error == null).count();
+    long connectionsToBlue = results.stream().filter(r -> r.connectedToBlue).count();
+    long errors = results.stream().filter(r -> r.error != null).count();
+
+    AsciiTable metricsTable = new AsciiTable();
+    metricsTable.addRule();
+    metricsTable.addRow("Metric", "Value");
+    metricsTable.addRule();
+    metricsTable.addRow("Total verifications", totalVerifications);
+    metricsTable.addRow("Connections to old blue", connectionsToBlue);
+    metricsTable.addRow("Errors", errors);
+    metricsTable.addRule();
+
+    // Show any connections to old blue cluster
+    if (connectionsToBlue > 0) {
+      metricsTable.addRow("Time (ms)", "Connected to old blue");
+      metricsTable.addRule();
+      results.stream()
+          .filter(r -> r.connectedToBlue)
+          .forEach(r -> metricsTable.addRow(
+              TimeUnit.NANOSECONDS.toMillis(r.timestamp - timeZeroNano),
+              r.connectedHost + " (original: " + r.originalBlueIp + ")"));
+      metricsTable.addRule();
+    }
+
+    metricsTable.setTextAlignment(TextAlignment.CENTER);
+    LOGGER.finest("\n" + node + ": Host Verification Results\n" + this.renderTable(metricsTable, false));
   }
 
   private String getFormattedNanoTime(AtomicLong timeNanoAtomic, long timeZeroNano) {
@@ -1700,6 +1874,159 @@ public class BlueGreenDeploymentTests {
         String.format(
             "Expected at least one successful wrapper execution after switchover, but found %d.",
             successfulExecutions));
+
+    // Verify we never connected to old blue cluster during or after switchover
+    assertNoConnectionsToOldBlueCluster(bgTriggerTime);
+  }
+
+  /**
+   * Validates host verification results:
+   * 1. Before switchover INITIATED (earliest time): all connections should go to blue
+   * 2. After switchover IN_PROGRESS (latest time): no connections should go to old blue
+   */
+  private void assertNoConnectionsToOldBlueCluster(long bgTriggerTime) {
+    // Get the earliest time when switchover was initiated (minimum across all instances)
+    long switchoverInitiatedTime = getSwitchoverInitiatedTime(bgTriggerTime);
+    // Get the latest time when IN_PROGRESS status was observed (maximum across all instances)
+    long switchoverInProgressTime = getSwitchoverInProgressTime(bgTriggerTime);
+
+    LOGGER.info(() -> String.format(
+        "Host verification timing - Switchover INITIATED (earliest): %d ms, IN_PROGRESS (latest): %d ms",
+        switchoverInitiatedTime, switchoverInProgressTime));
+
+    assertNotEquals(0L, switchoverInitiatedTime,
+        "Could not determine switchover INITIATED time from status table.");
+    assertNotEquals(0L, switchoverInProgressTime,
+        "Could not determine switchover IN_PROGRESS time from status table.");
+
+    // Verify: Before switchover initiated, all connections should go to blue (none to green)
+    long connectionsBeforeSwitchover = this.results.values().stream()
+        .flatMap(r -> r.hostVerificationResults.stream())
+        .filter(r -> getTimeOffsetMs(r.timestamp, bgTriggerTime) < switchoverInitiatedTime)
+        .filter(r -> r.error == null)
+        .count();
+
+    long connectionsToBlueBeforeSwitchover = this.results.values().stream()
+        .flatMap(r -> r.hostVerificationResults.stream())
+        .filter(r -> getTimeOffsetMs(r.timestamp, bgTriggerTime) < switchoverInitiatedTime)
+        .filter(r -> r.error == null)
+        .filter(r -> r.connectedToBlue)
+        .count();
+
+    long connectionsToGreenBeforeSwitchover = this.results.values().stream()
+        .flatMap(r -> r.hostVerificationResults.stream())
+        .filter(r -> getTimeOffsetMs(r.timestamp, bgTriggerTime) < switchoverInitiatedTime)
+        .filter(r -> r.error == null)
+        .filter(r -> !r.connectedToBlue)
+        .count();
+
+    LOGGER.info(() -> String.format(
+        "Before switchover INITIATED (%d ms): %d total connections, %d to blue, %d to green",
+        switchoverInitiatedTime, connectionsBeforeSwitchover, connectionsToBlueBeforeSwitchover,
+        connectionsToGreenBeforeSwitchover));
+
+    assertEquals(connectionsBeforeSwitchover, connectionsToBlueBeforeSwitchover,
+        String.format(
+            "Before switchover INITIATED, all %d connections should go to blue, but only %d did.",
+            connectionsBeforeSwitchover, connectionsToBlueBeforeSwitchover));
+
+    assertEquals(0L, connectionsToGreenBeforeSwitchover,
+        String.format(
+            "Before switchover INITIATED, no connections should go to green, but %d did.",
+            connectionsToGreenBeforeSwitchover));
+
+    // Verify: After switchover in progress, no connections should go to old blue
+    long connectionsToBlueAfterSwitchoverStart = this.results.values().stream()
+        .flatMap(r -> r.hostVerificationResults.stream())
+        .filter(r -> getTimeOffsetMs(r.timestamp, bgTriggerTime) > switchoverInProgressTime)
+        .filter(r -> r.connectedToBlue)
+        .count();
+
+    long totalVerificationsAfterSwitchoverStart = this.results.values().stream()
+        .flatMap(r -> r.hostVerificationResults.stream())
+        .filter(r -> getTimeOffsetMs(r.timestamp, bgTriggerTime) > switchoverInProgressTime)
+        .filter(r -> r.error == null)
+        .count();
+
+    LOGGER.info(() -> String.format(
+        "After switchover IN_PROGRESS (%d ms): %d total connections, %d to old blue",
+        switchoverInProgressTime, totalVerificationsAfterSwitchoverStart, connectionsToBlueAfterSwitchoverStart));
+
+    // Log details if any connections went to old blue after switchover
+    if (connectionsToBlueAfterSwitchoverStart > 0) {
+      this.results.values().stream()
+          .flatMap(r -> r.hostVerificationResults.stream())
+          .filter(r -> getTimeOffsetMs(r.timestamp, bgTriggerTime) > switchoverInProgressTime)
+          .filter(r -> r.connectedToBlue)
+          .forEach(r -> LOGGER.warning(() -> String.format(
+              "Connected to old blue cluster at offset %d ms (after IN_PROGRESS at %d ms): "
+                  + "connected=%s, originalBlue=%s",
+              getTimeOffsetMs(r.timestamp, bgTriggerTime), switchoverInProgressTime,
+              r.connectedHost, r.originalBlueIp)));
+    }
+
+    assertEquals(0L, connectionsToBlueAfterSwitchoverStart,
+        String.format(
+            "Found %d connections to old blue cluster after switchover IN_PROGRESS (%d ms). "
+                + "Connections should only go to the new green cluster during and after switchover.",
+            connectionsToBlueAfterSwitchoverStart, switchoverInProgressTime));
+
+    assertTrue(totalVerificationsAfterSwitchoverStart > 0,
+        "Expected at least one successful host verification after switchover IN_PROGRESS.");
+  }
+
+  /**
+   * Gets the earliest time when switchover was initiated across all instances.
+   * Looks for INITIATED or PREPARATION status.
+   */
+  private long getSwitchoverInitiatedTime(long bgTriggerTime) {
+    return this.results.values().stream()
+        .flatMap(r -> {
+          List<Long> times = new ArrayList<>();
+          // Check for INITIATED status
+          Long blueInitiated = r.blueStatusTime.get("INITIATED");
+          if (blueInitiated != null && blueInitiated > 0) {
+            times.add(getTimeOffsetMs(blueInitiated, bgTriggerTime));
+          }
+          Long greenInitiated = r.greenStatusTime.get("INITIATED");
+          if (greenInitiated != null && greenInitiated > 0) {
+            times.add(getTimeOffsetMs(greenInitiated, bgTriggerTime));
+          }
+          // Also check PREPARATION as fallback
+          Long bluePrep = r.blueStatusTime.get("PREPARATION");
+          if (bluePrep != null && bluePrep > 0) {
+            times.add(getTimeOffsetMs(bluePrep, bgTriggerTime));
+          }
+          Long greenPrep = r.greenStatusTime.get("PREPARATION");
+          if (greenPrep != null && greenPrep > 0) {
+            times.add(getTimeOffsetMs(greenPrep, bgTriggerTime));
+          }
+          return times.stream();
+        })
+        .filter(t -> t > 0)
+        .min(Comparator.naturalOrder())
+        .orElse(0L);
+  }
+
+  /**
+   * Gets the latest time when IN_PROGRESS status was observed across all instances.
+   */
+  private long getSwitchoverInProgressTime(long bgTriggerTime) {
+    return this.results.values().stream()
+        .flatMap(r -> {
+          List<Long> times = new ArrayList<>();
+          Long blueTime = r.blueStatusTime.get("IN_PROGRESS");
+          if (blueTime != null && blueTime > 0) {
+            times.add(getTimeOffsetMs(blueTime, bgTriggerTime));
+          }
+          Long greenTime = r.greenStatusTime.get("IN_PROGRESS");
+          if (greenTime != null && greenTime > 0) {
+            times.add(getTimeOffsetMs(greenTime, bgTriggerTime));
+          }
+          return times.stream();
+        })
+        .max(Comparator.naturalOrder())
+        .orElse(0L);
   }
 
   private long getBgTriggerTime() {
