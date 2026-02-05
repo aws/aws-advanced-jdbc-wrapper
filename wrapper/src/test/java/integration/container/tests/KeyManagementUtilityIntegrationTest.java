@@ -491,9 +491,6 @@ public class KeyManagementUtilityIntegrationTest {
       stmt.execute("CREATE SCHEMA encrypt");
       stmt.execute("DROP TABLE IF EXISTS " + TEST_TABLE + " CASCADE");
 
-      // Create encrypted_data type
-      createEncryptedDataType(stmt);
-
       // Create key storage table first (due to foreign key)
       stmt.execute(
           "CREATE TABLE encrypt.key_storage ("
@@ -530,7 +527,7 @@ public class KeyManagementUtilityIntegrationTest {
               + "ssn encrypted_data, "
               + "email VARCHAR(100)"
               + ")");
-      
+
       // Add HMAC validation trigger for encrypted column
       stmt.execute(
           "CREATE TRIGGER validate_ssn_hmac "
@@ -539,81 +536,5 @@ public class KeyManagementUtilityIntegrationTest {
 
       LOGGER.info("Test database schema setup complete");
     }
-  }
-
-  private void createEncryptedDataType(Statement stmt) throws SQLException {
-    stmt.execute("DROP DOMAIN IF EXISTS encrypted_data CASCADE");
-    stmt.execute(
-        "CREATE DOMAIN encrypted_data AS bytea CHECK (length(VALUE) >= 45)");
-
-    stmt.execute(
-        "CREATE OR REPLACE FUNCTION verify_encrypted_data_hmac(data encrypted_data, hmac_key bytea) "
-        + "RETURNS boolean AS $$ "
-        + "DECLARE "
-        + "  data_bytes bytea := data::bytea; "
-        + "  stored_hmac bytea; "
-        + "  encrypted_payload bytea; "
-        + "  calculated_hmac bytea; "
-        + "BEGIN "
-        + "  stored_hmac := substring(data_bytes from 1 for 32); "
-        + "  encrypted_payload := substring(data_bytes from 33); "
-        + "  calculated_hmac := hmac(encrypted_payload, hmac_key, 'sha256'); "
-        + "  RETURN stored_hmac = calculated_hmac; "
-        + "END; "
-        + "$$ LANGUAGE plpgsql IMMUTABLE STRICT");
-
-    stmt.execute(
-        "CREATE OR REPLACE FUNCTION has_valid_hmac_structure(data encrypted_data) "
-        + "RETURNS boolean AS $$ "
-        + "BEGIN "
-        + "  RETURN length(data::bytea) >= 45; "
-        + "END; "
-        + "$$ LANGUAGE plpgsql IMMUTABLE STRICT");
-
-    stmt.execute(
-        "CREATE OR REPLACE FUNCTION validate_encrypted_data_hmac() "
-        + "RETURNS trigger AS $$ "
-        + "DECLARE "
-        + "  metadata_schema text := 'aws'; "
-        + "  col_name text := TG_ARGV[0]; "
-        + "  col_value encrypted_data; "
-        + "  hmac_key bytea; "
-        + "  data_bytes bytea; "
-        + "  stored_hmac bytea; "
-        + "  encrypted_payload bytea; "
-        + "  calculated_hmac bytea; "
-        + "  cache_key text; "
-        + "BEGIN "
-        + "  EXECUTE format('SELECT ($1).%I', col_name) INTO col_value USING NEW; "
-        + "  IF col_value IS NOT NULL THEN "
-        + "    cache_key := 'hmac_key.' || TG_TABLE_NAME || '.' || col_name; "
-        + "    BEGIN "
-        + "      hmac_key := decode(current_setting(cache_key), 'hex'); "
-        + "    EXCEPTION WHEN OTHERS THEN "
-        + "      EXECUTE format('SELECT ks.hmac_key FROM %I.encryption_metadata em ' || "
-        + "                     'JOIN %I.key_storage ks ON em.key_id = ks.id ' || "
-        + "                     'WHERE em.table_name = $1 AND em.column_name = $2', "
-        + "                     metadata_schema, metadata_schema) "
-        + "        INTO hmac_key USING TG_TABLE_NAME, col_name; "
-        + "      IF hmac_key IS NULL THEN "
-        + "        RAISE EXCEPTION 'No HMAC key found for %.%', TG_TABLE_NAME, col_name; "
-        + "      END IF; "
-        + "      PERFORM set_config(cache_key, encode(hmac_key, 'hex'), false); "
-        + "    END; "
-        + "    data_bytes := col_value::bytea; "
-        + "    IF length(data_bytes) < 45 THEN "
-        + "      RAISE EXCEPTION 'Invalid encrypted data length for column %', col_name; "
-        + "    END IF; "
-        + "    stored_hmac := substring(data_bytes from 1 for 32); "
-        + "    encrypted_payload := substring(data_bytes from 33); "
-        + "    calculated_hmac := hmac(encrypted_payload, hmac_key, 'sha256'); "
-        + "    IF stored_hmac != calculated_hmac THEN "
-        + "      RAISE EXCEPTION 'HMAC verification failed for column %. Stored: %, Calculated: %', "
-        + "        col_name, encode(stored_hmac, 'hex'), encode(calculated_hmac, 'hex'); "
-        + "    END IF; "
-        + "  END IF; "
-        + "  RETURN NEW; "
-        + "END; "
-        + "$$ LANGUAGE plpgsql");
   }
 }
