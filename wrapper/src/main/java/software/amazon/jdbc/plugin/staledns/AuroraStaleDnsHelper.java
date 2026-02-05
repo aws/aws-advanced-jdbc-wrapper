@@ -131,8 +131,7 @@ public class AuroraStaleDnsHelper {
     }
 
     if (isConnectedToReader) {
-      // DNS resolves a cluster endpoint to a wrong writer
-      // opens a connection to a proper writer node
+      // Reconnect to writer host if current connection is reader.
 
       LOGGER.fine(() -> Messages.get("AuroraStaleDnsHelper.staleDnsDetected",
           new Object[]{this.writerHostSpec}));
