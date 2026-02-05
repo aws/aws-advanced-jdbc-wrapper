@@ -37,7 +37,7 @@ $$ LANGUAGE plpgsql IMMUTABLE STRICT;
 CREATE OR REPLACE FUNCTION validate_encrypted_data_hmac()
 RETURNS trigger AS $$
 DECLARE
-    metadata_schema text := SCHEMA_NAME;
+    metadata_schema text := 'SCHEMA_NAME';
     col_name text := TG_ARGV[0];
     col_value encrypted_data;
     hmac_key bytea;
