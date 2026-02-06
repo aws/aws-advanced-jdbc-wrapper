@@ -294,16 +294,8 @@ public class BlueGreenDeploymentTests {
         threadCount++;
         threadFinishCount++;
 
-        // Capture original blue IP for host verification
-        String originalBlueIp;
-        try {
-          originalBlueIp = InetAddress.getByName(host).getHostAddress();
-        } catch (UnknownHostException e) {
-          throw new RuntimeException("Failed to resolve original blue IP for " + host, e);
-        }
-
         threads.add(getWrapperBlueHostVerificationThread(
-            hostId, host, testInstance.getPort(), dbName, originalBlueIp,
+            hostId, host, testInstance.getPort(), dbName,
             startLatchAtomic, stop, finishLatchAtomic, results.get(hostId)));
         threadCount++;
         threadFinishCount++;
@@ -813,7 +805,6 @@ public class BlueGreenDeploymentTests {
       final String host,
       final int port,
       final String dbName,
-      final String originalBlueIp,
       final AtomicReference<CountDownLatch> startLatch,
       final AtomicBoolean stop,
       final AtomicReference<CountDownLatch> finishLatch,
@@ -822,8 +813,24 @@ public class BlueGreenDeploymentTests {
     return new Thread(() -> {
 
       Connection conn = null;
+      String originalBlueIp = null;
       try {
         final Properties props = this.getWrapperConnectionProperties();
+        final String url = ConnectionStringHelper.getWrapperUrlWithPlugins(
+            host, port, dbName, this.getWrapperConnectionPlugins());
+
+        // Make initial connection to capture the original blue IP
+        conn = DriverManager.getConnection(url, props);
+        originalBlueIp = getConnectedServerHost(conn);
+        this.closeConnection(conn);
+        conn = null;
+
+        if (originalBlueIp == null) {
+          throw new RuntimeException("Failed to get original blue IP from initial connection");
+        }
+
+        LOGGER.finest(String.format(
+            "[WrapperBlueHostVerification @ %s] Captured original blue IP: %s", hostId, originalBlueIp));
 
         Thread.sleep(1000);
 
@@ -837,20 +844,25 @@ public class BlueGreenDeploymentTests {
             "[WrapperBlueHostVerification @ %s] Starting host verification. Original blue IP: %s",
             hostId, originalBlueIp));
 
+        final String capturedOriginalBlueIp = originalBlueIp;
         while (!stop.get()) {
           long timestamp = System.nanoTime();
+
           try {
-            conn = DriverManager.getConnection(
-                ConnectionStringHelper.getWrapperUrlWithPlugins(host, port, dbName, this.getWrapperConnectionPlugins()),
-                props);
+            conn = DriverManager.getConnection(url, props);
 
             String connectedHost = getConnectedServerHost(conn);
-            HostVerificationResult result = HostVerificationResult.success(timestamp, connectedHost, originalBlueIp);
+            HostVerificationResult result =
+                HostVerificationResult.success(timestamp, connectedHost, capturedOriginalBlueIp);
             results.hostVerificationResults.add(result);
-
+            
             if (result.connectedToBlue) {
-              LOGGER.warning(String.format(
-                  "[WrapperBlueHostVerification @ %s] Connected to old blue cluster! Host: %s",
+              LOGGER.finest(String.format(
+                  "[WrapperBlueHostVerification @ %s] Connected to blue cluster! Host: %s",
+                  hostId, connectedHost));
+            } else {
+              LOGGER.finest(String.format(
+                  "[WrapperBlueHostVerification @ %s] Connected to green! Host: %s",
                   hostId, connectedHost));
             }
 
@@ -858,7 +870,7 @@ public class BlueGreenDeploymentTests {
             LOGGER.finest(String.format(
                 "[WrapperBlueHostVerification @ %s] thread exception: %s", hostId, throwable.getMessage()));
             results.hostVerificationResults.add(
-                HostVerificationResult.failure(timestamp, originalBlueIp, throwable.getMessage()));
+                HostVerificationResult.failure(timestamp, capturedOriginalBlueIp, throwable.getMessage()));
           }
 
           this.closeConnection(conn);
@@ -1895,9 +1907,9 @@ public class BlueGreenDeploymentTests {
         switchoverInitiatedTime, switchoverInProgressTime));
 
     assertNotEquals(0L, switchoverInitiatedTime,
-        "Could not determine switchover INITIATED time from status table.");
+        "Could not determine SWITCHOVER_INITIATED time from status table.");
     assertNotEquals(0L, switchoverInProgressTime,
-        "Could not determine switchover IN_PROGRESS time from status table.");
+        "Could not determine SWITCHOVER_IN_PROGRESS time from status table.");
 
     // Verify: Before switchover initiated, all connections should go to blue (none to green)
     long connectionsBeforeSwitchover = this.results.values().stream()
@@ -1921,13 +1933,13 @@ public class BlueGreenDeploymentTests {
         .count();
 
     LOGGER.info(() -> String.format(
-        "Before switchover INITIATED (%d ms): %d total connections, %d to blue, %d to green",
+        "Before SWITCHOVER_INITIATED (%d ms): %d total connections, %d to blue, %d to green",
         switchoverInitiatedTime, connectionsBeforeSwitchover, connectionsToBlueBeforeSwitchover,
         connectionsToGreenBeforeSwitchover));
 
     assertEquals(connectionsBeforeSwitchover, connectionsToBlueBeforeSwitchover,
         String.format(
-            "Before switchover INITIATED, all %d connections should go to blue, but only %d did.",
+            "Before SWITCHOVER_INITIATED, all %d connections should go to blue, but only %d did.",
             connectionsBeforeSwitchover, connectionsToBlueBeforeSwitchover));
 
     assertEquals(0L, connectionsToGreenBeforeSwitchover,
@@ -1977,29 +1989,20 @@ public class BlueGreenDeploymentTests {
 
   /**
    * Gets the earliest time when switchover was initiated across all instances.
-   * Looks for INITIATED or PREPARATION status.
+   * Looks for INITIATED status.
    */
   private long getSwitchoverInitiatedTime(long bgTriggerTime) {
     return this.results.values().stream()
         .flatMap(r -> {
           List<Long> times = new ArrayList<>();
           // Check for INITIATED status
-          Long blueInitiated = r.blueStatusTime.get("INITIATED");
+          Long blueInitiated = r.blueStatusTime.get("SWITCHOVER_INITIATED");
           if (blueInitiated != null && blueInitiated > 0) {
             times.add(getTimeOffsetMs(blueInitiated, bgTriggerTime));
           }
-          Long greenInitiated = r.greenStatusTime.get("INITIATED");
+          Long greenInitiated = r.greenStatusTime.get("SWITCHOVER_INITIATED");
           if (greenInitiated != null && greenInitiated > 0) {
             times.add(getTimeOffsetMs(greenInitiated, bgTriggerTime));
-          }
-          // Also check PREPARATION as fallback
-          Long bluePrep = r.blueStatusTime.get("PREPARATION");
-          if (bluePrep != null && bluePrep > 0) {
-            times.add(getTimeOffsetMs(bluePrep, bgTriggerTime));
-          }
-          Long greenPrep = r.greenStatusTime.get("PREPARATION");
-          if (greenPrep != null && greenPrep > 0) {
-            times.add(getTimeOffsetMs(greenPrep, bgTriggerTime));
           }
           return times.stream();
         })
@@ -2015,11 +2018,11 @@ public class BlueGreenDeploymentTests {
     return this.results.values().stream()
         .flatMap(r -> {
           List<Long> times = new ArrayList<>();
-          Long blueTime = r.blueStatusTime.get("IN_PROGRESS");
+          Long blueTime = r.blueStatusTime.get("SWITCHOVER_IN_PROGRESS");
           if (blueTime != null && blueTime > 0) {
             times.add(getTimeOffsetMs(blueTime, bgTriggerTime));
           }
-          Long greenTime = r.greenStatusTime.get("IN_PROGRESS");
+          Long greenTime = r.greenStatusTime.get("SWITCHOVER_IN_PROGRESS");
           if (greenTime != null && greenTime > 0) {
             times.add(getTimeOffsetMs(greenTime, bgTriggerTime));
           }
