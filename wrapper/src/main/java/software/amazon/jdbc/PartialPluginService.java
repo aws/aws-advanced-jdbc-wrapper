@@ -51,6 +51,7 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.storage.CacheMap;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -70,6 +71,7 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   protected static final int DEFAULT_TOPOLOGY_QUERY_TIMEOUT_MS = 5000;
 
   protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache = new CacheMap<>();
+
   protected final FullServicesContainer servicesContainer;
   protected final ConnectionPluginManager pluginManager;
   protected final Properties props;
@@ -291,8 +293,8 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
 
   @Override
   public List<HostSpec> getHosts() {
-    AllowedAndBlockedHosts hostPermissions = this.servicesContainer.getStorageService().get(
-        AllowedAndBlockedHosts.class, this.initialConnectionHostSpec.getUrl());
+    AllowedAndBlockedHosts hostPermissions = this.servicesContainer.getStorageService()
+        .get(AllowedAndBlockedHosts.class, this.initialConnectionHostSpec.getUrl());
     if (hostPermissions == null) {
       return this.allHosts;
     }
@@ -300,16 +302,19 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
     List<HostSpec> hosts = this.allHosts;
     Set<String> allowedHostIds = hostPermissions.getAllowedHostIds();
     Set<String> blockedHostIds = hostPermissions.getBlockedHostIds();
+    HostRole requiredRole = hostPermissions.getRequiredRole();
 
     if (!Utils.isNullOrEmpty(allowedHostIds)) {
       hosts = hosts.stream()
           .filter((hostSpec -> allowedHostIds.contains(hostSpec.getHostId())))
+          .filter(hostSpec -> requiredRole == null || requiredRole == hostSpec.getRole())
           .collect(Collectors.toList());
     }
 
     if (!Utils.isNullOrEmpty(blockedHostIds)) {
       hosts = hosts.stream()
           .filter((hostSpec -> !blockedHostIds.contains(hostSpec.getHostId())))
+          .filter(hostSpec -> requiredRole == null || requiredRole == hostSpec.getRole())
           .collect(Collectors.toList());
     }
 
@@ -330,7 +335,6 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
         .collect(Collectors.toList());
 
     if (hostsToChange.isEmpty()) {
-      LOGGER.finest(() -> Messages.get("PluginServiceImpl.hostsChangelistEmpty"));
       return;
     }
 
@@ -393,12 +397,12 @@ public class PartialPluginService implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public boolean forceRefreshHostList(final boolean shouldVerifyWriter, final long timeoutMs)
+  public boolean forceRefreshHostList(final boolean verifyTopology, final long timeoutMs)
       throws SQLException {
 
     final HostListProvider hostListProvider = this.getHostListProvider();
     try {
-      final List<HostSpec> updatedHostList = hostListProvider.forceRefresh(shouldVerifyWriter, timeoutMs);
+      final List<HostSpec> updatedHostList = hostListProvider.forceRefresh(verifyTopology, timeoutMs);
       if (updatedHostList != null) {
         updateHostAvailability(updatedHostList);
         setNodeList(this.allHosts, updatedHostList);

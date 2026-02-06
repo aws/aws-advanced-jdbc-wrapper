@@ -20,7 +20,7 @@ Plugins are notified by the connection plugin manager when changes to the databa
 To use a custom plugin, you must:
 1. Create a custom plugin.
 2. Register the custom plugin to a wrapper profile.
-3. Specify the custom plugin to use in `wrapperProfileName`.
+3. Specify the custom profile name to use in `wrapperProfileName`.
 
 ### Creating Custom Plugins
 
@@ -68,14 +68,24 @@ A custom plugin can subscribe to all JDBC methods being executed, which means it
 We recommend that you be aware of the performance impact of subscribing and performing demanding tasks for every JDBC method.
 
 ### Register the Custom Plugin
-The `DriverConfigurationProfiles` manages the plugin profiles.
-To register a new custom plugin, call `DriverConfigurationProfiles.addOrReplaceProfile()` as follows:
+The `DriverConfigurationProfileBuilder` manages the plugin profiles.
+Implement a class which implements `ConnectionPluginFactory` for your custom plugin and then 
+register a new custom plugin, by calling `ConfigurationProfileBuilder.buildAndSet()` as follows:
 
 ```java
-properties.setProperty("wrapperProfileName", "foo");
-DriverConfigurationProfiles.addOrReplaceProfile("foo", Collections.singletonList(FooPluginFactory.class));
+ConfigurationProfileBuilder.get()
+.withName("customPluginProfile")   // this can be any name of your choosing except for existing names
+.withPluginFactories(Collections.singletonList(YourCustomPluginFactory.class))
+.buildAndSet();
 ```
+In order to use the plugin to open a connection you must provide the custom profile name into the `wrapperProfileName` configuration parameter
 
+```java
+Properties props = ConnectionStringHelper.getDefaultProperties();
+props.setProperty(PropertyDefinition.PROFILE_NAME.name, "customPluginProfile");
+
+Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
+```
 ## What is Not Allowed in Plugins
 
 When creating custom plugins, it is important to **avoid** the following bad practices in your plugin implementation:

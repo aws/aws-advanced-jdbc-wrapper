@@ -13,11 +13,20 @@ AWS Identity and Access Management (IAM) grants users access control across all 
 > Note: AWS Java SDK RDS may have transitive dependencies that are also required (ex. [AWS Java SDK Core](https://central.sonatype.com/artifact/software.amazon.awssdk/aws-core/)). If you are not using a package manager such as Maven or Gradle, please refer to Maven Central to determine these transitive dependencies.
 >
 > Since [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) size is around 5.4Mb (22Mb including all RDS SDK dependencies), some users may experience difficulties using the plugin due to limited available disk size.
-> In such cases, the [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) dependency may be replaced with just two dependencies which have a smaller footprint (around 300Kb in total):
+> In such cases, the [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) dependency may be replaced with just two dependencies which have a smaller footprint (around 300Kb in total)<sup>1</sup>:
 > - [software.amazon.awssdk:http-client-spi](https://central.sonatype.com/artifact/software.amazon.awssdk/http-client-spi)
 > - [software.amazon.awssdk:auth](https://central.sonatype.com/artifact/software.amazon.awssdk/auth)
 >
 > It's recommended to use [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) when it's possible.
+
+> [!WARNING]\
+> To use this plugin, you must provide valid AWS credentials. The AWS SDK relies on the AWS SDK credential provider chain to authenticate with AWS services. If you are using temporary credentials (such as those obtained through AWS STS, IAM roles, or SSO), be aware that these credentials have an expiration time. AWS SDK exceptions will occur and the plugin will not work properly if your credentials expire without being refreshed or replaced. To avoid interruptions:
+> - Ensure your credential provider supports automatic refresh (most AWS SDK credential providers do this automatically)
+> - Monitor credential expiration times in production environments
+> - Configure appropriate session durations for temporary credentials
+> - Implement proper error handling for credential-related failures
+>
+> For more information on configuring AWS credentials, see our [AWS credentials documentation](../AwsCredentials.md).
 
 To enable the IAM Authentication Connection Plugin, add the plugin code `iam` to the [`wrapperPlugins`](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters) value, or to the current [driver profile](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters).
 
@@ -57,3 +66,31 @@ IAM database authentication use is limited to certain database engines. For more
 [AwsIamAuthenticationPostgresqlExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/AwsIamAuthenticationPostgresqlExample.java)<br>
 [AwsIamAuthenticationMysqlExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/AwsIamAuthenticationMysqlExample.java)<br>
 [AwsIamAuthenticationMariadbExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/AwsIamAuthenticationMariadbExample.java)
+
+## Using IAM Authentication with Global Databases
+
+When using IAM authentication with [Amazon Aurora Global Databases](https://aws.amazon.com/rds/aurora/global-database/), the IAM user or role requires the additional `rds:DescribeGlobalClusters` permission. This permission allows the driver to resolve the Global Database endpoint to the appropriate regional cluster for IAM token generation.
+
+Example IAM policy:
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "rds-db:connect",
+                "rds:DescribeGlobalClusters"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+
+```
+
+> [!NOTE]
+> [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) is **required** when using this plugin with Global databases.
+
+---
+<sup>1</sup> Note: The smaller dependencies cannot be used with Global databases, which require the full [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) dependency.

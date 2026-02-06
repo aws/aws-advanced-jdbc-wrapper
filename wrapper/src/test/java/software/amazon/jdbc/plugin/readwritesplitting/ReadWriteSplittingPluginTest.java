@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.AdditionalMatchers.not;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
@@ -122,7 +123,7 @@ public class ReadWriteSplittingPluginTest {
     when(this.mockPluginService.getCurrentHostSpec()).thenReturn(writerHostSpec);
     when(this.mockPluginService.getAllHosts()).thenReturn(defaultHosts);
     when(this.mockPluginService.getHosts()).thenReturn(defaultHosts);
-    when(this.mockPluginService.getHostSpecByStrategy(eq(HostRole.READER), eq("random")))
+    when(this.mockPluginService.getHostSpecByStrategy(anyList(), eq(HostRole.READER), eq("random")))
         .thenReturn(readerHostSpec1);
     when(this.mockPluginService.connect(eq(writerHostSpec), any(Properties.class)))
         .thenReturn(mockWriterConn);
@@ -565,7 +566,7 @@ public class ReadWriteSplittingPluginTest {
   }
 
   @Test
-  public void testExecuteClearWarningsOnNullConnectionsIsNotCalled() throws SQLException {
+  public void testExecuteClearWarningsOnNullConnectionsIsNotCalled() {
     final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
         defaultProps,

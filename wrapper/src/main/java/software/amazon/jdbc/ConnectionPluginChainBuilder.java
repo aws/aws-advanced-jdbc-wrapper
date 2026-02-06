@@ -46,8 +46,10 @@ import software.amazon.jdbc.plugin.encryption.KmsEncryptionConnectionPluginFacto
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
 import software.amazon.jdbc.plugin.federatedauth.FederatedAuthPluginFactory;
 import software.amazon.jdbc.plugin.federatedauth.OktaAuthPluginFactory;
+import software.amazon.jdbc.plugin.gdbfailover.GlobalDbFailoverConnectionPluginFactory;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPluginFactory;
 import software.amazon.jdbc.plugin.limitless.LimitlessConnectionPluginFactory;
+import software.amazon.jdbc.plugin.readwritesplitting.GdbReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.srw.SimpleReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
@@ -76,6 +78,7 @@ public class ConnectionPluginChainBuilder {
           put("efm2", new software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPluginFactory());
           put("failover", new FailoverConnectionPluginFactory());
           put("failover2", new software.amazon.jdbc.plugin.failover2.FailoverConnectionPluginFactory());
+          put("gdbFailover", new GlobalDbFailoverConnectionPluginFactory());
           put("iam", new IamAuthConnectionPluginFactory());
           put("awsSecretsManager", new AwsSecretsManagerConnectionPluginFactory());
           put("federatedAuth", new FederatedAuthPluginFactory());
@@ -83,6 +86,7 @@ public class ConnectionPluginChainBuilder {
           put("auroraStaleDns", new AuroraStaleDnsPluginFactory());
           put("readWriteSplitting", new ReadWriteSplittingPluginFactory());
           put("srw", new SimpleReadWriteSplittingPluginFactory());
+          put("gdbReadWriteSplitting", new GdbReadWriteSplittingPluginFactory());
           put("auroraConnectionTracker", new AuroraConnectionTrackerPluginFactory());
           put("driverMetaData", new DriverMetaDataConnectionPluginFactory());
           put("connectTime", new ConnectTimeConnectionPluginFactory());
@@ -112,8 +116,10 @@ public class ConnectionPluginChainBuilder {
           put(BlueGreenConnectionPluginFactory.class, 550);
           put(ReadWriteSplittingPluginFactory.class, 600);
           put(SimpleReadWriteSplittingPluginFactory.class, 610);
+          put(GdbReadWriteSplittingPluginFactory.class, 620);
           put(FailoverConnectionPluginFactory.class, 700);
           put(software.amazon.jdbc.plugin.failover2.FailoverConnectionPluginFactory.class, 710);
+          put(GlobalDbFailoverConnectionPluginFactory.class, 720);
           put(HostMonitoringConnectionPluginFactory.class, 800);
           put(software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPluginFactory.class, 810);
           put(FastestResponseStrategyPluginFactory.class, 900);

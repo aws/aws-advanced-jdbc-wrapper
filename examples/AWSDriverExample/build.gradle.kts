@@ -18,17 +18,17 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     implementation("org.postgresql:postgresql:42.7.7")
     implementation("com.mysql:mysql-connector-j:9.4.0")
-    implementation("software.amazon.awssdk:rds:2.33.5")
-    implementation("software.amazon.awssdk:secretsmanager:2.33.5")
-    implementation("software.amazon.awssdk:sts:2.33.5")
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.19.0")
+    implementation("software.amazon.awssdk:rds:2.41.20")
+    implementation("software.amazon.awssdk:secretsmanager:2.41.20")
+    implementation("software.amazon.awssdk:sts:2.41.20")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
     implementation(project(":aws-advanced-jdbc-wrapper"))
     implementation("io.opentelemetry:opentelemetry-api:1.52.0")
     implementation("io.opentelemetry:opentelemetry-sdk:1.51.0")
     implementation("io.opentelemetry:opentelemetry-exporter-otlp:1.52.0")
     implementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
     implementation("org.jsoup:jsoup:1.21.1")
-    implementation("com.mchange:c3p0:0.11.0")
+    implementation("com.mchange:c3p0:0.11.2")
 }
 
 tasks.withType<JavaExec> {

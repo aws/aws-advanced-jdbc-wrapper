@@ -16,8 +16,6 @@
 
 package software.amazon.jdbc.plugin.staledns;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.EnumSet;
@@ -25,11 +23,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
+import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
@@ -43,6 +43,11 @@ public class AuroraStaleDnsHelper {
 
   private static final Logger LOGGER = Logger.getLogger(AuroraStaleDnsHelper.class.getName());
 
+  public static final AwsWrapperProperty SKIP_INACTIVE_WRITER_CLUSTER_CHECK =
+      new AwsWrapperProperty(
+          "skipInactiveWriterClusterEndpointCheck", "false",
+          "Allows to avoid connection check for inactive cluster writer endpoint.");
+
   private final PluginService pluginService;
   private final TelemetryFactory telemetryFactory;
   private final TelemetryCounter staleDNSDetectedCounter;
@@ -50,9 +55,10 @@ public class AuroraStaleDnsHelper {
   private final RdsUtils rdsUtils = new RdsUtils();
 
   private HostSpec writerHostSpec = null;
-  private String writerHostAddress = null;
 
-  private static final int RETRIES = 3;
+  static {
+    PropertyDefinition.registerPluginProperties(AuroraStaleDnsHelper.class);
+  }
 
   public AuroraStaleDnsHelper(final PluginService pluginService) {
     this.pluginService = pluginService;
@@ -75,24 +81,30 @@ public class AuroraStaleDnsHelper {
       return connectFunc.call();
     }
 
+    if (type == RdsUrlType.RDS_WRITER_CLUSTER) {
+      final HostSpec writer = Utils.getWriter(this.pluginService.getAllHosts());
+      if (writer != null && this.rdsUtils.isRdsInstance(writer.getHost())) {
+        if (isInitialConnection
+            && SKIP_INACTIVE_WRITER_CLUSTER_CHECK.getBoolean(props)
+            && !this.rdsUtils.isSameRegion(writer.getHost(), hostSpec.getHost())) {
+          // The cluster writer endpoint belongs to a different region than the current writer region.
+          // It means that the cluster is Aurora Global Database and cluster writer endpoint is in secondary region.
+          // In this case the cluster writer endpoint is in inactive state and doesn't represent the current writer
+          // so any connection check should be skipped.
+          // Continue with a normal workflow.
+          return connectFunc.call();
+        }
+      } else {
+        // No writer is available. It could be the case with the first connection when topology isn't yet available.
+        // Continue with a normal workflow.
+        return connectFunc.call();
+      }
+    }
+
     final Connection conn = connectFunc.call();
 
-    String clusterInetAddress = null;
-    try {
-      clusterInetAddress = InetAddress.getByName(hostSpec.getHost()).getHostAddress();
-    } catch (UnknownHostException e) {
-      // ignore
-    }
-
-    final String hostInetAddress = clusterInetAddress;
-    LOGGER.finest(() -> Messages.get("AuroraStaleDnsHelper.clusterEndpointDns",
-        new Object[]{hostInetAddress}));
-
-    if (clusterInetAddress == null) {
-      return conn;
-    }
-
-    if (this.pluginService.getHostRole(conn) == HostRole.READER) {
+    final boolean isConnectedToReader = this.pluginService.getHostRole(conn) == HostRole.READER;
+    if (isConnectedToReader) {
       // This is if-statement is only reached if the connection url is a writer cluster endpoint.
       // If the new connection resolves to a reader instance, this means the topology is outdated.
       // Force refresh to update the topology.
@@ -118,24 +130,8 @@ public class AuroraStaleDnsHelper {
       return conn;
     }
 
-    if (this.writerHostAddress == null) {
-      try {
-        this.writerHostAddress = InetAddress.getByName(this.writerHostSpec.getHost()).getHostAddress();
-      } catch (UnknownHostException e) {
-        // ignore
-      }
-    }
-
-    LOGGER.finest(() -> Messages.get("AuroraStaleDnsHelper.writerInetAddress",
-        new Object[]{this.writerHostAddress}));
-
-    if (this.writerHostAddress == null) {
-      return conn;
-    }
-
-    if (!writerHostAddress.equals(clusterInetAddress)) {
-      // DNS resolves a cluster endpoint to a wrong writer
-      // opens a connection to a proper writer node
+    if (isConnectedToReader) {
+      // Reconnect to writer host if current connection is reader.
 
       LOGGER.fine(() -> Messages.get("AuroraStaleDnsHelper.staleDnsDetected",
           new Object[]{this.writerHostSpec}));
@@ -148,7 +144,7 @@ public class AuroraStaleDnsHelper {
         throw new SQLException(
             Messages.get("AuroraStaleDnsHelper.currentWriterNotAllowed",
                 new Object[] {
-                    this.writerHostSpec == null ? "<null>" : this.writerHostSpec.getHostAndPort(),
+                    this.writerHostSpec.getHostAndPort(),
                     LogUtils.logTopology(allowedHosts, "")})
         );
       }
@@ -182,7 +178,6 @@ public class AuroraStaleDnsHelper {
           && entry.getValue().contains(NodeChangeOptions.PROMOTED_TO_READER)) {
         LOGGER.finest(() -> Messages.get("AuroraStaleDnsHelper.reset"));
         this.writerHostSpec = null;
-        this.writerHostAddress = null;
         return;
       }
     }

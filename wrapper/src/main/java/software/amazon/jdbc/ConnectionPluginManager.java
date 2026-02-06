@@ -45,7 +45,9 @@ import software.amazon.jdbc.plugin.federatedauth.FederatedAuthPlugin;
 import software.amazon.jdbc.plugin.federatedauth.OktaAuthPlugin;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.plugin.limitless.LimitlessConnectionPlugin;
+import software.amazon.jdbc.plugin.readwritesplitting.GdbReadWriteSplittingPlugin;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
+import software.amazon.jdbc.plugin.srw.SimpleReadWriteSplittingPlugin;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPlugin;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPlugin;
 import software.amazon.jdbc.profile.ConfigurationProfile;
@@ -78,12 +80,15 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
           put(software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin.class, "plugin:efm2");
           put(FailoverConnectionPlugin.class, "plugin:failover");
           put(software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin.class, "plugin:failover2");
+          put(software.amazon.jdbc.plugin.gdbfailover.GlobalDbFailoverConnectionPlugin.class, "plugin:gdbFailover");
           put(IamAuthConnectionPlugin.class, "plugin:iam");
           put(AwsSecretsManagerConnectionPlugin.class, "plugin:awsSecretsManager");
           put(FederatedAuthPlugin.class, "plugin:federatedAuth");
           put(OktaAuthPlugin.class, "plugin:okta");
           put(AuroraStaleDnsPlugin.class, "plugin:auroraStaleDns");
           put(ReadWriteSplittingPlugin.class, "plugin:readWriteSplitting");
+          put(SimpleReadWriteSplittingPlugin.class, "plugin:srw");
+          put(GdbReadWriteSplittingPlugin.class, "plugin:gdbReadWriteSplitting");
           put(FastestResponseStrategyPlugin.class, "plugin:fastestResponseStrategy");
           put(DefaultConnectionPlugin.class, "plugin:targetDriver");
           put(AuroraInitialConnectionStrategyPlugin.class, "plugin:initialConnection");
@@ -476,7 +481,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
         if (isSubscribed) {
           try {
-            final HostSpec host = Utils.isNullOrEmpty(hosts)
+            final HostSpec host = hosts == null
                 ? plugin.getHostSpecByStrategy(role, strategy)
                 : plugin.getHostSpecByStrategy(hosts, role, strategy);
 

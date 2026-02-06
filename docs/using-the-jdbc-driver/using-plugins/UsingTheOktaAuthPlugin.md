@@ -13,12 +13,21 @@ In the case of AD FS, the user signs into the AD FS sign in page. This generates
 
 ## Prerequisites
 - This plugin requires the following runtime dependencies to be registered separately in the classpath:
-  - [AWS Java SDK RDS v2.7.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds)
-  - [AWS Java SDK STS v2.7.x](https://central.sonatype.com/artifact/software.amazon.awssdk/sts)
+  - [AWS Java SDK RDS v2.7.x or later](https://central.sonatype.com/artifact/software.amazon.awssdk/rds)
+  - [AWS Java SDK STS v2.7.x or later](https://central.sonatype.com/artifact/software.amazon.awssdk/sts)
   - [jsoup](https://central.sonatype.com/artifact/org.jsoup/jsoup)
   - [Jackson Databind](https://central.sonatype.com/artifact/com.fasterxml.jackson.core/jackson-databind)
 - Note: The above dependencies may have transitive dependencies that are also required (ex. AWS Java SDK RDS requires [AWS Java SDK Core](https://central.sonatype.com/artifact/software.amazon.awssdk/aws-core/)). If you are not using a package manager such as Maven or Gradle, please refer to Maven Central to determine these transitive dependencies. 
-- This plugin does not create or modify any Okta or IAM resources. Okta must be federated into to your AWS IAM account before using this plugin. You can follow Okta's [integration guide](https://help.okta.com/en-us/content/topics/deploymentguides/aws/aws-deployment.htm).
+- This plugin does not create or modify any Okta or IAM resources. Okta must be federated into to your AWS IAM account before using this plugin. You can follow Okta's [integration guide](https://help.okta.com/en-us/content/topics/deploymentguides/aws/aws-deployment.htm). In addition, all permissions and policies must be correctly configured before using this plugin. If you plan on using [Amazon Aurora Global Databases](https://aws.amazon.com/rds/aurora/global-database/) with this plugin, please see the [Using Okta Authentication with Global Databases](#using-okta-authentication-with-global-databases) section as well.
+
+> [!WARNING]\
+> To use this plugin, you must provide valid AWS credentials. The AWS SDK relies on the AWS SDK credential provider chain to authenticate with AWS services. If you are using temporary credentials (such as those obtained through AWS STS, IAM roles, or SSO), be aware that these credentials have an expiration time. AWS SDK exceptions will occur and the plugin will not work properly if your credentials expire without being refreshed or replaced. To avoid interruptions:
+> - Ensure your credential provider supports automatic refresh (most AWS SDK credential providers do this automatically)
+> - Monitor credential expiration times in production environments
+> - Configure appropriate session durations for temporary credentials
+> - Implement proper error handling for credential-related failures
+>
+> For more information on configuring AWS credentials, see our [AWS credentials documentation](../AwsCredentials.md).
 
 > [!NOTE]\
 > Since [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) size is around 5.4Mb (22Mb including all RDS SDK dependencies), some users may experience difficulties using the plugin due to limited available disk size.
@@ -66,3 +75,28 @@ Verify plugin compatibility within your driver configuration using the [compatib
 
 ## Sample code
 [OktaAuthPluginExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/OktaAuthPluginExample.java)
+
+## Using Okta Authentication with Global Databases
+
+When using Okta authentication with [Amazon Aurora Global Databases](https://aws.amazon.com/rds/aurora/global-database/), the IAM user or role requires the additional `rds:DescribeGlobalClusters` permission. This permission allows the driver to resolve the Global Database endpoint to the appropriate regional cluster for IAM token generation.
+
+Example IAM policy:
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "rds-db:connect",
+                "rds:DescribeGlobalClusters"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+
+```
+
+> [!NOTE]
+> [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) is **required** when using this plugin with Global databases.

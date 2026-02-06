@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
@@ -107,8 +108,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           "skipFailoverOnInterruptedThread", "false",
           "Enable to skip failover if the current thread is interrupted.");
 
-  private final Set<String> subscribedMethods;
-
+  protected final Set<String> subscribedMethods;
   protected final PluginService pluginService;
   protected final Properties properties;
   protected int failoverTimeoutMsSetting;
@@ -170,6 +170,12 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     this.failoverReaderSuccessCounter = telemetryFactory.createCounter("readerFailover.completed.success.count");
     this.failoverReaderFailedCounter = telemetryFactory.createCounter("readerFailover.completed.failed.count");
 
+    final HashSet<String> methods = this.getSubscribedMethodNames();
+    methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.properties));
+    this.subscribedMethods = Collections.unmodifiableSet(methods);
+  }
+
+  protected @NonNull HashSet<String> getSubscribedMethodNames() {
     final HashSet<String> methods = new HashSet<>();
 
     /* Hikari need to clear warnings on a connection before returning it back to a pool. And a current
@@ -180,8 +186,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     methods.add(JdbcMethod.CONNECT.methodName);
     methods.add(JdbcMethod.NOTIFYNODELISTCHANGED.methodName);
     methods.add(JdbcMethod.CONNECTION_SETAUTOCOMMIT.methodName);
-    methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames(this.properties));
-    this.subscribedMethods = Collections.unmodifiableSet(methods);
+    return methods;
   }
 
   @Override
@@ -760,7 +765,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         || methodName.equals(JdbcMethod.CONNECTION_ABORT.methodName));
   }
 
-  protected void initFailoverMode() {
+  protected void initFailoverMode() throws SQLException {
     if (this.rdsUrlType == null) {
       this.failoverMode = FailoverMode.fromValue(FAILOVER_MODE.getString(this.properties));
       final HostSpec initialHostSpec = this.hostListProviderService.getInitialConnectionHostSpec();

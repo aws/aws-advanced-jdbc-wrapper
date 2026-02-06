@@ -25,6 +25,7 @@ import java.util.function.BiFunction;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.http.HttpStatusCode;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.rds.RdsClient;
@@ -56,6 +57,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
   protected static final long MONITOR_TERMINATION_TIMEOUT_SEC = 30;
 
   protected final AtomicBoolean refreshRequired = new AtomicBoolean(false);
+  protected final AtomicBoolean hasConnectionIssue = new AtomicBoolean(false);
   protected final RdsClient rdsClient;
   protected final HostSpec customEndpointHostSpec;
   protected final String endpointIdentifier;
@@ -129,6 +131,8 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
                   (builder) ->
                       builder.dbClusterEndpointIdentifier(this.endpointIdentifier).filters(customEndpointFilter));
 
+          this.hasConnectionIssue.set(false);
+
           List<DBClusterEndpoint> endpoints = endpointsResponse.dbClusterEndpoints();
           if (endpoints.size() != 1) {
             List<String> endpointURLs =
@@ -164,9 +168,11 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
           // The custom endpoint info has changed, so we need to update the set of allowed/blocked hosts.
           AllowedAndBlockedHosts allowedAndBlockedHosts;
           if (STATIC_LIST.equals(endpointInfo.getMemberListType())) {
-            allowedAndBlockedHosts = new AllowedAndBlockedHosts(endpointInfo.getStaticMembers(), null);
+            allowedAndBlockedHosts = new AllowedAndBlockedHosts(
+                endpointInfo.getStaticMembers(), null, endpointInfo.getRequiredRole());
           } else {
-            allowedAndBlockedHosts = new AllowedAndBlockedHosts(null, endpointInfo.getExcludedMembers());
+            allowedAndBlockedHosts = new AllowedAndBlockedHosts(
+                null, endpointInfo.getExcludedMembers(), endpointInfo.getRequiredRole());
           }
 
           this.storageService.set(this.customEndpointHostSpec.getUrl(), allowedAndBlockedHosts);
@@ -200,6 +206,18 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
           } else {
             this.sleep(this.refreshRateNano);
           }
+        } catch (SdkClientException ex) {
+          LOGGER.log(Level.SEVERE,
+              Messages.get(
+                  "CustomEndpointMonitorImpl.exception",
+                  new Object[] {this.customEndpointHostSpec.getUrl()}), ex);
+
+          if (!ex.retryable()) {
+            // It seems that the exception is persistent so we don't need to rush trying again.
+            this.refreshRequired.set(false);
+            this.hasConnectionIssue.set(true);
+          }
+          this.sleep(this.refreshRateNano);
         } catch (Exception e) {
           // If the exception is not an InterruptedException, log it and continue monitoring.
           LOGGER.log(Level.SEVERE,
@@ -257,7 +275,7 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
 
   public boolean hasCustomEndpointInfo() {
     CustomEndpointInfo customEndpointInfo = customEndpointInfoCache.get(this.customEndpointHostSpec.getUrl());
-    if (customEndpointInfo == null && !this.refreshRequired.get()) {
+    if (customEndpointInfo == null && !this.refreshRequired.get() && !this.hasConnectionIssue.get()) {
       // There is no custom endpoint info, probably because the cache entry has expired. We use notifyAll below to
       // wake up the custom endpoint monitor if it is sleeping.
       synchronized (this.refreshRequired) {
@@ -267,6 +285,17 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
     }
 
     return customEndpointInfo != null;
+  }
+
+  public void requestCustomEndpointInfoUpdate() {
+    if (this.hasConnectionIssue.get()) {
+      // We can't force update since there's an AWS SDK connectivity issue.
+      return;
+    }
+    synchronized (this.refreshRequired) {
+      this.refreshRequired.set(true);
+      this.refreshRequired.notifyAll();
+    }
   }
 
   @Override

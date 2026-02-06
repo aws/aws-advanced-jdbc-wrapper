@@ -28,13 +28,13 @@ Use the global cluster endpoint:
 
 **Configuration Parameters:**
 
-| Parameter | Value | Notes |
-|-----------|-------|-------|
-| `clusterId` | `1` | See [clusterId parameter documentation](./using-plugins/UsingTheFailover2Plugin.md#failover-plugin-v2-configuration-parameters) |
-| `wrapperDialect` | `global-aurora-mysql` or `global-aurora-pg` | |
-| `wrapperPlugins` | `initialConnection,failover2,efm2` | Without connection pooling |
-| | `auroraConnectionTracker,initialConnection,failover2,efm2` | With connection pooling |
-| `globalClusterInstanceHostPatterns` | `?.XYZ1.us-east-2.rds.amazonaws.com,?.XYZ2.us-west-2.rds.amazonaws.com` | See [documentation](./using-plugins/UsingTheFailover2Plugin.md) |
+| Parameter                           | Value                                                                   | Notes                                                                                  |
+|-------------------------------------|-------------------------------------------------------------------------|----------------------------------------------------------------------------------------|
+| `clusterId`                         | `1`                                                                     | See [clusterId parameter documentation](../../docs/using-the-jdbc-driver/ClusterId.md) |
+| `wrapperDialect`                    | `global-aurora-mysql` or `global-aurora-pg`                             |                                                                                        |
+| `wrapperPlugins`                    | `initialConnection,failover2,efm2`                                      | Without connection pooling                                                             |
+|                                     | `auroraConnectionTracker,initialConnection,failover2,efm2`              | With connection pooling                                                                |
+| `globalClusterInstanceHostPatterns` | `?.XYZ1.us-east-2.rds.amazonaws.com,?.XYZ2.us-west-2.rds.amazonaws.com` | See [documentation](./using-plugins/UsingTheFailover2Plugin.md)                        |
 
 > **Note:** Add additional plugins according to the [compatibility guide](./CompatibilityCrossPlugins.md).
 
@@ -48,14 +48,14 @@ Use the cluster reader endpoint:
 
 **Configuration Parameters:**
 
-| Parameter | Value | Notes |
-|-----------|-------|-------|
-| `clusterId` | `1` | Use the same value as writer connections |
-| `wrapperDialect` | `global-aurora-mysql` or `global-aurora-pg` | |
-| `wrapperPlugins` | `initialConnection,failover2,efm2` | Without connection pooling |
-| | `auroraConnectionTracker,initialConnection,failover2,efm2` | With connection pooling |
-| `globalClusterInstanceHostPatterns` | Same as writer configuration | |
-| `failoverMode` | `strict-reader` or `reader-or-writer` | Depending on system requirements |
+| Parameter                           | Value                                                      | Notes                                    |
+|-------------------------------------|------------------------------------------------------------|------------------------------------------|
+| `clusterId`                         | `1`                                                        | Use the same value as writer connections |
+| `wrapperDialect`                    | `global-aurora-mysql` or `global-aurora-pg`                |                                          |
+| `wrapperPlugins`                    | `initialConnection,failover2,efm2`                         | Without connection pooling               |
+|                                     | `auroraConnectionTracker,initialConnection,failover2,efm2` | With connection pooling                  |
+| `globalClusterInstanceHostPatterns` | Same as writer configuration                               |                                          |
+| `failoverMode`                      | `strict-reader` or `reader-or-writer`                      | Depending on system requirements         |
 
 > **Note:** Add additional plugins according to the [compatibility guide](./CompatibilityCrossPlugins.md).
 
@@ -128,4 +128,5 @@ For detailed compatibility information, see:
 
 - [Failover Plugin v2](./using-plugins/UsingTheFailover2Plugin.md)
 - [Aurora Initial Connection Strategy Plugin](./using-plugins/UsingTheAuroraInitialConnectionStrategyPlugin.md)
+- [IAM Authentication Plugin](./using-plugins/UsingTheIamAuthenticationPlugin.md)
 - [Database Dialects](./DatabaseDialects.md)

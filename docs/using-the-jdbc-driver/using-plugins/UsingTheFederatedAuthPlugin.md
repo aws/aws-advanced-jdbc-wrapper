@@ -14,10 +14,19 @@ In the case of AD FS, the user signs into the AD FS sign in page. This generates
 
 ## Prerequisites
 - To preserve compatibility with customers using the community driver, this plugin requires the following runtime dependencies to be registered in the classpath:
-  - [AWS Java SDK RDS v2.7.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds)
-  - [AWS Java SDK STS v2.7.x](https://central.sonatype.com/artifact/software.amazon.awssdk/sts)
+  - [AWS Java SDK RDS v2.7.x or later](https://central.sonatype.com/artifact/software.amazon.awssdk/rds)
+  - [AWS Java SDK STS v2.7.x or later](https://central.sonatype.com/artifact/software.amazon.awssdk/sts)
 - Note: The above dependencies may have transitive dependencies that are also required (ex. AWS Java SDK RDS requires [AWS Java SDK Core](https://central.sonatype.com/artifact/software.amazon.awssdk/aws-core/)). If you are not using a package manager such as Maven or Gradle, please refer to Maven Central to determine these transitive dependencies.
-- This plugin does not create or modify any ADFS or IAM resources, therefore all permissions and policies must be correctly configured before using this plugin.
+- This plugin does not create or modify any ADFS or IAM resources, therefore all permissions and policies must be correctly configured before using this plugin. If you plan on using [Amazon Aurora Global Databases](https://aws.amazon.com/rds/aurora/global-database/) with this plugin, please see the [Using Federated Authentication with Global Databases](#using-federated-authentication-with-global-databases) section as well.
+
+> [!WARNING]\
+> To use this plugin, you must provide valid AWS credentials. The AWS SDK relies on the AWS SDK credential provider chain to authenticate with AWS services. If you are using temporary credentials (such as those obtained through AWS STS, IAM roles, or SSO), be aware that these credentials have an expiration time. AWS SDK exceptions will occur and the plugin will not work properly if your credentials expire without being refreshed or replaced. To avoid interruptions:
+> - Ensure your credential provider supports automatic refresh (most AWS SDK credential providers do this automatically)
+> - Monitor credential expiration times in production environments
+> - Configure appropriate session durations for temporary credentials
+> - Implement proper error handling for credential-related failures
+>
+> For more information on configuring AWS credentials, see our [AWS credentials documentation](../AwsCredentials.md).
 
 > [!NOTE]\
 > Since [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) size is around 5.4Mb (22Mb including all RDS SDK dependencies), some users may experience difficulties using the plugin due to limited available disk size.
@@ -37,7 +46,7 @@ This JAR is a drop-in ready solution and is **recommended for customers who do n
 As this plugin has a number of transitive dependencies, the goal of this JAR is to eliminate the need to manually source all the dependencies and avoid potential issues with managing them. 
 In that spirit, the dependencies in this JAR are shaded with the prefix `shaded` to avoid potential package conflicts with pre-existing packages in your environment.
 
-It is important to note that the Uber JAR is bundled with the AWS Java RDS SDK and is larger (**15 MB**) than our `aws-advanced-jdbc-wrapper-3.1.0.jar`. So please take that into account when deciding if this solution is for you.
+It is important to note that the Uber JAR is bundled with the AWS Java RDS SDK and is larger (**15 MB**) than our `aws-advanced-jdbc-wrapper-3.2.0.jar`. So please take that into account when deciding if this solution is for you.
 
 If you would like to download and install the bundled Uber JAR, follow these [instructions](../../GettingStarted.md#direct-download-and-installation).
 
@@ -78,3 +87,28 @@ Note: AWS IAM database authentication is needed to use the Federated Authenticat
 
 ## Sample code
 [FederatedAuthPluginExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/FederatedAuthPluginExample.java)
+
+## Using Federated Authentication with Global Databases
+
+When using Federated authentication with [Amazon Aurora Global Databases](https://aws.amazon.com/rds/aurora/global-database/), the IAM user or role requires the additional `rds:DescribeGlobalClusters` permission. This permission allows the driver to resolve the Global Database endpoint to the appropriate regional cluster for IAM token generation.
+
+Example IAM policy:
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "rds-db:connect",
+                "rds:DescribeGlobalClusters"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+
+```
+
+> [!NOTE]
+> [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) is **required** when using this plugin with Global databases.
