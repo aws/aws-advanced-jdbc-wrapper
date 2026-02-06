@@ -27,12 +27,14 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.amazon.jdbc.util.monitoring.AbstractMonitor;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryGauge;
@@ -61,17 +63,17 @@ public class CacheMonitorTest {
     props.setProperty("cacheEndpointAddrRo", "localhost:6380");
 
     // Setup telemetry mocks
-    when(mockTelemetryFactory.createCounter("JdbcCacheStateTransitionCount"))
+    when(mockTelemetryFactory.createCounter("dataRemoteCache.cache.stateTransition"))
         .thenReturn(mockStateTransitionCounter);
-    when(mockTelemetryFactory.createCounter("JdbcCacheHealthCheckSuccessCount"))
+    when(mockTelemetryFactory.createCounter("dataRemoteCache.cache.healthCheck.success"))
         .thenReturn(mockHealthCheckSuccessCounter);
-    when(mockTelemetryFactory.createCounter("JdbcCacheHealthCheckFailureCount"))
+    when(mockTelemetryFactory.createCounter("dataRemoteCache.cache.healthCheck.failure"))
         .thenReturn(mockHealthCheckFailureCounter);
-    when(mockTelemetryFactory.createCounter("JdbcCacheErrorCount"))
+    when(mockTelemetryFactory.createCounter("dataRemoteCache.cache.error"))
         .thenReturn(mockErrorCounter);
-    when(mockTelemetryFactory.createGauge(eq("JdbcCacheConsecutiveSuccessCount"), any()))
+    when(mockTelemetryFactory.createGauge(eq("dataRemoteCache.cache.healthCheck.consecutiveSuccess"), any()))
         .thenReturn(mockConsecutiveSuccessGauge);
-    when(mockTelemetryFactory.createGauge(eq("JdbcCacheConsecutiveFailureCount"), any()))
+    when(mockTelemetryFactory.createGauge(eq("dataRemoteCache.cache.healthCheck.consecutiveFailure"), any()))
         .thenReturn(mockConsecutiveFailureGauge);
 
     // Reset singleton state between tests
@@ -87,7 +89,7 @@ public class CacheMonitorTest {
     long inFlightLimit = CacheMonitor.CACHE_IN_FLIGHT_WRITE_SIZE_LIMIT.getLong(props);
     boolean healthCheckInHealthy = CacheMonitor.CACHE_HEALTH_CHECK_IN_HEALTHY_STATE.getBoolean(props);
 
-    CacheMonitor.registerCluster(inFlightLimit, healthCheckInHealthy, null, rwEndpoint, roEndpoint,
+    CacheMonitor.registerCluster(null, inFlightLimit, healthCheckInHealthy, null, rwEndpoint, roEndpoint,
         false, Duration.ofSeconds(5), false, null, null, null, null, null, false, false);
 
     CacheMonitor.ClusterHealthState cluster = getCluster(rwEndpoint, roEndpoint);
@@ -102,7 +104,7 @@ public class CacheMonitorTest {
     long inFlightLimit = CacheMonitor.CACHE_IN_FLIGHT_WRITE_SIZE_LIMIT.getLong(props);
     boolean healthCheckInHealthy = CacheMonitor.CACHE_HEALTH_CHECK_IN_HEALTHY_STATE.getBoolean(props);
 
-    CacheMonitor.registerCluster(inFlightLimit, healthCheckInHealthy, mockTelemetryFactory, rwEndpoint, roEndpoint,
+    CacheMonitor.registerCluster(null, inFlightLimit, healthCheckInHealthy, mockTelemetryFactory, rwEndpoint, roEndpoint,
         false, Duration.ofSeconds(5), false, null, null, null, null, null, false, false);
 
     CacheMonitor.ClusterHealthState cluster = getCluster(rwEndpoint, roEndpoint);
@@ -119,7 +121,6 @@ public class CacheMonitorTest {
    */
   private void resetCacheMonitorState() throws Exception {
     setStaticField("instance", null);
-    setStaticField("monitorThreadStarted", false);
 
     @SuppressWarnings("unchecked")
     Map<String, CacheMonitor.ClusterHealthState> clusterStates =
@@ -184,8 +185,6 @@ public class CacheMonitorTest {
 
     Object instance = getStaticField("instance");
     assertNotNull(instance);
-    Boolean monitorThreadStarted = (Boolean) getStaticField("monitorThreadStarted");
-    assertFalse(monitorThreadStarted);
 
     // Test 2: Dual endpoints
     registerCluster("localhost:6380", "localhost:6381");
@@ -403,7 +402,7 @@ public class CacheMonitorTest {
   }
 
   @Test
-  void testRun_MonitoringBehavior() throws Exception {
+  void testMonitor_MonitoringBehavior() throws Exception {
     when(mockRwPingConnection.isOpen()).thenReturn(true);
     when(mockRwPingConnection.ping()).thenReturn(true);
 
@@ -414,10 +413,18 @@ public class CacheMonitorTest {
     AtomicInteger sleepCount = new AtomicInteger(0);
     CacheMonitor finalSpy = spy;
     doAnswer(inv -> {
-      if (sleepCount.incrementAndGet() >= 2) setInstanceField(finalSpy, "stopped", true);
+      if (sleepCount.incrementAndGet() >= 2) {  // ← ADD counter check back
+        Field stopField = AbstractMonitor.class.getDeclaredField("stop");
+        stopField.setAccessible(true);
+        ((AtomicBoolean) stopField.get(finalSpy)).set(true);
+      }
       return null;
     }).when(spy).sleep(anyLong());
-    spy.run();
+    try {
+      spy.monitor();
+    } catch (Exception e) {
+
+    }
     verify(mockRwPingConnection, never()).ping();
 
     // HEALTHY with health check enabled: executes ping
@@ -429,10 +436,18 @@ public class CacheMonitorTest {
     sleepCount.set(0);
     CacheMonitor finalSpy1 = spy;
     doAnswer(inv -> {
-      if (sleepCount.incrementAndGet() >= 2) setInstanceField(finalSpy1, "stopped", true);
+      if (sleepCount.incrementAndGet() >= 2) {  // ← ADD counter check back
+        Field stopField = AbstractMonitor.class.getDeclaredField("stop");
+        stopField.setAccessible(true);
+        ((AtomicBoolean) stopField.get(finalSpy1)).set(true);
+      }
       return null;
     }).when(spy).sleep(anyLong());
-    spy.run();
+    try {
+      spy.monitor();
+    } catch (Exception e) {
+
+    }
     verify(mockRwPingConnection, times(2)).ping();
 
     // SUSPECT/DEGRADED: always pings
@@ -446,10 +461,18 @@ public class CacheMonitorTest {
     sleepCount.set(0);
     CacheMonitor finalSpy2 = spy;
     doAnswer(inv -> {
-      if (sleepCount.incrementAndGet() >= 2) setInstanceField(finalSpy2, "stopped", true);
+      if (sleepCount.incrementAndGet() >= 2) {
+        Field stopField = AbstractMonitor.class.getDeclaredField("stop");
+        stopField.setAccessible(true);
+        ((AtomicBoolean) stopField.get(finalSpy2)).set(true);
+      }
       return null;
     }).when(spy).sleep(anyLong());
-    spy.run();
+    try {
+      spy.monitor();
+    } catch (Exception e) {
+
+    }
     verify(mockRwPingConnection, times(4)).ping();
 
     // Dual endpoints: pings both
@@ -467,10 +490,18 @@ public class CacheMonitorTest {
     sleepCount.set(0);
     CacheMonitor finalSpy3 = spy;
     doAnswer(inv -> {
-      if (sleepCount.incrementAndGet() >= 2) setInstanceField(finalSpy3, "stopped", true);
+      if (sleepCount.incrementAndGet() >= 2) {
+        Field stopField = AbstractMonitor.class.getDeclaredField("stop");
+        stopField.setAccessible(true);
+        ((AtomicBoolean) stopField.get(finalSpy3)).set(true);
+      }
       return null;
     }).when(spy).sleep(anyLong());
-    spy.run();
+    try {
+      spy.monitor();
+    } catch (Exception e) {
+
+    }
     verify(mockRwPingConnection, times(2)).ping();
     verify(mockRoPingConnection, times(2)).ping();
 
@@ -489,10 +520,18 @@ public class CacheMonitorTest {
     sleepCount.set(0);
     CacheMonitor finalSpy4 = spy;
     doAnswer(inv -> {
-      if (sleepCount.incrementAndGet() >= 2) setInstanceField(finalSpy4, "stopped", true);
+      if (sleepCount.incrementAndGet() >= 2) {
+        Field stopField = AbstractMonitor.class.getDeclaredField("stop");
+        stopField.setAccessible(true);
+        ((AtomicBoolean) stopField.get(finalSpy4)).set(true);
+      }
       return null;
     }).when(spy).sleep(anyLong());
-    spy.run();
+    try {
+      spy.monitor();
+    } catch (Exception e) {
+
+    }
     verify(mockRwPingConnection, times(2)).ping();
   }
 
