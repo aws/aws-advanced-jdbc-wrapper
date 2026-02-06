@@ -1954,6 +1954,13 @@ public class BlueGreenDeploymentTests {
         .filter(r -> r.connectedToBlue)
         .count();
 
+    long connectionsToGreenAfterSwitchoverStart = this.results.values().stream()
+        .flatMap(r -> r.hostVerificationResults.stream())
+        .filter(r -> getTimeOffsetMs(r.timestamp, bgTriggerTime) > switchoverInProgressTime)
+        .filter(r -> r.error == null)
+        .filter(r -> !r.connectedToBlue)
+        .count();
+
     long totalVerificationsAfterSwitchoverStart = this.results.values().stream()
         .flatMap(r -> r.hostVerificationResults.stream())
         .filter(r -> getTimeOffsetMs(r.timestamp, bgTriggerTime) > switchoverInProgressTime)
@@ -1961,8 +1968,9 @@ public class BlueGreenDeploymentTests {
         .count();
 
     LOGGER.info(() -> String.format(
-        "After switchover IN_PROGRESS (%d ms): %d total connections, %d to old blue",
-        switchoverInProgressTime, totalVerificationsAfterSwitchoverStart, connectionsToBlueAfterSwitchoverStart));
+        "After switchover IN_PROGRESS (%d ms): %d total connections, %d to old host, %d to new host",
+        switchoverInProgressTime, totalVerificationsAfterSwitchoverStart,
+        connectionsToBlueAfterSwitchoverStart, connectionsToGreenAfterSwitchoverStart));
 
     // Log details if any connections went to old blue after switchover
     if (connectionsToBlueAfterSwitchoverStart > 0) {
