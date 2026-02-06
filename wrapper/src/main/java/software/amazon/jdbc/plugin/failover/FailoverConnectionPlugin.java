@@ -106,7 +106,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private boolean telemetryFailoverAdditionalTopTraceSetting;
 
   private final AtomicBoolean closedExplicitly = new AtomicBoolean(false);
-  protected boolean isClosed = false;
   protected String closedReason = null;
   private final RdsUtils rdsHelper;
   protected WriterFailoverHandler writerFailoverHandler = null;
@@ -272,12 +271,12 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return result;
     }
 
-    if (this.isClosed && !allowedOnClosedConnection(methodName)) {
-      try {
+    try {
+      if (this.pluginService.getCurrentConnection().isClosed() && !allowedOnClosedConnection(methodName)) {
         invalidInvocationOnClosedConnection();
-      } catch (final SQLException ex) {
-        throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, ex);
       }
+    } catch (final SQLException ex) {
+      throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, ex);
     }
 
     T result = null;
@@ -431,7 +430,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   private void invalidInvocationOnClosedConnection() throws SQLException {
     if (!this.closedExplicitly.get()) {
-      this.isClosed = false;
       this.closedReason = null;
       pickNewConnection();
 
@@ -859,7 +857,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   protected void pickNewConnection() throws SQLException {
-    if (this.isClosed && this.closedExplicitly.get()) {
+    if (this.pluginService.getCurrentConnection().isClosed() && this.closedExplicitly.get()) {
       LOGGER.fine(() -> Messages.get("Failover.transactionResolutionUnknownError"));
       return;
     }
