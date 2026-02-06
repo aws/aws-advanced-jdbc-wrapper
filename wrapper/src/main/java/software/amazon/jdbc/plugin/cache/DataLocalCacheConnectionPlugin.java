@@ -34,6 +34,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryGauge;
@@ -129,10 +130,7 @@ public class DataLocalCacheConnectionPlugin extends AbstractConnectionPlugin {
         try {
           result.beforeFirst();
         } catch (final SQLException ex) {
-          if (exceptionClass.isAssignableFrom(ex.getClass())) {
-            throw exceptionClass.cast(ex);
-          }
-          throw new RuntimeException(ex);
+          throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, ex);
         }
         return resultClass.cast(result);
       }
@@ -156,7 +154,6 @@ public class DataLocalCacheConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   protected String getQuery(final Object[] jdbcMethodArgs) {
-
     // Get query from method argument
     if (jdbcMethodArgs != null && jdbcMethodArgs.length > 0 && jdbcMethodArgs[0] != null) {
       return jdbcMethodArgs[0].toString();

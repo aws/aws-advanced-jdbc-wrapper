@@ -17,6 +17,7 @@
 package software.amazon.jdbc.targetdriverdialect;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.Set;
@@ -65,4 +66,6 @@ public interface TargetDriverDialect {
 
   void abortConnection(final @NonNull Connection connectionToAbort, final @NonNull Executor abortExecutor)
       throws SQLException;
+
+  String getSQLQueryString(PreparedStatement ps);
 }

@@ -18,6 +18,7 @@ package software.amazon.jdbc.targetdriverdialect;
 
 import java.sql.Connection;
 import java.sql.Driver;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -172,5 +173,11 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   public void abortConnection(@NonNull Connection connectionToAbort, @NonNull Executor abortExecutor)
       throws SQLException {
     connectionToAbort.abort(abortExecutor);
+  }
+
+  @Override
+  public String getSQLQueryString(PreparedStatement ps) {
+    // For PG, this gives the raw query string itself. i.e. "select * from T where A = 1".
+    return this.findSQLQueryString(ps, null);
   }
 }
