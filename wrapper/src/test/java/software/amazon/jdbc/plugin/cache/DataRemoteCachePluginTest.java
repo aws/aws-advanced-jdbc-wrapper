@@ -22,6 +22,8 @@ import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.states.SessionStateService;
+import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -34,8 +36,10 @@ public class DataRemoteCachePluginTest {
   private AutoCloseable closeable;
 
   private DataRemoteCachePlugin plugin;
+  @Mock FullServicesContainer mockServicesContainer;
   @Mock PluginService mockPluginService;
   @Mock TelemetryFactory mockTelemetryFactory;
+  @Mock MonitorService mockMonitorService;
   @Mock TelemetryCounter mockCacheHitCounter;
   @Mock TelemetryCounter mockCacheMissCounter;
   @Mock TelemetryCounter mockTotalQueryCounter;
@@ -58,12 +62,15 @@ public class DataRemoteCachePluginTest {
     props = new Properties();
     props.setProperty("wrapperPlugins", "dataRemoteCache");
     props.setProperty("cacheEndpointAddrRw", "localhost:6379");
-    when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
-    when(mockTelemetryFactory.createCounter("JdbcCachedQueryCount")).thenReturn(mockCacheHitCounter);
-    when(mockTelemetryFactory.createCounter("JdbcCacheMissCount")).thenReturn(mockCacheMissCounter);
-    when(mockTelemetryFactory.createCounter("JdbcCacheTotalQueryCount")).thenReturn(mockTotalQueryCounter);
-    when(mockTelemetryFactory.createCounter("JdbcCacheMalformedQueryHint")).thenReturn(mockMalformedHintCounter);
-    when(mockTelemetryFactory.createCounter("JdbcCacheBypassCount")).thenReturn(mockCacheBypassCounter);
+    // Setup mock services container
+    when(mockServicesContainer.getPluginService()).thenReturn(mockPluginService);
+    when(mockServicesContainer.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
+    when(mockServicesContainer.getMonitorService()).thenReturn(mockMonitorService);
+    when(mockTelemetryFactory.createCounter("dataRemoteCache.cache.hit")).thenReturn(mockCacheHitCounter);
+    when(mockTelemetryFactory.createCounter("dataRemoteCache.cache.miss")).thenReturn(mockCacheMissCounter);
+    when(mockTelemetryFactory.createCounter("dataRemoteCache.cache.totalQueries")).thenReturn(mockTotalQueryCounter);
+    when(mockTelemetryFactory.createCounter("dataRemoteCache.cache.malformedHints")).thenReturn(mockMalformedHintCounter);
+    when(mockTelemetryFactory.createCounter("dataRemoteCache.cache.bypass")).thenReturn(mockCacheBypassCounter);
     when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
     when(mockResult1.getMetaData()).thenReturn(mockMetaData);
     when(mockMetaData.getColumnCount()).thenReturn(1);
@@ -77,7 +84,7 @@ public class DataRemoteCachePluginTest {
 
   @Test
   void test_getTTLFromQueryHint() throws Exception {
-    plugin = new DataRemoteCachePlugin(mockPluginService, props);
+    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Null and empty query hint content are not cacheable
     assertNull(plugin.getTtlForQuery(null));
@@ -129,7 +136,7 @@ public class DataRemoteCachePluginTest {
 
   @Test
   void test_getTTLFromQueryHint_MalformedHints() throws Exception {
-    plugin = new DataRemoteCachePlugin(mockPluginService, props);
+    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Test malformed cases
     assertNull(plugin.getTtlForQuery("CACHE_PARAM()"));
@@ -150,7 +157,7 @@ public class DataRemoteCachePluginTest {
 
   @Test
   void test_execute_noCaching() throws Exception {
-    plugin = new DataRemoteCachePlugin(mockPluginService, props);
+    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Query is not cacheable
     when(mockPluginService.isInTransaction()).thenReturn(false);
@@ -170,14 +177,14 @@ public class DataRemoteCachePluginTest {
     verify(mockCacheBypassCounter, times(1)).inc();
     verify(mockCacheMissCounter, never()).inc();
     // Verify TelemetryContext behavior for no-caching scenario
-    verify(mockTelemetryFactory).openTelemetryContext("jdbc-database-query", TelemetryTraceLevel.TOP_LEVEL);
+    verify(mockTelemetryFactory).openTelemetryContext("jdbc-database-query", TelemetryTraceLevel.NESTED);
     verify(mockTelemetryFactory, never()).openTelemetryContext(eq("jdbc-cache-lookup"), any());
     verify(mockTelemetryContext).closeContext();
   }
 
   @Test
   void test_execute_emptyQuery_noCaching() throws Exception {
-    plugin = new DataRemoteCachePlugin(mockPluginService, props);
+    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Query is not cacheable
     when(mockPluginService.isInTransaction()).thenReturn(false);
@@ -197,14 +204,14 @@ public class DataRemoteCachePluginTest {
     verify(mockCacheBypassCounter, times(1)).inc();
     verify(mockCacheMissCounter, never()).inc();
     // Verify TelemetryContext behavior for no-caching scenario
-    verify(mockTelemetryFactory).openTelemetryContext("jdbc-database-query", TelemetryTraceLevel.TOP_LEVEL);
+    verify(mockTelemetryFactory).openTelemetryContext("jdbc-database-query", TelemetryTraceLevel.NESTED);
     verify(mockTelemetryFactory, never()).openTelemetryContext(eq("jdbc-cache-lookup"), any());
     verify(mockTelemetryContext).closeContext();
   }
 
   @Test
   void test_execute_emptyPreparedStatement_noCaching() throws Exception {
-    plugin = new DataRemoteCachePlugin(mockPluginService, props);
+    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Query is not cacheable
     when(mockPluginService.isInTransaction()).thenReturn(false);
@@ -232,14 +239,14 @@ public class DataRemoteCachePluginTest {
     verify(mockCacheBypassCounter, times(2)).inc();
     verify(mockCacheMissCounter, never()).inc();
     // Verify TelemetryContext behavior for no-caching scenario
-    verify(mockTelemetryFactory, times(2)).openTelemetryContext("jdbc-database-query", TelemetryTraceLevel.TOP_LEVEL);
+    verify(mockTelemetryFactory, times(2)).openTelemetryContext("jdbc-database-query", TelemetryTraceLevel.NESTED);
     verify(mockTelemetryFactory, never()).openTelemetryContext(eq("jdbc-cache-lookup"), any());
     verify(mockTelemetryContext, times(2)).closeContext();
   }
 
   @Test
   void test_execute_noCachingLongQuery() throws Exception {
-    plugin = new DataRemoteCachePlugin(mockPluginService, props);
+    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Query is not cacheable
     when(mockPluginService.isInTransaction()).thenReturn(false);
@@ -258,14 +265,14 @@ public class DataRemoteCachePluginTest {
     verify(mockCacheBypassCounter, times(1)).inc();
     verify(mockCacheMissCounter, never()).inc();
     // Verify TelemetryContext behavior for no-caching scenario
-    verify(mockTelemetryFactory).openTelemetryContext("jdbc-database-query", TelemetryTraceLevel.TOP_LEVEL);
+    verify(mockTelemetryFactory).openTelemetryContext("jdbc-database-query", TelemetryTraceLevel.NESTED);
     verify(mockTelemetryFactory, never()).openTelemetryContext(eq("jdbc-cache-lookup"), any());
     verify(mockTelemetryContext).closeContext();
   }
 
   @Test
   void test_execute_cachingMissAndHit() throws Exception {
-    plugin = new DataRemoteCachePlugin(mockPluginService, props);
+    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Query is not cacheable
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
@@ -319,7 +326,7 @@ public class DataRemoteCachePluginTest {
     // Verify TelemetryContext behavior for cache miss and hit scenario
     // First call: Cache miss + Database call
     verify(mockTelemetryFactory, times(2)).openTelemetryContext(eq("jdbc-cache-lookup"), eq(TelemetryTraceLevel.TOP_LEVEL));
-    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.TOP_LEVEL));
+    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.NESTED));
     // Cache context calls: 1 miss (setSuccess(false)) + 1 hit (setSuccess(true))
     verify(mockTelemetryContext, times(1)).setSuccess(false); // Cache miss
     verify(mockTelemetryContext, times(1)).setSuccess(true);  // Cache hit
@@ -329,7 +336,7 @@ public class DataRemoteCachePluginTest {
 
   @Test
   void test_cachingMissAndHit_preparedStatement() throws Exception {
-    plugin = new DataRemoteCachePlugin(mockPluginService, props);
+    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Query is a cache miss
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
@@ -387,7 +394,7 @@ public class DataRemoteCachePluginTest {
     // Verify TelemetryContext behavior for cache miss and hit scenario
     // First call: Cache miss + Database call
     verify(mockTelemetryFactory, times(2)).openTelemetryContext(eq("jdbc-cache-lookup"), eq(TelemetryTraceLevel.TOP_LEVEL));
-    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.TOP_LEVEL));
+    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.NESTED));
     // Cache context calls: 1 miss (setSuccess(false)) + 1 hit (setSuccess(true))
     verify(mockTelemetryContext, times(1)).setSuccess(false); // Cache miss
     verify(mockTelemetryContext, times(1)).setSuccess(true);  // Cache hit
@@ -398,7 +405,7 @@ public class DataRemoteCachePluginTest {
   @Test
   void test_transaction_cacheQuery() throws Exception {
     props.setProperty("user", "dbuser");
-    plugin = new DataRemoteCachePlugin(mockPluginService, props);
+    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Query is cacheable
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
@@ -441,14 +448,14 @@ public class DataRemoteCachePluginTest {
     // Verify TelemetryContext behavior for transaction scenario
     // In transaction: No cache lookup attempted, only database call
     verify(mockTelemetryFactory, never()).openTelemetryContext(eq("jdbc-cache-lookup"), any());
-    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.TOP_LEVEL));
+    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.NESTED));
     // Context closure: Only 1 database context
     verify(mockTelemetryContext, times(1)).closeContext();
   }
 
   @Test
   void test_transaction_cacheQuery_multiple_query_params() throws Exception {
-    plugin = new DataRemoteCachePlugin(mockPluginService, props);
+    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Query is cacheable
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
@@ -489,14 +496,14 @@ public class DataRemoteCachePluginTest {
     // Verify TelemetryContext behavior for transaction scenario
     // In transaction: No cache lookup attempted, only database call
     verify(mockTelemetryFactory, never()).openTelemetryContext(eq("jdbc-cache-lookup"), any());
-    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.TOP_LEVEL));
+    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.NESTED));
     // Context closure: Only 1 database context
     verify(mockTelemetryContext, times(1)).closeContext();
   }
 
   @Test
   void test_transaction_noCaching() throws Exception {
-    plugin = new DataRemoteCachePlugin(mockPluginService, props);
+    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Query is not cacheable
     when(mockPluginService.isInTransaction()).thenReturn(true);
@@ -517,14 +524,14 @@ public class DataRemoteCachePluginTest {
     // Verify TelemetryContext behavior for transaction scenario
     // In transaction: No cache lookup attempted, only database call
     verify(mockTelemetryFactory, never()).openTelemetryContext(eq("jdbc-cache-lookup"), any());
-    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.TOP_LEVEL));
+    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.NESTED));
     // Context closure: Only 1 database context
     verify(mockTelemetryContext, times(1)).closeContext();
   }
 
   @Test
   void test_JdbcCacheBypassCount_malformed_hint() throws Exception {
-    plugin = new DataRemoteCachePlugin(mockPluginService, props);
+    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Setup - not in transaction with malformed cache hint
     when(mockPluginService.isInTransaction()).thenReturn(false);
@@ -545,7 +552,7 @@ public class DataRemoteCachePluginTest {
     // Verify TelemetryContext behavior for transaction scenario
     // In transaction: No cache lookup attempted, only database call
     verify(mockTelemetryFactory, never()).openTelemetryContext(eq("jdbc-cache-lookup"), any());
-    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.TOP_LEVEL));
+    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.NESTED));
     // Context closure: Only 1 database context
     verify(mockTelemetryContext, times(1)).closeContext();
   }
@@ -553,7 +560,7 @@ public class DataRemoteCachePluginTest {
   @Test
   void test_JdbcCacheBypassCount_double_bypass_prevention() throws Exception {
     props.setProperty("user", "testuser");
-    plugin = new DataRemoteCachePlugin(mockPluginService, props);
+    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     // Setup - query that meets MULTIPLE bypass conditions
     when(mockPluginService.isInTransaction()).thenReturn(true); // Bypass condition #1
@@ -584,7 +591,7 @@ public class DataRemoteCachePluginTest {
     // Verify TelemetryContext behavior for transaction scenario
     // In transaction: No cache lookup attempted, only database call
     verify(mockTelemetryFactory, never()).openTelemetryContext(eq("jdbc-cache-lookup"), any());
-    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.TOP_LEVEL));
+    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.NESTED));
     // Context closure: Only 1 database context
     verify(mockTelemetryContext, times(1)).closeContext();
   }
@@ -592,7 +599,7 @@ public class DataRemoteCachePluginTest {
   @Test
   void test_execute_multipleCacheHits() throws Exception {
     props.setProperty("user", "user");
-    plugin = new DataRemoteCachePlugin(mockPluginService, props);
+    plugin = new DataRemoteCachePlugin(mockServicesContainer, props);
     plugin.setCacheConnection(mockCacheConn);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.isInTransaction()).thenReturn(false);
@@ -647,7 +654,7 @@ public class DataRemoteCachePluginTest {
     verify(mockCacheBypassCounter, never()).inc();
     // Verify TelemetryContext behavior for cache miss and hit scenario
     verify(mockTelemetryFactory, times(11)).openTelemetryContext(eq("jdbc-cache-lookup"), eq(TelemetryTraceLevel.TOP_LEVEL));
-    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.TOP_LEVEL));
+    verify(mockTelemetryFactory, times(1)).openTelemetryContext(eq("jdbc-database-query"), eq(TelemetryTraceLevel.NESTED));
     verify(mockTelemetryContext, times(1)).setSuccess(false); // Cache miss
     verify(mockTelemetryContext, times(10)).setSuccess(true);  // Cache hit
     // Context closure: 2 cache contexts + 1 database context = 3 total

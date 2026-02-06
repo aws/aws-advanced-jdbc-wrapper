@@ -37,6 +37,9 @@ import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 import io.lettuce.core.cluster.api.async.RedisAdvancedClusterAsyncCommands;
 import io.lettuce.core.resource.Delay;
 import io.lettuce.core.resource.DirContextDnsResolver;
+import java.time.Instant;
+import java.util.function.Supplier;
+import java.util.logging.Level;
 import reactor.core.publisher.Mono;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -48,20 +51,23 @@ import java.time.Duration;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Supplier;
 import java.util.logging.Logger;
 import org.apache.commons.pool2.BasePooledObjectFactory;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
 import org.apache.commons.pool2.PooledObject;
+import software.amazon.awssdk.utils.cache.RefreshResult;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.plugin.iam.ElastiCacheIamTokenUtility;
+import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.awssdk.utils.cache.CachedSupplier;
 
 /**
  * Abstraction for a cache connection that can be pinged.
@@ -93,8 +99,9 @@ public class CacheConnection {
   private static final int DEFAULT_MAX_POOL_SIZE = 200;
   private static final long DEFAULT_MAX_BORROW_WAIT_MS = 100;
   private static final long TOKEN_CACHE_DURATION = 15 * 60 - 30;
+  private final FullServicesContainer servicesContainer;
 
-  private static final ReentrantLock connectionInitializationLock = new ReentrantLock();
+  private static final ResourceLock connectionInitializationLock = new ResourceLock();
   // Cache endpoint registry to hold connection pools for multi end points
   private static final ConcurrentHashMap<String, GenericObjectPool<StatefulConnection<byte[], byte[]>>> endpointToPoolRegistry = new ConcurrentHashMap<>();
 
@@ -193,8 +200,9 @@ public class CacheConnection {
     PropertyDefinition.registerPluginProperties(CacheConnection.class);
   }
 
-  public CacheConnection(final Properties properties, TelemetryFactory telemetryFactory) {
+  public CacheConnection(final Properties properties, TelemetryFactory telemetryFactory, FullServicesContainer servicesContainer) {
     this.telemetryFactory = telemetryFactory;
+    this.servicesContainer = servicesContainer;
     this.inFlightWriteSizeLimitBytes = CacheMonitor.CACHE_IN_FLIGHT_WRITE_SIZE_LIMIT.getLong(properties);
     this.healthCheckInHealthyState = CacheMonitor.CACHE_HEALTH_CHECK_IN_HEALTHY_STATE.getBoolean(properties);
 
@@ -209,36 +217,36 @@ public class CacheConnection {
     this.cacheConnectionPoolSize = CACHE_CONNECTION_POOL_SIZE.getInteger(properties);
     if (this.cacheConnectionPoolSize <= 0 || this.cacheConnectionPoolSize > DEFAULT_MAX_POOL_SIZE) {
       throw new IllegalArgumentException(
-          "Cache connection pool size must be within valid range: 1-" + DEFAULT_MAX_POOL_SIZE + ", but was: " + this.cacheConnectionPoolSize);
+          Messages.get("CacheConnection.invalidPoolSize",
+              new Object[] {DEFAULT_MAX_POOL_SIZE, this.cacheConnectionPoolSize}));
     }
     this.failWhenCacheDown = FAIL_WHEN_CACHE_DOWN.getBoolean(properties);
     this.cacheKeyPrefix = CACHE_KEY_PREFIX.getString(properties);
     if (this.cacheKeyPrefix != null) {
       if (this.cacheKeyPrefix.trim().isEmpty()) {
-        throw new IllegalArgumentException("Cache key prefix cannot be empty or whitespace. Use null for no prefix.");
+        throw new IllegalArgumentException(Messages.get("CacheConnection.emptyKeyPrefix"));
       }
       if (this.cacheKeyPrefix.length() > 10) {
-        throw new IllegalArgumentException("Cache key prefix must be 10 characters or less");
+        throw new IllegalArgumentException(Messages.get("CacheConnection.keyPrefixTooLong"));
       }
     }
     this.iamAuthEnabled = !StringUtils.isNullOrEmpty(this.cacheIamRegion);
     boolean hasTraditionalAuth = !StringUtils.isNullOrEmpty(this.cachePassword);
     // Validate authentication configuration
     if (this.iamAuthEnabled && hasTraditionalAuth) {
-      throw new IllegalArgumentException(
-          "Cannot specify both IAM authentication (cacheIamRegion) and traditional authentication (cachePassword). Choose one authentication method.");
+      throw new IllegalArgumentException(Messages.get("CacheConnection.bothAuthMethods"));
     }
     // Warn if no authentication is configured
     if (!this.iamAuthEnabled && !hasTraditionalAuth) {
-      LOGGER.warning("Cache connection configured without authentication. For better security, please use user/password based auth or IAM auth.");
+      LOGGER.log(Level.WARNING, "Cache connection configured without authentication. For better security, please use user/password based auth or IAM auth.");
     }
     if (this.cacheRwServerAddr == null) {
-      throw new IllegalArgumentException("Cache endpoint address is required");
+      throw new IllegalArgumentException(Messages.get("CacheConnection.endpointRequired"));
     }
     String[] defaultCacheServerHostAndPort = getHostnameAndPort(this.cacheRwServerAddr);
     if (this.iamAuthEnabled) {
       if (this.cacheUsername == null || defaultCacheServerHostAndPort[0] == null || this.cacheName == null) {
-        throw new IllegalArgumentException("IAM authentication requires cache name, username, region, and hostname");
+        throw new IllegalArgumentException(Messages.get("CacheConnection.iamAuthMissingParams"));
       }
     }
     if (PropertyDefinition.AWS_PROFILE.getString(properties) != null) {
@@ -263,7 +271,7 @@ public class CacheConnection {
 
   // for unit testing only
   public CacheConnection(final Properties properties) {
-    this(properties, null);
+    this(properties, null, null);
   }
 
   /**
@@ -297,7 +305,7 @@ public class CacheConnection {
       }
       this.isClusterMode = clusterEnabled;
     } catch (Exception e) {
-      LOGGER.warning("Failed to detect cluster mode, defaulting to single-shard: " + e.getMessage());
+      LOGGER.log(Level.WARNING, "Failed to detect cluster mode, defaulting to single-shard.", e);
       this.isClusterMode = false;
     } finally {
       try {
@@ -321,7 +329,7 @@ public class CacheConnection {
       try {
         this.msgHashDigest = MessageDigest.getInstance("SHA-384");
       } catch (NoSuchAlgorithmException e) {
-        throw new RuntimeException("SHA-384 not supported", e);
+        throw new RuntimeException(Messages.get("CacheConnection.sha384NotSupported"), e);
       }
     }
 
@@ -330,8 +338,7 @@ public class CacheConnection {
       return;
     }
 
-    connectionInitializationLock.lock();
-    try {
+    try (ResourceLock ignored = connectionInitializationLock.obtain()) {
       // Double check after lock is acquired
       if ((isRead && this.readConnectionPool != null) || (!isRead && this.writeConnectionPool != null)) {
         return;
@@ -339,9 +346,11 @@ public class CacheConnection {
       // Detect cluster mode first (cached for reuse)
       detectClusterMode();
 
-      // Register cluster with CacheMonitor on first cache operation (skip if telemetryFactory is null = test mode)
-      if (telemetryFactory != null && !this.cacheMonitorRegistered) {
+      // Register cluster with CacheMonitor on first cache operation
+      // Skip only in test mode (when servicesContainer is null)
+      if (servicesContainer != null && !this.cacheMonitorRegistered) {
         CacheMonitor.registerCluster(
+            this.servicesContainer,
             inFlightWriteSizeLimitBytes, healthCheckInHealthyState, telemetryFactory,
             this.cacheRwServerAddr, this.cacheRoServerAddr,
             this.useSSL, this.cacheConnectionTimeout, this.iamAuthEnabled, this.credentialsProvider,
@@ -353,8 +362,6 @@ public class CacheConnection {
       if ((isRead && this.readConnectionPool == null) || (!isRead && this.writeConnectionPool == null)) {
           createConnectionPool(isRead);
       }
-    } finally {
-      connectionInitializationLock.unlock();
     }
   }
 
@@ -398,8 +405,8 @@ public class CacheConnection {
       }
     } catch (Exception e) {
       String poolType = isRead ? "read" : "write";
-      String errorMsg = String.format("Failed to create Cache %s connection pool", poolType);
-      LOGGER.warning(errorMsg + ": " + e.getMessage());
+      String errorMsg = Messages.get("CacheConnection.createPoolFailed", new Object[] {poolType});
+      LOGGER.log(Level.WARNING, errorMsg, e);
       throw new RuntimeException(errorMsg, e);
     }
   }
@@ -485,9 +492,9 @@ public class CacheConnection {
         }
       } catch (RedisCommandExecutionException e) {
         if (e.getMessage().contains("ERR This instance has cluster support disabled")) {
-          LOGGER.fine("Note: this cache cluster has cluster support disabled");
+          LOGGER.log(Level.FINE, "Note: this cache cluster has cluster support disabled");
         } else {
-          LOGGER.fine("Note: READONLY command not supported or failed: " + e.getMessage());
+          LOGGER.log(Level.FINE, "Note: READONLY command not supported or failed.", e);
         }
       }
     }
@@ -514,21 +521,28 @@ public class CacheConnection {
       // Create a credentials provider that Lettuce will call whenever authentication is needed
       RedisCredentialsProvider redisCredentialsProvider = () -> {
         // Create a cached token supplier that automatically refreshes tokens every 14.5 minutes
-        Supplier<String> tokenSupplier = CachedSupplier.memoizeWithExpiration(
-            () -> {
-              ElastiCacheIamTokenUtility tokenUtility = new ElastiCacheIamTokenUtility(cacheName);
-              return tokenUtility.generateAuthenticationToken(
-                  credentialsProvider,
-                  Region.of(cacheIamRegion),
-                  hostname,
-                  port,
-                  cacheUsername
-              );
-            },
-            TOKEN_CACHE_DURATION,
-            TimeUnit.SECONDS
+        Supplier<String> tokenSupplier =
+            CachedSupplier.builder(() -> {
+                  ElastiCacheIamTokenUtility tokenUtility =
+                      new ElastiCacheIamTokenUtility(cacheName);
+                  String token = tokenUtility.generateAuthenticationToken(
+                      credentialsProvider,
+                      Region.of(cacheIamRegion),
+                      hostname,
+                      port,
+                      cacheUsername
+                  );
+
+                  Instant now = Instant.now();
+                  Instant expiresAt = now.plusSeconds(TOKEN_CACHE_DURATION);
+                  return RefreshResult.builder(token)
+                      .staleTime(expiresAt)
+                      .build();
+                }).build();
+
+        return Mono.just(
+            RedisCredentials.just(cacheUsername, tokenSupplier.get())
         );
-        return Mono.just(RedisCredentials.just(cacheUsername, tokenSupplier.get()));
       };
       uriBuilder.withAuthentication(redisCredentialsProvider);
     } else if (!StringUtils.isNullOrEmpty(cachePassword)) {
@@ -559,8 +573,8 @@ public class CacheConnection {
       return new PingConnection(conn);
 
     } catch (Exception e) {
-      LOGGER.fine(String.format("Failed to create ping connection for %s:%d: %s",
-          hostname, port, e.getMessage()));
+      LOGGER.log(Level.FINE,
+          String.format("Failed to create ping connection for %s:%d.", hostname, port), e);
       return null;
     }
   }
@@ -590,7 +604,7 @@ public class CacheConnection {
     CacheMonitor.HealthState state = getClusterHealthStateFromCacheMonitor();
     if (!shouldProceedWithOperation(state)) {
       if (failWhenCacheDown) {
-        throw new SQLException("Cache cluster is in DEGRADED state and failWhenCacheDown is enabled");
+        throw new SQLException(Messages.get("CacheConnection.degradedState"));
       }
       return null; // Treat as cache miss
     }
@@ -615,14 +629,14 @@ public class CacheConnection {
       }
       // Report error to CacheMonitor for the read endpoint
       reportErrorToCacheMonitor(false, e, "READ");
-      LOGGER.warning("Failed to read result from cache. Treating it as a cache miss: " + e.getMessage());
+      LOGGER.log(Level.WARNING, "Failed to read result from cache. Treating it as a cache miss.", e);
       return null;
     } finally {
       if (conn != null && this.readConnectionPool != null) {
         try {
           this.returnConnectionBackToPool(conn, isBroken, true);
-        } catch (Exception ex) {
-          LOGGER.warning("Error closing read connection: " + ex.getMessage());
+        } catch (Exception e) {
+          LOGGER.log(Level.WARNING, "Error closing read connection.", e);
         }
       }
     }
@@ -640,7 +654,7 @@ public class CacheConnection {
         try {
           returnConnectionBackToPool(conn, true, false);
         } catch (Exception e) {
-          LOGGER.warning("Error returning broken write connection back to pool: " + e.getMessage());
+          LOGGER.log(Level.WARNING, "Error returning broken write connection back to pool.", e);
         }
       }
     } else {
@@ -648,7 +662,7 @@ public class CacheConnection {
         try {
           returnConnectionBackToPool(conn, false, false);
         } catch (Exception e) {
-          LOGGER.warning("Error returning write connection back to pool: " + e.getMessage());
+          LOGGER.log(Level.WARNING, "Error returning write connection back to pool.", e);
         }
       }
     }
@@ -658,7 +672,7 @@ public class CacheConnection {
     // Check cluster state before attempting write
     CacheMonitor.HealthState state = getClusterHealthStateFromCacheMonitor();
     if (!shouldProceedWithOperation(state)) {
-      LOGGER.finest("Skipping cache write - cluster is DEGRADED");
+      LOGGER.log(Level.FINEST, "Skipping cache write - cluster is DEGRADED");
       return; // Exit without writing
     }
 
@@ -703,7 +717,7 @@ public class CacheConnection {
         try {
           returnConnectionBackToPool(conn, true, false);
         } catch (Exception ex) {
-          LOGGER.warning("Error closing write connection: " + ex.getMessage());
+          LOGGER.log(Level.WARNING, "Error closing write connection.", ex);
         }
       }
     }
@@ -717,10 +731,11 @@ public class CacheConnection {
           pool.invalidateObject(connection);
           return;
         } catch (Exception e) {
-          throw new RuntimeException("Could not invalidate connection for the pool", e);
+          throw new RuntimeException(Messages.get("CacheConnection.invalidateConnectionFailed"), e);
         }
       } else {
-        LOGGER.fine("Cache connection encountered error but is still open. Returning to pool for internal recovery.");
+        LOGGER.log(Level.FINE,
+            "Cache connection encountered error but is still open. Returning to pool for internal recovery.");
       }
     }
     pool.returnObject(connection);

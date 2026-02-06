@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin.cache;
 import java.io.Serializable;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import software.amazon.jdbc.util.Messages;
 
 class CachedResultSetMetaData implements ResultSetMetaData, Serializable {
   protected final Field[] columns;
@@ -80,7 +81,7 @@ class CachedResultSetMetaData implements ResultSetMetaData, Serializable {
 
   private Field getColumns(final int column) throws SQLException {
     if (column == 0 || column > columns.length)
-      throw new SQLException("Wrong column number: " + column);
+      throw new SQLException(Messages.get("CachedResultSetMetaData.wrongColumnNumber", new Object[] {column}));
     return columns[column - 1];
   }
 

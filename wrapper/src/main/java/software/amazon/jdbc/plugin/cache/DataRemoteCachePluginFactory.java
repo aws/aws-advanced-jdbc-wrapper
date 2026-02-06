@@ -25,6 +25,6 @@ public class DataRemoteCachePluginFactory implements ConnectionPluginFactory  {
 
   @Override
   public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
-    return new DataRemoteCachePlugin(servicesContainer.getPluginService(), props);
+    return new DataRemoteCachePlugin(servicesContainer, props);
   }
 }
