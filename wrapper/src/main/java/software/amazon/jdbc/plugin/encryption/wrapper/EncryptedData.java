@@ -16,11 +16,9 @@
 
 package software.amazon.jdbc.plugin.encryption.wrapper;
 
-// CHECKSTYLE.OFF: IllegalImport
 import java.sql.SQLException;
 import org.postgresql.util.PGBinaryObject;
 import org.postgresql.util.PGobject;
-// CHECKSTYLE.ON: IllegalImport
 
 /**
  * PostgreSQL custom type wrapper for encrypted_data. Handles binary data transfer for the

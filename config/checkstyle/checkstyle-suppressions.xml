@@ -28,4 +28,5 @@
   <suppress files="[\\/]PgDriverHelper\.java" checks="IllegalImport"/>
   <suppress files="[\\/]test[\\/]" checks="IllegalImport"/>
   <suppress files="[\\/]ExtendedFormatter\.java" checks="Header"/>
+  <suppress files="[\\/]EncryptedData\.java" checks="IllegalImport"/>
 </suppressions>
