@@ -26,6 +26,7 @@ import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sts.StsClient;
+import software.amazon.awssdk.services.sts.StsClientBuilder;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleWithSamlCredentialsProvider;
 import software.amazon.awssdk.services.sts.model.AssumeRoleWithSamlRequest;
 
@@ -44,10 +45,9 @@ public abstract class SamlCredentialsProviderFactory implements CredentialsProvi
         .principalArn(IAM_IDP_ARN.getString(props))
         .build();
 
-    final StsClient stsClient = StsClient.builder()
-        .credentialsProvider(AnonymousCredentialsProvider.create())
-        .region(region)
-        .build();
+    final StsClientBuilder builder = StsClient.builder()
+        .credentialsProvider(AnonymousCredentialsProvider.create());
+    final StsClient stsClient = region == null ? builder.build() : builder.region(region).build();
 
     return StsAssumeRoleWithSamlCredentialsProvider.builder()
         .refreshRequest(assumeRoleWithSamlRequest)
