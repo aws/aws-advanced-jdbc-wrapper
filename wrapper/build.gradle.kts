@@ -34,6 +34,7 @@ if (useJacoco) {
 
 dependencies {
 
+    optionalImplementation("software.amazon.awssdk:kms:2.41.20")
     optionalImplementation("software.amazon.awssdk:rds:2.41.20")
     optionalImplementation("software.amazon.awssdk:auth:2.41.20") // Required for IAM (light implementation)
     optionalImplementation("software.amazon.awssdk:http-client-spi:2.41.20") // Required for IAM (light implementation)
@@ -81,6 +82,7 @@ dependencies {
     testImplementation("com.mchange:c3p0:0.11.2")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
+    optionalImplementation("software.amazon.awssdk:kms:2.41.20")
     testImplementation("software.amazon.awssdk:rds:2.41.20", )
     testImplementation("software.amazon.awssdk:auth:2.41.20") // Required for IAM (light implementation)
     testImplementation("software.amazon.awssdk:http-client-spi:2.41.20") // Required for IAM (light implementation)
