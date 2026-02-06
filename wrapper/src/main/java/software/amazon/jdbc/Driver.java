@@ -46,7 +46,6 @@ import software.amazon.jdbc.plugin.federatedauth.FederatedAuthCacheHolder;
 import software.amazon.jdbc.plugin.federatedauth.OktaAuthCacheHolder;
 import software.amazon.jdbc.plugin.iam.IamAuthCacheHolder;
 import software.amazon.jdbc.plugin.limitless.LimitlessRouterServiceImpl;
-import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPlugin;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 import software.amazon.jdbc.states.ResetSessionStateOnCloseCallable;
@@ -444,7 +443,6 @@ public class Driver implements java.sql.Driver {
     IamAuthCacheHolder.clearCache();
     LimitlessRouterServiceImpl.clearCache();
     RoundRobinHostSelector.clearCache();
-    FastestResponseStrategyPlugin.clearCache();
   }
 
   public static void releaseResources() {
