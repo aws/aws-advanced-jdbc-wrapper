@@ -89,18 +89,14 @@ interface CachePingConnection {
 // Abstraction layer on top of a connection to a remote cache server
 public class CacheConnection {
   private static final Logger LOGGER = Logger.getLogger(CacheConnection.class.getName());
-
   private static final int DEFAULT_POOL_MIN_IDLE = 0;
   private static final int DEFAULT_MAX_POOL_SIZE = 200;
   private static final long DEFAULT_MAX_BORROW_WAIT_MS = 100;
   private static final long TOKEN_CACHE_DURATION = 15 * 60 - 30;
 
   private static final ReentrantLock connectionInitializationLock = new ReentrantLock();
-
-  private final String cacheRwServerAddr; // read-write cache server
-  private final String cacheRoServerAddr; // read-only cache server
-  private final String[] defaultCacheServerHostAndPort;
-  private MessageDigest msgHashDigest = null;
+  // Cache endpoint registry to hold connection pools for multi end points
+  private static final ConcurrentHashMap<String, GenericObjectPool<StatefulConnection<byte[], byte[]>>> endpointToPoolRegistry = new ConcurrentHashMap<>();
 
   public static final AwsWrapperProperty CACHE_RW_ENDPOINT_ADDR =
       new AwsWrapperProperty(
@@ -146,7 +142,7 @@ public class CacheConnection {
 
   protected static final AwsWrapperProperty CACHE_CONNECTION_TIMEOUT =
       new AwsWrapperProperty(
-          "cacheConnectionTimeout",
+          "cacheConnectionTimeoutMs",
           "2000",
           "Cache connection request timeout duration in milliseconds.");
 
@@ -168,11 +164,12 @@ public class CacheConnection {
           null,
           "Optional prefix for cache keys (max 10 characters). Enables multi-tenant cache isolation.");
 
+  private final String cacheRwServerAddr; // read-write cache server
+  private final String cacheRoServerAddr; // read-only cache server
+  private MessageDigest msgHashDigest = null;
   // Adding support for read and write connection pools to the remote cache server
   private volatile GenericObjectPool<StatefulConnection<byte[], byte[]>> readConnectionPool;
   private volatile GenericObjectPool<StatefulConnection<byte[], byte[]>> writeConnectionPool;
-  // Cache endpoint registry to hold connection pools for multi end points
-  private static final ConcurrentHashMap<String, GenericObjectPool<StatefulConnection<byte[], byte[]>>> endpointToPoolRegistry = new ConcurrentHashMap<>();
 
   private final boolean useSSL;
   private final boolean iamAuthEnabled;
@@ -196,52 +193,6 @@ public class CacheConnection {
     PropertyDefinition.registerPluginProperties(CacheConnection.class);
   }
 
-  /**
-   * Wraps a StatefulConnection (either StatefulRedisConnection or StatefulRedisClusterConnection)
-   * and exposes only ping functionality.
-   */
-  private static class PingConnection implements CachePingConnection {
-    private final StatefulConnection<byte[], byte[]> connection;
-
-    PingConnection(StatefulConnection<byte[], byte[]> connection) {
-      this.connection = connection;
-    }
-
-    @Override
-    public boolean ping() {
-      try {
-        if (!connection.isOpen()) {
-          return false;
-        }
-
-        // Cast to appropriate type to access sync() method
-        String result;
-        if (connection instanceof StatefulRedisClusterConnection) {
-          result = ((StatefulRedisClusterConnection<byte[], byte[]>) connection).sync().ping();
-        } else {
-          result = ((StatefulRedisConnection<byte[], byte[]>) connection).sync().ping();
-        }
-        return "PONG".equalsIgnoreCase(result);
-      } catch (Exception e) {
-        return false;
-      }
-    }
-
-    @Override
-    public boolean isOpen() {
-      return connection.isOpen();
-    }
-
-    @Override
-    public void close() {
-      try {
-        connection.close();
-      } catch (Exception e) {
-        // Ignore close errors
-      }
-    }
-  }
-
   public CacheConnection(final Properties properties, TelemetryFactory telemetryFactory) {
     this.telemetryFactory = telemetryFactory;
     this.inFlightWriteSizeLimitBytes = CacheMonitor.CACHE_IN_FLIGHT_WRITE_SIZE_LIMIT.getLong(properties);
@@ -263,7 +214,7 @@ public class CacheConnection {
     this.failWhenCacheDown = FAIL_WHEN_CACHE_DOWN.getBoolean(properties);
     this.cacheKeyPrefix = CACHE_KEY_PREFIX.getString(properties);
     if (this.cacheKeyPrefix != null) {
-      if (this.cacheKeyPrefix.isEmpty() || this.cacheKeyPrefix.trim().isEmpty()) {
+      if (this.cacheKeyPrefix.trim().isEmpty()) {
         throw new IllegalArgumentException("Cache key prefix cannot be empty or whitespace. Use null for no prefix.");
       }
       if (this.cacheKeyPrefix.length() > 10) {
@@ -284,9 +235,9 @@ public class CacheConnection {
     if (this.cacheRwServerAddr == null) {
       throw new IllegalArgumentException("Cache endpoint address is required");
     }
-    this.defaultCacheServerHostAndPort = getHostnameAndPort(this.cacheRwServerAddr);
+    String[] defaultCacheServerHostAndPort = getHostnameAndPort(this.cacheRwServerAddr);
     if (this.iamAuthEnabled) {
-      if (this.cacheUsername == null || this.defaultCacheServerHostAndPort[0] == null || this.cacheName == null) {
+      if (this.cacheUsername == null || defaultCacheServerHostAndPort[0] == null || this.cacheName == null) {
         throw new IllegalArgumentException("IAM authentication requires cache name, username, region, and hostname");
       }
     }
@@ -345,10 +296,6 @@ public class CacheConnection {
         }
       }
       this.isClusterMode = clusterEnabled;
-      // TODO: remove this log in final version
-      LOGGER.info("Detected cache mode: " + (this.isClusterMode ? "CLUSTER" : "STANDALONE")
-          + " for endpoint " + hostnameAndPort[0] + ":" + hostnameAndPort[1]);
-
     } catch (Exception e) {
       LOGGER.warning("Failed to detect cluster mode, defaulting to single-shard: " + e.getMessage());
       this.isClusterMode = false;
@@ -813,19 +760,64 @@ public class CacheConnection {
     return state != CacheMonitor.HealthState.DEGRADED;
   }
 
-  // Used for unit testing only
+  /**
+   * Wraps a StatefulConnection (either StatefulRedisConnection or StatefulRedisClusterConnection)
+   * and exposes only ping functionality.
+   */
+  private static class PingConnection implements CachePingConnection {
+    private final StatefulConnection<byte[], byte[]> connection;
+
+    PingConnection(StatefulConnection<byte[], byte[]> connection) {
+      this.connection = connection;
+    }
+
+    @Override
+    public boolean ping() {
+      try {
+        if (!connection.isOpen()) {
+          return false;
+        }
+
+        // Cast to appropriate type to access sync() method
+        String result;
+        if (connection instanceof StatefulRedisClusterConnection) {
+          result = ((StatefulRedisClusterConnection<byte[], byte[]>) connection).sync().ping();
+        } else {
+          result = ((StatefulRedisConnection<byte[], byte[]>) connection).sync().ping();
+        }
+        return "PONG".equalsIgnoreCase(result);
+      } catch (Exception e) {
+        return false;
+      }
+    }
+
+    @Override
+    public boolean isOpen() {
+      return connection.isOpen();
+    }
+
+    @Override
+    public void close() {
+      try {
+        connection.close();
+      } catch (Exception e) {
+        // Ignore close errors
+      }
+    }
+  }
+
+  /* ========== Below methods are used for internal testing purposes only ============ */
   protected void setConnectionPools(GenericObjectPool<StatefulConnection<byte[], byte[]>> readPool,
       GenericObjectPool<StatefulConnection<byte[], byte[]>> writePool) {
     this.readConnectionPool = readPool;
     this.writeConnectionPool = writePool;
   }
 
-  // Used for unit testing only
   protected void triggerPoolInit(boolean isRead) {
     initializeCacheConnectionIfNeeded(isRead);
   }
 
-  // Used for unit testing only - allows tests to bypass cluster detection
+  // allows tests to bypass cluster detection
   protected void setClusterMode(boolean clusterMode) {
     this.isClusterMode = clusterMode;
   }

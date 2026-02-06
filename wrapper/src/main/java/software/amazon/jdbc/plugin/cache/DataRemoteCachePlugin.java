@@ -24,8 +24,10 @@ import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.JdbcCallable;
@@ -58,6 +60,16 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
           JdbcMethod.CALLABLESTATEMENT_EXECUTE.methodName,
           JdbcMethod.CALLABLESTATEMENT_EXECUTEQUERY.methodName)));
 
+  private static final AwsWrapperProperty CACHE_MAX_QUERY_SIZE =
+      new AwsWrapperProperty(
+          "cacheMaxQuerySize",
+          "16384",
+          "The max query size for remote caching");
+
+  static {
+    PropertyDefinition.registerPluginProperties(DataRemoteCachePlugin.class);
+  }
+
   private int maxCacheableQuerySize;
   private PluginService pluginService;
   private TelemetryFactory telemetryFactory;
@@ -68,16 +80,6 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
   private TelemetryCounter cacheBypassCounter;
   private CacheConnection cacheConnection;
   private String dbUserName;
-
-  private static final AwsWrapperProperty CACHE_MAX_QUERY_SIZE =
-      new AwsWrapperProperty(
-          "cacheMaxQuerySize",
-          "16384",
-          "The max query size for remote caching");
-
-  static {
-    PropertyDefinition.registerPluginProperties(DataRemoteCachePlugin.class);
-  }
 
   public DataRemoteCachePlugin(final PluginService pluginService, final Properties properties) {
     try {
@@ -96,6 +98,10 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     this.maxCacheableQuerySize = CACHE_MAX_QUERY_SIZE.getInteger(properties);
     this.cacheConnection = new CacheConnection(properties, this.telemetryFactory);
     this.dbUserName = PropertyDefinition.USER.getString(properties);
+    // Default to empty username if not specified.
+    if (this.dbUserName == null) {
+      this.dbUserName = "";
+    }
   }
 
   // Used for unit testing purposes only
@@ -116,30 +122,24 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
       DatabaseMetaData metadata = currentConn.getMetaData();
       // Fetch and record the schema name if the session state doesn't currently have it
       SessionStateService sessionStateService = pluginService.getSessionStateService();
-      String catalog = sessionStateService.getCatalog().orElse(null);
-      String schema = sessionStateService.getSchema().orElse(null);
-      if (catalog == null && schema == null) {
-        // Fetch the current schema name and store it in sessionStateService
-        catalog = currentConn.getCatalog();
-        schema = currentConn.getSchema();
-        if (catalog != null) sessionStateService.setCatalog(catalog);
-        if (schema != null) sessionStateService.setSchema(schema);
-      }
-
-      if (dbUserName == null) {
-        // For MySQL, metadata username is actually <UserName>@<ip>. We just need the part before '@'.
-        dbUserName = metadata.getUserName();
-        int nameIndexEnd = dbUserName.indexOf('@');
-        if (nameIndexEnd > 0) {
-          dbUserName = dbUserName.substring(0, nameIndexEnd);
-        }
+      Optional<String> catalog = sessionStateService.getCatalog();
+      Optional<String> schema = sessionStateService.getSchema();
+      String catalogName = catalog.orElse(null);
+      String schemaName = schema.orElse(null);
+      // If catalog and schema names are not present in sessionStateService,
+      // fetch them from the DB connection and store them in sessionStateService.
+      if (!catalog.isPresent() && !schema.isPresent()) {
+        catalogName = currentConn.getCatalog();
+        schemaName = currentConn.getSchema();
+        if (catalogName != null) sessionStateService.setCatalog(catalogName);
+        if (schemaName != null) sessionStateService.setSchema(schemaName);
       }
       LOGGER.finest("DB driver protocol " + pluginService.getDriverProtocol()
           + ", database product: " + metadata.getDatabaseProductName() + " " + metadata.getDatabaseProductVersion()
-          + ", catalog: " + catalog + ", schema: " + schema + ", user: " + dbUserName
+          + ", catalog: " + catalogName + ", schema: " + schemaName + ", user: " + dbUserName
           + ", driver: " + metadata.getDriverName() + " " + metadata.getDriverVersion());
-      // The cache key contains the schema name, user name, and the query string
-      String[] words = {catalog, schema, dbUserName, query};
+      // The cache key contains the schema name, username, and the query string
+      String[] words = {catalogName, schemaName, dbUserName, query};
       return String.join("_", words);
     } catch (SQLException e) {
       LOGGER.warning("Error getting session state: " + e.getMessage());
@@ -148,17 +148,19 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
   }
 
   private ResultSet fetchResultSetFromCache(String queryStr) throws SQLException {
-    if (cacheConnection == null) return null;
-
     String cacheQueryKey = getCacheQueryKey(queryStr);
-    if (cacheQueryKey == null) return null; // Treat this as a cache miss
+    if (cacheQueryKey == null) {
+      return null; // Treat this as a cache miss
+    }
     byte[] cachedResult = cacheConnection.readFromCache(cacheQueryKey);
-    if (cachedResult == null) return null;
+    if (cachedResult == null) {
+      return null;
+    }
     // Convert result into ResultSet
     try {
       return CachedResultSet.deserializeFromByteArray(cachedResult);
     } catch (Exception e) {
-      LOGGER.warning("Error de-serializing cached result: " + e.getMessage());
+      LOGGER.log(Level.WARNING, "Error de-serializing cached result: " + e.getMessage(), e);
       return null; // Treat this as a cache miss
     }
   }
@@ -171,12 +173,18 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
   private ResultSet cacheResultSet(String queryStr, ResultSet rs, int expiry) throws SQLException {
     // Write the resultSet into the cache as a single key
     String cacheQueryKey = getCacheQueryKey(queryStr);
-    if (cacheQueryKey == null) return rs; // Treat this condition as un-cacheable
-    CachedResultSet crs = new CachedResultSet(rs);
-    byte[] jsonString = crs.serializeIntoByteArray();
-    cacheConnection.writeToCache(cacheQueryKey, jsonString, expiry);
-    crs.beforeFirst();
-    return crs;
+    if (cacheQueryKey == null) {
+      return rs; // Treat this condition as un-cacheable
+    }
+    try {
+      CachedResultSet crs = new CachedResultSet(rs);
+      byte[] jsonString = crs.serializeIntoByteArray();
+      cacheConnection.writeToCache(cacheQueryKey, jsonString, expiry);
+      crs.beforeFirst();
+      return crs;
+    } catch (NullPointerException e) {
+      throw WrapperUtils.wrapExceptionIfNeeded(SQLException.class, e);
+    }
   }
 
   /**
@@ -187,16 +195,22 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
    */
   protected Integer getTtlForQuery(String queryHint) {
     // Empty query is not cacheable
-    if (StringUtils.isNullOrEmpty(queryHint)) return null;
-    // Find CACHE_PARAM anywhere in the hint string (case insensitive)
+    if (StringUtils.isNullOrEmpty(queryHint)) {
+      return null;
+    }
+    // Find CACHE_PARAM anywhere in the hint string (case-insensitive)
     String upperHint = queryHint.toUpperCase();
     int cacheParamStart = upperHint.indexOf(CACHE_PARAM_PATTERN);
-    if (cacheParamStart == -1) return null;
+    if (cacheParamStart == -1) {
+      return null;
+    }
 
     // Find the matching closing parenthesis
     int paramsStart = cacheParamStart + CACHE_PARAM_PATTERN.length();
     int paramsEnd = upperHint.indexOf(")", paramsStart);
-    if (paramsEnd == -1) return null;
+    if (paramsEnd == -1) {
+      return null;
+    }
 
     // Extract parameters between parentheses
     String cacheParams = upperHint.substring(paramsStart, paramsEnd).trim();
@@ -230,7 +244,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
           // Parse TTL value (e.g., "300s")
           try {
             ttlValue = Integer.parseInt(value.substring(0, value.length() - 1));
-            // treat negative and 0 ttls as not cacheable
+            // treat negative and 0 ttl as not cacheable
             if (ttlValue <= 0) {
               return null;
             }
@@ -269,8 +283,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
 
     ResultSet result;
     boolean needToCache = false;
-    final String sql = getQuery(methodInvokeOn, jdbcMethodArgs);
-
+    final String sql = this.getQuery(methodInvokeOn, jdbcMethodArgs);
     TelemetryContext cacheContext = null;
     TelemetryContext dbContext = null;
     // If the query is cacheable, we try to fetch the query result from the cache.
