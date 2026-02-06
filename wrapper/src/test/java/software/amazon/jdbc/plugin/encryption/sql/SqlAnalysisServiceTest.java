@@ -16,7 +16,10 @@
 
 package software.amazon.jdbc.plugin.encryption.sql;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -121,21 +124,25 @@ class SqlAnalysisServiceTest {
     // INSERT INTO ... SELECT with specific columns - expect target table
     result =
         sqlAnalysisService.analyzeSql(
-            "INSERT INTO customer_summary (name, total_orders) SELECT c.name, COUNT(o.id) FROM customers c JOIN orders o ON c.id = o.customer_id GROUP BY c.id, c.name");
+            "INSERT INTO customer_summary (name, total_orders) SELECT c.name, COUNT(o.id) "
+            + "FROM customers c JOIN orders o ON c.id = o.customer_id "
+            + "GROUP BY c.id, c.name");
     assertEquals("INSERT", result.getQueryType());
     assertTrue(result.getAffectedTables().contains("customer_summary"));
 
     // INSERT INTO ... SELECT with WHERE clause - expect target table
     result =
         sqlAnalysisService.analyzeSql(
-            "INSERT INTO archived_orders SELECT o.*, c.name FROM orders o JOIN customers c ON o.customer_id = c.id WHERE o.created_date < '2023-01-01'");
+            "INSERT INTO archived_orders SELECT o.*, c.name FROM orders o "
+            + "JOIN customers c ON o.customer_id = c.id WHERE o.created_date < '2023-01-01'");
     assertEquals("INSERT", result.getQueryType());
     assertTrue(result.getAffectedTables().contains("archived_orders"));
 
     // INSERT INTO ... SELECT with subquery - expect target table
     result =
         sqlAnalysisService.analyzeSql(
-            "INSERT INTO high_value_customers SELECT * FROM customers WHERE id IN (SELECT customer_id FROM orders WHERE total > 1000)");
+            "INSERT INTO high_value_customers SELECT * FROM customers "
+            + "WHERE id IN (SELECT customer_id FROM orders WHERE total > 1000)");
     assertEquals("INSERT", result.getQueryType());
     assertTrue(result.getAffectedTables().contains("high_value_customers"));
 

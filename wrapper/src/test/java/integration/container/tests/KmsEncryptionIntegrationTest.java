@@ -22,6 +22,15 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import integration.DatabaseEngine;
+import integration.TestEnvironmentFeatures;
+import integration.container.ConnectionStringHelper;
+import integration.container.TestDriverProvider;
+import integration.container.TestEnvironment;
+import integration.container.condition.DisableOnTestFeature;
+import integration.container.condition.EnableOnDatabaseEngine;
+import integration.container.condition.EnableOnTestFeature;
+import integration.container.condition.MakeSureFirstInstanceWriter;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -40,15 +49,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
-import integration.DatabaseEngine;
-import integration.TestEnvironmentFeatures;
-import integration.container.ConnectionStringHelper;
-import integration.container.TestDriverProvider;
-import integration.container.TestEnvironment;
-import integration.container.condition.DisableOnTestFeature;
-import integration.container.condition.EnableOnDatabaseEngine;
-import integration.container.condition.EnableOnTestFeature;
-import integration.container.condition.MakeSureFirstInstanceWriter;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.GenerateDataKeyRequest;
@@ -158,7 +158,7 @@ public class KmsEncryptionIntegrationTest {
         GenerateDataKeyRequest dataKeyRequest =
             GenerateDataKeyRequest.builder().keyId(kmsKeyArn).keySpec("AES_256").build();
         GenerateDataKeyResponse dataKeyResponse = kmsClient.generateDataKey(dataKeyRequest);
-        String encryptedDataKeyBase64 =
+        final String encryptedDataKeyBase64 =
             Base64.getEncoder().encodeToString(dataKeyResponse.ciphertextBlob().asByteArray());
 
         // Generate separate HMAC key (32 bytes for HMAC-SHA256)
@@ -169,7 +169,8 @@ public class KmsEncryptionIntegrationTest {
             directConnection.prepareStatement(
                 "INSERT INTO "
                     + metadataSchema
-                    + ".key_storage (name, master_key_arn, encrypted_data_key, hmac_key, key_spec) VALUES (?, ?, ?, ?, ?) RETURNING id");
+                    + ".key_storage (name, master_key_arn, encrypted_data_key, hmac_key, "
+                    + "key_spec) VALUES (?, ?, ?, ?, ?) RETURNING id");
         keyStmt.setString(1, "test-key-users-ssn");
         keyStmt.setString(2, kmsKeyArn);
         keyStmt.setString(3, encryptedDataKeyBase64);
@@ -188,7 +189,8 @@ public class KmsEncryptionIntegrationTest {
             directConnection.prepareStatement(
                 "INSERT INTO "
                     + metadataSchema
-                    + ".encryption_metadata (table_name, column_name, encryption_algorithm, key_id) VALUES (?, ?, ?, ?)")) {
+                    + ".encryption_metadata (table_name, column_name, encryption_algorithm, "
+                    + "key_id) VALUES (?, ?, ?, ?)")) {
           metaStmt.setString(1, "users");
           metaStmt.setString(2, "ssn");
           metaStmt.setString(3, "AES-256-GCM");
@@ -208,7 +210,9 @@ public class KmsEncryptionIntegrationTest {
           ResultSet rs = checkStmt.executeQuery();
           while (rs.next()) {
             LOGGER.finest(
-                "Verified metadata: " + rs.getString("table_name") + "." + rs.getString("column_name") + " -> " + rs.getString("encryption_algorithm") + " (key: " + rs.getInt("key_id") + ")");
+                "Verified metadata: " + rs.getString("table_name") + "."
+                + rs.getString("column_name") + " -> " + rs.getString("encryption_algorithm")
+                + " (key: " + rs.getInt("key_id") + ")");
           }
         }
 
@@ -424,7 +428,7 @@ public class KmsEncryptionIntegrationTest {
   @Test
   public void testPlainTextFails() {
     // make sure we cannot insert plain text into the ssn column
-    assertThrows(SQLException.class,() -> {
+    assertThrows(SQLException.class, () -> {
       Statement stmt = connection.createStatement();
       stmt.execute("INSERT INTO users (name, ssn, email) VALUES ('Dave', '111', 'XXXXXXXXXXXXX')");
     });

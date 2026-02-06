@@ -21,6 +21,13 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import integration.TestEnvironmentFeatures;
+import integration.container.ConnectionStringHelper;
+import integration.container.TestDriverProvider;
+import integration.container.TestEnvironment;
+import integration.container.condition.DisableOnTestFeature;
+import integration.container.condition.EnableOnTestFeature;
+import integration.container.condition.MakeSureFirstInstanceWriter;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -40,16 +47,19 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
-import integration.TestEnvironmentFeatures;
-import integration.container.ConnectionStringHelper;
-import integration.container.TestDriverProvider;
-import integration.container.TestEnvironment;
-import integration.container.condition.DisableOnTestFeature;
-import integration.container.condition.EnableOnTestFeature;
-import integration.container.condition.MakeSureFirstInstanceWriter;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.awssdk.services.kms.model.*;
+import software.amazon.awssdk.services.kms.model.CreateKeyRequest;
+import software.amazon.awssdk.services.kms.model.CreateKeyResponse;
+import software.amazon.awssdk.services.kms.model.DataKeySpec;
+import software.amazon.awssdk.services.kms.model.DecryptRequest;
+import software.amazon.awssdk.services.kms.model.DecryptResponse;
+import software.amazon.awssdk.services.kms.model.GenerateDataKeyRequest;
+import software.amazon.awssdk.services.kms.model.GenerateDataKeyResponse;
+import software.amazon.awssdk.services.kms.model.KeySpec;
+import software.amazon.awssdk.services.kms.model.KeyUsageType;
+import software.amazon.awssdk.services.kms.model.KmsException;
+import software.amazon.awssdk.services.kms.model.ScheduleKeyDeletionRequest;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.encryption.key.KeyManagementException;
 import software.amazon.jdbc.plugin.encryption.key.KeyManager;
@@ -112,7 +122,7 @@ public class KeyManagementUtilityIntegrationTest {
     final String url = ConnectionStringHelper.getWrapperUrl();
 
     connection = DriverManager.getConnection(url, props);
-    EncryptedDataTypeInstaller.installEncryptedDataType(connection,"encrypt");
+    EncryptedDataTypeInstaller.installEncryptedDataType(connection, "encrypt");
 
     // Setup test database schema
     setupTestSchema();
@@ -127,8 +137,8 @@ public class KeyManagementUtilityIntegrationTest {
         stmt.execute("DROP TABLE IF EXISTS " + TEST_TABLE);
         stmt.execute(
             "DELETE FROM encrypt.encryption_metadata WHERE table_name = '" + TEST_TABLE + "'");
-        String tableName = TEST_TABLE+'.'+TEST_COLUMN;
-        stmt.execute("DELETE FROM encrypt.key_storage WHERE name = '" +tableName + "'" );
+        String tableName = TEST_TABLE + '.' + TEST_COLUMN;
+        stmt.execute("DELETE FROM encrypt.key_storage WHERE name = '" + tableName + "'");
       }
       connection.close();
     }
@@ -140,11 +150,13 @@ public class KeyManagementUtilityIntegrationTest {
 
   @TestTemplate
   void testCreateDataKeyAndPopulateMetadata() throws Exception {
-    LOGGER.info("Testing data key creation and metadata population for " + TEST_TABLE + "." + TEST_COLUMN);
+    LOGGER.info("Testing data key creation and metadata population for "
+        + TEST_TABLE + "." + TEST_COLUMN);
 
     // Clean up any existing metadata for this column
     try (Statement stmt = connection.createStatement()) {
-      stmt.execute("DELETE FROM encrypt.encryption_metadata WHERE table_name = '" + TEST_TABLE + "' AND column_name = '" + TEST_COLUMN + "'");
+      stmt.execute("DELETE FROM encrypt.encryption_metadata WHERE table_name = '"
+          + TEST_TABLE + "' AND column_name = '" + TEST_COLUMN + "'");
     }
 
     // Step 1: Generate a data key using KMS
@@ -157,7 +169,7 @@ public class KeyManagementUtilityIntegrationTest {
         )
     );
 
-    byte[] plaintextKey = dataKeyResponse.plaintext().asByteArray();
+    final byte[] plaintextKey = dataKeyResponse.plaintext().asByteArray();
     String encryptedDataKey = Base64.getEncoder().encodeToString(
         dataKeyResponse.ciphertextBlob().asByteArray()
     );
@@ -173,7 +185,8 @@ public class KeyManagementUtilityIntegrationTest {
     int keyId;
     try (PreparedStatement stmt =
         connection.prepareStatement(
-            "INSERT INTO encrypt.key_storage (name, master_key_arn, encrypted_data_key, hmac_key, key_spec) VALUES (?, ?, ?, ?, ?) RETURNING id")) {
+            "INSERT INTO encrypt.key_storage (name, master_key_arn, encrypted_data_key, "
+            + "hmac_key, key_spec) VALUES (?, ?, ?, ?, ?) RETURNING id")) {
       stmt.setString(1, TEST_TABLE + "." + TEST_COLUMN);
       stmt.setString(2, masterKeyArn);
       stmt.setString(3, encryptedDataKey);
@@ -188,7 +201,8 @@ public class KeyManagementUtilityIntegrationTest {
     // Step 3: Store the encryption metadata referencing the key
     try (PreparedStatement stmt =
         connection.prepareStatement(
-            "INSERT INTO encrypt.encryption_metadata (table_name, column_name, encryption_algorithm, key_id) VALUES (?, ?, ?, ?)")) {
+            "INSERT INTO encrypt.encryption_metadata (table_name, column_name, "
+            + "encryption_algorithm, key_id) VALUES (?, ?, ?, ?)")) {
       stmt.setString(1, TEST_TABLE);
       stmt.setString(2, TEST_COLUMN);
       stmt.setString(3, TEST_ALGORITHM);
@@ -200,10 +214,11 @@ public class KeyManagementUtilityIntegrationTest {
     // Step 4: Verify the metadata was created correctly
     try (PreparedStatement checkStmt =
         connection.prepareStatement(
-            "SELECT em.table_name, em.column_name, em.encryption_algorithm, em.key_id, ks.master_key_arn, ks.encrypted_data_key " +
-            "FROM encrypt.encryption_metadata em " +
-            "JOIN encrypt.key_storage ks ON em.key_id = ks.id " +
-            "WHERE em.table_name = ? AND em.column_name = ?")) {
+            "SELECT em.table_name, em.column_name, em.encryption_algorithm, em.key_id, "
+            + "ks.master_key_arn, ks.encrypted_data_key "
+            + "FROM encrypt.encryption_metadata em "
+            + "JOIN encrypt.key_storage ks ON em.key_id = ks.id "
+            + "WHERE em.table_name = ? AND em.column_name = ?")) {
       checkStmt.setString(1, TEST_TABLE);
       checkStmt.setString(2, TEST_COLUMN);
       ResultSet rs = checkStmt.executeQuery();
@@ -251,7 +266,8 @@ public class KeyManagementUtilityIntegrationTest {
 
     // Clean up any existing metadata for this column
     try (Statement stmt = connection.createStatement()) {
-      stmt.execute("DELETE FROM encrypt.encryption_metadata WHERE table_name = '" + TEST_TABLE + "' AND column_name = '" + TEST_COLUMN + "'");
+      stmt.execute("DELETE FROM encrypt.encryption_metadata WHERE table_name = '"
+          + TEST_TABLE + "' AND column_name = '" + TEST_COLUMN + "'");
       stmt.execute("TRUNCATE TABLE " + TEST_TABLE);
     }
 
@@ -265,7 +281,7 @@ public class KeyManagementUtilityIntegrationTest {
         )
     );
 
-    byte[] plaintextKey = dataKeyResponse.plaintext().asByteArray();
+    final byte[] plaintextKey = dataKeyResponse.plaintext().asByteArray();
     String encryptedDataKey = Base64.getEncoder().encodeToString(
         dataKeyResponse.ciphertextBlob().asByteArray()
     );
@@ -281,7 +297,8 @@ public class KeyManagementUtilityIntegrationTest {
     int keyId;
     try (PreparedStatement stmt =
         connection.prepareStatement(
-            "INSERT INTO encrypt.key_storage (name, master_key_arn, encrypted_data_key, hmac_key, key_spec) VALUES (?, ?, ?, ?, ?) RETURNING id")) {
+            "INSERT INTO encrypt.key_storage (name, master_key_arn, encrypted_data_key, "
+            + "hmac_key, key_spec) VALUES (?, ?, ?, ?, ?) RETURNING id")) {
       stmt.setString(1, TEST_TABLE + "." + TEST_COLUMN + "_multi");
       stmt.setString(2, masterKeyArn);
       stmt.setString(3, encryptedDataKey);
@@ -296,7 +313,8 @@ public class KeyManagementUtilityIntegrationTest {
     // Step 3: Setup encryption metadata referencing the key
     try (PreparedStatement stmt =
         connection.prepareStatement(
-            "INSERT INTO encrypt.encryption_metadata (table_name, column_name, encryption_algorithm, key_id) VALUES (?, ?, ?, ?)")) {
+            "INSERT INTO encrypt.encryption_metadata (table_name, column_name, "
+            + "encryption_algorithm, key_id) VALUES (?, ?, ?, ?)")) {
       stmt.setString(1, TEST_TABLE);
       stmt.setString(2, TEST_COLUMN);
       stmt.setString(3, TEST_ALGORITHM);
