@@ -139,7 +139,7 @@ public class IndependentDataSource implements DataSource {
       HostSpec hostSpec = pluginService.getCurrentHostSpec();
 
       // Create connection using PluginService
-      Connection connection = pluginService.forceConnect(hostSpec, props);
+      final Connection connection = pluginService.forceConnect(hostSpec, props);
 
       long duration = System.currentTimeMillis() - startTime;
       successfulConnectionCount.incrementAndGet();
