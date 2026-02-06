@@ -591,7 +591,7 @@ public class CacheConnectionTest {
   void test_cacheConnectionTimeout_Initialization() throws Exception {
     Properties props = new Properties();
     props.setProperty("cacheEndpointAddrRw", "localhost:6379");
-    props.setProperty("cacheConnectionTimeout", "5000");
+    props.setProperty("cacheConnectionTimeoutMs", "5000");
 
     CacheConnection connection = new CacheConnection(props);
     Duration timeout = (Duration) getField(connection, "cacheConnectionTimeout");
