@@ -31,7 +31,6 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
@@ -188,7 +187,16 @@ public class FederatedAuthPlugin extends AbstractConnectionPlugin {
         this.pluginService.getDialect().getDefaultPort());
 
     final RdsUrlType type = rdsUtils.identifyRdsType(host.getHost());
-    this.regionUtils = type == RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER ? new GDBRegionUtils() : new RegionUtils();
+
+    AwsCredentialsProvider credentialsProvider = null;
+    if (RdsUrlType.RDS_GLOBAL_WRITER_CLUSTER == type) {
+      // Assume a role early so we can use this credential to fetch region information.
+      credentialsProvider = this.credentialsProviderFactory.getAwsCredentialsProvider(hostSpec.getHost(), null, props);
+      this.regionUtils = new GDBRegionUtils(credentialsProvider);
+    } else {
+      this.regionUtils = new RegionUtils();
+    }
+
     final Region region = this.regionUtils.getRegion(host, props, IAM_REGION.name);
     if (region == null) {
       throw new SQLException(
@@ -212,7 +220,7 @@ public class FederatedAuthPlugin extends AbstractConnectionPlugin {
               new Object[] {tokenInfo.getToken()}));
       PropertyDefinition.PASSWORD.set(props, tokenInfo.getToken());
     } else {
-      updateAuthenticationToken(hostSpec, props, region, cacheKey, host.getHost());
+      updateAuthenticationToken(hostSpec, props, region, cacheKey, host.getHost(), credentialsProvider);
     }
 
     PropertyDefinition.USER.set(props, DB_USER.getString(props));
@@ -224,7 +232,7 @@ public class FederatedAuthPlugin extends AbstractConnectionPlugin {
           || !this.pluginService.isLoginException(exception, this.pluginService.getTargetDriverDialect())) {
         throw exception;
       }
-      updateAuthenticationToken(hostSpec, props, region, cacheKey, host.getHost());
+      updateAuthenticationToken(hostSpec, props, region, cacheKey, host.getHost(), credentialsProvider);
       return connectFunc.call();
     } catch (final Exception exception) {
       LOGGER.warning(
@@ -240,7 +248,8 @@ public class FederatedAuthPlugin extends AbstractConnectionPlugin {
       final Properties props,
       final Region region,
       final String cacheKey,
-      final String host)
+      final String host,
+      AwsCredentialsProvider credentialsProvider)
       throws SQLException {
     final int tokenExpirationSec = IAM_TOKEN_EXPIRATION.getInteger(props);
     final Instant tokenExpiry = Instant.now().plus(tokenExpirationSec, ChronoUnit.SECONDS);
@@ -248,8 +257,11 @@ public class FederatedAuthPlugin extends AbstractConnectionPlugin {
         StringUtils.isNullOrEmpty(IAM_DEFAULT_PORT.getString(props)) ? 0 : IAM_DEFAULT_PORT.getInteger(props),
         hostSpec,
         this.pluginService.getDialect().getDefaultPort());
-    final AwsCredentialsProvider credentialsProvider =
-        this.credentialsProviderFactory.getAwsCredentialsProvider(hostSpec.getHost(), region, props);
+
+    if (credentialsProvider == null) {
+      credentialsProvider = this.credentialsProviderFactory.getAwsCredentialsProvider(hostSpec.getHost(), region, props);
+    }
+
     if (this.fetchTokenCounter != null) {
       this.fetchTokenCounter.inc();
     }
@@ -263,7 +275,7 @@ public class FederatedAuthPlugin extends AbstractConnectionPlugin {
         credentialsProvider);
     LOGGER.finest(
         () -> Messages.get(
-            "AuthenticationToken.useCachedToken",
+            "AuthenticationToken.generatedNewToken",
             new Object[] {token}));
     PropertyDefinition.PASSWORD.set(props, token);
     FederatedAuthCacheHolder.tokenCache.put(
