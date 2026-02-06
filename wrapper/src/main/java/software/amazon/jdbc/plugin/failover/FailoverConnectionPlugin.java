@@ -271,12 +271,12 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return result;
     }
 
-    if (this.pluginService.getCurrentConnection().isClosed() && !allowedOnClosedConnection(methodName)) {
-      try {
+    try {
+      if (this.pluginService.getCurrentConnection().isClosed() && !allowedOnClosedConnection(methodName)) {
         invalidInvocationOnClosedConnection();
-      } catch (final SQLException ex) {
-        throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, ex);
       }
+    } catch (final SQLException ex) {
+      throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, ex);
     }
 
     T result = null;
