@@ -86,38 +86,30 @@ public class IndependentDataSource implements DataSource {
   public Connection getConnection() throws SQLException {
     long requestId = connectionRequestCount.incrementAndGet();
 
-
-    try {
-      LOGGER.finest(
-          () ->
-              String.format(
-                  "Connection request #%s - creating new independent connection via PluginService",
-                  requestId));
-      return createNewConnection();
-    } finally {
-    }
+    LOGGER.finest(
+        () ->
+            String.format(
+                "Connection request #%s - creating new independent connection via PluginService",
+                requestId));
+    return createNewConnection();
   }
 
   @Override
   public Connection getConnection(String username, String password) throws SQLException {
     long requestId = connectionRequestCount.incrementAndGet();
 
+    LOGGER.finest(
+        () ->
+            String.format(
+                "Connection request #%s - creating new independent connection with provided credentials",
+                requestId));
 
-    try {
-      LOGGER.finest(
-          () ->
-              String.format(
-                  "Connection request #%s - creating new independent connection with provided credentials",
-                  requestId));
+    // Create modified properties with the provided credentials
+    Properties modifiedProps = new Properties(connectionProperties);
+    modifiedProps.setProperty("user", username);
+    modifiedProps.setProperty("password", password);
 
-      // Create modified properties with the provided credentials
-      Properties modifiedProps = new Properties(connectionProperties);
-      modifiedProps.setProperty("user", username);
-      modifiedProps.setProperty("password", password);
-
-      return createNewConnection(modifiedProps);
-    } finally {
-    }
+    return createNewConnection(modifiedProps);
   }
 
   /**

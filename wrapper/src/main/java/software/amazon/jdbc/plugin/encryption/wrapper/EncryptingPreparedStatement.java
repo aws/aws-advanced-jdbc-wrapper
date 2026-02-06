@@ -80,7 +80,7 @@ public class EncryptingPreparedStatement implements PreparedStatement {
     LOGGER.finest(() -> String.format("EncryptingPreparedStatement created for SQL: %s", sql));
 
     // Parse annotations from original SQL, then strip them
-    Map<Integer, String> annotations = EncryptionAnnotationParser.parseAnnotations(sql);
+    final Map<Integer, String> annotations = EncryptionAnnotationParser.parseAnnotations(sql);
     this.cleanSql = EncryptionAnnotationParser.stripAnnotations(sql);
 
     this.delegate = delegate;
@@ -264,14 +264,14 @@ public class EncryptingPreparedStatement implements PreparedStatement {
     if (encryptedValue instanceof byte[]) {
       byte[] encBytes = (byte[]) encryptedValue;
       EncryptedData encData = new EncryptedData(encBytes);
-      
+
       LOGGER.finest(
           () ->
               String.format(
                   "EncryptingPreparedStatement.setString: param=%d, encryptedLength=%d",
                   parameterIndex,
                   encBytes.length));
-      
+
       delegate.setObject(parameterIndex, encData);
     } else {
       delegate.setString(parameterIndex, (String) encryptedValue);
