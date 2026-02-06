@@ -84,7 +84,15 @@ public class PgCacheBenchmarks {
       Statement stmt = connection.createStatement();
       String description = "description " + i;
       String text = "here is my text data " + i;
-      String query = "insert into test values (" + i + ", " + i * 10 + ", '" + description + "', '" + text + "', " + i * 100 + 0.1234 + ", '2024-01-10', '10:00:00', '10:00:00-07', '2025-07-15 10:00:00', '2025-07-15 10:00:00-07'" + ", '" + desc_1KB + "');";
+      String query = String.format(
+          "insert into test values (%d, %d, '%s', '%s', %f, '2024-01-10', '10:00:00', '10:00:00-07', '2025-07-15 10:00:00', '2025-07-15 10:00:00-07', '%s');",
+          i,
+          i * 10,
+          description,
+          text,
+          i * 100 + 0.1234,
+          desc_1KB
+      );
       int rs = stmt.executeUpdate(query);
       assert rs == 1;
     }

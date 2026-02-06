@@ -1,13 +1,23 @@
 package software.amazon;
 
-import software.amazon.util.EnvLoader;
-import java.sql.*;
-import java.util.*;
+import io.github.cdimascio.dotenv.Dotenv;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.logging.Logger;
 
 public class DatabaseConnectionWithCacheExample {
 
-  private static final EnvLoader env = new EnvLoader();
+  private static final Dotenv env = Dotenv.load();
 
   private static final String DB_CONNECTION_STRING = env.get("DB_CONNECTION_STRING");
   private static final String CACHE_RW_SERVER_ADDR = env.get("CACHE_RW_SERVER_ADDR");
@@ -68,11 +78,11 @@ public class DatabaseConnectionWithCacheExample {
     String queryStr = "/*+ CACHE_PARAM(ttl=300s) */ select * from cinemas";
 
     // Create threads for concurrent connection testing
-    Thread[] threads = new Thread[THREAD_COUNT];
-    for (int t = 0; t < THREAD_COUNT; t++) {
-      // Each thread uses a single connection for multiple queries
-      threads[t] = new Thread(() -> {
-        try {
+    try (ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT)) {
+      List<Future<?>> futures = new ArrayList<>();
+
+      for (int t = 0; t < THREAD_COUNT; t++) {
+        Future<?> future = executor.submit(() -> {
           try (Connection conn = DriverManager.getConnection(DB_CONNECTION_STRING, properties)) {
             long endTime = System.currentTimeMillis() + TEST_DURATION_MS;
             try (Statement stmt = conn.createStatement()) {
@@ -81,19 +91,20 @@ public class DatabaseConnectionWithCacheExample {
                 System.out.println("Executed the SQL query with result sets: " + rs.toString());
               }
             }
+          } catch (Exception e) {
+            LOGGER.warning("Error: " + e.getMessage());
           }
-        } catch (Exception e) {
-          LOGGER.warning("Error: " + e.getMessage());
+        });
+        futures.add(future);
+      }
+
+      // Wait for all tasks to complete
+      for (Future<?> future : futures) {
+        try {
+          future.get();
+        } catch (InterruptedException | ExecutionException e) {
+          LOGGER.warning("Task execution error: " + e.getMessage());
         }
-      });
-      threads[t].start();
-    }
-    // Wait for all threads to complete
-    for (Thread thread : threads) {
-      try {
-        thread.join();
-      } catch (InterruptedException e) {
-        LOGGER.warning("Thread interrupted: " + e.getMessage());
       }
     }
 
@@ -152,34 +163,37 @@ public class DatabaseConnectionWithCacheExample {
     properties2.setProperty("cacheInFlightWriteSizeLimitBytes", CACHE_IN_FLIGHT_WRITE_SIZE_LIMIT);
     properties2.setProperty("cacheHealthCheckInHealthyState", CACHE_HEALTH_CHECK_IN_HEALTHY_STATE);
 
-    // Create threads with different cache endpoints
-    Thread[] threads = new Thread[THREAD_COUNT];
+    // Create thread pool with different cache endpoints
+    try (ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT)) {
+      List<Future<?>> futures = new ArrayList<>();
 
-    for (int t = 0; t < THREAD_COUNT; t++) {
-      final Properties threadProps = (t%2 == 0) ? properties1 : properties2;
-      final int threadNum = t + 1;
+      for (int t = 0; t < THREAD_COUNT; t++) {
+        final Properties threadProps = (t % 2 == 0) ? properties1 : properties2;
+        final int threadNum = t + 1;
 
-      threads[t] = new Thread(() -> {
-        try (Connection conn = DriverManager.getConnection(DB_CONNECTION_STRING, threadProps)) {
-          long endTime = System.currentTimeMillis() + TEST_DURATION_MS;
-          try (Statement stmt = conn.createStatement()) {
-            while (System.currentTimeMillis() < endTime) {
-              ResultSet rs = stmt.executeQuery(queryStr);
-              System.out.println("Thread " + threadNum + " executed SQL query with result sets: " + rs.toString());
+        Future<?> future = executor.submit(() -> {
+          try (Connection conn = DriverManager.getConnection(DB_CONNECTION_STRING, threadProps)) {
+            long endTime = System.currentTimeMillis() + TEST_DURATION_MS;
+            try (Statement stmt = conn.createStatement()) {
+              while (System.currentTimeMillis() < endTime) {
+                ResultSet rs = stmt.executeQuery(queryStr);
+                System.out.println("Thread " + threadNum + " executed SQL query with result sets: " + rs.toString());
+              }
             }
+          } catch (Exception e) {
+            LOGGER.warning("Thread " + threadNum + " error: " + e.getMessage());
           }
-        } catch (Exception e) {
-          LOGGER.warning("Thread " + threadNum + " error: " + e.getMessage());
+        });
+        futures.add(future);
+      }
+
+      // Wait for all tasks to complete
+      for (Future<?> future : futures) {
+        try {
+          future.get();
+        } catch (InterruptedException | ExecutionException e) {
+          LOGGER.warning("Task execution error: " + e.getMessage());
         }
-      });
-      threads[t].start();
-    }
-    // Wait for all threads to complete
-    for (Thread thread : threads) {
-      try {
-        thread.join();
-      } catch (InterruptedException e) {
-        LOGGER.warning("Thread interrupted: " + e.getMessage());
       }
     }
   }

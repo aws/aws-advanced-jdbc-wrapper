@@ -23,10 +23,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import software.amazon.jdbc.AwsWrapperProperty;
@@ -36,9 +38,11 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.states.SessionStateService;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.monitoring.MonitorErrorResponse;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -81,22 +85,35 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
   private CacheConnection cacheConnection;
   private String dbUserName;
 
-  public DataRemoteCachePlugin(final PluginService pluginService, final Properties properties) {
+  public DataRemoteCachePlugin(FullServicesContainer servicesContainer, final Properties properties) {
     try {
       Class.forName("io.lettuce.core.RedisClient"); // Lettuce dependency
       Class.forName("org.apache.commons.pool2.impl.GenericObjectPool"); // Object pool dependency
     } catch (final ClassNotFoundException e) {
-      throw new RuntimeException(Messages.get("DataRemoteCachePlugin.notInClassPath", new Object[] {e.getMessage()}));
+      throw new RuntimeException(Messages.get("DataRemoteCachePlugin.notInClassPath", new Object[] {e}));
     }
-    this.pluginService = pluginService;
-    this.telemetryFactory = pluginService.getTelemetryFactory();
-    this.cacheHitCounter = telemetryFactory.createCounter("JdbcCachedQueryCount");
-    this.cacheMissCounter = telemetryFactory.createCounter("JdbcCacheMissCount");
-    this.totalQueryCounter = telemetryFactory.createCounter("JdbcCacheTotalQueryCount");
-    this.malformedHintCounter = telemetryFactory.createCounter("JdbcCacheMalformedQueryHint");
-    this.cacheBypassCounter = telemetryFactory.createCounter("JdbcCacheBypassCount");
+    this.pluginService = servicesContainer.getPluginService();
+    this.telemetryFactory = servicesContainer.getTelemetryFactory();
+
+    // Register CacheMonitor type with MonitorService
+    servicesContainer.getMonitorService().registerMonitorTypeIfAbsent(
+        CacheMonitor.class,
+        TimeUnit.MINUTES.toNanos(30), // expirationTimeoutNanos
+        TimeUnit.MINUTES.toNanos(5),   // heartbeatTimeoutNanos
+        EnumSet.of(MonitorErrorResponse.RECREATE),
+        null  // producedDataClass
+    );
+
+    this.cacheHitCounter = telemetryFactory.createCounter("dataRemoteCache.cache.hit");
+    this.cacheMissCounter = telemetryFactory.createCounter("dataRemoteCache.cache.miss");
+    this.totalQueryCounter = telemetryFactory.createCounter("dataRemoteCache.cache.totalQueries");
+    this.malformedHintCounter = telemetryFactory.createCounter("dataRemoteCache.cache.malformedHints");
+    this.cacheBypassCounter = telemetryFactory.createCounter("dataRemoteCache.cache.bypass");
     this.maxCacheableQuerySize = CACHE_MAX_QUERY_SIZE.getInteger(properties);
-    this.cacheConnection = new CacheConnection(properties, this.telemetryFactory);
+    this.cacheConnection = new CacheConnection(
+        properties,
+        this.telemetryFactory,
+        servicesContainer);
     this.dbUserName = PropertyDefinition.USER.getString(properties);
     // Default to empty username if not specified.
     if (this.dbUserName == null) {
@@ -136,13 +153,13 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
       }
       LOGGER.finest("DB driver protocol " + pluginService.getDriverProtocol()
           + ", database product: " + metadata.getDatabaseProductName() + " " + metadata.getDatabaseProductVersion()
-          + ", catalog: " + catalogName + ", schema: " + schemaName + ", user: " + dbUserName
+          + ", catalog: " + catalogName + ", schema: " + schemaName
           + ", driver: " + metadata.getDriverName() + " " + metadata.getDriverVersion());
       // The cache key contains the schema name, username, and the query string
       String[] words = {catalogName, schemaName, dbUserName, query};
       return String.join("_", words);
     } catch (SQLException e) {
-      LOGGER.warning("Error getting session state: " + e.getMessage());
+      LOGGER.log(Level.WARNING, "Error getting session state.", e);
       return null;
     }
   }
@@ -160,7 +177,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     try {
       return CachedResultSet.deserializeFromByteArray(cachedResult);
     } catch (Exception e) {
-      LOGGER.log(Level.WARNING, "Error de-serializing cached result: " + e.getMessage(), e);
+      LOGGER.log(Level.WARNING, "Error de-serializing cached result.", e);
       return null; // Treat this as a cache miss
     }
   }
@@ -344,7 +361,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     }
 
     dbContext = telemetryFactory.openTelemetryContext(
-        TELEMETRY_DATABASE_QUERY, TelemetryTraceLevel.TOP_LEVEL);
+        TELEMETRY_DATABASE_QUERY, TelemetryTraceLevel.NESTED);
 
     try {
       result = (ResultSet) jdbcMethodFunc.call();
@@ -363,7 +380,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
         result = cacheResultSet(mainQuery, result, configuredQueryTtl);
       } catch (final SQLException ex) {
         // Log and re-throw exception
-        LOGGER.warning("Encountered SQLException when caching query results: " + ex.getMessage());
+        LOGGER.log(Level.WARNING, "Encountered SQLException when caching query results.", ex);
         throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, ex);
       }
     }
@@ -389,7 +406,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
         return pluginService.getTargetDriverDialect().getSQLQueryString((PreparedStatement) methodInvokeOn);
       } catch (Exception e) {
         // Unable to get the query string, bypass caching
-        LOGGER.log(Level.FINE, "Unable to get the query string for PreparedStatement: " + e.getMessage(), e);
+        LOGGER.log(Level.FINE, "Unable to get the query string for PreparedStatement.", e);
         return null;
       }
     }

@@ -421,12 +421,12 @@ public class TestEnvironment implements AutoCloseable {
   private static void createValkeyCacheContainer(TestEnvironment env) {
     if (env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.VALKEY_CACHE)) {
       ContainerHelper containerHelper = new ContainerHelper();
-      List<TestInstanceInfo> cacheInstances = env.info.getDbCacheInfo().getInstances();
+      List<TestInstanceInfo> cacheInstances = env.info.getValkeyServerInfo().getInstances();
 
       // Create Valkey container WITH authentication
       int authInstanceIndex = cacheInstances.size();
-      env.info.setDbCacheUsername("test_cache_user");
-      env.info.setDbCachePassword("test_cache_password");
+      env.info.setValkeyServerUsername("test_cache_user");
+      env.info.setValkeyServerPassword("test_cache_password");
       GenericContainer<?> valkeyContainer = containerHelper.createValkeyContainer(
           env.network,
           VALKEY_SERVER_ADDRESS_PREFIX + authInstanceIndex,
@@ -1048,7 +1048,7 @@ public class TestEnvironment implements AutoCloseable {
               : "secret_password");
 
     env.info.setDatabaseInfo(new TestDatabaseInfo());
-    env.info.setDbCacheInfo(new TestDatabaseInfo());
+    env.info.setValkeyServerInfo(new TestDatabaseInfo());
     env.info.getDatabaseInfo().setUsername(dbUsername);
     env.info.getDatabaseInfo().setPassword(dbPassword);
     env.info.getDatabaseInfo().setDefaultDbName(dbName);

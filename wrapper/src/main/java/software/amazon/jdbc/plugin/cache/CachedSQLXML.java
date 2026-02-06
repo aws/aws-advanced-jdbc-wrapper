@@ -39,6 +39,7 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.sql.SQLXML;
+import software.amazon.jdbc.util.Messages;
 
 public class CachedSQLXML implements SQLXML, Serializable {
   private boolean freed;
@@ -58,7 +59,7 @@ public class CachedSQLXML implements SQLXML, Serializable {
 
   private void checkFreed() throws SQLException {
     if (this.freed) {
-      throw new SQLException("This SQLXML object has already been freed.");
+      throw new SQLException(Messages.get("CachedSQLXML.alreadyFreed"));
     }
   }
 
@@ -121,9 +122,9 @@ public class CachedSQLXML implements SQLXML, Serializable {
         XMLStreamReader xsr = XMLInputFactory.newFactory().createXMLStreamReader(new StringReader(data));
         return sourceClass.cast(new StAXSource(xsr));
       }
-      throw new SQLException("Unsupported source class for XML data: " + sourceClass.getName());
+      throw new SQLException(Messages.get("CachedSQLXML.unsupportedSourceClass", new Object[] {sourceClass.getName()}));
     } catch (Exception e) {
-      throw new SQLException("Unable to decode XML data.", e);
+      throw new SQLException(Messages.get("CachedSQLXML.unableToDecodeXml"), e);
     }
   }
 

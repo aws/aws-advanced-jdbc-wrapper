@@ -223,7 +223,7 @@ public class HibernateCachingTests {
   @ExtendWith(TestDriverProvider.class)
   public void testNoAuthConnection() {
     // Use the second Valkey instance (no-auth)
-    List<TestInstanceInfo> cacheInstances = TestEnvironment.getCurrent().getInfo().getDbCacheInfo().getInstances();
+    List<TestInstanceInfo> cacheInstances = TestEnvironment.getCurrent().getInfo().getValkeyServerInfo().getInstances();
     if (cacheInstances.size() < 2) {
       return; // Skip test if no-auth instance not available
     }
@@ -264,6 +264,61 @@ public class HibernateCachingTests {
         // Query after deletion - should return cached data (proves cache was used)
         Book result3 = queryBookWithCaching(session, book.getId());
         validateBookData(result3, "Foundation", 1951, 1);
+      }
+    }
+  }
+
+  @TestTemplate
+  @ExtendWith(TestDriverProvider.class)
+  public void testMultipleQueriesUseDifferentCacheKeys() {
+    final Configuration configuration = this.getConfiguration(0, true, null);
+    try (StandardServiceRegistry serviceRegistry = new StandardServiceRegistryBuilder()
+        .applySettings(configuration.getProperties())
+        .build()) {
+
+      SessionFactory sessionFactory = configuration.buildSessionFactory(serviceRegistry);
+
+      try (Session session = sessionFactory.openSession()) {
+        // Create two different authors
+        Author orwell = new Author("George Orwell", "United Kingdom");
+        this.insertObject(session, orwell);
+        Author huxley = new Author("Aldous Huxley", "United Kingdom");
+        this.insertObject(session, huxley);
+
+        // Create two different books
+        List<Author> orwellList = new ArrayList<>();
+        orwellList.add(orwell);
+        Book book1984 = new Book("1984", 1949);
+        book1984.setAuthors(orwellList);
+        this.insertObject(session, book1984);
+
+        List<Author> huxleyList = new ArrayList<>();
+        huxleyList.add(huxley);
+        Book bookBraveNewWorld = new Book("Brave New World", 1932);
+        bookBraveNewWorld.setAuthors(huxleyList);
+        this.insertObject(session, bookBraveNewWorld);
+
+        // Cache both books with different IDs
+        Book cachedBook1 = queryBookWithCaching(session, book1984.getId());
+        validateBookData(cachedBook1, "1984", 1949, 1);
+
+        Book cachedBook2 = queryBookWithCaching(session, bookBraveNewWorld.getId());
+        validateBookData(cachedBook2, "Brave New World", 1932, 1);
+
+        // Delete both books from database
+        session.getTransaction().begin();
+        assertEquals(2, session.createQuery("delete from Book").executeUpdate());
+        assertEquals(2, session.createQuery("delete from Author").executeUpdate());
+        session.getTransaction().commit();
+
+        // Should come from cache with different keys
+        Book cachedBook1AfterDelete = queryBookWithCaching(session, book1984.getId());
+        validateBookData(cachedBook1AfterDelete, "1984", 1949, 1);
+
+        Book cachedBook2AfterDelete = queryBookWithCaching(session, bookBraveNewWorld.getId());
+        validateBookData(cachedBook2AfterDelete, "Brave New World", 1932, 1);
+
+        session.clear();
       }
     }
   }
@@ -342,7 +397,7 @@ public class HibernateCachingTests {
     configuration.setProperty("hibernate.connection.tcpKeepAlive", "true");
 
     // Fetch the cache server information
-    List<TestInstanceInfo> cacheInstances = TestEnvironment.getCurrent().getInfo().getDbCacheInfo().getInstances();
+    List<TestInstanceInfo> cacheInstances = TestEnvironment.getCurrent().getInfo().getValkeyServerInfo().getInstances();
     final String cacheEndpoint = cacheInstances.get(cacheInstanceIndex).getHost() + ":" + cacheInstances.get(cacheInstanceIndex).getPort();
 
     // Caching enablement and configuration
@@ -354,12 +409,12 @@ public class HibernateCachingTests {
     // Only set credentials if requested (for auth-enabled instance)
     if (includeCredentials) {
       configuration.setProperty("hibernate.connection.cacheUsername",
-          TestEnvironment.getCurrent().getInfo().getDbCacheUsername());
+          TestEnvironment.getCurrent().getInfo().getValkeyServerUsername());
       if (overridePassword != null) {
         configuration.setProperty("hibernate.connection.cachePassword", overridePassword);
       } else {
         configuration.setProperty("hibernate.connection.cachePassword",
-            TestEnvironment.getCurrent().getInfo().getDbCachePassword());
+            TestEnvironment.getCurrent().getInfo().getValkeyServerPassword());
       }
     }
 

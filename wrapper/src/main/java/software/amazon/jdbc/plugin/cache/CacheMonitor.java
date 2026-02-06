@@ -16,10 +16,13 @@
 
 package software.amazon.jdbc.plugin.cache;
 
+import java.sql.SQLException;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import io.lettuce.core.RedisCommandExecutionException;
 import io.lettuce.core.RedisConnectionException;
@@ -27,6 +30,8 @@ import io.lettuce.core.RedisException;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import java.time.Duration;
 import software.amazon.jdbc.AwsWrapperProperty;
+import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.monitoring.AbstractMonitor;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryGauge;
@@ -37,7 +42,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryGauge;
  * Implements a three-state machine (HEALTHY → SUSPECT → DEGRADED) with proactive health checks
  * that only run when clusters are in SUSPECT or DEGRADED states.
  */
-public class CacheMonitor implements Runnable {
+public class CacheMonitor extends AbstractMonitor {
 
   private static final Logger LOGGER = Logger.getLogger(CacheMonitor.class.getName());
 
@@ -49,10 +54,6 @@ public class CacheMonitor implements Runnable {
   private static final int CACHE_HEALTH_CHECK_INTERVAL = 5;
   private static final int CACHE_CONSECUTIVE_SUCCESS_THRESHOLD = 3;
   private static final int CACHE_CONSECUTIVE_FAILURE_THRESHOLD = 3;
-
-  // Track if monitor thread has been started
-  private static volatile boolean monitorThreadStarted = false;
-  private static final Object THREAD_START_LOCK = new Object();
 
   // Configuration properties
   public static final AwsWrapperProperty CACHE_IN_FLIGHT_WRITE_SIZE_LIMIT =
@@ -70,7 +71,6 @@ public class CacheMonitor implements Runnable {
   private static final Map<String, ClusterHealthState> clusterStates = new ConcurrentHashMap<>();
   private final long inFlightWriteSizeLimitBytes;
   private final boolean healthCheckInHealthyState;
-  private volatile boolean stopped = false;
 
   // Telemetry
   private final TelemetryFactory telemetryFactory;
@@ -224,8 +224,8 @@ public class CacheMonitor implements Runnable {
     }
   }
 
-  protected static void registerCluster(long inFlightWriteSizeLimitBytes, boolean healthCheckInHealthyState,
-                                        TelemetryFactory telemetryFactory,
+  protected static void registerCluster(FullServicesContainer servicesContainer, long inFlightWriteSizeLimitBytes,
+                                        boolean healthCheckInHealthyState, TelemetryFactory telemetryFactory,
                                         String rwEndpoint, String roEndpoint, boolean useSSL, Duration cacheConnectionTimeout,
                                         boolean iamAuthEnabled, AwsCredentialsProvider credentialsProvider, String cacheIamRegion,
                                         String cacheName, String cacheUsername, String cachePassword, boolean createPingConnection,
@@ -250,39 +250,51 @@ public class CacheMonitor implements Runnable {
         instance.createInitialPingConnections(clusterState);
       }
     }
-    if (startMonitorThread) {
-      instance.startMonitoring();
+    // Start monitor thread via MonitorService (replaces startMonitoring())
+    if (startMonitorThread && servicesContainer != null) {
+      try {
+        servicesContainer.getMonitorService().runIfAbsent(
+            CacheMonitor.class,
+            "CACHE_MONITOR_SINGLETON",
+            servicesContainer,
+            new Properties(),
+            (container) -> instance // Return existing instance
+        );
+      } catch (SQLException e) {
+        LOGGER.log(Level.WARNING, "Failed to start CacheMonitor via MonitorService.", e);
+      }
     }
   }
 
-  protected static void registerCluster(long inFlightWriteSizeLimitBytes, boolean healthCheckInHealthyState,
-                                        TelemetryFactory telemetryFactory,
+  protected static void registerCluster(FullServicesContainer servicesContainer, long inFlightWriteSizeLimitBytes,
+                                        boolean healthCheckInHealthyState, TelemetryFactory telemetryFactory,
                                         String rwEndpoint, String roEndpoint, boolean useSSL,
                                         Duration cacheConnectionTimeout, boolean iamAuthEnabled,
                                         AwsCredentialsProvider credentialsProvider, String cacheIamRegion,
                                         String cacheName, String cacheUsername, String cachePassword) {
-    registerCluster(inFlightWriteSizeLimitBytes, healthCheckInHealthyState, telemetryFactory,
+    registerCluster(servicesContainer, inFlightWriteSizeLimitBytes, healthCheckInHealthyState, telemetryFactory,
             rwEndpoint, roEndpoint, useSSL,
             cacheConnectionTimeout, iamAuthEnabled, credentialsProvider,
             cacheIamRegion, cacheName, cacheUsername, cachePassword, true, true);
   }
 
-  private CacheMonitor(long inFlightWriteSizeLimitBytes, boolean healthCheckInHealthyState, TelemetryFactory telemetryFactory) {
+  protected CacheMonitor(long inFlightWriteSizeLimitBytes, boolean healthCheckInHealthyState, TelemetryFactory telemetryFactory) {
+    super(30); // 30 seconds termination timeout
     this.telemetryFactory = telemetryFactory;
     this.inFlightWriteSizeLimitBytes = inFlightWriteSizeLimitBytes;
     this.healthCheckInHealthyState = healthCheckInHealthyState;
 
     if (telemetryFactory != null && stateTransitionCounter == null) {
-      stateTransitionCounter = telemetryFactory.createCounter("JdbcCacheStateTransitionCount");
-      healthCheckSuccessCounter = telemetryFactory.createCounter("JdbcCacheHealthCheckSuccessCount");
-      healthCheckFailureCounter = telemetryFactory.createCounter("JdbcCacheHealthCheckFailureCount");
-      errorCounter = telemetryFactory.createCounter("JdbcCacheErrorCount");
+      stateTransitionCounter = telemetryFactory.createCounter("dataRemoteCache.cache.stateTransition");
+      healthCheckSuccessCounter = telemetryFactory.createCounter("dataRemoteCache.cache.healthCheck.success");
+      healthCheckFailureCounter = telemetryFactory.createCounter("dataRemoteCache.cache.healthCheck.failure");
+      errorCounter = telemetryFactory.createCounter("dataRemoteCache.cache.error");
 
-      consecutiveSuccessGauge = telemetryFactory.createGauge("JdbcCacheConsecutiveSuccessCount",
+      consecutiveSuccessGauge = telemetryFactory.createGauge("dataRemoteCache.cache.healthCheck.consecutiveSuccess",
           () -> clusterStates.values().stream()
               .mapToLong(c -> Math.max(c.consecutiveRwSuccesses, c.consecutiveRoSuccesses))
               .max().orElse(0L));
-      consecutiveFailureGauge = telemetryFactory.createGauge("JdbcCacheConsecutiveFailureCount",
+      consecutiveFailureGauge = telemetryFactory.createGauge("dataRemoteCache.cache.healthCheck.consecutiveFailure",
           () -> clusterStates.values().stream()
               .mapToLong(c -> Math.max(c.consecutiveRwFailures, c.consecutiveRoFailures))
               .max().orElse(0L));
@@ -323,20 +335,6 @@ public class CacheMonitor implements Runnable {
     return cluster != null ? cluster.getClusterHealthState() : HealthState.HEALTHY;
   }
 
-  private void startMonitoring() {
-    if (!monitorThreadStarted) {
-      synchronized (THREAD_START_LOCK) {
-        if (!monitorThreadStarted) {
-          Thread thread = new Thread(this, "CacheMonitorThread");
-          thread.setDaemon(true);
-          thread.start();
-          monitorThreadStarted = true;
-          LOGGER.info("Started CacheMonitor thread");
-        }
-      }
-    }
-  }
-
   private static ErrorCategory classifyError(Throwable error) {
     if (error instanceof RedisConnectionException) {
       return ErrorCategory.CONNECTION;
@@ -375,15 +373,17 @@ public class CacheMonitor implements Runnable {
       errorCounter.inc();
     }
     if (!isRecoverableError(category)) {
-      LOGGER.info(() -> "Non-recoverable error (" + category + ") for " +
-          (isRw ? rwEndpoint : roEndpoint) + ": " + error.getMessage());
+      LOGGER.log(Level.SEVERE,
+          () -> "Non-recoverable error (" + category + ") for " +
+              (isRw ? rwEndpoint : roEndpoint) + ": " + error.getMessage());
       return;
     }
     synchronized (cluster) {
       HealthState currentState = isRw ? cluster.rwHealthState : cluster.roHealthState;
       if (currentState == HealthState.HEALTHY) {
-        LOGGER.warning(String.format("[HEALTHY→SUSPECT] %s %s failed: %s - %s",
-            isRw ? rwEndpoint : roEndpoint, operation, category, error.getMessage()));
+        LOGGER.log(Level.WARNING,
+            String.format("[HEALTHY→SUSPECT] %s %s failed: %s - %s",
+                isRw ? rwEndpoint : roEndpoint, operation, category, error.getMessage()));
         cluster.transitionToState(HealthState.SUSPECT, isRw,
             "recoverable_error_" + category, stateTransitionCounter);
       }
@@ -423,39 +423,33 @@ public class CacheMonitor implements Runnable {
   }
 
   @Override
-  public void run() {
+  public void monitor() throws Exception {
     LOGGER.info("Cache monitor thread started");
-    try {
-      this.stopped = false;
-      while (!stopped) {
-        try {
-          long start = System.currentTimeMillis();
-          boolean hasActiveMonitoring = false;
-          for (ClusterHealthState cluster : clusterStates.values()) {
-            if (cluster.getClusterHealthState() == HealthState.HEALTHY && !healthCheckInHealthyState) {
-              continue;
-            }
-            hasActiveMonitoring = true;
-            executePing(cluster, true);
-            if (cluster.roEndpoint != null) {
-              executePing(cluster, false);
-            }
+    while (!this.stop.get()) {
+      try {
+        this.lastActivityTimestampNanos.set(System.nanoTime());
+        long start = System.currentTimeMillis();
+        boolean hasActiveMonitoring = false;
+        for (ClusterHealthState cluster : clusterStates.values()) {
+          if (cluster.getClusterHealthState() == HealthState.HEALTHY && !healthCheckInHealthyState) {
+            continue;
           }
-          long duration = System.currentTimeMillis() - start;
-          long target = hasActiveMonitoring ? TimeUnit.SECONDS.toMillis(CACHE_HEALTH_CHECK_INTERVAL)
-              : THREAD_SLEEP_WHEN_INACTIVE_MILLIS;
-          sleep(Math.max(0, target - duration));
-        } catch (InterruptedException e) {
-          throw e;
-        } catch (Exception e) {
-          LOGGER.warning("Cache monitoring exception: " + e.getMessage());
+          hasActiveMonitoring = true;
+          executePing(cluster, true);
+          if (cluster.roEndpoint != null) {
+            executePing(cluster, false);
+          }
         }
+        long duration = System.currentTimeMillis() - start;
+        long target = hasActiveMonitoring
+            ? TimeUnit.SECONDS.toMillis(CACHE_HEALTH_CHECK_INTERVAL)
+            : THREAD_SLEEP_WHEN_INACTIVE_MILLIS;
+        sleep(Math.max(0, target - duration));
+      } catch (InterruptedException e) {
+        throw e;
+      } catch (Exception e) {
+        LOGGER.log(Level.WARNING, "Cache monitoring exception.", e);
       }
-    } catch (InterruptedException e) {
-      LOGGER.warning("Cache monitor interrupted");
-    } finally {
-      this.stopped = true;
-      LOGGER.info("Cache monitor stopped");
     }
   }
 
@@ -520,7 +514,7 @@ public class CacheMonitor implements Runnable {
     try {
       return conn.ping();
     } catch (Exception e) {
-      LOGGER.warning("Ping failed for " + (isRw ? cluster.rwEndpoint : cluster.roEndpoint) + " (" + (isRw ? "RW" : "RO") + "): " + e.getMessage());
+      LOGGER.log(Level.WARNING, "Ping failed for " + (isRw ? cluster.rwEndpoint : cluster.roEndpoint) + " (" + (isRw ? "RW" : "RO") + ").", e);
       return false;
     }
   }
