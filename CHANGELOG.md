@@ -3,6 +3,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [3.2.0] - 2026-02-04
+
+### :magic_wand: Added
+- Added the Global Database Failover Plugin (`gdbFailover`), introducing home-region awareness and configurable failover logic for in-home and out-of-home scenarios. See the [documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheGdbFailoverPlugin.md) for more information ([PR #1676](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1676)).
+- Added the Global Database Read/Write Splitting Plugin (`gdbReadWriteSplitting`), introducing home-region awareness for read/write splitting connections. See the [documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheGdbReadWriteSplittingPlugin.md) for more information. ([PR #1690](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1690)).
+- Documentation:
+    - Added documentation for the critical `clusterId` parameter. Refer to the [documentation](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/ClusterId.md) for more information ([PR #1681](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1681) and [PR #1692](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1692)).
+
+### :bug: Fixed
+- Custom cluster of type `reader` with excluded members incorrectly allowed writer host connections ([PR #1680](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1680)).
+- Memory spiking when creating statements in Blue/Green monitor ([PR #1683](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1683)).
+- IAM-related plugins unable to parse the correct region from global cluster endpoints ([PR #1679](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1679)).
+- Correctly set Host ID in `createHost` in `TopologyUtils` ([PR #1696](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1696)).
+- Handle SdkClientException and avoid a high rate of AWS SDK calls in `customEndpoint` plugin ([PR #1702](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1702)).
+- Consider topology verified if topology from all readers remains consistent ([PR #1697](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1697)).
+
+### :crab: Changed
+- Refactor read/write splitting plugins ([PR #1682](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1682)).
+- Documentation:
+    - Update documentation on how to properly [register a custom plugin](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/development-guide/LoadablePlugins.md#register-the-custom-plugin) ([PR #1685](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1685)).
+
 ## [3.1.0] - 2026-01-20
 
 ### :bug: Fixed
@@ -675,6 +696,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[3.2.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/3.1.0...3.2.0
 [3.1.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/3.0.0...3.1.0
 [3.0.0]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.8...3.0.0
 [2.6.8]: https://github.com/aws/aws-advanced-jdbc-wrapper/compare/2.6.7...2.6.8

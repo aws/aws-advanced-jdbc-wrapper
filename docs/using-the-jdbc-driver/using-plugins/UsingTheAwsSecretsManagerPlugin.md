@@ -7,7 +7,17 @@ The plugin is available since version 1.0.0.
 
 
 ## Enabling the AWS Secrets Manager Connection Plugin
-> :warning: **Note:** To use this plugin, you must include the runtime dependencies [Jackson Databind](https://central.sonatype.com/artifact/com.fasterxml.jackson.core/jackson-databind) and [AWS Secrets Manager](https://central.sonatype.com/artifact/software.amazon.awssdk/secretsmanager) in your project. These parameters are required for the AWS Advanced JDBC Wrapper to pass database credentials to the underlying driver.
+> [!WARNING]\
+> To use this plugin, you must include the runtime dependencies [Jackson Databind](https://central.sonatype.com/artifact/com.fasterxml.jackson.core/jackson-databind) and [AWS Secrets Manager](https://central.sonatype.com/artifact/software.amazon.awssdk/secretsmanager) in your project. These dependencies are required for the AWS Advanced JDBC Wrapper to pass database credentials to the underlying driver.
+
+> [!WARNING]\
+> To use this plugin, you must provide valid AWS credentials. The AWS SDK relies on the AWS SDK credential provider chain to authenticate with AWS services. If you are using temporary credentials (such as those obtained through AWS STS, IAM roles, or SSO), be aware that these credentials have an expiration time. AWS SDK exceptions will occur and the plugin will not work properly if your credentials expire without being refreshed or replaced. To avoid interruptions:
+> - Ensure your credential provider supports automatic refresh (most AWS SDK credential providers do this automatically)
+> - Monitor credential expiration times in production environments
+> - Configure appropriate session durations for temporary credentials
+> - Implement proper error handling for credential-related failures
+>
+> For more information on configuring AWS credentials, see our [AWS credentials documentation](../AwsCredentials.md)
 
 To enable the AWS Secrets Manager Connection Plugin, add the plugin code `awsSecretsManager` to the [`wrapperPlugins`](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters) value, or to the current [driver profile](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters).
 

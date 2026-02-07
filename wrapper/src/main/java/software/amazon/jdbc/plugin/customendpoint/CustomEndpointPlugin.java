@@ -256,6 +256,9 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     boolean hasCustomEndpointInfo = monitor.hasCustomEndpointInfo();
 
     if (!hasCustomEndpointInfo) {
+
+      monitor.requestCustomEndpointInfoUpdate();
+
       // Wait for the monitor to place the custom endpoint info in the cache. This ensures other plugins get accurate
       // custom endpoint info.
       if (this.waitForInfoCounter != null) {

@@ -103,7 +103,7 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
   }
 
   @Override
-  public List<HostSpec> forceRefresh(boolean shouldVerifyWriter, long timeoutMs)
+  public List<HostSpec> forceRefresh(boolean verifyTopology, long timeoutMs)
       throws SQLException, TimeoutException {
     init();
     return this.forceRefresh();

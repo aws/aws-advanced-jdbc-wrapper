@@ -17,6 +17,7 @@
 package software.amazon.jdbc.dialect;
 
 import java.sql.Connection;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import software.amazon.jdbc.hostlistprovider.AuroraTopologyUtils;
@@ -51,7 +52,9 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyDialect,
 
   @Override
   public List</* dialect code */ String> getDialectUpdateCandidates() {
-    return Collections.singletonList(DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER);
+    return Arrays.asList(
+        DialectCodes.GLOBAL_AURORA_MYSQL,
+        DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER);
   }
 
   @Override

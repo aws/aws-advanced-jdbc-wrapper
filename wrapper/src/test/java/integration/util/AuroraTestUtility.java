@@ -1457,6 +1457,12 @@ public class AuroraTestUtility {
     if (DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER.equals(deployment)) {
       // Old multi-AZ writers take 10-20min to go up after server failover, so we will simulate failover.
       simulateTemporaryFailure(executor, instanceId);
+
+      try {
+        TimeUnit.MILLISECONDS.sleep(1000);
+      } catch (InterruptedException e) {
+        fail("Interrupted while simulating temporary failure");
+      }
     } else {
       // Aurora clusters become fully available fairly quickly after server failover, so we test with actual failover.
       try {
@@ -1479,9 +1485,28 @@ public class AuroraTestUtility {
           TimeUnit.MILLISECONDS.sleep(delayMs);
         }
 
+        DatabaseEngineDeployment deployment =
+            TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment();
+        String clusterEndpoint = 
+            TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getClusterEndpoint();
+        String clusterReadOnlyEndpoint = 
+            TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getClusterReadOnlyEndpoint();
+
         ProxyHelper.disableConnectivity(instanceName);
+        
+        // In multi-az, we need to disable the cluster endpoint as well.
+        if (DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER.equals(deployment)) {
+          ProxyHelper.disableConnectivity(clusterEndpoint);
+          ProxyHelper.disableConnectivity(clusterReadOnlyEndpoint);
+        }
+
         TimeUnit.MILLISECONDS.sleep(failureDurationMs);
+
         ProxyHelper.enableConnectivity(instanceName);
+        if (DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER.equals(deployment)) {
+          ProxyHelper.enableConnectivity(clusterEndpoint);
+          ProxyHelper.enableConnectivity(clusterReadOnlyEndpoint);
+        }
       } catch (InterruptedException e) {
         fail("The disable connectivity thread was unexpectedly interrupted.");
       }

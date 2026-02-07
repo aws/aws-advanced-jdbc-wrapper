@@ -31,4 +31,6 @@ public interface CustomEndpointMonitor extends Monitor {
    * @return true if the monitor has info about the custom endpoint, otherwise returns false.
    */
   boolean hasCustomEndpointInfo();
+
+  void requestCustomEndpointInfoUpdate();
 }

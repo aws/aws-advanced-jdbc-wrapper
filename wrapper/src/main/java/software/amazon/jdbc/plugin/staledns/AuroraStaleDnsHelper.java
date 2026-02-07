@@ -16,8 +16,6 @@
 
 package software.amazon.jdbc.plugin.staledns;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.EnumSet;
@@ -57,7 +55,6 @@ public class AuroraStaleDnsHelper {
   private final RdsUtils rdsUtils = new RdsUtils();
 
   private HostSpec writerHostSpec = null;
-  private String writerHostAddress = null;
 
   static {
     PropertyDefinition.registerPluginProperties(AuroraStaleDnsHelper.class);
@@ -106,22 +103,8 @@ public class AuroraStaleDnsHelper {
 
     final Connection conn = connectFunc.call();
 
-    String clusterInetAddress = null;
-    try {
-      clusterInetAddress = InetAddress.getByName(hostSpec.getHost()).getHostAddress();
-    } catch (UnknownHostException e) {
-      // ignore
-    }
-
-    final String hostInetAddress = clusterInetAddress;
-    LOGGER.finest(() -> Messages.get("AuroraStaleDnsHelper.clusterEndpointDns",
-        new Object[]{hostInetAddress}));
-
-    if (clusterInetAddress == null) {
-      return conn;
-    }
-
-    if (this.pluginService.getHostRole(conn) == HostRole.READER) {
+    final boolean isConnectedToReader = this.pluginService.getHostRole(conn) == HostRole.READER;
+    if (isConnectedToReader) {
       // This is if-statement is only reached if the connection url is a writer cluster endpoint.
       // If the new connection resolves to a reader instance, this means the topology is outdated.
       // Force refresh to update the topology.
@@ -147,24 +130,8 @@ public class AuroraStaleDnsHelper {
       return conn;
     }
 
-    if (this.writerHostAddress == null) {
-      try {
-        this.writerHostAddress = InetAddress.getByName(this.writerHostSpec.getHost()).getHostAddress();
-      } catch (UnknownHostException e) {
-        // ignore
-      }
-    }
-
-    LOGGER.finest(() -> Messages.get("AuroraStaleDnsHelper.writerInetAddress",
-        new Object[]{this.writerHostAddress}));
-
-    if (this.writerHostAddress == null) {
-      return conn;
-    }
-
-    if (!writerHostAddress.equals(clusterInetAddress)) {
-      // DNS resolves a cluster endpoint to a wrong writer
-      // opens a connection to a proper writer node
+    if (isConnectedToReader) {
+      // Reconnect to writer host if current connection is reader.
 
       LOGGER.fine(() -> Messages.get("AuroraStaleDnsHelper.staleDnsDetected",
           new Object[]{this.writerHostSpec}));
@@ -177,7 +144,7 @@ public class AuroraStaleDnsHelper {
         throw new SQLException(
             Messages.get("AuroraStaleDnsHelper.currentWriterNotAllowed",
                 new Object[] {
-                    this.writerHostSpec == null ? "<null>" : this.writerHostSpec.getHostAndPort(),
+                    this.writerHostSpec.getHostAndPort(),
                     LogUtils.logTopology(allowedHosts, "")})
         );
       }
@@ -211,7 +178,6 @@ public class AuroraStaleDnsHelper {
           && entry.getValue().contains(NodeChangeOptions.PROMOTED_TO_READER)) {
         LOGGER.finest(() -> Messages.get("AuroraStaleDnsHelper.reset"));
         this.writerHostSpec = null;
-        this.writerHostAddress = null;
         return;
       }
     }
