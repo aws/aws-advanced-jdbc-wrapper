@@ -34,7 +34,6 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.WeightedRandomHostSelector;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.HostSelectorUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.Utils;
@@ -125,9 +124,6 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       return;
     }
 
-    HostSelectorUtils.setHostWeightPairsProperty(WeightedRandomHostSelector.WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS,
-        context.getProps(),
-        context.getLimitlessRouters());
     HostSpec selectedHostSpec;
     try {
       selectedHostSpec = this.pluginService.getHostSpecByStrategy(
