@@ -36,6 +36,7 @@ public class FullServicesContainerImpl implements FullServicesContainer {
   private HostListProviderService hostListProviderService;
   private PluginService pluginService;
   private PluginManagerService pluginManagerService;
+  private ImportantEventService importantEventService;
 
   public FullServicesContainerImpl(
       StorageService storageService,
@@ -46,12 +47,14 @@ public class FullServicesContainerImpl implements FullServicesContainer {
       ConnectionPluginManager connectionPluginManager,
       HostListProviderService hostListProviderService,
       PluginService pluginService,
-      PluginManagerService pluginManagerService) {
+      PluginManagerService pluginManagerService,
+      ImportantEventService importantEventService) {
     this(storageService, monitorService, eventPublisher, defaultConnProvider, telemetryFactory);
     this.connectionPluginManager = connectionPluginManager;
     this.hostListProviderService = hostListProviderService;
     this.pluginService = pluginService;
     this.pluginManagerService = pluginManagerService;
+    this.importantEventService = importantEventService;
   }
 
   public FullServicesContainerImpl(
@@ -113,6 +116,11 @@ public class FullServicesContainerImpl implements FullServicesContainer {
   }
 
   @Override
+  public ImportantEventService getImportantEventService() {
+    return this.importantEventService;
+  }
+
+  @Override
   public void setMonitorService(MonitorService monitorService) {
     this.monitorService = monitorService;
   }
@@ -150,5 +158,10 @@ public class FullServicesContainerImpl implements FullServicesContainer {
   @Override
   public void setPluginManagerService(PluginManagerService pluginManagerService) {
     this.pluginManagerService = pluginManagerService;
+  }
+
+  @Override
+  public void setImportantEventService(ImportantEventService importantEventService) {
+    this.importantEventService = importantEventService;
   }
 }

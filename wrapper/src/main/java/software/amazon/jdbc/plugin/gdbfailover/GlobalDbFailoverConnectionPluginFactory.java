@@ -25,6 +25,6 @@ public class GlobalDbFailoverConnectionPluginFactory implements ConnectionPlugin
 
   @Override
   public ConnectionPlugin getInstance(FullServicesContainer servicesContainer, Properties props) {
-    return new GlobalDbFailoverConnectionPlugin(servicesContainer.getPluginService(), props);
+    return new GlobalDbFailoverConnectionPlugin(servicesContainer, props);
   }
 }

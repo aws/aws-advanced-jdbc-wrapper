@@ -18,6 +18,10 @@ package software.amazon.jdbc.plugin.strategy.fastestresponse;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -32,7 +36,9 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.events.Event;
 import software.amazon.jdbc.util.events.EventSubscriber;
@@ -43,7 +49,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
-public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSubscriber {
+public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSubscriber, StateSnapshotProvider {
 
   private static final Logger LOGGER =
       Logger.getLogger(NodeResponseTimeMonitor.class.getName());
@@ -60,6 +66,7 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
   private final AtomicLong checkTimestamp = new AtomicLong(this.getCurrentTime());
 
   private final @NonNull Properties props;
+  private final @NonNull Properties monitoringConnProperties;
   private final @NonNull PluginService pluginService;
 
   private final TelemetryFactory telemetryFactory;
@@ -85,6 +92,18 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
     final String nodeId = StringUtils.isNullOrEmpty(this.hostSpec.getHostId())
         ? this.hostSpec.getHost()
         : this.hostSpec.getHostId();
+
+    this.monitoringConnProperties = PropertyUtils.copyProperties(this.props);
+
+    this.props.stringPropertyNames().stream()
+        .filter(p -> p.startsWith(MONITORING_PROPERTY_PREFIX))
+        .forEach(
+            p -> {
+              monitoringConnProperties.put(
+                  p.substring(MONITORING_PROPERTY_PREFIX.length()),
+                  this.props.getProperty(p));
+              monitoringConnProperties.remove(p);
+            });
 
     // Report current response time (in milliseconds) to telemetry engine.
     // Report -1 if response time couldn't be measured.
@@ -182,22 +201,11 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
       final Connection copyConnection = this.monitoringConn.get();
       if (copyConnection == null || copyConnection.isClosed()) {
         // open a new connection
-        final Properties monitoringConnProperties = PropertyUtils.copyProperties(this.props);
-
-        this.props.stringPropertyNames().stream()
-            .filter(p -> p.startsWith(MONITORING_PROPERTY_PREFIX))
-            .forEach(
-                p -> {
-                  monitoringConnProperties.put(
-                      p.substring(MONITORING_PROPERTY_PREFIX.length()),
-                      this.props.getProperty(p));
-                  monitoringConnProperties.remove(p);
-                });
 
         LOGGER.finest(() -> Messages.get(
                 "NodeResponseTimeMonitor.openingConnection",
                 new Object[] {this.hostSpec.getUrl()}));
-        this.monitoringConn.set(this.pluginService.forceConnect(this.hostSpec, monitoringConnProperties));
+        this.monitoringConn.set(this.pluginService.forceConnect(this.hostSpec, this.monitoringConnProperties));
         LOGGER.finest(() -> Messages.get(
             "NodeResponseTimeMonitor.openedConnection",
             new Object[] {this.monitoringConn.get()}));
@@ -228,5 +236,17 @@ public class NodeResponseTimeMonitor extends AbstractMonitor implements EventSub
         this.reset();
       }
     }
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    PropertyUtils.addSnapshotState(state, "monitoringConnProperties", this.monitoringConnProperties);
+    state.add(Pair.create("intervalMs", this.intervalMs));
+    state.add(Pair.create("stopped", this.stopped.get()));
+    state.add(Pair.create("responseTime", this.responseTime.get()));
+    Connection conn = this.monitoringConn.get();
+    state.add(Pair.create("monitoringConn", conn != null ? conn.toString() : null));
+    return state;
   }
 }

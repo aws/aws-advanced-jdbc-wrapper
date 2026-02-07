@@ -86,4 +86,20 @@ public class StringUtils {
     }
     return tokensStream.filter((x) -> x != null && !"".equals(x)).collect(Collectors.toList());
   }
+
+  /**
+   * Masks a string by keeping a few characters at the beginning and end, replacing the rest with "***".
+   *
+   * @param input the string to mask
+   * @param prefixLength number of characters to keep at the beginning
+   * @param suffixLength number of characters to keep at the end
+   * @return the masked string
+   */
+  public static String mask(final String input, final int prefixLength, final int suffixLength) {
+    if (input == null || prefixLength < 0 || suffixLength < 0 || input.length() <= prefixLength + suffixLength) {
+      return "***";
+    }
+    return input.substring(0, prefixLength) + "***" + input.substring(input.length() - suffixLength);
+  }
+
 }

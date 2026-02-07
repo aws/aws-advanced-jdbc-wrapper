@@ -36,6 +36,7 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import software.amazon.jdbc.util.Pair;
 
 public class TestPluginOne implements ConnectionPlugin {
 
@@ -153,5 +154,10 @@ public class TestPluginOne implements ConnectionPlugin {
   @Override
   public void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes) {
     // do nothing
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    return null;
   }
 }

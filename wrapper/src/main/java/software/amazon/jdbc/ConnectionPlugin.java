@@ -25,12 +25,13 @@ import java.util.Properties;
 import java.util.Set;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import software.amazon.jdbc.util.StateSnapshotProvider;
 
 /**
  * Interface for connection plugins. This class implements ways to execute a JDBC method and to clean up resources used
  * before closing the plugin.
  */
-public interface ConnectionPlugin {
+public interface ConnectionPlugin extends StateSnapshotProvider {
 
   Set<String> getSubscribedMethods();
 

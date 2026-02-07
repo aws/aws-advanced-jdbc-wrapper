@@ -14,17 +14,15 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.failover2;
+package software.amazon.jdbc.exceptions;
 
-import java.util.Properties;
-import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.ConnectionPluginFactory;
-import software.amazon.jdbc.util.FullServicesContainer;
+public class SnapshotStateException extends RuntimeException {
 
-public class FailoverConnectionPluginFactory implements ConnectionPluginFactory {
+  public SnapshotStateException(String message, Throwable cause) {
+    super(message, cause);
+  }
 
-  @Override
-  public ConnectionPlugin getInstance(FullServicesContainer servicesContainer, Properties props) {
-    return new FailoverConnectionPlugin(servicesContainer, props);
+  public SnapshotStateException(String message) {
+    super(message);
   }
 }

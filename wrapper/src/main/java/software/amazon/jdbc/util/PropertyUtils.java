@@ -18,6 +18,7 @@ package software.amazon.jdbc.util;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -28,6 +29,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.PropertyDefinition;
 
@@ -194,5 +196,25 @@ public class PropertyUtils {
       result = wrapperProperty.getBoolean(props);
     }
     return result;
+  }
+
+  public static void addSnapshotState(
+      final @Nullable List<Pair<String, Object>> state,
+      final @NonNull String name,
+      final @Nullable Properties properties) {
+    if (state == null) {
+      return;
+    }
+    if (properties != null) {
+      Properties maskedProps = maskProperties(properties);
+      List<Pair<String, Object>> propsMap = new ArrayList<>();
+      for (Map.Entry<Object, Object> entry : maskedProps.entrySet()) {
+        propsMap.add(Pair.create(entry.getKey().toString(), entry.getValue().toString()));
+      }
+      state.add(Pair.create(name, propsMap));
+    } else {
+      state.add(Pair.create(name, "null"));
+    }
+
   }
 }

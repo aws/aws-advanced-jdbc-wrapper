@@ -19,6 +19,7 @@ package software.amazon.jdbc;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Wrapper;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -53,7 +54,10 @@ import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrat
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
@@ -64,7 +68,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
  * <p>THIS CLASS IS NOT MULTI-THREADING SAFE IT'S EXPECTED TO HAVE ONE INSTANCE OF THIS MANAGER PER
  * JDBC CONNECTION
  */
-public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
+public class ConnectionPluginManager implements CanReleaseResources, Wrapper, StateSnapshotProvider {
 
   private static final Logger LOGGER = Logger.getLogger(ConnectionPluginManager.class.getName());
 
@@ -618,6 +622,30 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
   public @Nullable ConnectionProvider getEffectiveConnProvider() {
     return this.effectiveConnProvider;
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    if (this.plugins != null) {
+      List<Pair<String, Object>> pluginsState = new ArrayList<>();
+      for (int i = 0; i <= this.plugins.size() - 1; i++) {
+        ConnectionPlugin plugin = this.plugins.get(i);
+        List<Pair<String, Object>> pluginState = plugin.getSnapshotState();
+        String pluginName = plugin.getClass().getName();
+        if (pluginState != null) {
+          pluginsState.add(Pair.create(pluginName, pluginState));
+        } else {
+          pluginsState.add(Pair.create(pluginName, "(blank)"));
+        }
+      }
+      if (!pluginsState.isEmpty()) {
+        state.add(Pair.create("plugins", pluginsState));
+      }
+    }
+    WrapperUtils.addSnapshotState(state, "defaultConnProvider", this.defaultConnProvider, true);
+    WrapperUtils.addSnapshotState(state, "effectiveConnProvider", this.effectiveConnProvider, true);
+    return state;
   }
 
   protected interface PluginPipeline<T, E extends Exception> {

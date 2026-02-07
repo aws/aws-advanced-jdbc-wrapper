@@ -18,9 +18,11 @@ package software.amazon.jdbc.plugin.customendpoint;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -38,8 +40,10 @@ import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.RegionUtils;
+import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.monitoring.MonitorErrorResponse;
@@ -50,7 +54,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
  * A plugin that analyzes custom endpoints for custom endpoint information and custom endpoint changes, such as adding
  * or removing an instance in the custom endpoint.
  */
-public class CustomEndpointPlugin extends AbstractConnectionPlugin {
+public class CustomEndpointPlugin extends AbstractConnectionPlugin implements StateSnapshotProvider {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointPlugin.class.getName());
   protected static final String TELEMETRY_WAIT_FOR_INFO_COUNTER = "customEndpoint.waitForInfo.counter";
   protected static final RegionUtils regionUtils = new RegionUtils();
@@ -332,5 +336,18 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     }
 
     return jdbcMethodFunc.call();
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    state.add(Pair.create("shouldWaitForInfo", this.shouldWaitForInfo));
+    state.add(Pair.create("waitOnCachedInfoDurationMs", this.waitOnCachedInfoDurationMs));
+    state.add(Pair.create("idleMonitorExpirationMs", this.idleMonitorExpirationMs));
+    state.add(Pair.create("customEndpointHostSpec",
+        this.customEndpointHostSpec != null ? this.customEndpointHostSpec.toString() : null));
+    state.add(Pair.create("customEndpointId", this.customEndpointId));
+    state.add(Pair.create("region", this.region != null ? this.region.id() : null));
+    return state;
   }
 }

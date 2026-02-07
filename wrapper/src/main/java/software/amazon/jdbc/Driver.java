@@ -54,6 +54,7 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectManager;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.CoreServicesContainer;
+import software.amazon.jdbc.util.DriverImportantEventService;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
@@ -203,6 +204,7 @@ public class Driver implements java.sql.Driver {
     TelemetryContext context = telemetryFactory.openTelemetryContext(
         "software.amazon.jdbc.Driver.connect", TelemetryTraceLevel.TOP_LEVEL);
 
+    FullServicesContainer servicesContainer = null;
     try {
       final String driverUrl = url.replaceFirst(PROTOCOL_PREFIX, "jdbc:");
 
@@ -249,7 +251,7 @@ public class Driver implements java.sql.Driver {
       }
 
       String targetDriverProtocol = urlParser.getProtocol(driverUrl);
-      FullServicesContainer servicesContainer = ServiceUtility.getInstance().createStandardServiceContainer(
+      servicesContainer = ServiceUtility.getInstance().createStandardServiceContainer(
           this.storageService,
           this.monitorService,
           this.eventPublisher,
@@ -263,12 +265,20 @@ public class Driver implements java.sql.Driver {
           configurationProfile);
 
       return new ConnectionWrapper(servicesContainer, props, url, targetDriverProtocol, configurationProfile);
-    } catch (Exception ex) {
+    } catch (RuntimeException ex) {
       if (context != null) {
         context.setException(ex);
         context.setSuccess(false);
       }
       throw ex;
+    } catch (Exception ex) {
+      if (context != null) {
+        context.setException(ex);
+        context.setSuccess(false);
+      }
+      throw WrapperUtils.wrapExceptionIfNeeded(
+          SQLException.class,
+          WrapperUtils.extendWithContext(ex, servicesContainer));
     } finally {
       if (context != null) {
         context.closeContext();
@@ -452,6 +462,7 @@ public class Driver implements java.sql.Driver {
     InternalConnectionPoolService.releaseResources();
     HikariPoolsHolder.closeAllPools();
     clearCaches();
+    DriverImportantEventService.clear();
   }
 
   public static void skipWrappingForType(Class<?> clazz) {

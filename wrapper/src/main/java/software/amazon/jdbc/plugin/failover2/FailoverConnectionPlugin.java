@@ -51,11 +51,15 @@ import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.plugin.failover.TransactionStateUnknownSQLException;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SqlState;
+import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -68,7 +72,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
  * This plugin provides cluster-aware failover features. The plugin switches connections upon
  * detecting communication related exceptions and/or cluster topology changes.
  */
-public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
+public class FailoverConnectionPlugin extends AbstractConnectionPlugin implements StateSnapshotProvider {
 
   private static final Logger LOGGER = Logger.getLogger(FailoverConnectionPlugin.class.getName());
   private static final String TELEMETRY_WRITER_FAILOVER = "failover to writer node";
@@ -108,6 +112,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           "skipFailoverOnInterruptedThread", "false",
           "Enable to skip failover if the current thread is interrupted.");
 
+  protected final FullServicesContainer servicesContainer;
   protected final Set<String> subscribedMethods;
   protected final PluginService pluginService;
   protected final Properties properties;
@@ -137,15 +142,16 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     PropertyDefinition.registerPluginProperties(FailoverConnectionPlugin.class);
   }
 
-  public FailoverConnectionPlugin(final PluginService pluginService, final Properties properties) {
-    this(pluginService, properties, new RdsUtils());
+  public FailoverConnectionPlugin(final FullServicesContainer servicesContainer, final Properties properties) {
+    this(servicesContainer, properties, new RdsUtils());
   }
 
   FailoverConnectionPlugin(
-      final PluginService pluginService,
+      final FullServicesContainer servicesContainer,
       final Properties properties,
       final RdsUtils rdsHelper) {
-    this.pluginService = pluginService;
+    this.servicesContainer = servicesContainer;
+    this.pluginService = servicesContainer.getPluginService();
     this.properties = properties;
     this.rdsHelper = rdsHelper;
 
@@ -304,6 +310,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     Throwable exceptionToThrow = wrapperException;
     if (originalException != null) {
       LOGGER.finer(() -> Messages.get("Failover.detectedException", new Object[]{originalException.getMessage()}));
+      this.servicesContainer.getImportantEventService().registerEvent(
+          () -> Messages.get("Failover.detectedException", new Object[]{originalException.getMessage()}));
+
       if (this.lastExceptionDealtWith != originalException
           && shouldExceptionTriggerConnectionSwitch(originalException)) {
         this.invalidateCurrentConnection();
@@ -363,6 +372,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
     try {
       LOGGER.fine(() -> Messages.get("Failover.startReaderFailover"));
+      this.servicesContainer.getImportantEventService().registerEvent(
+          () -> Messages.get("Failover.startReaderFailover"));
+
       // When we pass a timeout of 0, we inform the plugin service that it should update its topology without waiting
       // for it to get updated, since we do not need updated topology to establish a reader connection.
       if (!this.pluginService.forceRefreshHostList(false, 0)) {
@@ -402,9 +414,13 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
       throw ex;
     } finally {
+      final long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - failoverStartNano);
       LOGGER.finest(() -> Messages.get(
               "Failover.readerFailoverElapsed",
-              new Object[]{TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - failoverStartNano)}));
+              new Object[]{elapsedMs}));
+      this.servicesContainer.getImportantEventService().registerEvent(
+          () -> Messages.get("Failover.readerFailoverElapsed", new Object[]{elapsedMs}));
+
       if (telemetryContext != null) {
         telemetryContext.closeContext();
         if (this.telemetryFailoverAdditionalTopTraceSetting) {
@@ -571,6 +587,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     Connection writerCandidateConn = null;
     try {
       LOGGER.info(() -> Messages.get("Failover.startWriterFailover"));
+      this.servicesContainer.getImportantEventService().registerEvent(
+          () -> Messages.get("Failover.startWriterFailover"));
 
       // It's expected that this method synchronously returns when topology is stabilized,
       // i.e. when cluster control plane has already chosen a new writer.
@@ -668,9 +686,12 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
       throw ex;
     } finally {
+      final long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - failoverStartTimeNano);
       LOGGER.finest(() -> Messages.get(
           "Failover.writerFailoverElapsed",
-          new Object[]{TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - failoverStartTimeNano)}));
+          new Object[]{elapsedMs}));
+      this.servicesContainer.getImportantEventService().registerEvent(
+          () -> Messages.get("Failover.writerFailoverElapsed", new Object[]{elapsedMs}));
 
       if (writerCandidateConn != null && this.pluginService.getCurrentConnection() != writerCandidateConn) {
         try {
@@ -850,5 +871,23 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   @Override
   public void notifyNodeListChanged(final Map<String, EnumSet<NodeChangeOptions>> changes) {
     this.staleDnsHelper.notifyNodeListChanged(changes);
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    PropertyUtils.addSnapshotState(state, "properties", this.properties);
+    state.add(Pair.create("failoverTimeoutMsSetting", this.failoverTimeoutMsSetting));
+    state.add(Pair.create("failoverMode", this.failoverMode != null ? this.failoverMode.toString() : null));
+    state.add(Pair.create("telemetryFailoverAdditionalTopTraceSetting",
+        this.telemetryFailoverAdditionalTopTraceSetting));
+    state.add(Pair.create("failoverReaderHostSelectorStrategySetting",
+        this.failoverReaderHostSelectorStrategySetting));
+    state.add(Pair.create("closedExplicitly", this.closedExplicitly));
+    state.add(Pair.create("isClosed", this.isClosed));
+    state.add(Pair.create("isInTransaction", this.isInTransaction));
+    state.add(Pair.create("rdsUrlType", this.rdsUrlType != null ? this.rdsUrlType.toString() : null));
+    state.add(Pair.create("skipFailoverOnInterruptedThread", this.skipFailoverOnInterruptedThread));
+    return state;
   }
 }

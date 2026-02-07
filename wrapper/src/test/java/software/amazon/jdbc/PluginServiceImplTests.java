@@ -71,6 +71,7 @@ import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.ImportantEventService;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.storage.TestStorageServiceImpl;
@@ -84,6 +85,7 @@ public class PluginServiceImplTests {
   private AutoCloseable closeable;
 
   @Mock FullServicesContainer servicesContainer;
+  @Mock ImportantEventService mockImportantEventService;
   @Mock EventPublisher mockEventPublisher;
   @Mock ConnectionPluginManager pluginManager;
   @Mock Connection newConnection;
@@ -108,6 +110,7 @@ public class PluginServiceImplTests {
     when(statement.executeQuery(any())).thenReturn(resultSet);
     when(servicesContainer.getConnectionPluginManager()).thenReturn(pluginManager);
     when(servicesContainer.getStorageService()).thenReturn(storageService);
+    when(servicesContainer.getImportantEventService()).thenReturn(mockImportantEventService);
     storageService = new TestStorageServiceImpl(mockEventPublisher);
     PluginServiceImpl.hostAvailabilityExpiringCache.clear();
   }
