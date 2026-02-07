@@ -26,14 +26,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.logging.Level;
@@ -74,7 +72,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
   // Keep monitoring topology at a high rate for 30s after failover.
   protected static final long highRefreshPeriodAfterPanicNano = TimeUnit.SECONDS.toNanos(30);
-  protected static final long ignoreTopologyRequestNano = TimeUnit.SECONDS.toNanos(10);
 
   private static final long INITIAL_BACKOFF_MS = 100;
   private static final long MAX_BACKOFF_MS = 10000;
@@ -85,7 +82,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
 
   protected final Object topologyUpdated = new Object();
   protected final AtomicBoolean requestToUpdateTopology = new AtomicBoolean(false);
-  protected final AtomicLong ignoreNewTopologyRequestsEndTimeNano = new AtomicLong(-1);
   protected final ConcurrentHashMap<String, Boolean> submittedNodes = new ConcurrentHashMap<>();
 
   protected final ResourceLock nodeExecutorLock = new ResourceLock();
@@ -176,19 +172,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   @Override
   public List<HostSpec> forceRefresh(final boolean verifyTopology, final long timeoutMs)
       throws SQLException, TimeoutException {
-
-    if (this.ignoreNewTopologyRequestsEndTimeNano.get() > 0
-        && System.nanoTime() < this.ignoreNewTopologyRequestsEndTimeNano.get()) {
-
-      // A previous failover event has completed recently.
-      // We can use the results of it without triggering a new topology update.
-      List<HostSpec> currentHosts = getStoredHosts();
-      LOGGER.finest(() ->
-          LogUtils.logTopology(currentHosts, Messages.get("ClusterTopologyMonitorImpl.ignoringTopologyRequest")));
-      if (currentHosts != null) {
-        return currentHosts;
-      }
-    }
 
     if (verifyTopology) {
       // Enter panic mode, which will verify the topology for us.
@@ -344,13 +327,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
               this.isVerifiedWriterConnection = true;
               this.highRefreshRateEndTimeNano = System.nanoTime() + highRefreshPeriodAfterPanicNano;
 
-              // We verify the writer on initial connection and on failover, but we only want to ignore new topology
-              // requests after failover. To accomplish this, the first time we verify the writer we set the ignore end
-              // time to 0. Any future writer verifications will set it to a positive value.
-              if (!this.ignoreNewTopologyRequestsEndTimeNano.compareAndSet(-1, 0)) {
-                this.ignoreNewTopologyRequestsEndTimeNano.set(System.nanoTime() + ignoreTopologyRequestNano);
-              }
-
               this.nodeThreadsStop.set(true);
               this.closeNodeMonitors();
               this.submittedNodes.clear();
@@ -421,11 +397,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
           }
 
           this.delay(false);
-        }
-
-        if (this.ignoreNewTopologyRequestsEndTimeNano.get() > 0
-            && System.nanoTime() > this.ignoreNewTopologyRequestsEndTimeNano.get()) {
-          this.ignoreNewTopologyRequestsEndTimeNano.set(0);
         }
       }
 
@@ -532,7 +503,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     this.writerHostSpec.set(null);
     this.highRefreshRateEndTimeNano = 0;
     this.requestToUpdateTopology.set(false);
-    this.ignoreNewTopologyRequestsEndTimeNano.set(-1);
     this.clearTopologyCache();
 
     // This breaks any waiting/sleeping cycles in the monitoring thread
@@ -617,7 +587,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
   }
 
   protected List<HostSpec> openAnyConnectionAndUpdateTopology() {
-    boolean writerVerifiedByThisThread = false;
     if (this.monitoringConnection.get() == null) {
 
       Connection conn;
@@ -637,7 +606,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
         try {
           if (this.topologyUtils.isWriterInstance(this.monitoringConnection.get())) {
             this.isVerifiedWriterConnection = true;
-            writerVerifiedByThisThread = true;
 
             if (rdsHelper.isRdsInstance(this.initialHostSpec.getHost())) {
               this.writerHostSpec.set(this.initialHostSpec);
@@ -669,14 +637,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
     }
 
     final List<HostSpec> hosts = this.fetchTopologyAndUpdateCache(this.monitoringConnection.get());
-    if (writerVerifiedByThisThread) {
-      // We verify the writer on initial connection and on failover, but we only want to ignore new topology
-      // requests after failover. To accomplish this, the first time we verify the writer we set the ignore end
-      // time to 0. Any future writer verifications will set it to a positive value.
-      if (!this.ignoreNewTopologyRequestsEndTimeNano.compareAndSet(-1, 0)) {
-        this.ignoreNewTopologyRequestsEndTimeNano.set(System.nanoTime() + ignoreTopologyRequestNano);
-      }
-    }
 
     if (hosts == null) {
       // Attempt to fetch topology failed. There might be something wrong with the connection, so we close it here.
@@ -882,9 +842,6 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
                 // Successfully updated the node monitor writer connection.
                 LOGGER.fine(() ->
                     Messages.get("NodeMonitoringThread.detectedWriter", new Object[] {hostSpec.getUrl()}));
-                // When nodeThreadsWriterConnection and nodeThreadsWriterHostSpec are both set, the topology monitor may
-                // set ignoreNewTopologyRequestsEndTimeNano, in which case other threads will use the cached topology
-                // for the ignore duration, so we need to update the topology before setting nodeThreadsWriterHostSpec.
                 this.monitor.fetchTopologyAndUpdateCache(this.connection.get());
                 this.monitor.nodeThreadsWriterHostSpec.set(hostSpec);
 
