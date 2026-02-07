@@ -370,12 +370,36 @@ public class FailoverTest {
                 conn));
       }
 
-      // Sleep for 10 seconds to allow daemon threads to finish running.
-      Thread.sleep(10000);
+      // Sleep for 30 seconds to allow daemon threads to finish running.
+      Thread.sleep(30000);
 
-      // Ensure that all idle connections are closed.
-      for (Connection idleConnection : idleConnections) {
-        assertTrue(idleConnection.isClosed(), String.format("Idle connection %s is still opened.", idleConnection));
+      try (final Connection conn = DriverManager.getConnection(
+          ConnectionStringHelper.getWrapperUrl(
+              clusterEndpoint,
+              clusterEndpointPort,
+              TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
+          props)) {
+
+        final String instanceId = auroraUtil.queryInstanceId(
+            TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+            TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
+            conn);
+
+        if (this.currentWriter.equals(instanceId)) {
+          LOGGER.finest("Cluster failed over to the same instance " + instanceId + ".");
+          // We don't trigger actual server-sided failover for multi-az environments
+          // so writer instance does not change after failover
+          // Aurora Connection Tracker plugin only invalidates relevant connections if it detected changes to the writer
+          for (Connection idleConnection : idleConnections) {
+            assertFalse(idleConnection.isClosed(), String.format("Idle connection %s is closed.", idleConnection));
+          }
+        } else {
+          LOGGER.finest("Cluster failed over to the instance " + instanceId + ".");
+          // Ensure that all idle connections are closed.
+          for (Connection idleConnection : idleConnections) {
+            assertTrue(idleConnection.isClosed(), String.format("Idle connection %s is still opened.", idleConnection));
+          }
+        }
       }
     } finally {
       for (Connection idleConnection : idleConnections) {
