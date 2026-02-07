@@ -1654,24 +1654,45 @@ public class BlueGreenDeploymentTests {
   private void printHostVerificationResults(
       String node, ConcurrentLinkedDeque<HostVerificationResult> results, long timeZeroNano) {
 
-    long totalVerifications = results.stream().filter(r -> r.error == null).count();
-    long connectionsToBlue = results.stream().filter(r -> r.connectedToBlue).count();
-    long errors = results.stream().filter(r -> r.error != null).count();
+    long totalAttempts = results.size();
+    long totalSuccessfulVerifications = results.stream().filter(r -> r.error == null).count();
+    long totalUnsuccessfulVerifications = results.stream().filter(r -> r.error != null).count();
+    long totalConnectionsToBlue = results.stream()
+        .filter(r -> r.error == null)
+        .filter(r -> r.connectedToBlue)
+        .count();
+    long totalConnectionsToGreen = results.stream()
+        .filter(r -> r.error == null)
+        .filter(r -> !r.connectedToBlue)
+        .count();
+
+    // Calculate connections to blue after switchover started (same logic as assertNoConnectionsToOldBlueCluster)
+    long switchoverInProgressTime = getSwitchoverInProgressTime(timeZeroNano);
+    long connectionsToBlueAfterSwitchover = results.stream()
+        .filter(r -> getTimeOffsetMs(r.timestamp, timeZeroNano) > switchoverInProgressTime)
+        .filter(r -> r.connectedToBlue)
+        .count();
 
     AsciiTable metricsTable = new AsciiTable();
     metricsTable.addRule();
     metricsTable.addRow("Metric", "Value");
     metricsTable.addRule();
-    metricsTable.addRow("Total verifications", totalVerifications);
-    metricsTable.addRow("Connections to old blue", connectionsToBlue);
-    metricsTable.addRow("Errors", errors);
+    metricsTable.addRow("Total verification attempts", totalAttempts);
+    metricsTable.addRow("Total successful connection and verification attempts", totalSuccessfulVerifications);
+    metricsTable.addRow("Total unsuccessful/dropped verification attempts (expected during switchover)",
+        totalUnsuccessfulVerifications);
+    metricsTable.addRow("Total successful connections to blue", totalConnectionsToBlue);
+    metricsTable.addRow("Total successful connections to green", totalConnectionsToGreen);
+    metricsTable.addRow("Total connections to old blue after switchover was in progress (ERROR if not 0)",
+        connectionsToBlueAfterSwitchover);
     metricsTable.addRule();
 
-    // Show any connections to old blue cluster
-    if (connectionsToBlue > 0) {
-      metricsTable.addRow("Time (ms)", "Connected to old blue");
+    // Show any connections to old blue cluster after switchover
+    if (connectionsToBlueAfterSwitchover > 0) {
+      metricsTable.addRow("Time (ms)", "Connection to blue after switchover");
       metricsTable.addRule();
       results.stream()
+          .filter(r -> getTimeOffsetMs(r.timestamp, timeZeroNano) > switchoverInProgressTime)
           .filter(r -> r.connectedToBlue)
           .forEach(r -> metricsTable.addRow(
               TimeUnit.NANOSECONDS.toMillis(r.timestamp - timeZeroNano),
@@ -1987,12 +2008,15 @@ public class BlueGreenDeploymentTests {
 
     assertEquals(0L, connectionsToBlueAfterSwitchoverStart,
         String.format(
-            "Found %d connections to old blue cluster after switchover IN_PROGRESS (%d ms). "
+            "Found %d connections to old blue cluster after SWITCHOVER_IN_PROGRESS (%d ms). "
                 + "Connections should only go to the new green cluster during and after switchover.",
             connectionsToBlueAfterSwitchoverStart, switchoverInProgressTime));
 
     assertTrue(totalVerificationsAfterSwitchoverStart > 0,
-        "Expected at least one successful host verification after switchover IN_PROGRESS.");
+        "Expected at least one successful host verification after SWITCHOVER_IN_PROGRESS.");
+    
+
+    // Add assertion to fail if rollback. We will see the status rollback. 
   }
 
   /**

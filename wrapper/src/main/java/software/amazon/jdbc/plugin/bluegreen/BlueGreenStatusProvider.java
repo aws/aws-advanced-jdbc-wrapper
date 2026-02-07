@@ -255,7 +255,8 @@ public class BlueGreenStatusProvider {
     BlueGreenInterimStatus roleStatus = this.interimStatuses[role.getValue()];
     BlueGreenPhase latestInterimPhase = roleStatus == null ? BlueGreenPhase.NOT_CREATED : roleStatus.blueGreenPhase;
 
-    if (latestInterimPhase != null
+    if (role == BlueGreenRole.TARGET // Only roll back based on TARGET.
+        && latestInterimPhase != null
         && interimStatus.blueGreenPhase != null
         && interimStatus.blueGreenPhase.getValue() < latestInterimPhase.getValue()) {
       this.rollback = true;
