@@ -30,11 +30,13 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.WeightedRandomHostSelector;
 import software.amazon.jdbc.dialect.AuroraLimitlessDialect;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.StringUtils;
 
 public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
 
@@ -109,6 +111,13 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
+
+    final String weightPairs = WeightedRandomHostSelector.WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS.getString(props);
+    if (!StringUtils.isNullOrEmpty(weightPairs)) {
+      throw new SQLException(Messages.get(
+          "LimitlessConnectionPlugin.incompatibleWeightedRandomHostWeightPairsProperty",
+          new Object[] {WeightedRandomHostSelector.WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS.name}));
+    }
 
     Connection conn = null;
 

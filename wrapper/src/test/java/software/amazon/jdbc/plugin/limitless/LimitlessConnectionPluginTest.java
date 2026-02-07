@@ -40,6 +40,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.WeightedRandomHostSelector;
 import software.amazon.jdbc.dialect.AuroraPgDialect;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.PgDialect;
@@ -158,5 +159,17 @@ public class LimitlessConnectionPluginTest {
     verify(mockLimitlessRouterService, times(1))
         .startMonitoring(INPUT_HOST_SPEC, props, INTERVAL_MILLIS.getInteger(props));
     verify(mockLimitlessRouterService, times(1)).establishConnection(any());
+  }
+
+  @Test
+  void testConnect_throwsException_whenWeightedRandomHostWeightPairsPropertyIsSet() throws SQLException {
+    props.setProperty(WeightedRandomHostSelector.WEIGHTED_RANDOM_HOST_WEIGHT_PAIRS.name, "host1:1,host2:2");
+
+    assertThrows(
+        SQLException.class,
+        () -> plugin.connect(DRIVER_PROTOCOL, INPUT_HOST_SPEC, props, true, mockConnectFuncLambda));
+
+    verify(mockPluginService, times(0)).getDialect();
+    verify(mockLimitlessRouterService, times(0)).establishConnection(any());
   }
 }
