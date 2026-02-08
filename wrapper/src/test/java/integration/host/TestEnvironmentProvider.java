@@ -212,7 +212,8 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
                               config.noTracesTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED,
                               config.noMetricsTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED,
                               withBlueGreenFeature ? TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT : null,
-                              withMetricsFeature ? TestEnvironmentFeatures.RUN_DB_METRICS_ONLY : null)));
+                              withMetricsFeature ? TestEnvironmentFeatures.RUN_DB_METRICS_ONLY : null,
+                              config.testValkeyCache ? TestEnvironmentFeatures.VALKEY_CACHE : null)));
                 }
               }
             }
