@@ -41,68 +41,80 @@ class ConnectionUrlParserTest {
 
   @Test
   void testParseHostPortPairWithRegionPrefix() {
-    Pair<String, HostSpec> pair = ConnectionUrlParser.parseHostPortPairWithRegionPrefix(
-        "?.XYZ.us-east-2.rds.amazonaws.com",
-        () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
+    Pair<String, HostSpec> pair =
+        ConnectionUrlParser.parseHostPortPairWithRegionPrefix(
+            "?.XYZ.us-east-2.rds.amazonaws.com",
+            () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
     assertEquals("us-east-2", pair.getValue1());
     assertEquals("?.XYZ.us-east-2.rds.amazonaws.com", pair.getValue2().getHost());
     assertFalse(pair.getValue2().isPortSpecified());
 
-    pair = ConnectionUrlParser.parseHostPortPairWithRegionPrefix(
-        "[test-region]?.XYZ.us-east-2.rds.amazonaws.com",
-        () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
+    pair =
+        ConnectionUrlParser.parseHostPortPairWithRegionPrefix(
+            "[test-region]?.XYZ.us-east-2.rds.amazonaws.com",
+            () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
     assertEquals("test-region", pair.getValue1());
     assertEquals("?.XYZ.us-east-2.rds.amazonaws.com", pair.getValue2().getHost());
     assertFalse(pair.getValue2().isPortSpecified());
 
-    pair = ConnectionUrlParser.parseHostPortPairWithRegionPrefix(
-        "?.XYZ.us-east-2.rds.amazonaws.com:9999",
-        () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
+    pair =
+        ConnectionUrlParser.parseHostPortPairWithRegionPrefix(
+            "?.XYZ.us-east-2.rds.amazonaws.com:9999",
+            () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
     assertEquals("us-east-2", pair.getValue1());
     assertEquals("?.XYZ.us-east-2.rds.amazonaws.com", pair.getValue2().getHost());
     assertTrue(pair.getValue2().isPortSpecified());
     assertEquals(9999, pair.getValue2().getPort());
 
-    pair = ConnectionUrlParser.parseHostPortPairWithRegionPrefix(
-        "[test-region]?.XYZ.us-east-2.rds.amazonaws.com:9999",
-        () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
+    pair =
+        ConnectionUrlParser.parseHostPortPairWithRegionPrefix(
+            "[test-region]?.XYZ.us-east-2.rds.amazonaws.com:9999",
+            () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
     assertEquals("test-region", pair.getValue1());
     assertEquals("?.XYZ.us-east-2.rds.amazonaws.com", pair.getValue2().getHost());
     assertTrue(pair.getValue2().isPortSpecified());
     assertEquals(9999, pair.getValue2().getPort());
 
-    pair = ConnectionUrlParser.parseHostPortPairWithRegionPrefix(
-        "[test-region]?.custom-domain.com",
-        () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
+    pair =
+        ConnectionUrlParser.parseHostPortPairWithRegionPrefix(
+            "[test-region]?.custom-domain.com",
+            () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
     assertEquals("test-region", pair.getValue1());
     assertEquals("?.custom-domain.com", pair.getValue2().getHost());
     assertFalse(pair.getValue2().isPortSpecified());
 
-    pair = ConnectionUrlParser.parseHostPortPairWithRegionPrefix(
-        "[test-region]?.custom-domain.com:9999",
-        () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
+    pair =
+        ConnectionUrlParser.parseHostPortPairWithRegionPrefix(
+            "[test-region]?.custom-domain.com:9999",
+            () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
     assertEquals("test-region", pair.getValue1());
     assertEquals("?.custom-domain.com", pair.getValue2().getHost());
     assertTrue(pair.getValue2().isPortSpecified());
     assertEquals(9999, pair.getValue2().getPort());
 
-    assertThrows(IllegalArgumentException.class, () ->
-        ConnectionUrlParser.parseHostPortPairWithRegionPrefix(
-          "?.custom-domain.com",
-          () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy())));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            ConnectionUrlParser.parseHostPortPairWithRegionPrefix(
+                "?.custom-domain.com",
+                () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy())));
 
-    assertThrows(IllegalArgumentException.class, () ->
-        ConnectionUrlParser.parseHostPortPairWithRegionPrefix(
-            "?.custom-domain.com:9999",
-            () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy())));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            ConnectionUrlParser.parseHostPortPairWithRegionPrefix(
+                "?.custom-domain.com:9999",
+                () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy())));
   }
 
   @ParameterizedTest
   @MethodSource("testGetHostsFromConnectionUrlArguments")
-  void testGetHostsFromConnectionUrl_returnCorrectHostList(String testUrl, List<HostSpec> expected) {
+  void testGetHostsFromConnectionUrl_returnCorrectHostList(
+      String testUrl, List<HostSpec> expected) {
     final ConnectionUrlParser parser = new ConnectionUrlParser();
-    final List<HostSpec> results = parser.getHostsFromConnectionUrl(testUrl, false,
-        () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
+    final List<HostSpec> results =
+        parser.getHostsFromConnectionUrl(
+            testUrl, false, () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
 
     assertEquals(expected.size(), results.size());
     for (int i = 0; i < expected.size(); i++) {
@@ -117,16 +129,19 @@ class ConnectionUrlParserTest {
     final List<HostSpec> expected =
         Arrays.asList(
             new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-1").build(),
-            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-2")
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("instance-2")
                 .port(3303)
                 .role(HostRole.READER)
                 .build(),
-            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3")
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                .host("instance-3")
                 .port(HostSpec.NO_PORT)
                 .role(HostRole.READER)
                 .build());
-    final List<HostSpec> results = parser.getHostsFromConnectionUrl(testUrl, true,
-        () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
+    final List<HostSpec> results =
+        parser.getHostsFromConnectionUrl(
+            testUrl, true, () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
 
     assertEquals(expected.size(), results.size());
     for (int i = 0; i < expected.size(); i++) {
@@ -225,22 +240,44 @@ class ConnectionUrlParserTest {
         Arguments.of("protocol//", new ArrayList<HostSpec>()),
         Arguments.of("bar/", new ArrayList<HostSpec>()),
         Arguments.of("invalid-hosts?", new ArrayList<HostSpec>()),
-        Arguments.of("jdbc//host:3303/db?param=1", Collections.singletonList(
-            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host").port(3303).build())),
-        Arguments.of("protocol//host2:3303", Collections.singletonList(
-            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host2").port(3303).build())),
-        Arguments.of("foo//host:3303/?#", Collections.singletonList(
-            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host").port(3303).build())),
-        Arguments.of("jdbc:mysql:replication://host:badInt?param=",
-            Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host")
-                .build())),
-        Arguments.of("jdbc:driver:test://instance-1,instance-2:3303,instance-3/test",
+        Arguments.of(
+            "jdbc//host:3303/db?param=1",
+            Collections.singletonList(
+                new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                    .host("host")
+                    .port(3303)
+                    .build())),
+        Arguments.of(
+            "protocol//host2:3303",
+            Collections.singletonList(
+                new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                    .host("host2")
+                    .port(3303)
+                    .build())),
+        Arguments.of(
+            "foo//host:3303/?#",
+            Collections.singletonList(
+                new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                    .host("host")
+                    .port(3303)
+                    .build())),
+        Arguments.of(
+            "jdbc:mysql:replication://host:badInt?param=",
+            Collections.singletonList(
+                new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host").build())),
+        Arguments.of(
+            "jdbc:driver:test://instance-1,instance-2:3303,instance-3/test",
             Arrays.asList(
-                new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-1").build(),
-                new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-2").port(3303)
+                new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                    .host("instance-1")
                     .build(),
-                new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3").build()))
-    );
+                new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                    .host("instance-2")
+                    .port(3303)
+                    .build(),
+                new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+                    .host("instance-3")
+                    .build())));
   }
 
   private static Stream<Arguments> userUrls() {
@@ -249,8 +286,7 @@ class ConnectionUrlParserTest {
         Arguments.of("protocol//url/db?user=foo&pass=bar", "foo"),
         Arguments.of("protocol//url/db?USER=foo", null),
         Arguments.of("protocol//url/db?USER=foo&pass=bar", null),
-        Arguments.of("protocol//url/db?username=foo", null)
-    );
+        Arguments.of("protocol//url/db?username=foo", null));
   }
 
   private static Stream<Arguments> passwordUrls() {
@@ -259,8 +295,7 @@ class ConnectionUrlParserTest {
         Arguments.of("protocol//url/db?password=foo&user=bar", "foo"),
         Arguments.of("protocol//url/db?PASSWORD=foo", null),
         Arguments.of("protocol//url/db?PASSWORD=foo&user=bar", null),
-        Arguments.of("protocol//url/db?pass=foo", null)
-    );
+        Arguments.of("protocol//url/db?pass=foo", null));
   }
 
   private static Stream<Arguments> encodedParams() {
@@ -269,25 +304,25 @@ class ConnectionUrlParserTest {
         Arguments.of("protocol//host/db?param=" + StringUtils.encode("value_"), "value_"),
         Arguments.of("protocol//host/db?param=" + StringUtils.encode("value?"), "value?"),
         Arguments.of("protocol//host/db?param=" + StringUtils.encode("value&"), "value&"),
-        Arguments.of("protocol//host/db?param=" + StringUtils.encode("value"
-            + new String(Character.toChars(0x007E))), "value~")
-    );
+        Arguments.of(
+            "protocol//host/db?param="
+                + StringUtils.encode("value" + new String(Character.toChars(0x007E))),
+            "value~"));
   }
 
   private static Stream<Arguments> urlWithQuestionMarksParams() {
     return Stream.of(
         Arguments.of("protocol//host/db?param=foo", "foo"),
         Arguments.of("protocol//host:1234/db?param=?.foo", "?.foo"),
-        Arguments.of("protocol//host?param=?", "?")
-    );
+        Arguments.of("protocol//host?param=?", "?"));
   }
 
   private static Stream<Arguments> urlWithNestedParams() {
     return Stream.of(
         Arguments.of("protocol//host/db?param=-c%20foo=1000", "-c foo=1000"),
         Arguments.of("protocol//host/db?param=-c foo=1000", "-c foo=1000"),
-        Arguments.of("protocol//host/db?param=-c%20foo=a,b,c%20-c%20bar=10", "-c foo=a,b,c -c bar=10"),
-        Arguments.of("protocol//host/db?param=-c foo=a,b,c -c bar=10", "-c foo=a,b,c -c bar=10")
-    );
+        Arguments.of(
+            "protocol//host/db?param=-c%20foo=a,b,c%20-c%20bar=10", "-c foo=a,b,c -c bar=10"),
+        Arguments.of("protocol//host/db?param=-c foo=a,b,c -c bar=10", "-c foo=a,b,c -c bar=10"));
   }
 }

@@ -96,6 +96,7 @@ public class TestEnvironment implements AutoCloseable {
   private String awsAccessKeyId;
   private String awsSecretAccessKey;
   private String awsSessionToken;
+  private String kmsKeyId;
 
   private GenericContainer<?> testContainer;
   private final ArrayList<GenericContainer<?>> databaseContainers = new ArrayList<>();
@@ -1018,6 +1019,7 @@ public class TestEnvironment implements AutoCloseable {
     env.awsAccessKeyId = config.awsAccessKeyId;
     env.awsSecretAccessKey = config.awsSecretAccessKey;
     env.awsSessionToken = config.awsSessionToken;
+    env.kmsKeyId = config.kmsKeyId;
 
     if (StringUtils.isNullOrEmpty(env.awsAccessKeyId)) {
       throw new RuntimeException("Environment variable AWS_ACCESS_KEY_ID is required.");
@@ -1176,7 +1178,8 @@ public class TestEnvironment implements AutoCloseable {
       env.testContainer
           .withEnv("AWS_ACCESS_KEY_ID", env.awsAccessKeyId)
           .withEnv("AWS_SECRET_ACCESS_KEY", env.awsSecretAccessKey)
-          .withEnv("AWS_SESSION_TOKEN", env.awsSessionToken);
+          .withEnv("AWS_SESSION_TOKEN", env.awsSessionToken)
+          .withEnv("KMS_KEY_ID", env.kmsKeyId);
     }
 
     env.testContainer.start();

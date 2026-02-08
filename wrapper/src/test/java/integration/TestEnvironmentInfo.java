@@ -23,6 +23,7 @@ public class TestEnvironmentInfo {
   private String awsAccessKeyId;
   private String awsSecretAccessKey;
   private String awsSessionToken;
+  private String kmsKeyId;
 
   private String region;
   private String rdsEndpoint;
