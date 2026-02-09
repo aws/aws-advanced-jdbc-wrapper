@@ -149,7 +149,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
   private void checkWriterChanged(boolean needRefreshHostLists) {
     if (needRefreshHostLists) {
       try {
-        this.pluginService.refreshHostList();
+        this.pluginService.forceRefreshHostList();
       } catch (SQLException ex) {
         // do nothing
       }
