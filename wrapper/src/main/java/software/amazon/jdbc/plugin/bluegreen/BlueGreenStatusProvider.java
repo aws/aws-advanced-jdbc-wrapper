@@ -258,6 +258,7 @@ public class BlueGreenStatusProvider {
     if (role == BlueGreenRole.TARGET // Only roll back based on TARGET.
         && latestInterimPhase != null
         && interimStatus.blueGreenPhase != null
+        && latestStatusPhase != BlueGreenPhase.COMPLETED
         && interimStatus.blueGreenPhase.getValue() < latestInterimPhase.getValue()) {
       this.rollback = true;
       LOGGER.finest(() -> Messages.get("bgd.rollback", new Object[] {this.bgdId}));
@@ -1057,15 +1058,30 @@ public class BlueGreenStatusProvider {
         .max(Comparator.comparingInt(x -> x))
         .orElse(eventNameDefaultFieldSize);
 
+    // For rollback, try to find the original PREPARATION phase first (without rollback suffix),
+    // then fall back to the rollback-suffixed version if not found.
     BlueGreenPhase timeZeroPhase = this.rollback ? BlueGreenPhase.PREPARATION : BlueGreenPhase.IN_PROGRESS;
-    String timeZeroKey = this.rollback ? timeZeroPhase.name() + " (rollback)" : timeZeroPhase.name();
-    PhaseTimeInfo timeZero = this.phaseTimeNano.get(timeZeroKey);
+    final PhaseTimeInfo timeZero;
+    if (this.rollback) {
+      // Try original phase key first (switchover started before rollback was detected)
+      PhaseTimeInfo originalPhaseTime = this.phaseTimeNano.get(timeZeroPhase.name());
+      if (originalPhaseTime != null) {
+        timeZero = originalPhaseTime;
+      } else {
+        // Fall back to rollback-suffixed key
+        timeZero = this.phaseTimeNano.get(timeZeroPhase.name() + " (rollback)");
+      }
+    } else {
+      timeZero = this.phaseTimeNano.get(timeZeroPhase.name());
+    }
+
     String divider = "---------------------------------------------------"
         + new String(new char[maxEventNameLength]).replace('\0', '-')
         + "\n";
 
+    String statusLabel = this.rollback ? "ROLLED BACK" : "COMPLETED";
     String logMessage =
-        String.format("[bgdId: '%s']", this.bgdId)
+        String.format("[bgdId: '%s'] Blue/Green Deployment Switchover %s", this.bgdId, statusLabel)
         + "\n" + divider
         + String.format("%-28s %21s %" + maxEventNameLength + "s\n",
         "timestamp",

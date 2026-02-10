@@ -17,6 +17,7 @@
 package integration.container.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -84,11 +85,15 @@ import software.amazon.jdbc.dialect.DialectCodes;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenConnectionPlugin;
+import software.amazon.jdbc.plugin.bluegreen.BlueGreenPhase;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenRole;
+import software.amazon.jdbc.plugin.bluegreen.BlueGreenStatus;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.plugin.iam.RegularRdsUtility;
+import software.amazon.jdbc.util.CoreServicesContainer;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.storage.StorageService;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @EnableOnTestFeature(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)
@@ -204,6 +209,8 @@ public class BlueGreenDeploymentTests {
 
   private final ConcurrentHashMap<String, BlueGreenResults> results = new ConcurrentHashMap<>();
   private final ConcurrentLinkedDeque<Throwable> unhandledExceptions = new ConcurrentLinkedDeque<>();
+  private final AtomicBoolean rollbackDetected = new AtomicBoolean(false);
+  private final AtomicReference<String> rollbackDetails = new AtomicReference<>(null);
 
   /**
    * NOTE: this test requires manual verification to fully verify proper B/G behavior.
@@ -230,6 +237,8 @@ public class BlueGreenDeploymentTests {
 
     this.results.clear();
     this.unhandledExceptions.clear();
+    this.rollbackDetected.set(false);
+    this.rollbackDetails.set(null);
 
     boolean iamEnabled =
         TestEnvironment.getCurrent().getInfo().getRequest().getFeatures().contains(TestEnvironmentFeatures.IAM);
@@ -350,6 +359,11 @@ public class BlueGreenDeploymentTests {
 
     threads.add(getBlueGreenSwitchoverTriggerThread(
         info.getBlueGreenDeploymentId(), startLatchAtomic, finishLatchAtomic, results));
+    threadCount++;
+    threadFinishCount++;
+
+    threads.add(getRollbackDetectionThread(
+        info.getBlueGreenDeploymentId(), startLatchAtomic, stop, finishLatchAtomic));
     threadCount++;
     threadFinishCount++;
 
@@ -1348,6 +1362,68 @@ public class BlueGreenDeploymentTests {
     });
   }
 
+  // Monitors BlueGreenStatus for rollback detection
+  // A rollback is detected when the phase regresses to CREATED after reaching PREPARATION or higher
+  // (but not after COMPLETED, which is a normal reset)
+  private Thread getRollbackDetectionThread(
+      final String bgdId,
+      final AtomicReference<CountDownLatch> startLatch,
+      final AtomicBoolean stop,
+      final AtomicReference<CountDownLatch> finishLatch) {
+
+    return new Thread(() -> {
+      try {
+        // notify that this thread is ready for work
+        startLatch.get().countDown();
+
+        // wait for other threads to be ready
+        startLatch.get().await(5, TimeUnit.MINUTES);
+
+        LOGGER.finest("[RollbackDetection] Starting rollback monitoring for id: " + bgdId);
+
+        BlueGreenPhase highestPhaseSeen = BlueGreenPhase.NOT_CREATED;
+        StorageService storageService = CoreServicesContainer.getInstance().getStorageService();
+
+        while (!stop.get()) {
+          BlueGreenStatus status = storageService.get(BlueGreenStatus.class, bgdId);
+
+          if (status != null && status.getCurrentPhase() != null) {
+            BlueGreenPhase currentPhase = status.getCurrentPhase();
+
+            // Check for rollback: phase went back to CREATED after reaching PREPARATION or higher,
+            // but not after COMPLETED (which is a normal post-switchover reset)
+            if (currentPhase == BlueGreenPhase.CREATED
+                && highestPhaseSeen.getValue() >= BlueGreenPhase.PREPARATION.getValue()
+                && highestPhaseSeen != BlueGreenPhase.COMPLETED) {
+              rollbackDetected.set(true);
+              rollbackDetails.set(String.format(
+                  "Rollback detected: phase regressed from %s to CREATED", highestPhaseSeen));
+              LOGGER.warning(rollbackDetails.get());
+              break;
+            }
+
+            // Track highest phase seen
+            if (currentPhase.getValue() > highestPhaseSeen.getValue()) {
+              highestPhaseSeen = currentPhase;
+              LOGGER.finest("[RollbackDetection] Phase advanced to: " + highestPhaseSeen);
+            }
+          }
+
+          TimeUnit.MILLISECONDS.sleep(100);
+        }
+
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      } catch (Exception e) {
+        LOGGER.log(Level.FINEST, "[RollbackDetection] thread unhandled exception: ", e);
+        this.unhandledExceptions.add(e);
+      } finally {
+        finishLatch.get().countDown();
+        LOGGER.finest("[RollbackDetection] thread is completed.");
+      }
+    });
+  }
+
   private Connection openConnectionWithRetry(String url, Properties props) {
     Connection conn = null;
     int connectCount = 0;
@@ -1505,6 +1581,8 @@ public class BlueGreenDeploymentTests {
         props.setProperty("serverSslCert", RDS_SSL_CERT_PATH);
       }
     }
+
+    props.setProperty("bgdId", TestEnvironment.getCurrent().getInfo().getBlueGreenDeploymentId());
     return props;
   }
 
@@ -1819,8 +1897,44 @@ public class BlueGreenDeploymentTests {
   }
 
   private void assertTest() {
+    assertNoRollback();
     assertSwitchoverCompleted();
     assertWrapperBehavior();
+  }
+
+  /**
+   * Validates that no rollback occurred during the B/G switchover.
+   * Checks:
+   * 1. Rollback detection thread didn't detect a phase regression
+   * 2. Fallback: No status keys contain "rollback" (case-insensitive)
+   *
+   */
+  private void assertNoRollback() {
+    // Primary check: rollback detection thread
+    assertFalse(rollbackDetected.get(),
+        "Blue/Green Deployment rollback detected: " + rollbackDetails.get());
+
+    // Fallback check: look for any status containing "rollback" in the status maps
+    for (Map.Entry<String, BlueGreenResults> entry : this.results.entrySet()) {
+      String instanceId = entry.getKey();
+      BlueGreenResults instanceResults = entry.getValue();
+
+      // Check blue status times for rollback indicators
+      for (String status : instanceResults.blueStatusTime.keySet()) {
+        assertFalse(status.toLowerCase().contains("rollback"),
+            String.format(
+                "Blue/Green Deployment rollback detected in blue status for instance '%s': %s",
+                instanceId, status));
+      }
+
+      // Check green status times for rollback indicators
+      for (String status : instanceResults.greenStatusTime.keySet()) {
+        assertFalse(status.toLowerCase().contains("rollback"),
+            String.format(
+                "Blue/Green Deployment rollback detected in green status for instance '%s': %s",
+                instanceId, status));
+      }
+    }
   }
 
   /**
@@ -2013,10 +2127,7 @@ public class BlueGreenDeploymentTests {
             connectionsToBlueAfterSwitchoverStart, switchoverInProgressTime));
 
     assertTrue(totalVerificationsAfterSwitchoverStart > 0,
-        "Expected at least one successful host verification after SWITCHOVER_IN_PROGRESS.");
-    
-
-    // Add assertion to fail if rollback. We will see the status rollback. 
+        "Expected at least one successful host verification after SWITCHOVER_IN_PROGRESS."); 
   }
 
   /**
