@@ -20,6 +20,7 @@ import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.awssdk.services.rds.model.DescribeGlobalClustersRequest;
@@ -33,6 +34,8 @@ public class GDBRegionUtils extends RegionUtils {
       Pattern.compile("^arn:aws:rds:(?<region>[^:\\n]*):[^:\\n]*:([^:/\\n]*[:/])?(.*)$");
   private static final String REGION_GROUP = "region";
 
+  private AwsCredentialsProvider credentialsProvider;
+
   static {
     try {
       Class.forName("software.amazon.awssdk.services.rds.RdsClient");
@@ -41,8 +44,20 @@ public class GDBRegionUtils extends RegionUtils {
     }
   }
 
+  public GDBRegionUtils() {
+  }
+
+  public GDBRegionUtils(AwsCredentialsProvider credentialsProvider) {
+    this.credentialsProvider = credentialsProvider;
+  }
+
   @Override
   public @Nullable Region getRegion(HostSpec hostSpec, Properties props, String propKey) {
+    Region region = this.getRegion(props, propKey);
+    if (region != null) {
+      return region;
+    }
+
     final String clusterId = rdsUtils.getRdsClusterId(hostSpec.getHost());
     final String writerClusterArn = findWriterClusterArn(hostSpec, props, clusterId);
 
@@ -55,8 +70,13 @@ public class GDBRegionUtils extends RegionUtils {
 
   private String findWriterClusterArn(final HostSpec hostSpec, final Properties props,
       final String globalClusterIdentifier) {
+
+    if (this.credentialsProvider == null) {
+      this.credentialsProvider = AwsCredentialsManager.getProvider(hostSpec, props);
+    }
+    
     try (RdsClient rdsClient = RdsClient.builder()
-        .credentialsProvider(AwsCredentialsManager.getProvider(hostSpec, props))
+        .credentialsProvider(this.credentialsProvider)
         .build()) {
       final DescribeGlobalClustersRequest request = DescribeGlobalClustersRequest.builder()
           .globalClusterIdentifier(globalClusterIdentifier)
