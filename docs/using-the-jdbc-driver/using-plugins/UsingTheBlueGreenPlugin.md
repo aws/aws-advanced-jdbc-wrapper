@@ -123,7 +123,7 @@ To optimize Blue/Green switchover support with the AWS Advanced JDBC Wrapper, ad
 6. Initiate the Blue/Green Deployment switchover through the AWS Console, CLI, or RDS API.
 7. Monitor the process until the switchover completes successfully or rolls back. This may take several minutes.
 8. Review the switchover summary in the application logs. This requires setting the log level to `FINE` for either the entire package `software.amazon.jdbc.plugin.bluegreen` or specifically for the class `software.amazon.jdbc.plugin.bluegreen.BlueGreenStatusProvider`.
-9. Remove the `bg` plugin from your application configuration after the switchover completes. Note that an active Blue/Green plugin produces no adverse effects once the switchover has been completed. See [Resource Considerations](#resource-considerations) for details. Since Blue/Green switchovers are scheduled migration events, you have flexibility in timing this change. That is, there is no urgency to remove the plugin immediately after switchover.
+9. We recommend removing the `bg` plugin from your application configuration after the switchover completes. Note that an active Blue/Green plugin produces no adverse effects once the switchover has been completed. See [Resource Considerations](#resource-considerations) for details. Since Blue/Green switchovers are scheduled migration events, you have flexibility in timing this change. That is, there is no urgency to remove the plugin immediately after switchover.
 10. Delete the Blue/Green Deployment through the appropriate AWS interface.
 11. The sequence of steps 9 and 10 is flexible and can be executed in either order based on your preference.
 
