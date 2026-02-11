@@ -123,7 +123,7 @@ To optimize Blue/Green switchover support with the AWS Advanced JDBC Wrapper, ad
 6. Initiate the Blue/Green Deployment switchover through the AWS Console, CLI, or RDS API.
 7. Monitor the process until the switchover completes successfully or rolls back. This may take several minutes.
 8. Review the switchover summary in the application logs. This requires setting the log level to `FINE` for either the entire package `software.amazon.jdbc.plugin.bluegreen` or specifically for the class `software.amazon.jdbc.plugin.bluegreen.BlueGreenStatusProvider`.
-9. Update your application by deactivating the `bg` plugin through its removal from your application configuration. Redeploy your application afterward. Note that an active Blue/Green plugin produces no adverse effects once the switchover has been completed.
+9. Remove the `bg` plugin from your application configuration after the switchover completes. Note that an active Blue/Green plugin produces no adverse effects once the switchover has been completed. See [Resource Considerations](#resource-considerations) for details. Since Blue/Green switchovers are scheduled migration events, you have flexibility in timing this change. That is, there is no urgency to remove the plugin immediately after switchover.
 10. Delete the Blue/Green Deployment through the appropriate AWS interface.
 11. The sequence of steps 9 and 10 is flexible and can be executed in either order based on your preference.
 
@@ -146,3 +146,9 @@ timestamp                         time offset (ms)                              
     2025-11-14T23:59:52.082Z              65384 ms                            COMPLETED
 ---------------------------------------------------------------------------------------
 ```
+
+## Resource Considerations
+
+Leaving the `bg` plugin enabled will not break your application or interfere with normal driver functionality, even when no Blue/Green Deployment exists. The plugin operates transparently and does not conflict with other driver features. However, the plugin maintains dedicated monitoring threads and connections to continuously track Blue/Green Deployment status. If you are not planning a Blue/Green switchover in the near future, removing the plugin from your configuration is recommended to conserve these resources.
+
+Since Blue/Green switchovers are scheduled migration events, there is no urgency to remove the plugin immediately. You can plan the configuration change at your convenience.
