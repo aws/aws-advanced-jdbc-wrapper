@@ -27,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -41,7 +40,6 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.RandomHostSelector;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.FullServicesContainer;
-import software.amazon.jdbc.util.storage.CacheMap;
 
 public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
 
@@ -67,13 +65,11 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
           "30000",
           "Interval in millis between measuring response time to a database node.");
 
-  protected static final CacheMap<String, HostSpec> cachedFastestResponseHostByRole = new CacheMap<>();
   protected static final RandomHostSelector randomHostSelector = new RandomHostSelector();
 
   protected final @NonNull PluginService pluginService;
   protected final @NonNull Properties properties;
   protected final @NonNull HostResponseTimeService hostResponseTimeService;
-  protected long cacheExpirationNano;
 
   protected List<HostSpec> hosts = new ArrayList<>();
 
@@ -101,8 +97,6 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
     this.pluginService = pluginService;
     this.properties = properties;
     this.hostResponseTimeService = hostResponseTimeService;
-    this.cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(
-        RESPONSE_MEASUREMENT_INTERVAL_MILLIS.getInteger(this.properties));
   }
 
   @Override
@@ -146,31 +140,7 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
       return null;
     }
 
-    final String roleName = role == null ? "<null>" : role.name();
-
-    // The cache holds a host with the fastest response time.
-    // If cache doesn't have a host for a role, it's necessary to find the fastest node in the topology.
-    final HostSpec fastestResponseHost = cachedFastestResponseHostByRole.get(roleName);
-
-    if (fastestResponseHost != null) {
-      // Found a fastest host. Let find it in the latest topology.
-      HostSpec foundHostSpec = hosts.stream()
-          .filter(x -> x.getHostAndPort().equals(fastestResponseHost.getHostAndPort()))
-          .findAny()
-          .orElse(null);
-
-      if (foundHostSpec != null) {
-        // Found a host in the topology.
-        return foundHostSpec;
-      }
-
-      // It seems that the fastest cached host isn't in the latest topology.
-      // Let's ignore cached results and find the fastest host.
-    }
-
-    // Cached result isn't available. Need to find the fastest response time host.
-
-    final HostSpec calculatedFastestResponseHost = hosts.stream()
+    final HostSpec fastestResponseHost = hosts.stream()
         .filter(x -> role == null || role.equals(x.getRole()))
         .map(x -> new ResponseTimeTuple(x, this.hostResponseTimeService.getResponseTime(x)))
         .sorted(Comparator.comparingInt(x -> x.responseTime))
@@ -178,25 +148,17 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
         .findFirst()
         .orElse(null);
 
-    if (calculatedFastestResponseHost == null) {
-      // Unable to identify the fastest response host.
-      // As a last resort, let's use a random host selector.
+    if (fastestResponseHost == null) {
       return randomHostSelector.getHost(this.hosts, role, properties);
     }
 
-    cachedFastestResponseHostByRole.put(roleName, calculatedFastestResponseHost, this.cacheExpirationNano);
-
-    return calculatedFastestResponseHost;
+    return fastestResponseHost;
   }
 
   @Override
   public void notifyNodeListChanged(final Map<String, EnumSet<NodeChangeOptions>> changes) {
     this.hosts = this.pluginService.getHosts();
     this.hostResponseTimeService.setHosts(this.hosts);
-  }
-
-  public static void clearCache() {
-    cachedFastestResponseHostByRole.clear();
   }
 
   private static class ResponseTimeTuple {
