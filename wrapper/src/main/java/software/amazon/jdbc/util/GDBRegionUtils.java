@@ -53,6 +53,11 @@ public class GDBRegionUtils extends RegionUtils {
 
   @Override
   public @Nullable Region getRegion(HostSpec hostSpec, Properties props, String propKey) {
+    Region region = this.getRegion(props, propKey);
+    if (region != null) {
+      return region;
+    }
+
     final String clusterId = rdsUtils.getRdsClusterId(hostSpec.getHost());
     final String writerClusterArn = findWriterClusterArn(hostSpec, props, clusterId);
 
