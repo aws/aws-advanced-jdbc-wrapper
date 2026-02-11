@@ -22,6 +22,7 @@ import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.states.SessionStateService;
+import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -207,6 +208,7 @@ public class DataRemoteCachePluginTest {
     plugin.setCacheConnection(mockCacheConn);
     // Query is not cacheable
     when(mockPluginService.isInTransaction()).thenReturn(false);
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(new PgTargetDriverDialect());
     when(mockPreparedStatement.toString()).thenReturn("", (String)null);
     when(mockCallable.call()).thenReturn(mockResult1);
 
@@ -223,6 +225,7 @@ public class DataRemoteCachePluginTest {
     compareResults(mockResult1, rs);
 
     verify(mockPluginService, times(2)).isInTransaction();
+    verify(mockPluginService, times(2)).getTargetDriverDialect();
     verify(mockCallable, times(2)).call();
     verify(mockTotalQueryCounter, times(2)).inc();
     verify(mockCacheHitCounter, never()).inc();
@@ -231,7 +234,6 @@ public class DataRemoteCachePluginTest {
     // Verify TelemetryContext behavior for no-caching scenario
     verify(mockTelemetryFactory, times(2)).openTelemetryContext("jdbc-database-query", TelemetryTraceLevel.TOP_LEVEL);
     verify(mockTelemetryFactory, never()).openTelemetryContext(eq("jdbc-cache-lookup"), any());
-    //verify(mockPreparedStatement, times(2)).toString();
     verify(mockTelemetryContext, times(2)).closeContext();
   }
 
@@ -344,6 +346,7 @@ public class DataRemoteCachePluginTest {
     // Result set contains 1 row
     when(mockResult1.next()).thenReturn(true, false);
     when(mockResult1.getObject(1)).thenReturn("bar1");
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(new PgTargetDriverDialect());
     when(mockPreparedStatement.toString()).thenReturn("/* CACHE_PARAM(ttl=50s) */ select * from A");
 
     // Now query is a cache hit
@@ -374,6 +377,7 @@ public class DataRemoteCachePluginTest {
     verify(mockConnection).getCatalog();
     verify(mockConnection).getSchema();
     verify(mockSessionStateService).setCatalog("mysql");
+    verify(mockPluginService, times(2)).getTargetDriverDialect();
     verify(mockCallable).call();
     verify(mockCacheConn).writeToCache(eq("mysql_null__select * from A"), any(), eq(50));
     verify(mockTotalQueryCounter, times(2)).inc();

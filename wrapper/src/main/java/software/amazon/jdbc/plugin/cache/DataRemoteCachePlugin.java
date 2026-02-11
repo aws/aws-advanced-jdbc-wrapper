@@ -385,10 +385,13 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     // If the query is not in the method arguments, check for prepared statement query. Get the query
     // string from the prepared statement. The exact query string is dependent on the underlying driver.
     if (methodInvokeOn instanceof PreparedStatement) {
-      // For postgres, this gives the raw query itself. i.e. "select * from T where A = 1".
-      // For MySQL, this gives "com.mysql.cj.jdbc.ClientPreparedStatement: select * from T where A = 1"
-      // For MariaDB, this gives "ClientPreparedStatement{sql:'select * from T where A=1', parameters:[]}"
-      return methodInvokeOn.toString();
+      try {
+        return pluginService.getTargetDriverDialect().getSQLQueryString((PreparedStatement) methodInvokeOn);
+      } catch (Exception e) {
+        // Unable to get the query string, bypass caching
+        LOGGER.log(Level.FINE, "Unable to get the query string for PreparedStatement: " + e.getMessage(), e);
+        return null;
+      }
     }
     return null;
   }
