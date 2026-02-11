@@ -112,12 +112,12 @@ public class ConnectionPluginChainBuilder {
           put(AuroraConnectionTrackerPluginFactory.class, 400);
           put(AuroraStaleDnsPluginFactory.class, 500);
           put(BlueGreenConnectionPluginFactory.class, 550);
-          put(ReadWriteSplittingPluginFactory.class, 600);
-          put(SimpleReadWriteSplittingPluginFactory.class, 610);
-          put(GdbReadWriteSplittingPluginFactory.class, 620);
-          put(FailoverConnectionPluginFactory.class, 700);
-          put(software.amazon.jdbc.plugin.failover2.FailoverConnectionPluginFactory.class, 710);
-          put(GlobalDbFailoverConnectionPluginFactory.class, 720);
+          put(FailoverConnectionPluginFactory.class, 600);
+          put(software.amazon.jdbc.plugin.failover2.FailoverConnectionPluginFactory.class, 610);
+          put(GlobalDbFailoverConnectionPluginFactory.class, 620);
+          put(ReadWriteSplittingPluginFactory.class, 700);
+          put(SimpleReadWriteSplittingPluginFactory.class, 710);
+          put(GdbReadWriteSplittingPluginFactory.class, 720);
           put(HostMonitoringConnectionPluginFactory.class, 800);
           put(software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPluginFactory.class, 810);
           put(FastestResponseStrategyPluginFactory.class, 900);
