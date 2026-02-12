@@ -147,7 +147,7 @@ public class DataRemoteCachePluginTests {
   @TestTemplate
   public void testNoAuthConnection() throws SQLException {
     // Use the second Valkey instance (no-auth)
-    List<TestInstanceInfo> cacheInstances = TestEnvironment.getCurrent().getInfo().getDbCacheInfo().getInstances();
+    List<TestInstanceInfo> cacheInstances = TestEnvironment.getCurrent().getInfo().getValkeyServerInfo().getInstances();
     if (cacheInstances.size() < 2) {
       return; // Skip test if no-auth instance not available
     }
@@ -197,7 +197,7 @@ public class DataRemoteCachePluginTests {
   }
 
   private Properties getCacheEnabledProperties(@Nullable String cachePassword, int cacheInstanceIndex) {
-    List<TestInstanceInfo> cacheInstances = TestEnvironment.getCurrent().getInfo().getDbCacheInfo().getInstances();
+    List<TestInstanceInfo> cacheInstances = TestEnvironment.getCurrent().getInfo().getValkeyServerInfo().getInstances();
     TestInstanceInfo instance = cacheInstances.get(cacheInstanceIndex);
     final String cacheEndpoint = instance.getHost() + ":" + instance.getPort();
 
@@ -208,11 +208,11 @@ public class DataRemoteCachePluginTests {
 
     // Only set credentials if using auth-enabled instance (index 0)
     if (cacheInstanceIndex == 0) {
-      props.setProperty("cacheUsername", TestEnvironment.getCurrent().getInfo().getDbCacheUsername());
+      props.setProperty("cacheUsername", TestEnvironment.getCurrent().getInfo().getValkeyServerUsername());
       if (cachePassword != null) {
         props.setProperty("cachePassword", cachePassword);
       } else {
-        props.setProperty("cachePassword", TestEnvironment.getCurrent().getInfo().getDbCachePassword());
+        props.setProperty("cachePassword", TestEnvironment.getCurrent().getInfo().getValkeyServerPassword());
       }
     }
     // For no-auth instance (index 1), don't set username/password

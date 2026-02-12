@@ -55,6 +55,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Calendar;
 import java.util.TimeZone;
+import software.amazon.jdbc.util.Messages;
 
 public class CachedResultSet implements ResultSet {
 
@@ -69,7 +70,7 @@ public class CachedResultSet implements ResultSet {
 
     private void checkColumnIndex(final int columnIndex) throws SQLException {
       if (columnIndex < 1 || columnIndex > rowData.length) {
-        throw new SQLException("Invalid Column Index when operating CachedRow: " + columnIndex);
+        throw new SQLException(Messages.get("CachedResultSet.invalidColumnIndex", new Object[] {columnIndex}));
       }
     }
 
@@ -92,9 +93,9 @@ public class CachedResultSet implements ResultSet {
           rowData[columnIndex - 1] = ois.readObject();
           rawData[columnIndex - 1] = null;
         } catch (ClassNotFoundException e) {
-          throw new SQLException("ClassNotFoundException while de-serializing caching resultSet for column: " + columnIndex, e);
+          throw new SQLException(Messages.get("CachedResultSet.classNotFoundDeserialize", new Object[] {columnIndex}), e);
         } catch (IOException e) {
-          throw new SQLException("IOException while de-serializing caching resultSet for column: " + columnIndex, e);
+          throw new SQLException(Messages.get("CachedResultSet.ioExceptionDeserialize", new Object[] {columnIndex}), e);
         }
       }
       return rowData[columnIndex - 1];
@@ -185,7 +186,7 @@ public class CachedResultSet implements ResultSet {
       output.flush();
       return baos.toByteArray();
     } catch (IOException e) {
-      throw new SQLException("Error while serializing the ResultSet for caching: ", e);
+      throw new SQLException(Messages.get("CachedResultSet.serializationError"), e);
     }
   }
 
@@ -210,7 +211,7 @@ public class CachedResultSet implements ResultSet {
           while (lengthRead < nextObjSize) {
             int bytesRead = ois.read(objData, lengthRead, nextObjSize-lengthRead);
             if (bytesRead == -1) {
-              throw new SQLException("End of stream reached when reading the data for CachedResultSet");
+              throw new SQLException(Messages.get("CachedResultSet.endOfStream"));
             }
             lengthRead += bytesRead;
           }
@@ -220,9 +221,9 @@ public class CachedResultSet implements ResultSet {
       }
       return new CachedResultSet(metadata, resultRows);
     } catch (ClassNotFoundException e) {
-      throw new SQLException("ClassNotFoundException while de-serializing resultSet for caching", e);
+      throw new SQLException(Messages.get("CachedResultSet.classNotFoundDeserializeResultSet"), e);
     } catch (IOException e) {
-      throw new SQLException("IOException while de-serializing resultSet for caching", e);
+      throw new SQLException(Messages.get("CachedResultSet.ioExceptionDeserializeResultSet"), e);
     }
   }
 
@@ -246,7 +247,7 @@ public class CachedResultSet implements ResultSet {
   @Override
   public boolean wasNull() throws SQLException {
     if (isClosed()) {
-      throw new SQLException("This result set is closed");
+      throw new SQLException(Messages.get("CachedResultSet.resultSetClosed"));
     }
     return this.wasNullFlag;
   }
@@ -586,7 +587,7 @@ public class CachedResultSet implements ResultSet {
 
   private void checkCurrentRow() throws SQLException {
     if (this.currentRow < 0 || this.currentRow >= this.rows.size()) {
-      throw new SQLException("The current row index " + this.currentRow + " is out of range.");
+      throw new SQLException(Messages.get("CachedResultSet.rowIndexOutOfRange", new Object[] {this.currentRow}));
     }
   }
 
@@ -604,7 +605,9 @@ public class CachedResultSet implements ResultSet {
 
   // Check the column index passed in is proper, and return the value of the column from the current row
   private Object checkAndGetColumnValue(final int columnIndex) throws SQLException {
-    if (columnIndex == 0 || columnIndex > this.columnNames.size()) throw new SQLException("Column out of bounds");
+    if (columnIndex == 0 || columnIndex > this.columnNames.size()) {
+      throw new SQLException(Messages.get("CachedResultSet.columnOutOfBounds"));
+    }
     final CachedRow row = this.rows.get(this.currentRow);
     final Object val = row.get(columnIndex);
     this.wasNullFlag = (val == null);
@@ -614,7 +617,9 @@ public class CachedResultSet implements ResultSet {
   // Check column label exists and returns the column index corresponding to the column name
   private int checkAndGetColumnIndex(final String columnLabel) throws SQLException {
     final Integer colIndex = columnNames.get(columnLabel);
-    if (colIndex == null) throw new SQLException("Column not found: " + columnLabel);
+    if (colIndex == null) {
+      throw new SQLException(Messages.get("CachedResultSet.columnNotFound", new Object[] {columnLabel}));
+    }
     return colIndex;
   }
 
@@ -622,7 +627,7 @@ public class CachedResultSet implements ResultSet {
   public int findColumn(final String columnLabel) throws SQLException {
     final Integer colIndex = columnNames.get(columnLabel);
     if (colIndex == null) {
-      throw new SQLException("The column " + columnLabel + " is not found in this ResultSet.");
+      throw new SQLException(Messages.get("CachedResultSet.columnNotFoundInResultSet", new Object[] {columnLabel}));
     }
     return colIndex;
   }
@@ -1117,7 +1122,7 @@ public class CachedResultSet implements ResultSet {
     try {
       return new URL(val.toString());
     } catch (MalformedURLException e) {
-      throw new SQLException("Cannot extract url: " + val, e);
+      throw new SQLException(Messages.get("CachedResultSet.cannotExtractUrl", new Object[] {val}), e);
     }
   }
 
@@ -1171,7 +1176,7 @@ public class CachedResultSet implements ResultSet {
     Object val = checkAndGetColumnValue(columnIndex);
     if (val == null) return null;
     if (val instanceof RowId) return (RowId) val;
-    throw new SQLException("Cannot extract rowId: " + val);
+    throw new SQLException(Messages.get("CachedResultSet.cannotExtractRowId", new Object[] {val}));
   }
 
   @Override
@@ -1446,7 +1451,7 @@ public class CachedResultSet implements ResultSet {
     if (iface.isAssignableFrom(this.getClass())) {
       return iface.cast(this);
     } else {
-      throw new SQLException("Cannot unwrap to " + iface.getName());
+      throw new SQLException(Messages.get("CachedResultSet.cannotUnwrap", new Object[] {iface.getName()}));
     }
   }
 

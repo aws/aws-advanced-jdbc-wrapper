@@ -96,7 +96,7 @@ public class SpringCachingTests {
   @TestTemplate
   public void testNoAuthConnection() {
     // Use the second Valkey instance (no-auth)
-    List<TestInstanceInfo> cacheInstances = TestEnvironment.getCurrent().getInfo().getDbCacheInfo().getInstances();
+    List<TestInstanceInfo> cacheInstances = TestEnvironment.getCurrent().getInfo().getValkeyServerInfo().getInstances();
     if (cacheInstances.size() < 2) {
       return; // Skip test if no-auth instance not available
     }
@@ -141,18 +141,18 @@ public class SpringCachingTests {
     props.setProperty(PropertyDefinition.PLUGINS.name, "dataRemoteCache");
 
     // Fetch the cache server information
-    List<TestInstanceInfo> cacheInstances = TestEnvironment.getCurrent().getInfo().getDbCacheInfo().getInstances();
+    List<TestInstanceInfo> cacheInstances = TestEnvironment.getCurrent().getInfo().getValkeyServerInfo().getInstances();
     final String cacheEndpoint = cacheInstances.get(cacheInstanceIndex).getHost() + ":" + cacheInstances.get(cacheInstanceIndex).getPort();
     props.setProperty(CACHE_RW_ENDPOINT_ADDR.name, cacheEndpoint);
     props.setProperty("cacheUseSSL", "false");
 
     // Only set credentials if requested (for auth-enabled instance)
     if (includeCredentials) {
-      props.setProperty("cacheUsername", TestEnvironment.getCurrent().getInfo().getDbCacheUsername());
+      props.setProperty("cacheUsername", TestEnvironment.getCurrent().getInfo().getValkeyServerUsername());
       if (cachePassword != null) {
         props.setProperty("cachePassword", cachePassword);
       } else {
-        props.setProperty("cachePassword", TestEnvironment.getCurrent().getInfo().getDbCachePassword());
+        props.setProperty("cachePassword", TestEnvironment.getCurrent().getInfo().getValkeyServerPassword());
       }
     }
 
