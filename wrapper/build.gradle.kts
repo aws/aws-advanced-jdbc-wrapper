@@ -1176,5 +1176,5 @@ tasks.register<Test>("test-kms-encryption") {
     systemProperty("test-encryption-only", "true")
 
     // Temporarily disable mysql
-    systemProperty("test-no-mysql-engine", "true")
+    //systemProperty("test-no-mysql-engine", "true")
 }
