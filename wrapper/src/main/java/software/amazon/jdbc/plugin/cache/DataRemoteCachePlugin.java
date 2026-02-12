@@ -21,10 +21,12 @@ import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -40,6 +42,8 @@ import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.monitoring.MonitorErrorResponse;
@@ -48,7 +52,13 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
-public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
+/**
+ * This plugin provides query result caching capability which stores cacheable query results from database
+ * in a remote Valkey cache server. Error responses from the database are not cached. Users can opt-in
+ * per query using a SQL query hint that specifies a time‑to‑live (TTL). Once a particular query result
+ * is cached, subsequent identical queries are served directly from the cache while the TTL is valid.
+ */
+public class DataRemoteCachePlugin extends AbstractConnectionPlugin implements StateSnapshotProvider {
   private static final Logger LOGGER = Logger.getLogger(DataRemoteCachePlugin.class.getName());
   private static final String QUERY_HINT_START_PATTERN = "/*";
   private static final String QUERY_HINT_END_PATTERN = "*/";
@@ -151,15 +161,24 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
         if (catalogName != null) sessionStateService.setCatalog(catalogName);
         if (schemaName != null) sessionStateService.setSchema(schemaName);
       }
-      LOGGER.finest("DB driver protocol " + pluginService.getDriverProtocol()
-          + ", database product: " + metadata.getDatabaseProductName() + " " + metadata.getDatabaseProductVersion()
-          + ", catalog: " + catalogName + ", schema: " + schemaName
-          + ", driver: " + metadata.getDriverName() + " " + metadata.getDriverVersion());
+      // Retrieve metadata values before lambda to avoid SQLException in lazy evaluation
+      String driverProtocol = pluginService.getDriverProtocol();
+      String dbProductName = metadata.getDatabaseProductName();
+      String dbProductVersion = metadata.getDatabaseProductVersion();
+      String driverName = metadata.getDriverName();
+      String driverVersion = metadata.getDriverVersion();
+      final String finalCatalogName = catalogName;
+      final String finalSchemaName = schemaName;
+
+      LOGGER.finest(() -> Messages.get("DataRemoteCachePlugin.sessionStateInfo",
+          new Object[] {driverProtocol, dbProductName, dbProductVersion,
+              finalCatalogName, finalSchemaName, dbUserName, driverName, driverVersion}));
+
       // The cache key contains the schema name, username, and the query string
       String[] words = {catalogName, schemaName, dbUserName, query};
       return String.join("_", words);
     } catch (SQLException e) {
-      LOGGER.log(Level.WARNING, "Error getting session state.", e);
+      LOGGER.log(Level.WARNING, Messages.get("DataRemoteCachePlugin.errorGettingSessionState"), e);
       return null;
     }
   }
@@ -177,7 +196,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     try {
       return CachedResultSet.deserializeFromByteArray(cachedResult);
     } catch (Exception e) {
-      LOGGER.log(Level.WARNING, "Error de-serializing cached result.", e);
+      LOGGER.log(Level.WARNING, Messages.get("DataRemoteCachePlugin.errorDeserializingCachedResult"), e);
       return null; // Treat this as a cache miss
     }
   }
@@ -233,7 +252,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     String cacheParams = upperHint.substring(paramsStart, paramsEnd).trim();
     // Empty parameters
     if (StringUtils.isNullOrEmpty(cacheParams)) {
-      LOGGER.warning("Empty CACHE_PARAM parameters");
+      LOGGER.warning(Messages.get("DataRemoteCachePlugin.emptyCacheParam"));
       incrCounter(malformedHintCounter);
       return null;
     }
@@ -245,7 +264,8 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     for (String param : params) {
       String[] keyValue = param.trim().split("=");
       if (keyValue.length != 2) {
-        LOGGER.warning("Invalid caching parameter format: " + param);
+        LOGGER.warning(Messages.get("DataRemoteCachePlugin.invalidParameterFormat",
+            new Object[] {param}));
         incrCounter(malformedHintCounter);
         return null;
       }
@@ -254,7 +274,8 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
 
       if ("TTL".equals(key)) {
         if (!value.endsWith("S")) {
-          LOGGER.warning("TTL must end with 's': " + value);
+          LOGGER.warning(Messages.get("DataRemoteCachePlugin.ttlMustEndWithS",
+              new Object[] {value}));
           incrCounter(malformedHintCounter);
           return null;
         } else{
@@ -267,12 +288,13 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
             }
             // Maximum TTL allowed is 180 days
             if (ttlValue > MAX_TTL_SECONDS) {
-              LOGGER.warning(String.format("TTL value %d exceeds maximum allowed %d seconds. Using maximum TTL.",
-                  ttlValue, MAX_TTL_SECONDS));
+              LOGGER.warning(Messages.get("DataRemoteCachePlugin.ttlExceedsMaximum",
+                  new Object[] {ttlValue, MAX_TTL_SECONDS}));
               ttlValue = MAX_TTL_SECONDS;
             }
           } catch (NumberFormatException e) {
-            LOGGER.warning(String.format("Invalid TTL format of %s for query %s", value, queryHint));
+            LOGGER.warning(Messages.get("DataRemoteCachePlugin.invalidTtlFormat",
+                new Object[] {value, queryHint}));
             incrCounter(malformedHintCounter);
             return null;
           }
@@ -330,9 +352,11 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
           // Cache miss. Need to fetch result from the database
           needToCache = true;
           incrCounter(cacheMissCounter);
-          LOGGER.finest("Got a cache miss for SQL: " + sql);
+          LOGGER.finest(() -> Messages.get("DataRemoteCachePlugin.cacheMiss",
+              new Object[] {sql}));
         } else {
-          LOGGER.finest("Got a cache hit for SQL: " + sql);
+          LOGGER.finest(() -> Messages.get("DataRemoteCachePlugin.cacheHit",
+              new Object[] {sql}));
           // Cache hit. Return the cached result
           incrCounter(cacheHitCounter);
           result.beforeFirst();
@@ -380,7 +404,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
         result = cacheResultSet(mainQuery, result, configuredQueryTtl);
       } catch (final SQLException ex) {
         // Log and re-throw exception
-        LOGGER.log(Level.WARNING, "Encountered SQLException when caching query results.", ex);
+        LOGGER.log(Level.WARNING, Messages.get("DataRemoteCachePlugin.sqlExceptionWhenCaching"), ex);
         throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, ex);
       }
     }
@@ -406,10 +430,19 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
         return pluginService.getTargetDriverDialect().getSQLQueryString((PreparedStatement) methodInvokeOn);
       } catch (Exception e) {
         // Unable to get the query string, bypass caching
-        LOGGER.log(Level.FINE, "Unable to get the query string for PreparedStatement.", e);
+        LOGGER.log(Level.FINE, Messages.get("DataRemoteCachePlugin.unableToGetQueryString"), e);
         return null;
       }
     }
     return null;
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    state.add(Pair.create("dbUserName", this.dbUserName));
+    state.add(Pair.create("maxCacheableQuerySize", this.maxCacheableQuerySize));
+    state.add(Pair.create("CacheConnection", this.cacheConnection != null ? this.cacheConnection.toString() : "<null>"));
+    return state;
   }
 }

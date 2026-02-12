@@ -31,6 +31,7 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import java.time.Duration;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -196,11 +197,8 @@ public class CacheMonitor extends AbstractMonitor {
 
       // Log state transition
       if (!triggerReason.startsWith("recoverable_error_")) {
-        String logMessage = String.format(
-            "[%s to %s] Cache endpoint %s (%s) health state transitioned (trigger: %s)",
-            oldState, newState, endpoint, isRw ? "RW" : "RO", triggerReason);
-
-        LOGGER.fine(logMessage);
+        LOGGER.fine(() -> Messages.get("CacheMonitor.stateTransition",
+            new Object[] {oldState, newState, endpoint, isRw ? "RW" : "RO", triggerReason}));
       }
     }
 
@@ -237,7 +235,8 @@ public class CacheMonitor extends AbstractMonitor {
       synchronized (INSTANCE_LOCK) {
         if (instance == null) {
           instance = new CacheMonitor(inFlightWriteSizeLimitBytes, healthCheckInHealthyState, telemetryFactory);
-          LOGGER.info("Created CacheMonitor instance " + (telemetryFactory != null ? "with" : "without") + " telemetry");
+          LOGGER.info(Messages.get("CacheMonitor.createdInstance",
+              new Object[] {telemetryFactory != null ? "with" : "without"}));
         }
       }
     }
@@ -245,7 +244,8 @@ public class CacheMonitor extends AbstractMonitor {
         iamAuthEnabled, credentialsProvider, cacheIamRegion, cacheName, cacheUsername, cachePassword);
     ClusterHealthState existingCluster = clusterStates.putIfAbsent(clusterState.getClusterKey(), clusterState);
     if (existingCluster == null) {
-      LOGGER.info(() -> "Registered cluster: " + clusterState.getClusterKey());
+      LOGGER.info(() -> Messages.get("CacheMonitor.registeredCluster",
+          new Object[] {clusterState.getClusterKey()}));
       if (createPingConnection) {
         instance.createInitialPingConnections(clusterState);
       }
@@ -255,13 +255,13 @@ public class CacheMonitor extends AbstractMonitor {
       try {
         servicesContainer.getMonitorService().runIfAbsent(
             CacheMonitor.class,
-            "CACHE_MONITOR_SINGLETON",
+            "VALKEY_CACHE_HEALTH_CHECK_MONITOR_SINGLETON",
             servicesContainer,
             new Properties(),
             (container) -> instance // Return existing instance
         );
       } catch (SQLException e) {
-        LOGGER.log(Level.WARNING, "Failed to start CacheMonitor via MonitorService.", e);
+        LOGGER.log(Level.WARNING, Messages.get("CacheMonitor.failedToStartMonitor"), e);
       }
     }
   }
@@ -365,7 +365,8 @@ public class CacheMonitor extends AbstractMonitor {
       Throwable error, String operation) {
     ClusterHealthState cluster = getCluster(rwEndpoint, roEndpoint);
     if (cluster == null) {
-      LOGGER.warning("Error report for unregistered cluster: RW=" + rwEndpoint + ", RO=" + roEndpoint);
+      LOGGER.warning(Messages.get("CacheMonitor.errorReportUnregisteredCluster",
+          new Object[] {rwEndpoint, roEndpoint}));
       return;
     }
     ErrorCategory category = classifyError(error);
@@ -373,17 +374,15 @@ public class CacheMonitor extends AbstractMonitor {
       errorCounter.inc();
     }
     if (!isRecoverableError(category)) {
-      LOGGER.log(Level.SEVERE,
-          () -> "Non-recoverable error (" + category + ") for " +
-              (isRw ? rwEndpoint : roEndpoint) + ": " + error.getMessage());
+      LOGGER.log(Level.SEVERE, () -> Messages.get("CacheMonitor.nonRecoverableError",
+          new Object[] {category, isRw ? rwEndpoint : roEndpoint, error.getMessage()}));
       return;
     }
     synchronized (cluster) {
       HealthState currentState = isRw ? cluster.rwHealthState : cluster.roHealthState;
       if (currentState == HealthState.HEALTHY) {
-        LOGGER.log(Level.WARNING,
-            String.format("[HEALTHY→SUSPECT] %s %s failed: %s - %s",
-                isRw ? rwEndpoint : roEndpoint, operation, category, error.getMessage()));
+        LOGGER.log(Level.WARNING, Messages.get("CacheMonitor.healthyToSuspect",
+            new Object[] {isRw ? rwEndpoint : roEndpoint, operation, category, error.getMessage()}));
         cluster.transitionToState(HealthState.SUSPECT, isRw,
             "recoverable_error_" + category, stateTransitionCounter);
       }
@@ -396,7 +395,8 @@ public class CacheMonitor extends AbstractMonitor {
       long newSize = cluster.inFlightWriteSizeBytes.addAndGet(bytes);
       synchronized (cluster) {
         if (newSize > inFlightWriteSizeLimitBytes && cluster.rwHealthState != HealthState.DEGRADED) {
-          LOGGER.warning("In-flight write size limit exceeded: " + newSize);
+          LOGGER.warning(Messages.get("CacheMonitor.inFlightSizeLimitExceeded",
+              new Object[] {newSize}));
           cluster.transitionToState(HealthState.DEGRADED, true, "memory_pressure", stateTransitionCounter);
         }
       }
@@ -424,7 +424,7 @@ public class CacheMonitor extends AbstractMonitor {
 
   @Override
   public void monitor() throws Exception {
-    LOGGER.info("Cache monitor thread started");
+    LOGGER.info(Messages.get("CacheMonitor.monitorThreadStarted"));
     while (!this.stop.get()) {
       try {
         this.lastActivityTimestampNanos.set(System.nanoTime());
@@ -448,7 +448,7 @@ public class CacheMonitor extends AbstractMonitor {
       } catch (InterruptedException e) {
         throw e;
       } catch (Exception e) {
-        LOGGER.log(Level.WARNING, "Cache monitoring exception.", e);
+        LOGGER.log(Level.WARNING, Messages.get("CacheMonitor.monitoringException"), e);
       }
     }
   }
@@ -482,7 +482,8 @@ public class CacheMonitor extends AbstractMonitor {
         }
       }
     } else {
-      LOGGER.warning(() -> "Ping failed for " + endpoint + " (" + (isRw ? "RW" : "RO") + ")");
+      LOGGER.warning(() -> Messages.get("CacheMonitor.pingFailed",
+          new Object[] {endpoint, isRw ? "RW" : "RO"}));
       if (healthCheckFailureCounter != null) healthCheckFailureCounter.inc();
       if (isRw) {
         cluster.consecutiveRwFailures++;
@@ -514,7 +515,8 @@ public class CacheMonitor extends AbstractMonitor {
     try {
       return conn.ping();
     } catch (Exception e) {
-      LOGGER.log(Level.WARNING, "Ping failed for " + (isRw ? cluster.rwEndpoint : cluster.roEndpoint) + " (" + (isRw ? "RW" : "RO") + ").", e);
+      LOGGER.log(Level.WARNING, Messages.get("CacheMonitor.pingFailed",
+          new Object[] {isRw ? cluster.rwEndpoint : cluster.roEndpoint, isRw ? "RW" : "RO"}), e);
       return false;
     }
   }
