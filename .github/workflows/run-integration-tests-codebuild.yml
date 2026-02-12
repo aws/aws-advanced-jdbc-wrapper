@@ -21,11 +21,11 @@ jobs:
     environment: ${{ matrix.environment }}_integ
     steps:
       - name: 'Clone repository'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
       - name: 'Set up JDK 8'
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'corretto'
           java-version: 8
@@ -52,14 +52,14 @@ jobs:
           PG_VERSION: "latest"
       - name: 'Archive junit results ${{ matrix.engine_version }}'
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: junit-report-${{ matrix.engine_version }}
           path: ./wrapper/build/test-results
           retention-days: 5
       - name: 'Archive html summary report ${{ matrix.engine_version }}'
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: html-summary-report-${{ matrix.engine_version }}
           path: ./wrapper/build/report
