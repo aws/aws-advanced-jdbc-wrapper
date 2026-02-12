@@ -16,7 +16,12 @@
 
 package software.amazon.jdbc.targetdriverdialect;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.Driver;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Properties;
