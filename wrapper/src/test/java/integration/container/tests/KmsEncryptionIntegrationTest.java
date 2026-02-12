@@ -61,7 +61,7 @@ import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
-@EnableOnDatabaseEngine(DatabaseEngine.PG)
+@EnableOnDatabaseEngine({DatabaseEngine.PG, DatabaseEngine.MYSQL})
 @EnableOnTestFeature({
     TestEnvironmentFeatures.RUN_ENCRYPTION_TESTS_ONLY
 })
@@ -110,134 +110,37 @@ public class KmsEncryptionIntegrationTest {
     String directUrl = ConnectionStringHelper.getUrl();
 
     try (Connection directConnection = DriverManager.getConnection(directUrl, props)) {
+      DatabaseEngine dbEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
+      
       // Setup encryption metadata schema
       try (Statement stmt = directConnection.createStatement()) {
-        // Drop and recreate tables with correct schema
-        stmt.execute("DROP SCHEMA IF EXISTS " + metadataSchema + " CASCADE");
-        stmt.execute("CREATE SCHEMA " + metadataSchema);
-        stmt.execute("DROP TABLE IF EXISTS users CASCADE");
-
-        // Install encrypted_data custom type
-        LOGGER.finest("Installing encrypted_data custom type");
-        stmt.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto");
-        EncryptedDataTypeInstaller.installEncryptedDataType(directConnection, metadataSchema);
-
-        // Create key_storage table first (referenced by encryption_metadata)
-        stmt.execute(
-            "CREATE TABLE if not exists "
-                + metadataSchema
-                + ".key_storage ("
-                + "id SERIAL PRIMARY KEY, "
-                + "name VARCHAR(255) NOT NULL, "
-                + "master_key_arn VARCHAR(512) NOT NULL, "
-                + "encrypted_data_key TEXT NOT NULL, "
-                + "hmac_key BYTEA NOT NULL, "
-                + "key_spec VARCHAR(50) DEFAULT 'AES_256', "
-                + "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
-                + "last_used_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP)");
-
-        // Create encryption_metadata table with correct schema
-        stmt.execute(
-            "CREATE TABLE if not exists "
-                + metadataSchema
-                + ".encryption_metadata ("
-                + "table_name VARCHAR(255) NOT NULL, "
-                + "column_name VARCHAR(255) NOT NULL, "
-                + "encryption_algorithm VARCHAR(50) NOT NULL, "
-                + "key_id INTEGER NOT NULL, "
-                + "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
-                + "updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
-                + "PRIMARY KEY (table_name, column_name), "
-                + "FOREIGN KEY (key_id) REFERENCES "
-                + metadataSchema
-                + ".key_storage(id))");
-
-        // Insert a key into key_storage with real KMS data key and separate HMAC key
-        KmsClient kmsClient =
-            KmsClient.builder().region(Region.of(region)).build();
-        GenerateDataKeyRequest dataKeyRequest =
-            GenerateDataKeyRequest.builder().keyId(kmsKeyArn).keySpec("AES_256").build();
-        GenerateDataKeyResponse dataKeyResponse = kmsClient.generateDataKey(dataKeyRequest);
-        final String encryptedDataKeyBase64 =
-            Base64.getEncoder().encodeToString(dataKeyResponse.ciphertextBlob().asByteArray());
-
-        // Generate separate HMAC key (32 bytes for HMAC-SHA256)
-        byte[] hmacKey = new byte[32];
-        new java.security.SecureRandom().nextBytes(hmacKey);
-
-        PreparedStatement keyStmt =
-            directConnection.prepareStatement(
-                "INSERT INTO "
-                    + metadataSchema
-                    + ".key_storage (name, master_key_arn, encrypted_data_key, hmac_key, "
-                    + "key_spec) VALUES (?, ?, ?, ?, ?) RETURNING id");
-        keyStmt.setString(1, "test-key-users-ssn");
-        keyStmt.setString(2, kmsKeyArn);
-        keyStmt.setString(3, encryptedDataKeyBase64);
-        keyStmt.setBytes(4, hmacKey);
-        keyStmt.setString(5, "AES_256");
-        ResultSet keyRs = keyStmt.executeQuery();
-        keyRs.next();
-        int generatedKeyId = keyRs.getInt(1);
-        keyStmt.close();
-
-        // Use KeyManagementUtility approach to setup encryption metadata
-        LOGGER.finest(
-            "Setting up encryption metadata for users.ssn using KeyManagementUtility approach");
-
-        try (PreparedStatement metaStmt =
-            directConnection.prepareStatement(
-                "INSERT INTO "
-                    + metadataSchema
-                    + ".encryption_metadata (table_name, column_name, encryption_algorithm, "
-                    + "key_id) VALUES (?, ?, ?, ?)")) {
-          metaStmt.setString(1, "users");
-          metaStmt.setString(2, "ssn");
-          metaStmt.setString(3, "AES-256-GCM");
-          metaStmt.setInt(4, generatedKeyId);
-          metaStmt.executeUpdate();
-          LOGGER.finest("Encryption metadata configured for key: " + generatedKeyId);
+        // Drop and recreate schema/tables
+        if (dbEngine == DatabaseEngine.PG) {
+          stmt.execute("DROP SCHEMA IF EXISTS " + metadataSchema + " CASCADE");
+          stmt.execute("CREATE SCHEMA " + metadataSchema);
         }
-
-        // Verify the metadata was configured correctly
-        try (PreparedStatement checkStmt =
-            directConnection.prepareStatement(
-                "SELECT table_name, column_name, encryption_algorithm, key_id FROM "
-                    + EncryptionConfig.ENCRYPTION_METADATA_SCHEMA.defaultValue
-                    + ".encryption_metadata WHERE table_name = ? AND column_name = ?")) {
-          checkStmt.setString(1, "users");
-          checkStmt.setString(2, "ssn");
-          ResultSet rs = checkStmt.executeQuery();
-          while (rs.next()) {
-            LOGGER.finest(
-                "Verified metadata: " + rs.getString("table_name") + "."
-                + rs.getString("column_name") + " -> " + rs.getString("encryption_algorithm")
-                + " (key: " + rs.getInt("key_id") + ")");
-          }
+        stmt.execute("DROP TABLE IF EXISTS users");
+        
+        switch (dbEngine) {
+          case PG:
+            setupPostgreSQL(directConnection, stmt, metadataSchema);
+            break;
+          case MYSQL:
+            setupMySQL(directConnection, stmt, metadataSchema);
+            break;
+          default:
+            throw new UnsupportedOperationException("Unsupported database: " + dbEngine);
         }
-
-        // Create users table with encrypted_data type for SSN
-        stmt.execute(
-            "CREATE TABLE if not exists users ("
-                + "id SERIAL PRIMARY KEY, "
-                + "name VARCHAR(100), "
-                + "ssn encrypted_data, "
-                + "email VARCHAR(100))");
-
-        // Add trigger to validate HMAC on ssn column
-        stmt.execute(
-            "CREATE TRIGGER validate_ssn_hmac "
-                + "BEFORE INSERT OR UPDATE ON users "
-                + "FOR EACH ROW EXECUTE FUNCTION validate_encrypted_data_hmac('ssn')");
 
         LOGGER.finest("Test setup completed");
 
         // Final verification that metadata exists
+        String tablePrefix = (dbEngine == DatabaseEngine.PG) ? metadataSchema + "." : "";
         try (PreparedStatement finalCheck =
             directConnection.prepareStatement(
                 "SELECT COUNT(*) FROM "
-                    + EncryptionConfig.ENCRYPTION_METADATA_SCHEMA.defaultValue
-                    + ".encryption_metadata WHERE table_name = 'users' AND column_name = 'ssn'")) {
+                    + tablePrefix
+                    + "encryption_metadata WHERE table_name = 'users' AND column_name = 'ssn'")) {
           ResultSet rs = finalCheck.executeQuery();
           rs.next();
           int count = rs.getInt(1);
@@ -432,5 +335,169 @@ public class KmsEncryptionIntegrationTest {
       Statement stmt = connection.createStatement();
       stmt.execute("INSERT INTO users (name, ssn, email) VALUES ('Dave', '111', 'XXXXXXXXXXXXX')");
     });
+  }
+
+  private static void setupPostgreSQL(Connection conn, Statement stmt, String metadataSchema)
+      throws Exception {
+    // Install encrypted_data custom type
+    LOGGER.finest("Installing encrypted_data custom type for PostgreSQL");
+    stmt.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto");
+    EncryptedDataTypeInstaller.installEncryptedDataType(conn, metadataSchema);
+
+    // Create key_storage table
+    stmt.execute(
+        "CREATE TABLE "
+            + metadataSchema
+            + ".key_storage ("
+            + "id SERIAL PRIMARY KEY, "
+            + "name VARCHAR(255) NOT NULL, "
+            + "master_key_arn VARCHAR(512) NOT NULL, "
+            + "encrypted_data_key TEXT NOT NULL, "
+            + "hmac_key BYTEA NOT NULL, "
+            + "key_spec VARCHAR(50) DEFAULT 'AES_256', "
+            + "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
+            + "last_used_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP)");
+
+    // Create encryption_metadata table
+    stmt.execute(
+        "CREATE TABLE "
+            + metadataSchema
+            + ".encryption_metadata ("
+            + "table_name VARCHAR(255) NOT NULL, "
+            + "column_name VARCHAR(255) NOT NULL, "
+            + "encryption_algorithm VARCHAR(50) NOT NULL, "
+            + "key_id INTEGER NOT NULL, "
+            + "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
+            + "updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
+            + "PRIMARY KEY (table_name, column_name), "
+            + "FOREIGN KEY (key_id) REFERENCES "
+            + metadataSchema
+            + ".key_storage(id))");
+
+    insertKeyAndMetadata(conn, metadataSchema);
+
+    // Create users table with encrypted_data type
+    stmt.execute(
+        "CREATE TABLE users ("
+            + "id SERIAL PRIMARY KEY, "
+            + "name VARCHAR(100), "
+            + "ssn encrypted_data, "
+            + "email VARCHAR(100))");
+
+    // Add trigger to validate HMAC
+    stmt.execute(
+        "CREATE TRIGGER validate_ssn_hmac "
+            + "BEFORE INSERT OR UPDATE ON users "
+            + "FOR EACH ROW EXECUTE FUNCTION validate_encrypted_data_hmac('ssn')");
+  }
+
+  private static void setupMySQL(Connection conn, Statement stmt, String metadataSchema)
+      throws Exception {
+    LOGGER.finest("Setting up MySQL encryption schema");
+
+    // MySQL doesn't support schemas like PostgreSQL - tables go in current database
+    // Create key_storage table
+    stmt.execute(
+        "CREATE TABLE key_storage ("
+            + "id INT AUTO_INCREMENT PRIMARY KEY, "
+            + "name VARCHAR(255) NOT NULL, "
+            + "master_key_arn VARCHAR(512) NOT NULL, "
+            + "encrypted_data_key TEXT NOT NULL, "
+            + "hmac_key VARBINARY(32) NOT NULL, "
+            + "key_spec VARCHAR(50) DEFAULT 'AES_256', "
+            + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+            + "last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+
+    // Create encryption_metadata table
+    stmt.execute(
+        "CREATE TABLE encryption_metadata ("
+            + "table_name VARCHAR(255) NOT NULL, "
+            + "column_name VARCHAR(255) NOT NULL, "
+            + "encryption_algorithm VARCHAR(50) NOT NULL, "
+            + "key_id INT NOT NULL, "
+            + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+            + "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, "
+            + "PRIMARY KEY (table_name, column_name), "
+            + "FOREIGN KEY (key_id) REFERENCES key_storage(id))");
+
+    insertKeyAndMetadata(conn, null); // Pass null for MySQL - no schema prefix
+
+    // Create users table with VARBINARY for encrypted data
+    stmt.execute(
+        "CREATE TABLE users ("
+            + "id INT AUTO_INCREMENT PRIMARY KEY, "
+            + "name VARCHAR(100), "
+            + "ssn VARBINARY(65535), "
+            + "email VARCHAR(100))");
+  }
+
+  private static void insertKeyAndMetadata(Connection conn, String metadataSchema)
+      throws Exception {
+    // Generate KMS data key
+    KmsClient kmsClient = KmsClient.builder().region(Region.of(region)).build();
+    GenerateDataKeyRequest dataKeyRequest =
+        GenerateDataKeyRequest.builder().keyId(kmsKeyArn).keySpec("AES_256").build();
+    GenerateDataKeyResponse dataKeyResponse = kmsClient.generateDataKey(dataKeyRequest);
+    String encryptedDataKeyBase64 =
+        Base64.getEncoder().encodeToString(dataKeyResponse.ciphertextBlob().asByteArray());
+
+    // Generate HMAC key
+    byte[] hmacKey = new byte[32];
+    new java.security.SecureRandom().nextBytes(hmacKey);
+
+    // Insert key
+    DatabaseEngine dbEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
+    String tablePrefix = (metadataSchema != null) ? metadataSchema + "." : "";
+    String insertKeySql;
+    
+    if (dbEngine == DatabaseEngine.PG) {
+      insertKeySql =
+          "INSERT INTO "
+              + tablePrefix
+              + "key_storage (name, master_key_arn, encrypted_data_key, hmac_key, key_spec) "
+              + "VALUES (?, ?, ?, ?, ?) RETURNING id";
+    } else {
+      insertKeySql =
+          "INSERT INTO "
+              + tablePrefix
+              + "key_storage (name, master_key_arn, encrypted_data_key, hmac_key, key_spec) "
+              + "VALUES (?, ?, ?, ?, ?)";
+    }
+
+    int generatedKeyId;
+    try (PreparedStatement keyStmt = conn.prepareStatement(insertKeySql,
+        dbEngine == DatabaseEngine.PG ? Statement.NO_GENERATED_KEYS : Statement.RETURN_GENERATED_KEYS)) {
+      keyStmt.setString(1, "test-key-users-ssn");
+      keyStmt.setString(2, kmsKeyArn);
+      keyStmt.setString(3, encryptedDataKeyBase64);
+      keyStmt.setBytes(4, hmacKey);
+      keyStmt.setString(5, "AES_256");
+
+      if (dbEngine == DatabaseEngine.PG) {
+        ResultSet keyRs = keyStmt.executeQuery();
+        keyRs.next();
+        generatedKeyId = keyRs.getInt(1);
+      } else {
+        keyStmt.executeUpdate();
+        ResultSet keyRs = keyStmt.getGeneratedKeys();
+        keyRs.next();
+        generatedKeyId = keyRs.getInt(1);
+      }
+    }
+
+    // Insert metadata
+    try (PreparedStatement metaStmt =
+        conn.prepareStatement(
+            "INSERT INTO "
+                + tablePrefix
+                + "encryption_metadata (table_name, column_name, encryption_algorithm, key_id) "
+                + "VALUES (?, ?, ?, ?)")) {
+      metaStmt.setString(1, "users");
+      metaStmt.setString(2, "ssn");
+      metaStmt.setString(3, "AES-256-GCM");
+      metaStmt.setInt(4, generatedKeyId);
+      metaStmt.executeUpdate();
+      LOGGER.finest("Encryption metadata configured for key: " + generatedKeyId);
+    }
   }
 }
