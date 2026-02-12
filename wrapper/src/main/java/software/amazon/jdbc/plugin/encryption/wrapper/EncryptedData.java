@@ -21,8 +21,8 @@ import org.postgresql.util.PGBinaryObject;
 import org.postgresql.util.PGobject;
 
 /**
- * PostgreSQL custom type wrapper for encrypted_data. Handles binary data transfer for the
- * encrypted_data type.
+ * PostgreSQL-specific wrapper for encrypted_data type that extends PGobject
+ * and implements PGBinaryObject for binary transfer mode.
  */
 public class EncryptedData extends PGobject implements PGBinaryObject {
 
@@ -33,38 +33,20 @@ public class EncryptedData extends PGobject implements PGBinaryObject {
   }
 
   public EncryptedData(byte[] bytes) {
-    setType("encrypted_data");
+    this();
     this.bytes = bytes;
-  }
-
-  @Override
-  public void setByteValue(byte[] value, int offset) throws SQLException {
-    // Binary mode: raw bytes, no hex encoding
-    this.bytes = new byte[value.length - offset];
-    System.arraycopy(value, offset, this.bytes, 0, this.bytes.length);
-  }
-
-  @Override
-  public int lengthInBytes() {
-    // Binary mode: actual byte length
-    return bytes != null ? bytes.length : 0;
-  }
-
-  @Override
-  public void toBytes(byte[] target, int offset) {
-    // Binary mode: raw bytes, no hex encoding
-    if (this.bytes != null) {
-      System.arraycopy(this.bytes, 0, target, offset, this.bytes.length);
-    }
   }
 
   public byte[] getBytes() {
     return bytes;
   }
 
+  public void setBytes(byte[] bytes) {
+    this.bytes = bytes;
+  }
+
   @Override
   public void setValue(String value) throws SQLException {
-    // Text mode: hex-encoded string
     if (value != null && value.startsWith("\\x")) {
       this.bytes = hexToBytes(value.substring(2));
     } else {
@@ -74,11 +56,32 @@ public class EncryptedData extends PGobject implements PGBinaryObject {
 
   @Override
   public String getValue() {
-    // Text mode: hex-encoded string
     if (bytes == null) {
       return null;
     }
     return "\\x" + bytesToHex(bytes);
+  }
+
+  @Override
+  public int lengthInBytes() {
+    return bytes != null ? bytes.length : 0;
+  }
+
+  @Override
+  public void setByteValue(byte[] value, int offset) throws SQLException {
+    if (value == null) {
+      this.bytes = null;
+    } else {
+      this.bytes = new byte[value.length - offset];
+      System.arraycopy(value, offset, this.bytes, 0, this.bytes.length);
+    }
+  }
+
+  @Override
+  public void toBytes(byte[] bytes, int offset) {
+    if (this.bytes != null) {
+      System.arraycopy(this.bytes, 0, bytes, offset, this.bytes.length);
+    }
   }
 
   private static byte[] hexToBytes(String hex) {

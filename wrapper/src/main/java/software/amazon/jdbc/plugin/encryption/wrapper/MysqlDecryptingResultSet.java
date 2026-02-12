@@ -45,12 +45,12 @@ import software.amazon.jdbc.plugin.encryption.model.ColumnEncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
 
 /**
- * A ResultSet wrapper that automatically decrypts values from columns configured for encryption.
- * Uses delegation pattern for non-encrypted operations.
+ * MySQL-specific ResultSet wrapper that automatically decrypts values.
+ * Handles MySQL's VARBINARY columns directly as raw bytes.
  */
-public class DecryptingResultSet implements ResultSet {
+public class MysqlDecryptingResultSet implements ResultSet {
 
-  private static final Logger LOGGER = Logger.getLogger(DecryptingResultSet.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(MysqlDecryptingResultSet.class.getName());
 
   private final ResultSet delegate;
   private final MetadataManager metadataManager;
@@ -63,7 +63,7 @@ public class DecryptingResultSet implements ResultSet {
   private String tableName;
   private boolean metadataInitialized = false;
 
-  public DecryptingResultSet(
+  public MysqlDecryptingResultSet(
       ResultSet delegate,
       MetadataManager metadataManager,
       EncryptionService encryptionService,
@@ -258,34 +258,10 @@ public class DecryptingResultSet implements ResultSet {
     String columnName = getColumnName(columnIndex);
     ColumnEncryptionConfig config = getColumnConfig(columnName);
 
-    // If column is encrypted, get as EncryptedData
     Object value;
     if (config != null) {
-      Object obj = delegate.getObject(columnIndex);
-      
-      LOGGER.info(
-          () ->
-              String.format(
-                  "DecryptingResultSet.getString: columnIndex=%d, obj type=%s, isEncryptedData=%b",
-                  columnIndex,
-                  obj != null ? obj.getClass().getName() : "null",
-                  obj instanceof EncryptedData));
-      
-      if (obj instanceof EncryptedData) {
-        value = ((EncryptedData) obj).getBytes();
-      } else {
-        // Fallback: get as bytes and check if hex-encoded
-        byte[] rawBytes = delegate.getBytes(columnIndex);
-        if (rawBytes != null && rawBytes.length > 2 
-            && rawBytes[0] == '\\' && rawBytes[1] == 'x') {
-          // PostgreSQL returned hex-encoded string, decode it
-          String hexString = new String(rawBytes, 2, rawBytes.length - 2, java.nio.charset.StandardCharsets.US_ASCII);
-          value = hexToBytes(hexString);
-          LOGGER.fine(() -> "Decoded hex-encoded encrypted data from text mode");
-        } else {
-          value = rawBytes;
-        }
-      }
+      // MySQL: get raw bytes from VARBINARY
+      value = delegate.getBytes(columnIndex);
     } else {
       value = delegate.getObject(columnIndex);
     }
@@ -305,25 +281,10 @@ public class DecryptingResultSet implements ResultSet {
   public String getString(String columnLabel) throws SQLException {
     ColumnEncryptionConfig config = getColumnConfig(columnLabel);
 
-    // If column is encrypted, get as EncryptedData
     Object value;
     if (config != null) {
-      Object obj = delegate.getObject(columnLabel);
-      if (obj instanceof EncryptedData) {
-        value = ((EncryptedData) obj).getBytes();
-      } else {
-        // Fallback: get as bytes and check if hex-encoded
-        byte[] rawBytes = delegate.getBytes(columnLabel);
-        if (rawBytes != null && rawBytes.length > 2 
-            && rawBytes[0] == '\\' && rawBytes[1] == 'x') {
-          // PostgreSQL returned hex-encoded string, decode it
-          String hexString = new String(rawBytes, 2, rawBytes.length - 2, java.nio.charset.StandardCharsets.US_ASCII);
-          value = hexToBytes(hexString);
-          LOGGER.fine(() -> "Decoded hex-encoded encrypted data from text mode");
-        } else {
-          value = rawBytes;
-        }
-      }
+      // MySQL: get raw bytes from VARBINARY
+      value = delegate.getBytes(columnLabel);
     } else {
       value = delegate.getObject(columnLabel);
     }

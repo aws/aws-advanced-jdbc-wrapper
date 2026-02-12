@@ -49,13 +49,13 @@ import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
 import software.amazon.jdbc.plugin.encryption.sql.SqlAnalysisService;
 
 /**
- * A PreparedStatement wrapper that automatically encrypts parameter values for columns configured
- * for encryption. Uses delegation pattern for non-encrypted operations.
+ * MySQL-specific PreparedStatement wrapper that automatically encrypts values.
+ * Uses setBytes() directly for VARBINARY columns.
  */
-public class EncryptingPreparedStatement implements PreparedStatement {
+public class MysqlEncryptingPreparedStatement implements PreparedStatement {
 
   private static final Logger LOGGER =
-      Logger.getLogger(EncryptingPreparedStatement.class.getName());
+      Logger.getLogger(MysqlEncryptingPreparedStatement.class.getName());
 
   private final PreparedStatement delegate;
   private final MetadataManager metadataManager;
@@ -70,14 +70,14 @@ public class EncryptingPreparedStatement implements PreparedStatement {
   private String tableName;
   private boolean mappingInitialized = false;
 
-  public EncryptingPreparedStatement(
+  public MysqlEncryptingPreparedStatement(
       PreparedStatement delegate,
       MetadataManager metadataManager,
       EncryptionService encryptionService,
       KeyManager keyManager,
       SqlAnalysisService sqlAnalysisService,
       String sql) {
-    LOGGER.finest(() -> String.format("EncryptingPreparedStatement created for SQL: %s", sql));
+    LOGGER.finest(() -> String.format("MysqlEncryptingPreparedStatement created for SQL: %s", sql));
 
     // Parse annotations from original SQL, then strip them
     final Map<Integer, String> annotations = EncryptionAnnotationParser.parseAnnotations(sql);
@@ -263,16 +263,16 @@ public class EncryptingPreparedStatement implements PreparedStatement {
     Object encryptedValue = encryptParameterIfNeeded(parameterIndex, x);
     if (encryptedValue instanceof byte[]) {
       byte[] encBytes = (byte[]) encryptedValue;
-      EncryptedData encData = new EncryptedData(encBytes);
 
       LOGGER.finest(
           () ->
               String.format(
-                  "EncryptingPreparedStatement.setString: param=%d, encryptedLength=%d",
+                  "MysqlEncryptingPreparedStatement.setString: param=%d, encryptedLength=%d",
                   parameterIndex,
                   encBytes.length));
 
-      delegate.setObject(parameterIndex, encData);
+      // MySQL: use VARBINARY directly
+      delegate.setBytes(parameterIndex, encBytes);
     } else {
       delegate.setString(parameterIndex, (String) encryptedValue);
     }

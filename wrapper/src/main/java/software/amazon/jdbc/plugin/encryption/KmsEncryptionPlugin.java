@@ -32,8 +32,6 @@ import software.amazon.jdbc.plugin.encryption.metadata.MetadataManager;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
 import software.amazon.jdbc.plugin.encryption.sql.SqlAnalysisService;
-import software.amazon.jdbc.plugin.encryption.wrapper.DecryptingResultSet;
-import software.amazon.jdbc.plugin.encryption.wrapper.EncryptingPreparedStatement;
 
 /**
  * Main encryption plugin that integrates with the AWS Advanced JDBC Wrapper to provide transparent
@@ -210,10 +208,11 @@ public class KmsEncryptionPlugin {
   }
 
   /**
-   * Registers custom PostgreSQL types with the JDBC driver for a specific connection. Only
-   * registers once per connection.
+   * Registers custom database types with the JDBC driver for a specific connection.
+   * Only registers once per connection. PostgreSQL requires custom type registration,
+   * MySQL does not.
    */
-  private void registerPostgresTypesForConnection(java.sql.Connection conn) {
+  private void registerCustomTypesForConnection(java.sql.Connection conn) {
     if (conn == null) {
       return;
     }
@@ -223,16 +222,31 @@ public class KmsEncryptionPlugin {
         return; // Already registered for this connection
       }
 
-      try {
-        org.postgresql.PGConnection pgConn = conn.unwrap(org.postgresql.PGConnection.class);
-        pgConn.addDataType(
-            "encrypted_data", software.amazon.jdbc.plugin.encryption.wrapper.EncryptedData.class);
+      // Only PostgreSQL needs custom type registration
+      if (isPostgreSqlDriver(pluginService.getTargetDriverDialect())) {
+        try {
+          org.postgresql.PGConnection pgConn = conn.unwrap(org.postgresql.PGConnection.class);
+          pgConn.addDataType(
+              "encrypted_data",
+              software.amazon.jdbc.plugin.encryption.wrapper.EncryptedData.class);
+          registeredConnections.put(conn, Boolean.TRUE);
+          LOGGER.fine("Registered encrypted_data type for PostgreSQL connection");
+        } catch (Exception e) {
+          LOGGER.fine(() -> "Failed to register PostgreSQL custom types: " + e.getMessage());
+        }
+      } else {
+        // MySQL/MariaDB don't need type registration
         registeredConnections.put(conn, Boolean.TRUE);
-        LOGGER.fine("Registered encrypted_data type for connection");
-      } catch (Exception e) {
-        LOGGER.fine(() -> "Failed to register PostgreSQL custom types: " + e.getMessage());
+        LOGGER.fine("Skipped type registration for non-PostgreSQL database");
       }
     }
+  }
+
+  private boolean isPostgreSqlDriver(software.amazon.jdbc.targetdriverdialect.TargetDriverDialect targetDriverDialect) {
+    if (targetDriverDialect == null) {
+      return false;
+    }
+    return targetDriverDialect instanceof software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
   }
 
   /**
@@ -261,7 +275,7 @@ public class KmsEncryptionPlugin {
     }
 
     // Register custom types for this connection
-    registerPostgresTypesForConnection(statement.getConnection());
+    registerCustomTypesForConnection(statement.getConnection());
 
     LOGGER.fine(() -> String.format("Wrapping PreparedStatement for SQL: %s", sql));
 
@@ -269,8 +283,9 @@ public class KmsEncryptionPlugin {
     SqlAnalysisService.SqlAnalysisResult analysisResult = SqlAnalysisService.analyzeSql(sql);
     LOGGER.fine(() -> String.format("SQL analysis result: %s", analysisResult));
 
-    return new EncryptingPreparedStatement(
-        statement, metadataManager, encryptionService, keyManager, sqlAnalysisService, sql);
+    return software.amazon.jdbc.plugin.encryption.wrapper.EncryptingPreparedStatementFactory.create(
+        statement, metadataManager, encryptionService, keyManager, sqlAnalysisService, sql,
+        pluginService.getTargetDriverDialect());
   }
 
   /**
@@ -298,14 +313,16 @@ public class KmsEncryptionPlugin {
 
     // Register custom types for this connection
     try {
-      registerPostgresTypesForConnection(resultSet.getStatement().getConnection());
+      registerCustomTypesForConnection(resultSet.getStatement().getConnection());
     } catch (Exception e) {
       LOGGER.fine(() -> "Could not register types for ResultSet connection: " + e.getMessage());
     }
 
     LOGGER.finest(() -> "Wrapping ResultSet");
 
-    return new DecryptingResultSet(resultSet, metadataManager, encryptionService, keyManager);
+    return software.amazon.jdbc.plugin.encryption.wrapper.DecryptingResultSetFactory.create(
+        resultSet, metadataManager, encryptionService, keyManager, 
+        pluginService.getTargetDriverDialect());
   }
 
   /**
