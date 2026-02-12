@@ -21,11 +21,13 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import integration.DatabaseEngine;
 import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestFeature;
+import integration.container.condition.EnableOnDatabaseEngine;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
 import java.sql.Connection;
@@ -70,6 +72,7 @@ import software.amazon.jdbc.plugin.encryption.schema.EncryptedDataTypeInstaller;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
+@EnableOnDatabaseEngine({DatabaseEngine.PG, DatabaseEngine.MYSQL})
 @EnableOnTestFeature({
     TestEnvironmentFeatures.RUN_ENCRYPTION_TESTS_ONLY
 })
@@ -94,6 +97,11 @@ public class KeyManagementUtilityIntegrationTest {
   private KmsClient kmsClient;
   private String masterKeyArn;
   private boolean createdKey = false;
+
+  private String getTablePrefix() {
+    DatabaseEngine dbEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
+    return (dbEngine == DatabaseEngine.PG) ? "encrypt." : "";
+  }
 
   @BeforeEach
   void setUp() throws Exception {
@@ -132,13 +140,14 @@ public class KeyManagementUtilityIntegrationTest {
   @AfterEach
   void tearDown() throws Exception {
     if (connection != null) {
+      String tablePrefix = getTablePrefix();
       try (Statement stmt = connection.createStatement()) {
         // Clean up test data
         stmt.execute("DROP TABLE IF EXISTS " + TEST_TABLE);
         stmt.execute(
-            "DELETE FROM encrypt.encryption_metadata WHERE table_name = '" + TEST_TABLE + "'");
+            "DELETE FROM " + tablePrefix + "encryption_metadata WHERE table_name = '" + TEST_TABLE + "'");
         String tableName = TEST_TABLE + '.' + TEST_COLUMN;
-        stmt.execute("DELETE FROM encrypt.key_storage WHERE name = '" + tableName + "'");
+        stmt.execute("DELETE FROM " + tablePrefix + "key_storage WHERE name = '" + tableName + "'");
       }
       connection.close();
     }
@@ -153,9 +162,11 @@ public class KeyManagementUtilityIntegrationTest {
     LOGGER.info("Testing data key creation and metadata population for "
         + TEST_TABLE + "." + TEST_COLUMN);
 
+    String tablePrefix = getTablePrefix();
+    
     // Clean up any existing metadata for this column
     try (Statement stmt = connection.createStatement()) {
-      stmt.execute("DELETE FROM encrypt.encryption_metadata WHERE table_name = '"
+      stmt.execute("DELETE FROM " + tablePrefix + "encryption_metadata WHERE table_name = '"
           + TEST_TABLE + "' AND column_name = '" + TEST_COLUMN + "'");
     }
 
@@ -182,26 +193,47 @@ public class KeyManagementUtilityIntegrationTest {
     LOGGER.info("Generated data key using master key: " + masterKeyArn);
 
     // Step 2: Store the key in key_storage table
+    DatabaseEngine dbEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
+    
     int keyId;
-    try (PreparedStatement stmt =
-        connection.prepareStatement(
-            "INSERT INTO encrypt.key_storage (name, master_key_arn, encrypted_data_key, "
-            + "hmac_key, key_spec) VALUES (?, ?, ?, ?, ?) RETURNING id")) {
-      stmt.setString(1, TEST_TABLE + "." + TEST_COLUMN);
-      stmt.setString(2, masterKeyArn);
-      stmt.setString(3, encryptedDataKey);
-      stmt.setBytes(4, hmacKey);
-      stmt.setString(5, "AES_256");
-      ResultSet rs = stmt.executeQuery();
-      rs.next();
-      keyId = rs.getInt(1);
-      LOGGER.info("Stored key in key_storage with ID: " + keyId);
+    if (dbEngine == DatabaseEngine.PG) {
+      try (PreparedStatement stmt =
+          connection.prepareStatement(
+              "INSERT INTO " + tablePrefix + "key_storage (name, master_key_arn, encrypted_data_key, "
+              + "hmac_key, key_spec) VALUES (?, ?, ?, ?, ?) RETURNING id")) {
+        stmt.setString(1, TEST_TABLE + "." + TEST_COLUMN);
+        stmt.setString(2, masterKeyArn);
+        stmt.setString(3, encryptedDataKey);
+        stmt.setBytes(4, hmacKey);
+        stmt.setString(5, "AES_256");
+        ResultSet rs = stmt.executeQuery();
+        rs.next();
+        keyId = rs.getInt(1);
+        LOGGER.info("Stored key in key_storage with ID: " + keyId);
+      }
+    } else {
+      try (PreparedStatement stmt =
+          connection.prepareStatement(
+              "INSERT INTO " + tablePrefix + "key_storage (name, master_key_arn, encrypted_data_key, "
+              + "hmac_key, key_spec) VALUES (?, ?, ?, ?, ?)",
+              Statement.RETURN_GENERATED_KEYS)) {
+        stmt.setString(1, TEST_TABLE + "." + TEST_COLUMN);
+        stmt.setString(2, masterKeyArn);
+        stmt.setString(3, encryptedDataKey);
+        stmt.setBytes(4, hmacKey);
+        stmt.setString(5, "AES_256");
+        stmt.executeUpdate();
+        ResultSet rs = stmt.getGeneratedKeys();
+        rs.next();
+        keyId = rs.getInt(1);
+        LOGGER.info("Stored key in key_storage with ID: " + keyId);
+      }
     }
 
     // Step 3: Store the encryption metadata referencing the key
     try (PreparedStatement stmt =
         connection.prepareStatement(
-            "INSERT INTO encrypt.encryption_metadata (table_name, column_name, "
+            "INSERT INTO " + tablePrefix + "encryption_metadata (table_name, column_name, "
             + "encryption_algorithm, key_id) VALUES (?, ?, ?, ?)")) {
       stmt.setString(1, TEST_TABLE);
       stmt.setString(2, TEST_COLUMN);
@@ -216,8 +248,8 @@ public class KeyManagementUtilityIntegrationTest {
         connection.prepareStatement(
             "SELECT em.table_name, em.column_name, em.encryption_algorithm, em.key_id, "
             + "ks.master_key_arn, ks.encrypted_data_key "
-            + "FROM encrypt.encryption_metadata em "
-            + "JOIN encrypt.key_storage ks ON em.key_id = ks.id "
+            + "FROM " + tablePrefix + "encryption_metadata em "
+            + "JOIN " + tablePrefix + "key_storage ks ON em.key_id = ks.id "
             + "WHERE em.table_name = ? AND em.column_name = ?")) {
       checkStmt.setString(1, TEST_TABLE);
       checkStmt.setString(2, TEST_COLUMN);
@@ -264,9 +296,11 @@ public class KeyManagementUtilityIntegrationTest {
   void testEncryptionWithDifferentValues() throws Exception {
     LOGGER.info("Testing encryption with different SSN values");
 
+    String tablePrefix = getTablePrefix();
+    
     // Clean up any existing metadata for this column
     try (Statement stmt = connection.createStatement()) {
-      stmt.execute("DELETE FROM encrypt.encryption_metadata WHERE table_name = '"
+      stmt.execute("DELETE FROM " + tablePrefix + "encryption_metadata WHERE table_name = '"
           + TEST_TABLE + "' AND column_name = '" + TEST_COLUMN + "'");
       stmt.execute("TRUNCATE TABLE " + TEST_TABLE);
     }
@@ -503,56 +537,101 @@ public class KeyManagementUtilityIntegrationTest {
   }
 
   private void setupTestSchema() throws SQLException {
+    DatabaseEngine dbEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
+    
     try (Statement stmt = connection.createStatement()) {
-      // Drop and recreate tables with correct schema
-      stmt.execute("DROP SCHEMA IF EXISTS encrypt CASCADE");
-      stmt.execute("CREATE SCHEMA encrypt");
-      stmt.execute("DROP TABLE IF EXISTS " + TEST_TABLE + " CASCADE");
+      // Drop and recreate schema/tables
+      if (dbEngine == DatabaseEngine.PG) {
+        stmt.execute("DROP SCHEMA IF EXISTS encrypt CASCADE");
+        stmt.execute("CREATE SCHEMA encrypt");
+      }
+      stmt.execute("DROP TABLE IF EXISTS " + TEST_TABLE);
 
-      // Create key storage table first (due to foreign key)
-      stmt.execute(
-          "CREATE TABLE encrypt.key_storage ("
-              + "id SERIAL PRIMARY KEY, "
-              + "name VARCHAR(255) NOT NULL, "
-              + "master_key_arn VARCHAR(512) NOT NULL, "
-              + "encrypted_data_key TEXT NOT NULL, "
-              + "hmac_key BYTEA NOT NULL, "
-              + "key_spec VARCHAR(50) DEFAULT 'AES_256', "
-              + "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
-              + "last_used_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP)");
-
-      // Create encryption metadata table
-      stmt.execute(
-          "CREATE TABLE encrypt.encryption_metadata ("
-              + "table_name VARCHAR(255) NOT NULL, "
-              + "column_name VARCHAR(255) NOT NULL, "
-              + "encryption_algorithm VARCHAR(50) NOT NULL, "
-              + "key_id INTEGER NOT NULL, "
-              + "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
-              + "updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
-              + "PRIMARY KEY (table_name, column_name), "
-              + "FOREIGN KEY (key_id) REFERENCES encrypt.key_storage(id)"
-              + ")");
-
-
-      // Create test users table
-      stmt.execute(
-          "CREATE TABLE "
-              + TEST_TABLE
-              + " ("
-              + "id SERIAL PRIMARY KEY, "
-              + "name VARCHAR(100), "
-              + "ssn encrypted_data, "
-              + "email VARCHAR(100)"
-              + ")");
-
-      // Add HMAC validation trigger for encrypted column
-      stmt.execute(
-          "CREATE TRIGGER validate_ssn_hmac "
-              + "BEFORE INSERT OR UPDATE ON " + TEST_TABLE + " "
-              + "FOR EACH ROW EXECUTE FUNCTION validate_encrypted_data_hmac('ssn')");
+      if (dbEngine == DatabaseEngine.PG) {
+        setupPostgreSQLSchema(stmt);
+      } else {
+        setupMySQLSchema(stmt);
+      }
 
       LOGGER.info("Test database schema setup complete");
     }
+  }
+
+  private void setupPostgreSQLSchema(Statement stmt) throws SQLException {
+    // Create key storage table
+    stmt.execute(
+        "CREATE TABLE encrypt.key_storage ("
+            + "id SERIAL PRIMARY KEY, "
+            + "name VARCHAR(255) NOT NULL, "
+            + "master_key_arn VARCHAR(512) NOT NULL, "
+            + "encrypted_data_key TEXT NOT NULL, "
+            + "hmac_key BYTEA NOT NULL, "
+            + "key_spec VARCHAR(50) DEFAULT 'AES_256', "
+            + "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
+            + "last_used_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP)");
+
+    // Create encryption metadata table
+    stmt.execute(
+        "CREATE TABLE encrypt.encryption_metadata ("
+            + "table_name VARCHAR(255) NOT NULL, "
+            + "column_name VARCHAR(255) NOT NULL, "
+            + "encryption_algorithm VARCHAR(50) NOT NULL, "
+            + "key_id INTEGER NOT NULL, "
+            + "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
+            + "updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, "
+            + "PRIMARY KEY (table_name, column_name), "
+            + "FOREIGN KEY (key_id) REFERENCES encrypt.key_storage(id))");
+
+    // Create test users table with encrypted_data type
+    stmt.execute(
+        "CREATE TABLE "
+            + TEST_TABLE
+            + " ("
+            + "id SERIAL PRIMARY KEY, "
+            + "name VARCHAR(100), "
+            + "ssn encrypted_data, "
+            + "email VARCHAR(100))");
+
+    // Add HMAC validation trigger
+    stmt.execute(
+        "CREATE TRIGGER validate_ssn_hmac "
+            + "BEFORE INSERT OR UPDATE ON " + TEST_TABLE + " "
+            + "FOR EACH ROW EXECUTE FUNCTION validate_encrypted_data_hmac('ssn')");
+  }
+
+  private void setupMySQLSchema(Statement stmt) throws SQLException {
+    // Create key storage table
+    stmt.execute(
+        "CREATE TABLE key_storage ("
+            + "id INT AUTO_INCREMENT PRIMARY KEY, "
+            + "name VARCHAR(255) NOT NULL, "
+            + "master_key_arn VARCHAR(512) NOT NULL, "
+            + "encrypted_data_key TEXT NOT NULL, "
+            + "hmac_key VARBINARY(32) NOT NULL, "
+            + "key_spec VARCHAR(50) DEFAULT 'AES_256', "
+            + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+            + "last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+
+    // Create encryption metadata table
+    stmt.execute(
+        "CREATE TABLE encryption_metadata ("
+            + "table_name VARCHAR(255) NOT NULL, "
+            + "column_name VARCHAR(255) NOT NULL, "
+            + "encryption_algorithm VARCHAR(50) NOT NULL, "
+            + "key_id INT NOT NULL, "
+            + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+            + "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, "
+            + "PRIMARY KEY (table_name, column_name), "
+            + "FOREIGN KEY (key_id) REFERENCES key_storage(id))");
+
+    // Create test users table with VARBINARY
+    stmt.execute(
+        "CREATE TABLE "
+            + TEST_TABLE
+            + " ("
+            + "id INT AUTO_INCREMENT PRIMARY KEY, "
+            + "name VARCHAR(100), "
+            + "ssn VARBINARY(65535), "
+            + "email VARCHAR(100))");
   }
 }
