@@ -634,7 +634,7 @@ public class KeyManagementUtilityIntegrationTest {
             + " ("
             + "id INT AUTO_INCREMENT PRIMARY KEY, "
             + "name VARCHAR(100), "
-            + "ssn VARBINARY(65535), "
+            + "ssn VARBINARY(256), "
             + "email VARCHAR(100))");
   }
 }
