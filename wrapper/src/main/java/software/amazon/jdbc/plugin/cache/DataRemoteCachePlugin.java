@@ -151,15 +151,24 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
         if (catalogName != null) sessionStateService.setCatalog(catalogName);
         if (schemaName != null) sessionStateService.setSchema(schemaName);
       }
-      LOGGER.finest("DB driver protocol " + pluginService.getDriverProtocol()
-          + ", database product: " + metadata.getDatabaseProductName() + " " + metadata.getDatabaseProductVersion()
-          + ", catalog: " + catalogName + ", schema: " + schemaName
-          + ", driver: " + metadata.getDriverName() + " " + metadata.getDriverVersion());
+      // Retrieve metadata values before lambda to avoid SQLException in lazy evaluation
+      String driverProtocol = pluginService.getDriverProtocol();
+      String dbProductName = metadata.getDatabaseProductName();
+      String dbProductVersion = metadata.getDatabaseProductVersion();
+      String driverName = metadata.getDriverName();
+      String driverVersion = metadata.getDriverVersion();
+      final String finalCatalogName = catalogName;
+      final String finalSchemaName = schemaName;
+
+      LOGGER.finest(() -> Messages.get("DataRemoteCachePlugin.sessionStateInfo",
+          new Object[] {driverProtocol, dbProductName, dbProductVersion,
+              finalCatalogName, finalSchemaName, dbUserName, driverName, driverVersion}));
+
       // The cache key contains the schema name, username, and the query string
       String[] words = {catalogName, schemaName, dbUserName, query};
       return String.join("_", words);
     } catch (SQLException e) {
-      LOGGER.log(Level.WARNING, "Error getting session state.", e);
+      LOGGER.log(Level.WARNING, Messages.get("DataRemoteCachePlugin.errorGettingSessionState"), e);
       return null;
     }
   }
@@ -177,7 +186,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     try {
       return CachedResultSet.deserializeFromByteArray(cachedResult);
     } catch (Exception e) {
-      LOGGER.log(Level.WARNING, "Error de-serializing cached result.", e);
+      LOGGER.log(Level.WARNING, Messages.get("DataRemoteCachePlugin.errorDeserializingCachedResult"), e);
       return null; // Treat this as a cache miss
     }
   }
@@ -233,7 +242,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     String cacheParams = upperHint.substring(paramsStart, paramsEnd).trim();
     // Empty parameters
     if (StringUtils.isNullOrEmpty(cacheParams)) {
-      LOGGER.warning("Empty CACHE_PARAM parameters");
+      LOGGER.warning(Messages.get("DataRemoteCachePlugin.emptyCacheParam"));
       incrCounter(malformedHintCounter);
       return null;
     }
@@ -245,7 +254,8 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
     for (String param : params) {
       String[] keyValue = param.trim().split("=");
       if (keyValue.length != 2) {
-        LOGGER.warning("Invalid caching parameter format: " + param);
+        LOGGER.warning(Messages.get("DataRemoteCachePlugin.invalidParameterFormat",
+            new Object[] {param}));
         incrCounter(malformedHintCounter);
         return null;
       }
@@ -254,7 +264,8 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
 
       if ("TTL".equals(key)) {
         if (!value.endsWith("S")) {
-          LOGGER.warning("TTL must end with 's': " + value);
+          LOGGER.warning(Messages.get("DataRemoteCachePlugin.ttlMustEndWithS",
+              new Object[] {value}));
           incrCounter(malformedHintCounter);
           return null;
         } else{
@@ -267,12 +278,13 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
             }
             // Maximum TTL allowed is 180 days
             if (ttlValue > MAX_TTL_SECONDS) {
-              LOGGER.warning(String.format("TTL value %d exceeds maximum allowed %d seconds. Using maximum TTL.",
-                  ttlValue, MAX_TTL_SECONDS));
+              LOGGER.warning(Messages.get("DataRemoteCachePlugin.ttlExceedsMaximum",
+                  new Object[] {ttlValue, MAX_TTL_SECONDS}));
               ttlValue = MAX_TTL_SECONDS;
             }
           } catch (NumberFormatException e) {
-            LOGGER.warning(String.format("Invalid TTL format of %s for query %s", value, queryHint));
+            LOGGER.warning(Messages.get("DataRemoteCachePlugin.invalidTtlFormat",
+                new Object[] {value, queryHint}));
             incrCounter(malformedHintCounter);
             return null;
           }
@@ -330,9 +342,11 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
           // Cache miss. Need to fetch result from the database
           needToCache = true;
           incrCounter(cacheMissCounter);
-          LOGGER.finest("Got a cache miss for SQL: " + sql);
+          LOGGER.finest(() -> Messages.get("DataRemoteCachePlugin.cacheMiss",
+              new Object[] {sql}));
         } else {
-          LOGGER.finest("Got a cache hit for SQL: " + sql);
+          LOGGER.finest(() -> Messages.get("DataRemoteCachePlugin.cacheHit",
+              new Object[] {sql}));
           // Cache hit. Return the cached result
           incrCounter(cacheHitCounter);
           result.beforeFirst();
@@ -380,7 +394,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
         result = cacheResultSet(mainQuery, result, configuredQueryTtl);
       } catch (final SQLException ex) {
         // Log and re-throw exception
-        LOGGER.log(Level.WARNING, "Encountered SQLException when caching query results.", ex);
+        LOGGER.log(Level.WARNING, Messages.get("DataRemoteCachePlugin.sqlExceptionWhenCaching"), ex);
         throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, ex);
       }
     }
@@ -406,7 +420,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
         return pluginService.getTargetDriverDialect().getSQLQueryString((PreparedStatement) methodInvokeOn);
       } catch (Exception e) {
         // Unable to get the query string, bypass caching
-        LOGGER.log(Level.FINE, "Unable to get the query string for PreparedStatement.", e);
+        LOGGER.log(Level.FINE, Messages.get("DataRemoteCachePlugin.unableToGetQueryString"), e);
         return null;
       }
     }
