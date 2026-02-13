@@ -68,23 +68,21 @@ public class KeyManager {
   private String getInsertKeyMetadataSql() {
     String schema = config.getEncryptionMetadataSchema();
     return "INSERT INTO "
-        + schema
-        + ".key_storage (name, master_key_arn, encrypted_data_key, key_spec, created_at, last_used_at) "
+        + schema + ".key_storage"
+        + " (name, master_key_arn, encrypted_data_key, key_spec, created_at, last_used_at) "
         + "VALUES (?, ?, ?, ?, ?, ?) "
         + "RETURNING id";
   }
 
   private String getSelectKeyMetadataSql() {
+    String schema = config.getEncryptionMetadataSchema();
     return "SELECT id, name, master_key_arn, encrypted_data_key, key_spec, created_at, last_used_at "
-        + "FROM "
-        + config.getEncryptionMetadataSchema()
-        + ".key_storage WHERE id = ?";
+        + "FROM " + schema + ".key_storage WHERE id = ?";
   }
 
   private String getUpdateLastUsedSql() {
-    return "UPDATE "
-        + config.getEncryptionMetadataSchema()
-        + ".key_storage SET last_used_at = ? WHERE key_id = ?";
+    String schema = config.getEncryptionMetadataSchema();
+    return "UPDATE " + schema + ".key_storage SET last_used_at = ? WHERE key_id = ?";
   }
 
   /**

@@ -67,19 +67,15 @@ public class MetadataManager {
         + "       ks.name, ks.master_key_arn, ks.encrypted_data_key, ks.hmac_key, ks.key_spec, "
         + "       ks.created_at as key_created_at, ks.last_used_at "
         + "FROM "
-        + schema
-        + ".encryption_metadata em "
+        + schema + ".encryption_metadata em "
         + "JOIN "
-        + schema
-        + ".key_storage ks ON em.key_id = ks.id "
+        + schema + ".key_storage ks ON em.key_id = ks.id "
         + "ORDER BY em.table_name, em.column_name";
   }
 
   private String getCheckColumnEncryptedSql() {
-    return "SELECT 1 FROM "
-        + config.getEncryptionMetadataSchema()
-        + ".encryption_metadata "
-        + "WHERE table_name = ? AND column_name = ?";
+    String schema = config.getEncryptionMetadataSchema();
+    return "SELECT 1 FROM " + schema + ".encryption_metadata WHERE table_name = ? AND column_name = ?";
   }
 
   private String getColumnConfigSql() {
@@ -89,11 +85,9 @@ public class MetadataManager {
         + "       ks.master_key_arn, ks.encrypted_data_key, ks.hmac_key, ks.key_spec, "
         + "       ks.created_at as key_created_at, ks.last_used_at "
         + "FROM "
-        + schema
-        + ".encryption_metadata em "
+        + schema + ".encryption_metadata em "
         + "JOIN "
-        + schema
-        + ".key_storage ks ON em.key_id = ks.id "
+        + schema + ".key_storage ks ON em.key_id = ks.id "
         + "WHERE em.table_name = ? AND em.column_name = ?";
   }
 

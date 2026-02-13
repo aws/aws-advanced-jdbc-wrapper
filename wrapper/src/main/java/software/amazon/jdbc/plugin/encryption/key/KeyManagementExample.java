@@ -48,8 +48,8 @@ public class KeyManagementExample {
             .build();
 
     // Create managers
-    KeyManager keyManager = null; // new KeyManager(kmsClient, dataSource, config);
-    MetadataManager metadataManager = null; // new MetadataManager(dataSource, config);
+    KeyManager keyManager = null; // new KeyManager(kmsClient, pluginService, config);
+    MetadataManager metadataManager = null; // new MetadataManager(pluginService, config);
 
     // Create utility
     this.keyManagementUtility =

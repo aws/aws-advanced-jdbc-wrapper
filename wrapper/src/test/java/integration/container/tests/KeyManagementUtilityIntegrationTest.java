@@ -100,7 +100,8 @@ public class KeyManagementUtilityIntegrationTest {
   private DatabaseEngine dbEngine = null;
 
   private String getTablePrefix() {
-    return (dbEngine == DatabaseEngine.PG) ? "encrypt." : "";
+    // Both databases use schema prefix
+    return "encrypt.";
   }
 
   @BeforeEach
@@ -543,11 +544,9 @@ public class KeyManagementUtilityIntegrationTest {
     DatabaseEngine dbEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
 
     try (Statement stmt = connection.createStatement()) {
-      // Drop and recreate schema/tables
-      if (dbEngine == DatabaseEngine.PG) {
-        stmt.execute("DROP SCHEMA IF EXISTS encrypt CASCADE");
-        stmt.execute("CREATE SCHEMA encrypt");
-      }
+      // Both databases support CREATE SCHEMA
+      stmt.execute("DROP SCHEMA IF EXISTS encrypt CASCADE");
+      stmt.execute("CREATE SCHEMA encrypt");
       stmt.execute("DROP TABLE IF EXISTS " + TEST_TABLE);
 
       if (dbEngine == DatabaseEngine.PG) {
@@ -603,9 +602,9 @@ public class KeyManagementUtilityIntegrationTest {
   }
 
   private void setupMySQLSchema(Statement stmt) throws SQLException {
-    // Create key storage table
+    // MySQL supports CREATE SCHEMA (alias for CREATE DATABASE)
     stmt.execute(
-        "CREATE TABLE key_storage ("
+        "CREATE TABLE encrypt.key_storage ("
             + "id INT AUTO_INCREMENT PRIMARY KEY, "
             + "name VARCHAR(255) NOT NULL, "
             + "master_key_arn VARCHAR(512) NOT NULL, "
@@ -615,9 +614,8 @@ public class KeyManagementUtilityIntegrationTest {
             + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
             + "last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
 
-    // Create encryption metadata table
     stmt.execute(
-        "CREATE TABLE encryption_metadata ("
+        "CREATE TABLE encrypt.encryption_metadata ("
             + "table_name VARCHAR(255) NOT NULL, "
             + "column_name VARCHAR(255) NOT NULL, "
             + "encryption_algorithm VARCHAR(50) NOT NULL, "
@@ -625,9 +623,8 @@ public class KeyManagementUtilityIntegrationTest {
             + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
             + "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, "
             + "PRIMARY KEY (table_name, column_name), "
-            + "FOREIGN KEY (key_id) REFERENCES key_storage(id))");
+            + "FOREIGN KEY (key_id) REFERENCES encrypt.key_storage(id))");
 
-    // Create test users table with VARBINARY
     stmt.execute(
         "CREATE TABLE "
             + TEST_TABLE

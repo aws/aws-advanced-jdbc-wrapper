@@ -114,11 +114,9 @@ public class KmsEncryptionIntegrationTest {
       
       // Setup encryption metadata schema
       try (Statement stmt = directConnection.createStatement()) {
-        // Drop and recreate schema/tables
-        if (dbEngine == DatabaseEngine.PG) {
-          stmt.execute("DROP SCHEMA IF EXISTS " + metadataSchema + " CASCADE");
-          stmt.execute("CREATE SCHEMA " + metadataSchema);
-        }
+        // Both databases support CREATE SCHEMA
+        stmt.execute("DROP SCHEMA IF EXISTS " + metadataSchema + " CASCADE");
+        stmt.execute("CREATE SCHEMA " + metadataSchema);
         stmt.execute("DROP TABLE IF EXISTS users");
         
         switch (dbEngine) {
@@ -135,11 +133,9 @@ public class KmsEncryptionIntegrationTest {
         LOGGER.finest("Test setup completed");
 
         // Final verification that metadata exists
-        String tablePrefix = (dbEngine == DatabaseEngine.PG) ? metadataSchema + "." : "";
         try (PreparedStatement finalCheck =
             directConnection.prepareStatement(
-                "SELECT COUNT(*) FROM "
-                    + tablePrefix
+                "SELECT COUNT(*) FROM " + metadataSchema + "."
                     + "encryption_metadata WHERE table_name = 'users' AND column_name = 'ssn'")) {
           ResultSet rs = finalCheck.executeQuery();
           rs.next();
@@ -395,10 +391,9 @@ public class KmsEncryptionIntegrationTest {
       throws Exception {
     LOGGER.finest("Setting up MySQL encryption schema");
 
-    // MySQL doesn't support schemas like PostgreSQL - tables go in current database
-    // Create key_storage table
+    // MySQL supports CREATE SCHEMA (alias for CREATE DATABASE)
     stmt.execute(
-        "CREATE TABLE key_storage ("
+        "CREATE TABLE encrypt.key_storage ("
             + "id INT AUTO_INCREMENT PRIMARY KEY, "
             + "name VARCHAR(255) NOT NULL, "
             + "master_key_arn VARCHAR(512) NOT NULL, "
@@ -408,9 +403,8 @@ public class KmsEncryptionIntegrationTest {
             + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
             + "last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
 
-    // Create encryption_metadata table
     stmt.execute(
-        "CREATE TABLE encryption_metadata ("
+        "CREATE TABLE encrypt.encryption_metadata ("
             + "table_name VARCHAR(255) NOT NULL, "
             + "column_name VARCHAR(255) NOT NULL, "
             + "encryption_algorithm VARCHAR(50) NOT NULL, "
@@ -418,11 +412,10 @@ public class KmsEncryptionIntegrationTest {
             + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
             + "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, "
             + "PRIMARY KEY (table_name, column_name), "
-            + "FOREIGN KEY (key_id) REFERENCES key_storage(id))");
+            + "FOREIGN KEY (key_id) REFERENCES encrypt.key_storage(id))");
 
-    insertKeyAndMetadata(conn, null); // Pass null for MySQL - no schema prefix
+    insertKeyAndMetadata(conn, "encrypt.");
 
-    // Create users table with VARBINARY for encrypted data
     stmt.execute(
         "CREATE TABLE users ("
             + "id INT AUTO_INCREMENT PRIMARY KEY, "

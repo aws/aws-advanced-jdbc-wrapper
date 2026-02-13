@@ -74,8 +74,8 @@ public class KeyManagementUtility {
   private String getInsertEncryptionMetadataSql() {
     String schema = config.getEncryptionMetadataSchema();
     return "INSERT INTO "
-        + schema
-        + ".encryption_metadata (table_name, column_name, encryption_algorithm, key_id, created_at, updated_at) "
+        + schema + ".encryption_metadata"
+        + " (table_name, column_name, encryption_algorithm, key_id, created_at, updated_at) "
         + "VALUES (?, ?, ?, ?, ?, ?) "
         + "ON CONFLICT (table_name, column_name) DO UPDATE SET "
         + "encryption_algorithm = EXCLUDED.encryption_algorithm, "
@@ -84,22 +84,19 @@ public class KeyManagementUtility {
   }
 
   private String getUpdateEncryptionMetadataKeySql() {
-    return "UPDATE "
-        + config.getEncryptionMetadataSchema()
-        + ".encryption_metadata SET key_id = ?, updated_at = ? "
+    String schema = config.getEncryptionMetadataSchema();
+    return "UPDATE " + schema + ".encryption_metadata SET key_id = ?, updated_at = ? "
         + "WHERE table_name = ? AND column_name = ?";
   }
 
   private String getSelectColumnsWithKeySql() {
-    return "SELECT table_name, column_name FROM "
-        + config.getEncryptionMetadataSchema()
-        + ".encryption_metadata WHERE key_id = ?";
+    String schema = config.getEncryptionMetadataSchema();
+    return "SELECT table_name, column_name FROM " + schema + ".encryption_metadata WHERE key_id = ?";
   }
 
   private String getDeleteEncryptionMetadataSql() {
-    return "DELETE FROM "
-        + config.getEncryptionMetadataSchema()
-        + ".encryption_metadata WHERE table_name = ? AND column_name = ?";
+    String schema = config.getEncryptionMetadataSchema();
+    return "DELETE FROM " + schema + ".encryption_metadata WHERE table_name = ? AND column_name = ?";
   }
 
   /**
