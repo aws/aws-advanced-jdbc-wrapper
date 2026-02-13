@@ -29,8 +29,6 @@ import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
  */
 public class PostgresDecryptingResultSet extends BaseDecryptingResultSet {
 
-  private static final Logger LOGGER = Logger.getLogger(PostgresDecryptingResultSet.class.getName());
-
   public PostgresDecryptingResultSet(
       ResultSet delegate,
       MetadataManager metadataManager,
@@ -54,17 +52,17 @@ public class PostgresDecryptingResultSet extends BaseDecryptingResultSet {
   @Override
   protected byte[] getEncryptedBytes(int columnIndex) throws SQLException {
     Object obj = delegate.getObject(columnIndex);
-    
+
     if (obj instanceof EncryptedData) {
       return ((EncryptedData) obj).getBytes();
     } else {
       // Fallback: get as bytes and decode hex if needed
       byte[] rawBytes = delegate.getBytes(columnIndex);
-      
-      if (rawBytes != null && rawBytes.length > 2 
+
+      if (rawBytes != null && rawBytes.length > 2
           && rawBytes[0] == '\\' && rawBytes[1] == 'x') {
         // PostgreSQL text mode: decode hex
-        String hexString = new String(rawBytes, 2, rawBytes.length - 2, 
+        String hexString = new String(rawBytes, 2, rawBytes.length - 2,
             java.nio.charset.StandardCharsets.US_ASCII);
         return hexToBytes(hexString);
       } else {
@@ -76,17 +74,17 @@ public class PostgresDecryptingResultSet extends BaseDecryptingResultSet {
   @Override
   protected byte[] getEncryptedBytes(String columnLabel) throws SQLException {
     Object obj = delegate.getObject(columnLabel);
-    
+
     if (obj instanceof EncryptedData) {
       return ((EncryptedData) obj).getBytes();
     } else {
       // Fallback: get as bytes and decode hex if needed
       byte[] rawBytes = delegate.getBytes(columnLabel);
-      
-      if (rawBytes != null && rawBytes.length > 2 
+
+      if (rawBytes != null && rawBytes.length > 2
           && rawBytes[0] == '\\' && rawBytes[1] == 'x') {
         // PostgreSQL text mode: decode hex
-        String hexString = new String(rawBytes, 2, rawBytes.length - 2, 
+        String hexString = new String(rawBytes, 2, rawBytes.length - 2,
             java.nio.charset.StandardCharsets.US_ASCII);
         return hexToBytes(hexString);
       } else {

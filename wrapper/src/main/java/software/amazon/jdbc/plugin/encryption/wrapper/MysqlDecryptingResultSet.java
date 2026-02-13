@@ -29,8 +29,6 @@ import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
  */
 public class MysqlDecryptingResultSet extends BaseDecryptingResultSet {
 
-  private static final Logger LOGGER = Logger.getLogger(MysqlDecryptingResultSet.class.getName());
-
   public MysqlDecryptingResultSet(
       ResultSet delegate,
       MetadataManager metadataManager,

@@ -50,7 +50,7 @@ import software.amazon.jdbc.plugin.encryption.service.EncryptionService;
  */
 public abstract class BaseDecryptingResultSet implements ResultSet {
 
-  private static final Logger LOGGER = Logger.getLogger(BaseDecryptingResultSet.class.getName());
+  protected static final Logger LOGGER = Logger.getLogger(BaseDecryptingResultSet.class.getName());
 
   protected final ResultSet delegate;
   protected final MetadataManager metadataManager;
@@ -277,14 +277,14 @@ public abstract class BaseDecryptingResultSet implements ResultSet {
     Object value;
     if (config != null) {
       value = getEncryptedBytes(columnIndex);
-      
+
       // Decrypt directly with known config
       Object decryptedValue = decryptValueIfNeeded(columnName, value, String.class, config);
-      return decryptedValue == null ? null : 
+      return decryptedValue == null ? null :
           (decryptedValue instanceof String ? (String) decryptedValue : decryptedValue.toString());
     } else {
       value = delegate.getObject(columnIndex);
-      return value == null ? null : 
+      return value == null ? null :
           (value instanceof String ? (String) value : value.toString());
     }
   }
@@ -296,14 +296,14 @@ public abstract class BaseDecryptingResultSet implements ResultSet {
     Object value;
     if (config != null) {
       value = getEncryptedBytes(columnLabel);
-      
+
       // Decrypt directly with known config
       Object decryptedValue = decryptValueIfNeeded(columnLabel, value, String.class, config);
-      return decryptedValue == null ? null : 
+      return decryptedValue == null ? null :
           (decryptedValue instanceof String ? (String) decryptedValue : decryptedValue.toString());
     } else {
       value = delegate.getObject(columnLabel);
-      return value == null ? null : 
+      return value == null ? null :
           (value instanceof String ? (String) value : value.toString());
     }
   }
