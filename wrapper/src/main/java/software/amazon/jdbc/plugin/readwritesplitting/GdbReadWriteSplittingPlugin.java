@@ -18,7 +18,10 @@ package software.amazon.jdbc.plugin.readwritesplitting;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -29,11 +32,13 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.StringUtils;
 
-public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
+public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin implements StateSnapshotProvider {
 
   private static final Logger LOGGER = Logger.getLogger(GdbReadWriteSplittingPlugin.class.getName());
 
@@ -150,5 +155,17 @@ public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin {
       return hostsInRegion;
     }
     return super.getReaderHostCandidates();
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = super.getSnapshotState();
+    if (state == null) {
+      state = new ArrayList<>();
+    }
+    state.add(Pair.create("homeRegion", this.homeRegion));
+    state.add(Pair.create("restrictWriterToHomeRegion", this.restrictWriterToHomeRegion));
+    state.add(Pair.create("restrictReaderToHomeRegion", this.restrictReaderToHomeRegion));
+    return state;
   }
 }

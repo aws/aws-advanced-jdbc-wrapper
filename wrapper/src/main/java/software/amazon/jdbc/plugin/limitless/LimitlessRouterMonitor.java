@@ -18,6 +18,7 @@ package software.amazon.jdbc.plugin.limitless;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
@@ -28,14 +29,16 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
-public class LimitlessRouterMonitor extends AbstractMonitor {
+public class LimitlessRouterMonitor extends AbstractMonitor implements StateSnapshotProvider {
 
   private static final Logger LOGGER =
       Logger.getLogger(LimitlessRouterMonitor.class.getName());
@@ -182,5 +185,16 @@ public class LimitlessRouterMonitor extends AbstractMonitor {
       }
       throw ex;
     }
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    state.add(Pair.create("hostSpec", this.hostSpec != null ? this.hostSpec.toString() : null));
+    state.add(Pair.create("intervalMs", this.intervalMs));
+    state.add(Pair.create("limitlessRouterCacheKey", this.limitlessRouterCacheKey));
+    PropertyUtils.addSnapshotState(state, "props", this.props);
+    state.add(Pair.create("monitoringConn", this.monitoringConn));
+    return state;
   }
 }

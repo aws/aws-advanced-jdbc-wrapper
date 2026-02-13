@@ -31,6 +31,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import software.amazon.jdbc.util.Pair;
 
 public abstract class AbstractConnectionPlugin implements ConnectionPlugin {
 
@@ -108,4 +109,9 @@ public abstract class AbstractConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public void notifyNodeListChanged(final Map<String, EnumSet<NodeChangeOptions>> changes) {}
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    return null;
+  }
 }

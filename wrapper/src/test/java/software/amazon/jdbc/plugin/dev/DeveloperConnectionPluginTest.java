@@ -45,6 +45,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.FullServicesContainerImpl;
+import software.amazon.jdbc.util.ImportantEventService;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.monitoring.MonitorService;
 import software.amazon.jdbc.util.storage.StorageService;
@@ -57,6 +58,7 @@ public class DeveloperConnectionPluginTest {
   @Mock MonitorService mockMonitorService;
   @Mock EventPublisher mockEventPublisher;
   @Mock PluginServiceImpl mockPluginService;
+  @Mock ImportantEventService mockImportantEventService;
   @Mock Connection mockConnection;
   @Mock ConnectionPluginManager mockConnectionPluginManager;
   @Mock ConnectionProvider mockConnectionProvider;
@@ -90,7 +92,8 @@ public class DeveloperConnectionPluginTest {
         mockConnectionPluginManager,
         mockPluginService,
         mockPluginService,
-        mockPluginService);
+        mockPluginService,
+        mockImportantEventService);
 
     when(mockConnectionProvider.connect(any(), any(), any(), any(), any()))
         .thenReturn(new ConnectionInfo(mockConnection, false));

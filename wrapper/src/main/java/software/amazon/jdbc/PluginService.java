@@ -21,6 +21,7 @@ import java.sql.SQLException;
 import java.sql.Wrapper;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -31,12 +32,13 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostlistprovider.HostListProvider;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
  * Interface for retrieving the current active {@link Connection} and its {@link HostSpec}.
  */
-public interface PluginService extends ExceptionHandler, Wrapper {
+public interface PluginService extends ExceptionHandler, Wrapper, StateSnapshotProvider {
 
   Connection getCurrentConnection();
 

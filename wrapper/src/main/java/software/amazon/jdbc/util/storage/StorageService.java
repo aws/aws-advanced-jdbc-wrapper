@@ -18,8 +18,9 @@ package software.amazon.jdbc.util.storage;
 
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.util.StateSnapshotProvider;
 
-public interface StorageService {
+public interface StorageService extends StateSnapshotProvider {
   /**
    * Registers a new item class with the storage service. This method needs to be called before adding new classes of
    * items to the service, so that the service knows when and how to dispose of the item. Expected item classes will be

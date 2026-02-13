@@ -16,8 +16,10 @@
 
 package software.amazon.jdbc.util.storage;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -31,6 +33,9 @@ import software.amazon.jdbc.hostlistprovider.Topology;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenStatus;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.StateSnapshotProvider;
+import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.events.DataAccessEvent;
 import software.amazon.jdbc.util.events.EventPublisher;
 
@@ -179,5 +184,19 @@ public class StorageServiceImpl implements StorageService {
     }
 
     return cache.size();
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    caches.forEach((itemClass, cache) -> {
+      List<Pair<String, Object>> entries = new ArrayList<>();
+      cache.getEntries().forEach(
+          (key, value) -> WrapperUtils.addSnapshotState(entries, key.toString(), value));
+      if (!entries.isEmpty()) {
+        state.add(Pair.create(itemClass.getName(), entries));
+      }
+    });
+    return state;
   }
 }

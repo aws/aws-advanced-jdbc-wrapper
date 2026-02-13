@@ -58,6 +58,7 @@ public class ServiceUtility {
     FullServicesContainer servicesContainer =
         new FullServicesContainerImpl(
             storageService, monitorService, eventPublisher, defaultConnectionProvider, telemetryFactory);
+    servicesContainer.setImportantEventService(new ImportantEventService());
 
     ConnectionPluginManager pluginManager =
         new ConnectionPluginManager(props, telemetryFactory, defaultConnectionProvider, effectiveConnectionProvider);
@@ -104,6 +105,7 @@ public class ServiceUtility {
     FullServicesContainer serviceContainer =
         new FullServicesContainerImpl(
             storageService, monitorService, eventPublisher, connectionProvider, telemetryFactory);
+    serviceContainer.setImportantEventService(DriverImportantEventService.getInstance());
     ConnectionPluginManager pluginManager =
         new ConnectionPluginManager(props, telemetryFactory, connectionProvider, null);
     serviceContainer.setConnectionPluginManager(pluginManager);

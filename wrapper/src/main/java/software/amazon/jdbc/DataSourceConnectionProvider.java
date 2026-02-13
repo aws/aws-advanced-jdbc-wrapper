@@ -20,6 +20,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -33,6 +34,7 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.exceptions.SQLLoginException;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.ResourceLock;
@@ -232,5 +234,12 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
   @Override
   public String getTargetName() {
     return this.dataSourceClassName;
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    state.add(Pair.create("dataSourceClassName", this.dataSourceClassName));
+    return state;
   }
 }

@@ -50,6 +50,8 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.ImportantEventService;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -60,6 +62,8 @@ class DefaultConnectionPluginTest {
 
   private DefaultConnectionPlugin plugin;
 
+  @Mock FullServicesContainer servicesContainer;
+  @Mock ImportantEventService mockImportantEventService;
   @Mock PluginService pluginService;
   @Mock ConnectionProvider connectionProvider;
   @Mock PluginManagerService pluginManagerService;
@@ -91,9 +95,11 @@ class DefaultConnectionPluginTest {
         .thenReturn(connectionProvider);
     when(connectionProvider.connect(anyString(), any(), any(), any(), any()))
         .thenReturn(new ConnectionInfo(conn, false));
+    when(servicesContainer.getPluginService()).thenReturn(pluginService);
+    when(servicesContainer.getImportantEventService()).thenReturn(mockImportantEventService);
 
     plugin = new DefaultConnectionPlugin(
-        pluginService, connectionProvider, pluginManagerService, mockConnectionProviderManager);
+        servicesContainer, connectionProvider, pluginManagerService, mockConnectionProviderManager);
   }
 
   @AfterEach

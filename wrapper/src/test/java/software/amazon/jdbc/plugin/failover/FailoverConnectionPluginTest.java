@@ -63,6 +63,7 @@ import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.ImportantEventService;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
@@ -83,6 +84,7 @@ class FailoverConnectionPluginTest {
           .host("reader1").port(1234).role(HostRole.READER).build());
 
   @Mock FullServicesContainer mockContainer;
+  @Mock ImportantEventService mockImportantEventService;
   @Mock PluginService mockPluginService;
   @Mock Connection mockConnection;
   @Mock HostSpec mockHostSpec;
@@ -115,6 +117,7 @@ class FailoverConnectionPluginTest {
     closeable = MockitoAnnotations.openMocks(this);
 
     when(mockContainer.getPluginService()).thenReturn(mockPluginService);
+    when(mockContainer.getImportantEventService()).thenReturn(mockImportantEventService);
     when(mockPluginService.getHostListProvider()).thenReturn(mockHostListProvider);
     when(mockHostListProvider.getRdsUrlType()).thenReturn(RdsUrlType.RDS_WRITER_CLUSTER);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);

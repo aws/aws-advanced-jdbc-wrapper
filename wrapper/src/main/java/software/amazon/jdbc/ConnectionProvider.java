@@ -19,16 +19,18 @@ package software.amazon.jdbc;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.StateSnapshotProvider;
 
 /**
  * Implement this interface in order to handle the physical connection creation process.
  */
-public interface ConnectionProvider {
+public interface ConnectionProvider extends StateSnapshotProvider {
   /**
    * Indicates whether this ConnectionProvider can provide connections for the given host and
    * properties. Some ConnectionProvider implementations may not be able to handle certain URL

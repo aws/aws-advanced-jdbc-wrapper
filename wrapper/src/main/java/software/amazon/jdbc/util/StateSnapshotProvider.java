@@ -14,17 +14,11 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.failover2;
+package software.amazon.jdbc.util;
 
-import java.util.Properties;
-import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.ConnectionPluginFactory;
-import software.amazon.jdbc.util.FullServicesContainer;
+import java.util.List;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class FailoverConnectionPluginFactory implements ConnectionPluginFactory {
-
-  @Override
-  public ConnectionPlugin getInstance(FullServicesContainer servicesContainer, Properties props) {
-    return new FailoverConnectionPlugin(servicesContainer, props);
-  }
+public interface StateSnapshotProvider {
+  @Nullable List<Pair<String, Object>> getSnapshotState();
 }

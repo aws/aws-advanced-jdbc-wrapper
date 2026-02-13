@@ -56,6 +56,8 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.Utils;
@@ -285,6 +287,9 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
         this.currentHostSpec = hostSpec;
         this.sessionStateService.reset();
 
+        this.servicesContainer.getImportantEventService().registerEvent(
+            () -> "Current initial connection set to " + connection + ", " + hostSpec);
+
         final EnumSet<NodeChangeOptions> changes = EnumSet.of(NodeChangeOptions.INITIAL_CONNECTION);
         this.pluginManager.notifyConnectionChanged(changes, skipNotificationForThisPlugin);
 
@@ -305,6 +310,9 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
           try {
             this.currentConnection = connection;
             this.currentHostSpec = hostSpec;
+
+            this.servicesContainer.getImportantEventService().registerEvent(
+                () -> "Current connection set to " + connection + ", " + hostSpec);
 
             this.sessionStateService.applyCurrentSessionState(connection);
             this.setInTransaction(false);
@@ -824,5 +832,20 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     }
 
     return this.pluginManager.isWrapperFor(iface);
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    PropertyUtils.addSnapshotState(state, "properties", this.props);
+    state.add(Pair.create("originalUrl", this.originalUrl));
+    state.add(Pair.create("currentConnection",
+        this.currentConnection != null ? this.currentConnection.toString() : null));
+    state.add(Pair.create("currentHostSpec",
+        this.currentHostSpec != null ? this.currentHostSpec.toString() : null));
+    state.add(Pair.create("isInTransaction", this.isInTransaction));
+    state.add(Pair.create("dialect", this.dialect != null ? this.dialect.getClass().getName() : null));
+    state.add(Pair.create("pooledConnection", this.pooledConnection));
+    return state;
   }
 }

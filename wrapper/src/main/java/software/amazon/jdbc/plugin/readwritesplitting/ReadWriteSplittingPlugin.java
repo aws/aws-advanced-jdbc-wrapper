@@ -18,7 +18,9 @@ package software.amazon.jdbc.plugin.readwritesplitting;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -34,11 +36,14 @@ import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.util.CacheItem;
 import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.SqlState;
+import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.Utils;
 
 public class ReadWriteSplittingPlugin extends AbstractReadWriteSplittingPlugin
-    implements CanReleaseResources {
+    implements CanReleaseResources, StateSnapshotProvider {
 
   private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingPlugin.class.getName());
 
@@ -234,5 +239,20 @@ public class ReadWriteSplittingPlugin extends AbstractReadWriteSplittingPlugin
   @Override
   protected boolean shouldUpdateWriterConnection(Connection currentConnection, HostSpec currentHost) {
     return isWriter(currentHost);
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    state.add(Pair.create("readerSelectorStrategy", this.readerSelectorStrategy));
+    PropertyUtils.addSnapshotState(state, "properties", this.properties);
+    state.add(Pair.create("inReadWriteSplit", this.inReadWriteSplit));
+    state.add(Pair.create("writerConnection", this.writerConnection));
+    state.add(Pair.create("readerCacheItem", this.readerCacheItem != null ? this.readerCacheItem.toString() : null));
+    state.add(Pair.create("writerHostSpec", this.writerHostSpec != null ? this.writerHostSpec.toString() : null));
+    state.add(Pair.create("readerHostSpec", this.readerHostSpec != null ? this.readerHostSpec.toString() : null));
+    state.add(Pair.create("isReaderConnFromInternalPool", this.isReaderConnFromInternalPool));
+    state.add(Pair.create("isWriterConnFromInternalPool", this.isWriterConnFromInternalPool));
+    return state;
   }
 }

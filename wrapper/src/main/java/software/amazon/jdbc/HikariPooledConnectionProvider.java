@@ -470,4 +470,22 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   void setDatabasePools(SlidingExpirationCache<Pair, AutoCloseable> connectionPools) {
     HikariPoolsHolder.databasePools = connectionPools;
   }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    List<Pair<String, Object>> pools = new ArrayList<>();
+    HikariPoolsHolder.databasePools.getEntries().forEach((key, dataSource) -> {
+      List<Pair<String, Object>> poolInfo = new ArrayList<>();
+      poolInfo.add(Pair.create("dataSource", dataSource.toString()));
+      if (dataSource instanceof HikariDataSource) {
+        HikariPoolMXBean bean = ((HikariDataSource) dataSource).getHikariPoolMXBean();
+        poolInfo.add(Pair.create("activeConnections", bean.getActiveConnections()));
+        poolInfo.add(Pair.create("totalConnections", bean.getTotalConnections()));
+      }
+      pools.add(Pair.create(key.toString(), poolInfo));
+    });
+    state.add(Pair.create("pools", pools));
+    return state;
+  }
 }
