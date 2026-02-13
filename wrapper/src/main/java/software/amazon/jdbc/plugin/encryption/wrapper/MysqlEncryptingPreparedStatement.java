@@ -278,14 +278,6 @@ public class MysqlEncryptingPreparedStatement implements PreparedStatement {
     }
   }
 
-  private static String bytesToHex(byte[] bytes) {
-    StringBuilder sb = new StringBuilder();
-    for (byte b : bytes) {
-      sb.append(String.format("%02x", b));
-    }
-    return sb.toString();
-  }
-
   @Override
   public void setInt(int parameterIndex, int x) throws SQLException {
     Object encryptedValue = encryptParameterIfNeeded(parameterIndex, x);
