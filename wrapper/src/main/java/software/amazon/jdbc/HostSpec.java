@@ -25,6 +25,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
+import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.StringUtils;
 
 /**
@@ -44,8 +45,13 @@ public class HostSpec {
   protected final Set<String> allAliases = ConcurrentHashMap.newKeySet();
   protected volatile HostAvailability availability;
   protected long weight; // Greater or equal 0. Lesser the weight, the healthier node.
-  protected String hostId;
+  protected final String hostId;
   protected HostAvailabilityStrategy hostAvailabilityStrategy;
+
+  protected final ResourceLock resourceLock = new ResourceLock();
+  protected volatile String hostAndPort = null;
+  protected volatile String url = null;
+  protected volatile String toString = null;
 
   private HostSpec(
       final String host,
@@ -119,7 +125,10 @@ public class HostSpec {
   }
 
   public void setAvailability(final HostAvailability availability) {
-    this.availability = availability;
+    try (ResourceLock ignored = this.resourceLock.obtain()) {
+      this.toString = null;
+      this.availability = availability;
+    }
     if (this.hostAvailabilityStrategy != null) {
       this.hostAvailabilityStrategy.setHostAvailability(availability);
     }
@@ -146,7 +155,10 @@ public class HostSpec {
   }
 
   public void setWeight(long weight) {
-    this.weight = weight;
+    try (ResourceLock ignored = this.resourceLock.obtain()) {
+      this.toString = null;
+      this.weight = weight;
+    }
   }
 
   public void addAlias(final String... alias) {
@@ -181,23 +193,33 @@ public class HostSpec {
   }
 
   public String getUrl() {
-    return getHostAndPort() + "/";
+    if (this.url == null) {
+      try (ResourceLock ignored = this.resourceLock.obtain()) {
+        if (this.url == null) {
+          this.url = this.getHostAndPort() + "/";
+        }
+      }
+    }
+    return this.url;
   }
 
   public String getHostAndPort() {
-    return isPortSpecified() ? host + ":" + port : host;
+    if (this.hostAndPort == null) {
+      try (ResourceLock ignored = this.resourceLock.obtain()) {
+        if (this.hostAndPort == null) {
+          this.hostAndPort = this.isPortSpecified() ? host + ":" + port : host;
+        }
+      }
+    }
+    return this.hostAndPort;
   }
 
   public String getHostId() {
-    return hostId;
-  }
-
-  public void setHostId(String hostId) {
-    this.hostId = hostId;
+    return this.hostId;
   }
 
   public String asAlias() {
-    return getHostAndPort();
+    return this.getHostAndPort();
   }
 
   public Set<String> asAliases() {
@@ -205,9 +227,16 @@ public class HostSpec {
   }
 
   public String toString() {
-    return String.format("HostSpec@%s [hostId=%s, host=%s, port=%d, %s, %s, weight=%d, %s]",
-        Integer.toHexString(System.identityHashCode(this)),
-        this.hostId, this.host, this.port, this.role, this.availability, this.weight, this.lastUpdateTime);
+    if (this.toString == null) {
+      try (ResourceLock ignored = this.resourceLock.obtain()) {
+        if (this.toString == null) {
+          this.toString = String.format("HostSpec@%s [hostId=%s, host=%s, port=%d, %s, %s, weight=%d, %s]",
+              Integer.toHexString(System.identityHashCode(this)),
+              this.hostId, this.host, this.port, this.role, this.availability, this.weight, this.lastUpdateTime);
+        }
+      }
+    }
+    return this.toString;
   }
 
   @Override
