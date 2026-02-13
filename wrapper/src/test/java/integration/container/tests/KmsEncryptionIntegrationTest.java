@@ -114,8 +114,12 @@ public class KmsEncryptionIntegrationTest {
       
       // Setup encryption metadata schema
       try (Statement stmt = directConnection.createStatement()) {
-        // Both databases support CREATE SCHEMA
-        stmt.execute("DROP SCHEMA IF EXISTS " + metadataSchema + " CASCADE");
+        // PostgreSQL supports CASCADE, MySQL doesn't
+        if (dbEngine == DatabaseEngine.PG) {
+          stmt.execute("DROP SCHEMA IF EXISTS " + metadataSchema + " CASCADE");
+        } else {
+          stmt.execute("DROP SCHEMA IF EXISTS " + metadataSchema);
+        }
         stmt.execute("CREATE SCHEMA " + metadataSchema);
         stmt.execute("DROP TABLE IF EXISTS users");
         

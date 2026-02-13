@@ -544,8 +544,12 @@ public class KeyManagementUtilityIntegrationTest {
     DatabaseEngine dbEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
 
     try (Statement stmt = connection.createStatement()) {
-      // Both databases support CREATE SCHEMA
-      stmt.execute("DROP SCHEMA IF EXISTS encrypt CASCADE");
+      // PostgreSQL supports CASCADE, MySQL doesn't
+      if (dbEngine == DatabaseEngine.PG) {
+        stmt.execute("DROP SCHEMA IF EXISTS encrypt CASCADE");
+      } else {
+        stmt.execute("DROP SCHEMA IF EXISTS encrypt");
+      }
       stmt.execute("CREATE SCHEMA encrypt");
       stmt.execute("DROP TABLE IF EXISTS " + TEST_TABLE);
 
