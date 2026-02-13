@@ -259,6 +259,80 @@ try (PreparedStatement stmt = connection.prepareStatement(query)) {
 }
 ```
 
+## SQL Annotation Syntax
+
+In addition to metadata-based encryption, you can use SQL comment annotations to explicitly mark parameters for encryption. This provides explicit control over which parameters are encrypted, regardless of column position or metadata configuration.
+
+### Annotation Format
+
+Use SQL comments with the format `/*@encrypt:table.column*/` immediately before the parameter placeholder:
+
+```java
+// Basic annotation usage
+String sql = "INSERT INTO customers (name, ssn, email) VALUES (?, /*@encrypt:customers.ssn*/ ?, ?)";
+try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+    stmt.setString(1, "John Doe");
+    stmt.setString(2, "123-45-6789");  // Encrypted via annotation
+    stmt.setString(3, "john@example.com");
+    stmt.executeUpdate();
+}
+
+// Update with annotation
+String updateSql = "UPDATE customers SET ssn = /*@encrypt:customers.ssn*/ ? WHERE customer_id = ?";
+try (PreparedStatement stmt = connection.prepareStatement(updateSql)) {
+    stmt.setString(1, "987-65-4321");  // Encrypted
+    stmt.setInt(2, customerId);
+    stmt.executeUpdate();
+}
+
+// Different column order - annotation ensures correct encryption
+String sql2 = "INSERT INTO customers (name, email, ssn) VALUES (?, ?, /*@encrypt:customers.ssn*/ ?)";
+try (PreparedStatement stmt = connection.prepareStatement(sql2)) {
+    stmt.setString(1, "Jane Smith");
+    stmt.setString(2, "jane@example.com");
+    stmt.setString(3, "555-66-7777");  // Encrypted even though it's the 3rd parameter
+    stmt.executeUpdate();
+}
+```
+
+### When to Use Annotations
+
+**Use annotations when:**
+- You need explicit control over which parameters are encrypted
+- Column order varies in different queries
+- Working with dynamic SQL where column positions might change
+- You want to encrypt specific parameters without modifying metadata
+
+**Use metadata (recommended) when:**
+- You want centralized encryption configuration
+- You don't want to modify SQL statements
+- You need automatic encryption based on column names
+- You want easier maintenance and consistency
+
+**Note:** Both approaches can be used together. When an annotation is present, it takes precedence over metadata configuration for that specific parameter.
+
+### Annotation Syntax Rules
+
+1. The annotation must be a SQL comment: `/*@encrypt:table.column*/`
+2. It must immediately precede the `?` parameter placeholder
+3. The format is: `table.column` (both table and column names required)
+4. Whitespace between the annotation and `?` is allowed but not required
+5. The annotation is stripped from the SQL before sending to the database
+
+**Valid examples:**
+```sql
+/*@encrypt:users.ssn*/ ?
+/*@encrypt:customers.credit_card*/ ?
+/*@encrypt:orders.payment_info*/    ?
+```
+
+**Invalid examples:**
+```sql
+? /*@encrypt:users.ssn*/           -- Annotation must come BEFORE the ?
+/*@encrypt:ssn*/ ?                 -- Missing table name
+/* @encrypt:users.ssn */ ?         -- Space after /* not allowed
+```
+
 ## Security Considerations
 
 ### KMS Key Permissions

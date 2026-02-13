@@ -271,6 +271,48 @@ while (rs.next()) {
 }
 ```
 
+### SQL Annotation Syntax
+
+You can also use SQL comment annotations to explicitly mark parameters for encryption:
+
+```java
+// Basic annotation - explicit encryption control
+PreparedStatement stmt = conn.prepareStatement(
+    "INSERT INTO customers (name, pan, ssn) VALUES (?, /*@encrypt:customers.pan*/ ?, /*@encrypt:customers.ssn*/ ?)"
+);
+stmt.setString(1, "Jane Smith");
+stmt.setString(2, "9876543210987654");  // Encrypted via annotation
+stmt.setString(3, "987-65-4321");       // Encrypted via annotation
+stmt.executeUpdate();
+
+// Update with annotation
+PreparedStatement updateStmt = conn.prepareStatement(
+    "UPDATE customers SET ssn = /*@encrypt:customers.ssn*/ ? WHERE name = ?"
+);
+updateStmt.setString(1, "111-22-3333");  // Encrypted
+updateStmt.setString(2, "Jane Smith");
+updateStmt.executeUpdate();
+
+// Different column order - annotation ensures correct encryption
+PreparedStatement stmt2 = conn.prepareStatement(
+    "INSERT INTO customers (name, ssn, pan) VALUES (?, /*@encrypt:customers.ssn*/ ?, /*@encrypt:customers.pan*/ ?)"
+);
+stmt2.setString(1, "Bob Johnson");
+stmt2.setString(2, "555-66-7777");      // Encrypted (2nd parameter)
+stmt2.setString(3, "1111222233334444"); // Encrypted (3rd parameter)
+stmt2.executeUpdate();
+```
+
+**Annotation format:** `/*@encrypt:table.column*/` immediately before the `?` placeholder
+
+**When to use annotations:**
+- Explicit control over which parameters are encrypted
+- Column order varies in different queries
+- Dynamic SQL where column positions might change
+- Ad-hoc queries without modifying metadata
+
+**Note:** Annotations take precedence over metadata configuration when both are present.
+
 ### Spring Boot Integration
 
 **1. Add dependencies to pom.xml:**
