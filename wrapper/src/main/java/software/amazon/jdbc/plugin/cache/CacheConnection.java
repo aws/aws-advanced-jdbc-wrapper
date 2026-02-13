@@ -238,7 +238,7 @@ public class CacheConnection {
     }
     // Warn if no authentication is configured
     if (!this.iamAuthEnabled && !hasTraditionalAuth) {
-      LOGGER.log(Level.WARNING, "Cache connection configured without authentication. For better security, please use user/password based auth or IAM auth.");
+      LOGGER.warning(Messages.get("CacheConnection.noAuthenticationConfigured"));
     }
     if (this.cacheRwServerAddr == null) {
       throw new IllegalArgumentException(Messages.get("CacheConnection.endpointRequired"));
@@ -305,7 +305,7 @@ public class CacheConnection {
       }
       this.isClusterMode = clusterEnabled;
     } catch (Exception e) {
-      LOGGER.log(Level.WARNING, "Failed to detect cluster mode, defaulting to single-shard.", e);
+      LOGGER.log(Level.WARNING, Messages.get("CacheConnection.failedToDetectClusterMode"), e);
       this.isClusterMode = false;
     } finally {
       try {
@@ -492,9 +492,9 @@ public class CacheConnection {
         }
       } catch (RedisCommandExecutionException e) {
         if (e.getMessage().contains("ERR This instance has cluster support disabled")) {
-          LOGGER.log(Level.FINE, "Note: this cache cluster has cluster support disabled");
+          LOGGER.fine(Messages.get("CacheConnection.clusterSupportDisabled"));
         } else {
-          LOGGER.log(Level.FINE, "Note: READONLY command not supported or failed.", e);
+          LOGGER.log(Level.FINE, Messages.get("CacheConnection.readonlyCommandFailed"), e);
         }
       }
     }
@@ -573,8 +573,8 @@ public class CacheConnection {
       return new PingConnection(conn);
 
     } catch (Exception e) {
-      LOGGER.log(Level.FINE,
-          String.format("Failed to create ping connection for %s:%d.", hostname, port), e);
+      LOGGER.log(Level.FINE, Messages.get("CacheConnection.failedToCreatePingConnection",
+          new Object[] {hostname, port}), e);
       return null;
     }
   }
@@ -629,14 +629,14 @@ public class CacheConnection {
       }
       // Report error to CacheMonitor for the read endpoint
       reportErrorToCacheMonitor(false, e, "READ");
-      LOGGER.log(Level.WARNING, "Failed to read result from cache. Treating it as a cache miss.", e);
+      LOGGER.log(Level.WARNING, Messages.get("CacheConnection.failedToReadFromCache"), e);
       return null;
     } finally {
       if (conn != null && this.readConnectionPool != null) {
         try {
           this.returnConnectionBackToPool(conn, isBroken, true);
         } catch (Exception e) {
-          LOGGER.log(Level.WARNING, "Error closing read connection.", e);
+          LOGGER.log(Level.WARNING, Messages.get("CacheConnection.errorClosingReadConnection"), e);
         }
       }
     }
@@ -654,7 +654,7 @@ public class CacheConnection {
         try {
           returnConnectionBackToPool(conn, true, false);
         } catch (Exception e) {
-          LOGGER.log(Level.WARNING, "Error returning broken write connection back to pool.", e);
+          LOGGER.log(Level.WARNING, Messages.get("CacheConnection.errorReturningBrokenWriteConnection"), e);
         }
       }
     } else {
@@ -662,7 +662,7 @@ public class CacheConnection {
         try {
           returnConnectionBackToPool(conn, false, false);
         } catch (Exception e) {
-          LOGGER.log(Level.WARNING, "Error returning write connection back to pool.", e);
+          LOGGER.log(Level.WARNING, Messages.get("CacheConnection.errorReturningWriteConnection"), e);
         }
       }
     }
@@ -672,7 +672,7 @@ public class CacheConnection {
     // Check cluster state before attempting write
     CacheMonitor.HealthState state = getClusterHealthStateFromCacheMonitor();
     if (!shouldProceedWithOperation(state)) {
-      LOGGER.log(Level.FINEST, "Skipping cache write - cluster is DEGRADED");
+      LOGGER.finest(Messages.get("CacheConnection.skippingCacheWriteDegraded"));
       return; // Exit without writing
     }
 
@@ -717,7 +717,7 @@ public class CacheConnection {
         try {
           returnConnectionBackToPool(conn, true, false);
         } catch (Exception ex) {
-          LOGGER.log(Level.WARNING, "Error closing write connection.", ex);
+          LOGGER.log(Level.WARNING, Messages.get("CacheConnection.errorClosingWriteConnection"), ex);
         }
       }
     }
@@ -734,8 +734,7 @@ public class CacheConnection {
           throw new RuntimeException(Messages.get("CacheConnection.invalidateConnectionFailed"), e);
         }
       } else {
-        LOGGER.log(Level.FINE,
-            "Cache connection encountered error but is still open. Returning to pool for internal recovery.");
+        LOGGER.fine(Messages.get("CacheConnection.connectionErrorButStillOpen"));
       }
     }
     pool.returnObject(connection);
