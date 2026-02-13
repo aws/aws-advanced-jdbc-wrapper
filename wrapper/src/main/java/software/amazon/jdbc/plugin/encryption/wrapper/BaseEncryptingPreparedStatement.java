@@ -108,7 +108,9 @@ public abstract class BaseEncryptingPreparedStatement implements PreparedStateme
   protected abstract void setEncryptedBytes(int parameterIndex, byte[] encryptedBytes)
       throws SQLException;
 
-  /** Initializes parameter mapping using SQL analysis service. */
+  /**
+   * Initializes parameter mapping using SQL analysis service.
+   */
   private void parseSqlForEncryptedColumns() {
     LOGGER.finest(() -> String.format("initializeParameterMapping called for SQL: %s", sql));
     try {
@@ -143,7 +145,12 @@ public abstract class BaseEncryptingPreparedStatement implements PreparedStateme
     }
   }
 
-  /** Gets the column name for a parameter index. */
+  /**
+   * Gets the column name for a parameter index.
+   *
+   * @param parameterIndex the parameter index (1-based)
+   * @return the column name, or null if not found
+   */
   protected String getColumnNameForParameter(int parameterIndex) {
     return parameterColumnMapping.get(parameterIndex);
   }

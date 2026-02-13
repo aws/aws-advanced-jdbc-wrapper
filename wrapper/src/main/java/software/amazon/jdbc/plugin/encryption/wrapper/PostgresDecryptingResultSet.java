@@ -37,7 +37,12 @@ public class PostgresDecryptingResultSet extends BaseDecryptingResultSet {
     super(delegate, metadataManager, encryptionService, keyManager);
   }
 
-  /** Converts hex string to bytes. */
+  /**
+   * Converts hex string to bytes.
+   *
+   * @param hex the hex string to convert
+   * @return the byte array
+   */
   private static byte[] hexToBytes(String hex) {
     int len = hex.length();
     byte[] data = new byte[len / 2];

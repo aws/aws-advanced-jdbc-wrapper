@@ -93,7 +93,9 @@ public abstract class BaseDecryptingResultSet implements ResultSet {
    */
   protected abstract byte[] getEncryptedBytes(String columnLabel) throws SQLException;
 
-  /** Initializes column metadata by examining the ResultSet metadata. */
+  /**
+   * Initializes column metadata by examining the ResultSet metadata.
+   */
   private void initializeMetadata() {
     try {
       ResultSetMetaData rsmd = delegate.getMetaData();
@@ -140,7 +142,13 @@ public abstract class BaseDecryptingResultSet implements ResultSet {
     }
   }
 
-  /** Gets the column name for a given column index. */
+  /**
+   * Gets the column name for a given column index.
+   *
+   * @param columnIndex the column index (1-based)
+   * @return the column name, or null if not found
+   * @throws SQLException if retrieval fails
+   */
   protected String getColumnName(int columnIndex) throws SQLException {
     String columnName = columnIndexToNameCache.get(columnIndex);
     if (columnName == null) {

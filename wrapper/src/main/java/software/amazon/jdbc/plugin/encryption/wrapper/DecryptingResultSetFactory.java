@@ -29,6 +29,13 @@ public class DecryptingResultSetFactory {
 
   /**
    * Creates appropriate DecryptingResultSet based on target driver dialect.
+   *
+   * @param delegate the ResultSet to wrap
+   * @param metadataManager the metadata manager
+   * @param encryptionService the encryption service
+   * @param keyManager the key manager
+   * @param targetDriverDialect the target driver dialect
+   * @return database-specific DecryptingResultSet implementation
    */
   public static ResultSet create(
       ResultSet delegate,

@@ -29,6 +29,15 @@ public class EncryptingPreparedStatementFactory {
 
   /**
    * Creates appropriate EncryptingPreparedStatement based on target driver dialect.
+   *
+   * @param delegate the PreparedStatement to wrap
+   * @param metadataManager the metadata manager
+   * @param encryptionService the encryption service
+   * @param keyManager the key manager
+   * @param sqlAnalysisService the SQL analysis service
+   * @param sql the SQL statement
+   * @param targetDriverDialect the target driver dialect
+   * @return database-specific EncryptingPreparedStatement implementation
    */
   public static PreparedStatement create(
       PreparedStatement delegate,
