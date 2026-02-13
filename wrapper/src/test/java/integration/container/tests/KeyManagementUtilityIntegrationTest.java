@@ -97,14 +97,15 @@ public class KeyManagementUtilityIntegrationTest {
   private KmsClient kmsClient;
   private String masterKeyArn;
   private boolean createdKey = false;
+  private DatabaseEngine dbEngine = null;
 
   private String getTablePrefix() {
-    DatabaseEngine dbEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
     return (dbEngine == DatabaseEngine.PG) ? "encrypt." : "";
   }
 
   @BeforeEach
   void setUp() throws Exception {
+    dbEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
     // Get or create master key
     final String kmsRegion = TestEnvironment.getCurrent().getInfo().getRegion();
     kmsClient = KmsClient.builder().region(Region.of(kmsRegion)).build();
@@ -130,8 +131,10 @@ public class KeyManagementUtilityIntegrationTest {
     final String url = ConnectionStringHelper.getWrapperUrl();
 
     connection = DriverManager.getConnection(url, props);
-    EncryptedDataTypeInstaller.installEncryptedDataType(connection, "encrypt");
 
+    if (dbEngine == DatabaseEngine.PG) {
+      EncryptedDataTypeInstaller.installEncryptedDataType(connection, "encrypt");
+    }
     // Setup test database schema
     setupTestSchema();
     LOGGER.info("Test setup completed with master key: " + masterKeyArn);
@@ -163,7 +166,7 @@ public class KeyManagementUtilityIntegrationTest {
         + TEST_TABLE + "." + TEST_COLUMN);
 
     String tablePrefix = getTablePrefix();
-    
+
     // Clean up any existing metadata for this column
     try (Statement stmt = connection.createStatement()) {
       stmt.execute("DELETE FROM " + tablePrefix + "encryption_metadata WHERE table_name = '"
@@ -194,7 +197,7 @@ public class KeyManagementUtilityIntegrationTest {
 
     // Step 2: Store the key in key_storage table
     DatabaseEngine dbEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
-    
+
     int keyId;
     if (dbEngine == DatabaseEngine.PG) {
       try (PreparedStatement stmt =
@@ -297,7 +300,7 @@ public class KeyManagementUtilityIntegrationTest {
     LOGGER.info("Testing encryption with different SSN values");
 
     String tablePrefix = getTablePrefix();
-    
+
     // Clean up any existing metadata for this column
     try (Statement stmt = connection.createStatement()) {
       stmt.execute("DELETE FROM " + tablePrefix + "encryption_metadata WHERE table_name = '"
@@ -538,7 +541,7 @@ public class KeyManagementUtilityIntegrationTest {
 
   private void setupTestSchema() throws SQLException {
     DatabaseEngine dbEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
-    
+
     try (Statement stmt = connection.createStatement()) {
       // Drop and recreate schema/tables
       if (dbEngine == DatabaseEngine.PG) {

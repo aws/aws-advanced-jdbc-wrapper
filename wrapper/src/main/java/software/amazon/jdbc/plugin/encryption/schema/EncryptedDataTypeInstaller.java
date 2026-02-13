@@ -21,6 +21,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -33,7 +34,9 @@ public class EncryptedDataTypeInstaller {
   private static final String SQL_RESOURCE_PATH = "/sql/encrypted_data_type.sql";
 
   public static void installEncryptedDataType(Connection connection, String metaDataSchema) throws SQLException {
-    LOGGER.info("Installing encrypted_data custom type");
+
+    // PostgreSQL-specific installation
+    LOGGER.info("Installing encrypted_data custom type for PostgreSQL");
 
     try (Statement stmt = connection.createStatement()) {
       stmt.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto");
