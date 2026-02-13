@@ -332,20 +332,40 @@ public class KeyManagementUtilityIntegrationTest {
     LOGGER.info("Generated data key for multiple value test");
 
     // Step 2: Store the key in key_storage table
+    DatabaseEngine dbEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
     int keyId;
-    try (PreparedStatement stmt =
-        connection.prepareStatement(
-            "INSERT INTO encrypt.key_storage (name, master_key_arn, encrypted_data_key, "
-            + "hmac_key, key_spec) VALUES (?, ?, ?, ?, ?) RETURNING id")) {
-      stmt.setString(1, TEST_TABLE + "." + TEST_COLUMN + "_multi");
-      stmt.setString(2, masterKeyArn);
-      stmt.setString(3, encryptedDataKey);
-      stmt.setBytes(4, hmacKey);
-      stmt.setString(5, "AES_256");
-      ResultSet rs = stmt.executeQuery();
-      rs.next();
-      keyId = rs.getInt(1);
-      LOGGER.info("Stored key in key_storage with ID: " + keyId);
+    if (dbEngine == DatabaseEngine.PG) {
+      try (PreparedStatement stmt =
+          connection.prepareStatement(
+              "INSERT INTO encrypt.key_storage (name, master_key_arn, encrypted_data_key, "
+              + "hmac_key, key_spec) VALUES (?, ?, ?, ?, ?) RETURNING id")) {
+        stmt.setString(1, TEST_TABLE + "." + TEST_COLUMN + "_multi");
+        stmt.setString(2, masterKeyArn);
+        stmt.setString(3, encryptedDataKey);
+        stmt.setBytes(4, hmacKey);
+        stmt.setString(5, "AES_256");
+        ResultSet rs = stmt.executeQuery();
+        rs.next();
+        keyId = rs.getInt(1);
+        LOGGER.info("Stored key in key_storage with ID: " + keyId);
+      }
+    } else {
+      try (PreparedStatement stmt =
+          connection.prepareStatement(
+              "INSERT INTO encrypt.key_storage (name, master_key_arn, encrypted_data_key, "
+              + "hmac_key, key_spec) VALUES (?, ?, ?, ?, ?)",
+              Statement.RETURN_GENERATED_KEYS)) {
+        stmt.setString(1, TEST_TABLE + "." + TEST_COLUMN + "_multi");
+        stmt.setString(2, masterKeyArn);
+        stmt.setString(3, encryptedDataKey);
+        stmt.setBytes(4, hmacKey);
+        stmt.setString(5, "AES_256");
+        stmt.executeUpdate();
+        ResultSet rs = stmt.getGeneratedKeys();
+        rs.next();
+        keyId = rs.getInt(1);
+        LOGGER.info("Stored key in key_storage with ID: " + keyId);
+      }
     }
 
     // Step 3: Setup encryption metadata referencing the key
