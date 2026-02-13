@@ -22,10 +22,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import java.util.logging.Logger;
 
 public class ImportantEventService {
+
+  private static final Logger LOGGER = Logger.getLogger(ImportantEventService.class.getName());
 
   private final Queue<ImportantEvent> events = new ConcurrentLinkedQueue<>();
   private final long eventQueueMs;
@@ -79,7 +81,7 @@ public class ImportantEventService {
     }
 
     Instant current = Instant.now();
-    while (!events.isEmpty() && Duration.between(current, events.peek().timestamp).toMillis() > this.eventQueueMs) {
+    while (!events.isEmpty() && Duration.between(events.peek().timestamp, current).toMillis() > this.eventQueueMs) {
       events.poll();
     }
   }
