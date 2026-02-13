@@ -20,6 +20,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Base64;
@@ -44,6 +45,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.encryption.cache.DataKeyCache;
 import software.amazon.jdbc.plugin.encryption.model.EncryptionConfig;
 import software.amazon.jdbc.plugin.encryption.model.KeyMetadata;
+import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
 
 /**
  * Manages KMS operations and data key lifecycle for the encryption plugin. Handles key creation,
@@ -65,13 +67,17 @@ public class KeyManager {
     this.dataKeyCache = new DataKeyCache(config);
   }
 
+  private boolean isPostgreSQL() {
+    return pluginService.getTargetDriverDialect() instanceof PgTargetDriverDialect;
+  }
+
   private String getInsertKeyMetadataSql() {
     String schema = config.getEncryptionMetadataSchema();
-    return "INSERT INTO "
+    String sql = "INSERT INTO "
         + schema + ".key_storage"
         + " (name, master_key_arn, encrypted_data_key, key_spec, created_at, last_used_at) "
-        + "VALUES (?, ?, ?, ?, ?, ?) "
-        + "RETURNING id";
+        + "VALUES (?, ?, ?, ?, ?, ?)";
+    return isPostgreSQL() ? sql + " RETURNING id" : sql;
   }
 
   private String getSelectKeyMetadataSql() {
@@ -229,7 +235,8 @@ public class KeyManager {
     try (Connection conn =
             pluginService.forceConnect(
                 pluginService.getCurrentHostSpec(), pluginService.getProperties());
-        PreparedStatement stmt = conn.prepareStatement(getInsertKeyMetadataSql())) {
+        PreparedStatement stmt = conn.prepareStatement(getInsertKeyMetadataSql(),
+            isPostgreSQL() ? Statement.NO_GENERATED_KEYS : Statement.RETURN_GENERATED_KEYS)) {
 
       stmt.setString(1, keyMetadata.getKeyName());
       stmt.setString(2, keyMetadata.getMasterKeyArn());
@@ -238,18 +245,28 @@ public class KeyManager {
       stmt.setTimestamp(5, Timestamp.from(keyMetadata.getCreatedAt()));
       stmt.setTimestamp(6, Timestamp.from(keyMetadata.getLastUsedAt()));
 
-      ResultSet rs = stmt.executeQuery();
-      if (rs.next()) {
-        int generatedId = rs.getInt(1);
-        LOGGER.finest(
-            () ->
-                String.format(
-                    "Successfully stored key metadata for %s.%s with ID: %s",
-                    tableName, columnName, generatedId));
-        return generatedId;
+      int generatedId;
+      if (isPostgreSQL()) {
+        ResultSet rs = stmt.executeQuery();
+        if (!rs.next()) {
+          throw new KeyManagementException("Failed to get generated key ID");
+        }
+        generatedId = rs.getInt(1);
       } else {
-        throw new KeyManagementException("Failed to get generated key ID");
+        stmt.executeUpdate();
+        ResultSet rs = stmt.getGeneratedKeys();
+        if (!rs.next()) {
+          throw new KeyManagementException("Failed to get generated key ID");
+        }
+        generatedId = rs.getInt(1);
       }
+
+      LOGGER.finest(
+          () ->
+              String.format(
+                  "Successfully stored key metadata for %s.%s with ID: %s",
+                  tableName, columnName, generatedId));
+      return generatedId;
 
     } catch (SQLException e) {
       LOGGER.severe(
