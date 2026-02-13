@@ -161,6 +161,16 @@ public class PostgresDecryptingResultSet implements ResultSet {
    */
   private Object decryptValueIfNeeded(String columnName, Object value, Class<?> targetType)
       throws SQLException {
+    ColumnEncryptionConfig config = getColumnConfig(columnName);
+    return decryptValueIfNeeded(columnName, value, targetType, config);
+  }
+
+  /**
+   * Checks if a column should be decrypted and decrypts it if necessary. Accepts pre-fetched config
+   * to avoid double lookup in hot path.
+   */
+  private Object decryptValueIfNeeded(String columnName, Object value, Class<?> targetType,
+      ColumnEncryptionConfig config) throws SQLException {
     if (!metadataInitialized || tableName == null || value == null) {
       return value;
     }
@@ -177,7 +187,9 @@ public class PostgresDecryptingResultSet implements ResultSet {
 
     try {
       // Check if column is configured for encryption
-      ColumnEncryptionConfig config = getColumnConfig(columnName);
+      if (config == null) {
+        config = getColumnConfig(columnName);
+      }
       if (config == null) {
         LOGGER.finest(
             () ->
@@ -278,18 +290,15 @@ public class PostgresDecryptingResultSet implements ResultSet {
           value = rawBytes;
         }
       }
+      
+      // Decrypt directly with known config
+      Object decryptedValue = decryptValueIfNeeded(columnName, value, String.class, config);
+      return decryptedValue == null ? null : 
+          (decryptedValue instanceof String ? (String) decryptedValue : decryptedValue.toString());
     } else {
       value = delegate.getObject(columnIndex);
-    }
-
-    Object decryptedValue = decryptValueIfNeeded(columnIndex, value, String.class);
-
-    if (decryptedValue == null) {
-      return null;
-    } else if (decryptedValue instanceof String) {
-      return (String) decryptedValue;
-    } else {
-      return decryptedValue.toString();
+      return value == null ? null : 
+          (value instanceof String ? (String) value : value.toString());
     }
   }
 
