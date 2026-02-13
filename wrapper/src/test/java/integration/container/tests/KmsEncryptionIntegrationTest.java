@@ -111,7 +111,7 @@ public class KmsEncryptionIntegrationTest {
 
     try (Connection directConnection = DriverManager.getConnection(directUrl, props)) {
       DatabaseEngine dbEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
-      
+
       // Setup encryption metadata schema
       try (Statement stmt = directConnection.createStatement()) {
         // PostgreSQL supports CASCADE, MySQL doesn't
@@ -122,7 +122,7 @@ public class KmsEncryptionIntegrationTest {
         }
         stmt.execute("CREATE SCHEMA " + metadataSchema);
         stmt.execute("DROP TABLE IF EXISTS users");
-        
+
         switch (dbEngine) {
           case PG:
             setupPostgreSQL(directConnection, stmt, metadataSchema);
@@ -446,7 +446,7 @@ public class KmsEncryptionIntegrationTest {
     DatabaseEngine dbEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
     String tablePrefix = (metadataSchema != null) ? metadataSchema + "." : "";
     String insertKeySql;
-    
+
     if (dbEngine == DatabaseEngine.PG) {
       insertKeySql =
           "INSERT INTO "
@@ -495,6 +495,97 @@ public class KmsEncryptionIntegrationTest {
       metaStmt.setInt(4, generatedKeyId);
       metaStmt.executeUpdate();
       LOGGER.finest("Encryption metadata configured for key: " + generatedKeyId);
+    }
+  }
+
+  @TestTemplate
+  void testEncryptionWithAnnotations() throws Exception {
+    LOGGER.info("Starting testEncryptionWithAnnotations");
+
+    // Insert using annotation syntax
+    String insertSql = "INSERT INTO users (name, ssn, email) VALUES (?, /*@encrypt:users.ssn*/ ?, ?)";
+    try (PreparedStatement stmt = connection.prepareStatement(insertSql)) {
+      stmt.setString(1, "Alice Annotation");
+      stmt.setString(2, "111-22-3333"); // Will be encrypted via annotation
+      stmt.setString(3, "alice@example.com");
+      stmt.executeUpdate();
+      LOGGER.info("Inserted user with annotation-based encryption");
+    }
+
+    // Query and verify decryption
+    try (PreparedStatement stmt = connection.prepareStatement("SELECT name, ssn, email FROM users WHERE name = ?")) {
+      stmt.setString(1, "Alice Annotation");
+      ResultSet rs = stmt.executeQuery();
+
+      assertTrue(rs.next(), "Should find inserted user");
+      assertEquals("Alice Annotation", rs.getString("name"));
+      assertEquals("111-22-3333", rs.getString("ssn"), "SSN should be decrypted");
+      assertEquals("alice@example.com", rs.getString("email"));
+
+      LOGGER.info("Successfully verified annotation-based encryption/decryption");
+    }
+  }
+
+  @TestTemplate
+  void testAnnotationOverridesMetadata() throws Exception {
+    LOGGER.info("Starting testAnnotationOverridesMetadata");
+
+    // Insert using annotation - this explicitly tells the plugin to encrypt
+    // even if we're inserting into a different column position
+    String insertSql = "INSERT INTO users (name, email, ssn) VALUES (?, ?, /*@encrypt:users.ssn*/ ?)";
+    try (PreparedStatement stmt = connection.prepareStatement(insertSql)) {
+      stmt.setString(1, "Bob Annotation");
+      stmt.setString(2, "bob@example.com");
+      stmt.setString(3, "222-33-4444"); // Encrypted via annotation
+      stmt.executeUpdate();
+      LOGGER.info("Inserted user with annotation in different column order");
+    }
+
+    // Verify decryption works
+    try (PreparedStatement stmt = connection.prepareStatement("SELECT name, ssn FROM users WHERE name = ?")) {
+      stmt.setString(1, "Bob Annotation");
+      ResultSet rs = stmt.executeQuery();
+
+      assertTrue(rs.next());
+      assertEquals("Bob Annotation", rs.getString("name"));
+      assertEquals("222-33-4444", rs.getString("ssn"), "SSN should be decrypted");
+
+      LOGGER.info("Successfully verified annotation with different column order");
+    }
+  }
+
+  @TestTemplate
+  void testAnnotationWithUpdate() throws Exception {
+    LOGGER.info("Starting testAnnotationWithUpdate");
+
+    // Insert initial data
+    try (PreparedStatement stmt = connection.prepareStatement(
+        "INSERT INTO users (name, ssn, email) VALUES (?, /*@encrypt:users.ssn*/ ?, ?)")) {
+      stmt.setString(1, "Dave Update");
+      stmt.setString(2, "444-55-6666");
+      stmt.setString(3, "dave@example.com");
+      stmt.executeUpdate();
+    }
+
+    // Update using annotation
+    String updateSql = "UPDATE users SET ssn = /*@encrypt:users.ssn*/ ? WHERE name = ?";
+    try (PreparedStatement stmt = connection.prepareStatement(updateSql)) {
+      stmt.setString(1, "555-66-7777"); // New encrypted value
+      stmt.setString(2, "Dave Update");
+      int updated = stmt.executeUpdate();
+      assertEquals(1, updated, "Should update one row");
+      LOGGER.info("Updated SSN with annotation");
+    }
+
+    // Verify updated value
+    try (PreparedStatement stmt = connection.prepareStatement("SELECT ssn FROM users WHERE name = ?")) {
+      stmt.setString(1, "Dave Update");
+      ResultSet rs = stmt.executeQuery();
+
+      assertTrue(rs.next());
+      assertEquals("555-66-7777", rs.getString("ssn"), "Should have new encrypted value");
+
+      LOGGER.info("Successfully verified annotation-based update");
     }
   }
 }
