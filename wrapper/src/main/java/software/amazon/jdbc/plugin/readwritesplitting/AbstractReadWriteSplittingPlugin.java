@@ -120,6 +120,19 @@ public abstract class AbstractReadWriteSplittingPlugin extends AbstractConnectio
   @Override
   public OldConnectionSuggestedAction notifyConnectionChanged(
       final EnumSet<NodeChangeOptions> changes) {
+
+    // Close connection if the connection that was changed is not any of the cached connections.
+    if (changes.contains(NodeChangeOptions.CONNECTION_OBJECT_CHANGED)) {
+      final Connection currentConnection = this.pluginService.getCurrentConnection();
+      boolean isCachedConnection =
+          currentConnection == this.writerConnection
+              || (this.readerCacheItem != null && currentConnection == this.readerCacheItem.get());
+      
+      if (!isCachedConnection) {
+        closeIdleConnections();
+      }
+    }
+
     try {
       updateInternalConnectionInfo();
     } catch (final SQLException e) {

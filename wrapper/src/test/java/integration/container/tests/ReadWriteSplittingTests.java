@@ -20,7 +20,9 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -153,7 +155,7 @@ public class ReadWriteSplittingTests {
 
   protected Properties getPropsWithFailover() {
     final Properties props = getDefaultPropsNoPlugins();
-    PropertyDefinition.PLUGINS.set(props, "failover,efm2,readWriteSplitting");
+    PropertyDefinition.PLUGINS.set(props, "failover2,efm2,readWriteSplitting");
     return props;
   }
 
@@ -1007,6 +1009,75 @@ public class ReadWriteSplittingTests {
 
       ConnectionProviderManager.releaseResources();
       Driver.resetCustomConnectionProvider();
+    }
+  }
+
+
+  @TestTemplate
+  @EnableOnNumOfInstances(min = 3)
+  @EnableOnTestFeature({TestEnvironmentFeatures.FAILOVER_SUPPORTED})
+  public void test_cachedReaderPromotedToWriter_switchesToDifferentReader() throws SQLException, InterruptedException {
+    try (final Connection conn =
+             DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), getPropsWithFailover())) {
+
+      final String originalWriterId = auroraUtil.queryInstanceId(conn);
+      assertTrue(auroraUtil.isDBInstanceWriter(originalWriterId));
+
+      // Switch to reader to establish cached reader connection
+      conn.setReadOnly(true);
+      final String originalReaderId = auroraUtil.queryInstanceId(conn);
+      assertNotEquals(originalWriterId, originalReaderId);
+      assertFalse(auroraUtil.isDBInstanceWriter(originalReaderId));
+
+      // Switch back to writer - now we have both cached reader and writer
+      conn.setReadOnly(false);
+      String currentId = auroraUtil.queryInstanceId(conn);
+      assertEquals(originalWriterId, currentId);
+
+      // Get the plugin to verify cached connections exist
+      final ReadWriteSplittingPlugin plugin = conn.unwrap(ReadWriteSplittingPlugin.class);
+      assertNotNull(plugin.getWriterConnection(), "Writer connection should be cached before failover");
+      assertNotNull(plugin.getReaderConnection(), "Reader connection should be cached before failover");
+
+      // Failover to promote the cached reader to writer
+      auroraUtil.failoverClusterToATargetAndWaitUntilWriterChanged(originalWriterId, originalReaderId);
+
+      // The next query should trigger failover handling
+      auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
+
+      // After failover, we should be connected to the new writer (which was the original reader)
+      final String newWriterId = auroraUtil.queryInstanceId(conn);
+      assertTrue(auroraUtil.isDBInstanceWriter(newWriterId));
+      assertEquals(originalReaderId, newWriterId, "The original reader should now be the writer");
+
+      // The old cached reader connection pointed to what is now the writer
+      // It should have been cleaned up after failover
+      assertNull(plugin.getReaderConnection(),
+          "Cached reader connection should be cleaned up after failover");
+
+      // Now switch to reader - it should connect to a DIFFERENT reader
+      // (not the original reader which is now the writer)
+      conn.setReadOnly(true);
+      final String newReaderId = auroraUtil.queryInstanceId(conn);
+      assertNotEquals(newWriterId, newReaderId,
+          "Should connect to a different reader, not the promoted writer");
+      assertFalse(auroraUtil.isDBInstanceWriter(newReaderId),
+          "Should be connected to a reader instance");
+
+      // Switch back to writer
+      conn.setReadOnly(false);
+      currentId = auroraUtil.queryInstanceId(conn);
+      assertEquals(newWriterId, currentId);
+
+      // Toggle a few more times to ensure stability
+      conn.setReadOnly(true);
+      String readerId = auroraUtil.queryInstanceId(conn);
+      assertNotEquals(newWriterId, readerId, 
+        "Should not connect to writer when readOnly=true");
+
+      conn.setReadOnly(false);
+      assertEquals(newWriterId, auroraUtil.queryInstanceId(conn),
+          "Should connect to writer when readOnly=false");
     }
   }
 }
