@@ -264,10 +264,10 @@ class RdsHostListProviderTest {
   void testIdentifyConnectionHostInTopology() throws SQLException, TimeoutException {
     final HostSpec expectedHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("instance-a-1.xyz.us-east-2.rds.amazonaws.com")
+        .hostId("instance-a-1")
         .port(HostSpec.NO_PORT)
         .role(HostRole.WRITER)
         .build();
-    expectedHost.setHostId("instance-a-1");
     final List<HostSpec> cachedTopology = Collections.singletonList(expectedHost);
 
     rdsHostListProvider = Mockito.spy(getRdsHostListProvider("jdbc:someprotocol://url"));
