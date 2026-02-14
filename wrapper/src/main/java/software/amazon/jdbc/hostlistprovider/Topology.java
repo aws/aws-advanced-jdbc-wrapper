@@ -16,12 +16,18 @@
 
 package software.amazon.jdbc.hostlistprovider;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.StateSnapshotProvider;
 
-public class Topology {
+public class Topology implements StateSnapshotProvider {
   private final @NonNull List<HostSpec> hosts;
 
   public Topology(@NonNull List<HostSpec> hosts) {
@@ -49,5 +55,14 @@ public class Topology {
 
     Topology other = (Topology) obj;
     return Objects.equals(hosts, other.hosts);
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    for (HostSpec host : this.hosts) {
+      state.add(Pair.create(host.getHostId(), host.toString()));
+    }
+    return state;
   }
 }

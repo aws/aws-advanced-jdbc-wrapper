@@ -18,7 +18,9 @@ package software.amazon.jdbc.plugin.efm;
 
 import java.lang.ref.WeakReference;
 import java.sql.Connection;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -28,6 +30,9 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.StateSnapshotProvider;
+import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
@@ -35,7 +40,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
  * This class handles the creation and clean up of monitoring threads to servers with one or more
  * active connections.
  */
-public class HostMonitorServiceImpl implements HostMonitorService {
+public class HostMonitorServiceImpl implements HostMonitorService, StateSnapshotProvider {
 
   private static final Logger LOGGER = Logger.getLogger(HostMonitorServiceImpl.class.getName());
 
@@ -158,5 +163,13 @@ public class HostMonitorServiceImpl implements HostMonitorService {
 
   HostMonitorThreadContainer getThreadContainer() {
     return this.threadContainer;
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    HostMonitor monitor = this.cachedMonitor == null ? null : this.cachedMonitor.get();
+    WrapperUtils.addSnapshotState(state, "cachedMonitor", monitor);
+    return state;
   }
 }

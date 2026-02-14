@@ -18,6 +18,10 @@ package software.amazon.jdbc.plugin.srw;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
@@ -35,14 +39,17 @@ import software.amazon.jdbc.hostlistprovider.HostListProviderService;
 import software.amazon.jdbc.plugin.readwritesplitting.AbstractReadWriteSplittingPlugin;
 import software.amazon.jdbc.util.CacheItem;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SqlState;
+import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
 
 public class SimpleReadWriteSplittingPlugin extends AbstractReadWriteSplittingPlugin
-    implements CanReleaseResources {
+    implements CanReleaseResources, StateSnapshotProvider {
 
   private static final Logger LOGGER = Logger.getLogger(SimpleReadWriteSplittingPlugin.class.getName());
   private final RdsUtils rdsUtils = new RdsUtils();
@@ -372,5 +379,26 @@ public class SimpleReadWriteSplittingPlugin extends AbstractReadWriteSplittingPl
       Connection currentConnection, HostSpec currentHost) throws SQLException {
     return isWriter(currentHost) && !currentConnection.equals(this.writerConnection)
         && (!this.verifyNewConnections || this.pluginService.getHostRole(currentConnection) == HostRole.WRITER);
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    state.add(Pair.create("verifyNewConnections", this.verifyNewConnections));
+    state.add(Pair.create("writeEndpoint", this.writeEndpoint));
+    state.add(Pair.create("readEndpoint", this.readEndpoint));
+    state.add(Pair.create("verifyOpenedConnectionType",
+        this.verifyOpenedConnectionType != null ? this.verifyOpenedConnectionType.toString() : null));
+    state.add(Pair.create("connectRetryIntervalMs", this.connectRetryIntervalMs));
+    state.add(Pair.create("connectRetryTimeoutMs", this.connectRetryTimeoutMs));
+    PropertyUtils.addSnapshotState(state, "properties", this.properties);
+    state.add(Pair.create("inReadWriteSplit", this.inReadWriteSplit));
+    state.add(Pair.create("writerConnection", this.writerConnection));
+    state.add(Pair.create("readerCacheItem", this.readerCacheItem != null ? this.readerCacheItem.toString() : null));
+    state.add(Pair.create("writerHostSpec", this.writerHostSpec != null ? this.writerHostSpec.toString() : null));
+    state.add(Pair.create("readerHostSpec", this.readerHostSpec != null ? this.readerHostSpec.toString() : null));
+    state.add(Pair.create("isReaderConnFromInternalPool", this.isReaderConnFromInternalPool));
+    state.add(Pair.create("isWriterConnFromInternalPool", this.isWriterConnFromInternalPool));
+    return state;
   }
 }

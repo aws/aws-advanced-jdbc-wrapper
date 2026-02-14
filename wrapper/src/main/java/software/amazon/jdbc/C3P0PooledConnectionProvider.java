@@ -18,6 +18,7 @@ package software.amazon.jdbc;
 
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -33,6 +34,7 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
@@ -196,4 +198,22 @@ public class C3P0PooledConnectionProvider implements PooledConnectionProvider, C
     });
   }
 
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    List<Pair<String, Object>> pools = new ArrayList<>();
+    databasePools.getEntries().forEach((key, dataSource) -> {
+      List<Pair<String, Object>> poolInfo = new ArrayList<>();
+      poolInfo.add(Pair.create("dataSource", dataSource.toString()));
+      try {
+        poolInfo.add(Pair.create("busyConnections", dataSource.getNumBusyConnections()));
+        poolInfo.add(Pair.create("totalConnections", dataSource.getNumConnections()));
+      } catch (SQLException e) {
+        // ignore
+      }
+      pools.add(Pair.create(key, poolInfo));
+    });
+    state.add(Pair.create("pools", pools));
+    return state;
+  }
 }

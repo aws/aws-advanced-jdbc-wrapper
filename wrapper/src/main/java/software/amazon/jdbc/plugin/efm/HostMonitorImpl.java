@@ -18,6 +18,9 @@ package software.amazon.jdbc.plugin.efm;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -31,7 +34,9 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -43,7 +48,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
  * This class uses a background thread to monitor a particular server with one or more active {@link
  * Connection}.
  */
-public class HostMonitorImpl implements HostMonitor {
+public class HostMonitorImpl implements HostMonitor, StateSnapshotProvider {
 
   static class ConnectionStatus {
 
@@ -391,5 +396,18 @@ public class HostMonitorImpl implements HostMonitor {
   public void reset() {
     LOGGER.finest("Reset: " + this.hostSpec.getHost());
     this.monitoringConn.set(null);
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    PropertyUtils.addSnapshotState(state, "properties", this.properties);
+    state.add(Pair.create("hostSpec", this.hostSpec != null ? this.hostSpec.toString() : null));
+    state.add(Pair.create("stopped", this.stopped));
+    state.add(Pair.create("monitoringConn", this.monitoringConn != null ? this.monitoringConn.get() : null));
+    state.add(Pair.create("nodeCheckTimeoutMillis", this.nodeCheckTimeoutMillis));
+    state.add(Pair.create("activeContexts (size)", this.activeContexts.size()));
+    state.add(Pair.create("newContexts (size)", this.newContexts.size()));
+    return state;
   }
 }

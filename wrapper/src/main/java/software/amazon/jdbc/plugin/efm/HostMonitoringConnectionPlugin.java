@@ -18,9 +18,11 @@ package software.amazon.jdbc.plugin.efm;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -38,15 +40,19 @@ import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.StateSnapshotProvider;
+import software.amazon.jdbc.util.WrapperUtils;
 
 /**
  * Monitor the server while the connection is executing methods for more sophisticated failure
  * detection.
  */
 public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
-    implements CanReleaseResources {
+    implements CanReleaseResources, StateSnapshotProvider {
 
   private static final Logger LOGGER =
       Logger.getLogger(HostMonitoringConnectionPlugin.class.getName());
@@ -315,5 +321,19 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       }
     }
     return this.monitoringHostSpec;
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    PropertyUtils.addSnapshotState(state, "properties", this.properties);
+    state.add(Pair.create("monitoringHostSpec",
+        this.monitoringHostSpec != null ? this.monitoringHostSpec.toString() : null));
+    WrapperUtils.addSnapshotState(state, "monitorService", this.monitorService);
+    state.add(Pair.create("isEnabled", this.isEnabled));
+    state.add(Pair.create("failureDetectionTimeMillis", this.failureDetectionTimeMillis));
+    state.add(Pair.create("failureDetectionIntervalMillis", this.failureDetectionIntervalMillis));
+    state.add(Pair.create("failureDetectionCount", this.failureDetectionCount));
+    return state;
   }
 }

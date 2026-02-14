@@ -20,8 +20,10 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -38,15 +40,17 @@ import software.amazon.jdbc.plugin.TokenInfo;
 import software.amazon.jdbc.util.GDBRegionUtils;
 import software.amazon.jdbc.util.IamAuthUtils;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.RegionUtils;
+import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 
-public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
+public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements StateSnapshotProvider {
 
   private static final Logger LOGGER = Logger.getLogger(IamAuthConnectionPlugin.class.getName());
   private static final Set<String> subscribedMethods =
@@ -248,5 +252,18 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
 
   public static void clearCache() {
     IamAuthCacheHolder.clearCache();
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    List<Pair<String, Object>> maskedTokenCache = new ArrayList<>();
+    for (java.util.Map.Entry<String, TokenInfo> entry : IamAuthCacheHolder.tokenCache.entrySet()) {
+      TokenInfo tokenInfo = entry.getValue();
+      String tokenInfoStr = tokenInfo != null ? tokenInfo.toString() : null;
+      maskedTokenCache.add(Pair.create(entry.getKey(), tokenInfoStr));
+    }
+    state.add(Pair.create("tokenCache", maskedTokenCache));
+    return state;
   }
 }

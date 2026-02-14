@@ -38,6 +38,7 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.util.Pair;
 
 public class BenchmarkPlugin implements ConnectionPlugin, CanReleaseResources {
   final List<String> resources = new ArrayList<>();
@@ -117,5 +118,10 @@ public class BenchmarkPlugin implements ConnectionPlugin, CanReleaseResources {
   public void releaseResources() {
     LOGGER.finer(() -> "releasing resources");
     resources.clear();
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    return null;
   }
 }

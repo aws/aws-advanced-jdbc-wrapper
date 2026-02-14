@@ -234,7 +234,7 @@ public class ConnectionPluginChainBuilder {
 
     // add default connection plugin to the tail
     final ConnectionPlugin defaultPlugin = new DefaultConnectionPlugin(
-        servicesContainer.getPluginService(),
+        servicesContainer,
         defaultConnProvider,
         effectiveConnProvider,
         servicesContainer.getPluginManagerService());

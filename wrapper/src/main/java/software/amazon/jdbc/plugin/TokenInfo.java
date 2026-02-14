@@ -17,6 +17,7 @@
 package software.amazon.jdbc.plugin;
 
 import java.time.Instant;
+import software.amazon.jdbc.util.StringUtils;
 
 public class TokenInfo {
   private final String token;
@@ -37,5 +38,12 @@ public class TokenInfo {
 
   public boolean isExpired() {
     return Instant.now().isAfter(this.expiration);
+  }
+
+  @Override
+  public String toString() {
+    return String.format("TokenInfo@%s [token=%s, expiration=%s]",
+        Integer.toHexString(System.identityHashCode(this)),
+        StringUtils.mask(this.token, 10, 5), this.expiration);
   }
 }

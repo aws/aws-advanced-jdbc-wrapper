@@ -40,6 +40,7 @@ import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.failover2.ReaderFailoverResult;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.LogUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
@@ -90,9 +91,9 @@ public class GlobalDbFailoverConnectionPlugin extends FailoverConnectionPlugin {
   protected String homeRegion;
 
 
-  public GlobalDbFailoverConnectionPlugin(PluginService pluginService,
+  public GlobalDbFailoverConnectionPlugin(final FullServicesContainer servicesContainer,
       Properties properties) {
-    super(pluginService, properties);
+    super(servicesContainer, properties);
   }
 
   @Override

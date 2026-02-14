@@ -25,11 +25,12 @@ import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.FullServicesContainer;
+import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.events.EventPublisher;
 import software.amazon.jdbc.util.storage.StorageService;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
-public interface MonitorService {
+public interface MonitorService extends StateSnapshotProvider {
   /**
    * Registers a new monitor type with the monitor service. This method needs to be called before adding new types of
    * monitors to the monitor service, so that the monitor service knows when to dispose of a monitor. Expected monitor

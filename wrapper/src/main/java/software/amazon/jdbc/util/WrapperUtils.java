@@ -44,6 +44,11 @@ import java.sql.SQLXML;
 import java.sql.Savepoint;
 import java.sql.Statement;
 import java.sql.Struct;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -53,11 +58,15 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcMethod;
 import software.amazon.jdbc.JdbcRunnable;
+import software.amazon.jdbc.exceptions.SnapshotStateException;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
@@ -101,6 +110,12 @@ import software.amazon.jdbc.wrapper.StructWrapperFactory;
 import software.amazon.jdbc.wrapper.WrapperFactory;
 
 public class WrapperUtils {
+
+  private static final Logger LOGGER = Logger.getLogger(WrapperUtils.class.getName());
+
+  private static final String BLANK = "(blank)";
+  private static final DateTimeFormatter EVENT_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
+      .withZone(ZoneId.of("UTC"));
 
   private static final ConcurrentMap<Class<?>, Boolean> isJdbcInterfaceCache =
       new ConcurrentHashMap<>();
@@ -170,6 +185,18 @@ public class WrapperUtils {
     }
   };
 
+  private enum SnapshotStateInjectionType { INJECT_TO_MESSAGE, ADD_SUPPRESSED_EXCEPTION }
+
+  private static final boolean isSnapshotStateEnabled;
+  private static final SnapshotStateInjectionType snapshotStateInjectionType;
+
+  static {
+    isSnapshotStateEnabled = Boolean.parseBoolean(
+        System.getProperty("aws.jdbc.config.exception.context.enabled", "true"));
+    snapshotStateInjectionType = Enum.valueOf(SnapshotStateInjectionType.class,
+        System.getProperty("aws.jdbc.config.exception.context.injection.type", "ADD_SUPPRESSED_EXCEPTION"));
+  }
+
   public static final Set<String> skipWrappingForPackages = new HashSet<>();
 
   public static <E extends Exception> void runWithPlugins(
@@ -223,10 +250,8 @@ public class WrapperUtils {
       if (jdbcMethod.shouldLockConnection && jdbcMethod.checkBoundedConnection) {
         final Connection conn = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
         if (conn != null && conn != connectionWrapper.getCurrentConnection()) {
-          throw WrapperUtils.wrapExceptionIfNeeded(
-              RuntimeException.class,
-              new SQLException(
-                  Messages.get("ConnectionPluginManager.invokedAgainstOldConnection", new Object[]{methodInvokeOn})));
+          throw new SQLException(Messages.get(
+              "ConnectionPluginManager.invokedAgainstOldConnection", new Object[]{methodInvokeOn}));
         }
       }
 
@@ -253,8 +278,14 @@ public class WrapperUtils {
         if (context != null) {
           context.setSuccess(false);
         }
-        throw new RuntimeException(e);
+        throw e;
       }
+    } catch (RuntimeException runtimeException) {
+      throw runtimeException;
+    } catch (Throwable throwable) {
+      throw WrapperUtils.wrapExceptionIfNeeded(
+          RuntimeException.class,
+          WrapperUtils.extendWithContext(throwable, connectionWrapper.getServicesContainer()));
     } finally {
       if (jdbcMethod.shouldLockConnection) {
         pluginManager.unlock();
@@ -294,10 +325,8 @@ public class WrapperUtils {
       if (jdbcMethod.shouldLockConnection && jdbcMethod.checkBoundedConnection) {
         final Connection conn = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
         if (conn != null && conn != connectionWrapper.getCurrentConnection()) {
-          throw WrapperUtils.wrapExceptionIfNeeded(
-              exceptionClass,
-              new SQLException(
-                  Messages.get("ConnectionPluginManager.invokedAgainstOldConnection", new Object[]{methodInvokeOn})));
+          throw new SQLException(Messages.get(
+              "ConnectionPluginManager.invokedAgainstOldConnection", new Object[]{methodInvokeOn}));
         }
       }
 
@@ -320,12 +349,18 @@ public class WrapperUtils {
           if (context != null) {
             context.setSuccess(false);
           }
-          throw new RuntimeException(e);
+          throw e;
         }
       } else {
         return result;
       }
 
+    } catch (RuntimeException runtimeException) {
+      throw runtimeException;
+    } catch (Throwable throwable) {
+      throw WrapperUtils.wrapExceptionIfNeeded(
+          exceptionClass,
+          WrapperUtils.extendWithContext(throwable, connectionWrapper.getServicesContainer()));
     } finally {
       if (jdbcMethod.shouldLockConnection) {
         pluginManager.unlock();
@@ -611,5 +646,213 @@ public class WrapperUtils {
     }
 
     return exceptionClass.cast(result);
+  }
+
+  public static <E extends Throwable> E extendWithContext(
+      @NonNull E throwable,
+      @Nullable FullServicesContainer servicesContainer) {
+
+    if (servicesContainer == null || !isSnapshotStateEnabled) {
+      return throwable;
+    }
+
+    String snapshotState = collectState(servicesContainer);
+    String latestEvents = collectLatestEvents(servicesContainer);
+    String context = String.format("\nState snapshot: %sLatest events:%s",
+        StringUtils.isNullOrEmpty(snapshotState) ? BLANK + "\n" : "\n" + snapshotState,
+        StringUtils.isNullOrEmpty(latestEvents) ? BLANK : "\n" + latestEvents);
+
+    switch (snapshotStateInjectionType) {
+      case INJECT_TO_MESSAGE:
+        return injectToMessage(throwable, context);
+      case ADD_SUPPRESSED_EXCEPTION:
+        return injectAsSuppressedException(throwable, context);
+      default:
+        throw new IllegalArgumentException(
+            "Unknown SnapshotStateInjectionType " + snapshotStateInjectionType, throwable);
+    }
+  }
+
+  /**
+   * Inject context information directly to the exception message.
+   *
+   * @param throwable   the exception to inject context to
+   * @param context     the context to inject
+   * @param <E>         exception type
+   * @return            the same exception with injected context
+   */
+  @SuppressWarnings("unchecked")
+  private static <E extends Throwable> E injectToMessage(
+      @NonNull E throwable, @NonNull String context) {
+
+    final String message = throwable.getMessage();
+    final String messageWithContext = StringUtils.isNullOrEmpty(message)
+        ? context
+        : message + context;
+
+    boolean contextUpdated = false;
+    try {
+      Field f = Throwable.class.getDeclaredField("detailMessage");
+      f.setAccessible(true);
+      f.set(throwable, messageWithContext);
+
+      String updatedMessage = throwable.getMessage();
+      contextUpdated = (updatedMessage != null
+          && updatedMessage.contains(message)
+          && updatedMessage.contains(context));
+    } catch (IllegalAccessException | NoSuchFieldException e) {
+      // do nothing
+    }
+
+    if (contextUpdated) {
+      return throwable;
+    }
+
+    // Try to instantiate a new exception instance with the original exception message and context information.
+    try {
+      return createInstance(
+          throwable.getClass(),
+          (Class<E>) throwable.getClass(),
+          new Class[]{String.class, Throwable.class},
+          messageWithContext,
+          throwable);
+    } catch (InstantiationException e) {
+      LOGGER.log(Level.WARNING,
+          e,
+          () -> Messages.get(
+            "WrapperUtils.failedToInjectContext",
+            new Object[] {throwable.getClass().getName()}));
+    }
+    return throwable;
+  }
+
+  /**
+   * Inject context information as suppressed exception.
+   *
+   * @param throwable   the exception to inject context to
+   * @param context     the context to inject
+   * @param <E>         exception type
+   * @return            the same exception with injected context
+   */
+  private static <E extends Throwable> E injectAsSuppressedException(
+      @NonNull E throwable, @NonNull String context) {
+
+    if (StringUtils.isNullOrEmpty(context)) {
+      return throwable;
+    }
+
+    final SnapshotStateException snapshotStateException = new SnapshotStateException(context);
+    throwable.addSuppressed(snapshotStateException);
+
+    return throwable;
+  }
+
+  private static String collectState(@NonNull FullServicesContainer servicesContainer) {
+    List<Pair<String, Object>> state = new ArrayList<>();
+
+    addSnapshotState(state, "pluginService", servicesContainer.getPluginService());
+    addSnapshotState(state, "pluginManager", servicesContainer.getConnectionPluginManager());
+    addSnapshotState(state, "storageService", servicesContainer.getStorageService());
+    addSnapshotState(state, "monitorService", servicesContainer.getMonitorService());
+
+    return renderState(state, 1);
+  }
+
+  private static String collectLatestEvents(@NonNull FullServicesContainer servicesContainer) {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    addImportantEvents(state, servicesContainer);
+    return renderState(state, 1);
+  }
+
+  private static void addImportantEvents(List<Pair<String, Object>> parent, FullServicesContainer servicesContainer) {
+    List<ImportantEventService.ImportantEvent> allEvents = new ArrayList<>();
+
+    ImportantEventService connectionEvents = servicesContainer.getImportantEventService();
+    if (connectionEvents != null) {
+      allEvents.addAll(connectionEvents.getEvents());
+    }
+
+    if (DriverImportantEventService.getInstance() != servicesContainer.getImportantEventService()) {
+      allEvents.addAll(DriverImportantEventService.getInstance().getEvents());
+    }
+
+    if (allEvents.isEmpty()) {
+      return;
+    }
+
+    allEvents.add(new ImportantEventService.ImportantEvent(
+        Instant.now(), "Current time / The exception raised time."));
+
+    allEvents.sort(Comparator.comparingLong(e -> e.timestamp.toEpochMilli()));
+
+    for (ImportantEventService.ImportantEvent event : allEvents) {
+      String formattedTimestamp = "[" + EVENT_FORMATTER.format(event.timestamp) + "]";
+      parent.add(Pair.create(formattedTimestamp, String.format("[%s] %s", event.threadName, event.description)));
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  private static String renderState(List<Pair<String, Object>> state, int indent) {
+    if (state == null || state.isEmpty()) {
+      return "";
+    }
+
+    StringBuilder sb = new StringBuilder();
+    StringBuilder marginBuilder = new StringBuilder();
+    for (int i = 0; i < indent; i++) {
+      marginBuilder.append("  ");
+    }
+    String margin = marginBuilder.toString();
+
+    for (Pair<String, Object> entry : state) {
+      sb.append(margin).append(entry.getValue1()).append(": ");
+      Object value = entry.getValue2();
+
+      if (value instanceof List) {
+        sb.append("\n");
+        sb.append(renderState((List<Pair<String, Object>>) value, indent + 1));
+      } else {
+        sb.append(value).append("\n");
+      }
+    }
+
+    return sb.toString();
+  }
+
+  public static void addSnapshotState(
+      final @Nullable List<Pair<String, Object>> state,
+      final @NonNull String name,
+      final @Nullable Object value) {
+    addSnapshotState(state, name, value, false);
+  }
+
+  public static void addSnapshotState(
+      final @Nullable List<Pair<String, Object>> state,
+      final @NonNull String name,
+      final @Nullable Object value,
+      final boolean includeValueClassName) {
+    if (state == null) {
+      return;
+    }
+    if (value != null) {
+      if (value instanceof StateSnapshotProvider) {
+        List<Pair<String, Object>> providerState = ((StateSnapshotProvider) value).getSnapshotState();
+        if (providerState != null) {
+          if (includeValueClassName) {
+            List<Pair<String, Object>> nestedState = new ArrayList<>();
+            nestedState.add(Pair.create(value.getClass().getName(), providerState));
+            state.add(Pair.create(name, nestedState));
+          } else {
+            state.add(Pair.create(name, providerState));
+          }
+        } else {
+          state.add(Pair.create(name, BLANK));
+        }
+      } else {
+        state.add(Pair.create(name, value.toString()));
+      }
+    } else {
+      state.add(Pair.create(name, "null"));
+    }
   }
 }

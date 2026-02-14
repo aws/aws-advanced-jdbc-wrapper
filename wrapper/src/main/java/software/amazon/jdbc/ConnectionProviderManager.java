@@ -18,13 +18,19 @@ package software.amazon.jdbc;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
+import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.StateSnapshotProvider;
+import software.amazon.jdbc.util.WrapperUtils;
 
-public class ConnectionProviderManager {
+public class ConnectionProviderManager implements StateSnapshotProvider {
 
   private final ConnectionProvider defaultProvider;
   private final @Nullable ConnectionProvider effectiveConnProvider;
@@ -179,5 +185,13 @@ public class ConnectionProviderManager {
         final @NonNull String protocol,
         final @NonNull HostSpec hostSpec,
         final @NonNull Properties props) throws SQLException;
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    WrapperUtils.addSnapshotState(state, "defaultProvider", this.defaultProvider);
+    WrapperUtils.addSnapshotState(state, "effectiveConnProvider", this.effectiveConnProvider);
+    return state.isEmpty() ? null : state;
   }
 }

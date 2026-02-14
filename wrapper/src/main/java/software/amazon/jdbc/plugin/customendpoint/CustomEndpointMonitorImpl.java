@@ -18,6 +18,7 @@ package software.amazon.jdbc.plugin.customendpoint;
 
 import static software.amazon.jdbc.plugin.customendpoint.MemberListType.STATIC_LIST;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -36,6 +37,8 @@ import software.amazon.awssdk.services.rds.model.RdsException;
 import software.amazon.jdbc.AllowedAndBlockedHosts;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
 import software.amazon.jdbc.util.storage.CacheMap;
 import software.amazon.jdbc.util.storage.StorageService;
@@ -46,7 +49,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
  * The default custom endpoint monitor implementation. This class uses a background thread to monitor a given custom
  * endpoint for custom endpoint information and future changes to the custom endpoint.
  */
-public class CustomEndpointMonitorImpl extends AbstractMonitor implements CustomEndpointMonitor {
+public class CustomEndpointMonitorImpl extends AbstractMonitor implements CustomEndpointMonitor, StateSnapshotProvider {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointMonitorImpl.class.getName());
   private static final String TELEMETRY_ENDPOINT_INFO_CHANGED = "customEndpoint.infoChanged.counter";
 
@@ -310,5 +313,21 @@ public class CustomEndpointMonitorImpl extends AbstractMonitor implements Custom
   public static void clearCache() {
     LOGGER.info(Messages.get("CustomEndpointMonitorImpl.clearCache"));
     customEndpointInfoCache.clear();
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    state.add(Pair.create("refreshRequired", this.refreshRequired.get()));
+    state.add(Pair.create("hasConnectionIssue", this.hasConnectionIssue.get()));
+    state.add(Pair.create("customEndpointHostSpec",
+        this.customEndpointHostSpec != null ? this.customEndpointHostSpec.toString() : null));
+    state.add(Pair.create("endpointIdentifier", this.endpointIdentifier));
+    state.add(Pair.create("region", this.region != null ? this.region.id() : null));
+    state.add(Pair.create("minRefreshRateNano", this.minRefreshRateNano));
+    state.add(Pair.create("maxRefreshRateNano", this.maxRefreshRateNano));
+    state.add(Pair.create("refreshRateNano", this.refreshRateNano));
+    state.add(Pair.create("refreshRateBackoffFactor", this.refreshRateBackoffFactor));
+    return state;
   }
 }

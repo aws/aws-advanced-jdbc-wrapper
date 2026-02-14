@@ -44,7 +44,9 @@ import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostlistprovider.HostListProviderService;
+import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -64,27 +66,31 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
   private final @NonNull ConnectionProvider defaultConnProvider;
 
+  private final FullServicesContainer servicesContainer;
   private final ConnectionProviderManager connProviderManager;
   private final PluginService pluginService;
   private final PluginManagerService pluginManagerService;
 
   public DefaultConnectionPlugin(
-      final PluginService pluginService,
+      final FullServicesContainer servicesContainer,
       final ConnectionProvider defaultConnProvider,
       final @Nullable ConnectionProvider effectiveConnProvider,
       final PluginManagerService pluginManagerService) {
-    this(pluginService,
+    this(servicesContainer,
         defaultConnProvider,
         pluginManagerService,
         new ConnectionProviderManager(defaultConnProvider, effectiveConnProvider));
   }
 
   public DefaultConnectionPlugin(
-      final PluginService pluginService,
+      final FullServicesContainer servicesContainer,
       final ConnectionProvider defaultConnProvider,
       final PluginManagerService pluginManagerService,
       final ConnectionProviderManager connProviderManager) {
-    if (pluginService == null) {
+
+    this.servicesContainer = servicesContainer;
+    this.pluginService = servicesContainer.getPluginService();
+    if (this.pluginService == null) {
       throw new IllegalArgumentException("pluginService");
     }
     if (pluginManagerService == null) {
@@ -94,7 +100,6 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       throw new IllegalArgumentException("connectionProvider");
     }
 
-    this.pluginService = pluginService;
     this.pluginManagerService = pluginManagerService;
     this.defaultConnProvider = defaultConnProvider;
     this.connProviderManager = connProviderManager;
@@ -116,6 +121,8 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       throws E {
 
     LOGGER.finest(
+        () -> Messages.get("DefaultConnectionPlugin.executingMethod", new Object[] {methodName}));
+    this.servicesContainer.getImportantEventService().registerEvent(
         () -> Messages.get("DefaultConnectionPlugin.executingMethod", new Object[] {methodName}));
 
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
@@ -307,5 +314,10 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     }
 
     return Arrays.stream(query.split(";")).collect(Collectors.toList());
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    return null;
   }
 }

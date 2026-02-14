@@ -18,12 +18,16 @@ package software.amazon.jdbc.hostlistprovider;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.StringUtils;
 
 
@@ -74,4 +78,21 @@ public class GlobalAuroraTopologyMonitor extends ClusterTopologyMonitorImpl {
   protected List<HostSpec> queryForTopology(Connection connection) throws SQLException {
     return this.topologyUtils.queryForTopology(connection, this.initialHostSpec, this.instanceTemplatesByRegion);
   }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = super.getSnapshotState();
+    if (state == null) {
+      state = new ArrayList<>();
+    }
+    if (this.instanceTemplatesByRegion != null) {
+      List<Pair<String, Object>> propsMap = new ArrayList<>();
+      for (Map.Entry<String, HostSpec> entry : instanceTemplatesByRegion.entrySet()) {
+        propsMap.add(Pair.create(entry.getKey(), entry.getValue().toString()));
+      }
+      state.add(Pair.create("instanceTemplatesByRegion", propsMap));
+    }
+    return state;
+  }
+
 }

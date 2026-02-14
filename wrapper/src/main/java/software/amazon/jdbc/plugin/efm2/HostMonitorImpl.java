@@ -41,7 +41,9 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.events.Event;
 import software.amazon.jdbc.util.events.MonitorResetEvent;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
@@ -54,7 +56,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
  * This class uses a background thread to monitor a particular server with one or more active {@link
  * Connection}.
  */
-public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
+public class HostMonitorImpl extends AbstractMonitor implements HostMonitor, StateSnapshotProvider {
 
   private static final Logger LOGGER = Logger.getLogger(HostMonitorImpl.class.getName());
   private static final long THREAD_SLEEP_NANO = TimeUnit.MILLISECONDS.toNanos(100);
@@ -424,5 +426,20 @@ public class HostMonitorImpl extends AbstractMonitor implements HostMonitor {
         this.reset();
       }
     }
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    state.add(Pair.create("hostSpec", this.hostSpec != null ? this.hostSpec.toString() : null));
+    state.add(Pair.create("monitoringConn", this.monitoringConn != null ? this.monitoringConn.get() : null));
+    state.add(Pair.create("failureDetectionTimeNano", this.failureDetectionTimeNano));
+    state.add(Pair.create("failureDetectionIntervalNano", this.failureDetectionIntervalNano));
+    state.add(Pair.create("failureDetectionCount", this.failureDetectionCount));
+    state.add(Pair.create("failureCount", this.failureCount.get()));
+    state.add(Pair.create("nodeUnhealthy", this.nodeUnhealthy.get()));
+    state.add(Pair.create("activeContexts (size)", this.activeContexts.size()));
+    state.add(Pair.create("newContexts (size)", this.newContexts.values().stream().mapToInt(Queue::size).sum()));
+    return state;
   }
 }

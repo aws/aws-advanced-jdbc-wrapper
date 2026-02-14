@@ -52,6 +52,8 @@ public interface FullServicesContainer {
 
   PluginManagerService getPluginManagerService();
 
+  ImportantEventService getImportantEventService();
+
   void setMonitorService(MonitorService monitorService);
 
   void setStorageService(StorageService storageService);
@@ -67,4 +69,6 @@ public interface FullServicesContainer {
   void setPluginService(PluginService pluginService);
 
   void setPluginManagerService(PluginManagerService pluginManagerService);
+
+  void setImportantEventService(ImportantEventService importantEventService);
 }

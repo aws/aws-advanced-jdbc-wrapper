@@ -14,17 +14,23 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.failover2;
+package software.amazon.jdbc.util;
 
-import java.util.Properties;
-import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.ConnectionPluginFactory;
-import software.amazon.jdbc.util.FullServicesContainer;
+public class DriverImportantEventService {
 
-public class FailoverConnectionPluginFactory implements ConnectionPluginFactory {
+  private static final ImportantEventService INSTANCE = new ImportantEventService(
+      Boolean.parseBoolean(
+          System.getProperty("aws.jdbc.config.exception.context.enabled", "true")),
+      Long.parseLong(
+          System.getProperty("aws.jdbc.config.exception.context.driver.queue.ttl", "60000")));
 
-  @Override
-  public ConnectionPlugin getInstance(FullServicesContainer servicesContainer, Properties props) {
-    return new FailoverConnectionPlugin(servicesContainer, props);
+  private DriverImportantEventService() {}
+
+  public static ImportantEventService getInstance() {
+    return INSTANCE;
+  }
+
+  public static void clear() {
+    INSTANCE.clear();
   }
 }

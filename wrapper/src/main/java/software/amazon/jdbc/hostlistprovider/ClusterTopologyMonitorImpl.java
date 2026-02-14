@@ -52,13 +52,15 @@ import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.ServiceUtility;
+import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.events.Event;
 import software.amazon.jdbc.util.events.MonitorResetEvent;
 import software.amazon.jdbc.util.monitoring.AbstractMonitor;
 
-public class ClusterTopologyMonitorImpl extends AbstractMonitor implements ClusterTopologyMonitor {
+public class ClusterTopologyMonitorImpl extends AbstractMonitor
+    implements ClusterTopologyMonitor, StateSnapshotProvider {
 
   private static final Logger LOGGER = Logger.getLogger(ClusterTopologyMonitorImpl.class.getName());
 
@@ -842,6 +844,9 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
                 // Successfully updated the node monitor writer connection.
                 LOGGER.fine(() ->
                     Messages.get("NodeMonitoringThread.detectedWriter", new Object[] {hostSpec.getUrl()}));
+                this.servicesContainer.getImportantEventService().registerEvent(
+                    () -> Messages.get("NodeMonitoringThread.detectedWriter", new Object[] {hostSpec.getUrl()}));
+
                 this.monitor.fetchTopologyAndUpdateCache(this.connection.get());
                 this.monitor.nodeThreadsWriterHostSpec.set(hostSpec);
 
@@ -949,5 +954,25 @@ public class ClusterTopologyMonitorImpl extends AbstractMonitor implements Clust
       backoff = Math.min(backoff, MAX_BACKOFF_MS);
       return Math.round(backoff * (0.5 + random.nextDouble() * 0.5));
     }
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    state.add(Pair.create("monitoringConnection",
+        this.monitoringConnection != null ? this.monitoringConnection.get() : null));
+    final HostSpec tmpWriterHostSpec = this.writerHostSpec.get();
+    state.add(Pair.create("writerHostSpec",
+        tmpWriterHostSpec != null ? tmpWriterHostSpec.toString() : null));
+    state.add(Pair.create("refreshRateNano", this.refreshRateNano));
+    state.add(Pair.create("highRefreshRateNano", this.highRefreshRateNano));
+    PropertyUtils.addSnapshotState(state, "monitoringProperties", this.monitoringProperties);
+    state.add(Pair.create("initialHostSpec", this.initialHostSpec != null ? this.initialHostSpec.toString() : null));
+    state.add(Pair.create("instanceTemplate",
+        this.instanceTemplate != null ? this.instanceTemplate.toString() : null));
+    state.add(Pair.create("clusterId", this.clusterId));
+    state.add(Pair.create("isVerifiedWriterConnection", this.isVerifiedWriterConnection));
+    state.add(Pair.create("isInPanicMode", this.isInPanicMode()));
+    return state;
   }
 }

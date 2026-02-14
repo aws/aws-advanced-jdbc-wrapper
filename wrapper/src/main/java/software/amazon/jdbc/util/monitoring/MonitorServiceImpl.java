@@ -42,8 +42,11 @@ import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.ExecutorFactory;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.ServiceUtility;
+import software.amazon.jdbc.util.StateSnapshotProvider;
+import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.events.DataAccessEvent;
 import software.amazon.jdbc.util.events.Event;
 import software.amazon.jdbc.util.events.EventPublisher;
@@ -401,6 +404,24 @@ public class MonitorServiceImpl implements MonitorService, EventSubscriber {
         }
       }
     }
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    List<Pair<String, Object>> cachesState = new ArrayList<>();
+    monitorCaches.forEach((monitorClass, cacheContainer) -> {
+      List<Pair<String, Object>> cacheState = new ArrayList<>();
+      List<Pair<String, Object>> monitorsState = new ArrayList<>();
+      cacheContainer.getCache().getEntries().forEach((key, monitorItem) -> {
+        Monitor monitor = monitorItem.getMonitor();
+        WrapperUtils.addSnapshotState(monitorsState, key.toString(), monitor);
+      });
+      cacheState.add(Pair.create("monitors", monitorsState));
+      cachesState.add(Pair.create(monitorClass.getName(), cacheState));
+    });
+    state.add(Pair.create("monitorCaches", cachesState));
+    return state;
   }
 
   /**
