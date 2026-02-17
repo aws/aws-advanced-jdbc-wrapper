@@ -51,13 +51,13 @@ public class GdbReadWriteSplittingPlugin extends ReadWriteSplittingPlugin implem
   public static final AwsWrapperProperty RESTRICT_WRITER_TO_HOME_REGION =
       new AwsWrapperProperty(
           "gdbRwRestrictWriterToHomeRegion",
-          "false",
+          "true",
           "Prevents connections to a writer node outside of the defined home region.");
 
   public static final AwsWrapperProperty RESTRICT_READER_TO_HOME_REGION =
       new AwsWrapperProperty(
           "gdbRwRestrictReaderToHomeRegion",
-          "false",
+          "true",
           "Prevents connections to a reader node outside of the defined home region.");
 
   protected boolean isInit = false;
