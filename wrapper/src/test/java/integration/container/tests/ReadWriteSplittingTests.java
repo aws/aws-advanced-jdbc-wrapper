@@ -78,9 +78,9 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
-import software.amazon.jdbc.plugin.readwritesplitting.AbstractReadWriteSplittingPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.plugin.failover.TransactionStateUnknownSQLException;
+import software.amazon.jdbc.plugin.readwritesplitting.AbstractReadWriteSplittingPlugin;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.SqlState;
@@ -1073,8 +1073,8 @@ public class ReadWriteSplittingTests {
       // Toggle a few more times to ensure stability
       conn.setReadOnly(true);
       String readerId = auroraUtil.queryInstanceId(conn);
-      assertNotEquals(newWriterId, readerId, 
-        "Should not connect to writer when readOnly=true");
+      assertNotEquals(newWriterId, readerId,
+          "Should not connect to writer when readOnly=true");
 
       conn.setReadOnly(false);
       assertEquals(newWriterId, auroraUtil.queryInstanceId(conn),
