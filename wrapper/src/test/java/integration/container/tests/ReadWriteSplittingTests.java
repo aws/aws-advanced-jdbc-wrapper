@@ -78,6 +78,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
+import software.amazon.jdbc.plugin.readwritesplitting.AbstractReadWriteSplittingPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.plugin.failover.TransactionStateUnknownSQLException;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
@@ -155,7 +156,7 @@ public class ReadWriteSplittingTests {
 
   protected Properties getPropsWithFailover() {
     final Properties props = getDefaultPropsNoPlugins();
-    PropertyDefinition.PLUGINS.set(props, "failover2,efm2,readWriteSplitting");
+    PropertyDefinition.PLUGINS.set(props, "failover,efm2,readWriteSplitting");
     return props;
   }
 
@@ -1035,7 +1036,7 @@ public class ReadWriteSplittingTests {
       assertEquals(originalWriterId, currentId);
 
       // Get the plugin to verify cached connections exist
-      final ReadWriteSplittingPlugin plugin = conn.unwrap(ReadWriteSplittingPlugin.class);
+      final AbstractReadWriteSplittingPlugin plugin = conn.unwrap(AbstractReadWriteSplittingPlugin.class);
       assertNotNull(plugin.getWriterConnection(), "Writer connection should be cached before failover");
       assertNotNull(plugin.getReaderConnection(), "Reader connection should be cached before failover");
 
