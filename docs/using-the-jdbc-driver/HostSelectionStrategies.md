@@ -17,4 +17,4 @@ These strategies are applicable when using the following plugins:
 - [Read/Write Splitting Connection Plugin](./using-plugins/UsingTheReadWriteSplittingPlugin.md)
 - [GDB Read/Write Splitting Connection Plugin](./using-plugins/UsingTheGdbReadWriteSplittingPlugin.md)
 - [GDB Failover Connection Plugin](./using-plugins/UsingTheGdbFailoverPlugin.md)
-- [Failover Plugin](./using-plugins/UsingTheFailover2Plugin.md)
+- [Failover Plugin v2](./using-plugins/UsingTheFailover2Plugin.md)
