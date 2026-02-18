@@ -160,6 +160,10 @@ public class ReadWriteSplittingTests {
     return props;
   }
 
+  protected Properties getPropsForCachedReaderPromotedToWriterTest() {
+    return getPropsWithFailover();
+  }
+
   protected String getWriterEndpoint() {
     return TestEnvironment.getCurrent()
         .getInfo()
@@ -1017,9 +1021,11 @@ public class ReadWriteSplittingTests {
   @TestTemplate
   @EnableOnNumOfInstances(min = 3)
   @EnableOnTestFeature({TestEnvironmentFeatures.FAILOVER_SUPPORTED})
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_cachedReaderPromotedToWriter_switchesToDifferentReader() throws SQLException, InterruptedException {
+    final Properties props = getPropsForCachedReaderPromotedToWriterTest();
     try (final Connection conn =
-             DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), getPropsWithFailover())) {
+             DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props)) {
 
       final String originalWriterId = auroraUtil.queryInstanceId(conn);
       assertTrue(auroraUtil.isDBInstanceWriter(originalWriterId));
