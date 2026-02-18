@@ -774,6 +774,13 @@ public class CacheConnection {
     return state != CacheMonitor.HealthState.DEGRADED;
   }
 
+  @Override
+  public String toString() {
+    return String.format("%s [rwEndpoint: %s, roEndpoint: %s, SSLConnection: %s, IAMEnabled: %s, failWhenCacheDown: %s]",
+        super.toString(),
+        this.cacheRwServerAddr, this.cacheRoServerAddr, this.useSSL, this.iamAuthEnabled, this.failWhenCacheDown);
+  }
+
   /**
    * Wraps a StatefulConnection (either StatefulRedisConnection or StatefulRedisClusterConnection)
    * and exposes only ping functionality.

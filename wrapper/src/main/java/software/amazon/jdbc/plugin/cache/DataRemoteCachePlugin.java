@@ -21,10 +21,12 @@ import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -40,6 +42,8 @@ import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
+import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.monitoring.MonitorErrorResponse;
@@ -48,7 +52,13 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
-public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
+/**
+ * This plugin provides query result caching capability which stores cacheable query results from database
+ * in a remote Valkey cache server. Error responses from the database are not cached. Users can opt-in
+ * per query using a SQL query hint that specifies a time‑to‑live (TTL). Once a particular query result
+ * is cached, subsequent identical queries are served directly from the cache while the TTL is valid.
+ */
+public class DataRemoteCachePlugin extends AbstractConnectionPlugin implements StateSnapshotProvider {
   private static final Logger LOGGER = Logger.getLogger(DataRemoteCachePlugin.class.getName());
   private static final String QUERY_HINT_START_PATTERN = "/*";
   private static final String QUERY_HINT_END_PATTERN = "*/";
@@ -425,5 +435,14 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin {
       }
     }
     return null;
+  }
+
+  @Override
+  public List<Pair<String, Object>> getSnapshotState() {
+    List<Pair<String, Object>> state = new ArrayList<>();
+    state.add(Pair.create("dbUserName", this.dbUserName));
+    state.add(Pair.create("maxCacheableQuerySize", this.maxCacheableQuerySize));
+    state.add(Pair.create("CacheConnection", this.cacheConnection != null ? this.cacheConnection.toString() : "<null>"));
+    return state;
   }
 }
