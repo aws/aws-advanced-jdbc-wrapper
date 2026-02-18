@@ -90,17 +90,20 @@ public class OpenedConnectionTracker {
 
     // Check if the connection was established using an instance endpoint
     if (rdsUtils.isRdsInstance(hostSpec.getHost())) {
-      trackConnection(hostSpec.getHostAndPort(), conn);
+      trackConnection(hostSpec.getUrl(), conn);
       logOpenedConnections();
       return;
     }
 
-    final String instanceEndpoint = aliases.stream()
+    String instanceEndpoint = aliases.stream()
         .filter(x -> rdsUtils.isRdsInstance(rdsUtils.removePort(x)))
         .max(String::compareToIgnoreCase)
         .orElse(null);
 
     if (instanceEndpoint != null) {
+      if (!instanceEndpoint.endsWith("/")) {
+        instanceEndpoint += "/";
+      }
       trackConnection(instanceEndpoint, conn);
       logOpenedConnections();
       return;
@@ -119,7 +122,7 @@ public class OpenedConnectionTracker {
    * @param hostSpec The {@link HostSpec} object containing the url of the node.
    */
   public void invalidateAllConnections(final HostSpec hostSpec) {
-    invalidateAllConnections(hostSpec.asAlias());
+    invalidateAllConnections(hostSpec.getUrl());
     invalidateAllConnections(hostSpec.getAliases().toArray(new String[] {}));
   }
 
@@ -146,8 +149,8 @@ public class OpenedConnectionTracker {
   }
 
   public void removeConnectionTracking(final HostSpec hostSpec, final Connection connection) {
-    final String host = rdsUtils.isRdsInstance(hostSpec.getHost())
-        ? hostSpec.asAlias()
+    String host = rdsUtils.isRdsInstance(hostSpec.getHost())
+        ? hostSpec.getUrl()
         : hostSpec.getAliases().stream()
             .filter(x -> rdsUtils.isRdsInstance(rdsUtils.removePort(x)))
             .findFirst()
@@ -155,6 +158,10 @@ public class OpenedConnectionTracker {
 
     if (StringUtils.isNullOrEmpty(host)) {
       return;
+    }
+
+    if (!host.endsWith("/")) {
+      host += "/";
     }
 
     final Queue<WeakReference<Connection>> connectionQueue = openedConnections.get(host);

@@ -387,6 +387,9 @@ public class FailoverTest {
 
         if (this.currentWriter.equals(instanceId)) {
           LOGGER.finest("Cluster failed over to the same instance " + instanceId + ".");
+          // We don't trigger actual server-sided failover for multi-az environments
+          // so writer instance does not change after failover
+          // Aurora Connection Tracker plugin only invalidates relevant connections if it detected changes to the writer
           for (Connection idleConnection : idleConnections) {
             assertFalse(idleConnection.isClosed(), String.format("Idle connection %s is closed.", idleConnection));
           }
