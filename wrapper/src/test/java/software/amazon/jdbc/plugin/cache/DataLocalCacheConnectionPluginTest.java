@@ -42,15 +42,23 @@ class DataLocalCacheConnectionPluginTest {
 
   private AutoCloseable closeable;
 
-  @Mock PluginService mockPluginService;
-  @Mock TelemetryFactory mockTelemetryFactory;
-  @Mock TelemetryCounter mockTelemetryCounter;
-  @Mock ResultSet mockResult1;
-  @Mock ResultSet mockResult2;
-  @Mock Statement mockStatement;
-  @Mock ResultSetMetaData mockMetaData;
+  @Mock
+  PluginService mockPluginService;
+  @Mock
+  TelemetryFactory mockTelemetryFactory;
+  @Mock
+  TelemetryCounter mockTelemetryCounter;
+  @Mock
+  ResultSet mockResult1;
+  @Mock
+  ResultSet mockResult2;
+  @Mock
+  Statement mockStatement;
+  @Mock
+  ResultSetMetaData mockMetaData;
 
-  @Mock JdbcCallable mockCallable;
+  @Mock
+  JdbcCallable mockCallable;
 
   @BeforeEach
   void setUp() throws SQLException {

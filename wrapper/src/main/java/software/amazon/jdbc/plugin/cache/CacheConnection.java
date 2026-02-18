@@ -16,47 +16,48 @@
 
 package software.amazon.jdbc.plugin.cache;
 
+import io.lettuce.core.ReadFrom;
 import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisCommandExecutionException;
 import io.lettuce.core.RedisCredentials;
 import io.lettuce.core.RedisCredentialsProvider;
 import io.lettuce.core.RedisURI;
-import io.lettuce.core.RedisCommandExecutionException;
 import io.lettuce.core.SetArgs;
 import io.lettuce.core.SocketOptions;
-import io.lettuce.core.ReadFrom;
 import io.lettuce.core.api.StatefulConnection;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.async.RedisAsyncCommands;
 import io.lettuce.core.cluster.ClusterClientOptions;
 import io.lettuce.core.cluster.ClusterTopologyRefreshOptions;
-import io.lettuce.core.cluster.models.partitions.RedisClusterNode;
-import io.lettuce.core.codec.ByteArrayCodec;
-import io.lettuce.core.resource.ClientResources;
 import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 import io.lettuce.core.cluster.api.async.RedisAdvancedClusterAsyncCommands;
+import io.lettuce.core.cluster.models.partitions.RedisClusterNode;
+import io.lettuce.core.codec.ByteArrayCodec;
+import io.lettuce.core.resource.ClientResources;
 import io.lettuce.core.resource.Delay;
 import io.lettuce.core.resource.DirContextDnsResolver;
-import java.time.Instant;
-import java.util.function.Supplier;
-import java.util.logging.Level;
-import reactor.core.publisher.Mono;
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.regions.Region;
 import java.nio.charset.StandardCharsets;
-import java.sql.SQLException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.sql.SQLException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.commons.pool2.BasePooledObjectFactory;
+import org.apache.commons.pool2.PooledObject;
+import org.apache.commons.pool2.impl.DefaultPooledObject;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
-import org.apache.commons.pool2.impl.DefaultPooledObject;
-import org.apache.commons.pool2.PooledObject;
+import reactor.core.publisher.Mono;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.utils.cache.CachedSupplier;
 import software.amazon.awssdk.utils.cache.RefreshResult;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.PropertyDefinition;
@@ -67,30 +68,6 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
-import software.amazon.awssdk.utils.cache.CachedSupplier;
-
-/**
- * Abstraction for a cache connection that can be pinged.
- * Hides cache-client implementation details (Lettuce/Glide) from CacheMonitor.
- */
-interface CachePingConnection {
-  /**
-   * Pings the cache server to check health.
-   * @return true if ping successful (PONG received), false otherwise
-   */
-  boolean ping();
-
-  /**
-   * Checks if the connection is open.
-   * @return true if connection is open, false otherwise
-   */
-  boolean isOpen();
-
-  /**
-   * Closes the connection.
-   */
-  void close();
-}
 
 // Abstraction layer on top of a connection to a remote cache server
 public class CacheConnection {
@@ -103,7 +80,8 @@ public class CacheConnection {
 
   private static final ResourceLock connectionInitializationLock = new ResourceLock();
   // Cache endpoint registry to hold connection pools for multi end points
-  private static final ConcurrentHashMap<String, GenericObjectPool<StatefulConnection<byte[], byte[]>>> endpointToPoolRegistry = new ConcurrentHashMap<>();
+  private static final ConcurrentHashMap<String, GenericObjectPool<StatefulConnection<byte[], byte[]>>>
+      endpointToPoolRegistry = new ConcurrentHashMap<>();
 
   public static final AwsWrapperProperty CACHE_RW_ENDPOINT_ADDR =
       new AwsWrapperProperty(
@@ -200,7 +178,8 @@ public class CacheConnection {
     PropertyDefinition.registerPluginProperties(CacheConnection.class);
   }
 
-  public CacheConnection(final Properties properties, TelemetryFactory telemetryFactory, FullServicesContainer servicesContainer) {
+  public CacheConnection(final Properties properties, TelemetryFactory telemetryFactory,
+      FullServicesContainer servicesContainer) {
     this.telemetryFactory = telemetryFactory;
     this.servicesContainer = servicesContainer;
     this.inFlightWriteSizeLimitBytes = CacheMonitor.CACHE_IN_FLIGHT_WRITE_SIZE_LIMIT.getLong(properties);
@@ -218,7 +197,7 @@ public class CacheConnection {
     if (this.cacheConnectionPoolSize <= 0 || this.cacheConnectionPoolSize > DEFAULT_MAX_POOL_SIZE) {
       throw new IllegalArgumentException(
           Messages.get("CacheConnection.invalidPoolSize",
-              new Object[] {DEFAULT_MAX_POOL_SIZE, this.cacheConnectionPoolSize}));
+              new Object[]{DEFAULT_MAX_POOL_SIZE, this.cacheConnectionPoolSize}));
     }
     this.failWhenCacheDown = FAIL_WHEN_CACHE_DOWN.getBoolean(properties);
     this.cacheKeyPrefix = CACHE_KEY_PREFIX.getString(properties);
@@ -310,7 +289,9 @@ public class CacheConnection {
     } finally {
       try {
         resources.shutdown().get(5, TimeUnit.SECONDS);
-      } catch (Exception ignored) {}
+      } catch (Exception ignored) {
+        // Ignore shutdown errors during cluster mode detection
+      }
     }
   }
 
@@ -360,7 +341,7 @@ public class CacheConnection {
       }
 
       if ((isRead && this.readConnectionPool == null) || (!isRead && this.writeConnectionPool == null)) {
-          createConnectionPool(isRead);
+        createConnectionPool(isRead);
       }
     }
   }
@@ -391,7 +372,9 @@ public class CacheConnection {
                   public StatefulConnection<byte[], byte[]> create() {
                     return createRedisConnection(isRead, redisUri, isClusterMode);
                   }
-                  public PooledObject<StatefulConnection<byte[], byte[]>> wrap(StatefulConnection<byte[], byte[]> connection) {
+
+                  public PooledObject<StatefulConnection<byte[], byte[]>> wrap(
+                      StatefulConnection<byte[], byte[]> connection) {
                     return new DefaultPooledObject<>(connection);
                   }
                 }, poolConfig)
@@ -405,7 +388,7 @@ public class CacheConnection {
       }
     } catch (Exception e) {
       String poolType = isRead ? "read" : "write";
-      String errorMsg = Messages.get("CacheConnection.createPoolFailed", new Object[] {poolType});
+      String errorMsg = Messages.get("CacheConnection.createPoolFailed", new Object[]{poolType});
       LOGGER.log(Level.WARNING, errorMsg, e);
       throw new RuntimeException(errorMsg, e);
     }
@@ -426,13 +409,13 @@ public class CacheConnection {
       boolean isReadOnly, RedisURI redisUri, boolean isClusterMode) {
 
     ClientResources resources = ClientResources.builder()
-      .dnsResolver(new DirContextDnsResolver())
-      .reconnectDelay(
-        Delay.fullJitter(
-          Duration.ofMillis(100),      // minimum 100ms delay
-          Duration.ofSeconds(10),       // maximum 10s delay
-          100, TimeUnit.MILLISECONDS))  // 100ms base
-      .build();
+        .dnsResolver(new DirContextDnsResolver())
+        .reconnectDelay(
+            Delay.fullJitter(
+                Duration.ofMillis(100),      // minimum 100ms delay
+                Duration.ofSeconds(10),       // maximum 10s delay
+                100, TimeUnit.MILLISECONDS))  // 100ms base
+        .build();
 
     StatefulConnection<byte[], byte[]> conn;
 
@@ -443,19 +426,19 @@ public class CacheConnection {
       // Configure cluster topology refresh per AWS best practices
       ClusterTopologyRefreshOptions topologyRefreshOptions =
           ClusterTopologyRefreshOptions.builder()
-          .enableAllAdaptiveRefreshTriggers()
-          .enablePeriodicRefresh()
-          .closeStaleConnections(true)
-          .build();
+              .enableAllAdaptiveRefreshTriggers()
+              .enablePeriodicRefresh()
+              .closeStaleConnections(true)
+              .build();
 
       // Configure cluster client options per AWS best practices
       ClusterClientOptions clusterClientOptions = ClusterClientOptions.builder()
           .topologyRefreshOptions(topologyRefreshOptions)
           .nodeFilter(node ->
-            !(node.is(RedisClusterNode.NodeFlag.FAIL)
-              || node.is(RedisClusterNode.NodeFlag.EVENTUAL_FAIL)
-              || node.is(RedisClusterNode.NodeFlag.HANDSHAKE)
-              || node.is(RedisClusterNode.NodeFlag.NOADDR)))
+              !(node.is(RedisClusterNode.NodeFlag.FAIL)
+                  || node.is(RedisClusterNode.NodeFlag.EVENTUAL_FAIL)
+                  || node.is(RedisClusterNode.NodeFlag.HANDSHAKE)
+                  || node.is(RedisClusterNode.NodeFlag.NOADDR)))
           .validateClusterNodeMembership(false)
           .autoReconnect(true)
           .socketOptions(SocketOptions.builder()
@@ -523,22 +506,22 @@ public class CacheConnection {
         // Create a cached token supplier that automatically refreshes tokens every 14.5 minutes
         Supplier<String> tokenSupplier =
             CachedSupplier.builder(() -> {
-                  ElastiCacheIamTokenUtility tokenUtility =
-                      new ElastiCacheIamTokenUtility(cacheName);
-                  String token = tokenUtility.generateAuthenticationToken(
-                      credentialsProvider,
-                      Region.of(cacheIamRegion),
-                      hostname,
-                      port,
-                      cacheUsername
-                  );
+              ElastiCacheIamTokenUtility tokenUtility =
+                  new ElastiCacheIamTokenUtility(cacheName);
+              String token = tokenUtility.generateAuthenticationToken(
+                  credentialsProvider,
+                  Region.of(cacheIamRegion),
+                  hostname,
+                  port,
+                  cacheUsername
+              );
 
-                  Instant now = Instant.now();
-                  Instant expiresAt = now.plusSeconds(TOKEN_CACHE_DURATION);
-                  return RefreshResult.builder(token)
-                      .staleTime(expiresAt)
-                      .build();
-                }).build();
+              Instant now = Instant.now();
+              Instant expiresAt = now.plusSeconds(TOKEN_CACHE_DURATION);
+              return RefreshResult.builder(token)
+                  .staleTime(expiresAt)
+                  .build();
+            }).build();
 
         return Mono.just(
             RedisCredentials.just(cacheUsername, tokenSupplier.get())
@@ -558,7 +541,8 @@ public class CacheConnection {
    * Returns an interface to hide implementation details.
    */
   static CachePingConnection createPingConnection(String hostname, int port, boolean isReadOnly, boolean useSSL,
-      Duration connectionTimeout, boolean iamAuthEnabled, AwsCredentialsProvider credentialsProvider, String cacheIamRegion,
+      Duration connectionTimeout, boolean iamAuthEnabled, AwsCredentialsProvider credentialsProvider,
+      String cacheIamRegion,
       String cacheName, String cacheUsername, String cachePassword) {
 
     try {
@@ -723,8 +707,10 @@ public class CacheConnection {
     }
   }
 
-  private void returnConnectionBackToPool(StatefulConnection<byte[], byte[]> connection, boolean isConnectionBroken, boolean isRead) {
-    GenericObjectPool<StatefulConnection<byte[], byte[]>> pool = isRead ? this.readConnectionPool : this.writeConnectionPool;
+  private void returnConnectionBackToPool(StatefulConnection<byte[], byte[]> connection, boolean isConnectionBroken,
+      boolean isRead) {
+    GenericObjectPool<StatefulConnection<byte[], byte[]>> pool = isRead ? this.readConnectionPool :
+        this.writeConnectionPool;
     if (isConnectionBroken) {
       if (!connection.isOpen()) {
         try {
@@ -776,7 +762,8 @@ public class CacheConnection {
 
   @Override
   public String toString() {
-    return String.format("%s [rwEndpoint: %s, roEndpoint: %s, SSLConnection: %s, IAMEnabled: %s, failWhenCacheDown: %s]",
+    return String.format("%s [rwEndpoint: %s, roEndpoint: %s, SSLConnection: %s, "
+            + "IAMEnabled: %s, failWhenCacheDown: %s]",
         super.toString(),
         this.cacheRwServerAddr, this.cacheRoServerAddr, this.useSSL, this.iamAuthEnabled, this.failWhenCacheDown);
   }

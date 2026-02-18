@@ -24,13 +24,17 @@ import integration.TestInstanceInfo;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
+import integration.container.condition.EnableOnTestFeature;
 import java.sql.PreparedStatement;
 import java.util.List;
 import java.util.Properties;
 import java.util.Random;
 import javax.sql.DataSource;
-import integration.container.condition.EnableOnTestFeature;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
@@ -142,7 +146,8 @@ public class SpringCachingTests {
 
     // Fetch the cache server information
     List<TestInstanceInfo> cacheInstances = TestEnvironment.getCurrent().getInfo().getValkeyServerInfo().getInstances();
-    final String cacheEndpoint = cacheInstances.get(cacheInstanceIndex).getHost() + ":" + cacheInstances.get(cacheInstanceIndex).getPort();
+    final String cacheEndpoint =
+        cacheInstances.get(cacheInstanceIndex).getHost() + ":" + cacheInstances.get(cacheInstanceIndex).getPort();
     props.setProperty(CACHE_RW_ENDPOINT_ADDR.name, cacheEndpoint);
     props.setProperty("cacheUseSSL", "false");
 
@@ -161,10 +166,10 @@ public class SpringCachingTests {
   }
 
   private List<Object> executeQueryWithCacheHint(JdbcTemplate jdbcTemplate, int value) {
-    String SQL_FIND = "/*+ CACHE_PARAM(ttl=60s) */ SELECT ?";
+    String sqlFind = "/*+ CACHE_PARAM(ttl=60s) */ SELECT ?";
     return jdbcTemplate.query(
         con -> {
-          PreparedStatement ps = con.prepareStatement(SQL_FIND);
+          PreparedStatement ps = con.prepareStatement(sqlFind);
           ps.setString(1, Integer.toString(value));
           return ps;
         },

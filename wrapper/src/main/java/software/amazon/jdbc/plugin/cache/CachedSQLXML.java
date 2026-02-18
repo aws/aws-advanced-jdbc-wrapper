@@ -16,19 +16,6 @@
 
 package software.amazon.jdbc.plugin.cache;
 
-import org.xml.sax.InputSource;
-import org.xml.sax.XMLReader;
-import org.xml.sax.helpers.XMLReaderFactory;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.stream.XMLInputFactory;
-import javax.xml.stream.XMLStreamReader;
-import javax.xml.transform.Result;
-import javax.xml.transform.Source;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.sax.SAXSource;
-import javax.xml.transform.stax.StAXSource;
-import javax.xml.transform.stream.StreamSource;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -39,6 +26,19 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.sql.SQLXML;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamReader;
+import javax.xml.transform.Result;
+import javax.xml.transform.Source;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.sax.SAXSource;
+import javax.xml.transform.stax.StAXSource;
+import javax.xml.transform.stream.StreamSource;
+import org.xml.sax.InputSource;
+import org.xml.sax.XMLReader;
+import org.xml.sax.helpers.XMLReaderFactory;
 import software.amazon.jdbc.util.Messages;
 
 public class CachedSQLXML implements SQLXML, Serializable {
@@ -52,7 +52,9 @@ public class CachedSQLXML implements SQLXML, Serializable {
 
   @Override
   public void free() throws SQLException {
-    if (this.freed) return;
+    if (this.freed) {
+      return;
+    }
     this.data = null;
     this.freed = true;
   }
@@ -66,7 +68,9 @@ public class CachedSQLXML implements SQLXML, Serializable {
   @Override
   public InputStream getBinaryStream() throws SQLException {
     checkFreed();
-    if (this.data == null) return null;
+    if (this.data == null) {
+      return null;
+    }
     return new ByteArrayInputStream(this.data.getBytes(StandardCharsets.UTF_8));
   }
 
@@ -78,7 +82,9 @@ public class CachedSQLXML implements SQLXML, Serializable {
   @Override
   public Reader getCharacterStream() throws SQLException {
     checkFreed();
-    if (this.data == null) return null;
+    if (this.data == null) {
+      return null;
+    }
     return new StringReader(this.data);
   }
 
@@ -101,7 +107,9 @@ public class CachedSQLXML implements SQLXML, Serializable {
   @Override
   public <T extends Source> T getSource(Class<T> sourceClass) throws SQLException {
     checkFreed();
-    if (this.data == null) return null;
+    if (this.data == null) {
+      return null;
+    }
 
     try {
       if (sourceClass == null || DOMSource.class.equals(sourceClass)) {
@@ -122,7 +130,7 @@ public class CachedSQLXML implements SQLXML, Serializable {
         XMLStreamReader xsr = XMLInputFactory.newFactory().createXMLStreamReader(new StringReader(data));
         return sourceClass.cast(new StAXSource(xsr));
       }
-      throw new SQLException(Messages.get("CachedSQLXML.unsupportedSourceClass", new Object[] {sourceClass.getName()}));
+      throw new SQLException(Messages.get("CachedSQLXML.unsupportedSourceClass", new Object[]{sourceClass.getName()}));
     } catch (Exception e) {
       throw new SQLException(Messages.get("CachedSQLXML.unableToDecodeXml"), e);
     }

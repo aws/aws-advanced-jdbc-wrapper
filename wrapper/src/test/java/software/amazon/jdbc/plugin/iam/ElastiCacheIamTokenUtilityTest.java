@@ -16,10 +16,18 @@
 
 package software.amazon.jdbc.plugin.iam;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,15 +40,15 @@ import software.amazon.awssdk.auth.signer.params.Aws4PresignerParams;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
 import software.amazon.awssdk.regions.Region;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.concurrent.CompletableFuture;
-
 public class ElastiCacheIamTokenUtilityTest {
-  @Mock private AwsCredentialsProvider mockCredentialsProvider;
-  @Mock private AwsCredentials mockCredentials;
-  @Mock private Aws4Signer mockSigner;
-  @Mock private SdkHttpFullRequest mockSignedRequest;
+  @Mock
+  private AwsCredentialsProvider mockCredentialsProvider;
+  @Mock
+  private AwsCredentials mockCredentials;
+  @Mock
+  private Aws4Signer mockSigner;
+  @Mock
+  private SdkHttpFullRequest mockSignedRequest;
 
   private AutoCloseable closeable;
   private ElastiCacheIamTokenUtility tokenUtility;
@@ -80,17 +88,17 @@ public class ElastiCacheIamTokenUtilityTest {
         new ElastiCacheIamTokenUtility(null, fixedInstant, mockSigner));
   }
 
-    @Test
-    void testGenerateAuthenticationToken_RegularCache() {
-      // Setup mock credentials provider to return mockCredentials
-      when(mockCredentialsProvider.resolveIdentity())
+  @Test
+  void testGenerateAuthenticationToken_RegularCache() {
+    // Setup mock credentials provider to return mockCredentials
+    when(mockCredentialsProvider.resolveIdentity())
         .thenReturn((CompletableFuture) CompletableFuture.completedFuture(mockCredentials));
 
-      // Add custom presign behavior to capture and verify arguments
-      when(mockSigner.presign(any(SdkHttpFullRequest.class), any(Aws4PresignerParams.class)))
+    // Add custom presign behavior to capture and verify arguments
+    when(mockSigner.presign(any(SdkHttpFullRequest.class), any(Aws4PresignerParams.class)))
         .thenAnswer(invocation -> {
           SdkHttpFullRequest request = invocation.getArgument(0);
-          Aws4PresignerParams presignParams = invocation.getArgument(1);
+          final Aws4PresignerParams presignParams = invocation.getArgument(1);
 
           // Verify SdkHttpFullRequest
           assertEquals("test-cache", request.host());
@@ -111,49 +119,50 @@ public class ElastiCacheIamTokenUtilityTest {
           return mockSignedRequest;
         });
 
-      when(mockSignedRequest.getUri()).thenReturn(java.net.URI.create("http://test-cache/result"));
+    when(mockSignedRequest.getUri()).thenReturn(java.net.URI.create("http://test-cache/result"));
 
-      tokenUtility = new ElastiCacheIamTokenUtility("test-cache", fixedInstant, mockSigner);
+    tokenUtility = new ElastiCacheIamTokenUtility("test-cache", fixedInstant, mockSigner);
 
-      String token = tokenUtility.generateAuthenticationToken(
+    String token = tokenUtility.generateAuthenticationToken(
         mockCredentialsProvider, Region.US_EAST_1, "test-cache.cache.amazonaws.com", 6379, "testuser");
 
-      assertEquals("test-cache/result", token);
-      verify(mockSigner).presign(any(SdkHttpFullRequest.class), any(Aws4PresignerParams.class));
-    }
+    assertEquals("test-cache/result", token);
+    verify(mockSigner).presign(any(SdkHttpFullRequest.class), any(Aws4PresignerParams.class));
+  }
 
   @Test
   void testGenerateAuthenticationToken_ServerlessCache() {
     // Setup mock credentials provider to return mockCredentials
     when(mockCredentialsProvider.resolveIdentity())
-            .thenReturn((CompletableFuture) CompletableFuture.completedFuture(mockCredentials));
+        .thenReturn((CompletableFuture) CompletableFuture.completedFuture(mockCredentials));
 
     // Add custom presign behavior to capture and verify arguments
     when(mockSigner.presign(any(SdkHttpFullRequest.class), any(Aws4PresignerParams.class)))
-      .thenAnswer(invocation -> {
-        SdkHttpFullRequest request = invocation.getArgument(0);
-        Aws4PresignerParams presignParams = invocation.getArgument(1);
+        .thenAnswer(invocation -> {
+          SdkHttpFullRequest request = invocation.getArgument(0);
+          final Aws4PresignerParams presignParams = invocation.getArgument(1);
 
-        // Verify SdkHttpFullRequest
-        assertEquals("test-cache", request.host());
-        assertEquals("/", request.encodedPath());
-        assertEquals("connect", request.rawQueryParameters().get("Action").get(0));
-        assertEquals("testuser", request.rawQueryParameters().get("User").get(0));
-        assertEquals("ServerlessCache", request.rawQueryParameters().get("ResourceType").get(0));
+          // Verify SdkHttpFullRequest
+          assertEquals("test-cache", request.host());
+          assertEquals("/", request.encodedPath());
+          assertEquals("connect", request.rawQueryParameters().get("Action").get(0));
+          assertEquals("testuser", request.rawQueryParameters().get("User").get(0));
+          assertEquals("ServerlessCache", request.rawQueryParameters().get("ResourceType").get(0));
 
-        // Verify Aws4PresignerParams
-        assertEquals("elasticache", presignParams.signingName());
-        assertEquals(Region.US_EAST_1, presignParams.signingRegion());
-        assertEquals(mockCredentials, presignParams.awsCredentials());
+          // Verify Aws4PresignerParams
+          assertEquals("elasticache", presignParams.signingName());
+          assertEquals(Region.US_EAST_1, presignParams.signingRegion());
+          assertEquals(mockCredentials, presignParams.awsCredentials());
 
-        Instant expectedExpiration = fixedInstant.plus(Duration.ofSeconds(15 * 60 - 30));
-        assertEquals(expectedExpiration, presignParams.expirationTime().get());
-        assertEquals(fixedInstant, presignParams.signingClockOverride().get().instant());
+          Instant expectedExpiration = fixedInstant.plus(Duration.ofSeconds(15 * 60 - 30));
+          assertEquals(expectedExpiration, presignParams.expirationTime().get());
+          assertEquals(fixedInstant, presignParams.signingClockOverride().get().instant());
 
-        return mockSignedRequest;
-      });
+          return mockSignedRequest;
+        });
 
-    when(mockSignedRequest.getUri()).thenReturn(java.net.URI.create("http://test-cache.serverless.cache.amazonaws.com/result"));
+    when(mockSignedRequest.getUri()).thenReturn(java.net.URI.create("http://test-cache.serverless.cache.amazonaws"
+        + ".com/result"));
 
     tokenUtility = new ElastiCacheIamTokenUtility("test-cache", fixedInstant, mockSigner);
 
