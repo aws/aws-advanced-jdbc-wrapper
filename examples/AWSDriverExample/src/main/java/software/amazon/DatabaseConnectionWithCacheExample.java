@@ -16,9 +16,9 @@ import java.util.concurrent.Future;
 import java.util.logging.Logger;
 
 public class DatabaseConnectionWithCacheExample {
-
+  // Note: to run this example program, create a .env file containing the desired properties
+  // and place it in the Java classpath
   private static final Dotenv env = Dotenv.load();
-
   private static final String DB_CONNECTION_STRING = env.get("DB_CONNECTION_STRING");
   private static final String CACHE_RW_SERVER_ADDR = env.get("CACHE_RW_SERVER_ADDR");
   private static final String CACHE_RO_SERVER_ADDR = env.get("CACHE_RO_SERVER_ADDR");
@@ -28,6 +28,10 @@ public class DatabaseConnectionWithCacheExample {
   private static final String CACHE_USERNAME = env.get("CACHE_USERNAME"); // e.g., "iam-user-01" / "username"
   private static final String CACHE_IAM_REGION = env.get("CACHE_IAM_REGION"); // e.g., "us-west-2"
   private static final String CACHE_USE_SSL = env.get("CACHE_USE_SSL");
+  // Path to a custom CA certificate (PEM) for TLS verification.
+  // Required when the cache server uses a self-signed or private CA not in the JVM's default trust store.
+  // Optional if the server certificate is signed by a publicly trusted CA (e.g., AWS ElastiCache with the AWS CA bundle).
+  private static final String CACHE_TLS_CA_CERT_PATH = env.get("CACHE_TLS_CA_CERT_PATH");
   // If the cache server is authenticated with traditional username password
   // private static final String CACHE_PASSWORD = env.get("CACHE_PASSWORD");
   private static final String USERNAME = env.get("DB_USERNAME");
@@ -68,8 +72,9 @@ public class DatabaseConnectionWithCacheExample {
     // If the cache server is authenticated with traditional username password
     // properties.setProperty("cachePassword", CACHE_PASSWORD);
     properties.setProperty("cacheUseSSL", CACHE_USE_SSL); // "true" or "false"
+    properties.setProperty("cacheTlsCaCertPath", CACHE_TLS_CA_CERT_PATH);
     properties.setProperty("wrapperLogUnclosedConnections", "true");
-    properties.setProperty("cacheConnectionTimeout", CACHE_CONNECTION_TIMEOUT);
+    properties.setProperty("cacheConnectionTimeoutMs", CACHE_CONNECTION_TIMEOUT);
     properties.setProperty("cacheConnectionPoolSize", CACHE_CONNECTION_POOL_SIZE);
     properties.setProperty("failWhenCacheDown", FAIL_WHEN_CACHE_DOWN);
     properties.setProperty("cacheInFlightWriteSizeLimitBytes", CACHE_IN_FLIGHT_WRITE_SIZE_LIMIT);
@@ -132,8 +137,9 @@ public class DatabaseConnectionWithCacheExample {
     properties1.setProperty("cacheEndpointAddrRw", CACHE_RW_SERVER_ADDR);
     properties1.setProperty("cacheEndpointAddrRo", CACHE_RO_SERVER_ADDR);
     properties1.setProperty("cacheUseSSL", CACHE_USE_SSL);
+    properties1.setProperty("cacheTlsCaCertPath", CACHE_TLS_CA_CERT_PATH);
     properties1.setProperty("wrapperLogUnclosedConnections", "true");
-    properties1.setProperty("cacheConnectionTimeout", CACHE_CONNECTION_TIMEOUT);
+    properties1.setProperty("cacheConnectionTimeoutMs", CACHE_CONNECTION_TIMEOUT);
     properties1.setProperty("cacheConnectionPoolSize", CACHE_CONNECTION_POOL_SIZE);
     // If the cache server is authenticated with IAM
     properties1.setProperty("cacheName", CACHE_NAME);
@@ -153,8 +159,10 @@ public class DatabaseConnectionWithCacheExample {
     properties2.setProperty("cacheEndpointAddrRw", CACHE_RW_SERVER_ADDR2);
     properties2.setProperty("cacheEndpointAddrRo", CACHE_RO_SERVER_ADDR2);
     properties2.setProperty("cacheUseSSL", CACHE_USE_SSL);
+    // Endpoint 1 and 2 share the same TLS certificate
+    properties2.setProperty("cacheTlsCaCertPath",CACHE_TLS_CA_CERT_PATH);
     properties2.setProperty("wrapperLogUnclosedConnections", "true");
-    properties2.setProperty("cacheConnectionTimeout", CACHE_CONNECTION_TIMEOUT);
+    properties2.setProperty("cacheConnectionTimeoutMs", CACHE_CONNECTION_TIMEOUT);
     properties2.setProperty("cacheConnectionPoolSize", CACHE_CONNECTION_POOL_SIZE);
     // If the cache server is authenticated with IAM
     properties2.setProperty("cacheName", CACHE_NAME2);

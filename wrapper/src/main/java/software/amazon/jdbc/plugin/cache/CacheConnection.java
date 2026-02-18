@@ -16,6 +16,8 @@
 
 package software.amazon.jdbc.plugin.cache;
 
+import static java.nio.file.Files.readAllBytes;
+
 import glide.api.BaseClient;
 import glide.api.GlideClient;
 import glide.api.GlideClusterClient;
@@ -28,19 +30,20 @@ import glide.api.models.configuration.BackoffStrategy;
 import glide.api.models.configuration.BaseClientConfiguration;
 import glide.api.models.configuration.GlideClientConfiguration;
 import glide.api.models.configuration.GlideClusterClientConfiguration;
+import glide.api.models.configuration.IamAuthConfig;
 import glide.api.models.configuration.NodeAddress;
 import glide.api.models.configuration.ReadFrom;
 import glide.api.models.configuration.ServerCredentials;
+import glide.api.models.configuration.ServiceType;
 import glide.api.models.configuration.TlsAdvancedConfiguration;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.commons.pool2.BasePooledObjectFactory;
@@ -48,14 +51,8 @@ import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.utils.cache.CachedSupplier;
-import software.amazon.awssdk.utils.cache.RefreshResult;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.authentication.AwsCredentialsManager;
-import software.amazon.jdbc.plugin.iam.ElastiCacheIamTokenUtility;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.ResourceLock;
@@ -68,13 +65,13 @@ public class CacheConnection {
   private static final int DEFAULT_POOL_MIN_IDLE = 0;
   private static final int DEFAULT_MAX_POOL_SIZE = 200;
   private static final long DEFAULT_MAX_BORROW_WAIT_MS = 100;
-  private static final long TOKEN_CACHE_DURATION = 15 * 60 - 30;
   private final FullServicesContainer servicesContainer;
 
   private static final ResourceLock connectionInitializationLock = new ResourceLock();
   // Cache endpoint registry to hold connection pools for multi end points
   private static final ConcurrentHashMap<String, GenericObjectPool<BaseClient>>
       endpointToPoolRegistry = new ConcurrentHashMap<>();
+  private static final ConcurrentHashMap<String, byte[]> endpointCaCertRegistry = new ConcurrentHashMap<>();
 
   public static final AwsWrapperProperty CACHE_RW_ENDPOINT_ADDR =
       new AwsWrapperProperty(
@@ -86,13 +83,20 @@ public class CacheConnection {
       new AwsWrapperProperty(
           "cacheEndpointAddrRo",
           null,
-          "The cache read-only server endpoint address. This is an optional parameter to allow performing read operations from read replica cache nodes.");
+          "The cache read-only server endpoint address. This is an optional parameter to allow "
+              + "performing read operations from read replica cache nodes.");
 
   protected static final AwsWrapperProperty CACHE_USE_SSL =
       new AwsWrapperProperty(
           "cacheUseSSL",
           "true",
           "Whether to use SSL for cache connections.");
+
+  protected static final AwsWrapperProperty CACHE_TLS_CA_CERT_PATH =
+      new AwsWrapperProperty(
+          "cacheTlsCaCertPath",
+          null,
+          "File path to the CA certificate (PEM) for verifying the cache server's TLS certificate.");
 
   protected static final AwsWrapperProperty CACHE_IAM_REGION =
       new AwsWrapperProperty(
@@ -150,6 +154,7 @@ public class CacheConnection {
   private volatile GenericObjectPool<BaseClient> writeConnectionPool;
 
   private final boolean useSSL;
+  private final byte[] cacheTlsCaCertBytes;
   private final boolean iamAuthEnabled;
   private final String cacheIamRegion;
   private final String cacheUsername;
@@ -157,8 +162,6 @@ public class CacheConnection {
   private final String cachePassword;
   private final Duration cacheConnectionTimeout;
   private final int cacheConnectionPoolSize;
-  private final Properties awsProfileProperties;
-  private final AwsCredentialsProvider credentialsProvider;
   private final boolean failWhenCacheDown;
   private final TelemetryFactory telemetryFactory;
   private final long inFlightWriteSizeLimitBytes;
@@ -181,6 +184,20 @@ public class CacheConnection {
     this.cacheRwServerAddr = CACHE_RW_ENDPOINT_ADDR.getString(properties);
     this.cacheRoServerAddr = CACHE_RO_ENDPOINT_ADDR.getString(properties);
     this.useSSL = Boolean.parseBoolean(CACHE_USE_SSL.getString(properties));
+    String certPath = CACHE_TLS_CA_CERT_PATH.getString(properties);
+    if (!StringUtils.isNullOrEmpty(certPath)) {
+      try {
+        this.cacheTlsCaCertBytes = readAllBytes(java.nio.file.Paths.get(certPath));
+      } catch (IOException e) {
+        throw new RuntimeException(
+            Messages.get("CacheConnection.failedToReadCaCert", new Object[]{certPath}), e);
+      }
+    } else {
+      this.cacheTlsCaCertBytes = null;
+    }
+    if (!this.useSSL && this.cacheTlsCaCertBytes != null) {
+      throw new IllegalArgumentException(Messages.get("CacheConnection.caCertWithoutTls"));
+    }
     this.cacheName = CACHE_NAME.getString(properties);
     this.cacheIamRegion = CACHE_IAM_REGION.getString(properties);
     this.cacheUsername = CACHE_USERNAME.getString(properties);
@@ -221,24 +238,6 @@ public class CacheConnection {
         throw new IllegalArgumentException(Messages.get("CacheConnection.iamAuthMissingParams"));
       }
     }
-    if (PropertyDefinition.AWS_PROFILE.getString(properties) != null) {
-      this.awsProfileProperties = new Properties();
-      this.awsProfileProperties.setProperty(
-          PropertyDefinition.AWS_PROFILE.name,
-          PropertyDefinition.AWS_PROFILE.getString(properties)
-      );
-    } else {
-      this.awsProfileProperties = null;
-    }
-    if (this.iamAuthEnabled) {
-      // Handle null case
-      Properties propsToPass = (this.awsProfileProperties != null)
-          ? this.awsProfileProperties
-          : new Properties();
-      this.credentialsProvider = AwsCredentialsManager.getProvider(null, propsToPass);
-    } else {
-      this.credentialsProvider = null;
-    }
   }
 
   // for unit testing only
@@ -260,7 +259,8 @@ public class CacheConnection {
 
     BaseClientConfiguration config = buildClientConfigurationStatic(
         hostnameAndPort[0], port, useSSL, cacheConnectionTimeout,
-        iamAuthEnabled, credentialsProvider, cacheIamRegion, cacheName, cacheUsername, cachePassword, null, false);
+        iamAuthEnabled, cacheIamRegion, cacheName, cacheUsername, cachePassword,
+        true, false, this.cacheTlsCaCertBytes);
 
     try (GlideClient client = GlideClient.createClient((GlideClientConfiguration) config).get()) {
 
@@ -289,7 +289,8 @@ public class CacheConnection {
   /**
    * Initializes the connection pool for reading from or writing to the cache, if not already initialized.
    *
-   * @param isRead if {@code true}, initializes the read connection pool; otherwise, initializes the write connection pool
+   * @param isRead if {@code true}, initializes the read connection pool.
+   *               Otherwise, initializes the write connection pool
    */
   private void initializeCacheConnectionIfNeeded(boolean isRead) {
     if (StringUtils.isNullOrEmpty(this.cacheRwServerAddr)) {
@@ -317,19 +318,21 @@ public class CacheConnection {
       }
       // Detect cluster mode first (cached for reuse)
       detectClusterMode();
+      if (this.cacheTlsCaCertBytes != null) {
+        endpointCaCertRegistry.putIfAbsent(this.cacheRwServerAddr, this.cacheTlsCaCertBytes);
+        if (this.cacheRoServerAddr != null) {
+          endpointCaCertRegistry.putIfAbsent(this.cacheRoServerAddr, this.cacheTlsCaCertBytes);
+        }
+      }
 
       // Register cluster with CacheMonitor on first cache operation
       // Skip only in test mode (when servicesContainer is null)
       if (servicesContainer != null && !this.cacheMonitorRegistered) {
-        // In standalone (CMD) mode, Glide cannot connect to a replica directly,
-        // so don't register the RO endpoint with CacheMonitor for health checks.
-        String roEndpointForMonitor = Boolean.TRUE.equals(this.isClusterMode)
-            ? this.cacheRoServerAddr : null;
         CacheMonitor.registerCluster(
             this.servicesContainer,
             inFlightWriteSizeLimitBytes, healthCheckInHealthyState, telemetryFactory,
-            this.cacheRwServerAddr, roEndpointForMonitor,
-            this.useSSL, this.cacheConnectionTimeout, this.iamAuthEnabled, this.credentialsProvider,
+            this.cacheRwServerAddr, this.cacheRoServerAddr,
+            this.useSSL, this.cacheConnectionTimeout, this.iamAuthEnabled,
             this.cacheIamRegion, this.cacheName, this.cacheUsername, this.cachePassword
         );
         this.cacheMonitorRegistered = true;
@@ -346,11 +349,8 @@ public class CacheConnection {
       // cache server addr string is in the format "<server hostname>:<port>"
       String serverAddr = this.cacheRwServerAddr;
 
-      // For cluster mode, use the RO endpoint directly for read connections.
-      // For standalone mode, always connect to the primary (RW) endpoint —
-      // Glide does not support connecting to a standalone replica directly.
-      // Read traffics are routed via ReadFrom.PREFER_REPLICA.
-      if (isRead && !StringUtils.isNullOrEmpty(this.cacheRoServerAddr) && Boolean.TRUE.equals(this.isClusterMode)) {
+      // If read-only server is specified, use it for the read-only connections
+      if (isRead && !StringUtils.isNullOrEmpty(this.cacheRoServerAddr)) {
         serverAddr = this.cacheRoServerAddr;
       }
       String[] hostnameAndPort = getHostnameAndPort(serverAddr);
@@ -368,7 +368,7 @@ public class CacheConnection {
 
         pool = endpointToPoolRegistry.computeIfAbsent(poolKey, k ->
             new GenericObjectPool<>(
-                new BasePooledObjectFactory<>() {
+                new BasePooledObjectFactory<BaseClient>() {
                   public BaseClient create() throws Exception {
                     BaseClientConfiguration config = buildClientConfiguration(host, port, isRead);
                     if (Boolean.TRUE.equals(isClusterMode)) {
@@ -411,8 +411,8 @@ public class CacheConnection {
    */
   protected BaseClientConfiguration buildClientConfiguration(String hostname, int port, Boolean isRead) {
     return buildClientConfigurationStatic(hostname, port, this.useSSL, this.cacheConnectionTimeout,
-        this.iamAuthEnabled, this.credentialsProvider, this.cacheIamRegion, this.cacheName,
-        this.cacheUsername, this.cachePassword, isRead, this.isClusterMode);
+        this.iamAuthEnabled, this.cacheIamRegion, this.cacheName,
+        this.cacheUsername, this.cachePassword, isRead, this.isClusterMode, this.cacheTlsCaCertBytes);
   }
 
   /**
@@ -425,14 +425,13 @@ public class CacheConnection {
    */
   protected static BaseClientConfiguration buildClientConfigurationStatic(
       String hostname, int port, boolean useSSL, Duration connectionTimeout,
-      boolean iamAuthEnabled, AwsCredentialsProvider credentialsProvider,
-      String cacheIamRegion, String cacheName, String cacheUsername,
-      String cachePassword, Boolean isRead, Boolean isClusterMode) {
+      boolean iamAuthEnabled, String cacheIamRegion, String cacheName, String cacheUsername,
+      String cachePassword, Boolean isRead, Boolean isClusterMode, byte[] caCert) {
 
     NodeAddress address = buildNodeAddress(hostname, port);
     ServerCredentials credentials = buildServerCredentials(
-        iamAuthEnabled, credentialsProvider, cacheIamRegion, cacheName,
-        hostname, port, cacheUsername, cachePassword);
+        iamAuthEnabled, cacheIamRegion, cacheName,
+        cacheUsername, cachePassword);
 
     // checks for cluster mode and returns appropriate client configuration
     if (Boolean.TRUE.equals(isClusterMode)) {
@@ -447,15 +446,15 @@ public class CacheConnection {
               .reconnectStrategy(reconnectStrategyBuilder());
 
       if (useSSL) {
-        builder.advancedConfiguration(
+        TlsAdvancedConfiguration tlsConfig = (caCert != null)
+            ? TlsAdvancedConfiguration.builder().rootCertificates(caCert).build()
+            : TlsAdvancedConfiguration.builder().build();
+        AdvancedGlideClusterClientConfiguration advancedConfig =
             AdvancedGlideClusterClientConfiguration.builder()
                 .connectionTimeout((int) connectionTimeout.toMillis())
-                // TODO: useInsecureTLS is a bit flaky. Keeping it here for now.
-                .tlsAdvancedConfiguration(
-                    TlsAdvancedConfiguration.builder()
-                        .useInsecureTLS(true)
-                        .build())
-                .build());
+                .tlsAdvancedConfiguration(tlsConfig)
+                .build();
+        builder.advancedConfiguration(advancedConfig);
       }
       if (credentials != null) {
         builder.credentials(credentials);
@@ -470,17 +469,19 @@ public class CacheConnection {
               .requestTimeout((int) connectionTimeout.toMillis())
               .lazyConnect(true)
               .readFrom(Boolean.TRUE.equals(isRead) ? ReadFrom.PREFER_REPLICA : ReadFrom.PRIMARY)
+              .readOnly(Boolean.TRUE.equals(isRead))
               .reconnectStrategy(reconnectStrategyBuilder());
 
       if (useSSL) {
-        builder.advancedConfiguration(
+        TlsAdvancedConfiguration tlsConfig = (caCert != null)
+            ? TlsAdvancedConfiguration.builder().rootCertificates(caCert).build()
+            : TlsAdvancedConfiguration.builder().build();
+        AdvancedGlideClientConfiguration advancedConfig =
             AdvancedGlideClientConfiguration.builder()
                 .connectionTimeout((int) connectionTimeout.toMillis())
-                .tlsAdvancedConfiguration(
-                    TlsAdvancedConfiguration.builder()
-                        .useInsecureTLS(true)
-                        .build())
-                .build());
+                .tlsAdvancedConfiguration(tlsConfig)
+                .build();
+        builder.advancedConfiguration(advancedConfig);
       }
       if (credentials != null) {
         builder.credentials(credentials);
@@ -499,32 +500,19 @@ public class CacheConnection {
 
   // Builds ServerCredentials for IAM or password-based authentication.
   private static ServerCredentials buildServerCredentials(
-      boolean iamAuthEnabled, AwsCredentialsProvider credentialsProvider,
-      String cacheIamRegion, String cacheName, String hostname, int port,
+      boolean iamAuthEnabled, String cacheIamRegion, String cacheName,
       String cacheUsername, String cachePassword) {
 
     if (iamAuthEnabled) {
-      Supplier<String> tokenSupplier =
-          CachedSupplier.builder(() -> {
-            ElastiCacheIamTokenUtility tokenUtility =
-                new ElastiCacheIamTokenUtility(cacheName);
-            String token = tokenUtility.generateAuthenticationToken(
-                credentialsProvider,
-                Region.of(cacheIamRegion),
-                hostname,
-                port,
-                cacheUsername);
-
-            Instant now = Instant.now();
-            Instant expiresAt = now.plusSeconds(TOKEN_CACHE_DURATION);
-            return RefreshResult.builder(token)
-                .staleTime(expiresAt)
-                .build();
-          }).build();
+      IamAuthConfig iamConfig = IamAuthConfig.builder()
+          .clusterName(cacheName)
+          .service(ServiceType.ELASTICACHE)
+          .region(cacheIamRegion)
+          .build();
 
       return ServerCredentials.builder()
           .username(cacheUsername)
-          .password(tokenSupplier.get())
+          .iamConfig(iamConfig)
           .build();
     } else if (!StringUtils.isNullOrEmpty(cachePassword)) {
       return ServerCredentials.builder()
@@ -550,22 +538,22 @@ public class CacheConnection {
    * This is a static helper that abstracts Lettuce-specific logic for CacheMonitor.
    * Returns an interface to hide implementation details.
    */
-  static CachePingConnection createPingConnection(String hostname, int port, boolean isReadOnly, boolean useSSL,
-      Duration connectionTimeout, boolean iamAuthEnabled, AwsCredentialsProvider credentialsProvider,
-      String cacheIamRegion,
-      String cacheName, String cacheUsername, String cachePassword) {
+  static CachePingConnection createPingConnection(String hostname, int port, boolean useSSL,
+      Duration connectionTimeout, boolean iamAuthEnabled,
+      String cacheIamRegion, String cacheName, String cacheUsername, String cachePassword) {
     try {
+      byte[] caCert = endpointCaCertRegistry.get(hostname + ":" + port);
       // Creating GlideClient (use standalone for ping - works for both)
       BaseClientConfiguration config = buildClientConfigurationStatic(
           hostname, port, useSSL, connectionTimeout, iamAuthEnabled,
-          credentialsProvider, cacheIamRegion, cacheName, cacheUsername, cachePassword, null, false
-      );
+          cacheIamRegion, cacheName, cacheUsername, cachePassword,
+          true, false, caCert);
 
       BaseClient client = GlideClient.createClient((GlideClientConfiguration) config).get();
       return new PingConnection(client);
     } catch (Exception e) {
-      LOGGER.fine(String.format("Failed to create ping connection for %s:%d: %s",
-          hostname, port, e.getMessage()));
+      LOGGER.fine(Messages.get("CacheConnection.failedToCreatePingConnection",
+          new Object[]{hostname, port}) + " " + e.getMessage());
       return null;
     }
   }
@@ -777,11 +765,7 @@ public class CacheConnection {
           return false;
         }
         String result;
-        if (connection instanceof GlideClusterClient) {
-          result = ((GlideClusterClient) connection).ping().get();
-        } else {
-          result = ((GlideClient) connection).ping().get();
-        }
+        result = ((GlideClient) connection).ping().get();
         return "PONG".equalsIgnoreCase(result);
       } catch (Exception e) {
         return false;
@@ -822,5 +806,7 @@ public class CacheConnection {
   // Used for integration testing only to avoid cross tests pollution
   public static void clearEndpointPoolRegistry() {
     endpointToPoolRegistry.clear();
+    endpointCaCertRegistry.clear();
+    CacheMonitor.resetInstance();
   }
 }

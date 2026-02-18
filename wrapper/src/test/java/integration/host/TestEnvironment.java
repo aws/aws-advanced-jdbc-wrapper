@@ -423,14 +423,15 @@ public class TestEnvironment implements AutoCloseable {
       ContainerHelper containerHelper = new ContainerHelper();
       List<TestInstanceInfo> cacheInstances = env.info.getValkeyServerInfo().getInstances();
 
-      // Create Valkey container WITH authentication
+      // Instance 0: Create Valkey container WITH authentication + No TLS
       int authInstanceIndex = cacheInstances.size();
       env.info.setValkeyServerUsername("test_cache_user");
       env.info.setValkeyServerPassword("test_cache_password");
       GenericContainer<?> valkeyContainer = containerHelper.createValkeyContainer(
           env.network,
           VALKEY_SERVER_ADDRESS_PREFIX + authInstanceIndex,
-          true);
+          true,
+          false);
       env.valkeyContainers.add(valkeyContainer);
       valkeyContainer.start();
       cacheInstances.add(new TestInstanceInfo(
@@ -438,11 +439,12 @@ public class TestEnvironment implements AutoCloseable {
           VALKEY_SERVER_ADDRESS_PREFIX + authInstanceIndex,
           6379));
 
-      // Create Valkey container WITHOUT authentication (default user, no password)
+      // Instance 1: Create Valkey container WITHOUT authentication (default user, no password) + No TLS
       int noAuthInstanceIndex = cacheInstances.size();
       GenericContainer<?> valkeyContainerNoAuth = containerHelper.createValkeyContainer(
           env.network,
           VALKEY_SERVER_ADDRESS_PREFIX + noAuthInstanceIndex,
+          false,
           false);
       env.valkeyContainers.add(valkeyContainerNoAuth);
       valkeyContainerNoAuth.start();
@@ -450,6 +452,34 @@ public class TestEnvironment implements AutoCloseable {
           VALKEY_CONTAINER_NAME_PREFIX + noAuthInstanceIndex,
           VALKEY_SERVER_ADDRESS_PREFIX + noAuthInstanceIndex,
           6379));
+
+      // Instance 2: Create Valkey container WITH Auth + TLS
+      int tlsAuthInstanceIndex = cacheInstances.size();
+      GenericContainer<?> valkeyContainerTlsAuth = containerHelper.createValkeyContainer(
+          env.network,
+          VALKEY_SERVER_ADDRESS_PREFIX + tlsAuthInstanceIndex,
+          true,
+          true);
+      env.valkeyContainers.add(valkeyContainerTlsAuth);
+      valkeyContainerTlsAuth.start();
+      cacheInstances.add(new TestInstanceInfo(
+          VALKEY_CONTAINER_NAME_PREFIX + tlsAuthInstanceIndex,
+          VALKEY_SERVER_ADDRESS_PREFIX + tlsAuthInstanceIndex,
+          6380));  // TLS port
+
+      // Instance 3: Create Valkey container WITHOUT Auth + TLS
+      int tlsNoAuthInstanceIndex = cacheInstances.size();
+      GenericContainer<?> valkeyContainerTlsNoAuth = containerHelper.createValkeyContainer(
+          env.network,
+          VALKEY_SERVER_ADDRESS_PREFIX + tlsNoAuthInstanceIndex,
+          false,
+          true);
+      env.valkeyContainers.add(valkeyContainerTlsNoAuth);
+      valkeyContainerTlsNoAuth.start();
+      cacheInstances.add(new TestInstanceInfo(
+          VALKEY_CONTAINER_NAME_PREFIX + tlsNoAuthInstanceIndex,
+          VALKEY_SERVER_ADDRESS_PREFIX + tlsNoAuthInstanceIndex,
+          6380));  // TLS port
     }
   }
 
@@ -1457,6 +1487,7 @@ public class TestEnvironment implements AutoCloseable {
       }
     }
     this.databaseContainers.clear();
+    this.valkeyContainers.clear();
 
     if (this.telemetryXRayContainer != null) {
       this.telemetryXRayContainer.stop();

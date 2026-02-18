@@ -31,6 +31,7 @@ import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
+import java.io.File;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -51,6 +52,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -61,6 +63,8 @@ import software.amazon.jdbc.plugin.cache.CacheConnection;
 @EnableOnTestFeature(TestEnvironmentFeatures.VALKEY_CACHE)
 @MakeSureFirstInstanceWriter
 @Order(24)
+@Tag("caching")
+
 public class HibernateCachingTests {
   private static final Logger LOGGER = Logger.getLogger(HibernateCachingTests.class.getName());
 
@@ -133,9 +137,9 @@ public class HibernateCachingTests {
 
   @TestTemplate
   @ExtendWith(TestDriverProvider.class)
-  public void testSuccessfulCaching() {
+  public void testSuccessfulCaching() throws InterruptedException {
 
-    final Configuration configuration = this.getConfiguration(0, true, null);
+    final Configuration configuration = this.getConfiguration(0, true, null, false);
     try (StandardServiceRegistry serviceRegistry = new StandardServiceRegistryBuilder()
         .applySettings(configuration.getProperties())
         .build()) {
@@ -163,6 +167,9 @@ public class HibernateCachingTests {
         // Query with caching - populate cache
         Book cachedBook = queryBookWithCaching(session, book.getId());
         validateBookData(cachedBook, "1984", 1949, 1);
+
+        // Allow async cache write to complete (includes TLS handshake on first write)
+        Thread.sleep(1000);
 
         // Query again - should come from cache
         Book cachedBook2 = queryBookWithCaching(session, book.getId());
@@ -199,7 +206,7 @@ public class HibernateCachingTests {
   @TestTemplate
   @ExtendWith(TestDriverProvider.class)
   public void testWrongAuthFallsBackToDatabase() {
-    final Configuration configuration = this.getConfiguration(0, true, "wrong-password");
+    final Configuration configuration = this.getConfiguration(0, true, "wrong-password", false);
 
     try (StandardServiceRegistry serviceRegistry = new StandardServiceRegistryBuilder()
         .applySettings(configuration.getProperties())
@@ -239,7 +246,7 @@ public class HibernateCachingTests {
 
   @TestTemplate
   @ExtendWith(TestDriverProvider.class)
-  public void testNoAuthConnection() {
+  public void testNoAuthConnection() throws InterruptedException {
     // Use the second Valkey instance (no-auth)
     List<TestInstanceInfo> cacheInstances = TestEnvironment.getCurrent().getInfo().getValkeyServerInfo().getInstances();
     if (cacheInstances.size() < 2) {
@@ -247,7 +254,7 @@ public class HibernateCachingTests {
     }
 
     // Use no-auth instance (index 1), no credentials
-    final Configuration configuration = getConfiguration(1, false, null);
+    final Configuration configuration = getConfiguration(1, false, null, false);
 
     try (StandardServiceRegistry serviceRegistry = new StandardServiceRegistryBuilder()
         .applySettings(configuration.getProperties())
@@ -269,6 +276,9 @@ public class HibernateCachingTests {
         Book result1 = queryBookWithCaching(session, book.getId());
         validateBookData(result1, "Foundation", 1951, 1);
 
+        // Allow async cache write to complete
+        Thread.sleep(1000);
+
         // Second query - should come from cache
         Book result2 = queryBookWithCaching(session, book.getId());
         validateBookData(result2, "Foundation", 1951, 1);
@@ -288,8 +298,8 @@ public class HibernateCachingTests {
 
   @TestTemplate
   @ExtendWith(TestDriverProvider.class)
-  public void testMultipleQueriesUseDifferentCacheKeys() {
-    final Configuration configuration = this.getConfiguration(0, true, null);
+  public void testMultipleQueriesUseDifferentCacheKeys() throws InterruptedException {
+    final Configuration configuration = this.getConfiguration(0, true, null, false);
     try (StandardServiceRegistry serviceRegistry = new StandardServiceRegistryBuilder()
         .applySettings(configuration.getProperties())
         .build()) {
@@ -323,6 +333,9 @@ public class HibernateCachingTests {
         Book cachedBook2 = queryBookWithCaching(session, bookBraveNewWorld.getId());
         validateBookData(cachedBook2, "Brave New World", 1932, 1);
 
+        // Allow async cache write to complete
+        Thread.sleep(1000);
+
         // Delete both books from database
         session.getTransaction().begin();
         assertEquals(2, session.createQuery("delete from Book").executeUpdate());
@@ -335,6 +348,110 @@ public class HibernateCachingTests {
 
         Book cachedBook2AfterDelete = queryBookWithCaching(session, bookBraveNewWorld.getId());
         validateBookData(cachedBook2AfterDelete, "Brave New World", 1932, 1);
+
+        session.clear();
+      }
+    }
+  }
+
+  @TestTemplate
+  @ExtendWith(TestDriverProvider.class)
+  public void testSuccessfulCachingWithTLS() throws InterruptedException {
+    // Use instance 2 (Auth + TLS)
+    List<TestInstanceInfo> cacheInstances = TestEnvironment.getCurrent().getInfo().getValkeyServerInfo().getInstances();
+    if (cacheInstances.size() < 3) {
+      return; // Skip if TLS instances not available
+    }
+
+    final Configuration configuration = this.getConfiguration(2, true, null, true);
+    try (StandardServiceRegistry serviceRegistry = new StandardServiceRegistryBuilder()
+        .applySettings(configuration.getProperties())
+        .build()) {
+
+      SessionFactory sessionFactory = configuration.buildSessionFactory(serviceRegistry);
+
+      try (Session session = sessionFactory.openSession()) {
+        // Create author and book
+        Author author = new Author("Arthur C. Clarke", "United Kingdom");
+        List<Author> authorList = new ArrayList<>();
+        authorList.add(author);
+        this.insertObject(session, author);
+        Book book = new Book("2001: A Space Odyssey", 1968);
+        book.setAuthors(authorList);
+        this.insertObject(session, book);
+
+        // Query with caching over TLS - populate cache
+        Book cachedBook = queryBookWithCaching(session, book.getId());
+        validateBookData(cachedBook, "2001: A Space Odyssey", 1968, 1);
+
+        // Allow async cache write to complete (TLS handshake on first write)
+        Thread.sleep(1000);
+
+        // Query again - should come from cache
+        Book cachedBook2 = queryBookWithCaching(session, book.getId());
+        validateBookData(cachedBook2, "2001: A Space Odyssey", 1968, 1);
+
+        // Delete from database
+        session.getTransaction().begin();
+        assertEquals(1, session.createQuery("delete from Book").executeUpdate());
+        assertEquals(1, session.createQuery("delete from Author").executeUpdate());
+        session.getTransaction().commit();
+
+        // Query after deletion - should return cached data (proves TLS cache worked)
+        Book cachedBook3 = queryBookWithCaching(session, book.getId());
+        validateBookData(cachedBook3, "2001: A Space Odyssey", 1968, 1);
+
+        session.clear();
+      }
+    }
+  }
+
+  @TestTemplate
+  @ExtendWith(TestDriverProvider.class)
+  public void testTLSWithoutAuth() throws InterruptedException {
+    // Use instance 3 (No Auth + TLS)
+    List<TestInstanceInfo> cacheInstances = TestEnvironment.getCurrent().getInfo().getValkeyServerInfo().getInstances();
+    if (cacheInstances.size() < 4) {
+      return; // Skip if TLS no-auth instance not available
+    }
+
+    final Configuration configuration = getConfiguration(3, false, null, true);
+    try (StandardServiceRegistry serviceRegistry = new StandardServiceRegistryBuilder()
+        .applySettings(configuration.getProperties())
+        .build()) {
+
+      SessionFactory sessionFactory = configuration.buildSessionFactory(serviceRegistry);
+
+      try (Session session = sessionFactory.openSession()) {
+        // Create author and book
+        Author author = new Author("Ray Bradbury", "United States");
+        List<Author> authorList = new ArrayList<>();
+        authorList.add(author);
+        this.insertObject(session, author);
+        Book book = new Book("Fahrenheit 451", 1953);
+        book.setAuthors(authorList);
+        this.insertObject(session, book);
+
+        // Query with caching over TLS without auth - populate cache
+        Book cachedBook = queryBookWithCaching(session, book.getId());
+        validateBookData(cachedBook, "Fahrenheit 451", 1953, 1);
+
+        // Allow async cache write to complete (TLS handshake on first write)
+        Thread.sleep(1000);
+
+        // Query again - should come from cache
+        Book cachedBook2 = queryBookWithCaching(session, book.getId());
+        validateBookData(cachedBook2, "Fahrenheit 451", 1953, 1);
+
+        // Delete from database
+        session.getTransaction().begin();
+        assertEquals(1, session.createQuery("delete from Book").executeUpdate());
+        assertEquals(1, session.createQuery("delete from Author").executeUpdate());
+        session.getTransaction().commit();
+
+        // Query after deletion - should return cached data (proves TLS cache worked)
+        Book cachedBook3 = queryBookWithCaching(session, book.getId());
+        validateBookData(cachedBook3, "Fahrenheit 451", 1953, 1);
 
         session.clear();
       }
@@ -372,7 +489,7 @@ public class HibernateCachingTests {
   }
 
   private Configuration getConfiguration(int cacheInstanceIndex, boolean includeCredentials,
-      @Nullable String overridePassword) {
+      @Nullable String overridePassword, boolean useTls) {
     String url = ConnectionStringHelper.getWrapperUrl();
     LOGGER.finest("Connecting to " + url);
 
@@ -424,7 +541,15 @@ public class HibernateCachingTests {
     configuration.setProperty("hibernate.use_sql_comments", "true");
     configuration.setProperty("hibernate.connection.wrapperPlugins", "remoteQueryCache");
     configuration.setProperty("hibernate.connection.cacheEndpointAddrRw", cacheEndpoint);
-    configuration.setProperty("hibernate.connection.cacheUseSSL", "false");
+    configuration.setProperty("hibernate.connection.cacheUseSSL", String.valueOf(useTls));
+    if (useTls) {
+      configuration.setProperty("hibernate.connection.cacheTlsCaCertPath",
+          "test/resources/certs/ca.crt");
+    }
+
+    // Isolate cache keys per driver iteration and test suite to prevent cross-pollution
+    String driverPrefix = "H" + TestEnvironment.getCurrent().getCurrentDriver().name();
+    configuration.setProperty("hibernate.connection.cacheKeyPrefix", driverPrefix);
 
     // Only set credentials if requested (for auth-enabled instance)
     if (includeCredentials) {

@@ -37,6 +37,7 @@ import java.util.Properties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,6 +51,7 @@ import software.amazon.jdbc.plugin.cache.CachedResultSet;
 @EnableOnTestFeature(TestEnvironmentFeatures.VALKEY_CACHE)
 @DisableOnTestFeature({TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY})
 @Order(26)
+@Tag("caching")
 
 public class RemoteQueryCachePluginTests {
 
@@ -60,8 +62,8 @@ public class RemoteQueryCachePluginTests {
   }
 
   @TestTemplate
-  public void testSuccessfulQueryCachingWithAuth() throws SQLException {
-    try (Connection conn = createCacheEnabledConnection(null, 0)) {
+  public void testSuccessfulQueryCachingWithAuth() throws Exception {
+    try (Connection conn = createCacheEnabledConnection(null, 0, false)) {
       String tableName = "testTable";
       createTestTable(conn, tableName);
 
@@ -96,6 +98,9 @@ public class RemoteQueryCachePluginTests {
       assertTrue(cachedResultSet.isWrapperFor(CachedResultSet.class));
       verifyResultSetForTestTable(cachedResultSet);
 
+      // Allow async cache write to complete (includes TLS handshake on first write)
+      Thread.sleep(1000);
+
       // Query again with cache hint - should come from cache
       ResultSet cachedResultSet2 = executeQueryWithCacheHint(testStatement, "select id, name from " + tableName);
       assertTrue(cachedResultSet2.isWrapperFor(CachedResultSet.class));
@@ -124,7 +129,7 @@ public class RemoteQueryCachePluginTests {
 
   @TestTemplate
   public void testWrongAuthFallsBackToDatabase() throws SQLException {
-    try (Connection conn = createCacheEnabledConnection("wrong-password", 0)) {
+    try (Connection conn = createCacheEnabledConnection("wrong-password", 0, false)) {
       String tableName = "testTableAuth";
       createTestTable(conn, tableName);
       conn.createStatement().execute("insert into " + tableName + " (id, name) values (1, 'test1')");
@@ -154,14 +159,14 @@ public class RemoteQueryCachePluginTests {
   }
 
   @TestTemplate
-  public void testNoAuthConnection() throws SQLException {
+  public void testNoAuthConnection() throws Exception {
     // Use the second Valkey instance (no-auth)
     List<TestInstanceInfo> cacheInstances = TestEnvironment.getCurrent().getInfo().getValkeyServerInfo().getInstances();
     if (cacheInstances.size() < 2) {
       return; // Skip test if no-auth instance not available
     }
 
-    try (Connection conn = createCacheEnabledConnection(null, 1)) {
+    try (Connection conn = createCacheEnabledConnection(null, 1, false)) {
       String tableName = "testTableNoAuth";
       createTestTable(conn, tableName);
       conn.createStatement().execute("insert into " + tableName + " (id, name) values (1, 'noauth1')");
@@ -173,6 +178,9 @@ public class RemoteQueryCachePluginTests {
       assertTrue(rs1.isWrapperFor(CachedResultSet.class));
       validateRow(rs1, 1, "noauth1");
       assertFalse(rs1.next());
+
+      // Allow async cache write to complete
+      Thread.sleep(1000);
 
       // Second query - should come from cache
       ResultSet rs2 = executeQueryWithCacheHint(statement, "select id, name from " + tableName + " where id = 1");
@@ -193,6 +201,97 @@ public class RemoteQueryCachePluginTests {
     }
   }
 
+  @TestTemplate
+  public void testSuccessfulQueryCachingWithTLS() throws Exception {
+    // Use instance 2 (Auth + TLS)
+    List<TestInstanceInfo> cacheInstances = TestEnvironment.getCurrent().getInfo().getValkeyServerInfo().getInstances();
+    if (cacheInstances.size() < 3) {
+      return; // Skip if TLS instances not available
+    }
+
+    try (Connection conn = createCacheEnabledConnection(null, 2, true)) {
+      String tableName = "testTableTLS";
+      createTestTable(conn, tableName);
+
+      // Insert test data
+      conn.createStatement().execute("insert into " + tableName + " (id, name) values (1, 'tls1')");
+      conn.createStatement().execute("insert into " + tableName + " (id, name) values (2, 'tls2')");
+
+      Statement statement = conn.createStatement();
+
+      // First query with cache hint - populate cache
+      ResultSet rs1 = executeQueryWithCacheHint(statement, "select id, name from " + tableName + " where id = 1");
+      assertTrue(rs1.isWrapperFor(CachedResultSet.class));
+      validateRow(rs1, 1, "tls1");
+      assertFalse(rs1.next());
+
+      // Allow async cache write to complete (TLS handshake on first write)
+      Thread.sleep(1000);
+
+      // Second query - should come from cache
+      ResultSet rs2 = executeQueryWithCacheHint(statement, "select id, name from " + tableName + " where id = 1");
+      assertTrue(rs2.isWrapperFor(CachedResultSet.class));
+      validateRow(rs2, 1, "tls1");
+      assertFalse(rs2.next());
+
+      // Delete the data
+      conn.createStatement().execute("delete from " + tableName + " where id = 1");
+
+      // Query after deletion - should return cached data (proves cache was used)
+      ResultSet rs3 = executeQueryWithCacheHint(statement, "select id, name from " + tableName + " where id = 1");
+      assertTrue(rs3.isWrapperFor(CachedResultSet.class));
+      validateRow(rs3, 1, "tls1"); // Should still have data from cache
+      assertFalse(rs3.next());
+
+      dropTestTable(conn, tableName);
+    }
+  }
+
+  @TestTemplate
+  public void testTLSWithoutAuth() throws Exception {
+    // Use instance 3 (No Auth + TLS)
+    List<TestInstanceInfo> cacheInstances = TestEnvironment.getCurrent().getInfo().getValkeyServerInfo().getInstances();
+    if (cacheInstances.size() < 4) {
+      return; // Skip if TLS no-auth instance not available
+    }
+
+    try (Connection conn = createCacheEnabledConnection(null, 3, true)) {
+      String tableName = "testTableTLSNoAuth";
+      createTestTable(conn, tableName);
+
+      // Insert test data
+      conn.createStatement().execute("insert into " + tableName + " (id, name) values (1, 'tlsnoauth1')");
+
+      Statement statement = conn.createStatement();
+
+      // First query with cache hint - should work without auth
+      ResultSet rs1 = executeQueryWithCacheHint(statement, "select id, name from " + tableName + " where id = 1");
+      assertTrue(rs1.isWrapperFor(CachedResultSet.class));
+      validateRow(rs1, 1, "tlsnoauth1");
+      assertFalse(rs1.next());
+
+      // Allow async cache write to complete (TLS handshake on first write)
+      Thread.sleep(1000);
+
+      // Second query - should come from cache
+      ResultSet rs2 = executeQueryWithCacheHint(statement, "select id, name from " + tableName + " where id = 1");
+      assertTrue(rs2.isWrapperFor(CachedResultSet.class));
+      validateRow(rs2, 1, "tlsnoauth1");
+      assertFalse(rs2.next());
+
+      // Delete the data
+      conn.createStatement().execute("delete from " + tableName + " where id = 1");
+
+      // Query after deletion - should return cached data (proves cache was used)
+      ResultSet rs3 = executeQueryWithCacheHint(statement, "select id, name from " + tableName + " where id = 1");
+      assertTrue(rs3.isWrapperFor(CachedResultSet.class));
+      validateRow(rs3, 1, "tlsnoauth1"); // Should still have data from cache
+      assertFalse(rs3.next());
+
+      dropTestTable(conn, tableName);
+    }
+  }
+
   private void verifyResultSetForTestTable(ResultSet testResultSet) throws SQLException {
     assertTrue(testResultSet.next());
     assertEquals(10, testResultSet.getObject(1));
@@ -205,7 +304,7 @@ public class RemoteQueryCachePluginTests {
     assertEquals("name30", testResultSet.getObject(2));
   }
 
-  private Properties getCacheEnabledProperties(@Nullable String cachePassword, int cacheInstanceIndex) {
+  private Properties getCacheEnabledProperties(@Nullable String cachePassword, int cacheInstanceIndex, boolean useTls) {
     List<TestInstanceInfo> cacheInstances = TestEnvironment.getCurrent().getInfo().getValkeyServerInfo().getInstances();
     TestInstanceInfo instance = cacheInstances.get(cacheInstanceIndex);
     final String cacheEndpoint = instance.getHost() + ":" + instance.getPort();
@@ -213,10 +312,17 @@ public class RemoteQueryCachePluginTests {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
     props.setProperty(PropertyDefinition.PLUGINS.name, "remoteQueryCache");
     props.setProperty("cacheEndpointAddrRw", cacheEndpoint);
-    props.setProperty("cacheUseSSL", "false");
+    props.setProperty("cacheUseSSL", String.valueOf(useTls));
+    if (useTls) {
+      props.setProperty("cacheTlsCaCertPath", "test/resources/certs/ca.crt");
+    }
+
+    // Isolate cache keys per driver iteration and test suite to prevent cross-pollution
+    String driverPrefix = "D" + TestEnvironment.getCurrent().getCurrentDriver().name();
+    props.setProperty("cacheKeyPrefix", driverPrefix);
 
     // Only set credentials if using auth-enabled instance (index 0)
-    if (cacheInstanceIndex == 0) {
+    if (cacheInstanceIndex == 0 || cacheInstanceIndex == 2) {
       props.setProperty("cacheUsername", TestEnvironment.getCurrent().getInfo().getValkeyServerUsername());
       if (cachePassword != null) {
         props.setProperty("cachePassword", cachePassword);
@@ -229,10 +335,10 @@ public class RemoteQueryCachePluginTests {
   }
 
   private Connection createCacheEnabledConnection(@Nullable String cachePassword,
-      int cacheInstanceIndex) throws SQLException {
+      int cacheInstanceIndex, boolean useTls) throws SQLException {
     return DriverManager.getConnection(
         ConnectionStringHelper.getWrapperUrl(),
-        getCacheEnabledProperties(cachePassword, cacheInstanceIndex));
+        getCacheEnabledProperties(cachePassword, cacheInstanceIndex, useTls));
   }
 
   private void createTestTable(Connection conn, String tableName) throws SQLException {

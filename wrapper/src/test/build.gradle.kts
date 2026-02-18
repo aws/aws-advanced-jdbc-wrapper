@@ -63,6 +63,23 @@ dependencies {
     testImplementation("org.hibernate:hibernate-core:5.6.15.Final") // the latest version compatible with Java 8
     testImplementation("jakarta.persistence:jakarta.persistence-api:2.2.3")
     testImplementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.19.2")
+    val arch = System.getProperty("os.arch").let {
+        when (it) {
+            "aarch64", "arm64" -> "aarch_64"
+            else -> "x86_64"
+        }
+    }
+    val isMusl = try {
+        val process = ProcessBuilder("ldd", "--version").redirectErrorStream(true).start()
+        val output = process.inputStream.bufferedReader().readText()
+        process.waitFor()
+        output.contains("musl")
+    } catch (e: Exception) {
+        // If ldd doesn't exist, check for Alpine marker
+        File("/etc/alpine-release").exists()
+    }
+    val glideClassifier = if (isMusl) "linux_musl-$arch" else "linux-$arch"
+    testImplementation("io.valkey:valkey-glide:2.3.0:$glideClassifier")
 }
 
 tasks.withType<Test> {

@@ -33,7 +33,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
@@ -79,7 +78,6 @@ public class CacheMonitor extends AbstractMonitor {
   private final boolean healthCheckInHealthyState;
 
   // Telemetry
-  private final TelemetryFactory telemetryFactory;
   private static TelemetryCounter stateTransitionCounter;
   private static TelemetryCounter healthCheckSuccessCounter;
   private static TelemetryCounter healthCheckFailureCounter;
@@ -135,22 +133,19 @@ public class CacheMonitor extends AbstractMonitor {
     final boolean useSSL;
     final Duration cacheConnectionTimeout;
     final boolean iamAuthEnabled;
-    final AwsCredentialsProvider credentialsProvider;
     final String cacheIamRegion;
     final String cacheName;
     final String cacheUsername;
     final String cachePassword;
 
     ClusterHealthState(String rwEndpoint, String roEndpoint, boolean useSSL, Duration cacheConnectionTimeout,
-        boolean iamAuthEnabled, AwsCredentialsProvider credentialsProvider, String cacheIamRegion,
-        String cacheName, String cacheUsername, String cachePassword) {
+        boolean iamAuthEnabled, String cacheIamRegion, String cacheName, String cacheUsername, String cachePassword) {
       this.rwEndpoint = rwEndpoint;
       // If roEndpoint equals rwEndpoint, treat it as null
       this.roEndpoint = (roEndpoint != null && roEndpoint.equals(rwEndpoint)) ? null : roEndpoint;
       this.useSSL = useSSL;
       this.cacheConnectionTimeout = cacheConnectionTimeout;
       this.iamAuthEnabled = iamAuthEnabled;
-      this.credentialsProvider = credentialsProvider;
       this.cacheIamRegion = cacheIamRegion;
       this.cacheName = cacheName;
       this.cacheUsername = cacheUsername;
@@ -230,9 +225,8 @@ public class CacheMonitor extends AbstractMonitor {
   protected static void registerCluster(FullServicesContainer servicesContainer, long inFlightWriteSizeLimitBytes,
       boolean healthCheckInHealthyState, TelemetryFactory telemetryFactory,
       String rwEndpoint, String roEndpoint, boolean useSSL, Duration cacheConnectionTimeout,
-      boolean iamAuthEnabled, AwsCredentialsProvider credentialsProvider, String cacheIamRegion,
-      String cacheName, String cacheUsername, String cachePassword, boolean createPingConnection,
-      boolean startMonitorThread) {
+      boolean iamAuthEnabled, String cacheIamRegion, String cacheName, String cacheUsername,
+      String cachePassword, boolean createPingConnection, boolean startMonitorThread) {
     if (getCluster(rwEndpoint, roEndpoint) != null) {
       return; // if cluster has already been registered
     }
@@ -246,7 +240,7 @@ public class CacheMonitor extends AbstractMonitor {
       }
     }
     ClusterHealthState clusterState = new ClusterHealthState(rwEndpoint, roEndpoint, useSSL, cacheConnectionTimeout,
-        iamAuthEnabled, credentialsProvider, cacheIamRegion, cacheName, cacheUsername, cachePassword);
+        iamAuthEnabled, cacheIamRegion, cacheName, cacheUsername, cachePassword);
     ClusterHealthState existingCluster = clusterStates.putIfAbsent(clusterState.getClusterKey(), clusterState);
     if (existingCluster == null) {
       LOGGER.info(() -> Messages.get("CacheMonitor.registeredCluster",
@@ -274,19 +268,17 @@ public class CacheMonitor extends AbstractMonitor {
   protected static void registerCluster(FullServicesContainer servicesContainer, long inFlightWriteSizeLimitBytes,
       boolean healthCheckInHealthyState, TelemetryFactory telemetryFactory,
       String rwEndpoint, String roEndpoint, boolean useSSL,
-      Duration cacheConnectionTimeout, boolean iamAuthEnabled,
-      AwsCredentialsProvider credentialsProvider, String cacheIamRegion,
+      Duration cacheConnectionTimeout, boolean iamAuthEnabled, String cacheIamRegion,
       String cacheName, String cacheUsername, String cachePassword) {
     registerCluster(servicesContainer, inFlightWriteSizeLimitBytes, healthCheckInHealthyState, telemetryFactory,
         rwEndpoint, roEndpoint, useSSL,
-        cacheConnectionTimeout, iamAuthEnabled, credentialsProvider,
+        cacheConnectionTimeout, iamAuthEnabled,
         cacheIamRegion, cacheName, cacheUsername, cachePassword, true, true);
   }
 
   protected CacheMonitor(long inFlightWriteSizeLimitBytes, boolean healthCheckInHealthyState,
       TelemetryFactory telemetryFactory) {
     super(30); // 30 seconds termination timeout
-    this.telemetryFactory = telemetryFactory;
     this.inFlightWriteSizeLimitBytes = inFlightWriteSizeLimitBytes;
     this.healthCheckInHealthyState = healthCheckInHealthyState;
 
@@ -304,6 +296,9 @@ public class CacheMonitor extends AbstractMonitor {
           () -> clusterStates.values().stream()
               .mapToLong(c -> Math.max(c.consecutiveRwFailures, c.consecutiveRoFailures))
               .max().orElse(0L));
+
+      LOGGER.fine(() -> Messages.get("CacheMonitor.telemetryGaugesInitialized",
+          new Object[] {consecutiveSuccessGauge, consecutiveFailureGauge}));
     }
   }
 
@@ -325,7 +320,7 @@ public class CacheMonitor extends AbstractMonitor {
   private CachePingConnection createPingConnection(ClusterHealthState cluster, boolean isReadOnly) {
     String[] hostPort = isReadOnly ? cluster.roEndpoint.split(":") : cluster.rwEndpoint.split(":");
     return CacheConnection.createPingConnection(hostPort[0], Integer.parseInt(hostPort[1]),
-        isReadOnly, cluster.useSSL, cluster.cacheConnectionTimeout, cluster.iamAuthEnabled, cluster.credentialsProvider,
+        cluster.useSSL, cluster.cacheConnectionTimeout, cluster.iamAuthEnabled,
         cluster.cacheIamRegion, cluster.cacheName, cluster.cacheUsername, cluster.cachePassword);
   }
 
@@ -553,7 +548,7 @@ public class CacheMonitor extends AbstractMonitor {
   }
 
   // Used for integration testing only to reset singleton state between tests
-  public static void resetInstance() {
+  protected static void resetInstance() {
     synchronized (INSTANCE_LOCK) {
       if (instance != null) {
         instance.stop.set(true);

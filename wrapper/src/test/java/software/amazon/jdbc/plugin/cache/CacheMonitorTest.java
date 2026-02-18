@@ -112,7 +112,7 @@ public class CacheMonitorTest {
     boolean healthCheckInHealthy = CacheMonitor.CACHE_HEALTH_CHECK_IN_HEALTHY_STATE.getBoolean(props);
 
     CacheMonitor.registerCluster(null, inFlightLimit, healthCheckInHealthy, null, rwEndpoint, roEndpoint,
-        false, Duration.ofSeconds(5), false, null, null, null, null, null, false, false);
+        false, Duration.ofSeconds(5), false, null, null, null, null, false, false);
 
     CacheMonitor.ClusterHealthState cluster = getCluster(rwEndpoint, roEndpoint);
     CacheMonitor instance = (CacheMonitor) getStaticField("instance");
@@ -128,7 +128,7 @@ public class CacheMonitorTest {
 
     CacheMonitor.registerCluster(null, inFlightLimit, healthCheckInHealthy, mockTelemetryFactory, rwEndpoint,
         roEndpoint,
-        false, Duration.ofSeconds(5), false, null, null, null, null, null, false, false);
+        false, Duration.ofSeconds(5), false, null, null, null, null, false, false);
 
     CacheMonitor.ClusterHealthState cluster = getCluster(rwEndpoint, roEndpoint);
     CacheMonitor instance = (CacheMonitor) getStaticField("instance");

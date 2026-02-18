@@ -54,7 +54,7 @@ public class DataLocalCacheConnectionPlugin extends AbstractConnectionPlugin {
       )));
 
   public static final AwsWrapperProperty DATA_CACHE_TRIGGER_CONDITION = new AwsWrapperProperty(
-      "dataCacheTriggerCondition", "false",
+      "dataCacheTriggerCondition", null,
       "A regular expression that, if it's matched, allows the plugin to cache SQL results.");
 
   protected static final Map<String, ResultSet> dataCache = new ConcurrentHashMap<>();

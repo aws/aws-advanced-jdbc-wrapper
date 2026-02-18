@@ -33,6 +33,7 @@ import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -46,6 +47,7 @@ import software.amazon.jdbc.plugin.cache.CacheConnection;
 @ExtendWith(TestDriverProvider.class)
 @EnableOnTestFeature(TestEnvironmentFeatures.VALKEY_CACHE)
 @Order(25)
+@Tag("caching")
 
 public class SpringCachingTests {
 
@@ -57,7 +59,7 @@ public class SpringCachingTests {
 
   @TestTemplate
   public void testQueryCachingWithAuth() {
-    JdbcTemplate jdbcTemplate = new JdbcTemplate(getDataSource(null, 0, true));
+    JdbcTemplate jdbcTemplate = new JdbcTemplate(getDataSource(null, 0, true, false));
 
     // Query from the database directly and populate the cache from database result
     int rnd = new Random().nextInt(100);
@@ -74,7 +76,7 @@ public class SpringCachingTests {
   @TestTemplate
   public void testWrongAuthFallsBackToDatabase() throws Exception {
     // Use WRONG cache credentials
-    JdbcTemplate jdbcTemplate = new JdbcTemplate(getDataSource("wrong-password", 0, true));
+    JdbcTemplate jdbcTemplate = new JdbcTemplate(getDataSource("wrong-password", 0, true, false));
 
     // Use randomness to avoid collision with other tests
     int rnd = new Random().nextInt(100) + 1000;
@@ -106,7 +108,7 @@ public class SpringCachingTests {
     }
 
     // Use no-auth instance (index 1), no credentials
-    JdbcTemplate jdbcTemplate = new JdbcTemplate(getDataSource(null, 1, false));
+    JdbcTemplate jdbcTemplate = new JdbcTemplate(getDataSource(null, 1, false, false));
 
     // Use randomness to avoid collision with other tests
     int rnd = new Random().nextInt(100) + 2000;
@@ -115,6 +117,13 @@ public class SpringCachingTests {
     List<Object> res1 = executeQueryWithCacheHint(jdbcTemplate, rnd);
     assertEquals(1, res1.size());
     assertEquals(rnd, res1.get(0));
+
+    // Allow async write to complete
+    try {
+      Thread.sleep(1000);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
 
     // Second query - should come from cache
     List<Object> res2 = executeQueryWithCacheHint(jdbcTemplate, rnd);
@@ -133,7 +142,91 @@ public class SpringCachingTests {
     assertEquals(rnd, res4.get(0));
   }
 
-  private DataSource getDataSource(@Nullable String cachePassword, int cacheInstanceIndex, boolean includeCredentials) {
+  @TestTemplate
+  public void testQueryCachingWithTLS() {
+    List<TestInstanceInfo> cacheInstances = TestEnvironment.getCurrent().getInfo().getValkeyServerInfo().getInstances();
+    if (cacheInstances.size() < 3) {
+      return;
+    }
+
+    JdbcTemplate jdbcTemplate = new JdbcTemplate(getDataSource(null, 2, true, true));
+    String tableName = "springTestTLS";
+    createTestTable(jdbcTemplate, tableName);
+
+    jdbcTemplate.execute("insert into " + tableName + " (id, name) values (1, 'tls1')");
+
+    // First query - populate cache
+    List<Object[]> res1 = executeTableQueryWithCacheHint(jdbcTemplate, tableName, 1);
+    assertEquals(1, res1.size());
+    assertEquals(1, res1.get(0)[0]);
+    assertEquals("tls1", res1.get(0)[1]);
+
+    // Allow async cache write to complete (TLS handshake on first write)
+    try {
+      Thread.sleep(1000);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+
+    // Second query - should come from cache
+    List<Object[]> res2 = executeTableQueryWithCacheHint(jdbcTemplate, tableName, 1);
+    assertEquals(1, res2.size());
+    assertEquals("tls1", res2.get(0)[1]);
+
+    // Delete from database
+    jdbcTemplate.execute("delete from " + tableName + " where id = 1");
+
+    // Query after deletion - should return cached data
+    List<Object[]> res3 = executeTableQueryWithCacheHint(jdbcTemplate, tableName, 1);
+    assertEquals(1, res3.size());
+    assertEquals("tls1", res3.get(0)[1]);
+
+    dropTestTable(jdbcTemplate, tableName);
+  }
+
+  @TestTemplate
+  public void testTLSWithoutAuth() {
+    List<TestInstanceInfo> cacheInstances = TestEnvironment.getCurrent().getInfo().getValkeyServerInfo().getInstances();
+    if (cacheInstances.size() < 4) {
+      return;
+    }
+
+    JdbcTemplate jdbcTemplate = new JdbcTemplate(getDataSource(null, 3, false, true));
+    String tableName = "springTestTLSNoAuth";
+    createTestTable(jdbcTemplate, tableName);
+
+    jdbcTemplate.execute("insert into " + tableName + " (id, name) values (1, 'tlsnoauth1')");
+
+    // First query - populate cache
+    List<Object[]> res1 = executeTableQueryWithCacheHint(jdbcTemplate, tableName, 1);
+    assertEquals(1, res1.size());
+    assertEquals("tlsnoauth1", res1.get(0)[1]);
+
+    // Allow async cache write to complete (TLS handshake on first write)
+    try {
+      Thread.sleep(1000);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+
+    // Second query - should come from cache
+    List<Object[]> res2 = executeTableQueryWithCacheHint(jdbcTemplate, tableName, 1);
+    assertEquals(1, res2.size());
+    assertEquals("tlsnoauth1", res2.get(0)[1]);
+
+    // Delete from database
+    jdbcTemplate.execute("delete from " + tableName + " where id = 1");
+
+    // Query after deletion - should return cached data
+    List<Object[]> res3 = executeTableQueryWithCacheHint(jdbcTemplate, tableName, 1);
+    assertEquals(1, res3.size());
+    assertEquals("tlsnoauth1", res3.get(0)[1]);
+
+    dropTestTable(jdbcTemplate, tableName);
+  }
+
+  private DataSource getDataSource(@Nullable String cachePassword, int cacheInstanceIndex,
+      boolean includeCredentials, boolean useTls) {
     DriverManagerDataSource dataSource = new DriverManagerDataSource();
     dataSource.setDriverClassName("software.amazon.jdbc.Driver");
     dataSource.setUrl(ConnectionStringHelper.getWrapperUrl());
@@ -149,7 +242,14 @@ public class SpringCachingTests {
     final String cacheEndpoint =
         cacheInstances.get(cacheInstanceIndex).getHost() + ":" + cacheInstances.get(cacheInstanceIndex).getPort();
     props.setProperty(CACHE_RW_ENDPOINT_ADDR.name, cacheEndpoint);
-    props.setProperty("cacheUseSSL", "false");
+    props.setProperty("cacheUseSSL", String.valueOf(useTls));
+    if (useTls) {
+      props.setProperty("cacheTlsCaCertPath", "test/resources/certs/ca.crt");
+    }
+
+    // Isolate cache keys per driver iteration and test suite to prevent cross-pollution
+    String driverPrefix = "S" + TestEnvironment.getCurrent().getCurrentDriver().name();
+    props.setProperty("cacheKeyPrefix", driverPrefix);
 
     // Only set credentials if requested (for auth-enabled instance)
     if (includeCredentials) {
@@ -174,5 +274,25 @@ public class SpringCachingTests {
           return ps;
         },
         (rs, rowNum) -> rs.getInt(1));
+  }
+
+  private void createTestTable(JdbcTemplate jdbcTemplate, String tableName) {
+    jdbcTemplate.execute("drop table if exists " + tableName);
+    jdbcTemplate.execute("create table " + tableName + " (id int not null primary key, name varchar(100))");
+  }
+
+  private void dropTestTable(JdbcTemplate jdbcTemplate, String tableName) {
+    jdbcTemplate.execute("drop table " + tableName);
+  }
+
+  private List<Object[]> executeTableQueryWithCacheHint(JdbcTemplate jdbcTemplate, String tableName, int id) {
+    String sql = "/*+ CACHE_PARAM(ttl=60s) */ SELECT id, name FROM " + tableName + " WHERE id = ?";
+    return jdbcTemplate.query(
+        con -> {
+          PreparedStatement ps = con.prepareStatement(sql);
+          ps.setInt(1, id);
+          return ps;
+        },
+        (rs, rowNum) -> new Object[]{rs.getInt(1), rs.getString(2)});
   }
 }

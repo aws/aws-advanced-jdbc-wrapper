@@ -268,7 +268,10 @@ public class ContainerHelper {
             "app/test/resources/simplelogger.properties")
         .withCopyFileToContainer(
             MountableFile.forHostPath("./src/test/resources/junit-platform.properties"),
-            "app/test/resources/junit-platform.properties");
+            "app/test/resources/junit-platform.properties")
+        .withCopyFileToContainer(
+            MountableFile.forHostPath("./src/test/resources/certs/ca.crt"),
+            "app/test/resources/certs/ca.crt");
   }
 
   protected Long execInContainer(
@@ -438,20 +441,71 @@ public class ContainerHelper {
     return container;
   }
 
-  public GenericContainer<?> createValkeyContainer(Network network, String networkAlias, boolean authEnabled) {
+  public GenericContainer<?> createValkeyContainer(
+      Network network,
+      String networkAlias,
+      boolean authEnabled,
+      boolean tlsEnabled) {
+
     GenericContainer<?> container = new GenericContainer<>(VALKEY_CONTAINER_IMAGE_NAME)
         .withNetwork(network)
-        .withNetworkAliases(networkAlias)
-        .withExposedPorts(6379);
-    if (authEnabled) {
+        .withNetworkAliases(networkAlias);
+
+    if (tlsEnabled) {
+      // TLS uses port 6380
+      container.withExposedPorts(6380);
+
+      // Copy TLS certificates
       container
           .withCopyFileToContainer(
-              MountableFile.forHostPath("./src/test/resources/valkey-acl.conf"),
-              "/etc/valkey/valkey-acl.conf")
-          .withCommand("--protected-mode no", "--aclfile /etc/valkey/valkey-acl.conf");
+              MountableFile.forHostPath("./src/test/resources/certs/ca.crt"),
+              "/etc/valkey/certs/ca.crt")
+          .withCopyFileToContainer(
+              MountableFile.forHostPath("./src/test/resources/certs/valkey.crt"),
+              "/etc/valkey/certs/valkey.crt")
+          .withCopyFileToContainer(
+              MountableFile.forHostPath("./src/test/resources/certs/valkey.key"),
+              "/etc/valkey/certs/valkey.key");
+
+      if (authEnabled) {
+        container
+            .withCopyFileToContainer(
+                MountableFile.forHostPath("./src/test/resources/valkey-acl.conf"),
+                "/etc/valkey/valkey-acl.conf")
+            .withCommand(
+                "--protected-mode no",
+                "--tls-port 6380",
+                "--port 0",
+                "--tls-cert-file /etc/valkey/certs/valkey.crt",
+                "--tls-key-file /etc/valkey/certs/valkey.key",
+                "--tls-ca-cert-file /etc/valkey/certs/ca.crt",
+                "--tls-auth-clients no",
+                "--aclfile /etc/valkey/valkey-acl.conf");
+      } else {
+        container.withCommand(
+            "--protected-mode no",
+            "--tls-port 6380",
+            "--port 0",
+            "--tls-cert-file /etc/valkey/certs/valkey.crt",
+            "--tls-key-file /etc/valkey/certs/valkey.key",
+            "--tls-ca-cert-file /etc/valkey/certs/ca.crt",
+            "--tls-auth-clients no");
+      }
     } else {
-      container.withCommand("--protected-mode no");
+      // Non-TLS (existing logic)
+      container.withExposedPorts(6379);
+
+      if (authEnabled) {
+        container
+            .withCopyFileToContainer(
+                MountableFile.forHostPath("./src/test/resources/valkey-acl.conf"),
+                "/etc/valkey/valkey-acl.conf")
+            .withCommand("--protected-mode no", "--aclfile /etc/valkey/valkey-acl.conf");
+      } else {
+        container.withCommand("--protected-mode no");
+      }
     }
+
     return container;
   }
 

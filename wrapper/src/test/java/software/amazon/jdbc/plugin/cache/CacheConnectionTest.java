@@ -28,13 +28,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
-import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyLong;
-import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -63,11 +60,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
-import org.mockito.MockedConstruction;
 import org.mockito.MockitoAnnotations;
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.jdbc.plugin.iam.ElastiCacheIamTokenUtility;
 
 public class CacheConnectionTest {
   @Mock
@@ -180,7 +173,6 @@ public class CacheConnectionTest {
     CacheConnection connection = new CacheConnection(props);
 
     assertFalse((boolean) getField(connection, "iamAuthEnabled"));
-    assertNull(getField(connection, "credentialsProvider"));
     assertEquals("user", getField(connection, "cacheUsername"));
     assertEquals("pass", getField(connection, "cachePassword"));
   }
@@ -218,96 +210,6 @@ public class CacheConnectionTest {
     );
 
     assertTrue(exception.getMessage().contains("Cannot specify both IAM authentication"));
-  }
-
-  @Test
-  void testAwsCredentialsProvider_WithProfile() throws Exception {
-    Properties props = new Properties();
-    props.setProperty("cacheEndpointAddrRw", "localhost:6379");
-    props.setProperty("cacheIamRegion", "us-east-1");
-    props.setProperty("cacheUsername", "testuser");
-    props.setProperty("cacheName", "my-cache");
-    props.setProperty("awsProfile", "test-profile");
-
-    CacheConnection connection = new CacheConnection(props);
-
-    // Verify the awsProfileProperties field contains the correct profile
-    Properties awsProfileProps = (Properties) getField(connection, "awsProfileProperties");
-    assertEquals("test-profile", awsProfileProps.getProperty("awsProfile"));
-
-    assertEquals("my-cache", getField(connection, "cacheName"));
-    assertEquals("testuser", getField(connection, "cacheUsername"));
-    assertEquals("us-east-1", getField(connection, "cacheIamRegion"));
-    assertEquals("localhost:6379", getField(connection, "cacheRwServerAddr"));
-  }
-
-  @Test
-  void testAwsCredentialsProvider_WithoutProfile() throws Exception {
-    Properties props = new Properties();
-    props.setProperty("cacheEndpointAddrRw", "localhost:6379");
-    props.setProperty("cacheIamRegion", "us-east-1");
-    props.setProperty("cacheUsername", "testuser");
-    props.setProperty("cacheName", "my-cache");
-    // No awsProfile property
-
-    CacheConnection connection = new CacheConnection(props);
-
-    // Verify awsProfileProperties is not empty when no profile specified
-    Properties awsProfileProps = (Properties) getField(connection, "awsProfileProperties");
-    assertNull(awsProfileProps);
-
-    assertEquals("my-cache", getField(connection, "cacheName"));
-    assertEquals("testuser", getField(connection, "cacheUsername"));
-    assertEquals("us-east-1", getField(connection, "cacheIamRegion"));
-    assertEquals("localhost:6379", getField(connection, "cacheRwServerAddr"));
-  }
-
-  @Test
-  void testBuildGlideConfig_IamAuth() {
-    Properties props = new Properties();
-    props.setProperty("cacheEndpointAddrRw", "localhost:6379");
-    props.setProperty("cacheIamRegion", "us-east-1");
-    props.setProperty("cacheUsername", "testuser");
-    props.setProperty("cacheName", "test-cache");
-
-    try (MockedConstruction<ElastiCacheIamTokenUtility> mockedTokenUtility =
-             mockConstruction(ElastiCacheIamTokenUtility.class,
-                 (mock, context) -> {
-                   when(mock.generateAuthenticationToken(
-                       any(AwsCredentialsProvider.class),
-                       any(Region.class),
-                       anyString(),
-                       anyInt(),
-                       anyString()
-                   )).thenReturn("mock-iam-token");
-                 })) {
-
-      CacheConnection connection = new CacheConnection(props);
-      BaseClientConfiguration config = connection.buildClientConfiguration("localhost", 6379, false);
-
-      // Verify Configuration properties
-      assertNotNull(config);
-      assertEquals("localhost", config.getAddresses().get(0).getHost());
-      assertEquals(6379, config.getAddresses().get(0).getPort());
-      assertTrue(config.isUseTLS());
-      assertNotNull(config.getCredentials());
-
-      // Verify token was actually retrieved (equivalent to .block())
-      assertEquals("testuser", config.getCredentials().getUsername());
-      assertEquals("mock-iam-token", config.getCredentials().getPassword());
-
-      // Verify ElastiCacheIamTokenUtility was constructed with correct parameters
-      // Verify token utility construction
-      assertEquals(1, mockedTokenUtility.constructed().size());
-      ElastiCacheIamTokenUtility tokenUtility = mockedTokenUtility.constructed().get(0);
-      verify(tokenUtility).generateAuthenticationToken(
-          any(AwsCredentialsProvider.class),
-          eq(Region.US_EAST_1),
-          eq("localhost"),
-          eq(6379),
-          eq("testuser")
-      );
-    }
   }
 
   @Test
@@ -432,8 +334,10 @@ public class CacheConnectionTest {
     doNothing().when(spyConnection).reportErrorToCacheMonitor(anyBoolean(), any(), any());
 
     when(mockReadConnPool.borrowObject()).thenReturn(mockClient);
-    when(mockClient.get(any(GlideString.class)))
-        .thenReturn(CompletableFuture.failedFuture(new RuntimeException("test")));
+    CompletableFuture<GlideString> failed = new CompletableFuture<>();
+    failed.completeExceptionally(new RuntimeException("test"));
+    when(mockClient.get(any(GlideString.class))).thenReturn(failed);
+
 
     assertNull(spyConnection.readFromCache("myQueryKey"));
     verify(mockReadConnPool).borrowObject();
@@ -755,10 +659,7 @@ public class CacheConnectionTest {
 
     assertSame(writePool1, writePool4, "Write pools should be shared for same RW endpoint");
     assertEquals(10, writePool4.getMaxTotal(), "Connection pool size should not be changed.");
-    // In standalone mode, Glide always connects to the primary for reads,
-    // so the read pool key is based on the RW endpoint, not the RO endpoint.
-    assertSame(readPool1, readPool4, "Read pools should be shared in standalone mode (Glide uses RW endpoint for "
-        + "reads)");
+    assertNotSame(readPool1, readPool4, "Read pools should be different for different RO endpoints");
   }
 
   @Test
