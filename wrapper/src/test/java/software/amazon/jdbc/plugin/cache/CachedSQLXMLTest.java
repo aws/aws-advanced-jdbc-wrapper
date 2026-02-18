@@ -1,16 +1,29 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package software.amazon.jdbc.plugin.cache;
 
-import org.junit.jupiter.api.Test;
-import org.w3c.dom.*;
-import org.xml.sax.Attributes;
-import org.xml.sax.InputSource;
-import org.xml.sax.XMLReader;
-import org.xml.sax.helpers.DefaultHandler;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import java.io.InputStream;
 import java.io.Reader;
 import java.sql.SQLException;
 import java.sql.SQLXML;
-
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.stream.XMLStreamReader;
@@ -19,8 +32,15 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.sax.SAXSource;
 import javax.xml.transform.stax.StAXSource;
 import javax.xml.transform.stream.StreamSource;
-
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.Attributes;
+import org.xml.sax.InputSource;
+import org.xml.sax.XMLReader;
+import org.xml.sax.helpers.DefaultHandler;
 
 public class CachedSQLXMLTest {
 
@@ -75,7 +95,7 @@ public class CachedSQLXMLTest {
     validateDOMElement(document, "price", "1200.00");
   }
 
-  static private void validateDocElements(String name, String value) {
+  private static void validateDocElements(String name, String value) {
     if (name.equalsIgnoreCase("manufacturer")) {
       assertEquals("TechCorp", value);
     } else if (name.equalsIgnoreCase("cpu")) {
@@ -89,19 +109,19 @@ public class CachedSQLXMLTest {
     }
   }
 
-  static private class XmlReaderContentHandler extends DefaultHandler {
+  private static class XmlReaderContentHandler extends DefaultHandler {
     private StringBuilder currentValue;
 
     @Override
-    public void startElement(String uri, String localName, String qName, Attributes attributes) {
+    public void startElement(String uri, String localName, String qualifiedName, Attributes attributes) {
       currentValue = new StringBuilder(); // Reset for each new element
     }
 
     @Override
-    public void endElement(String uri, String localName, String qName) {
+    public void endElement(String uri, String localName, String qualifiedName) {
       // Verify the element's value
       String value = currentValue.toString().trim();
-      validateDocElements(qName, value);
+      validateDocElements(qualifiedName, value);
     }
 
     @Override
@@ -113,16 +133,16 @@ public class CachedSQLXMLTest {
   @Test
   void test_getSource_XML() throws Exception {
     // Test parsing a more complex XML via getSource()
-    String xml = "    \n" +
-        "<product>\n" +
-        "        <manufacturer>TechCorp</manufacturer>\n\n" +
-        "<specs>\n" +
-        "            <cpu>Intel i7</cpu>\n" +
-        "            <ram>16GB</ram>\n" +
-        "            <storage>512GB SSD</storage>\n" +
-        "</specs>\n" +
-        "        <price>1200.00</price>\n" +
-        "</product>\n";
+    String xml = "    \n"
+        + "<product>\n"
+        + "        <manufacturer>TechCorp</manufacturer>\n\n"
+        + "<specs>\n"
+        + "            <cpu>Intel i7</cpu>\n"
+        + "            <ram>16GB</ram>\n"
+        + "            <storage>512GB SSD</storage>\n"
+        + "</specs>\n"
+        + "        <price>1200.00</price>\n"
+        + "</product>\n";
     SQLXML sqlxml = new CachedSQLXML(xml);
     assertEquals(xml, sqlxml.getString());
 
@@ -151,22 +171,22 @@ public class CachedSQLXMLTest {
 
     // StAX Source
     StAXSource staxSource = sqlxml.getSource(StAXSource.class);
-    XMLStreamReader sReader = staxSource.getXMLStreamReader();
+    XMLStreamReader streamReader = staxSource.getXMLStreamReader();
     String elementName = "";
     StringBuilder elementValue = new StringBuilder();
-    while (sReader.hasNext()) {
-      int event = sReader.next();
+    while (streamReader.hasNext()) {
+      int event = streamReader.next();
       if (event == XMLStreamReader.START_ELEMENT) {
-        elementName = sReader.getLocalName();
+        elementName = streamReader.getLocalName();
       } else if (event == XMLStreamReader.CHARACTERS) {
-        elementValue.append(sReader.getText());
+        elementValue.append(streamReader.getText());
       } else if (event == XMLStreamReader.END_ELEMENT) {
         validateDocElements(elementName, elementValue.toString().trim());
         elementName = "";
         elementValue = new StringBuilder();
       }
     }
-    sReader.close(); // Close the reader when done
+    streamReader.close(); // Close the reader when done
 
     // Invalid source class
     assertThrows(SQLException.class, () -> sqlxml.getSource(Source.class));

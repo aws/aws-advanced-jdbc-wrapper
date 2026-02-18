@@ -78,7 +78,8 @@ public class DatabaseConnectionWithCacheExample {
     String queryStr = "/*+ CACHE_PARAM(ttl=300s) */ select * from cinemas";
 
     // Create threads for concurrent connection testing
-    try (ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT)) {
+    ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
+    try {
       List<Future<?>> futures = new ArrayList<>();
 
       for (int t = 0; t < THREAD_COUNT; t++) {
@@ -106,6 +107,8 @@ public class DatabaseConnectionWithCacheExample {
           LOGGER.warning("Task execution error: " + e.getMessage());
         }
       }
+    } finally {
+      executor.shutdown();
     }
 
     // multi cache endpoint example.
@@ -164,7 +167,8 @@ public class DatabaseConnectionWithCacheExample {
     properties2.setProperty("cacheHealthCheckInHealthyState", CACHE_HEALTH_CHECK_IN_HEALTHY_STATE);
 
     // Create thread pool with different cache endpoints
-    try (ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT)) {
+    ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
+    try {
       List<Future<?>> futures = new ArrayList<>();
 
       for (int t = 0; t < THREAD_COUNT; t++) {
@@ -195,6 +199,8 @@ public class DatabaseConnectionWithCacheExample {
           LOGGER.warning("Task execution error: " + e.getMessage());
         }
       }
+    } finally {
+      executor.shutdown();
     }
   }
 }

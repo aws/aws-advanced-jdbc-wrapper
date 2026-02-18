@@ -1,66 +1,118 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package software.amazon.jdbc.plugin.cache;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.when;
 
-import java.sql.*;
+import java.math.BigDecimal;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.sql.Date;
-import java.time.*;
-import java.util.*;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.SQLXML;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.sql.Types;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.OffsetTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.util.Calendar;
+import java.util.HashSet;
+import java.util.TimeZone;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import java.net.URL;
-import java.net.MalformedURLException;
-
-import java.math.BigDecimal;
 
 public class CachedResultSetTest {
   private CachedResultSet testResultSet;
-  @Mock ResultSet mockResultSet;
-  @Mock ResultSetMetaData mockResultSetMetadata;
+  @Mock
+  ResultSet mockResultSet;
+  @Mock
+  ResultSetMetaData mockResultSetMetadata;
   private AutoCloseable closeable;
   private static final Calendar estCal = Calendar.getInstance(TimeZone.getTimeZone("America/New_York"));
-  private final TimeZone defaultTimeZone = TimeZone.getDefault();
+  private TimeZone defaultTimeZone;
 
   // Column values: label, name, typeName, type, displaySize, precision, tableName,
   // scale, schemaName, isAutoIncrement, isCaseSensitive, isCurrency, isDefinitelyWritable,
   // isNullable, isReadOnly, isSearchable, isSigned, isWritable
-  private static final Object [][] testColumnMetadata = {
-      {"fieldNull", "fieldNull", "String", Types.VARCHAR, 10, 2, "table", 1, "public", false, false, false, false, 1, true, true, false, false},
-      {"fieldInt", "fieldInt", "Integer", Types.INTEGER, 10, 2, "table", 1, "public", true, false, false, false, 0, false, true, true, true},
-      {"fieldString", "fieldString", "String", Types.VARCHAR, 10, 2, "table", 1, "public", false, false, false, false, 0, false, true, false, true},
-      {"fieldBoolean", "fieldBoolean", "Boolean", Types.BOOLEAN, 10, 2, "table", 1, "public", false, false, false, false, 0, false, true, false, true},
-      {"fieldByte", "fieldByte", "Byte", Types.TINYINT, 10, 2, "table", 1, "public", false, false, false, false, 1, true, true, false, false},
-      {"fieldShort", "fieldShort", "Short", Types.SMALLINT, 10, 2, "table", 1, "public", false, false, false, false, 1, true, true, false, false},
-      {"fieldLong", "fieldLong", "Long", Types.BIGINT, 10, 2, "table", 1, "public", false, false, false, false, 1, false, true, false, false},
-      {"fieldFloat", "fieldFloat", "Float", Types.REAL, 10, 2, "table", 1, "public", false, false, false, false, 0, true, true, false, false},
-      {"fieldDouble", "fieldDouble", "Double", Types.DOUBLE, 10, 2, "table", 1, "public", false, false, false, false, 1, true, true, false, false},
-      {"fieldBigDecimal", "fieldBigDecimal", "BigDecimal", Types.DECIMAL, 10, 2, "table", 1, "public", false, false, false, false, 0, true, true, false, false},
-      {"fieldDate", "fieldDate", "Date", Types.DATE, 10, 2, "table", 1, "public", false, false, false, false, 1, true, true, false, false},
-      {"fieldTime", "fieldTime", "Time", Types.TIME, 10, 2, "table", 1, "public", false, false, false, false, 1, true, true, false, false},
-      {"fieldDateTime", "fieldDateTime", "Timestamp", Types.TIMESTAMP, 10, 2, "table", 1, "public", false, false, false, false, 0, true, true, false, false},
-      {"fieldSqlXml", "fieldSqlXml", "SqlXml", Types.SQLXML, 100, 1, "table", 1, "public", false, false, false, false, 0, true, true, false, false}
+  private static final Object[][] testColumnMetadata = {
+      {"fieldNull", "fieldNull", "String", Types.VARCHAR, 10, 2, "table", 1, "public", false, false, false, false, 1,
+          true, true, false, false},
+      {"fieldInt", "fieldInt", "Integer", Types.INTEGER, 10, 2, "table", 1, "public", true, false, false, false, 0,
+          false, true, true, true},
+      {"fieldString", "fieldString", "String", Types.VARCHAR, 10, 2, "table", 1, "public", false, false, false, false,
+          0, false, true, false, true},
+      {"fieldBoolean", "fieldBoolean", "Boolean", Types.BOOLEAN, 10, 2, "table", 1, "public", false, false, false,
+          false, 0, false, true, false, true},
+      {"fieldByte", "fieldByte", "Byte", Types.TINYINT, 10, 2, "table", 1, "public", false, false, false, false, 1,
+          true, true, false, false},
+      {"fieldShort", "fieldShort", "Short", Types.SMALLINT, 10, 2, "table", 1, "public", false, false, false, false,
+          1, true, true, false, false},
+      {"fieldLong", "fieldLong", "Long", Types.BIGINT, 10, 2, "table", 1, "public", false, false, false, false, 1,
+          false, true, false, false},
+      {"fieldFloat", "fieldFloat", "Float", Types.REAL, 10, 2, "table", 1, "public", false, false, false, false, 0,
+          true, true, false, false},
+      {"fieldDouble", "fieldDouble", "Double", Types.DOUBLE, 10, 2, "table", 1, "public", false, false, false, false,
+          1, true, true, false, false},
+      {"fieldBigDecimal", "fieldBigDecimal", "BigDecimal", Types.DECIMAL, 10, 2, "table", 1, "public", false, false,
+          false, false, 0, true, true, false, false},
+      {"fieldDate", "fieldDate", "Date", Types.DATE, 10, 2, "table", 1, "public", false, false, false, false, 1, true,
+          true, false, false},
+      {"fieldTime", "fieldTime", "Time", Types.TIME, 10, 2, "table", 1, "public", false, false, false, false, 1, true,
+          true, false, false},
+      {"fieldDateTime", "fieldDateTime", "Timestamp", Types.TIMESTAMP, 10, 2, "table", 1, "public", false, false,
+          false, false, 0, true, true, false, false},
+      {"fieldSqlXml", "fieldSqlXml", "SqlXml", Types.SQLXML, 100, 1, "table", 1, "public", false, false, false, false,
+          0, true, true, false, false}
   };
 
-  private static final Object [][] testColumnValues = {
+  private static final Object[][] testColumnValues = {
       {null, null},
       {1, 123456},
       {"John Doe", "Tony Stark"},
       {true, false},
-      {(byte)100, (byte)70}, // Letter d and F in ASCII
-      {(short)55, (short)135},
-      {2^33L, -2^35L},
+      {(byte) 100, (byte) 70}, // Letter d and F in ASCII
+      {(short) 55, (short) 135},
+      {2 ^ 33L, -2 ^ 35L},
       {3.14159f, -233.14159f},
       {2345.23345d, -2344355.4543d},
       {new BigDecimal("15.33"), new BigDecimal("-12.45")},
       {Date.valueOf("2025-03-15"), Date.valueOf("1102-01-15")},
       {Time.valueOf("22:54:00"), Time.valueOf("01:10:00")},
       {Timestamp.valueOf("2025-03-15 22:54:00"), Timestamp.valueOf("1950-01-18 21:50:05")},
-      {new CachedSQLXML("<root><item>A</item></root>"), new CachedSQLXML("<root><element1>Value A</element1><element2>Value B</element2></root>")}
+      {new CachedSQLXML("<root><item>A</item></root>"), new CachedSQLXML("<root><element1>Value "
+          + "A</element1><element2>Value B</element2></root>")}
   };
 
   private void mockGetMetadataFields(int column, int testMetadataCol) throws SQLException {
@@ -70,7 +122,8 @@ public class CachedResultSetTest {
     when(mockResultSetMetadata.getColumnName(column)).thenReturn((String) testColumnMetadata[testMetadataCol][1]);
     when(mockResultSetMetadata.getColumnTypeName(column)).thenReturn((String) testColumnMetadata[testMetadataCol][2]);
     when(mockResultSetMetadata.getColumnType(column)).thenReturn((Integer) testColumnMetadata[testMetadataCol][3]);
-    when(mockResultSetMetadata.getColumnDisplaySize(column)).thenReturn((Integer) testColumnMetadata[testMetadataCol][4]);
+    when(mockResultSetMetadata.getColumnDisplaySize(column))
+        .thenReturn((Integer) testColumnMetadata[testMetadataCol][4]);
     when(mockResultSetMetadata.getPrecision(column)).thenReturn((Integer) testColumnMetadata[testMetadataCol][5]);
     when(mockResultSetMetadata.getTableName(column)).thenReturn((String) testColumnMetadata[testMetadataCol][6]);
     when(mockResultSetMetadata.getScale(column)).thenReturn((Integer) testColumnMetadata[testMetadataCol][7]);
@@ -78,7 +131,8 @@ public class CachedResultSetTest {
     when(mockResultSetMetadata.isAutoIncrement(column)).thenReturn((Boolean) testColumnMetadata[testMetadataCol][9]);
     when(mockResultSetMetadata.isCaseSensitive(column)).thenReturn((Boolean) testColumnMetadata[testMetadataCol][10]);
     when(mockResultSetMetadata.isCurrency(column)).thenReturn((Boolean) testColumnMetadata[testMetadataCol][11]);
-    when(mockResultSetMetadata.isDefinitelyWritable(column)).thenReturn((Boolean) testColumnMetadata[testMetadataCol][12]);
+    when(mockResultSetMetadata.isDefinitelyWritable(column))
+        .thenReturn((Boolean) testColumnMetadata[testMetadataCol][12]);
     when(mockResultSetMetadata.isNullable(column)).thenReturn((Integer) testColumnMetadata[testMetadataCol][13]);
     when(mockResultSetMetadata.isReadOnly(column)).thenReturn((Boolean) testColumnMetadata[testMetadataCol][14]);
     when(mockResultSetMetadata.isSearchable(column)).thenReturn((Boolean) testColumnMetadata[testMetadataCol][15]);
@@ -90,6 +144,7 @@ public class CachedResultSetTest {
   void setUp() {
     closeable = MockitoAnnotations.openMocks(this);
     TimeZone.setDefault(TimeZone.getTimeZone("America/Los_Angeles"));
+    defaultTimeZone = TimeZone.getDefault();
   }
 
   @AfterEach
@@ -102,8 +157,8 @@ public class CachedResultSetTest {
     when(mockResultSet.getMetaData()).thenReturn(mockResultSetMetadata);
     when(mockResultSetMetadata.getColumnCount()).thenReturn(testColumnMetadata.length);
     for (int i = 0; i < testColumnMetadata.length; i++) {
-      mockGetMetadataFields(1+i, i);
-      when(mockResultSet.getObject(1+i)).thenReturn(testColumnValues[i][0], testColumnValues[i][1]);
+      mockGetMetadataFields(1 + i, i);
+      when(mockResultSet.getObject(1 + i)).thenReturn(testColumnValues[i][0], testColumnValues[i][1]);
     }
     when(mockResultSet.next()).thenReturn(true, true, false);
     testResultSet = new CachedResultSet(mockResultSet);
@@ -112,26 +167,26 @@ public class CachedResultSetTest {
   private void verifyDefaultMetadata(ResultSet rs) throws SQLException {
     ResultSetMetaData md = rs.getMetaData();
     for (int i = 0; i < md.getColumnCount(); i++) {
-      assertEquals("", md.getCatalogName(i+1));
-      assertEquals("MyClass" + i, md.getColumnClassName(i+1));
-      assertEquals(testColumnMetadata[i][0], md.getColumnLabel(i+1));
-      assertEquals(testColumnMetadata[i][1], md.getColumnName(i+1));
-      assertEquals(testColumnMetadata[i][2], md.getColumnTypeName(i+1));
-      assertEquals(testColumnMetadata[i][3], md.getColumnType(i+1));
-      assertEquals(testColumnMetadata[i][4], md.getColumnDisplaySize(i+1));
-      assertEquals(testColumnMetadata[i][5], md.getPrecision(i+1));
-      assertEquals(testColumnMetadata[i][6], md.getTableName(i+1));
-      assertEquals(testColumnMetadata[i][7], md.getScale(i+1));
-      assertEquals(testColumnMetadata[i][8], md.getSchemaName(i+1));
-      assertEquals(testColumnMetadata[i][9], md.isAutoIncrement(i+1));
-      assertEquals(testColumnMetadata[i][10], md.isCaseSensitive(i+1));
-      assertEquals(testColumnMetadata[i][11], md.isCurrency(i+1));
-      assertEquals(testColumnMetadata[i][12], md.isDefinitelyWritable(i+1));
-      assertEquals(testColumnMetadata[i][13], md.isNullable(i+1));
-      assertEquals(testColumnMetadata[i][14], md.isReadOnly(i+1));
-      assertEquals(testColumnMetadata[i][15], md.isSearchable(i+1));
-      assertEquals(testColumnMetadata[i][16], md.isSigned(i+1));
-      assertEquals(testColumnMetadata[i][17], md.isWritable(i+1));
+      assertEquals("", md.getCatalogName(i + 1));
+      assertEquals("MyClass" + i, md.getColumnClassName(i + 1));
+      assertEquals(testColumnMetadata[i][0], md.getColumnLabel(i + 1));
+      assertEquals(testColumnMetadata[i][1], md.getColumnName(i + 1));
+      assertEquals(testColumnMetadata[i][2], md.getColumnTypeName(i + 1));
+      assertEquals(testColumnMetadata[i][3], md.getColumnType(i + 1));
+      assertEquals(testColumnMetadata[i][4], md.getColumnDisplaySize(i + 1));
+      assertEquals(testColumnMetadata[i][5], md.getPrecision(i + 1));
+      assertEquals(testColumnMetadata[i][6], md.getTableName(i + 1));
+      assertEquals(testColumnMetadata[i][7], md.getScale(i + 1));
+      assertEquals(testColumnMetadata[i][8], md.getSchemaName(i + 1));
+      assertEquals(testColumnMetadata[i][9], md.isAutoIncrement(i + 1));
+      assertEquals(testColumnMetadata[i][10], md.isCaseSensitive(i + 1));
+      assertEquals(testColumnMetadata[i][11], md.isCurrency(i + 1));
+      assertEquals(testColumnMetadata[i][12], md.isDefinitelyWritable(i + 1));
+      assertEquals(testColumnMetadata[i][13], md.isNullable(i + 1));
+      assertEquals(testColumnMetadata[i][14], md.isReadOnly(i + 1));
+      assertEquals(testColumnMetadata[i][15], md.isSearchable(i + 1));
+      assertEquals(testColumnMetadata[i][16], md.isSigned(i + 1));
+      assertEquals(testColumnMetadata[i][17], md.isWritable(i + 1));
     }
   }
 
@@ -204,7 +259,7 @@ public class CachedResultSetTest {
     assertEquals(testColumnValues[12][row], rs.getTimestamp("fieldDateTime"));
     assertEquals(13, rs.findColumn("fieldDateTime"));
     assertFalse(rs.wasNull());
-    String sqlXmlString = ((SQLXML)testColumnValues[13][row]).getString();
+    String sqlXmlString = ((SQLXML) testColumnValues[13][row]).getString();
     assertEquals(sqlXmlString, rs.getSQLXML(14).getString()); // fieldSqlXml
     assertFalse(rs.wasNull());
     assertEquals(sqlXmlString, rs.getSQLXML("fieldSqlXml").getString());
@@ -247,8 +302,8 @@ public class CachedResultSetTest {
     assertNull(testResultSet.getWarnings());
     testResultSet.beforeFirst();
     // Test serialization and de-serialization of the result set
-    byte[] serialized_data = testResultSet.serializeIntoByteArray();
-    ResultSet rs = CachedResultSet.deserializeFromByteArray(serialized_data);
+    byte[] serializedData = testResultSet.serializeIntoByteArray();
+    ResultSet rs = CachedResultSet.deserializeFromByteArray(serializedData);
     verifyDefaultMetadata(rs);
     assertTrue(rs.next());
     verifyDefaultRow(rs, 0);
@@ -327,13 +382,13 @@ public class CachedResultSetTest {
     when(mockResultSetMetadata.getColumnCount()).thenReturn(1);
     mockGetMetadataFields(1, 12);
     when(mockResultSet.getObject(1)).thenReturn(
-          1504844311000L,
-          LocalDateTime.of(1981, 3, 10, 1, 10, 20),
-          OffsetDateTime.parse("2025-08-10T10:00:00+03:00"),
-          ZonedDateTime.parse("2024-07-30T10:00:00+02:00[Europe/Berlin]"),
-          "2015-03-15 12:50:04",
-          "invalidDateTime",
-          null);
+        1504844311000L,
+        LocalDateTime.of(1981, 3, 10, 1, 10, 20),
+        OffsetDateTime.parse("2025-08-10T10:00:00+03:00"),
+        ZonedDateTime.parse("2024-07-30T10:00:00+02:00[Europe/Berlin]"),
+        "2015-03-15 12:50:04",
+        "invalidDateTime",
+        null);
     when(mockResultSet.next()).thenReturn(true, true, true, true, true, true, true, false);
     CachedResultSet cachedRs = new CachedResultSet(mockResultSet);
 
@@ -381,7 +436,8 @@ public class CachedResultSetTest {
         new Timestamp(1755621000000L), // Date and time (GMT): Tuesday, August 19, 2025 4:30:00 PM
         new Timestamp(1735713000000L), // Date and time (GMT): Wednesday, January 1, 2025 6:30:00 AM
         new Timestamp(0L), // 1970-01-01 00:00:00 UTC (epoch)
-        new Timestamp(Timestamp.valueOf(LocalDateTime.now().plusYears(1).withHour(9).withMinute(30).withSecond(0).withNano(0)).getTime()), // Future Date: next year same date at 9:30 AM
+        new Timestamp(Timestamp.valueOf(LocalDateTime.now().plusYears(1).withHour(9).withMinute(30).withSecond(0)
+            .withNano(0)).getTime()), // Future Date: next year same date at 9:30 AM
         "15:34:20",
         "InvalidTime",
         null);
@@ -401,7 +457,7 @@ public class CachedResultSetTest {
     // OffsetTime.of(12, 15, 30, 0, ZoneOffset.UTC) converted to default timezone
     OffsetTime offsetTimeUtc = OffsetTime.of(12, 15, 30, 0, ZoneOffset.UTC);
     ZonedDateTime expectedDefaultTz = offsetTimeUtc.atDate(LocalDate.now())
-        .atZoneSameInstant(defaultTimeZone.toZoneId());
+        .atZoneSameInstant(TimeZone.getDefault().toZoneId());
     assertEquals(Time.valueOf(expectedDefaultTz.toLocalTime()), cachedRs.getTime(1));
     // OffsetTime converted to EST timezone
     ZonedDateTime expectedEstTz = offsetTimeUtc.atDate(LocalDate.now())
@@ -429,7 +485,9 @@ public class CachedResultSetTest {
     assertEquals(LocalTime.of(13, 0, 0), cachedRs.getTime(1, estCal).toLocalTime());
     // Future date
     assertTrue(cachedRs.next());
-    Timestamp futureTimestamp = new Timestamp(Timestamp.valueOf(LocalDateTime.now().plusYears(1).withHour(9).withMinute(30).withSecond(0).withNano(0)).getTime());
+    Timestamp futureTimestamp =
+        new Timestamp(Timestamp.valueOf(LocalDateTime.now().plusYears(1).withHour(9).withMinute(30).withSecond(0)
+            .withNano(0)).getTime());
     assertEquals(futureTimestamp.getTime(), cachedRs.getTime(1).getTime());
     assertEquals(LocalTime.of(9, 30, 0), cachedRs.getTime(1).toLocalTime());
     assertEquals(LocalTime.of(6, 30, 0), cachedRs.getTime(1, estCal).toLocalTime());
@@ -497,19 +555,19 @@ public class CachedResultSetTest {
     assertTrue(cachedRs.next());
     Timestamp tsForDate3 = new Timestamp(1755673200000L);
     assertEquals(new Date(tsForDate3.getTime()), cachedRs.getDate(1));
-    assertEquals(LocalDate.of(2025,8,20), cachedRs.getDate(1).toLocalDate());
-    assertEquals(LocalDate.of(2025,8,19), cachedRs.getDate(1, estCal).toLocalDate());
+    assertEquals(LocalDate.of(2025, 8, 20), cachedRs.getDate(1).toLocalDate());
+    assertEquals(LocalDate.of(2025, 8, 19), cachedRs.getDate(1, estCal).toLocalDate());
     assertTrue(cachedRs.next());
     Timestamp tsForDate4 = new Timestamp(1735718400000L);
     assertEquals(new Date(tsForDate4.getTime()), cachedRs.getDate(1));
-    assertEquals(LocalDate.of(2025,1,1), cachedRs.getDate(1).toLocalDate());
-    assertEquals(LocalDate.of(2024,12,31), cachedRs.getDate(1, estCal).toLocalDate());
+    assertEquals(LocalDate.of(2025, 1, 1), cachedRs.getDate(1).toLocalDate());
+    assertEquals(LocalDate.of(2024, 12, 31), cachedRs.getDate(1, estCal).toLocalDate());
     assertTrue(cachedRs.next());
     Timestamp tsForDate5 = new Timestamp(0L);
     assertEquals(new Date(tsForDate5.getTime()), cachedRs.getDate(1));
     assertEquals(new Date(0L), cachedRs.getDate(1));
-    assertEquals(LocalDate.of(1969,12,31), cachedRs.getDate(1).toLocalDate());
-    assertEquals(LocalDate.of(1969,12,31), cachedRs.getDate(1, estCal).toLocalDate());
+    assertEquals(LocalDate.of(1969, 12, 31), cachedRs.getDate(1).toLocalDate());
+    assertEquals(LocalDate.of(1969, 12, 31), cachedRs.getDate(1, estCal).toLocalDate());
     // Date from String
     assertTrue(cachedRs.next());
     assertEquals(Date.valueOf("2025-03-15"), cachedRs.getDate(1));
@@ -690,18 +748,18 @@ public class CachedResultSetTest {
   @Test
   void test_get_sql_xml() throws SQLException {
     String longXml =
-        "<product>\n" +
-        "        <manufacturer>TechCorp</manufacturer>\n" +
-        "<specs>\n" +
-        "            <cpu>Intel i7</cpu>\n" +
-        "            <ram>16GB</ram>\n" +
-        "            <storage>512GB SSD</storage>\n" +
-        "</specs>\n" +
-        "        <price>1200.00</price>\n" +
-        "</product>";
-    SQLXML testXml = new CachedSQLXML("<book><title>PostgreSQL Guide</title><author>John Doe</author></book>");
-    SQLXML testXml2 = new CachedSQLXML(longXml);
-    SQLXML invalidXml = new CachedSQLXML("<root>A<blah>");
+        "<product>\n"
+            + "        <manufacturer>TechCorp</manufacturer>\n"
+            + "<specs>\n"
+            + "            <cpu>Intel i7</cpu>\n"
+            + "            <ram>16GB</ram>\n"
+            + "            <storage>512GB SSD</storage>\n"
+            + "</specs>\n"
+            + "        <price>1200.00</price>\n"
+            + "</product>";
+    final SQLXML testXml = new CachedSQLXML("<book><title>PostgreSQL Guide</title><author>John Doe</author></book>");
+    final SQLXML testXml2 = new CachedSQLXML(longXml);
+    final SQLXML invalidXml = new CachedSQLXML("<root>A<blah>");
     // Setup single column with string metadata (URLs stored as strings)
     when(mockResultSet.getMetaData()).thenReturn(mockResultSetMetadata);
     when(mockResultSetMetadata.getColumnCount()).thenReturn(1);

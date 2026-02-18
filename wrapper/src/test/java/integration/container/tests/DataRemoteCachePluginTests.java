@@ -34,7 +34,11 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
 import java.util.Properties;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.testcontainers.shaded.org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.PropertyDefinition;
@@ -63,8 +67,10 @@ public class DataRemoteCachePluginTests {
 
       // Insert test data
       conn.createStatement().execute("insert into " + tableName + " (id, name) values (1, 'name1')");
-      conn.createStatement().execute("/*+ CACHE_PARAM(ttl=300s) */ insert into " + tableName + " (id, name) values (2, 'name2')");
-      conn.createStatement().execute("/*+ CACHE_PARAM(ttl=300s) */ insert into " + tableName + " (id, name) values (3, 'name3')");
+      conn.createStatement().execute("/*+ CACHE_PARAM(ttl=300s) */ insert into " + tableName + " (id, name) values "
+          + "(2, 'name2')");
+      conn.createStatement().execute("/*+ CACHE_PARAM(ttl=300s) */ insert into " + tableName + " (id, name) values "
+          + "(3, 'name3')");
 
       // Query without cache hint - verify initial data
       Statement statement = conn.createStatement();
@@ -76,7 +82,8 @@ public class DataRemoteCachePluginTests {
 
       // Update data
       conn.createStatement().execute("update " + tableName + " set id=id*10");
-      conn.createStatement().execute("/* +CACHE_PARAM(ttl=300s) */ update " + tableName + " set name=concat('name', id)");
+      conn.createStatement().execute("/* +CACHE_PARAM(ttl=300s) */ update " + tableName + " set name=concat('name', "
+          + "id)");
 
       // Query without cache hint - should hit database
       Statement testStatement = conn.createStatement();
@@ -95,7 +102,8 @@ public class DataRemoteCachePluginTests {
       verifyResultSetForTestTable(cachedResultSet2);
 
       // Cache the result of an empty query
-      ResultSet cachedResultSet3 = executeQueryWithCacheHint(testStatement, "select id, name from " + tableName + " where id = 4");
+      ResultSet cachedResultSet3 = executeQueryWithCacheHint(testStatement, "select id, name from " + tableName + " "
+          + "where id = 4");
       assertTrue(cachedResultSet3.isWrapperFor(CachedResultSet.class));
       assertFalse(cachedResultSet3.next());
 
@@ -103,7 +111,8 @@ public class DataRemoteCachePluginTests {
       conn.createStatement().execute("insert into " + tableName + " (id, name) values (4, 'name4')");
 
       // Previously cached empty result is fetched (cache hit)
-      ResultSet cachedResultSet4 = executeQueryWithCacheHint(testStatement, "select id, name from " + tableName + " where id = 4");
+      ResultSet cachedResultSet4 = executeQueryWithCacheHint(testStatement, "select id, name from " + tableName + " "
+          + "where id = 4");
       assertTrue(cachedResultSet4.isWrapperFor(CachedResultSet.class));
       assertFalse(cachedResultSet4.next()); // Still empty from cache
 
@@ -219,7 +228,8 @@ public class DataRemoteCachePluginTests {
     return props;
   }
 
-  private Connection createCacheEnabledConnection(@Nullable String cachePassword, int cacheInstanceIndex) throws SQLException {
+  private Connection createCacheEnabledConnection(@Nullable String cachePassword,
+      int cacheInstanceIndex) throws SQLException {
     return DriverManager.getConnection(
         ConnectionStringHelper.getWrapperUrl(),
         getCacheEnabledProperties(cachePassword, cacheInstanceIndex));

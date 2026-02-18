@@ -47,9 +47,9 @@ import software.amazon.jdbc.util.StateSnapshotProvider;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.monitoring.MonitorErrorResponse;
+import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
-import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
 /**
@@ -84,14 +84,14 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin implements S
     PropertyDefinition.registerPluginProperties(DataRemoteCachePlugin.class);
   }
 
-  private int maxCacheableQuerySize;
-  private PluginService pluginService;
-  private TelemetryFactory telemetryFactory;
-  private TelemetryCounter cacheHitCounter;
-  private TelemetryCounter cacheMissCounter;
-  private TelemetryCounter totalQueryCounter;
-  private TelemetryCounter malformedHintCounter;
-  private TelemetryCounter cacheBypassCounter;
+  private final int maxCacheableQuerySize;
+  private final PluginService pluginService;
+  private final TelemetryFactory telemetryFactory;
+  private final TelemetryCounter cacheHitCounter;
+  private final TelemetryCounter cacheMissCounter;
+  private final TelemetryCounter totalQueryCounter;
+  private final TelemetryCounter malformedHintCounter;
+  private final TelemetryCounter cacheBypassCounter;
   private CacheConnection cacheConnection;
   private String dbUserName;
 
@@ -100,7 +100,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin implements S
       Class.forName("io.lettuce.core.RedisClient"); // Lettuce dependency
       Class.forName("org.apache.commons.pool2.impl.GenericObjectPool"); // Object pool dependency
     } catch (final ClassNotFoundException e) {
-      throw new RuntimeException(Messages.get("DataRemoteCachePlugin.notInClassPath", new Object[] {e}));
+      throw new RuntimeException(Messages.get("DataRemoteCachePlugin.notInClassPath", new Object[]{e}));
     }
     this.pluginService = servicesContainer.getPluginService();
     this.telemetryFactory = servicesContainer.getTelemetryFactory();
@@ -158,8 +158,12 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin implements S
       if (!catalog.isPresent() && !schema.isPresent()) {
         catalogName = currentConn.getCatalog();
         schemaName = currentConn.getSchema();
-        if (catalogName != null) sessionStateService.setCatalog(catalogName);
-        if (schemaName != null) sessionStateService.setSchema(schemaName);
+        if (catalogName != null) {
+          sessionStateService.setCatalog(catalogName);
+        }
+        if (schemaName != null) {
+          sessionStateService.setSchema(schemaName);
+        }
       }
       // Retrieve metadata values before lambda to avoid SQLException in lazy evaluation
       String driverProtocol = pluginService.getDriverProtocol();
@@ -202,9 +206,9 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin implements S
   }
 
   /**
-   *  Cache the given ResultSet object.
-   *  The ResultSet object passed in would be consumed to create a CacheResultSet object. It is returned
-   *  for consumer consumption.
+   * Cache the given ResultSet object.
+   * The ResultSet object passed in would be consumed to create a CacheResultSet object. It is returned
+   * for consumer consumption.
    */
   private ResultSet cacheResultSet(String queryStr, ResultSet rs, int expiry) throws SQLException {
     // Write the resultSet into the cache as a single key
@@ -224,10 +228,11 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin implements S
   }
 
   /**
-   * Determine the TTL based on an input query
+   * Determine the TTL based on an input query.
+   *
    * @param queryHint string. e.g. "CACHE_PARAM(ttl=100s, key=custom)"
    * @return TTL in seconds to cache the query.
-   *         null if the query is not cacheable.
+   *     null if the query is not cacheable.
    */
   protected Integer getTtlForQuery(String queryHint) {
     // Empty query is not cacheable
@@ -278,7 +283,7 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin implements S
               new Object[] {value}));
           incrCounter(malformedHintCounter);
           return null;
-        } else{
+        } else {
           // Parse TTL value (e.g., "300s")
           try {
             ttlValue = Integer.parseInt(value.substring(0, value.length() - 1));
@@ -332,7 +337,8 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin implements S
     int endOfQueryHint = 0;
     Integer configuredQueryTtl = null;
     // Queries longer than 16KB is not cacheable
-    if (!StringUtils.isNullOrEmpty(sql) && (sql.length() < maxCacheableQuerySize) && sql.contains(QUERY_HINT_START_PATTERN)) {
+    if (!StringUtils.isNullOrEmpty(sql) && (sql.length() < maxCacheableQuerySize)
+        && sql.contains(QUERY_HINT_START_PATTERN)) {
       endOfQueryHint = sql.indexOf(QUERY_HINT_END_PATTERN);
       if (endOfQueryHint > 0) {
         configuredQueryTtl = getTtlForQuery(sql.substring(QUERY_HINT_START_PATTERN.length(), endOfQueryHint).trim());
@@ -390,8 +396,12 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin implements S
     try {
       result = (ResultSet) jdbcMethodFunc.call();
     } finally {
-      if (dbContext != null) dbContext.closeContext();
-      if (cacheContext != null) cacheContext.closeContext();
+      if (dbContext != null) {
+        dbContext.closeContext();
+      }
+      if (cacheContext != null) {
+        cacheContext.closeContext();
+      }
     }
 
     // We need to cache the query result if we got a cache miss for the query result,
@@ -413,7 +423,9 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin implements S
   }
 
   private void incrCounter(TelemetryCounter counter) {
-    if (counter == null) return;
+    if (counter == null) {
+      return;
+    }
     counter.inc();
   }
 
@@ -442,7 +454,8 @@ public class DataRemoteCachePlugin extends AbstractConnectionPlugin implements S
     List<Pair<String, Object>> state = new ArrayList<>();
     state.add(Pair.create("dbUserName", this.dbUserName));
     state.add(Pair.create("maxCacheableQuerySize", this.maxCacheableQuerySize));
-    state.add(Pair.create("CacheConnection", this.cacheConnection != null ? this.cacheConnection.toString() : "<null>"));
+    state.add(Pair.create("CacheConnection", this.cacheConnection != null
+        ? this.cacheConnection.toString() : "<null>"));
     return state;
   }
 }

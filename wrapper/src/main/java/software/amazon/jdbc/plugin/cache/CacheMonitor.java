@@ -16,7 +16,11 @@
 
 package software.amazon.jdbc.plugin.cache;
 
+import io.lettuce.core.RedisCommandExecutionException;
+import io.lettuce.core.RedisConnectionException;
+import io.lettuce.core.RedisException;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,11 +28,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import io.lettuce.core.RedisCommandExecutionException;
-import io.lettuce.core.RedisConnectionException;
-import io.lettuce.core.RedisException;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import java.time.Duration;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.util.FullServicesContainer;
 import software.amazon.jdbc.util.Messages;
@@ -40,7 +40,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 /**
  * This class uses a background thread to monitor cache cluster health and manage state transitions.
  *
- * Implements a three-state machine (HEALTHY → SUSPECT → DEGRADED) with proactive health checks
+ * <p>Implements a three-state machine (HEALTHY → SUSPECT → DEGRADED) with proactive health checks
  * that only run when clusters are in SUSPECT or DEGRADED states.
  */
 public class CacheMonitor extends AbstractMonitor {
@@ -223,11 +223,11 @@ public class CacheMonitor extends AbstractMonitor {
   }
 
   protected static void registerCluster(FullServicesContainer servicesContainer, long inFlightWriteSizeLimitBytes,
-                                        boolean healthCheckInHealthyState, TelemetryFactory telemetryFactory,
-                                        String rwEndpoint, String roEndpoint, boolean useSSL, Duration cacheConnectionTimeout,
-                                        boolean iamAuthEnabled, AwsCredentialsProvider credentialsProvider, String cacheIamRegion,
-                                        String cacheName, String cacheUsername, String cachePassword, boolean createPingConnection,
-                                        boolean startMonitorThread) {
+      boolean healthCheckInHealthyState, TelemetryFactory telemetryFactory,
+      String rwEndpoint, String roEndpoint, boolean useSSL, Duration cacheConnectionTimeout,
+      boolean iamAuthEnabled, AwsCredentialsProvider credentialsProvider, String cacheIamRegion,
+      String cacheName, String cacheUsername, String cachePassword, boolean createPingConnection,
+      boolean startMonitorThread) {
     if (getCluster(rwEndpoint, roEndpoint) != null) {
       return; // if cluster has already been registered
     }
@@ -267,18 +267,19 @@ public class CacheMonitor extends AbstractMonitor {
   }
 
   protected static void registerCluster(FullServicesContainer servicesContainer, long inFlightWriteSizeLimitBytes,
-                                        boolean healthCheckInHealthyState, TelemetryFactory telemetryFactory,
-                                        String rwEndpoint, String roEndpoint, boolean useSSL,
-                                        Duration cacheConnectionTimeout, boolean iamAuthEnabled,
-                                        AwsCredentialsProvider credentialsProvider, String cacheIamRegion,
-                                        String cacheName, String cacheUsername, String cachePassword) {
+      boolean healthCheckInHealthyState, TelemetryFactory telemetryFactory,
+      String rwEndpoint, String roEndpoint, boolean useSSL,
+      Duration cacheConnectionTimeout, boolean iamAuthEnabled,
+      AwsCredentialsProvider credentialsProvider, String cacheIamRegion,
+      String cacheName, String cacheUsername, String cachePassword) {
     registerCluster(servicesContainer, inFlightWriteSizeLimitBytes, healthCheckInHealthyState, telemetryFactory,
-            rwEndpoint, roEndpoint, useSSL,
-            cacheConnectionTimeout, iamAuthEnabled, credentialsProvider,
-            cacheIamRegion, cacheName, cacheUsername, cachePassword, true, true);
+        rwEndpoint, roEndpoint, useSSL,
+        cacheConnectionTimeout, iamAuthEnabled, credentialsProvider,
+        cacheIamRegion, cacheName, cacheUsername, cachePassword, true, true);
   }
 
-  protected CacheMonitor(long inFlightWriteSizeLimitBytes, boolean healthCheckInHealthyState, TelemetryFactory telemetryFactory) {
+  protected CacheMonitor(long inFlightWriteSizeLimitBytes, boolean healthCheckInHealthyState,
+      TelemetryFactory telemetryFactory) {
     super(30); // 30 seconds termination timeout
     this.telemetryFactory = telemetryFactory;
     this.inFlightWriteSizeLimitBytes = inFlightWriteSizeLimitBytes;
@@ -310,8 +311,8 @@ public class CacheMonitor extends AbstractMonitor {
 
   // Used for unit testing only
   protected void setPingConnections(ClusterHealthState cluster,
-                                    CachePingConnection rwConnection,
-                                    CachePingConnection roConnection) {
+      CachePingConnection rwConnection,
+      CachePingConnection roConnection) {
     cluster.rwPingConnection = rwConnection;
     cluster.roPingConnection = roConnection;
   }
@@ -341,12 +342,14 @@ public class CacheMonitor extends AbstractMonitor {
     }
     if (error instanceof RedisCommandExecutionException) {
       String msg = error.getMessage();
-      if (msg == null) return ErrorCategory.RESOURCE;
+      if (msg == null) {
+        return ErrorCategory.RESOURCE;
+      }
       if (msg.contains("READONLY") || msg.contains("WRONGTYPE") || msg.contains("MOVED") || msg.contains("ASK")) {
         return ErrorCategory.COMMAND;
       }
-      if (msg.contains("OOM") || msg.contains("CLUSTERDOWN") || msg.contains("LOADING") ||
-          msg.contains("NOAUTH") || msg.contains("WRONGPASS")) {
+      if (msg.contains("OOM") || msg.contains("CLUSTERDOWN") || msg.contains("LOADING")
+          || msg.contains("NOAUTH") || msg.contains("WRONGPASS")) {
         return ErrorCategory.RESOURCE;
       }
       return ErrorCategory.COMMAND;
@@ -469,13 +472,13 @@ public class CacheMonitor extends AbstractMonitor {
         cluster.consecutiveRoSuccesses++;
         cluster.consecutiveRoFailures = 0;
       }
-      int consecutive_success = isRw ? cluster.consecutiveRwSuccesses : cluster.consecutiveRoSuccesses;
-      if (consecutive_success >= CACHE_CONSECUTIVE_SUCCESS_THRESHOLD) {
+      int consecutiveSuccess = isRw ? cluster.consecutiveRwSuccesses : cluster.consecutiveRoSuccesses;
+      if (consecutiveSuccess >= CACHE_CONSECUTIVE_SUCCESS_THRESHOLD) {
         synchronized (cluster) {
           if (currentState == HealthState.SUSPECT) {
             cluster.transitionToState(HealthState.HEALTHY, isRw, "consecutive_successes", stateTransitionCounter);
-          } else if (currentState == HealthState.DEGRADED &&
-              cluster.inFlightWriteSizeBytes.get() < inFlightWriteSizeLimitBytes) {
+          } else if (currentState == HealthState.DEGRADED
+              && cluster.inFlightWriteSizeBytes.get() < inFlightWriteSizeLimitBytes) {
             cluster.transitionToState(HealthState.HEALTHY, isRw,
                 "consecutive_successes_and_memory_recovered", stateTransitionCounter);
           }
@@ -484,7 +487,9 @@ public class CacheMonitor extends AbstractMonitor {
     } else {
       LOGGER.warning(() -> Messages.get("CacheMonitor.pingFailed",
           new Object[] {endpoint, isRw ? "RW" : "RO"}));
-      if (healthCheckFailureCounter != null) healthCheckFailureCounter.inc();
+      if (healthCheckFailureCounter != null) {
+        healthCheckFailureCounter.inc();
+      }
       if (isRw) {
         cluster.consecutiveRwFailures++;
         cluster.consecutiveRwSuccesses = 0;
@@ -492,11 +497,11 @@ public class CacheMonitor extends AbstractMonitor {
         cluster.consecutiveRoFailures++;
         cluster.consecutiveRoSuccesses = 0;
       }
-      int consecutive_failure = isRw ? cluster.consecutiveRwFailures : cluster.consecutiveRoFailures;
+      int consecutiveFailure = isRw ? cluster.consecutiveRwFailures : cluster.consecutiveRoFailures;
       synchronized (cluster) {
-        if (currentState == HealthState.HEALTHY && consecutive_failure >= 1) {
+        if (currentState == HealthState.HEALTHY && consecutiveFailure >= 1) {
           cluster.transitionToState(HealthState.SUSPECT, isRw, "first_failure", stateTransitionCounter);
-        } else if (currentState == HealthState.SUSPECT && consecutive_failure >= CACHE_CONSECUTIVE_FAILURE_THRESHOLD) {
+        } else if (currentState == HealthState.SUSPECT && consecutiveFailure >= CACHE_CONSECUTIVE_FAILURE_THRESHOLD) {
           cluster.transitionToState(HealthState.DEGRADED, isRw, "consecutive_failures", stateTransitionCounter);
         }
       }

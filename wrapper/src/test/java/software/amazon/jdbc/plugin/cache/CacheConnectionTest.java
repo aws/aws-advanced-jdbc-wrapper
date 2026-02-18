@@ -16,6 +16,29 @@
 
 package software.amazon.jdbc.plugin.cache;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyBoolean;
+import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mockConstruction;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import io.lettuce.core.RedisFuture;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulConnection;
@@ -25,6 +48,13 @@ import io.lettuce.core.api.sync.RedisCommands;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 import io.lettuce.core.cluster.api.async.RedisAdvancedClusterAsyncCommands;
 import io.lettuce.core.cluster.api.sync.RedisAdvancedClusterCommands;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
+import java.sql.SQLException;
+import java.time.Duration;
+import java.util.Properties;
+import java.util.function.BiConsumer;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,27 +67,26 @@ import org.mockito.MockitoAnnotations;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.jdbc.plugin.iam.ElastiCacheIamTokenUtility;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.nio.charset.StandardCharsets;
-import java.sql.SQLException;
-import java.time.Duration;
-import java.util.function.BiConsumer;
-import java.util.Properties;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 public class CacheConnectionTest {
-  @Mock GenericObjectPool<StatefulConnection<byte[], byte[]>> mockReadConnPool;
-  @Mock GenericObjectPool<StatefulConnection<byte[], byte[]>> mockWriteConnPool;
-  @Mock StatefulRedisConnection<byte[], byte[]> mockConnection;
-  @Mock RedisCommands<byte[], byte[]> mockSyncCommands;
-  @Mock RedisAsyncCommands<byte[], byte[]> mockAsyncCommands;
-  @Mock StatefulRedisClusterConnection<byte[], byte[]> mockClusterConnection;
-  @Mock RedisAdvancedClusterCommands<byte[], byte[]> mockClusterSyncCommands;
-  @Mock RedisAdvancedClusterAsyncCommands<byte[], byte[]> mockClusterAsyncCommands;
-  @Mock RedisFuture<String> mockCacheResult;
+  @Mock
+  GenericObjectPool<StatefulConnection<byte[], byte[]>> mockReadConnPool;
+  @Mock
+  GenericObjectPool<StatefulConnection<byte[], byte[]>> mockWriteConnPool;
+  @Mock
+  StatefulRedisConnection<byte[], byte[]> mockConnection;
+  @Mock
+  RedisCommands<byte[], byte[]> mockSyncCommands;
+  @Mock
+  RedisAsyncCommands<byte[], byte[]> mockAsyncCommands;
+  @Mock
+  StatefulRedisClusterConnection<byte[], byte[]> mockClusterConnection;
+  @Mock
+  RedisAdvancedClusterCommands<byte[], byte[]> mockClusterSyncCommands;
+  @Mock
+  RedisAdvancedClusterAsyncCommands<byte[], byte[]> mockClusterAsyncCommands;
+  @Mock
+  RedisFuture<String> mockCacheResult;
   private AutoCloseable closeable;
   private CacheConnection cacheConnection;
 
@@ -144,7 +173,8 @@ public class CacheConnectionTest {
         () -> new CacheConnection(props)
     );
 
-    assertTrue(exception.getMessage().contains("IAM authentication requires cache name, username, region, and hostname"));
+    assertTrue(exception.getMessage().contains("IAM authentication requires cache name, username, region, and "
+        + "hostname"));
   }
 
   @Test
@@ -247,7 +277,8 @@ public class CacheConnectionTest {
     props.setProperty("cacheUsername", "testuser");
     props.setProperty("cacheName", "test-cache");
 
-    try (MockedConstruction<ElastiCacheIamTokenUtility> mockedTokenUtility = mockConstruction(ElastiCacheIamTokenUtility.class)) {
+    try (MockedConstruction<ElastiCacheIamTokenUtility> mockedTokenUtility =
+             mockConstruction(ElastiCacheIamTokenUtility.class)) {
 
       CacheConnection connection = new CacheConnection(props);
       RedisURI uri = connection.buildRedisURI("localhost", 6379);
@@ -323,8 +354,8 @@ public class CacheConnectionTest {
     doNothing().when(spyConnection).incrementInFlightSize(anyLong());
     doNothing().when(spyConnection).decrementInFlightSize(anyLong());
 
-    String key = "myQueryKey";
-    byte[] value = "myValue".getBytes(StandardCharsets.UTF_8);
+    final String key = "myQueryKey";
+    final byte[] value = "myValue".getBytes(StandardCharsets.UTF_8);
     when(mockWriteConnPool.borrowObject()).thenReturn(mockConnection);
     when(mockConnection.async()).thenReturn(mockAsyncCommands);
     when(mockAsyncCommands.set(any(), any(), any())).thenReturn(mockCacheResult);
@@ -344,8 +375,8 @@ public class CacheConnectionTest {
     doNothing().when(spyConnection).incrementInFlightSize(anyLong());
     doNothing().when(spyConnection).decrementInFlightSize(anyLong());
 
-    String key = "myQueryKey";
-    byte[] value = "myValue".getBytes(StandardCharsets.UTF_8);
+    final String key = "myQueryKey";
+    final byte[] value = "myValue".getBytes(StandardCharsets.UTF_8);
     when(mockWriteConnPool.borrowObject()).thenReturn(mockConnection);
     when(mockConnection.async()).thenReturn(mockAsyncCommands);
     when(mockAsyncCommands.set(any(), any(), any())).thenThrow(new RuntimeException("test exception"));
@@ -419,7 +450,7 @@ public class CacheConnectionTest {
   }
 
   @ParameterizedTest
-  @ValueSource(booleans = {false, true})  // false = CMD (standalone), true = CME (cluster)
+  @ValueSource(booleans = {false, true}) // false = CMD (standalone), true = CME (cluster)
   void test_readAndWriteCache_BothModes(boolean isClusterMode) throws Exception {
     // Setup connection with appropriate cluster mode
     CacheConnection spyConnection = spy(cacheConnection);
@@ -544,8 +575,10 @@ public class CacheConnectionTest {
     connection.triggerPoolInit(true);
     connection.triggerPoolInit(false);
 
-    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readPool  = getInstancePool(connection,"readConnectionPool");
-    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writePool = getInstancePool(connection, "writeConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readPool = getInstancePool(connection,
+        "readConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writePool = getInstancePool(connection,
+        "writeConnectionPool");
 
     assertNotNull(readPool, "read pool should be created");
     assertNotNull(writePool, "write pool should be created");
@@ -575,8 +608,10 @@ public class CacheConnectionTest {
     connection.triggerPoolInit(true);
     connection.triggerPoolInit(false);
 
-    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readPool  = getInstancePool(connection,"readConnectionPool");
-    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writePool = getInstancePool(connection, "writeConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readPool = getInstancePool(connection,
+        "readConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writePool = getInstancePool(connection,
+        "writeConnectionPool");
 
     assertNotNull(readPool, "read pool should be created");
     assertNotNull(writePool, "write pool should be created");
@@ -609,7 +644,8 @@ public class CacheConnectionTest {
   }
 
   @SuppressWarnings("unchecked")
-  private static GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> getInstancePool(CacheConnection connection, String fieldName) throws Exception {
+  private static GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> getInstancePool(CacheConnection connection,
+      String fieldName) throws Exception {
     Field f = CacheConnection.class.getDeclaredField(fieldName);
     f.setAccessible(true);
     return (GenericObjectPool<StatefulRedisConnection<byte[], byte[]>>) f.get(connection);
@@ -694,10 +730,14 @@ public class CacheConnectionTest {
     connection2.triggerPoolInit(true);
     connection2.triggerPoolInit(false);
 
-    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readPool1 = getInstancePool(connection1, "readConnectionPool");
-    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readPool2 = getInstancePool(connection2, "readConnectionPool");
-    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writePool1 = getInstancePool(connection1, "writeConnectionPool");
-    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writePool2 = getInstancePool(connection2, "writeConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readPool1 = getInstancePool(connection1,
+        "readConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readPool2 = getInstancePool(connection2,
+        "readConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writePool1 = getInstancePool(connection1,
+        "writeConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writePool2 = getInstancePool(connection2,
+        "writeConnectionPool");
 
     assertSame(readPool1, readPool2, "Read pools should be the same instance");
     assertSame(writePool1, writePool2, "Write pools should be the same instance");
@@ -715,8 +755,10 @@ public class CacheConnectionTest {
     connection3.triggerPoolInit(true);
     connection3.triggerPoolInit(false);
 
-    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readPool3 = getInstancePool(connection3, "readConnectionPool");
-    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writePool3 = getInstancePool(connection3, "writeConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readPool3 = getInstancePool(connection3,
+        "readConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writePool3 = getInstancePool(connection3,
+        "writeConnectionPool");
 
     assertNotSame(readPool1, readPool3, "Read pools should be different instances");
     assertNotSame(writePool1, writePool3, "Write pools should be different instances");
@@ -732,8 +774,10 @@ public class CacheConnectionTest {
     connection4.triggerPoolInit(false);
     connection4.triggerPoolInit(true);
 
-    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writePool4 = getInstancePool(connection4, "writeConnectionPool");
-    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readPool4 = getInstancePool(connection4, "readConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> writePool4 = getInstancePool(connection4,
+        "writeConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> readPool4 = getInstancePool(connection4,
+        "readConnectionPool");
 
     assertSame(writePool1, writePool4, "Write pools should be shared for same RW endpoint");
     assertEquals(10, writePool4.getMaxTotal(), "Connection pool size should not be changed.");
@@ -769,9 +813,12 @@ public class CacheConnectionTest {
     t3.join();
 
     // All should reference the same pool
-    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> pool1 = getInstancePool(connection1, "writeConnectionPool");
-    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> pool2 = getInstancePool(connection2, "writeConnectionPool");
-    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> pool3 = getInstancePool(connection3, "writeConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> pool1 = getInstancePool(connection1,
+        "writeConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> pool2 = getInstancePool(connection2,
+        "writeConnectionPool");
+    GenericObjectPool<StatefulRedisConnection<byte[], byte[]>> pool3 = getInstancePool(connection3,
+        "writeConnectionPool");
 
     assertSame(pool1, pool2);
     assertSame(pool2, pool3);
@@ -839,8 +886,8 @@ public class CacheConnectionTest {
     doNothing().when(spyConnection).incrementInFlightSize(anyLong());
     doNothing().when(spyConnection).decrementInFlightSize(anyLong());
 
-    String testKey = "test_key";
-    byte[] testValue = "test_value".getBytes(StandardCharsets.UTF_8);
+    final String testKey = "test_key";
+    final byte[] testValue = "test_value".getBytes(StandardCharsets.UTF_8);
 
     // write operation with size calculation
     when(mockWriteConnPool.borrowObject()).thenReturn(mockConnection);
@@ -859,7 +906,9 @@ public class CacheConnectionTest {
     // set was called with prefixed key
     verify(mockAsyncCommands).set(
         argThat(key -> {
-          if (key.length < 4) return false;
+          if (key.length < 4) {
+            return false;
+          }
           String keyStr = new String(key, 0, 4, StandardCharsets.UTF_8);
           return keyStr.equals(prefix);
         }),
@@ -885,7 +934,9 @@ public class CacheConnectionTest {
 
     // get was called with prefixed key
     verify(mockSyncCommands).get(argThat(key -> {
-      if (key.length < 4) return false;
+      if (key.length < 4) {
+        return false;
+      }
       String keyStr = new String(key, 0, 4, StandardCharsets.UTF_8);
       return keyStr.equals(prefix);
     }));

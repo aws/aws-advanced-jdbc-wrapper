@@ -16,15 +16,27 @@
 
 package software.amazon.jdbc.plugin.cache;
 
-import java.util.Properties;
-import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.ConnectionPluginFactory;
-import software.amazon.jdbc.util.FullServicesContainer;
+/**
+ * Abstraction for a cache connection that can be pinged.
+ * Hides cache-client implementation details (Lettuce/Glide) from CacheMonitor.
+ */
+public interface CachePingConnection {
+  /**
+   * Pings the cache server to check health.
+   *
+   * @return true if ping successful (PONG received), false otherwise
+   */
+  boolean ping();
 
-public class DataRemoteCachePluginFactory implements ConnectionPluginFactory {
+  /**
+   * Checks if the connection is open.
+   *
+   * @return true if connection is open, false otherwise
+   */
+  boolean isOpen();
 
-  @Override
-  public ConnectionPlugin getInstance(final FullServicesContainer servicesContainer, final Properties props) {
-    return new DataRemoteCachePlugin(servicesContainer, props);
-  }
+  /**
+   * Closes the ping connection and releases resources.
+   */
+  void close();
 }

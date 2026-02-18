@@ -16,14 +16,13 @@
 
 package software.amazon.jdbc.plugin.cache;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
 import java.io.IOException;
-import java.io.Reader;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.Reader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.MalformedURLException;
@@ -44,17 +43,18 @@ import java.sql.Statement;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.OffsetTime;
-import java.time.ZonedDateTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Calendar;
 import java.util.TimeZone;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.Messages;
 
 public class CachedResultSet implements ResultSet {
@@ -70,32 +70,33 @@ public class CachedResultSet implements ResultSet {
 
     private void checkColumnIndex(final int columnIndex) throws SQLException {
       if (columnIndex < 1 || columnIndex > rowData.length) {
-        throw new SQLException(Messages.get("CachedResultSet.invalidColumnIndex", new Object[] {columnIndex}));
+        throw new SQLException(Messages.get("CachedResultSet.invalidColumnIndex", new Object[]{columnIndex}));
       }
     }
 
     public void put(final int columnIndex, final Object columnValue) throws SQLException {
       checkColumnIndex(columnIndex);
-      rowData[columnIndex-1] = columnValue;
+      rowData[columnIndex - 1] = columnValue;
     }
 
     public void putRaw(final int columnIndex, final byte[] rawColumnValue) throws SQLException {
       checkColumnIndex(columnIndex);
-      rawData[columnIndex-1] = rawColumnValue;
+      rawData[columnIndex - 1] = rawColumnValue;
     }
 
     public Object get(final int columnIndex) throws SQLException {
       checkColumnIndex(columnIndex);
       // De-serialize the data object from raw bytes if needed.
-      if (rowData[columnIndex-1] == null && rawData[columnIndex-1] != null) {
+      if (rowData[columnIndex - 1] == null && rawData[columnIndex - 1] != null) {
         try (ByteArrayInputStream bis = new ByteArrayInputStream(rawData[columnIndex - 1]);
              ObjectInputStream ois = new ObjectInputStream(bis)) {
           rowData[columnIndex - 1] = ois.readObject();
           rawData[columnIndex - 1] = null;
         } catch (ClassNotFoundException e) {
-          throw new SQLException(Messages.get("CachedResultSet.classNotFoundDeserialize", new Object[] {columnIndex}), e);
+          throw new SQLException(Messages.get("CachedResultSet.classNotFoundDeserialize", new Object[]{columnIndex}),
+              e);
         } catch (IOException e) {
-          throw new SQLException(Messages.get("CachedResultSet.ioExceptionDeserialize", new Object[] {columnIndex}), e);
+          throw new SQLException(Messages.get("CachedResultSet.ioExceptionDeserialize", new Object[]{columnIndex}), e);
         }
       }
       return rowData[columnIndex - 1];
@@ -113,16 +114,16 @@ public class CachedResultSet implements ResultSet {
 
   /**
    * Create a CachedResultSet out of the original ResultSet queried from the database.
+   *
    * @param resultSet The ResultSet queried from the underlying database (not a CachedResultSet).
-   * @return CachedResultSet that captures the metadata and the rows of the input ResultSet.
-   * @throws SQLException
+   * @throws SQLException if an error occurs while reading the ResultSet metadata or rows
    */
   public CachedResultSet(final ResultSet resultSet) throws SQLException {
     ResultSetMetaData srcMetadata = resultSet.getMetaData();
     final int numColumns = srcMetadata.getColumnCount();
     CachedResultSetMetaData.Field[] fields = new CachedResultSetMetaData.Field[numColumns];
     for (int i = 0; i < numColumns; i++) {
-      fields[i] = new CachedResultSetMetaData.Field(srcMetadata, i+1);
+      fields[i] = new CachedResultSetMetaData.Field(srcMetadata, i + 1);
     }
     metadata = new CachedResultSetMetaData(fields);
     rows = new ArrayList<>();
@@ -136,7 +137,7 @@ public class CachedResultSet implements ResultSet {
         Object rowObj = resultSet.getObject(i);
         // For SQLXML object, convert into CachedSQLXML object that is serializable
         if (rowObj instanceof SQLXML) {
-          rowObj = new CachedSQLXML(((SQLXML)rowObj).getString());
+          rowObj = new CachedSQLXML(((SQLXML) rowObj).getString());
         }
         row.put(i, rowObj);
       }
@@ -204,18 +205,18 @@ public class CachedResultSet implements ResultSet {
       for (int i = 0; i < numRows; i++) {
         // Store the raw bytes for each column object in CachedRow
         final CachedRow row = new CachedRow(numColumns);
-        for(int j = 0; j < numColumns; j++) {
+        for (int j = 0; j < numColumns; j++) {
           int nextObjSize = ois.readInt(); // The size of the next serialized object in its raw bytes form
           byte[] objData = new byte[nextObjSize];
           int lengthRead = 0;
           while (lengthRead < nextObjSize) {
-            int bytesRead = ois.read(objData, lengthRead, nextObjSize-lengthRead);
+            int bytesRead = ois.read(objData, lengthRead, nextObjSize - lengthRead);
             if (bytesRead == -1) {
               throw new SQLException(Messages.get("CachedResultSet.endOfStream"));
             }
             lengthRead += bytesRead;
           }
-          row.putRaw(j+1, objData);
+          row.putRaw(j + 1, objData);
         }
         resultRows.add(row);
       }
@@ -229,7 +230,9 @@ public class CachedResultSet implements ResultSet {
 
   @Override
   public boolean next() throws SQLException {
-    if (rows.isEmpty()) return false;
+    if (rows.isEmpty()) {
+      return false;
+    }
     if (this.currentRow >= rows.size() - 1) {
       afterLast();
       return false;
@@ -255,101 +258,234 @@ public class CachedResultSet implements ResultSet {
   @Override
   public String getString(final int columnIndex) throws SQLException {
     Object value = checkAndGetColumnValue(columnIndex);
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
     return value.toString();
+  }
+
+  @Override
+  public String getString(final String columnLabel) throws SQLException {
+    return getString(checkAndGetColumnIndex(columnLabel));
   }
 
   @Override
   public boolean getBoolean(final int columnIndex) throws SQLException {
     final Object val = checkAndGetColumnValue(columnIndex);
-    if (val == null) return false;
-    if (val instanceof Boolean) return (Boolean) val;
-    if (val instanceof Number) return ((Number) val).intValue() != 0;
+    if (val == null) {
+      return false;
+    }
+    if (val instanceof Boolean) {
+      return (Boolean) val;
+    }
+    if (val instanceof Number) {
+      return ((Number) val).intValue() != 0;
+    }
     return Boolean.parseBoolean(val.toString());
+  }
+
+  @Override
+  public boolean getBoolean(final String columnLabel) throws SQLException {
+    return getBoolean(checkAndGetColumnIndex(columnLabel));
   }
 
   @Override
   public byte getByte(final int columnIndex) throws SQLException {
     final Object val = checkAndGetColumnValue(columnIndex);
-    if (val == null) return 0;
-    if (val instanceof Byte) return (Byte) val;
-    if (val instanceof Number) return ((Number) val).byteValue();
+    if (val == null) {
+      return 0;
+    }
+    if (val instanceof Byte) {
+      return (Byte) val;
+    }
+    if (val instanceof Number) {
+      return ((Number) val).byteValue();
+    }
     return Byte.parseByte(val.toString());
+  }
+
+  @Override
+  public byte getByte(final String columnLabel) throws SQLException {
+    return getByte(checkAndGetColumnIndex(columnLabel));
   }
 
   @Override
   public short getShort(final int columnIndex) throws SQLException {
     final Object val = checkAndGetColumnValue(columnIndex);
-    if (val == null) return 0;
-    if (val instanceof Short) return (Short) val;
-    if (val instanceof Number) return ((Number) val).shortValue();
+    if (val == null) {
+      return 0;
+    }
+    if (val instanceof Short) {
+      return (Short) val;
+    }
+    if (val instanceof Number) {
+      return ((Number) val).shortValue();
+    }
     return Short.parseShort(val.toString());
+  }
+
+  @Override
+  public short getShort(final String columnLabel) throws SQLException {
+    return getShort(checkAndGetColumnIndex(columnLabel));
+  }
+
+  @Override
+  public int getInt(final String columnLabel) throws SQLException {
+    return getInt(checkAndGetColumnIndex(columnLabel));
   }
 
   @Override
   public int getInt(final int columnIndex) throws SQLException {
     final Object val = checkAndGetColumnValue(columnIndex);
-    if (val == null) return 0;
-    if (val instanceof Integer) return (Integer) val;
-    if (val instanceof Number) return ((Number) val).intValue();
+    if (val == null) {
+      return 0;
+    }
+    if (val instanceof Integer) {
+      return (Integer) val;
+    }
+    if (val instanceof Number) {
+      return ((Number) val).intValue();
+    }
     return Integer.parseInt(val.toString());
   }
 
   @Override
   public long getLong(final int columnIndex) throws SQLException {
     final Object val = checkAndGetColumnValue(columnIndex);
-    if (val == null) return 0;
-    if (val instanceof Long) return (Long) val;
-    if (val instanceof Number) return ((Number) val).longValue();
+    if (val == null) {
+      return 0;
+    }
+    if (val instanceof Long) {
+      return (Long) val;
+    }
+    if (val instanceof Number) {
+      return ((Number) val).longValue();
+    }
     return Long.parseLong(val.toString());
+  }
+
+  @Override
+  public long getLong(final String columnLabel) throws SQLException {
+    return getLong(checkAndGetColumnIndex(columnLabel));
   }
 
   @Override
   public float getFloat(final int columnIndex) throws SQLException {
     final Object val = checkAndGetColumnValue(columnIndex);
-    if (val == null) return 0;
-    if (val instanceof Float) return (Float) val;
-    if (val instanceof Number) return ((Number) val).floatValue();
+    if (val == null) {
+      return 0;
+    }
+    if (val instanceof Float) {
+      return (Float) val;
+    }
+    if (val instanceof Number) {
+      return ((Number) val).floatValue();
+    }
     return Float.parseFloat(val.toString());
+  }
+
+  @Override
+  public float getFloat(final String columnLabel) throws SQLException {
+    return getFloat(checkAndGetColumnIndex(columnLabel));
   }
 
   @Override
   public double getDouble(final int columnIndex) throws SQLException {
     final Object val = checkAndGetColumnValue(columnIndex);
-    if (val == null) return 0;
-    if (val instanceof Double) return (Double) val;
-    if (val instanceof Number) return ((Number) val).doubleValue();
+    if (val == null) {
+      return 0;
+    }
+    if (val instanceof Double) {
+      return (Double) val;
+    }
+    if (val instanceof Number) {
+      return ((Number) val).doubleValue();
+    }
     return Double.parseDouble(val.toString());
+  }
+
+  @Override
+  public double getDouble(final String columnLabel) throws SQLException {
+    return getDouble(checkAndGetColumnIndex(columnLabel));
+  }
+
+  @Override
+  @Deprecated
+  public BigDecimal getBigDecimal(final String columnLabel, final int scale) throws SQLException {
+    return getBigDecimal(checkAndGetColumnIndex(columnLabel), scale);
   }
 
   @Override
   @Deprecated
   public BigDecimal getBigDecimal(final int columnIndex, final int scale) throws SQLException {
     final Object val = checkAndGetColumnValue(columnIndex);
-    if (val == null) return null;
-    if (val instanceof BigDecimal) return (BigDecimal) val;
-    if (val instanceof Number) return new BigDecimal(((Number)val).doubleValue()).setScale(scale, RoundingMode.HALF_UP);
+    if (val == null) {
+      return null;
+    }
+    if (val instanceof BigDecimal) {
+      return (BigDecimal) val;
+    }
+    if (val instanceof Number) {
+      return new BigDecimal(((Number) val).doubleValue()).setScale(scale, RoundingMode.HALF_UP);
+    }
     return new BigDecimal(Double.parseDouble(val.toString())).setScale(scale, RoundingMode.HALF_UP);
+  }
+
+  @Override
+  public BigDecimal getBigDecimal(final int columnIndex) throws SQLException {
+    final Object val = checkAndGetColumnValue(columnIndex);
+    if (val == null) {
+      return null;
+    }
+    if (val instanceof BigDecimal) {
+      return (BigDecimal) val;
+    }
+    if (val instanceof Number) {
+      return BigDecimal.valueOf(((Number) val).doubleValue());
+    }
+    return new BigDecimal(val.toString());
+  }
+
+  @Override
+  public BigDecimal getBigDecimal(final String columnLabel) throws SQLException {
+    return getBigDecimal(checkAndGetColumnIndex(columnLabel));
   }
 
   @Override
   public byte[] getBytes(final int columnIndex) throws SQLException {
     final Object val = checkAndGetColumnValue(columnIndex);
-    if (val == null) return null;
-    if (val instanceof byte[]) return (byte[]) val;
+    if (val == null) {
+      return null;
+    }
+    if (val instanceof byte[]) {
+      return (byte[]) val;
+    }
     // Convert non-byte data to string, then to bytes (standard JDBC behavior)
     return val.toString().getBytes();
   }
 
+  @Override
+  public byte[] getBytes(final String columnLabel) throws SQLException {
+    return getBytes(checkAndGetColumnIndex(columnLabel));
+  }
+
   private Date convertToDate(Object dateObj, Calendar cal) throws SQLException {
-    if (dateObj == null) return null;
-    if (dateObj instanceof Date) return (Date)dateObj;
-    if (dateObj instanceof Number) return new Date(((Number)dateObj).longValue());
+    if (dateObj == null) {
+      return null;
+    }
+    if (dateObj instanceof Date) {
+      return (Date) dateObj;
+    }
+    if (dateObj instanceof Number) {
+      return new Date(((Number) dateObj).longValue());
+    }
     if (dateObj instanceof LocalDate) {
       // Convert the LocalDate for the specified time zone into Date representing
       // the same instant of time for the default time zone.
-      LocalDate localDate = (LocalDate)dateObj;
-      if (cal == null) return Date.valueOf(localDate);
+      LocalDate localDate = (LocalDate) dateObj;
+      if (cal == null) {
+        return Date.valueOf(localDate);
+      }
       LocalDateTime localDateTime = localDate.atStartOfDay();
       ZonedDateTime originalZonedDateTime = localDateTime.atZone(cal.getTimeZone().toZoneId());
       ZonedDateTime targetZonedDateTime = originalZonedDateTime.withZoneSameInstant(defaultTimeZoneId);
@@ -358,7 +494,9 @@ public class CachedResultSet implements ResultSet {
     if (dateObj instanceof Timestamp) {
       Timestamp timestamp = (Timestamp) dateObj;
       long millis = timestamp.getTime();
-      if (cal == null) return new Date(millis);
+      if (cal == null) {
+        return new Date(millis);
+      }
       long adjustedMillis = millis - cal.getTimeZone().getOffset(millis)
           + defaultTimeZone.getOffset(millis);
       return new Date(adjustedMillis);
@@ -379,15 +517,38 @@ public class CachedResultSet implements ResultSet {
     return convertToDate(checkAndGetColumnValue(columnIndex), null);
   }
 
+  @Override
+  public Date getDate(final String columnLabel) throws SQLException {
+    return getDate(checkAndGetColumnIndex(columnLabel));
+  }
+
+  @Override
+  public Date getDate(final int columnIndex, final Calendar cal) throws SQLException {
+    return convertToDate(checkAndGetColumnValue(columnIndex), cal);
+  }
+
+  @Override
+  public Date getDate(final String columnLabel, final Calendar cal) throws SQLException {
+    return getDate(checkAndGetColumnIndex(columnLabel), cal);
+  }
+
   private Time convertToTime(Object timeObj, Calendar cal) throws SQLException {
-    if (timeObj == null) return null;
-    if (timeObj instanceof Time) return (Time) timeObj;
-    if (timeObj instanceof Number) return new Time(((Number)timeObj).longValue()); // TODO: test
+    if (timeObj == null) {
+      return null;
+    }
+    if (timeObj instanceof Time) {
+      return (Time) timeObj;
+    }
+    if (timeObj instanceof Number) {
+      return new Time(((Number) timeObj).longValue()); // TODO: test
+    }
     if (timeObj instanceof LocalTime) {
       // Convert the LocalTime for the specified time zone into Time representing
       // the same instant of time for the default time zone.
-      LocalTime localTime = (LocalTime)timeObj;
-      if (cal == null) return Time.valueOf(localTime);
+      LocalTime localTime = (LocalTime) timeObj;
+      if (cal == null) {
+        return Time.valueOf(localTime);
+      }
       LocalDateTime localDateTime = LocalDateTime.of(LocalDate.now(), localTime);
       ZonedDateTime originalZonedDateTime = localDateTime.atZone(cal.getTimeZone().toZoneId());
       ZonedDateTime targetZonedDateTime = originalZonedDateTime.withZoneSameInstant(defaultTimeZoneId);
@@ -410,7 +571,9 @@ public class CachedResultSet implements ResultSet {
     if (timeObj instanceof Timestamp) {
       Timestamp timestamp = (Timestamp) timeObj;
       long millis = timestamp.getTime();
-      if (cal == null) return new Time(millis);
+      if (cal == null) {
+        return new Time(millis);
+      }
       long adjustedMillis = millis - cal.getTimeZone().getOffset(millis)
           + defaultTimeZone.getOffset(millis);
       return new Time(adjustedMillis);
@@ -430,15 +593,36 @@ public class CachedResultSet implements ResultSet {
     return convertToTime(checkAndGetColumnValue(columnIndex), null);
   }
 
+  @Override
+  public Time getTime(final String columnLabel) throws SQLException {
+    return getTime(checkAndGetColumnIndex(columnLabel));
+  }
+
+  @Override
+  public Time getTime(final int columnIndex, final Calendar cal) throws SQLException {
+    return convertToTime(checkAndGetColumnValue(columnIndex), cal);
+  }
+
+  @Override
+  public Time getTime(final String columnLabel, final Calendar cal) throws SQLException {
+    return getTime(checkAndGetColumnIndex(columnLabel), cal);
+  }
+
   private Timestamp convertToTimestamp(Object timestampObj, Calendar calendar) {
-    if (timestampObj == null) return null;
-    if (timestampObj instanceof Timestamp) return (Timestamp) timestampObj;
-    if (timestampObj instanceof Number) return new Timestamp(((Number)timestampObj).longValue());
+    if (timestampObj == null) {
+      return null;
+    }
+    if (timestampObj instanceof Timestamp) {
+      return (Timestamp) timestampObj;
+    }
+    if (timestampObj instanceof Number) {
+      return new Timestamp(((Number) timestampObj).longValue());
+    }
     if (timestampObj instanceof LocalDateTime) {
       // Convert LocalDateTime based on the specified calendar time zone info into a
       // Timestamp based on the JVM's default time zone representing the same instant
       long epochTimeInMillis;
-      LocalDateTime localTime = (LocalDateTime)timestampObj;
+      LocalDateTime localTime = (LocalDateTime) timestampObj;
       if (calendar != null) {
         epochTimeInMillis = localTime.atZone(calendar.getTimeZone().toZoneId()).toInstant().toEpochMilli();
       } else {
@@ -447,10 +631,10 @@ public class CachedResultSet implements ResultSet {
       return new Timestamp(epochTimeInMillis);
     }
     if (timestampObj instanceof OffsetDateTime) {
-      return Timestamp.from(((OffsetDateTime)timestampObj).toInstant());
+      return Timestamp.from(((OffsetDateTime) timestampObj).toInstant());
     }
     if (timestampObj instanceof ZonedDateTime) {
-      return Timestamp.from(((ZonedDateTime)timestampObj).toInstant());
+      return Timestamp.from(((ZonedDateTime) timestampObj).toInstant());
     }
 
     // Note: normally the user should properly store the Timestamp/DateTime object in the DB column and
@@ -468,7 +652,27 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
+  public Timestamp getTimestamp(final String columnLabel) throws SQLException {
+    return getTimestamp(checkAndGetColumnIndex(columnLabel));
+  }
+
+  @Override
+  public Timestamp getTimestamp(final int columnIndex, final Calendar cal) throws SQLException {
+    return convertToTimestamp(checkAndGetColumnValue(columnIndex), cal);
+  }
+
+  @Override
+  public Timestamp getTimestamp(final String columnLabel, final Calendar cal) throws SQLException {
+    return getTimestamp(checkAndGetColumnIndex(columnLabel), cal);
+  }
+
+  @Override
   public InputStream getAsciiStream(final int columnIndex) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public InputStream getAsciiStream(final String columnLabel) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
@@ -479,84 +683,13 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public InputStream getBinaryStream(final int columnIndex) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public String getString(final String columnLabel) throws SQLException {
-    return getString(checkAndGetColumnIndex(columnLabel));
-  }
-
-  @Override
-  public boolean getBoolean(final String columnLabel) throws SQLException {
-    return getBoolean(checkAndGetColumnIndex(columnLabel));
-  }
-
-  @Override
-  public byte getByte(final String columnLabel) throws SQLException {
-    return getByte(checkAndGetColumnIndex(columnLabel));
-  }
-
-  @Override
-  public short getShort(final String columnLabel) throws SQLException {
-    return getShort(checkAndGetColumnIndex(columnLabel));
-  }
-
-  @Override
-  public int getInt(final String columnLabel) throws SQLException {
-    return getInt(checkAndGetColumnIndex(columnLabel));
-  }
-
-  @Override
-  public long getLong(final String columnLabel) throws SQLException {
-    return getLong(checkAndGetColumnIndex(columnLabel));
-  }
-
-  @Override
-  public float getFloat(final String columnLabel) throws SQLException {
-    return getFloat(checkAndGetColumnIndex(columnLabel));
-  }
-
-  @Override
-  public double getDouble(final String columnLabel) throws SQLException {
-    return getDouble(checkAndGetColumnIndex(columnLabel));
-  }
-
-  @Override
-  @Deprecated
-  public BigDecimal getBigDecimal(final String columnLabel, final int scale) throws SQLException {
-    return getBigDecimal(checkAndGetColumnIndex(columnLabel), scale);
-  }
-
-  @Override
-  public byte[] getBytes(final String columnLabel) throws SQLException {
-    return getBytes(checkAndGetColumnIndex(columnLabel));
-  }
-
-  @Override
-  public Date getDate(final String columnLabel) throws SQLException {
-    return getDate(checkAndGetColumnIndex(columnLabel));
-  }
-
-  @Override
-  public Time getTime(final String columnLabel) throws SQLException {
-    return getTime(checkAndGetColumnIndex(columnLabel));
-  }
-
-  @Override
-  public Timestamp getTimestamp(final String columnLabel) throws SQLException {
-    return getTimestamp(checkAndGetColumnIndex(columnLabel));
-  }
-
-  @Override
-  public InputStream getAsciiStream(final String columnLabel) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
   @Deprecated
   public InputStream getUnicodeStream(final String columnLabel) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public InputStream getBinaryStream(final int columnIndex) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
@@ -587,7 +720,7 @@ public class CachedResultSet implements ResultSet {
 
   private void checkCurrentRow() throws SQLException {
     if (this.currentRow < 0 || this.currentRow >= this.rows.size()) {
-      throw new SQLException(Messages.get("CachedResultSet.rowIndexOutOfRange", new Object[] {this.currentRow}));
+      throw new SQLException(Messages.get("CachedResultSet.rowIndexOutOfRange", new Object[]{this.currentRow}));
     }
   }
 
@@ -601,6 +734,28 @@ public class CachedResultSet implements ResultSet {
   public Object getObject(final String columnLabel) throws SQLException {
     checkCurrentRow();
     return checkAndGetColumnValue(checkAndGetColumnIndex(columnLabel));
+  }
+
+  @Override
+  public Object getObject(final int columnIndex, final Map<String, Class<?>> map)
+      throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public Object getObject(final String columnLabel, final Map<String, Class<?>> map)
+      throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public <T> T getObject(final int columnIndex, final Class<T> type) throws SQLException {
+    return type.cast(getObject(columnIndex));
+  }
+
+  @Override
+  public <T> T getObject(final String columnLabel, final Class<T> type) throws SQLException {
+    return type.cast(getObject(columnLabel));
   }
 
   // Check the column index passed in is proper, and return the value of the column from the current row
@@ -618,7 +773,7 @@ public class CachedResultSet implements ResultSet {
   private int checkAndGetColumnIndex(final String columnLabel) throws SQLException {
     final Integer colIndex = columnNames.get(columnLabel);
     if (colIndex == null) {
-      throw new SQLException(Messages.get("CachedResultSet.columnNotFound", new Object[] {columnLabel}));
+      throw new SQLException(Messages.get("CachedResultSet.columnNotFound", new Object[]{columnLabel}));
     }
     return colIndex;
   }
@@ -627,7 +782,7 @@ public class CachedResultSet implements ResultSet {
   public int findColumn(final String columnLabel) throws SQLException {
     final Integer colIndex = columnNames.get(columnLabel);
     if (colIndex == null) {
-      throw new SQLException(Messages.get("CachedResultSet.columnNotFoundInResultSet", new Object[] {columnLabel}));
+      throw new SQLException(Messages.get("CachedResultSet.columnNotFoundInResultSet", new Object[]{columnLabel}));
     }
     return colIndex;
   }
@@ -640,20 +795,6 @@ public class CachedResultSet implements ResultSet {
   @Override
   public Reader getCharacterStream(final String columnLabel) throws SQLException {
     throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public BigDecimal getBigDecimal(final int columnIndex) throws SQLException {
-    final Object val = checkAndGetColumnValue(columnIndex);
-    if (val == null) return null;
-    if (val instanceof BigDecimal) return (BigDecimal) val;
-    if (val instanceof Number) return BigDecimal.valueOf(((Number) val).doubleValue());
-    return new BigDecimal(val.toString());
-  }
-
-  @Override
-  public BigDecimal getBigDecimal(final String columnLabel) throws SQLException {
-    return getBigDecimal(checkAndGetColumnIndex(columnLabel));
   }
 
   @Override
@@ -804,97 +945,12 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public void updateBoolean(final int columnIndex, final boolean x) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateByte(final int columnIndex, final byte x) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateShort(final int columnIndex, final short x) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateInt(final int columnIndex, final int x) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateLong(final int columnIndex, final long x) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateFloat(final int columnIndex, final float x) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateDouble(final int columnIndex, final double x) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateBigDecimal(final int columnIndex, final BigDecimal x) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateString(final int columnIndex, final String x) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateBytes(final int columnIndex, final byte[] x) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateDate(final int columnIndex, final Date x) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateTime(final int columnIndex, final Time x) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateTimestamp(final int columnIndex, final Timestamp x) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateAsciiStream(final int columnIndex, final InputStream x, final int length) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateBinaryStream(final int columnIndex, final InputStream x, final int length) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateCharacterStream(final int columnIndex, final Reader x, final int length) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateObject(final int columnIndex, final Object x, final int scaleOrLength) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateObject(final int columnIndex, final Object x) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
   public void updateNull(final String columnLabel) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateBoolean(final int columnIndex, final boolean x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
@@ -904,7 +960,17 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
+  public void updateByte(final int columnIndex, final byte x) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public void updateByte(final String columnLabel, final byte x) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateShort(final int columnIndex, final short x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
@@ -914,7 +980,17 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
+  public void updateInt(final int columnIndex, final int x) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public void updateInt(final String columnLabel, final int x) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateLong(final int columnIndex, final long x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
@@ -924,7 +1000,17 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
+  public void updateFloat(final int columnIndex, final float x) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public void updateFloat(final String columnLabel, final float x) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateDouble(final int columnIndex, final double x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
@@ -934,7 +1020,17 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
+  public void updateBigDecimal(final int columnIndex, final BigDecimal x) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public void updateBigDecimal(final String columnLabel, final BigDecimal x) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateString(final int columnIndex, final String x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
@@ -944,7 +1040,17 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
+  public void updateBytes(final int columnIndex, final byte[] x) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public void updateBytes(final String columnLabel, final byte[] x) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateDate(final int columnIndex, final Date x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
@@ -954,7 +1060,17 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
+  public void updateTime(final int columnIndex, final Time x) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public void updateTime(final String columnLabel, final Time x) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateTimestamp(final int columnIndex, final Timestamp x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
@@ -964,7 +1080,45 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
+  public void updateAsciiStream(final int columnIndex, final InputStream x, final int length) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public void updateAsciiStream(final String columnLabel, final InputStream x, final int length)
+      throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateAsciiStream(final int columnIndex, final InputStream x, final long length)
+      throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateAsciiStream(final String columnLabel, final InputStream x, final long length)
+      throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateAsciiStream(final int columnIndex, final InputStream x) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateAsciiStream(final String columnLabel, final InputStream x) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateBinaryStream(final int columnIndex, final InputStream x, final int length) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateBinaryStream(final int columnIndex, final InputStream x, final long length)
       throws SQLException {
     throw new UnsupportedOperationException();
   }
@@ -976,8 +1130,61 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
+  public void updateBinaryStream(final String columnLabel, final InputStream x, final long length)
+      throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateBinaryStream(final String columnLabel, final InputStream x) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateBinaryStream(final int columnIndex, final InputStream x) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateCharacterStream(final int columnIndex, final Reader x, final int length) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateCharacterStream(final int columnIndex, final Reader x, final long length)
+      throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateCharacterStream(final String columnLabel, final Reader reader, final long length)
+      throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public void updateCharacterStream(final String columnLabel, final Reader reader, final int length)
       throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateCharacterStream(final int columnIndex, final Reader x) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateCharacterStream(final String columnLabel, final Reader reader) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateObject(final int columnIndex, final Object x, final int scaleOrLength) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateObject(final int columnIndex, final Object x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
@@ -1033,34 +1240,7 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public Object getObject(final int columnIndex, final Map<String, Class<?>> map)
-      throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
   public Ref getRef(final int columnIndex) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public Blob getBlob(final int columnIndex) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public Clob getClob(final int columnIndex) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public Array getArray(final int columnIndex) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public Object getObject(final String columnLabel, final Map<String, Class<?>> map)
-      throws SQLException {
     throw new UnsupportedOperationException();
   }
 
@@ -1070,7 +1250,17 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
+  public Blob getBlob(final int columnIndex) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public Blob getBlob(final String columnLabel) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public Clob getClob(final int columnIndex) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
@@ -1080,49 +1270,28 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
+  public Array getArray(final int columnIndex) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public Array getArray(final String columnLabel) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public Date getDate(final int columnIndex, final Calendar cal) throws SQLException {
-    return convertToDate(checkAndGetColumnValue(columnIndex), cal);
-  }
-
-  @Override
-  public Date getDate(final String columnLabel, final Calendar cal) throws SQLException {
-    return getDate(checkAndGetColumnIndex(columnLabel), cal);
-  }
-
-  @Override
-  public Time getTime(final int columnIndex, final Calendar cal) throws SQLException {
-    return convertToTime(checkAndGetColumnValue(columnIndex), cal);
-  }
-
-  @Override
-  public Time getTime(final String columnLabel, final Calendar cal) throws SQLException {
-    return getTime(checkAndGetColumnIndex(columnLabel), cal);
-  }
-
-  @Override
-  public Timestamp getTimestamp(final int columnIndex, final Calendar cal) throws SQLException {
-    return convertToTimestamp(checkAndGetColumnValue(columnIndex), cal);
-  }
-
-  @Override
-  public Timestamp getTimestamp(final String columnLabel, final Calendar cal) throws SQLException {
-    return getTimestamp(checkAndGetColumnIndex(columnLabel), cal);
-  }
-
-  @Override
   public URL getURL(final int columnIndex) throws SQLException {
     Object val = checkAndGetColumnValue(columnIndex);
-    if (val == null) return null;
-    if (val instanceof URL) return (URL) val;
+    if (val == null) {
+      return null;
+    }
+    if (val instanceof URL) {
+      return (URL) val;
+    }
     try {
       return new URL(val.toString());
     } catch (MalformedURLException e) {
-      throw new SQLException(Messages.get("CachedResultSet.cannotExtractUrl", new Object[] {val}), e);
+      throw new SQLException(Messages.get("CachedResultSet.cannotExtractUrl", new Object[]{val}), e);
     }
   }
 
@@ -1152,12 +1321,56 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
+  public void updateBlob(final int columnIndex, final InputStream inputStream, final long length)
+      throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateBlob(final String columnLabel, final InputStream inputStream, final long length)
+      throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateBlob(final int columnIndex, final InputStream inputStream) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateBlob(final String columnLabel, final InputStream inputStream) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public void updateClob(final int columnIndex, final Clob x) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
   @Override
   public void updateClob(final String columnLabel, final Clob x) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateClob(final int columnIndex, final Reader reader, final long length)
+      throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateClob(final String columnLabel, final Reader reader, final long length)
+      throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateClob(final int columnIndex, final Reader reader) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateClob(final String columnLabel, final Reader reader) throws SQLException {
     throw new UnsupportedOperationException();
   }
 
@@ -1174,9 +1387,13 @@ public class CachedResultSet implements ResultSet {
   @Override
   public RowId getRowId(final int columnIndex) throws SQLException {
     Object val = checkAndGetColumnValue(columnIndex);
-    if (val == null) return null;
-    if (val instanceof RowId) return (RowId) val;
-    throw new SQLException(Messages.get("CachedResultSet.cannotExtractRowId", new Object[] {val}));
+    if (val == null) {
+      return null;
+    }
+    if (val instanceof RowId) {
+      return (RowId) val;
+    }
+    throw new SQLException(Messages.get("CachedResultSet.cannotExtractRowId", new Object[]{val}));
   }
 
   @Override
@@ -1229,6 +1446,28 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
+  public void updateNClob(final int columnIndex, final Reader reader, final long length)
+      throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateNClob(final String columnLabel, final Reader reader, final long length)
+      throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateNClob(final int columnIndex, final Reader reader) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void updateNClob(final String columnLabel, final Reader reader) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   @SuppressWarnings("checkstyle:MethodName")
   public NClob getNClob(final int columnIndex) throws SQLException {
     throw new UnsupportedOperationException();
@@ -1242,8 +1481,12 @@ public class CachedResultSet implements ResultSet {
   @Override
   public SQLXML getSQLXML(final int columnIndex) throws SQLException {
     Object val = checkAndGetColumnValue(columnIndex);
-    if (val == null) return null;
-    if (val instanceof SQLXML) return (SQLXML) val;
+    if (val == null) {
+      return null;
+    }
+    if (val instanceof SQLXML) {
+      return (SQLXML) val;
+    }
     return new CachedSQLXML(val.toString());
   }
 
@@ -1295,78 +1538,6 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public void updateAsciiStream(final int columnIndex, final InputStream x, final long length)
-      throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateBinaryStream(final int columnIndex, final InputStream x, final long length)
-      throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateCharacterStream(final int columnIndex, final Reader x, final long length)
-      throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateAsciiStream(final String columnLabel, final InputStream x, final long length)
-      throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateBinaryStream(final String columnLabel, final InputStream x, final long length)
-      throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateCharacterStream(final String columnLabel, final Reader reader, final long length)
-      throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateBlob(final int columnIndex, final InputStream inputStream, final long length)
-      throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateBlob(final String columnLabel, final InputStream inputStream, final long length)
-      throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateClob(final int columnIndex, final Reader reader, final long length)
-      throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateClob(final String columnLabel, final Reader reader, final long length)
-      throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateNClob(final int columnIndex, final Reader reader, final long length)
-      throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateNClob(final String columnLabel, final Reader reader, final long length)
-      throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
   public void updateNCharacterStream(final int columnIndex, final Reader x) throws SQLException {
     throw new UnsupportedOperationException();
   }
@@ -1377,81 +1548,11 @@ public class CachedResultSet implements ResultSet {
   }
 
   @Override
-  public void updateAsciiStream(final int columnIndex, final InputStream x) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateBinaryStream(final int columnIndex, final InputStream x) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateCharacterStream(final int columnIndex, final Reader x) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateAsciiStream(final String columnLabel, final InputStream x) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateBinaryStream(final String columnLabel, final InputStream x) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateCharacterStream(final String columnLabel, final Reader reader) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateBlob(final int columnIndex, final InputStream inputStream) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateBlob(final String columnLabel, final InputStream inputStream) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateClob(final int columnIndex, final Reader reader) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateClob(final String columnLabel, final Reader reader) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateNClob(final int columnIndex, final Reader reader) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void updateNClob(final String columnLabel, final Reader reader) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public <T> T getObject(final int columnIndex, final Class<T> type) throws SQLException {
-    return type.cast(getObject(columnIndex));
-  }
-
-  @Override
-  public <T> T getObject(final String columnLabel, final Class<T> type) throws SQLException {
-    return type.cast(getObject(columnLabel));
-  }
-
-  @Override
   public <T> T unwrap(final Class<T> iface) throws SQLException {
     if (iface.isAssignableFrom(this.getClass())) {
       return iface.cast(this);
     } else {
-      throw new SQLException(Messages.get("CachedResultSet.cannotUnwrap", new Object[] {iface.getName()}));
+      throw new SQLException(Messages.get("CachedResultSet.cannotUnwrap", new Object[]{iface.getName()}));
     }
   }
 

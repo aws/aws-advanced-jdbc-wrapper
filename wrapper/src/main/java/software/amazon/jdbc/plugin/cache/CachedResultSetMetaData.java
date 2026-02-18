@@ -80,8 +80,9 @@ class CachedResultSetMetaData implements ResultSetMetaData, Serializable {
   }
 
   private Field getColumns(final int column) throws SQLException {
-    if (column == 0 || column > columns.length)
-      throw new SQLException(Messages.get("CachedResultSetMetaData.wrongColumnNumber", new Object[] {column}));
+    if (column == 0 || column > columns.length) {
+      throw new SQLException(Messages.get("CachedResultSetMetaData.wrongColumnNumber", new Object[]{column}));
+    }
     return columns[column - 1];
   }
 

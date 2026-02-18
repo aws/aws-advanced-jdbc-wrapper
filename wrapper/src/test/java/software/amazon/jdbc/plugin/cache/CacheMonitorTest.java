@@ -16,9 +16,21 @@
 
 package software.amazon.jdbc.plugin.cache;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import io.lettuce.core.RedisCommandExecutionException;
 import io.lettuce.core.RedisConnectionException;
@@ -43,16 +55,25 @@ public class CacheMonitorTest {
   private Properties props;
   private AutoCloseable closeable;
 
-  @Mock private TelemetryFactory mockTelemetryFactory;
-  @Mock private TelemetryCounter mockStateTransitionCounter;
-  @Mock private TelemetryCounter mockHealthCheckSuccessCounter;
-  @Mock private TelemetryCounter mockHealthCheckFailureCounter;
-  @Mock private TelemetryCounter mockErrorCounter;
-  @Mock private TelemetryGauge mockConsecutiveSuccessGauge;
-  @Mock private TelemetryGauge mockConsecutiveFailureGauge;
+  @Mock
+  private TelemetryFactory mockTelemetryFactory;
+  @Mock
+  private TelemetryCounter mockStateTransitionCounter;
+  @Mock
+  private TelemetryCounter mockHealthCheckSuccessCounter;
+  @Mock
+  private TelemetryCounter mockHealthCheckFailureCounter;
+  @Mock
+  private TelemetryCounter mockErrorCounter;
+  @Mock
+  private TelemetryGauge mockConsecutiveSuccessGauge;
+  @Mock
+  private TelemetryGauge mockConsecutiveFailureGauge;
 
-  @Mock private CachePingConnection mockRwPingConnection;
-  @Mock private CachePingConnection mockRoPingConnection;
+  @Mock
+  private CachePingConnection mockRwPingConnection;
+  @Mock
+  private CachePingConnection mockRoPingConnection;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -104,7 +125,8 @@ public class CacheMonitorTest {
     long inFlightLimit = CacheMonitor.CACHE_IN_FLIGHT_WRITE_SIZE_LIMIT.getLong(props);
     boolean healthCheckInHealthy = CacheMonitor.CACHE_HEALTH_CHECK_IN_HEALTHY_STATE.getBoolean(props);
 
-    CacheMonitor.registerCluster(null, inFlightLimit, healthCheckInHealthy, mockTelemetryFactory, rwEndpoint, roEndpoint,
+    CacheMonitor.registerCluster(null, inFlightLimit, healthCheckInHealthy, mockTelemetryFactory, rwEndpoint,
+        roEndpoint,
         false, Duration.ofSeconds(5), false, null, null, null, null, null, false, false);
 
     CacheMonitor.ClusterHealthState cluster = getCluster(rwEndpoint, roEndpoint);
@@ -352,8 +374,8 @@ public class CacheMonitorTest {
   void testExecutePing_EdgeCases() throws Exception {
     // Dual endpoints track independently
     registerClusterWithTelemetry("localhost:6379", "localhost:6380");
-    CacheMonitor.ClusterHealthState cluster = getCluster("localhost:6379", "localhost:6380");
-    CacheMonitor instance = (CacheMonitor) getStaticField("instance");
+    final CacheMonitor.ClusterHealthState cluster = getCluster("localhost:6379", "localhost:6380");
+    final CacheMonitor instance = (CacheMonitor) getStaticField("instance");
 
     when(mockRwPingConnection.isOpen()).thenReturn(true);
     when(mockRwPingConnection.ping()).thenReturn(false);
@@ -381,22 +403,27 @@ public class CacheMonitorTest {
     resetCacheMonitorState();
     props.setProperty(CacheMonitor.CACHE_IN_FLIGHT_WRITE_SIZE_LIMIT.name, "1000");
     registerClusterWithTelemetry("localhost:6379", null);
-    cluster = getCluster("localhost:6379", null);
-    instance = (CacheMonitor) getStaticField("instance");
-    cluster.transitionToState(CacheMonitor.HealthState.DEGRADED, true, "test_setup", null);
-    cluster.inFlightWriteSizeBytes.set(500);
+    CacheMonitor.ClusterHealthState singleCluster = getCluster("localhost:6379", null);
+    final CacheMonitor singleInstance = (CacheMonitor) getStaticField("instance");
+    singleCluster.transitionToState(CacheMonitor.HealthState.DEGRADED, true, "test_setup", null);
+    singleCluster.inFlightWriteSizeBytes.set(500);
 
     reset(mockRwPingConnection);
     when(mockRwPingConnection.isOpen()).thenReturn(true);
     when(mockRwPingConnection.ping()).thenReturn(true);
-    invokeExecutePing(instance, cluster, true);
-    invokeExecutePing(instance, cluster, true);
-    invokeExecutePing(instance, cluster, true);
-    assertEquals(CacheMonitor.HealthState.HEALTHY, cluster.rwHealthState);
+    invokeExecutePing(singleInstance, singleCluster, true);
+    invokeExecutePing(singleInstance, singleCluster, true);
+    invokeExecutePing(singleInstance, singleCluster, true);
+    assertEquals(CacheMonitor.HealthState.HEALTHY, singleCluster.rwHealthState);
   }
 
-  private void invokeExecutePing(CacheMonitor instance, CacheMonitor.ClusterHealthState cluster, boolean isRw) throws Exception {
-    Method method = CacheMonitor.class.getDeclaredMethod("executePing", CacheMonitor.ClusterHealthState.class, boolean.class);
+  private void invokeExecutePing(
+      CacheMonitor instance,
+      CacheMonitor.ClusterHealthState cluster,
+      boolean isRw
+  ) throws Exception {
+    Method method = CacheMonitor.class.getDeclaredMethod("executePing", CacheMonitor.ClusterHealthState.class,
+        boolean.class);
     method.setAccessible(true);
     method.invoke(instance, cluster, isRw);
   }
@@ -423,7 +450,7 @@ public class CacheMonitorTest {
     try {
       spy.monitor();
     } catch (Exception e) {
-
+      // Do nothing
     }
     verify(mockRwPingConnection, never()).ping();
 
@@ -446,7 +473,7 @@ public class CacheMonitorTest {
     try {
       spy.monitor();
     } catch (Exception e) {
-
+      // Do nothing
     }
     verify(mockRwPingConnection, times(2)).ping();
 
@@ -471,7 +498,7 @@ public class CacheMonitorTest {
     try {
       spy.monitor();
     } catch (Exception e) {
-
+      // Do nothing
     }
     verify(mockRwPingConnection, times(4)).ping();
 
@@ -500,7 +527,7 @@ public class CacheMonitorTest {
     try {
       spy.monitor();
     } catch (Exception e) {
-
+      // Do nothing
     }
     verify(mockRwPingConnection, times(2)).ping();
     verify(mockRoPingConnection, times(2)).ping();
@@ -530,7 +557,7 @@ public class CacheMonitorTest {
     try {
       spy.monitor();
     } catch (Exception e) {
-
+      // Do nothing
     }
     verify(mockRwPingConnection, times(2)).ping();
   }
@@ -559,7 +586,8 @@ public class CacheMonitorTest {
         classifyMethod.invoke(null, new RuntimeException("Serialization failed")));
 
     // Test 2: isRecoverableError determines recoverability
-    Method recoverableMethod = CacheMonitor.class.getDeclaredMethod("isRecoverableError", CacheMonitor.ErrorCategory.class);
+    Method recoverableMethod = CacheMonitor.class.getDeclaredMethod("isRecoverableError",
+        CacheMonitor.ErrorCategory.class);
     recoverableMethod.setAccessible(true);
 
     assertTrue((Boolean) recoverableMethod.invoke(null, CacheMonitor.ErrorCategory.CONNECTION));
@@ -572,7 +600,8 @@ public class CacheMonitorTest {
     CacheMonitor.ClusterHealthState cluster = getCluster("localhost:6379", null);
     CacheMonitor instance = (CacheMonitor) getStaticField("instance");
 
-    Method pingMethod = CacheMonitor.class.getDeclaredMethod("ping", CacheMonitor.ClusterHealthState.class, boolean.class);
+    Method pingMethod = CacheMonitor.class.getDeclaredMethod("ping", CacheMonitor.ClusterHealthState.class,
+        boolean.class);
     pingMethod.setAccessible(true);
 
     cluster.rwPingConnection = null;
